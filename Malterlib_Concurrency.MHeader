@@ -1,0 +1,55 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+Import "../Core/Lib_Malterlib.MTarget"
+
+%Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
+{
+	%Group Concurrency
+	{
+		%Group Include
+		{
+			Compile.Type "C++"
+			{
+				!!DocumentationEnabled true
+			}
+			%File "Include/Mib/Concurrency/^*"
+		}
+		%File "Source/*"
+		%Group Documentation
+		{
+			%File "Documentation/*"
+		}
+	}
+}
+
+
+Property
+{
+	MalterlibLibrary_Concurrency true
+	{
+		&
+		{
+			MalterlibLibrary_Concurrency ""
+			MalterlibLibrary_All true
+		}
+	}
+	MalterlibSubLibraries "Concurrency;@(MalterlibSubLibraries)"
+	{
+		!!MalterlibLibrary_Concurrency true
+	}
+//	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency true
+	MalterlibIncludeRoots "@('Include'->MakeAbsolute());@(MalterlibIncludeRoots)"
+	{
+		!!MalterlibLibrary_Concurrency true
+	}
+}
+
+Property
+{
+	!!MalterlibEnableInternalTests true
+	
+	MalterlibTests "Malterlib_Concurrency;@(MalterlibTests)"
+	MalterlibTestFiles_Malterlib_Concurrency "@('Test/*'->MakeAbsolute())"
+}
+

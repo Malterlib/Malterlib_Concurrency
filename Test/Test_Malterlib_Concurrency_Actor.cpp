@@ -1,0 +1,389 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+#include <Mib/Test/Performance>
+
+#include <Mib/Concurrency/ConcurrencyManager>
+#include <Mib/Concurrency/ActorCallbackManager>
+
+namespace
+{
+	using namespace NMib;
+	using namespace NMib::NPtr;
+	using namespace NMib::NMeta;
+	using namespace NMib::NContainer;
+	using namespace NMib::NConcurrency;
+	using namespace NMib::NThread;
+	using namespace NMib::NFunction;
+	
+	class CPerformanceTestActor : public CActor
+	{
+		zuint32 m_Value;
+	public:
+		void f_AddInt(uint32 _Value)
+		{
+			m_Value += _Value;
+		}
+		uint32 f_GetResult()
+		{
+			return m_Value;
+		}
+	};
+
+	
+	class CBaseActor : public CActor
+	{
+	public:
+		virtual uint32 f_GetValue()
+		{
+			return 1;
+		}
+		virtual uint32 f_GetSpecificValue(uint32 _Value)
+		{
+			return 0;
+		}
+	};
+	class CDerivedActor : public CBaseActor
+	{
+	public:
+		virtual uint32 f_GetValue() override
+		{
+			return 2;
+		}
+		virtual uint32 f_GetSpecificValue(uint32 _Value) override
+		{
+			return _Value;
+		}
+		
+		virtual TCContinuation<void> f_Destroy() override
+		{
+			return TCContinuation<void>::fs_Finished(); 
+		}
+	};
+	
+	class CCallbackActor : public CActor
+	{
+		TCActorCallbackManager<void (int32)> m_CallbackManager;
+	public:
+		CCallbackActor()
+			: CActor()
+			, m_CallbackManager(this, false)
+		{
+		}
+		
+		TCUniquePointer<CActorCallbackReference> f_RegisterCallback(TCActor<CActor> _pActor, TCFunction<void (int32 _Value)> && _fCallback)
+		{
+			return m_CallbackManager.f_Register(_pActor, fg_Move(_fCallback));
+		}
+		
+		void f_CallCallback(int32 _Value)
+		{
+			m_CallbackManager(_Value);
+		}
+	};
+	class CActor_Tests : public NMib::NTest::CTest
+	{
+	public:
+		
+		void f_FunctionalTests()
+		{
+			DMibTestSuite("Interface")
+			{
+				{
+					DMibTestPath("One param");
+					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
+					TCActor<CActor> ResultActor = fg_ConstructActor<CActor>();
+
+					CEventAutoReset FinishedEvent;
+
+					uint32 Value = 555;
+					
+					TestActor(&CBaseActor::f_GetSpecificValue, 2)
+						> ResultActor / [&](TCAsyncResult<uint32> && _Result0)
+						{
+							Value = _Result0.f_Get();
+							FinishedEvent.f_Signal();
+						}
+					;
+					FinishedEvent.f_Wait();
+					
+					DMibTest(DMibExpr(Value) == DMibExpr(2));
+				}
+				{
+					DMibTestPath("Two param");
+					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
+					TCActor<CActor> ResultActor = fg_ConstructActor<CActor>();
+					CEventAutoReset FinishedEvent;
+					uint32 Value = 555;
+					
+					TestActor(&CBaseActor::f_GetValue) 
+						+ TestActor(&CBaseActor::f_GetValue)
+						> ResultActor / [&](TCAsyncResult<uint32> && _Result0, TCAsyncResult<uint32> && _Result1)
+						{
+							Value = _Result0.f_Get() + _Result1.f_Get();
+							FinishedEvent.f_Signal();
+						}
+					;
+
+					FinishedEvent.f_Wait();
+					
+					DMibTest(DMibExpr(Value) == DMibExpr(4));
+				}
+				{
+					DMibTestPath("Many param");
+					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
+					TCActor<CActor> ResultActor = fg_ConstructActor<CActor>();
+					CEventAutoReset FinishedEvent;
+					uint32 Value = 555;
+					
+					TestActor(&CBaseActor::f_GetValue) 
+						+ TestActor(&CBaseActor::f_GetValue)
+						+ TestActor(&CBaseActor::f_GetValue)
+						+ TestActor(&CBaseActor::f_GetValue)
+						+ TestActor(&CBaseActor::f_GetSpecificValue, 1)
+						+ TestActor(&CBaseActor::f_GetSpecificValue, 2)
+						+ TestActor(&CBaseActor::f_GetSpecificValue, 3)
+						+ TestActor(&CBaseActor::f_GetSpecificValue, 4)
+						> TestActor / [&]
+						(
+							TCAsyncResult<uint32> && _Result0
+							, TCAsyncResult<uint32> && _Result1
+							, TCAsyncResult<uint32> && _Result2
+							, TCAsyncResult<uint32> && _Result3
+							, TCAsyncResult<uint32> && _Result4
+							, TCAsyncResult<uint32> && _Result5
+							, TCAsyncResult<uint32> && _Result6
+							, TCAsyncResult<uint32> && _Result7
+						)
+						{
+							Value 
+								= _Result0.f_Get() 
+								+ _Result1.f_Get()
+								+ _Result2.f_Get()
+								+ _Result3.f_Get()
+								+ _Result4.f_Get()
+								+ _Result5.f_Get()
+								+ _Result6.f_Get()
+								+ _Result7.f_Get()
+							;
+							FinishedEvent.f_Signal();
+						}
+					;
+
+					FinishedEvent.f_Wait();
+					
+					DMibTest(DMibExpr(Value) == DMibExpr(8+1+2+3+4));
+				}
+			};
+			
+			DMibTestSuite("Inheritance")
+			{
+				TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
+				TCActor<CActor> ResultActor = fg_ConstructActor<CActor>();
+				CEventAutoReset FinishedEvent;
+				uint32 Value = 555;
+				TestActor(&CBaseActor::f_GetValue)
+					> ResultActor / [&](TCAsyncResult<uint32> && _Result)
+					{
+						Value = _Result.f_Get();
+						FinishedEvent.f_Signal();
+					}
+				;
+				
+				FinishedEvent.f_Wait();
+				
+				DMibTest(DMibExpr(Value) == DMibExpr(2));
+			};
+			
+			DMibTestSuite("Callbacks")
+			{
+				TCActor<CCallbackActor> TestActor = fg_ConstructActor<CCallbackActor>();
+				
+				CMutual Lock;
+				TCUniquePointer<CActorCallbackReference> CallbackReference;
+				CEventAutoReset FinishedEvent;
+				NAtomic::TCAtomic<uint32> CallbackValue;
+				TestActor
+					(
+						&CCallbackActor::f_RegisterCallback
+						, fg_ConcurrentActor()
+						, [&](int32 _Value)
+						{
+							CallbackValue = _Value;
+							FinishedEvent.f_Signal();
+						}
+					)
+					> fg_ConcurrentActor() / [&](TCAsyncResult<TCUniquePointer<CActorCallbackReference>> && _Result)
+					{
+						DMibLock(Lock);
+						CallbackReference = fg_Move(*_Result);
+						FinishedEvent.f_Signal();
+					}
+				;
+				FinishedEvent.f_Wait();
+				
+				DMibTest(DMibExpr(CallbackReference) != DMibExpr(nullptr));
+				
+				TestActor(&CCallbackActor::f_CallCallback, 32)
+					> fg_DiscardResult()
+				;
+
+				FinishedEvent.f_Wait();
+				{
+					DMibLock(Lock);
+				}
+				
+				DMibTest(DMibExpr(CallbackValue.f_Load()) == DMibExpr(32));
+				
+			};
+			
+		}
+		
+		void f_PerformanceTests()
+		{
+			DMibTestSuite(CTestCategory("Performance") << CTestGroup("Performance"))
+			{
+#ifdef DDebug
+				mint nIterations = 1*100*1000;
+#else
+				mint nIterations = 1*100*1000;
+#endif
+				CTestPerformance PerfTest(0.9);
+#if 0
+				{
+					DMibTestPath("Dispatch vector");
+					CTestPerformanceMeasure DispatchMeasure("Dispatch vector");
+					CPerformanceTestActor ActorEmul;
+					TCVector<TCFunction<void ()>> ToDispatch;
+					ToDispatch.f_SetLen(nIterations);
+					
+					for (mint i = 0; i < 5; ++i)
+					{
+						DMibTestScopeMeasure(DispatchMeasure, nIterations);
+						for (auto& Dispatch : ToDispatch)
+						{
+							Dispatch 
+								= [&]
+								{
+									ActorEmul.f_AddInt(1);
+								}
+							;
+						}
+						for (auto& Dispatch : ToDispatch)
+						{
+							Dispatch();
+						}
+					}
+					
+					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					PerfTest.f_AddBaseline(DispatchMeasure);
+				}
+#endif
+				{
+					DMibTestPath("Dispatch");
+					CTestPerformanceMeasure DispatchMeasure("Dispatch");
+					CPerformanceTestActor ActorEmul;
+					TCLinkedList<TCFunction<void ()>> ToDispatch;
+	
+					for (mint i = 0; i < 5; ++i)
+					{
+						DMibTestScopeMeasure(DispatchMeasure, nIterations);
+						for (mint i = 0; i < nIterations; ++i)
+						{
+							ToDispatch.f_Insert
+								(
+									[&]
+									{
+										ActorEmul.f_AddInt(1);
+									}
+								)
+							;
+						}
+						while (!ToDispatch.f_IsEmpty())
+						{
+							auto &First = ToDispatch.f_GetFirst();
+							First();
+							ToDispatch.f_Remove(First);
+						}
+					}
+					
+					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					PerfTest.f_AddBaseline(DispatchMeasure);
+				}
+				{
+					DMibTestPath("Dispatch threaded");
+					CTestPerformanceMeasure DispatchMeasure("Dispatch threaded");
+					CPerformanceTestActor ActorEmul;
+					TCThreadSafeQueue<TCFunction<void ()>> ToDispatch;
+	
+					for (mint i = 0; i < 5; ++i)
+					{
+						DMibTestScopeMeasure(DispatchMeasure, nIterations);
+						for (mint i = 0; i < nIterations; ++i)
+						{
+							ToDispatch.f_Push
+								(
+									[&]
+									{
+										ActorEmul.f_AddInt(1);
+									}
+								)
+							;
+						}
+						while (auto Dispatch = ToDispatch.f_Pop())
+							(*Dispatch)();
+					}
+					
+					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					PerfTest.f_AddBaseline(DispatchMeasure);
+				}
+				{
+					DMibTestPath("Actor");
+					CTestPerformanceMeasure ActorMeasure("Actor");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					
+					uint32 Result = 0;;
+					for (mint i = 0; i < 5; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+						for (mint i = 0; i < nIterations; ++i)
+						{
+							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1)
+								> fg_ConcurrentActor() / [](TCAsyncResult<void> && _Result)
+								{
+								}
+							;
+						}
+						
+						NThread::CEvent FinishedEvent;
+						
+						PerfTestActor(&CPerformanceTestActor::f_GetResult)
+							> fg_ConcurrentActor() / [&](TCAsyncResult<uint32> && _Result)
+							{
+								Result = _Result.f_Get();
+								FinishedEvent.f_SetSignaled();
+							}
+						;
+						
+						FinishedEvent.f_Wait();						
+					}
+					
+					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					
+					PerfTest.f_Add(ActorMeasure);
+				}
+				
+				DMibTest(DMibExpr(PerfTest));
+			};
+		}
+		
+		void f_DoTests()
+		{
+			f_FunctionalTests();
+			f_PerformanceTests();		
+		}
+	};
+
+	
+	DMibTestRegister(CActor_Tests, Malterlib::Concurrency);
+}

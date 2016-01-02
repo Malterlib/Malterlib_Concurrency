@@ -1,0 +1,4 @@
+
+#pragma once
+
+#include "../../../Source/Malterlib_Concurrency_ThreadSafeQueueAtomic.h"

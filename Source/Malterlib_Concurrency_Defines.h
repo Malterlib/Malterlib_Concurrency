@@ -72,6 +72,9 @@ namespace NMib
 			bool operator < (TCActor const& _Right) const;
 			bool operator < (TCWeakActor<t_CActor> const& _Right) const;
 
+			bool operator == (TCActor const& _Right) const;
+			bool operator == (TCWeakActor<t_CActor> const& _Right) const;
+
 			inline_small explicit operator bool() const;
 			
 			template <typename tf_CMemberFunction, typename... tfp_CCallParams>

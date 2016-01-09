@@ -62,6 +62,9 @@ namespace NMib
 			
 			bool operator < (TCWeakActor const& _Right) const;
 			bool operator < (TCActor<t_CActor> const& _Right) const;
+			
+			bool operator == (TCWeakActor const& _Right) const;
+			bool operator == (TCActor<t_CActor> const& _Right) const;
 
 			inline_small explicit operator bool() const;
 			

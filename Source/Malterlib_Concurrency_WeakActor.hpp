@@ -182,6 +182,18 @@ namespace NMib
 		{
 			return m_pInternalActor.f_Get() < _Right.m_pInternalActor.f_Get();
 		}
+		
+		template <typename t_CActor>
+		bool TCWeakActor<t_CActor>::operator == (TCWeakActor const& _Right) const
+		{
+			return m_pInternalActor.f_Get() == _Right.m_pInternalActor.f_Get();
+		}
+		
+		template <typename t_CActor>
+		bool TCWeakActor<t_CActor>::operator == (TCActor<t_CActor> const& _Right) const
+		{
+			return m_pInternalActor.f_Get() == _Right.m_pInternalActor.f_Get();
+		}
 
 		template <typename t_CActor>
 		inline_small TCWeakActor<t_CActor>::operator bool() const

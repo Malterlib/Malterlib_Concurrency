@@ -15,14 +15,14 @@ namespace NMib
 
 		template <typename t_CActor>
 		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager)
-			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete)
+			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority)
 		{
 		}
 
 		template <typename t_CActor>
 		template <typename tf_CP0>
 		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager, tf_CP0 &&_P0)
-			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, fg_Forward<tf_CP0>(_P0))
+			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority, fg_Forward<tf_CP0>(_P0))
 		{
 		}
 

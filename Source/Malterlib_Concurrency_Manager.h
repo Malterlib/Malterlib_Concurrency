@@ -31,23 +31,30 @@ namespace NMib
 			friend class CActorHolder;
 			friend class CActor;
 			friend class CDefaultActorHolder;
+			
+			struct CLocalSemaphore : public NThread::CSemaphore
+			{
+				CLocalSemaphore();
+			};
+			
 			NThread::CMutual m_ActorListLock;
 			DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
-			NContainer::TCThreadSafeQueue<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> m_JobQueue;
-			NThread::CSemaphore m_JobSemaphore;
+			NContainer::TCThreadSafeQueue<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> m_JobQueue[EPriority_Max];
+			CLocalSemaphore m_JobSemaphore[EPriority_Max];
 
-			NContainer::TCVector<NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap>, NMem::CAllocator_NonTrackedHeap> m_Threads;
+			NContainer::TCVector<NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap>, NMem::CAllocator_NonTrackedHeap> m_Threads[EPriority_Max];
 
 			NThread::CMutual m_pConcurrentActorLock;
 			TCActor<CConcurrentActor> m_pConcurrentActor;
+			TCActor<CConcurrentActorLowPrio> m_pConcurrentActorLowPrio;
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
 
-			void fp_RunThread(NThread::CThreadObjectNonTracked *_pThread);
-			void fp_QueueJob(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+			void fp_RunThread(EPriority _Priority, NThread::CThreadObjectNonTracked *_pThread);
+			void fp_QueueJob(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
 			{
-				m_JobQueue.f_Push(fg_Move(_ToQueue));
-				m_JobSemaphore.f_Signal();
+				m_JobQueue[_Priority].f_Push(fg_Move(_ToQueue));
+				m_JobSemaphore[_Priority].f_Signal();
 			}
 
 		public:
@@ -71,6 +78,7 @@ namespace NMib
 
 			void f_BlockOnDestroy();
 			TCActor<CConcurrentActor> const &f_GetConcurrentActor();
+			TCActor<CConcurrentActorLowPrio> const &f_GetConcurrentActorLowPrio();
 			TCActor<CTimerActor> const &f_GetTimerActor();
 
 		};

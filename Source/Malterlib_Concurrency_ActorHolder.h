@@ -25,7 +25,7 @@ namespace NMib
 
 			virtual bool f_Concurrent() pure;
 			
-			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete);
+			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
@@ -61,6 +61,7 @@ namespace NMib
 		protected:
 			CConcurrencyManager *m_pConcurrencyManager;
 			bool mp_bImmediateDelete;
+			EPriority mp_Priority;
 			NPtr::TCUniquePointer<CActor> mp_pActor;
 			NThread::CMutual m_WorkLock;
 			NThread::CMutualManyRead m_DeleteLock;
@@ -80,7 +81,7 @@ namespace NMib
 			virtual bool fp_QueueProcessIsEmpty() const override;
 			virtual void fp_Construct()	override;
 		public:
-			CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete);
+			CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
 
 			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
 			void f_QueueProcessConcurrent(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
@@ -96,7 +97,7 @@ namespace NMib
 
 			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
 		public:
-			CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher);
+			CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher);
 			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
 		};
 
@@ -109,7 +110,7 @@ namespace NMib
 			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
 			void fp_Construct() override;
 		public:
-			CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, NStr::CStr const &_ThreadName);
+			CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStr::CStr const &_ThreadName);
 			~CSeparateThreadActorHolder();
 			void f_DestroyThreaded();
 			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);

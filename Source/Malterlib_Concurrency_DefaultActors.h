@@ -19,5 +19,13 @@ namespace NMib
 			void f_Call();
 			void f_Dispatch(NFunction::TCFunction<void ()> && _ToDispatch);
 		};		
+		class CConcurrentActorLowPrio : public CConcurrentActor
+		{
+		public:
+			enum
+			{
+				mc_Priority = EPriority_Low
+			};
+		};		
 	}
 }

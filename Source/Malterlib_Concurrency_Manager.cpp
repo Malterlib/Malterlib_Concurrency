@@ -58,38 +58,63 @@ namespace NMib
 			return fg_ConcurrencyManager().f_GetConcurrentActor();
 		}
 		
+		NConcurrency::TCActor<NConcurrency::CConcurrentActorLowPrio> fg_ConcurrentActorLowPrio()
+		{
+			return fg_ConcurrencyManager().f_GetConcurrentActorLowPrio();
+		}
+		
 		///
 		/// CConcurrencyManager
 		/// ===================
 //#define DMibNoConcurrency
 
-		CConcurrencyManager::CConcurrencyManager()
+		CConcurrencyManager::CLocalSemaphore::CLocalSemaphore()
 #ifdef DMibNoConcurrency
-			: m_JobSemaphore(0, 1)
+			: NThread::CSemaphore(0, 1)
 #else
-			: m_JobSemaphore(0, NSys::fg_Thread_GetVirtualCores())
+			: NThread::CSemaphore(0, NSys::fg_Thread_GetVirtualCores())
 #endif
+		{
+		}
+		
+		CConcurrencyManager::CConcurrencyManager()
 		{
 #ifdef DMibNoConcurrency
 			mint nThreads = 1;
 #else
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
-			for (mint i = 0; i < nThreads; ++i)
+			for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 			{
-				m_Threads.f_Insert
-					(
-						NThread::CThreadObjectNonTracked::fs_StartThread
+				NStr::CStrNonTracked Name;
+				EThreadPriority ThreadPrio = EThreadPriority_Normal;
+				switch (Priority)
+				{
+				case EPriority_Low:
+					Name = "Low";
+					ThreadPrio = EThreadPriority_Lowest;
+					break;
+				case EPriority_Normal:
+					Name = "Normal";
+					break;
+				}
+				for (mint i = 0; i < nThreads; ++i)
+				{
+					m_Threads[Priority].f_Insert
 						(
-							[this](NThread::CThreadObjectNonTracked *_pThread) -> aint
-							{
-								fp_RunThread(_pThread);
-								return 0;
-							}
-							, NStr::CStrNonTracked::CFormat("MalterlibThreadPool {}") << i
+							NThread::CThreadObjectNonTracked::fs_StartThread
+							(
+								[this, Priority](NThread::CThreadObjectNonTracked *_pThread) -> aint
+								{
+									fp_RunThread(Priority, _pThread);
+									return 0;
+								}
+								, NStr::CStrNonTracked::CFormat("MalterlibThreadPool({}) {}") << Name << i
+								, ThreadPrio
+							)
 						)
-					)
-				;
+					;
+				}
 			}
 		}
 
@@ -97,15 +122,18 @@ namespace NMib
 		{
 			f_BlockOnDestroy();
 			// Signal thread quit
-			for (auto Iter = m_Threads.f_GetIterator(); Iter; ++Iter)
+			for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
 			{
-				(*Iter)->f_Stop(false);
-			}
-			m_JobSemaphore.f_Signal(m_Threads.f_GetLen());
-			m_Threads.f_Clear();
-			while (auto pJob = m_JobQueue.f_Pop())
-			{
-				(*pJob)();
+				for (auto Iter = m_Threads[Prio].f_GetIterator(); Iter; ++Iter)
+				{
+					(*Iter)->f_Stop(false);
+				}
+				m_JobSemaphore[Prio].f_Signal(m_Threads[Prio].f_GetLen());
+				m_Threads[Prio].f_Clear();
+				while (auto pJob = m_JobQueue[Prio].f_Pop())
+				{
+					(*pJob)();
+				}
 			}
 		}
 
@@ -116,15 +144,15 @@ namespace NMib
 			DMibCheck(m_Actors.f_IsEmpty());
 		}
 
-		void CConcurrencyManager::fp_RunThread(NThread::CThreadObjectNonTracked *_pThread)
+		void CConcurrencyManager::fp_RunThread(EPriority _Priority, NThread::CThreadObjectNonTracked *_pThread)
 		{
 			while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 			{
-				while (auto pJob = m_JobQueue.f_Pop())
+				while (auto pJob = m_JobQueue[_Priority].f_Pop())
 				{
 					(*pJob)();
 				}
-				m_JobSemaphore.f_Wait();
+				m_JobSemaphore[_Priority].f_Wait();
 			}
 		}
 
@@ -137,6 +165,7 @@ namespace NMib
 			DMibLock(m_ActorListLock);
 			{
 				m_pConcurrentActor->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
+				m_pConcurrentActorLowPrio->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
 				m_pTimerActor->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
 				while (!m_Actors.f_IsEmpty())
 				{
@@ -167,11 +196,14 @@ namespace NMib
 			// Finally delete the concurrent actor
 			{
 				m_Actors.f_Insert(*m_pConcurrentActor.m_pInternalActor);
+				m_Actors.f_Insert(*m_pConcurrentActorLowPrio.m_pInternalActor);
 				{
 					DMibUnlock(m_ActorListLock);
 					DMibLock(m_pConcurrentActorLock);
 					m_pConcurrentActor->fp_Terminate();
 					m_pConcurrentActor = nullptr;
+					m_pConcurrentActorLowPrio->fp_Terminate();
+					m_pConcurrentActorLowPrio= nullptr;
 				}
 				while (!m_Actors.f_IsEmpty())
 				{
@@ -191,6 +223,19 @@ namespace NMib
 						m_pConcurrentActor = fg_ConstructActor<CConcurrentActor>();
 				}
 				return m_pConcurrentActor;
+			}
+		}
+
+		TCActor<CConcurrentActorLowPrio> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
+		{
+			{
+				if (!m_pConcurrentActorLowPrio)
+				{
+					DMibLock(m_pConcurrentActorLock);
+					if (!m_pConcurrentActorLowPrio)
+						m_pConcurrentActorLowPrio = fg_ConstructActor<CConcurrentActorLowPrio>();
+				}
+				return m_pConcurrentActorLowPrio;
 			}
 		}
 

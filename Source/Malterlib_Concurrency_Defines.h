@@ -29,6 +29,13 @@ namespace NMib
 		{
 		};
 		
+		enum EPriority
+		{
+			EPriority_Low
+			, EPriority_Normal
+			, EPriority_Max
+		};
+		
 		template <typename t_CActor>
 		class TCWeakActor;
 		
@@ -98,6 +105,7 @@ namespace NMib
 
 		class CActor;
 		class CConcurrentActor;
+		class CConcurrentActorLowPrio;
 		class CTimerActor;
 
 		template <typename t_CType, typename t_CLock>
@@ -123,6 +131,8 @@ namespace NMib
 		
 		CConcurrencyManager &fg_ConcurrencyManager();
 		TCActor<CConcurrentActor> fg_ConcurrentActor();
+		TCActor<CConcurrentActorLowPrio> fg_ConcurrentActorLowPrio();
+
 		TCActor<CTimerActor> fg_TimerActor();
 	}
 }

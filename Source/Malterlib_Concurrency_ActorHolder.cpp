@@ -9,9 +9,10 @@ namespace NMib
 	namespace NConcurrency
 	{
 
-		CActorHolder::CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete)
+		CActorHolder::CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
 			: m_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)
+			, mp_Priority(_Priority)
 		{
 		}
 		
@@ -262,8 +263,8 @@ namespace NMib
 		///
 		/// CSeparateThreadActorHolder
 		///
-		CSeparateThreadActorHolder::CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, NStr::CStr const &_ThreadName)
-			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete)
+		CSeparateThreadActorHolder::CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStr::CStr const &_ThreadName)
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
 			, mp_ThreadName(_ThreadName)
 		{
 
@@ -311,8 +312,8 @@ namespace NMib
 		/// CDispatchingActorHolder
 		///
 		
-		CDispatchingActorHolder::CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher)
-			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete)
+		CDispatchingActorHolder::CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher)
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
 			, m_Dispatcher(_Dispatcher)
 		{
 		}
@@ -364,8 +365,8 @@ namespace NMib
 		{
 			CActorHolder::fp_Construct();
 		}			
-		CDefaultActorHolder::CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete)
-			: CActorHolder(_pConcurrencyManager, _bImmediateDelete)
+		CDefaultActorHolder::CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
+			: CActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
 		{
 		}
 		
@@ -375,7 +376,8 @@ namespace NMib
 			NPtr::TCSharedPointer<CDefaultActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
 			m_pConcurrencyManager->fp_QueueJob
 				(
-					[pThis]()
+					this->mp_Priority
+					, [pThis]()
 					{
 						pThis->f_RunProcess();
 					}						
@@ -388,7 +390,8 @@ namespace NMib
 			NPtr::TCSharedPointer<CDefaultActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
 			m_pConcurrencyManager->fp_QueueJob
 				(
-					[pThis]()
+					this->mp_Priority
+					, [pThis]()
 					{
 						pThis->f_RunProcessConcurrent();
 					}						

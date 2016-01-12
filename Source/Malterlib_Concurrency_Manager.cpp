@@ -139,8 +139,11 @@ namespace NMib
 
 		CConcurrencyManager::~CConcurrencyManager()
 		{
-			DMibCheck(m_Threads.f_IsEmpty());
-			DMibCheck(m_JobQueue.f_IsEmpty());
+			for (mint i = 0; i < EPriority_Max; ++i)
+			{
+				DMibCheck(m_Threads[i].f_IsEmpty());
+				DMibCheck(m_JobQueue[i].f_IsEmpty());
+			}
 			DMibCheck(m_Actors.f_IsEmpty());
 		}
 

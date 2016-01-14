@@ -162,8 +162,8 @@ namespace NMib
 
 		void CConcurrencyManager::f_BlockOnDestroy()
 		{
-			
 			f_GetConcurrentActor(); // Make sure concurrent actor is created
+			f_GetConcurrentActorLowPrio(); // Make sure concurrent actor is created
 			f_GetTimerActor(); // Make sure timer actor is created
 			DMibLock(m_ActorListLock);
 			{

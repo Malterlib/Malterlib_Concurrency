@@ -43,13 +43,16 @@ namespace NMib
 			aint f_RefCountDecrease();
 
 			template <typename tf_CActor, typename tf_CFunctor>
-			void f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> const &_ResultCall);
+			void f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall);
 			
 			template <typename tf_CActor, typename tf_CFunctor>
 			void f_Destroy(tf_CActor &&_Actor, tf_CFunctor &&_Functor);
 			
 			template <typename tf_CActor, typename tf_CFunctor>
 			void f_Destroy(tf_CActor *_pActor, tf_CFunctor &&_Functor);
+			
+			template <typename tf_CFunctor>
+			void f_Destroy(tf_CFunctor &&_Functor);
 			
 		private:
 			void fp_Destroy();

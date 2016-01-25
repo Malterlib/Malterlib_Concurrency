@@ -261,6 +261,12 @@ namespace NMib
 			{
 			}
 
+#ifdef DMibContractConfigure_CheckEnabled			
+			~TCActorCall()
+			{
+				DMibCheck(mp_Actor.f_IsEmpty())("Actor call without result used");
+			}
+#endif
 
 			TCActorCall &operator =(TCActorCall const &_Other)
 			{
@@ -300,6 +306,9 @@ namespace NMib
 						, fg_Move(_ResultCall.mp_Functor)
 					)
 				;
+#ifdef DMibContractConfigure_CheckEnabled
+				mp_Actor.f_Clear();
+#endif
 			}
 
 			template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
@@ -486,6 +495,9 @@ namespace NMib
 					)...
 				)
 			;
+#ifdef DMibContractConfigure_CheckEnabled
+			fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
+#endif
 		}	
 
 		template 

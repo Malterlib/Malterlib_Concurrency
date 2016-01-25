@@ -203,5 +203,88 @@ namespace NMib
 		{
 			m_pData->f_SetCurrentException();
 		}
+
+		namespace NPrivate
+		{
+			
+			template <typename t_CReturnValue, typename t_CException>
+			template <typename tf_FToRun>
+			TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, t_CException>::operator > (tf_FToRun &&_ToRun) const
+			{
+				TCContinuation<t_CReturnValue> Continuation;
+				try
+				{
+					Continuation.f_SetResult(_ToRun());
+				}
+				catch (t_CException const &)
+				{
+					Continuation.f_SetCurrentException();
+				}
+				return Continuation;
+			}
+
+			template <typename t_CReturnValue>
+			template <typename tf_FToRun>
+			TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, void>::operator > (tf_FToRun &&_ToRun) const
+			{
+				TCContinuation<t_CReturnValue> Continuation;
+				try
+				{
+					Continuation.f_SetResult(_ToRun());
+				}
+				catch (...)
+				{
+					Continuation.f_SetCurrentException();
+				}
+				return Continuation;
+			}
+
+			template <typename t_CException>
+			template <typename tf_FToRun>
+			TCContinuation<void> TCRunProtectedHelper<void, t_CException>::operator > (tf_FToRun &&_ToRun) const
+			{
+				TCContinuation<void> Continuation;
+				try
+				{
+					_ToRun();
+					Continuation.f_SetResult();
+				}
+				catch (t_CException const &)
+				{
+					Continuation.f_SetCurrentException();
+				}
+				return Continuation;
+			}
+
+			template <typename tf_FToRun>
+			TCContinuation<void> TCRunProtectedHelper<void, void>::operator > (tf_FToRun &&_ToRun) const
+			{
+				TCContinuation<void> Continuation;
+				try
+				{
+					_ToRun();
+					Continuation.f_SetResult();
+				}
+				catch (...)
+				{
+					Continuation.f_SetCurrentException();
+				}
+				return Continuation;
+			}
+		}
+		
+		template <typename t_CReturnValue>
+		NPrivate::TCRunProtectedHelper<t_CReturnValue> TCContinuation<t_CReturnValue>::fs_RunProtected()
+		{
+			return NPrivate::TCRunProtectedHelper<t_CReturnValue>();
+		}		
+
+		template <typename t_CReturnValue>
+		template <typename tf_CException>
+		NPrivate::TCRunProtectedHelper<t_CReturnValue, tf_CException> TCContinuation<t_CReturnValue>::fs_RunProtected()
+		{
+			return NPrivate::TCRunProtectedHelper<t_CReturnValue, tf_CException>();
+		}		
 	}
 }
+

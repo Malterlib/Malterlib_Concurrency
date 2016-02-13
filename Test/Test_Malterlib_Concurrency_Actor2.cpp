@@ -55,18 +55,7 @@ namespace
 		{
 			return _Value0 + _Value1 + _Value2 + _Value3 + _Value4 + _Value5 + _Value6 + _Value7;
 		}
-		void f_TestMultiThreaded() volatile
-		{
-			int64 CyclesToWait = (NTime::CSystem_Time::fs_CyclesFrequencyFp() * g_SecondsToWait).f_ToInt();
-			
-			int64 StartCycles = NTime::NPlatform::fg_Timer_Cycles();
-			while (NTime::NPlatform::fg_Timer_Cycles() - StartCycles < CyclesToWait)
-				;
-		}
 		void f_Receive(TCAsyncResult<void> &&_Result)
-		{
-		}
-		void f_ReceiveConcurrent(TCAsyncResult<void> &&_Result) volatile
 		{
 		}
 		void f_ReceiveInt(TCAsyncResult<int> &&_Result)
@@ -666,8 +655,21 @@ namespace
 
 					for (mint i = 0; i < nWorkObjects; ++i)
 					{
-						pActor(&CTestActor::f_TestMultiThreaded)
-							> pActor / &CTestActor::f_ReceiveConcurrent
+						fg_ConcurrentActor()
+							(
+								&CActor::f_Dispatch
+								, []
+								{
+									int64 CyclesToWait = (NTime::CSystem_Time::fs_CyclesFrequencyFp() * g_SecondsToWait).f_ToInt();
+									
+									int64 StartCycles = NTime::NPlatform::fg_Timer_Cycles();
+									while (NTime::NPlatform::fg_Timer_Cycles() - StartCycles < CyclesToWait)
+										;
+								}
+							)
+							> fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
+							{
+							}
 						;
 					}
 					try 

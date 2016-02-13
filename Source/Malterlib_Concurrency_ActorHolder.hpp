@@ -27,10 +27,7 @@ namespace NMib
 							NPrivate::fg_CallResultFunctor((*ResultCall).mp_Functor, (*ResultCall).mp_Actor->fp_GetActor(), fg_Move(*Result));
 						}
 					;
-					if (_ResultCall.mp_Actor->f_Concurrent())
-						_ResultCall.mp_Actor->f_QueueProcessConcurrent(fg_Move(fCallResult));
-					else
-						_ResultCall.mp_Actor->f_QueueProcess(fg_Move(fCallResult));
+					_ResultCall.mp_Actor->f_QueueProcess(fg_Move(fCallResult));
 				}
 			;
 		}

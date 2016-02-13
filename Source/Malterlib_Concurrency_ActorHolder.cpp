@@ -34,14 +34,15 @@ namespace NMib
 			while (bDoneSomething)
 			{
 				bDoneSomething = false;
-				if (m_WorkLock.f_TryLock())
+				if (m_Working.f_FetchAdd(1) == 0)
 				{
 					auto UnLock 
 						= fg_OnScopeExit
 						(
 							[&]
 							{
-								m_WorkLock.f_Unlock();
+								if (m_Working.f_Exchange(0) != 1)
+									bDoneSomething = true;
 							}
 						)
 					;
@@ -52,47 +53,16 @@ namespace NMib
 			}
 		}
 
-		void CActorHolder::f_RunProcessConcurrent()
-		{
-			bool bDoneSomething = true;
-			while (bDoneSomething)
-			{
-				bDoneSomething = false;
-				{
-					DMibLockRead(m_DeleteLock);
-					if (mp_pActor)
-					{
-						while (f_DequeueProcessConcurrent(true))
-							bDoneSomething = true;
-					}
-					else
-					{
-						while (f_DequeueProcessConcurrent(false))
-							bDoneSomething = true;
-					}
-				}
-			}
-		}
-
-
 		void CActorHolder::f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
 		{
 			return fp_QueueProcess(fg_Move(_Functor));
 		}
-		void CActorHolder::f_QueueProcessConcurrent(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
-		{
-			return fp_QueueProcessConcurrent(fg_Move(_Functor));
-		}
-
+		
 		bool CActorHolder::f_DequeueProcess(bool _bRun)
 		{
 			return fp_DequeueProcess(_bRun);
 		}
 
-		bool CActorHolder::f_DequeueProcessConcurrent(bool _bRun)
-		{
-			return fp_DequeueProcessConcurrent(_bRun);
-		}
 		bool CActorHolder::f_QueueProcessIsEmpty() const
 		{
 			return fp_QueueProcessIsEmpty();
@@ -142,16 +112,15 @@ namespace NMib
 			NThread::CMutual ResultLock;
 			TCAsyncResult<void> Result;
 			
-			if (m_bDestroyed.f_Load() == 0)
 			{
-				{
-					TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+				TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 
-					if (_EventLoop.m_fProcess && _EventLoop.m_fWake)
-					{
-						NAtomic::TCAtomic<smint> Finished;
-						pActor(&CActor::f_Destroy)
-							> fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result)
+				if (_EventLoop.m_fProcess && _EventLoop.m_fWake)
+				{
+					NAtomic::TCAtomic<smint> Finished;
+					pActor->f_Destroy
+						(
+							fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result) mutable
 							{
 								{
 									DMibLock(ResultLock);
@@ -160,19 +129,21 @@ namespace NMib
 								Finished.f_Exchange(1);
 								_EventLoop.m_fWake();
 							}
-						;
-
-						while (!Finished.f_Load())
-						{
-							_EventLoop.m_fProcess();
-						}
-					}
-					else
+						)
+					;
+					
+					while (!Finished.f_Load())
 					{
-						NThread::CEventAutoReset Event;
+						_EventLoop.m_fProcess();
+					}
+				}
+				else
+				{
+					NThread::CEventAutoReset Event;
 
-						pActor(&CActor::f_Destroy)
-							> fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result)
+					pActor->f_Destroy
+						(
+							fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result) mutable
 							{
 								{
 									DMibLock(ResultLock);
@@ -180,29 +151,18 @@ namespace NMib
 								}
 								Event.f_Signal();
 							}
-						;
+						)
+					;
 
-						Event.f_Wait();
-					}
-				}
-
-				fp_Terminate();
-				{
-					DMibLock(ResultLock);
-					Result.f_Get();
+					Event.f_Wait();
 				}
 			}
 
-			DMibLock(m_WorkLock);
 			{
-				DMibLock(m_DeleteLock);
-				if (mp_pActor)
-				{
-					mp_pActor.f_Clear();
-					m_bDestroyed.f_Exchange(2);
-					f_RefCountDecrease();
-				}
+				DMibLock(ResultLock);
+				Result.f_Get();
 			}
+
 		}
 	
 		aint CActorHolder::f_RefCountDecrease()
@@ -224,12 +184,11 @@ namespace NMib
 		
 		void CActorHolder::fp_Destroy()
 		{
-			auto fl_OnExit
+			auto OnExit
 				= fg_OnScopeExit
 				(
 					[this]()
 					{
-						DMibLock(m_DeleteLock);
 						if (mp_pActor)
 						{
 							mp_pActor.f_Clear();
@@ -237,22 +196,25 @@ namespace NMib
 							TCActor<CActor> pToDelete = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 							if (f_RefCountDecrease() == 1)
 							{
-								this->f_QueueProcessConcurrent
+								// Remove actor holder on concurrent actor, otherwise we ourselves could be in callstack
+								fg_ConcurrentActor()
 									(
-										[pToDelete]()
+										&CActor::f_Dispatch
+										, [pToDelete]
 										{
 										}
-									)
+									) 
+									> fg_DiscardResult()
 								;
 							}
 						}
 					}
 				)
 			;
-			auto fl_OnExitLambda = fg_LambdaMove(fg_Move(fl_OnExit));
+			auto OnExitLambda = fg_LambdaMove(fg_Move(OnExit));
 			f_QueueProcess
 				(
-					[fl_OnExitLambda]()
+					[OnExitLambda]()
 					{
 					}
 				)
@@ -345,17 +307,9 @@ namespace NMib
 		{
 			f_QueueProcess(fg_Move(_Functor));
 		}
-		void CDefaultActorHolder::fp_QueueProcessConcurrent(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
-		{
-			f_QueueProcessConcurrent(fg_Move(_Functor));
-		}
 		bool CDefaultActorHolder::fp_DequeueProcess(bool _bRun)
 		{
 			return f_DequeueProcess(_bRun);
-		}
-		bool CDefaultActorHolder::fp_DequeueProcessConcurrent(bool _bRun)
-		{
-			return f_DequeueProcessConcurrent(_bRun);
 		}
 		bool CDefaultActorHolder::fp_QueueProcessIsEmpty() const
 		{
@@ -384,36 +338,11 @@ namespace NMib
 				)
 			;
 		}
-		void CDefaultActorHolder::f_QueueProcessConcurrent(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
-		{
-			m_ActorQueueConcurrent.f_Push(fg_Move(_Functor));
-			NPtr::TCSharedPointer<CDefaultActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
-			m_pConcurrencyManager->fp_QueueJob
-				(
-					this->mp_Priority
-					, [pThis]()
-					{
-						pThis->f_RunProcessConcurrent();
-					}						
-				)
-			;
-		}
 
 
 		bool CDefaultActorHolder::f_DequeueProcess(bool _bRun)
 		{
 			if (auto pJob = m_ActorQueue.f_Pop())
-			{
-				if (_bRun)
-					(*pJob)();
-				return true;
-			}
-			return false;
-		}
-
-		bool CDefaultActorHolder::f_DequeueProcessConcurrent(bool _bRun)
-		{
-			if (auto pJob = m_ActorQueueConcurrent.f_Pop())
 			{
 				if (_bRun)
 					(*pJob)();

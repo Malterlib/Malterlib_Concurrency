@@ -10,7 +10,7 @@ namespace NMib
 	namespace NConcurrency
 	{
 		
-		namespace
+		namespace NPrivate
 		{
 			struct CSubSystem_Concurrency : public CSubSystem
 			{
@@ -50,7 +50,7 @@ namespace NMib
 		
 		NConcurrency::CConcurrencyManager &fg_ConcurrencyManager()
 		{
-			return g_SubSystem_Concurrency->f_GetConcurrencyManager();
+			return NPrivate::g_SubSystem_Concurrency->f_GetConcurrencyManager();
 		}
 
 		NConcurrency::TCActor<NConcurrency::CConcurrentActor> fg_ConcurrentActor()
@@ -167,9 +167,12 @@ namespace NMib
 			f_GetTimerActor(); // Make sure timer actor is created
 			DMibLock(m_ActorListLock);
 			{
-				m_pConcurrentActor->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
-				m_pConcurrentActorLowPrio->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
-				m_pTimerActor->m_ActorLink.f_Unlink(); // Disregard concurrent actor from destroy
+				// Disregard concurrent actor from destroy
+				for (auto &Actor : m_ConcurrentActors)
+					Actor->m_ActorLink.f_Unlink();
+				for (auto &Actor : m_ConcurrentActorsLowPrio)
+					Actor->m_ActorLink.f_Unlink();
+				m_pTimerActor->m_ActorLink.f_Unlink(); // Disregard timer actor from destroy
 				while (!m_Actors.f_IsEmpty())
 				{
 					DMibUnlock(m_ActorListLock);
@@ -198,15 +201,20 @@ namespace NMib
 			
 			// Finally delete the concurrent actor
 			{
-				m_Actors.f_Insert(*m_pConcurrentActor.m_pInternalActor);
-				m_Actors.f_Insert(*m_pConcurrentActorLowPrio.m_pInternalActor);
+				for (auto &Actor : m_ConcurrentActors)
+					m_Actors.f_Insert(*Actor.m_pInternalActor);
+				for (auto &Actor : m_ConcurrentActorsLowPrio)
+					m_Actors.f_Insert(*Actor.m_pInternalActor);
 				{
 					DMibUnlock(m_ActorListLock);
 					DMibLock(m_pConcurrentActorLock);
-					m_pConcurrentActor->fp_Terminate();
-					m_pConcurrentActor = nullptr;
-					m_pConcurrentActorLowPrio->fp_Terminate();
-					m_pConcurrentActorLowPrio= nullptr;
+					for (auto &Actor : m_ConcurrentActors)
+						Actor->fp_Terminate();
+					for (auto &Actor : m_ConcurrentActorsLowPrio)
+						Actor->fp_Terminate();
+					
+					m_ConcurrentActors.f_Clear();
+					m_ConcurrentActorsLowPrio.f_Clear();
 				}
 				while (!m_Actors.f_IsEmpty())
 				{
@@ -216,30 +224,53 @@ namespace NMib
 			}
 		}
 
+		inline_never mint CConcurrencyManager::fp_InitConcurrentActors()
+		{
+			DMibLock(m_pConcurrentActorLock);
+			mint nActors = m_nConcurrentActors.f_Load();
+			if (!nActors)
+			{
+				nActors = NSys::fg_Thread_GetVirtualCores();
+				
+				m_ConcurrentActors.f_SetLen(nActors);
+				m_ConcurrentActorsLowPrio.f_SetLen(nActors);
+				
+				for (auto &Actor : m_ConcurrentActors)
+					Actor = fg_ConstructActor<CConcurrentActor>();
+				for (auto &Actor : m_ConcurrentActorsLowPrio)
+					Actor = fg_ConstructActor<CConcurrentActorLowPrio>();
+				
+				m_nConcurrentActors = nActors;
+			}
+			return nActors;
+		}
+		
 		TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 		{
-			{
-				if (!m_pConcurrentActor)
-				{
-					DMibLock(m_pConcurrentActorLock);
-					if (!m_pConcurrentActor)
-						m_pConcurrentActor = fg_ConstructActor<CConcurrentActor>();
-				}
-				return m_pConcurrentActor;
-			}
+			mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			if (!nActors)
+				nActors = fp_InitConcurrentActors();
+			
+			auto &ThreadLocal = *m_ThreadLocal;
+			if (ThreadLocal.m_iConcurrentActor >= nActors)
+				ThreadLocal.m_iConcurrentActor = 0;
+			auto &ToReturn = m_ConcurrentActors.f_GetArray()[ThreadLocal.m_iConcurrentActor];
+			++ThreadLocal.m_iConcurrentActor;
+			return ToReturn;
 		}
 
 		TCActor<CConcurrentActorLowPrio> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 		{
-			{
-				if (!m_pConcurrentActorLowPrio)
-				{
-					DMibLock(m_pConcurrentActorLock);
-					if (!m_pConcurrentActorLowPrio)
-						m_pConcurrentActorLowPrio = fg_ConstructActor<CConcurrentActorLowPrio>();
-				}
-				return m_pConcurrentActorLowPrio;
-			}
+			mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			if (!nActors)
+				nActors = fp_InitConcurrentActors();
+			
+			auto &ThreadLocal = *m_ThreadLocal;
+			if (ThreadLocal.m_iConcurrentActorLowPrio >= nActors)
+				ThreadLocal.m_iConcurrentActorLowPrio = 0;
+			auto &ToReturn = m_ConcurrentActorsLowPrio.f_GetArray()[ThreadLocal.m_iConcurrentActorLowPrio];
+			++ThreadLocal.m_iConcurrentActorLowPrio;
+			return ToReturn;
 		}
 
 		TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
@@ -255,11 +286,10 @@ namespace NMib
 			}
 		}
 
-		auto fg_DiscardResult() -> decltype(fg_ConcurrentActor() / NPrivate::CDiscardResultFunctor())
+		auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor())
 		{
-			// For now just call on concurrent actor, but should be optimized not to call any actor
-			return fg_ConcurrentActor() / NPrivate::CDiscardResultFunctor();
-		}	
+			return NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor();
+		}
 		
 #if DMibConcurrencyDebugActorCallstacks
 		namespace NPrivate

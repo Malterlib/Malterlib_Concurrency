@@ -45,8 +45,9 @@ namespace NMib
 			NContainer::TCVector<NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap>, NMem::CAllocator_NonTrackedHeap> m_Threads[EPriority_Max];
 
 			NThread::CMutual m_pConcurrentActorLock;
-			TCActor<CConcurrentActor> m_pConcurrentActor;
-			TCActor<CConcurrentActorLowPrio> m_pConcurrentActorLowPrio;
+			NAtomic::TCAtomic<mint> m_nConcurrentActors;
+			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors;
+			NContainer::TCVector<TCActor<CConcurrentActorLowPrio>> m_ConcurrentActorsLowPrio;
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
 
@@ -64,10 +65,13 @@ namespace NMib
 #if DMibConcurrencyDebugActorCallstacks
 				CAsyncCallstacks *m_pCallstacks = nullptr;
 #endif
+				mint m_iConcurrentActor = NMisc::fg_GetRandomUnsigned();
+				mint m_iConcurrentActorLowPrio = NMisc::fg_GetRandomUnsigned();
 			};
 			
 			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 
+			inline_never mint fp_InitConcurrentActors();
 		public:
 			CConcurrencyManager();
 			~CConcurrencyManager();

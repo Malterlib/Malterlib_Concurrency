@@ -55,9 +55,7 @@ namespace NMib
 		void TCContinuation<t_CReturnValue>::CData::fp_ReportNothingSet()
 		{
 			if ((m_OnResultSet.f_FetchOr(4) & (2 | 4)) == 2)
-			{
 				m_OnResult(); // Report nothing set
-			}
 		}
 		
 		template <typename t_CReturnValue>
@@ -76,9 +74,7 @@ namespace NMib
 		void TCContinuation<t_CReturnValue>::CData::fp_OnResult()
 		{
 			if (m_OnResultSet.f_FetchOr(1) & 2)
-			{
 				m_OnResult();
-			}
 		}
 
 		template <typename t_CReturnValue>

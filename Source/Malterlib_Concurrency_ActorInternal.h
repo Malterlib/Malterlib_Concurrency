@@ -51,7 +51,7 @@ namespace NMib
 					&& !NTraits::TCIsSame<tf_CResult, TCAsyncResult<void>>::mc_Value
 					, void
 				>::CType 
-				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local, bool _bConcurrent)
+				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
 			;
 
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
@@ -67,7 +67,7 @@ namespace NMib
 					>::mc_Value
 					, void
 				>::CType 
-				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local, bool _bConcurrent)
+				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
 			;
 
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
@@ -84,7 +84,7 @@ namespace NMib
 					&& NTraits::TCIsSame<tf_CResult, TCAsyncResult<void>>::mc_Value
 					, void
 				>::CType 
-				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local, bool _bConcurrent)
+				NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
 			;
 			
 			friend class CActorHolder;
@@ -106,8 +106,6 @@ namespace NMib
 
 		public:
 
-			virtual bool f_Concurrent() override;
-			
 			enum
 			{
 				mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess

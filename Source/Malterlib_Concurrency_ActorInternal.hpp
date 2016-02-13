@@ -34,12 +34,6 @@ namespace NMib
 
 
 		template <typename t_CActor>
-		bool TCActorInternal<t_CActor>::f_Concurrent()
-		{
-			return t_CActor::mc_bConcurrent;
-		}
-
-		template <typename t_CActor>
 		t_CActor &TCActorInternal<t_CActor>::f_AccessInternal()
 		{
 			static_assert(t_CActor::mc_bAllowInternalAccess, "You do not have internal access to this actor");
@@ -67,9 +61,8 @@ namespace NMib
 			}
 			else
 			{
-				auto ConcurrentActor = fg_ConcurrentActor();
 				auto *pAllocator = &_Allocator;
-				ConcurrentActor
+				fg_ConcurrentActor()
 					(
 						&CConcurrentActor::f_Dispatch
 						, [_pObject, pAllocator]
@@ -79,9 +72,7 @@ namespace NMib
 								pAllocator->f_Free(_pObject);
 						}
 					)
-					> ConcurrentActor / [](TCAsyncResult<void> &&_Result)
-					{
-					}
+					> fg_DiscardResult()
 				;
 			}
 		}
@@ -112,10 +103,7 @@ namespace NMib
 				CReportLocal
 			;
 
-			if (NTraits::TCMemberFunctionPointerTraits<tf_CFunction>::mc_IsVolatile || f_Concurrent())
-				this->f_QueueProcessConcurrent(CReportLocal(fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this));
-			else
-				this->f_QueueProcess(CReportLocal(fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this));
+			this->f_QueueProcess(CReportLocal(fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this));
 			
 			return true; // Dummy return to allow for fg_Swallow on arguments
 		}		

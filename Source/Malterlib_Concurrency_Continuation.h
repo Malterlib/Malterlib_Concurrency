@@ -62,7 +62,7 @@ namespace NMib
 			{
 				TCAsyncResult<t_CReturnValue> m_Result;
 				NFunction::TCFunction<void ()> m_OnResult;
-				NAtomic::TCAtomic<smint> m_OnResultSet;
+				NAtomic::TCAtomic<mint> m_OnResultSet;
 
 				void fp_ReportNothingSet();
 				~CData();

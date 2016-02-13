@@ -12,8 +12,7 @@ namespace NMib
 		public:
 			enum
 			{
-				mc_bConcurrent = true
-				, mc_bImmediateDelete = true
+				mc_bImmediateDelete = true
 			};
 
 			void f_Call();

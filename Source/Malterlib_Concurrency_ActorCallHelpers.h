@@ -398,42 +398,21 @@ namespace NMib
 				}
 				void f_ReportResult()
 				{
-					if (m_Actor->f_Concurrent())
-					{
-						auto ThisActor = fg_ThisActor(this);
-						m_Actor->f_QueueProcessConcurrent
-							(
-								[ThisActor]()
-								{
-									auto &Internal = ThisActor->f_AccessInternal();
-									CCurrentActorScope CurrentActor(&Internal);
-									Internal.m_Handler
-										(
-											fg_Move(NContainer::fg_Get<tp_ResultIndices>(Internal.m_Results))...
-										)
-									;
-								}
-							)
-						;
-					}
-					else
-					{
-						auto ThisActor = fg_ThisActor(this);
-						m_Actor->f_QueueProcess
-							(
-								[ThisActor]()
-								{
-									auto &Internal = ThisActor->f_AccessInternal();
-									CCurrentActorScope CurrentActor(&Internal);
-									Internal.m_Handler
-										(
-											fg_Move(NContainer::fg_Get<tp_ResultIndices>(Internal.m_Results))...
-										)
-									;
-								}
-							)
-						;
-					}
+					auto ThisActor = fg_ThisActor(this);
+					m_Actor->f_QueueProcess
+						(
+							[ThisActor]()
+							{
+								auto &Internal = ThisActor->f_AccessInternal();
+								CCurrentActorScope CurrentActor(&Internal);
+								Internal.m_Handler
+									(
+										fg_Move(NContainer::fg_Get<tp_ResultIndices>(Internal.m_Results))...
+									)
+								;
+							}
+						)
+					;
 				}
 				void f_Finished()
 				{
@@ -514,28 +493,28 @@ namespace NMib
 			mutable NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> m_Result;
 			mutable typename NPrivate::TCGetResultFunctorType<typename NTraits::TCRemoveReference<t_CResultFunctor>::CType, t_CRet>::CType m_ResultFunctor;
 			mutable TCActor<t_CResultActor> m_pResultActor;
-			mutable TCActorInternal<t_CActor> *m_pThis;
+			mutable TCActorInternal<t_CActor> *m_pActorInternal;
 
 			TCReportLocal(TCReportLocal &&_Other)
 				: m_ToCall(fg_Move(_Other.m_ToCall))
 				, m_Result(fg_Move(_Other.m_Result))
 				, m_ResultFunctor(fg_Move(_Other.m_ResultFunctor))
 				, m_pResultActor(fg_Move(_Other.m_pResultActor))
-				, m_pThis(_Other.m_pThis)
+				, m_pActorInternal(_Other.m_pActorInternal)
 			{
-				_Other.m_pThis = nullptr;
+				_Other.m_pActorInternal = nullptr;
 			}
 			TCReportLocal
 				(
 					t_CFunctor &&_ToCall
 					, t_CResultFunctor &&_ResultFunctor
 					, TCActor<t_CResultActor> const &_pResultActor
-					, TCActorInternal<t_CActor> *_pThis
+					, TCActorInternal<t_CActor> *_pActorInternal
 				)
 				: m_ToCall(fg_Move(_ToCall))
 				, m_ResultFunctor(fg_Move(_ResultFunctor))
 				, m_pResultActor(_pResultActor)
-				, m_pThis(_pThis)
+				, m_pActorInternal(_pActorInternal)
 			{
 #if DMibConcurrencyDebugActorCallstacks
 				if (fg_ConcurrencyManager().m_ThreadLocal->m_pCallstacks)
@@ -570,23 +549,26 @@ namespace NMib
 						<
 							decltype(m_Result)
 							, decltype(m_ToCall)
-							, decltype(*(m_pThis->fp_GetActor()))
+							, decltype(*(m_pActorInternal->fp_GetActor()))
 						>
-						(*this, m_pResultActor->f_Concurrent())
+						(*this)
 					;
 				}
 			}
+			inline_always bool f_ShouldDiscardResult() const
+			{
+				return NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
+			}
 			~TCReportLocal()
 			{
-				if (m_pThis)
+				if (f_ShouldDiscardResult())
+					return;
+				if (m_pActorInternal)
 				{
 					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 					auto pActor = m_pResultActor;
-					m_pThis = nullptr;
-					if (pActor->f_Concurrent())
-						pActor->f_QueueProcessConcurrent(fg_Move(*this));
-					else
-						pActor->f_QueueProcess(fg_Move(*this));
+					m_pActorInternal = nullptr;
+					pActor->f_QueueProcess(fg_Move(*this));
 				}
 			}
 		private:

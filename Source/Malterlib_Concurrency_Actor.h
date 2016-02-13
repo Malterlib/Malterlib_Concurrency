@@ -50,8 +50,7 @@ namespace NMib
 			
 			enum
 			{
-				mc_bConcurrent = false
-				, mc_bAllowInternalAccess = false
+				mc_bAllowInternalAccess = false
 				, mc_bImmediateDelete = false
 				, mc_Priority = EPriority_Normal
 			};

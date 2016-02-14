@@ -13,14 +13,17 @@ namespace NMib
 			NPtr::TCUniquePointer<tf_CType> pRealActor = fg_Move(_ConstructParams);
 			NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor = fg_Construct(this, fg_Forward<tfp_CHolderParams>(p_Params)...);
 
+			++m_nActors;
+#ifdef DMibDebug
 			{
 				DMibLock(m_ActorListLock);
 				m_Actors.f_Insert(*pActor);
 			}
+#endif
 			pRealActor->self.m_pThis = pActor.f_Get();
-			pRealActor->m_pConcurrencyManager = this;
+			pRealActor->mp_pConcurrencyManager = this;
 			pActor->mp_pActor = fg_Move(pRealActor);
-			pActor->m_pConcurrencyManager = this;
+			pActor->mp_pConcurrencyManager = this;
 			pActor->f_RefCountIncrease();
 			
 			// Handle exception in construct

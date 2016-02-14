@@ -9,16 +9,17 @@ namespace NMib
 	{
 		namespace NPrivate
 		{
-			CCurrentActorScope::CCurrentActorScope(CActor const *_pActor)
+			CCurrentActorScope::CCurrentActorScope(NConcurrency::CConcurrencyManager &_ConcurrencyManager, CActor const *_pActor)
+				: mp_ConcurrencyManager(_ConcurrencyManager)
 			{
-				auto &ThreadLocal = *fg_ConcurrencyManager().m_ThreadLocal;
+				auto &ThreadLocal = *_ConcurrencyManager.m_ThreadLocal;
 				mp_pLastActor = ThreadLocal.m_pCurrentActor;
 				ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
 				
 			}
 			CCurrentActorScope::~CCurrentActorScope()
 			{
-				auto &ThreadLocal = *fg_ConcurrencyManager().m_ThreadLocal;
+				auto &ThreadLocal = *mp_ConcurrencyManager.m_ThreadLocal;
 				ThreadLocal.m_pCurrentActor = mp_pLastActor;
 			}
 			
@@ -208,7 +209,7 @@ namespace NMib
 			template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
 			void operator > (tf_CFunctor &&_Functor)
 			{
-				auto pActor = fg_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+				auto pActor = NContainer::fg_Get<0>(m_Calls).f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
 				DMibFastCheck(pActor);
 				fp_ActorCall(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
 			}
@@ -314,7 +315,7 @@ namespace NMib
 			template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
 			void operator > (tf_CFunctor &&_Functor)
 			{
-				auto pActor = fg_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+				auto pActor = mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
 				DMibFastCheck(pActor);
 				*this > fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor);
 			}
@@ -404,7 +405,7 @@ namespace NMib
 							[ThisActor]()
 							{
 								auto &Internal = ThisActor->f_AccessInternal();
-								CCurrentActorScope CurrentActor(&Internal);
+								CCurrentActorScope CurrentActor(ThisActor->f_ConcurrencyManager(), &Internal);
 								Internal.m_Handler
 									(
 										fg_Move(NContainer::fg_Get<tp_ResultIndices>(Internal.m_Results))...
@@ -517,8 +518,10 @@ namespace NMib
 				, m_pActorInternal(_pActorInternal)
 			{
 #if DMibConcurrencyDebugActorCallstacks
-				if (fg_ConcurrencyManager().m_ThreadLocal->m_pCallstacks)
-					m_Result.m_Callstacks = *fg_ConcurrencyManager().m_ThreadLocal->m_pCallstacks;
+				auto &ConcurrencyManager = m_pActorInternal->f_ConcurrencyManager();
+				auto &ThreadLocal = *ConcurrencyManager.m_ThreadLocal;
+				if (ThreadLocal.m_pCallstacks)
+					m_Result.m_Callstacks = *ThreadLocal.m_pCallstacks;
 				
 				auto &Callstack = m_Result.m_Callstacks.f_InsertFirst();
 				Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));

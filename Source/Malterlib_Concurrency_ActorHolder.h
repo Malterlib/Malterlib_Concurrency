@@ -9,25 +9,44 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		class CConcurrentRunQueue
+		{
+		public:
+			CConcurrentRunQueue();
+			~CConcurrentRunQueue();
+			void f_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			void f_AddToQueueLocal(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> *f_FirstQueueEntry();
+			void f_PopFirstQueueEntry();
+			bool f_TransferThreadSafeQueue();
+			bool f_IsEmpty();
+		private:
+ 			struct CQueueEntry
+			{
+				align_cacheline NAtomic::TCAtomic<CQueueEntry *> m_pNextQueued;
+				NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> m_fToCall;
+			};	
+			
+			align_cacheline NAtomic::TCAtomic<CQueueEntry *> mp_pFirstQueued;
+			NContainer::TCLinkedList<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> mp_LocalQueue;
+		};
+		
 		class CActorHolder : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 		{
 			typedef NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer> CSuper;
 			friend class CConcurrencyManager;
 			friend class CActor;
 		protected:
+			bool fp_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
 			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) pure;
-			virtual bool fp_DequeueProcess(bool _bRun) pure;
-			virtual bool fp_QueueProcessIsEmpty() const pure;
 			virtual void fp_Construct();
 		public:
-
+			
 			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
 			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
-			bool f_DequeueProcess(bool _bRun);
-			bool f_QueueProcessIsEmpty() const;
 			bool f_ImmediateDelete() const;
 			void f_DestroyThreaded();
 			bool f_IsDestroyed() const;
@@ -47,38 +66,46 @@ namespace NMib
 			template <typename tf_CFunctor>
 			void f_Destroy(tf_CFunctor &&_Functor);
 			
+			void f_SetFixedCore(mint _iFixedCore);
+			
+			inline_always CConcurrencyManager &f_ConcurrencyManager() const
+			{
+				return *mp_pConcurrencyManager;
+			}
+			
 		private:
 			void fp_Destroy();
 			void fp_Terminate();
+
+			bool fp_DequeueProcess(bool _bRun);
 			
 		private:
+#ifdef DMibDebug
 			DMibListLinkDS_Link(CActorHolder, m_ActorLink);
+#endif
 			
 		protected:
-			CConcurrencyManager *m_pConcurrencyManager;
-			bool mp_bImmediateDelete;
+			CConcurrencyManager *mp_pConcurrencyManager;
+			mint mp_bImmediateDelete:1;
+			mint mp_iFixedCore:sizeof(mint)*8 - 1;
 			EPriority mp_Priority;
 			NPtr::TCUniquePointer<CActor> mp_pActor;
 			
-			NAtomic::TCAtomic<smint> m_Working;
-			mutable NAtomic::TCAtomic<smint> m_bDestroyed;
+			align_cacheline NAtomic::TCAtomic<mint> mp_Working;
+			align_cacheline mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
+			CConcurrentRunQueue mp_ConcurrentRunQueue;
 		};
 
 		class CDefaultActorHolder : public CActorHolder
 		{
 		protected:
-			NContainer::TCThreadSafeQueue<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> m_ActorQueue;
-
 			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
-			virtual bool fp_DequeueProcess(bool _bRun) override;
-			virtual bool fp_QueueProcessIsEmpty() const override;
 			virtual void fp_Construct()	override;
 		public:
 			CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
+			~CDefaultActorHolder();
 
 			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
-			bool f_DequeueProcess(bool _bRun);
-			bool f_QueueProcessIsEmpty() const;
 		};
 
 		class CDispatchingActorHolder : public CDefaultActorHolder

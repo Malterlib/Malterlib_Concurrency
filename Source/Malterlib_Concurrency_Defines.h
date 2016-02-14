@@ -130,8 +130,8 @@ namespace NMib
 		typedef NPtr::TCUniquePointer<CActorCallbackReference> CActorCallback;
 		
 		CConcurrencyManager &fg_ConcurrencyManager();
-		TCActor<CConcurrentActor> fg_ConcurrentActor();
-		TCActor<CConcurrentActorLowPrio> fg_ConcurrentActorLowPrio();
+		TCActor<CConcurrentActor> const &fg_ConcurrentActor();
+		TCActor<CConcurrentActorLowPrio> const &fg_ConcurrentActorLowPrio();
 
 		TCActor<CTimerActor> fg_TimerActor();
 	}

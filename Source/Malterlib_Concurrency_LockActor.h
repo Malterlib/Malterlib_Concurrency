@@ -14,7 +14,7 @@ namespace NMib
 			t_CType &m_Object;
 			t_CLock &m_Lock;
 			aint m_LockSequence;
-			NAtomic::TCAtomic<smint> m_Locked;
+			align_cacheline NAtomic::TCAtomic<smint> m_Locked;
 			NThread::CEventAutoReset m_Event;
 
 			void fp_Unlock(aint _LockSequence);

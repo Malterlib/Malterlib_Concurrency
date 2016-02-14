@@ -47,7 +47,7 @@ namespace NMib
 		template <typename tf_CFunctor>
 		void CActorHolder::f_Destroy(tf_CFunctor &&_Functor)
 		{
-			auto pActor = fg_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+			auto pActor = mp_pConcurrencyManager->m_ThreadLocal->m_pCurrentActor;
 			DMibFastCheck(pActor);
 			f_Destroy(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor));
 		}

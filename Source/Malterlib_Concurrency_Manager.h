@@ -31,42 +31,56 @@ namespace NMib
 			friend class CActorHolder;
 			friend class CActor;
 			friend class CDefaultActorHolder;
-			
-			struct CLocalSemaphore : public NThread::CSemaphore
-			{
-				CLocalSemaphore();
-			};
-			
+
+			NAtomic::TCAtomic<mint> m_nActors;
+#ifdef DMibDebug
 			NThread::CMutual m_ActorListLock;
 			DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
-			NContainer::TCThreadSafeQueue<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> m_JobQueue[EPriority_Max];
-			CLocalSemaphore m_JobSemaphore[EPriority_Max];
+#endif
+			
+			struct CQueue
+			{
+				align_cacheline NAtomic::TCAtomic<mint> m_Working;
+				CConcurrentRunQueue m_JobQueue;
+				NThread::CEventAutoReset m_Event;
+				NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap> m_pThread;
+				CQueue(CQueue &&_Other);
+				CQueue();
+			};
+			
+			mint m_nThreads = 0;
+			NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
+			
+			bool m_bDestroyed = false;
 
-			NContainer::TCVector<NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap>, NMem::CAllocator_NonTrackedHeap> m_Threads[EPriority_Max];
-
+			align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
 			NThread::CMutual m_pConcurrentActorLock;
-			NAtomic::TCAtomic<mint> m_nConcurrentActors;
 			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors;
 			NContainer::TCVector<TCActor<CConcurrentActorLowPrio>> m_ConcurrentActorsLowPrio;
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
 
-			void fp_RunThread(EPriority _Priority, NThread::CThreadObjectNonTracked *_pThread);
-			void fp_QueueJob(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
-			{
-				m_JobQueue[_Priority].f_Push(fg_Move(_ToQueue));
-				m_JobSemaphore[_Priority].f_Signal();
-			}
+			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
+			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
+			bool fp_AddToQueue(CQueue &_Queue, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
 
 		public:
 			struct CThreadLocal
 			{
+				CThreadLocal()
+				{
+					for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
+						m_JobQueueIndex[iQueue] = NMisc::fg_GetRandomUnsigned();
+				}
+				
 				CActor *m_pCurrentActor = nullptr;
 #if DMibConcurrencyDebugActorCallstacks
 				CAsyncCallstacks *m_pCallstacks = nullptr;
 #endif
+				CQueue *m_pThisQueue = nullptr;
 				mint m_iConcurrentActor = NMisc::fg_GetRandomUnsigned();
 				mint m_iConcurrentActorLowPrio = NMisc::fg_GetRandomUnsigned();
+				mint m_JobQueueIndex[EPriority_Max];
 			};
 			
 			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;

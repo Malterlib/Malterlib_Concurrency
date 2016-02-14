@@ -32,7 +32,7 @@ namespace NMib
 		protected:
 			NPrivate::CThisActor self;
 		private:
-			CConcurrencyManager *m_pConcurrencyManager = nullptr;
+			CConcurrencyManager *mp_pConcurrencyManager = nullptr;
 
 			void fp_DisptachInternal(NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToDisptach);
 
@@ -42,6 +42,11 @@ namespace NMib
 			
 		public:
 			typedef CDefaultActorHolder CActorHolder;
+			
+			inline_always CConcurrencyManager &f_ConcurrencyManager() const
+			{
+				return *mp_pConcurrencyManager;
+			}
 			
 			virtual ~CActor();
 			void f_Dispatch(NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToDisptach);

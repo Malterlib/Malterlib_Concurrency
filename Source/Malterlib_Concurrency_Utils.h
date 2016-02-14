@@ -25,9 +25,9 @@ namespace NMib
 			class CInternalActor : public CActor
 			{
 				friend class TCActorResultVector;
+				align_cacheline NAtomic::TCAtomic<smint> mp_nAdded;
 				NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
 				mint mp_nFinished = 0;
-				NAtomic::TCAtomic<smint> mp_nAdded;
 				TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsContinuation;
 				TCAutoClearInt<bint> mp_bResultsGotten;
 
@@ -120,9 +120,9 @@ namespace NMib
 			class CInternalActor : public CActor
 			{
 				friend class TCActorResultMap;
+				align_cacheline NAtomic::TCAtomic<smint> mp_nAdded;
 				NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
 				TCAutoClearInt<mint> mp_nFinished;
-				NAtomic::TCAtomic<smint> mp_nAdded;
 				TCContinuation<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsContinuation;
 				TCAutoClearInt<bint> mp_bResultsGotten;
 

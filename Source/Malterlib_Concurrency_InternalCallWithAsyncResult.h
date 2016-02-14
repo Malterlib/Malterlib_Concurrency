@@ -73,23 +73,24 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
+				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
+				auto pActor = _Local.m_pActorInternal->fp_GetActor();
+				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
 				{
 #if DMibConcurrencyDebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
-					CAsyncCallstacksScope CallstacksScope(Callstack);
+					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
-					auto pActor = _Local.m_pActorInternal->fp_GetActor();
-					CCurrentActorScope CurrentActor(pActor);
 					if (_Local.f_ShouldDiscardResult())
 						_Local.m_ToCall(*(pActor));
 					else
 						_Local.m_Result.f_SetResult(_Local.m_ToCall(*(pActor)));
 				}
-				auto pActor = _Local.m_pResultActor;
+				auto pResultActor = _Local.m_pResultActor;
 				_Local.m_pActorInternal = nullptr;
 				if (_Local.f_ShouldDiscardResult())
 					return;
-				pActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
+				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
 			}
 			
 			// Direct void result
@@ -109,22 +110,23 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
+				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
+				auto pActor = _Local.m_pActorInternal->fp_GetActor();
+				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
 				{
 #if DMibConcurrencyDebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
-					CAsyncCallstacksScope CallstacksScope(Callstack);
+					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
-					auto pActor = _Local.m_pActorInternal->fp_GetActor();
-					CCurrentActorScope CurrentActor(pActor);
 					_Local.m_ToCall(*pActor);
 					if (!_Local.f_ShouldDiscardResult())
 						_Local.m_Result.f_SetResult();
 				}
-				auto pActor = _Local.m_pResultActor;
+				auto pResultActor = _Local.m_pResultActor;
 				_Local.m_pActorInternal = nullptr;
 				if (_Local.f_ShouldDiscardResult())
 					return;
-				pActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
+				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
 			}
 
 			// Continuation result
@@ -181,13 +183,14 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
+				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Local.m_Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(Callstack);
+				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
 				
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
-				CCurrentActorScope CurrentActor(pActor);
+				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
 				if (_Local.f_ShouldDiscardResult())
 				{
 					_Local.m_ToCall(*pActor);
@@ -213,11 +216,12 @@ namespace NMib
 			template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>
 			void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor _pResultActor, tf_CResult &&_Result)
 			{
+				auto &ConcurrencyManager =_pResultActor->f_ConcurrencyManager();
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(Callstack);
+				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
-				CCurrentActorScope CurrentActor(_pResultActor);
+				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
 				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 			}
 
@@ -234,11 +238,12 @@ namespace NMib
 					, tf_CResult &&_Result
 				)
 			{
+				auto &ConcurrencyManager =_pResultActor->f_ConcurrencyManager();
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(Callstack);
+				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
-				CCurrentActorScope CurrentActor(_pResultActor);
+				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
 				_ResultFunctor(_pResultActor, fg_Forward<tf_CResult>(_Result));
 			}
 		}

@@ -17,7 +17,7 @@ namespace NMib
 			auto &ThreadPool = *g_ThreadPool;
 			
 			NThread::CEventAutoReset DoneEvent;
-			NAtomic::TCAtomic<mint> nDispatched;
+			align_cacheline NAtomic::TCAtomic<mint> nDispatched;
 			
 			NPtr::TCSharedPointer<NContainer::TCThreadSafeQueue<NFunction::TCFunction<void ()>>> pDispatchQueue = fg_Construct();
 			

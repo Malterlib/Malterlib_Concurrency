@@ -49,29 +49,32 @@ namespace NMib
 			
 			struct CCurrentActorScope
 			{
-				inline_always CCurrentActorScope(CActor const *_pActor);
+				inline_always CCurrentActorScope(NConcurrency::CConcurrencyManager &_ConcurrencyManager, CActor const *_pActor);
 				inline_always ~CCurrentActorScope();
 			private:
 				CActor *mp_pLastActor;
+				NConcurrency::CConcurrencyManager &mp_ConcurrencyManager;
 			};
 		}
 		
 #if DMibConcurrencyDebugActorCallstacks
 		namespace NPrivate
 		{
-			CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks);
+			CAsyncCallstacks *fg_SetConcurrentCallstacks(CConcurrencyManager &_ConcurrencyManager, CAsyncCallstacks *_pCallstacks);
 			
 			struct CAsyncCallstacksScope
 			{
 				CAsyncCallstacks *m_pOld;
-				CAsyncCallstacksScope(CAsyncCallstacks &_New)
-					: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New))
+				CConcurrencyManager &m_ConcurrencyManager;
+				CAsyncCallstacksScope(CConcurrencyManager &_ConcurrencyManager, CAsyncCallstacks &_New)
+					: m_pOld(NPrivate::fg_SetConcurrentCallstacks(_ConcurrencyManager, &_New))
+					, m_ConcurrencyManager(_ConcurrencyManager)
 				{
 					
 				}
 				~CAsyncCallstacksScope()
 				{
-					NPrivate::fg_SetConcurrentCallstacks(m_pOld);
+					NPrivate::fg_SetConcurrentCallstacks(m_ConcurrencyManager, m_pOld);
 				}
 			};
 		}

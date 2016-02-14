@@ -57,7 +57,7 @@ namespace NMib
 			NContainer::TCMap<fp64, CTimer> m_RegisteredTimers;
 			NContainer::TCLinkedList<CTimer> m_OneshotTimers;
 			NContainer::TCLinkedList<CTimer> m_ExactTimers;
-			NAtomic::TCAtomic<smint> m_WaitTime;
+			align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 
 			DMibListLinkDS_List(CTimer, m_Link) m_TimerQueue;
 

@@ -209,7 +209,7 @@ namespace NMib
 			template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
 			void operator > (tf_CFunctor &&_Functor)
 			{
-				auto pActor = NContainer::fg_Get<0>(m_Calls).f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+				auto pActor = NContainer::fg_Get<0>(m_Calls).mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
 				DMibFastCheck(pActor);
 				fp_ActorCall(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
 			}

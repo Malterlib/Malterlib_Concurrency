@@ -376,8 +376,9 @@ namespace NMib
 		
 		void CConcurrentRunQueue::f_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
 		{
-			CQueueEntry *pNewEntry = DMibNew CQueueEntry();
-			pNewEntry->m_fToCall = fg_Move(_Functor);
+			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct();
+			pNewEntryUnique->m_fToCall = fg_Move(_Functor);
+			CQueueEntry *pNewEntry = pNewEntryUnique.f_Detach();
 			while (true)
 			{
 				CQueueEntry *pFirstEntry = mp_pFirstQueued.f_Load();

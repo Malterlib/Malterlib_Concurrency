@@ -151,7 +151,7 @@ namespace NMib
 			DMibRequire(m_ExactTimers.f_IsEmpty());
 		}
 
-		CTimerActor::CTimerHandleCleanup::CTimerHandleCleanup(NFunction::TCFunction<void ()> const &_fCleanup)
+		CTimerActor::CTimerHandleCleanup::CTimerHandleCleanup(NFunction::TCFunction<void (NFunction::CThisTag &)> const &_fCleanup)
 			: m_fCleanup(_fCleanup)
 		{
 		}
@@ -173,7 +173,7 @@ namespace NMib
 				*m_pDestroyed = true;
 		}
 
-		void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void ()> && _fCallback)
+		void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 
@@ -208,7 +208,7 @@ namespace NMib
 			fp_StartThread();
 		}
 
-		CActorCallback CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void ()> && _fCallback)
+		CActorCallback CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
@@ -240,7 +240,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorCallback CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void ()> && _fCallback)
+		CActorCallback CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			auto &Timer = *m_RegisteredTimers(_Period, this);
@@ -277,7 +277,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorCallback CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void ()> && _fCallback)
+		CActorCallback CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));

@@ -10,6 +10,14 @@ namespace NMib
 		namespace NPrivate
 		{
 			struct CThisActor;
+			template 
+				<
+					typename t_CHandler
+					, typename t_CActor
+					, typename t_CResultTypes
+					, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
+				>
+			struct TCCallMutipleActorStorage;
 		}
 		template <typename t_CActor>
 		class TCActorInternal : public t_CActor::CActorHolder
@@ -36,6 +44,15 @@ namespace NMib
 			>
 			friend struct TCReportLocal;
 
+			template 
+				<
+					typename t_CHandler2
+					, typename t_CActor2
+					, typename t_CResultTypes2
+					, typename t_CResultIndicies2
+				>
+			friend struct NPrivate::TCCallMutipleActorStorage;
+			
 
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
 				friend typename TCEnableIf

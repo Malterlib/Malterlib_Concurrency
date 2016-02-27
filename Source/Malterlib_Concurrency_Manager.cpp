@@ -58,7 +58,7 @@ namespace NMib
 			return fg_ConcurrencyManager().f_GetConcurrentActor();
 		}
 		
-		NConcurrency::TCActor<NConcurrency::CConcurrentActorLowPrio> const &fg_ConcurrentActorLowPrio()
+		NConcurrency::TCActor<NConcurrency::CConcurrentActor> const &fg_ConcurrentActorLowPrio()
 		{
 			return fg_ConcurrencyManager().f_GetConcurrentActorLowPrio();
 		}
@@ -320,7 +320,7 @@ namespace NMib
 			f_GetTimerActor(); // Make sure timer actor is created
 			{
 				// Disregard concurrent actor from destroy
-				mint nExpectedActors = m_ConcurrentActors.f_GetLen() + m_ConcurrentActorsLowPrio.f_GetLen() + 1;
+				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
 				while (m_nActors.f_Load() > nExpectedActors)
 					NSys::fg_Thread_SmallestSleep();
 			}
@@ -335,7 +335,7 @@ namespace NMib
 						m_pTimerActor = nullptr;
 					}
 				}
-				mint nExpectedActors = m_ConcurrentActors.f_GetLen() + m_ConcurrentActorsLowPrio.f_GetLen();
+				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen();
 				while (m_nActors.f_Load() > nExpectedActors)
 					NSys::fg_Thread_SmallestSleep();
 			}
@@ -344,13 +344,14 @@ namespace NMib
 			{
 				{
 					DMibLock(m_pConcurrentActorLock);
-					for (auto &Actor : m_ConcurrentActors)
-						Actor->fp_Terminate();
-					for (auto &Actor : m_ConcurrentActorsLowPrio)
-						Actor->fp_Terminate();
+					for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+					{
+						for (auto &Actor : m_ConcurrentActors[Prio])
+							Actor->fp_Terminate();
+					}
+					for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+						m_ConcurrentActors[Prio].f_Clear();
 					
-					m_ConcurrentActors.f_Clear();
-					m_ConcurrentActorsLowPrio.f_Clear();
 					m_nThreads = 0;
 				}
 				while (m_nActors.f_Load() > 0)
@@ -366,23 +367,18 @@ namespace NMib
 			{
 				nActors = m_nThreads;
 				
-				m_ConcurrentActors.f_SetLen(nActors);
-				m_ConcurrentActorsLowPrio.f_SetLen(nActors);
+				for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+					m_ConcurrentActors[Prio].f_SetLen(nActors);
 				
+				for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
 				{
 					mint iActor = 0;
-					for (auto &Actor : m_ConcurrentActors)
+					for (auto &Actor : m_ConcurrentActors[Prio])
 					{
-						Actor = fg_ConstructActor<CConcurrentActor>();
-						Actor->f_SetFixedCore(iActor);
-						++iActor;
-					}
-				}
-				{
-					mint iActor = 0;
-					for (auto &Actor : m_ConcurrentActorsLowPrio)
-					{
-						Actor = fg_ConstructActor<CConcurrentActorLowPrio>();
+						if (Prio == EPriority_Normal)
+							Actor = fg_ConstructActor<CConcurrentActor>();
+						else if (Prio == EPriority_Low)
+							Actor = fg_ConstructActor<CConcurrentActorLowPrio>();
 						Actor->f_SetFixedCore(iActor);
 						++iActor;
 					}
@@ -393,6 +389,26 @@ namespace NMib
 			return nActors;
 		}
 		
+		TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
+		{
+			mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+			if (!nActors)
+				nActors = fp_InitConcurrentActors();
+			
+			auto &ThreadLocal = *m_ThreadLocal;
+			if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue >= &m_Queues[_Priority].f_GetFirst() && ThreadLocal.m_pThisQueue < &m_Queues[_Priority].f_GetLast())
+			{
+				mint iQueue = ThreadLocal.m_pThisQueue - &m_Queues[_Priority].f_GetFirst();
+				auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[iQueue];
+				return ToReturn;
+			}
+			if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
+				ThreadLocal.m_iConcurrentActor[_Priority] = 0;
+			auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
+			++ThreadLocal.m_iConcurrentActor[_Priority];
+			return ToReturn;
+		}
+
 		TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 		{
 			mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
@@ -400,24 +416,24 @@ namespace NMib
 				nActors = fp_InitConcurrentActors();
 			
 			auto &ThreadLocal = *m_ThreadLocal;
-			if (ThreadLocal.m_iConcurrentActor >= nActors)
-				ThreadLocal.m_iConcurrentActor = 0;
-			auto &ToReturn = m_ConcurrentActors.f_GetArray()[ThreadLocal.m_iConcurrentActor];
-			++ThreadLocal.m_iConcurrentActor;
+			if (ThreadLocal.m_iConcurrentActor[EPriority_Normal] >= nActors)
+				ThreadLocal.m_iConcurrentActor[EPriority_Normal] = 0;
+			auto &ToReturn = m_ConcurrentActors[EPriority_Normal].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Normal]];
+			++ThreadLocal.m_iConcurrentActor[EPriority_Normal];
 			return ToReturn;
 		}
 
-		TCActor<CConcurrentActorLowPrio> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
+		TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 		{
 			mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
 			if (!nActors)
 				nActors = fp_InitConcurrentActors();
 			
 			auto &ThreadLocal = *m_ThreadLocal;
-			if (ThreadLocal.m_iConcurrentActorLowPrio >= nActors)
-				ThreadLocal.m_iConcurrentActorLowPrio = 0;
-			auto &ToReturn = m_ConcurrentActorsLowPrio.f_GetArray()[ThreadLocal.m_iConcurrentActorLowPrio];
-			++ThreadLocal.m_iConcurrentActorLowPrio;
+			if (ThreadLocal.m_iConcurrentActor[EPriority_Low] >= nActors)
+				ThreadLocal.m_iConcurrentActor[EPriority_Low] = 0;
+			auto &ToReturn = m_ConcurrentActors[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
+			++ThreadLocal.m_iConcurrentActor[EPriority_Low];
 			return ToReturn;
 		}
 

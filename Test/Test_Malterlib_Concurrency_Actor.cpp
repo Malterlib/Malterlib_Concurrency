@@ -451,7 +451,7 @@ namespace
 					
 					for (mint i = 0; i < 5; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations + nSplits, NSys::fg_Thread_GetPhysicalCores());
 						TCActorResultVector<void> Results;
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
@@ -469,6 +469,54 @@ namespace
 							;
 						}
 						Results.f_GetResults().f_CallSync();
+						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
+						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
+							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads();
+					}
+					
+					DMibExpect(Result, == ,nIterations*5);
+					
+					PerfTest.f_Add(ActorMeasure);
+				}
+				{
+					DMibTestPath("Parallell Concurrent Actors Result Vector");
+					
+					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVector");
+					
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+					
+					for (mint i = 0; i < 5; ++i)
+					{
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations*2 + nSplits, NSys::fg_Thread_GetPhysicalCores());
+						TCVector<TCActorResultVector<void>> Results;
+						Results.f_SetLen(nSplits);
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentActor()
+								(
+									&CActor::f_Dispatch
+									, [&PerfTestActors, nIterationsPerSplit, pActor, iSplit, &Results]
+									{
+										auto &ResultVector = Results[iSplit];
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+											(*pActor)(&CPerformanceTestActor::f_AddInt, 1) > ResultVector.f_AddResult();
+									}
+								)
+								> fg_DiscardResult()
+							;
+						}
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+							Results[iSplit].f_GetResults().f_CallSync();
 						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
 						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();

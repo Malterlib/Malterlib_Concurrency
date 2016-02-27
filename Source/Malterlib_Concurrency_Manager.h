@@ -55,8 +55,7 @@ namespace NMib
 
 			align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
 			NThread::CMutual m_pConcurrentActorLock;
-			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors;
-			NContainer::TCVector<TCActor<CConcurrentActorLowPrio>> m_ConcurrentActorsLowPrio;
+			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors[EPriority_Max];
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
 
@@ -70,7 +69,10 @@ namespace NMib
 				CThreadLocal()
 				{
 					for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
+					{
 						m_JobQueueIndex[iQueue] = NMisc::fg_GetRandomUnsigned();
+						m_iConcurrentActor[iQueue] = NMisc::fg_GetRandomUnsigned();
+					}
 				}
 				
 				CActor *m_pCurrentActor = nullptr;
@@ -78,8 +80,7 @@ namespace NMib
 				CAsyncCallstacks *m_pCallstacks = nullptr;
 #endif
 				CQueue *m_pThisQueue = nullptr;
-				mint m_iConcurrentActor = NMisc::fg_GetRandomUnsigned();
-				mint m_iConcurrentActorLowPrio = NMisc::fg_GetRandomUnsigned();
+				mint m_iConcurrentActor[EPriority_Max];
 				mint m_JobQueueIndex[EPriority_Max];
 			};
 			
@@ -96,7 +97,8 @@ namespace NMib
 
 			void f_BlockOnDestroy();
 			TCActor<CConcurrentActor> const &f_GetConcurrentActor();
-			TCActor<CConcurrentActorLowPrio> const &f_GetConcurrentActorLowPrio();
+			TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
+			TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 			TCActor<CTimerActor> const &f_GetTimerActor();
 			
 			void f_DispatchFirstOnCurrentThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);

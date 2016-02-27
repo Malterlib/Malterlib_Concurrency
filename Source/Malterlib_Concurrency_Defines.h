@@ -47,10 +47,13 @@ namespace NMib
 			friend class TCActor;
 			template <typename t_CActor2>
 			friend class TCWeakActor;
+
 		public:
 			typedef TCActorInternal<t_CActor> CActorInternal;
+			
 		private:
 			NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> m_pInternalActor;
+			
 		public:
 			TCActor();
 			TCActor(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
@@ -131,7 +134,7 @@ namespace NMib
 		
 		CConcurrencyManager &fg_ConcurrencyManager();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActor();
-		TCActor<CConcurrentActorLowPrio> const &fg_ConcurrentActorLowPrio();
+		TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
 
 		TCActor<CTimerActor> fg_TimerActor();
 	}

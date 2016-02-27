@@ -115,15 +115,6 @@ namespace NMib
 					)
 				;
 			}
-
-			template 
-				<
-					typename t_CHandler
-					, typename t_CActor
-					, typename t_CResultTypes
-					, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
-				>
-			struct TCCallMutipleActorStorage;
 			
 		}
 
@@ -375,15 +366,14 @@ namespace NMib
 					, typename... tp_CResultTypes
 					, mint... tp_ResultIndices
 				>
-			struct TCCallMutipleActorStorage<t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public CActor
+			struct TCCallMutipleActorStorage<t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NPtr::TCSharedPointerIntrusiveBase<>
 			{
 				enum
 				{
-					mc_bAllowInternalAccess = true
-					, mc_nResults = sizeof...(tp_CResultTypes)
+					mc_nResults = sizeof...(tp_CResultTypes)
 				};
 				NContainer::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
-				TCAutoClearInt<mint> m_nFinished;
+				NAtomic::TCAtomic<mint> m_nFinished;
 				t_CActor m_Actor;
 				t_CHandler m_Handler;
 
@@ -394,21 +384,22 @@ namespace NMib
 				}
 				~TCCallMutipleActorStorage()
 				{
-					if (m_nFinished != mc_nResults)
+					if (m_nFinished.f_Load() != mc_nResults)
 						f_ReportResult();
 				}
 				void f_ReportResult()
 				{
-					auto ThisActor = fg_ThisActor(this);
+					NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 					m_Actor->f_QueueProcess
 						(
-							[ThisActor]()
+							[pThis]()
 							{
-								auto &Internal = ThisActor->f_AccessInternal();
-								CCurrentActorScope CurrentActor(ThisActor->f_ConcurrencyManager(), &Internal);
-								Internal.m_Handler
+								auto &This = *pThis;
+								auto &Internal = *This.m_Actor->fp_GetActor();
+								CCurrentActorScope CurrentActor(Internal.f_ConcurrencyManager(), &Internal);
+								This.m_Handler
 									(
-										fg_Move(NContainer::fg_Get<tp_ResultIndices>(Internal.m_Results))...
+										fg_Move(NContainer::fg_Get<tp_ResultIndices>(This.m_Results))...
 									)
 								;
 							}
@@ -453,7 +444,9 @@ namespace NMib
 			;
 			typedef NPrivate::TCCallMutipleActorStorage<tf_CResultFunctor, tf_CResultActor, CTypeList> CStorage;
 			
-			TCActor<CStorage> pStorage = fg_ConstructActor<CStorage>(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
+			auto &ConcurrentActor = _ResultCall.mp_Actor->f_ConcurrencyManager().f_GetConcurrentActorForThisThread(_ResultCall.mp_Actor->f_GetPriority());
+			
+			NPtr::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 			
 			fg_Swallow
 				(
@@ -465,10 +458,10 @@ namespace NMib
 							, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
 
 						)
-						, pStorage
+						, ConcurrentActor
 						, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
 						{
-							auto &Internal = pStorage->f_AccessInternal();
+							auto &Internal = *pStorage;
 							NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
 							Internal.f_Finished();
 						}

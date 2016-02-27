@@ -10,7 +10,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		constexpr static const mint gc_ActorQueueDispatchFunctionMemory = fg_AlignUp(sizeof(void*)*8*2, DMibPMemoryCacheLineSize);
+		constexpr static const mint gc_ActorQueueDispatchFunctionMemory = fg_AlignUpConstExpr(sizeof(void*)*8*2, DMibPMemoryCacheLineSize);
 		using FActorQueueDispatch = NFunction::TCFunction
 			<
 				void (NFunction::CThisTag &)

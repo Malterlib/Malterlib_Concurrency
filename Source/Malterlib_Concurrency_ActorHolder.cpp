@@ -8,12 +8,13 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-
+		
+		
 		CActorHolder::CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
 			: mp_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)
 			, mp_Priority(_Priority)
-			, mp_iFixedCore(DMibBitRangeTyped(0, sizeof(mint)*8 - 2, mint))
+			, mp_iFixedCore(DMibBitRangeTyped(0, sizeof(mint)*8 - 3, mint))
 		{
 		}
 		
@@ -39,7 +40,7 @@ namespace NMib
 		
 		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 		
-		bool CActorHolder::fp_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		bool CActorHolder::fp_AddToQueue(FActorQueueDispatch &&_Functor)
 		{
 			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
 			
@@ -60,7 +61,7 @@ namespace NMib
 			{
 				if (_bRun)
 					(*pJob)();
-				mp_ConcurrentRunQueue.f_PopFirstQueueEntry();
+				mp_ConcurrentRunQueue.f_PopQueueEntry(pJob);
 				return true;
 			}
 			return false;
@@ -100,9 +101,9 @@ namespace NMib
 			}
 		}
 
-		void CActorHolder::f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
-			return fp_QueueProcess(fg_Move(_Functor));
+			return fp_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 		
 		bool CActorHolder::f_ImmediateDelete() const
@@ -231,29 +232,28 @@ namespace NMib
 							mp_pActor.f_Clear();
 							mp_bDestroyed.f_Exchange(2);
 							TCActor<CActor> pToDelete = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
-							if (f_RefCountDecrease() == 1)
+							if (CSuper::f_RefCountDecrease() == 1)
 							{
-								// Remove actor holder on concurrent actor, otherwise we ourselves could be in callstack
-								fg_ConcurrentActor()
+								// Dispatch to our queue again, otherwise we ourselves could be in callstack
+								mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
 									(
-										&CActor::f_Dispatch
+										mp_Priority
 										, [pToDelete]
 										{
 										}
-									) 
-									> fg_DiscardResult()
+									)
 								;
 							}
 						}
 					}
 				)
 			;
-			auto OnExitLambda = fg_LambdaMove(fg_Move(OnExit));
 			f_QueueProcess
 				(
-					[OnExitLambda]()
+					[OnExit = fg_Move(OnExit)]() mutable
 					{
 					}
+					, true
 				)
 			;
 		}
@@ -273,9 +273,9 @@ namespace NMib
 		{
 			DMibRequire(m_pThread.f_IsEmpty());
 		}
-		void CSeparateThreadActorHolder::fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
-			f_QueueProcess(fg_Move(_Functor));
+			f_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 		void CSeparateThreadActorHolder::fp_Construct()
 		{
@@ -285,7 +285,13 @@ namespace NMib
 					{
 						while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 						{
-							f_RunProcess();
+							NTime::CCyclesClock Clock;
+							while (true)
+							{
+								f_RunProcess();
+								if (Clock.f_GetTime() > 0.000035) // Run for at least 35 µs
+									break;
+							}
 							_pThread->m_EventWantQuit.f_Wait();
 						}
 						return 0;
@@ -295,7 +301,7 @@ namespace NMib
 			;
 			CDefaultActorHolder::fp_Construct();
 		}
-		void CSeparateThreadActorHolder::f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CSeparateThreadActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 				m_pThread->m_EventWantQuit.f_Signal();
@@ -311,18 +317,18 @@ namespace NMib
 		/// CDispatchingActorHolder
 		///
 		
-		CDispatchingActorHolder::CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher)
+		CDispatchingActorHolder::CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher)
 			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
 			, m_Dispatcher(_Dispatcher)
 		{
 		}
 
-		void CDispatchingActorHolder::fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
-			f_QueueProcess(fg_Move(_Functor));
+			f_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 		
-		void CDispatchingActorHolder::f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CDispatchingActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
@@ -342,9 +348,9 @@ namespace NMib
 		/// CDefaultActorHolder
 		///
 
-		void CDefaultActorHolder::fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CDefaultActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
-			f_QueueProcess(fg_Move(_Functor));
+			f_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 		
 		void CDefaultActorHolder::fp_Construct()
@@ -358,6 +364,7 @@ namespace NMib
 
 		CConcurrentRunQueue::CConcurrentRunQueue()
 		{
+			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory);
 		}
 		
 		CConcurrentRunQueue::~CConcurrentRunQueue()
@@ -374,10 +381,9 @@ namespace NMib
 			}
 		}
 		
-		void CConcurrentRunQueue::f_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CConcurrentRunQueue::f_AddToQueue(FActorQueueDispatch &&_Functor)
 		{
-			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct();
-			pNewEntryUnique->m_fToCall = fg_Move(_Functor);
+			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 			CQueueEntry *pNewEntry = pNewEntryUnique.f_Detach();
 			while (true)
 			{
@@ -388,22 +394,42 @@ namespace NMib
 			}
 		}
 		
-		void CConcurrentRunQueue::f_AddToQueueLocal(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CConcurrentRunQueue::f_AddToQueueLocal(FActorQueueDispatch &&_Functor)
 		{
-//			f_TransferThreadSafeQueue();
-			mp_LocalQueue.f_Insert(fg_Move(_Functor));
+			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+			pNewEntryUnique->m_Link.f_Construct();
+			mp_LocalQueue.f_Insert(pNewEntryUnique.f_Detach());
 		}
 		
-		NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> *CConcurrentRunQueue::f_FirstQueueEntry()
+		void CConcurrentRunQueue::f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor)
+		{
+			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
+			pNewEntryUnique->m_Link.f_Construct();
+			mp_LocalQueue.f_InsertFirst(pNewEntryUnique.f_Detach());
+		}
+		
+		FActorQueueDispatch *CConcurrentRunQueue::f_FirstQueueEntry()
 		{
 			if (mp_LocalQueue.f_IsEmpty())
 				return nullptr;
-			return &mp_LocalQueue.f_GetFirst();
+			return &mp_LocalQueue.f_GetFirst()->m_fToCall;
 		}
 		
-		void CConcurrentRunQueue::f_PopFirstQueueEntry()
+		CConcurrentRunQueue::CQueueEntry::CQueueEntry(FActorQueueDispatch &&_fToCall)
+			: m_fToCall(fg_Move(_fToCall))
 		{
-			mp_LocalQueue.f_Remove(mp_LocalQueue.f_GetFirst());
+		}
+		CConcurrentRunQueue::CQueueEntry::~CQueueEntry()
+		{
+			m_fToCall.f_Clear();
+			m_Link.f_Unlink();
+		}
+		
+		void CConcurrentRunQueue::f_PopQueueEntry(FActorQueueDispatch *_pEntry)
+		{
+			mint Offset = DMibPOffsetOf(CQueueEntry, m_fToCall);
+			CQueueEntry *pEntry = (CQueueEntry *)((uint8 *)_pEntry - Offset);
+			delete pEntry;
 		}
 
 		bool CConcurrentRunQueue::f_IsEmpty()
@@ -417,21 +443,18 @@ namespace NMib
 			if (!pEntry)
 				return false;
 
-			NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> *pInsertAfter = nullptr;
+			CQueueEntry *pInsertAfter = nullptr;
 			if (!mp_LocalQueue.f_IsEmpty())
-				pInsertAfter = &mp_LocalQueue.f_GetLast();
+				pInsertAfter = mp_LocalQueue.f_GetLast();
 			while (pEntry)
 			{
-				auto *pNextEntry = pEntry->m_pNextQueued.f_Load();
+				auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
 				
+				pEntry->m_Link.f_Construct();
 				if (pInsertAfter)
-				{
-					mp_LocalQueue.f_InsertAfter(fg_Move(pEntry->m_fToCall), *pInsertAfter);
-				}
+					mp_LocalQueue.f_InsertAfter(pEntry, pInsertAfter);
 				else
-					mp_LocalQueue.f_InsertFirst(fg_Move(pEntry->m_fToCall));
-				
-				delete pEntry;
+					mp_LocalQueue.f_InsertFirst(pEntry);
 				
 				pEntry = pNextEntry;
 			}
@@ -442,21 +465,37 @@ namespace NMib
 		{
 		}
 
-		void CDefaultActorHolder::f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		void CDefaultActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
 				NPtr::TCSharedPointer<CDefaultActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
-				mp_pConcurrencyManager->fp_QueueJob
-					(
-						this->mp_Priority
-						, this->mp_iFixedCore
-						, [pThis = fg_Move(pThis)]()
-						{
-							pThis->f_RunProcess();
-						}		
-					)
-				;
+				
+				if (_bSame)
+				{
+					mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
+						(
+							this->mp_Priority
+							, [pThis = fg_Move(pThis)]()
+							{
+								pThis->f_RunProcess();
+							}		
+						)
+					;
+				}
+				else
+				{
+					mp_pConcurrencyManager->fp_QueueJob
+						(
+							this->mp_Priority
+							, this->mp_iFixedCore
+							, [pThis = fg_Move(pThis)]()
+							{
+								pThis->f_RunProcess();
+							}		
+						)
+					;
+				}
 			}
 		}
 	}

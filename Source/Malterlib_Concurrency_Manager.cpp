@@ -141,7 +141,7 @@ namespace NMib
 						{
 							(*pEntry)();
 							
-							Queue.m_JobQueue.f_PopFirstQueueEntry();
+							Queue.m_JobQueue.f_PopQueueEntry(pEntry);
 						}
 					}
 				}
@@ -171,6 +171,37 @@ namespace NMib
 		
 		CConcurrencyManager::CQueue::CQueue()
 		{
+		}
+		
+		void CConcurrencyManager::f_DispatchFirstOnCurrentThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+		{
+			auto &ThreadLocal = *m_ThreadLocal;
+			if (ThreadLocal.m_pThisQueue)
+			{
+				ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocal(fg_Move(_ToQueue));
+				return;
+			}
+
+			auto &Queue = m_Queues[_Priority][0]; // Otherwise dipsatch on first queue, rely on work stealing to distribute
+			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
+				Queue.m_Event.f_Signal();
+		}
+		
+		void CConcurrencyManager::f_DispatchOnNextThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+		{
+			auto &ThreadLocal = *m_ThreadLocal;
+			mint iQueue = 0;
+			if (ThreadLocal.m_pThisQueue)
+			{
+				DMibCheck(ThreadLocal.m_pThisQueue >= &m_Queues[_Priority].f_GetFirst() && ThreadLocal.m_pThisQueue <= &m_Queues[_Priority].f_GetLast());
+				iQueue = (ThreadLocal.m_pThisQueue - &m_Queues[_Priority].f_GetFirst()) + 1;
+				if (iQueue >= m_nThreads)
+					iQueue = 0;
+			}
+
+			auto &Queue = m_Queues[_Priority][iQueue];
+			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
+				Queue.m_Event.f_Signal();
 		}
 		
 		void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
@@ -230,6 +261,9 @@ namespace NMib
 			ThreadLocal.m_pThisQueue = &_Queue;
 			while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 			{
+				NTime::CCyclesClock Clock;
+				Clock.f_Start();
+				while (true)
 				{
 #if DMibPPtrBits > 32
 					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
@@ -263,12 +297,14 @@ namespace NMib
 								while (auto *pJob = _Queue.m_JobQueue.f_FirstQueueEntry())
 								{
 									(*pJob)();
-									_Queue.m_JobQueue.f_PopFirstQueueEntry();
+									_Queue.m_JobQueue.f_PopQueueEntry(pJob);
 									bDoneSomething = true;
 								}
 							}
 						}
 					}
+					if (Clock.f_GetTime() > 0.000035) // Loop for at least 35 µs before going to kernel
+						break;
 				}
 				_Queue.m_Event.f_Wait();
 			}

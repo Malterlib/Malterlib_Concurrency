@@ -10,9 +10,12 @@ namespace NMib
 		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
 		TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params)
 		{
-			NPtr::TCUniquePointer<tf_CType> pRealActor = fg_Move(_ConstructParams);
 			NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor = fg_Construct(this, fg_Forward<tfp_CHolderParams>(p_Params)...);
 
+			NMem::TCAllocator_Placement<sizeof(tf_CType)> Allocator(pActor->m_ActorMemory.m_Aligned);
+			NPtr::TCUniquePointer<tf_CType, NMem::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
+			NPtr::TCUniquePointer<tf_CType, NMem::CAllocator_Placement> pRealActor{fg_Explicit(pActorPlacement.f_Detach())};
+			
 			++m_nActors;
 #ifdef DMibDebug
 			{

@@ -83,6 +83,25 @@ namespace
 	};
 	class CActor_Tests : public NMib::NTest::CTest
 	{
+		void fp_BlockOnAllThreads()
+		{
+			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+			TCActorResultVector<void> Results;
+			for (mint i = 0; i < nThreads; ++i)
+				fg_ConcurrentActor()
+					(
+						&CActor::f_Dispatch
+						, []
+						{
+							auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+					) > Results.f_AddResult()
+				;
+			Results.f_GetResults().f_CallSync();
+			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+			Checkout.f_CheckMessages(); // Garbage collect memory
+		}
 	public:
 		
 		void f_FunctionalTests()
@@ -107,7 +126,7 @@ namespace
 					;
 					FinishedEvent.f_Wait();
 					
-					DMibTest(DMibExpr(Value) == DMibExpr(2));
+					DMibExpect(Value, ==, 2);
 				}
 				{
 					DMibTestPath("Two param");
@@ -127,7 +146,7 @@ namespace
 
 					FinishedEvent.f_Wait();
 					
-					DMibTest(DMibExpr(Value) == DMibExpr(4));
+					DMibExpect(Value, ==, 4);
 				}
 				{
 					DMibTestPath("Many param");
@@ -172,7 +191,7 @@ namespace
 
 					FinishedEvent.f_Wait();
 					
-					DMibTest(DMibExpr(Value) == DMibExpr(8+1+2+3+4));
+					DMibExpect(Value, ==, 8+1+2+3+4);
 				}
 			};
 			
@@ -192,7 +211,7 @@ namespace
 				
 				FinishedEvent.f_Wait();
 				
-				DMibTest(DMibExpr(Value) == DMibExpr(2));
+				DMibExpect(Value, ==, 2);
 			};
 			
 			DMibTestSuite("Callbacks")
@@ -222,7 +241,7 @@ namespace
 				;
 				FinishedEvent.f_Wait();
 				
-				DMibTest(DMibExpr(CallbackReference) != DMibExpr(nullptr));
+				DMibExpect(CallbackReference, !=, nullptr);
 				
 				TestActor(&CCallbackActor::f_CallCallback, 32)
 					> fg_DiscardResult()
@@ -233,16 +252,17 @@ namespace
 					DMibLock(Lock);
 				}
 				
-				DMibTest(DMibExpr(CallbackValue.f_Load()) == DMibExpr(32));
+				DMibExpect(CallbackValue.f_Load(), ==, 32);
 				
 			};
 			
 		}
-		
-		void f_PerformanceTests()
+
+		void f_PerformanceTests_Message()
 		{
-			DMibTestSuite(CTestCategory("Performance") << CTestGroup("Performance"))
+			DMibTestSuite(CTestCategory("Message") << CTestGroup("Performance"))
 			{
+				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #ifdef DMibDebug
 				mint nIterations = 100'000;
 #else
@@ -276,7 +296,7 @@ namespace
 						}
 					}
 					
-					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					DMibExpect(ActorEmul.f_GetResult(), == nIterations*5);
 					PerfTest.f_AddBaseline(DispatchMeasure);
 				}
 #endif
@@ -309,7 +329,7 @@ namespace
 						}
 					}
 					
-					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
 					PerfTest.f_AddBaseline(DispatchMeasure);
 				}
 				{
@@ -336,7 +356,7 @@ namespace
 							(*Dispatch)();
 					}
 					
-					DMibTest(DMibExpr(ActorEmul.f_GetResult()) == DMibExpr(nIterations*5));
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
 					PerfTest.f_AddBaseline(DispatchMeasure);
 				}
 				{
@@ -352,9 +372,10 @@ namespace
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads();
 					}
 					
-					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					DMibExpect(Result, ==, nIterations*5);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}
@@ -369,7 +390,7 @@ namespace
 					auto &ConcurrentActor = fg_ConcurrentActor();
 					for (mint i = 0; i < 5; ++i)
 					{
-						DMibTestScopeMeasure(ActorMeasure, nIterations * 2);
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations*2, 2);
 						for (mint i = 0; i < nIterations; ++i)
 						{
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) 
@@ -380,9 +401,10 @@ namespace
 						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads();
 					}
 					
-					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					DMibExpect(Result, ==, nIterations*5);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}
@@ -396,7 +418,7 @@ namespace
 					uint32 Result = 0;;
 					for (mint i = 0; i < 5; ++i)
 					{
-						DMibTestScopeMeasure(ActorMeasure, nIterations * 2);
+						DMibTestScopeMeasure(ActorMeasure, nIterations*2);
 						for (mint i = 0; i < nIterations; ++i)
 						{
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) 
@@ -407,21 +429,23 @@ namespace
 						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads();
 					}
 					
-					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					DMibExpect(Result, == ,nIterations*5);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}
 				{
 					DMibTestPath("Parallell Concurrent Actors");
 					
-					CTestPerformanceMeasure ActorMeasure("Parallell Actor");
+					CTestPerformanceMeasure ActorMeasure("PC Actor->Discard");
 					
 					uint32 Result = 0;
 					mint nSplits = NSys::fg_Thread_GetVirtualCores();
 					mint nIterations = nIterationsFull;
 					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
 					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
 					PerfTestActors.f_SetLen(nSplits);
 					for (mint i = 0; i < nSplits; ++i)
@@ -429,7 +453,7 @@ namespace
 					
 					for (mint i = 0; i < 5; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetVirtualCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCActorResultVector<void> Results;
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
@@ -450,9 +474,10 @@ namespace
 						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
 						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads();
 					}
 					
-					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					DMibExpect(Result, == ,nIterations*5);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}
@@ -499,7 +524,7 @@ namespace
 
 					for (mint i = 0; i < 5; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, ((nIterations * 2 - 1) + nIterations - 1) * 2, NSys::fg_Thread_GetVirtualCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, ((nIterations * 2 - 1) + nIterations - 1) * 2, NSys::fg_Thread_GetPhysicalCores());
 						
 						Result += fg_ConcurrentActor()
 							(
@@ -510,15 +535,171 @@ namespace
 								}
 							).f_CallSync(20.0);
 						;
+						fp_BlockOnAllThreads();
 					}
 					
-					DMibTest(DMibExpr(Result) == DMibExpr(nIterations*5));
+					DMibExpect(Result, ==, nIterations*5);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}
 				
-				DMibTest(DMibExpr(PerfTest));
+				DMibExpectTrue(PerfTest);
 			};
+		}
+
+		void f_PerformanceTests_Create()
+		{
+			DMibTestSuite(CTestCategory("Lifetime") << CTestGroup("Performance"))
+			{
+				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#ifdef DMibDebug
+				mint nIterations = 100'000;
+#else
+				mint nIterations = 1'000'000;
+#endif
+				mint nIterationsFull = nIterations;
+				CTestPerformance PerfTest(0.9);
+				CTestPerformance PerfTestDestroy(0.9);
+				{
+					DMibTestPath("Linked List");
+					CTestPerformanceMeasure DispatchMeasure("Linked List");
+					CTestPerformanceMeasure DispatchMeasureDestroy("Linked List");
+					TCLinkedList<CPerformanceTestActor> ToDispatch;
+	
+					for (mint i = 0; i < 5; ++i)
+					{
+						{
+							DMibTestScopeMeasure(DispatchMeasure, nIterations);
+							for (mint i = 0; i < nIterations; ++i)
+							{
+								ToDispatch.f_Insert
+									(
+										CPerformanceTestActor()
+									)
+								;
+							}
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+						{
+							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
+							ToDispatch.f_Clear();
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+					}
+					PerfTest.f_AddBaseline(DispatchMeasure);
+					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
+					fg_GetSys()->f_MemoryManager_GarbageCollect();
+				}
+				{
+					DMibTestPath("Thread safe queue");
+					CTestPerformanceMeasure DispatchMeasure("Thread safe queue");
+					CTestPerformanceMeasure DispatchMeasureDestroy("Thread safe queue");
+					TCThreadSafeQueue<CPerformanceTestActor> ToDispatch;
+	
+					for (mint i = 0; i < 5; ++i)
+					{
+						{
+							DMibTestScopeMeasure(DispatchMeasure, nIterations);
+							for (mint i = 0; i < nIterations; ++i)
+							{
+								ToDispatch.f_Push
+									(
+										CPerformanceTestActor()
+									)
+								;
+							}
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+						{
+							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
+							ToDispatch.f_Clear();
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+					}
+					PerfTest.f_AddBaseline(DispatchMeasure);
+					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
+					fg_GetSys()->f_MemoryManager_GarbageCollect();
+				}
+				{
+					DMibTestPath("Actor");
+					CTestPerformanceMeasure ActorMeasure("Actor");
+					CTestPerformanceMeasure ActorMeasureDestroy("Actor");
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					
+					auto &ConcurrentActor = fg_ConcurrentActor();
+		
+					for (mint i = 0; i < 5; ++i)
+					{
+						PerfTestActors.f_SetLen(nIterations);
+						{
+							DMibTestScopeMeasure(ActorMeasure, nIterations);
+							ConcurrentActor
+								(
+									&CActor::f_Dispatch
+									, [&]
+									{
+										for (auto &PerfTestActor : PerfTestActors)
+											PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+									}
+								).f_CallSync()
+							;
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+						{
+							DMibTestScopeMeasure(ActorMeasureDestroy, nIterations);
+							ConcurrentActor
+								(
+									&CActor::f_Dispatch
+									, [&]
+									{
+										PerfTestActors.f_Clear();
+									}
+								).f_CallSync()
+							;
+							fp_BlockOnAllThreads();
+						}
+					}
+					
+					PerfTest.f_Add(ActorMeasure);
+					PerfTestDestroy.f_Add(ActorMeasureDestroy);
+					fg_GetSys()->f_MemoryManager_GarbageCollect();
+				}
+				{
+					DMibTestPath("Actor Outside System");
+					CTestPerformanceMeasure ActorMeasure("ActorOutside");
+					CTestPerformanceMeasure ActorMeasureDestroy("ActorOutside");
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					
+					for (mint i = 0; i < 5; ++i)
+					{
+						PerfTestActors.f_SetLen(nIterations);
+						{
+							DMibTestScopeMeasure(ActorMeasure, nIterations);
+							for (auto &PerfTestActor : PerfTestActors)
+								PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+						{
+							DMibTestScopeMeasureThreads(ActorMeasureDestroy, nIterations, 1);
+							PerfTestActors.f_Clear();
+							fp_BlockOnAllThreads();
+						}
+					}
+					
+					PerfTest.f_Add(ActorMeasure);
+					PerfTestDestroy.f_Add(ActorMeasureDestroy);
+					fg_GetSys()->f_MemoryManager_GarbageCollect();
+				}
+				
+				DMibExpectTrue(PerfTest);
+				DMibExpectTrue(PerfTestDestroy);
+			};
+		}
+
+		void f_PerformanceTests()
+		{
+			f_PerformanceTests_Create();
+			f_PerformanceTests_Message();
 		}
 		
 		void f_DoTests()

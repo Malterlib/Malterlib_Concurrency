@@ -98,7 +98,9 @@ namespace NMib
 			TCActor<CConcurrentActor> const &f_GetConcurrentActor();
 			TCActor<CConcurrentActorLowPrio> const &f_GetConcurrentActorLowPrio();
 			TCActor<CTimerActor> const &f_GetTimerActor();
-
+			
+			void f_DispatchFirstOnCurrentThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
+			void f_DispatchOnNextThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
 		};
 		
 	

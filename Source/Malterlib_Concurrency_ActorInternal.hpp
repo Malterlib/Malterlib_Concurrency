@@ -62,9 +62,10 @@ namespace NMib
 			else
 			{
 				auto *pAllocator = &_Allocator;
-				fg_ConcurrentActor()
+				
+				_pObject->f_ConcurrencyManager().f_DispatchFirstOnCurrentThread
 					(
-						&CConcurrentActor::f_Dispatch
+						_pObject->f_GetPriority()
 						, [_pObject, pAllocator]
 						{
 							_pObject->~tf_CToDelete();
@@ -72,7 +73,6 @@ namespace NMib
 								pAllocator->f_Free(_pObject);
 						}
 					)
-					> fg_DiscardResult()
 				;
 			}
 		}
@@ -102,6 +102,16 @@ namespace NMib
 				>
 				CReportLocal
 			;
+#if 0
+			static NThread::CMutual s_Lock;
+			static NContainer::TCSet<NStr::CStr> s_Logged;
+			{
+				DMibLock(s_Lock);
+				NStr::CStr ToLog = NStr::fg_Format("ReportLocal: {}  {}", sizeof(CReportLocal), NTraits::TCAlignmentOf<CReportLocal>::mc_Value);
+				if (s_Logged(ToLog).f_WasCreated())
+					DMibTraceSafe("{}\n", ToLog);
+			}
+#endif
 
 			this->f_QueueProcess(CReportLocal(fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this));
 			

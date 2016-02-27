@@ -167,7 +167,7 @@ namespace
 
 				CConcurrencyManager &ConcurrencyManager = fg_ConcurrencyManager();
 				{
-					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](TCFunction<void (), CFunctionNoCopyTag> &&_Functor){_Functor();}));
+					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](FActorQueueDispatch &&_Functor){_Functor();}));
 					auto pActor = fg_ConstructActor<CTestActor>();
 					auto pLockActor = fg_ConstructActor<TCLockActor<int, NThread::CMutual>>(fg_Construct("MalterlibTestSeparateActorThread"), Object, Lock);
 

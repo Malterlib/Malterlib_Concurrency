@@ -29,7 +29,7 @@ namespace NMib
 		{
 		};
 		
-		enum EPriority
+		enum EPriority : mint
 		{
 			EPriority_Low
 			, EPriority_Normal

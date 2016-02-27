@@ -128,7 +128,9 @@ namespace NMib
 					, tf_CResultFunctor &&_ResultFunctor
 				)
 			;
-
+			
+		private:
+			typename NTraits::TCAlign<uint8 [sizeof(t_CActor)], NTraits::TCAlignmentOf<t_CActor>::mc_Value>::CType m_ActorMemory;
 		};
 
 		template <typename tf_CToDelete>

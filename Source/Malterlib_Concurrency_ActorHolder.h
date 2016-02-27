@@ -4,31 +4,48 @@
 #pragma once
 
 #include <Mib/Core/Core>
+#include <Mib/Memory/Allocators/Placement>
 
 namespace NMib
 {
 	namespace NConcurrency
 	{
+		constexpr static const mint gc_ActorQueueDispatchFunctionMemory = fg_AlignUp(sizeof(void*)*8*2, DMibPMemoryCacheLineSize);
+		using FActorQueueDispatch = NFunction::TCFunction
+			<
+				void (NFunction::CThisTag &)
+				, NFunction::CFunctionNoCopyTag
+				, NFunction::TCFunctionNoAllocOptions<true, gc_ActorQueueDispatchFunctionMemory - sizeof(void *)*(2 + 2)>
+			>
+		;
 		class CConcurrentRunQueue
 		{
 		public:
 			CConcurrentRunQueue();
 			~CConcurrentRunQueue();
-			void f_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
-			void f_AddToQueueLocal(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
-			NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> *f_FirstQueueEntry();
-			void f_PopFirstQueueEntry();
+			void f_AddToQueue(FActorQueueDispatch &&_Functor);
+			void f_AddToQueueLocal(FActorQueueDispatch &&_Functor);
+			void f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor);
+			FActorQueueDispatch *f_FirstQueueEntry();
+			void f_PopQueueEntry(FActorQueueDispatch *_pEntry);
 			bool f_TransferThreadSafeQueue();
 			bool f_IsEmpty();
 		private:
- 			struct CQueueEntry
+ 			struct align_cacheline CQueueEntry
 			{
-				align_cacheline NAtomic::TCAtomic<CQueueEntry *> m_pNextQueued;
-				NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> m_fToCall;
+				DMibListLinkD_Trans(CQueueEntry, m_Link);
+				union
+				{
+					NAtomic::TCAtomic<CQueueEntry *> m_pNextQueued;
+					DMibListLinkDSA_Member(m_Link);
+				};
+				FActorQueueDispatch m_fToCall;
+				CQueueEntry(FActorQueueDispatch &&_fToCall);
+				~CQueueEntry();
 			};	
 			
+			DMibListLinkDS_List(CQueueEntry, m_Link) mp_LocalQueue;
 			align_cacheline NAtomic::TCAtomic<CQueueEntry *> mp_pFirstQueued;
-			NContainer::TCLinkedList<NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag>> mp_LocalQueue;
 		};
 		
 		class CActorHolder : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
@@ -37,8 +54,8 @@ namespace NMib
 			friend class CConcurrencyManager;
 			friend class CActor;
 		protected:
-			bool fp_AddToQueue(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
-			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) pure;
+			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
+			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) pure;
 			virtual void fp_Construct();
 		public:
 			
@@ -46,7 +63,7 @@ namespace NMib
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
-			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 			bool f_ImmediateDelete() const;
 			void f_DestroyThreaded();
 			bool f_IsDestroyed() const;
@@ -68,10 +85,8 @@ namespace NMib
 			
 			void f_SetFixedCore(mint _iFixedCore);
 			
-			inline_always CConcurrencyManager &f_ConcurrencyManager() const
-			{
-				return *mp_pConcurrencyManager;
-			}
+			inline_always CConcurrencyManager &f_ConcurrencyManager() const;
+			inline_always EPriority f_GetPriority() const;
 			
 		private:
 			void fp_Destroy();
@@ -85,38 +100,43 @@ namespace NMib
 #endif
 			
 		protected:
-			CConcurrencyManager *mp_pConcurrencyManager;
-			mint mp_bImmediateDelete:1;
-			mint mp_iFixedCore:sizeof(mint)*8 - 1;
-			EPriority mp_Priority;
-			NPtr::TCUniquePointer<CActor> mp_pActor;
-			
-			align_cacheline NAtomic::TCAtomic<mint> mp_Working;
-			align_cacheline mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
+			// Alignment zone 1: vptr, refcount
+			// Alignment zone 2
 			CConcurrentRunQueue mp_ConcurrentRunQueue;
+			CConcurrencyManager *mp_pConcurrencyManager;
+			EPriority mp_Priority:1;
+			mint mp_bImmediateDelete:1;
+			mint mp_iFixedCore:sizeof(mint)*8 - 2;
+			NPtr::TCUniquePointer<CActor, NMem::CAllocator_Placement> mp_pActor;
+			mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
+
+			// Alignment zone 3
+			align_cacheline NAtomic::TCAtomic<mint> mp_Working;
+			
+			// Alignment zone 4: Actor storage, other actor holder data
 		};
 
 		class CDefaultActorHolder : public CActorHolder
 		{
 		protected:
-			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
+			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 			virtual void fp_Construct()	override;
 		public:
 			CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
 			~CDefaultActorHolder();
 
-			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 		};
 
 		class CDispatchingActorHolder : public CDefaultActorHolder
 		{
 		protected:
-			NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> m_Dispatcher;
+			NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
 
-			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
+			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 		public:
-			CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Dispatch)> const &_Dispatcher);
-			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 		};
 
 		class CSeparateThreadActorHolder : public CDefaultActorHolder
@@ -125,13 +145,13 @@ namespace NMib
 			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
 			NStr::CStr mp_ThreadName;
 
-			virtual void fp_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor) override;
+			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 			void fp_Construct() override;
 		public:
 			CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStr::CStr const &_ThreadName);
 			~CSeparateThreadActorHolder();
 			void f_DestroyThreaded();
-			void f_QueueProcess(NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 		};
 	}
 }

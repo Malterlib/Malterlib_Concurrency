@@ -19,15 +19,14 @@ namespace NMib
 				> fg_ConcurrentActor() /  [pActor, _ResultCall](TCAsyncResult<void> &&_Result)
 				{
 					pActor->fp_Terminate();
-					auto Result = fg_LambdaMove(_Result);
-					auto ResultCall = fg_LambdaMove(_ResultCall);
-					auto fCallResult
-						= [ResultCall, Result]()
-						{
-							NPrivate::fg_CallResultFunctor((*ResultCall).mp_Functor, (*ResultCall).mp_Actor->fp_GetActor(), fg_Move(*Result));
-						}
+					_ResultCall.mp_Actor->f_QueueProcess
+						(
+							[ResultCall = fg_Move(_ResultCall), Result = fg_Move(_Result)]() mutable
+							{
+								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor->fp_GetActor(), fg_Move(Result));
+							}
+						)
 					;
-					_ResultCall.mp_Actor->f_QueueProcess(fg_Move(fCallResult));
 				}
 			;
 		}
@@ -50,6 +49,16 @@ namespace NMib
 			auto pActor = mp_pConcurrencyManager->m_ThreadLocal->m_pCurrentActor;
 			DMibFastCheck(pActor);
 			f_Destroy(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor));
+		}
+		
+		CConcurrencyManager &CActorHolder::f_ConcurrencyManager() const
+		{
+			return *mp_pConcurrencyManager;
+		}
+		
+		EPriority CActorHolder::f_GetPriority() const
+		{
+			return mp_Priority;
 		}
 	}
 }

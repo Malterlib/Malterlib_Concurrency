@@ -269,8 +269,7 @@ namespace
 				mint nIterations = 5'000'000;
 #endif
 				mint nIterationsFull = nIterations;
-				CTestPerformance PerfTest(0.9);
-#if 0
+				CTestPerformance PerfTest(0.1);
 				{
 					DMibTestPath("Dispatch vector");
 					CTestPerformanceMeasure DispatchMeasure("Dispatch vector");
@@ -296,10 +295,9 @@ namespace
 						}
 					}
 					
-					DMibExpect(ActorEmul.f_GetResult(), == nIterations*5);
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
 					PerfTest.f_AddBaseline(DispatchMeasure);
 				}
-#endif
 				
 				{
 					DMibTestPath("Dispatch");
@@ -330,7 +328,7 @@ namespace
 					}
 					
 					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
-					PerfTest.f_AddBaseline(DispatchMeasure);
+					PerfTest.f_AddReference(DispatchMeasure);
 				}
 				{
 					DMibTestPath("Dispatch threaded");
@@ -357,7 +355,7 @@ namespace
 					}
 					
 					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
-					PerfTest.f_AddBaseline(DispatchMeasure);
+					PerfTest.f_AddReference(DispatchMeasure);
 				}
 				{
 					DMibTestPath("Actor");
@@ -558,8 +556,31 @@ namespace
 				mint nIterations = 1'000'000;
 #endif
 				mint nIterationsFull = nIterations;
-				CTestPerformance PerfTest(0.9);
-				CTestPerformance PerfTestDestroy(0.9);
+				CTestPerformance PerfTest(0.1);
+				CTestPerformance PerfTestDestroy(0.025);
+				{
+					DMibTestPath("Vector");
+					CTestPerformanceMeasure DispatchMeasure("Vector");
+					CTestPerformanceMeasure DispatchMeasureDestroy("Vector");
+					TCVector<CPerformanceTestActor> ToDispatch;
+	
+					for (mint i = 0; i < 5; ++i)
+					{
+						{
+							DMibTestScopeMeasure(DispatchMeasure, nIterations);
+							ToDispatch.f_SetLen(nIterations);
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+						{
+							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
+							ToDispatch.f_Clear();
+							Checkout.f_CheckMessages(); // Garbage collect memory
+						}
+					}
+					PerfTest.f_AddBaseline(DispatchMeasure);
+					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
+					fg_GetSys()->f_MemoryManager_GarbageCollect();
+				}
 				{
 					DMibTestPath("Linked List");
 					CTestPerformanceMeasure DispatchMeasure("Linked List");
@@ -586,8 +607,8 @@ namespace
 							Checkout.f_CheckMessages(); // Garbage collect memory
 						}
 					}
-					PerfTest.f_AddBaseline(DispatchMeasure);
-					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
+					PerfTest.f_AddReference(DispatchMeasure);
+					PerfTestDestroy.f_AddReference(DispatchMeasureDestroy);
 					fg_GetSys()->f_MemoryManager_GarbageCollect();
 				}
 				{
@@ -616,8 +637,8 @@ namespace
 							Checkout.f_CheckMessages(); // Garbage collect memory
 						}
 					}
-					PerfTest.f_AddBaseline(DispatchMeasure);
-					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
+					PerfTest.f_AddReference(DispatchMeasure);
+					PerfTestDestroy.f_AddReference(DispatchMeasureDestroy);
 					fg_GetSys()->f_MemoryManager_GarbageCollect();
 				}
 				{

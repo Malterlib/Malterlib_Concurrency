@@ -44,7 +44,7 @@ namespace NMib
 		{
 			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
 			
-			if (ThreadLocal.m_pCurrentActor == this->mp_pActor.f_Get())
+			if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			{
 				mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Functor));
 				return false;
@@ -69,6 +69,16 @@ namespace NMib
 		
 		void CActorHolder::f_RunProcess()
 		{
+			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
+			DMibRequire(!ThreadLocal.m_pCurrentlyProcessingActorHolder);
+			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
+			
+			auto Cleanup = g_OnScopeExit > [&]
+				{
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = nullptr;
+				}
+			;
+			
 			bool bDoMore = true;
 			while (bDoMore)
 			{
@@ -136,7 +146,7 @@ namespace NMib
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 
 			pActor(&CActor::f_Destroy)
-				> fg_ConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result)
+				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result)
 				{
 					_Result.f_Get();
 					pActor->fp_Terminate();

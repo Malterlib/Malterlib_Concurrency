@@ -315,7 +315,7 @@ namespace NMib
 			{
 				TCAsyncResult<CReturnType> Result;
 				NThread::CEvent WaitEvent;
-				*this > fg_ConcurrentActor() / [&](TCAsyncResult<CReturnType> &&_Result)
+				*this > fg_AnyConcurrentActor() / [&](TCAsyncResult<CReturnType> &&_Result)
 					{
 						Result = fg_Move(_Result);
 						WaitEvent.f_SetSignaled();
@@ -330,7 +330,7 @@ namespace NMib
 			CReturnType f_CallSync(fp64 _Timeout)
 			{
 				NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-				*this > fg_ConcurrentActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+				*this > fg_AnyConcurrentActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 					{
 						pResult->m_Result = fg_Move(_Result);
 						pResult->m_WaitEvent.f_SetSignaled();
@@ -382,20 +382,22 @@ namespace NMib
 					, m_Actor(_Actor)
 				{
 				}
+				
 				~TCCallMutipleActorStorage()
 				{
 					if (m_nFinished.f_Load() != mc_nResults)
 						f_ReportResult();
 				}
+				
 				void f_ReportResult()
 				{
 					NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
-					m_Actor->f_QueueProcess
+					m_Actor.f_GetActor()->f_QueueProcess
 						(
 							[pThis]()
 							{
 								auto &This = *pThis;
-								auto &Internal = *This.m_Actor->fp_GetActor();
+								auto &Internal = *This.m_Actor.f_GetActor()->fp_GetActor();
 								CCurrentActorScope CurrentActor(Internal.f_ConcurrencyManager(), &Internal);
 								This.m_Handler
 									(
@@ -443,31 +445,57 @@ namespace NMib
 				> CTypeList
 			;
 			typedef NPrivate::TCCallMutipleActorStorage<tf_CResultFunctor, tf_CResultActor, CTypeList> CStorage;
-			
-			auto &ConcurrentActor = _ResultCall.mp_Actor->f_ConcurrencyManager().f_GetConcurrentActorForThisThread(_ResultCall.mp_Actor->f_GetPriority());
-			
+
 			NPtr::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 			
-			fg_Swallow
-				(
-					NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor->template f_Call<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>
+			if (_ResultCall.mp_Actor->f_GetPriority() == EPriority_Normal)
+			{
+				auto &Actor = fg_AnyConcurrentActor();
+				fg_Swallow
 					(
-						NPrivate::fg_BindConstruct
+						NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor->template f_Call<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>
 						(
-							fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Functor)
-							, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
+							NPrivate::fg_BindConstruct
+							(
+								fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Functor)
+								, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
 
-						)
-						, ConcurrentActor
-						, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
-						{
-							auto &Internal = *pStorage;
-							NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
-							Internal.f_Finished();
-						}
-					)...
-				)
-			;
+							)
+							, Actor
+							, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
+							{
+								auto &Internal = *pStorage;
+								NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
+								Internal.f_Finished();
+							}
+						)...
+					)
+				;
+			}
+			else
+			{
+				auto &Actor = fg_AnyConcurrentActorLowPrio();
+				fg_Swallow
+					(
+						NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor->template f_Call<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>
+						(
+							NPrivate::fg_BindConstruct
+							(
+								fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Functor)
+								, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
+
+							)
+							, Actor
+							, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
+							{
+								auto &Internal = *pStorage;
+								NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
+								Internal.f_Finished();
+							}
+						)...
+					)
+				;
+			}
 #ifdef DMibContractConfigure_CheckEnabled
 			fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
 #endif
@@ -498,6 +526,7 @@ namespace NMib
 			{
 				_Other.m_pActorInternal = nullptr;
 			}
+			
 			TCReportLocal
 				(
 					t_CFunctor &&_ToCall
@@ -511,7 +540,7 @@ namespace NMib
 				, m_pActorInternal(_pActorInternal)
 			{
 #if DMibConcurrencyDebugActorCallstacks
-				auto &ConcurrencyManager = m_pActorInternal->f_ConcurrencyManager();
+				auto &ConcurrencyManager = f_ConcurrencyManager();
 				auto &ThreadLocal = *ConcurrencyManager.m_ThreadLocal;
 				if (ThreadLocal.m_pCallstacks)
 					m_Result.m_Callstacks = *ThreadLocal.m_pCallstacks;
@@ -533,11 +562,12 @@ namespace NMib
 					m_Result.m_Callstacks.f_Remove(m_Result.m_Callstacks.f_GetLast());
 #endif				
 			}
+			
 			void operator ()() const
 			{
 				if (m_Result.f_IsSet())
 				{
-					NPrivate::fg_CallResultFunctor(m_ResultFunctor, m_pResultActor->fp_GetActor(), fg_Move(m_Result));
+					NPrivate::fg_CallResultFunctor(m_ResultFunctor, f_GetResultActor()->fp_GetActor(), fg_Move(m_Result));
 				}
 				else
 				{
@@ -551,18 +581,60 @@ namespace NMib
 					;
 				}
 			}
-			inline_always bool f_ShouldDiscardResult() const
+			
+			inline_always CConcurrencyManager &f_ConcurrencyManager()
+			{
+				if (fs_UseAnyConcurrentActor())
+					return fg_ConcurrencyManager();
+				return m_pActorInternal->f_ConcurrencyManager();
+			}
+			
+			template 
+			<
+				typename tf_CResultActor = t_CResultActor
+				, TCEnableIfType
+				<
+					!NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActor>::mc_Value
+					&& !NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value
+				> * = nullptr
+			>
+			inline_always TCActor<tf_CResultActor> const &f_GetResultActor() const
+			{
+				return m_pResultActor;
+			}
+			
+			template 
+			<
+				typename tf_CResultActor = t_CResultActor
+				, TCEnableIfType
+				<
+					NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActor>::mc_Value
+					|| NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value
+				> * = nullptr
+			>
+			inline_always TCActor<CConcurrentActor> const &f_GetResultActor() const
+			{
+				return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
+			}
+			
+			static inline_always bool fs_ShouldDiscardResult()
 			{
 				return NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
 			}
+			
+			static inline_always bool fs_UseAnyConcurrentActor()
+			{
+				return NTraits::TCIsSame<t_CActor, CAnyConcurrentActor>::mc_Value || NTraits::TCIsSame<t_CActor, CAnyConcurrentActorLowPrio>::mc_Value;
+			}
+			
 			~TCReportLocal()
 			{
-				if (f_ShouldDiscardResult())
+				if (fs_ShouldDiscardResult())
 					return;
 				if (m_pActorInternal)
 				{
 					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
-					auto pActor = m_pResultActor;
+					auto pActor = f_GetResultActor();
 					m_pActorInternal = nullptr;
 					pActor->f_QueueProcess(fg_Move(*this));
 				}

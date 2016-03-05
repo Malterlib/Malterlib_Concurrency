@@ -7,6 +7,43 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		
+		template <typename t_CActor>
+		inline_always CConcurrencyManager &TCActorInternal<t_CActor>::f_ConcurrencyManager() const
+		{
+			return *this->mp_pConcurrencyManager;
+		}
+		
+		template <typename t_CActor>
+		inline_always EPriority TCActorInternal<t_CActor>::f_GetPriority() const
+		{
+			return this->mp_Priority;
+		}
+		
+		template <>
+		inline_always CConcurrencyManager &TCActorInternal<CAnyConcurrentActor>::f_ConcurrencyManager() const
+		{
+			return fg_ConcurrencyManager();
+		}
+		
+		template <>
+		inline_always EPriority TCActorInternal<CAnyConcurrentActor>::f_GetPriority() const
+		{
+			return EPriority_Normal;
+		}
+
+		template <>
+		inline_always CConcurrencyManager &TCActorInternal<CAnyConcurrentActorLowPrio>::f_ConcurrencyManager() const
+		{
+			return fg_ConcurrencyManager();
+		}
+		
+		template <>
+		inline_always EPriority TCActorInternal<CAnyConcurrentActorLowPrio>::f_GetPriority() const
+		{
+			return EPriority_Low;
+		}
+		
 		template <typename t_CActor>
 		t_CActor *TCActorInternal<t_CActor>::fp_GetActor() const
 		{
@@ -117,6 +154,41 @@ namespace NMib
 			
 			return true; // Dummy return to allow for fg_Swallow on arguments
 		}		
+
+		template <>
+		template 
+			<
+				typename tf_CFunction
+				, typename tf_CFunctor
+				, typename tf_CResultActor
+				, typename tf_CResultFunctor
+			>
+		bool TCActorInternal<CAnyConcurrentActor>::f_Call
+			(
+				tf_CFunctor &&_ToCall
+				, TCActor<tf_CResultActor> const &_pResultActor
+				, tf_CResultFunctor &&_ResultFunctor
+			)
+		{
+			return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal).m_pInternalActor->f_Call<tf_CFunction>(_ToCall, _pResultActor, fg_Move(_ResultFunctor));
+		}
 		
+		template <>
+		template 
+			<
+				typename tf_CFunction
+				, typename tf_CFunctor
+				, typename tf_CResultActor
+				, typename tf_CResultFunctor
+			>
+		bool TCActorInternal<CAnyConcurrentActorLowPrio>::f_Call
+			(
+				tf_CFunctor &&_ToCall
+				, TCActor<tf_CResultActor> const &_pResultActor
+				, tf_CResultFunctor &&_ResultFunctor
+			)
+		{
+			return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low).m_pInternalActor->f_Call<tf_CFunction>(_ToCall, _pResultActor, fg_Move(_ResultFunctor));
+		}		
 	}
 }

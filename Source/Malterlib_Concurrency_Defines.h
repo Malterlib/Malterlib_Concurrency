@@ -12,6 +12,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		class CActor;
 		class CDefaultActorHolder;
 		template <typename t_CActor>
 		class TCActorInternal;
@@ -47,6 +48,8 @@ namespace NMib
 			friend class TCActor;
 			template <typename t_CActor2>
 			friend class TCWeakActor;
+			template <typename t_CActor2>
+			friend class TCActorInternal;
 
 		public:
 			typedef TCActorInternal<t_CActor> CActorInternal;
@@ -101,12 +104,13 @@ namespace NMib
 			auto operator / (tf_FResult &&_fResult) const
 				-> TCActorResultCall<TCActor, typename NTraits::TCRemoveReference<tf_FResult>::CType>
 			;
+			
+			inline_always TCActor<CActor> const &f_GetActor() const;
 		};
 		
 		template <typename tf_CActor>
 		TCActor<tf_CActor> fg_ThisActor(tf_CActor *_pActor);
 
-		class CActor;
 		class CConcurrentActor;
 		class CConcurrentActorLowPrio;
 		class CTimerActor;

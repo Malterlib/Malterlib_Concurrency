@@ -76,6 +76,7 @@ namespace NMib
 				}
 				
 				CActor *m_pCurrentActor = nullptr;
+				CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
 #if DMibConcurrencyDebugActorCallstacks
 				CAsyncCallstacks *m_pCallstacks = nullptr;
 #endif

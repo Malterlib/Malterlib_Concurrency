@@ -21,43 +21,52 @@ namespace NMib
 		class TCActorResultVector
 		{
 		public:
-
-			class CInternalActor : public CActor
+			struct CQueuedResult
 			{
+				mint m_iResult;
+				TCAsyncResult<t_CType> m_Result;
+				CQueuedResult *m_pNext;
+			};
+			
+			struct CInternal : public NPtr::TCSharedPointerIntrusiveBase<>
+			{
+				CInternal();
+				~CInternal();
+			public:
 				friend class TCActorResultVector;
-				align_cacheline NAtomic::TCAtomic<smint> mp_nAdded;
+				
+				align_cacheline NAtomic::TCAtomic<mint> mp_nAdded;
+				align_cacheline NAtomic::TCAtomic<mint> mp_nFinished;
+				align_cacheline NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 				NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
-				mint mp_nFinished = 0;
 				TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsContinuation;
-				TCAutoClearInt<bint> mp_bResultsGotten;
+				NFunction::TCFunction<TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> (NFunction::CThisTag &)> mp_GetResults;
+				bool mp_bDefinedSize = false;
+				bool mp_bLazyResultsGotten = false;
 
 				TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
-			public:
-				enum
-				{
-					mc_bAllowInternalAccess = true
-				};
+				void fp_TransferResults();
 			};
 
-		private:
-
-			static TCActor<CInternalActor> &fs_ActorType();
-			TCActor<CInternalActor> mp_Actor;
+		public:
+			NPtr::TCSharedPointer<CInternal> mp_pInternal;
 
 			class CResultReceived
 			{
-				mint m_iResult;
-				TCActor<CInternalActor> mp_Actor;
+				mint mp_iResult;
+				NPtr::TCSharedPointer<CInternal> mp_pInternal;
 			public:
-				CResultReceived(mint _iResult, TCActor<CInternalActor> const &_pActor);
+				CResultReceived(mint _iResult, NPtr::TCSharedPointer<CInternal> const &_pInternal);
 				void operator ()(TCAsyncResult<t_CType> &&_Result) const;
 			};
 
 		public:
-
+			TCActorResultVector(mint _DefinedSize);
 			TCActorResultVector();
-			TCActorResultCall<TCActor<CInternalActor>, CResultReceived> f_AddResult();
-			auto f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults));
+			~TCActorResultVector();
+			TCActorResultCall<TCActor<CAnyConcurrentActor>, CResultReceived> f_AddResult();
+			auto f_GetResults();
+			void f_SetLen(mint _DefinedSize);
 		};
 
 		template <typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>

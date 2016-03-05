@@ -81,14 +81,14 @@ namespace NMib
 					auto &Callstack = _Local.m_Result.m_Callstacks;
 					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
-					if (_Local.f_ShouldDiscardResult())
+					if (_Local.fs_ShouldDiscardResult())
 						_Local.m_ToCall(*(pActor));
 					else
 						_Local.m_Result.f_SetResult(_Local.m_ToCall(*(pActor)));
 				}
-				auto pResultActor = _Local.m_pResultActor;
+				auto pResultActor = _Local.f_GetResultActor();
 				_Local.m_pActorInternal = nullptr;
-				if (_Local.f_ShouldDiscardResult())
+				if (_Local.fs_ShouldDiscardResult())
 					return;
 				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
 			}
@@ -119,12 +119,12 @@ namespace NMib
 					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
 					_Local.m_ToCall(*pActor);
-					if (!_Local.f_ShouldDiscardResult())
+					if (!_Local.fs_ShouldDiscardResult())
 						_Local.m_Result.f_SetResult();
 				}
-				auto pResultActor = _Local.m_pResultActor;
+				auto pResultActor = _Local.f_GetResultActor();
 				_Local.m_pActorInternal = nullptr;
-				if (_Local.f_ShouldDiscardResult())
+				if (_Local.fs_ShouldDiscardResult())
 					return;
 				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
 			}
@@ -162,7 +162,7 @@ namespace NMib
 					else
 						m_Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
 
-					auto pActor = m_Local.m_pResultActor;
+					auto pActor = m_Local.f_GetResultActor();
 					m_Local.m_pActorInternal = nullptr;
 					pActor->f_QueueProcess(fg_Move(m_Local));
 				}
@@ -191,7 +191,7 @@ namespace NMib
 				
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
-				if (_Local.f_ShouldDiscardResult())
+				if (_Local.fs_ShouldDiscardResult())
 				{
 					_Local.m_ToCall(*pActor);
 					return;
@@ -208,7 +208,6 @@ namespace NMib
 				;
 				if (pData->m_OnResultSet.f_FetchOr(2) & 1)
 					pData->m_OnResult();
-
 				return;
 			}
 

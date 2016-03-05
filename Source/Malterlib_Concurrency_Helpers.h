@@ -36,6 +36,8 @@ namespace NMib
 
 		class CTimerActor;
 		class CConcurrentActor;
+		class CAnyConcurrentActor;
+		class CAnyConcurrentActorLowPrio;
 		
 		namespace NPrivate
 		{

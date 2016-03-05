@@ -12,12 +12,12 @@ namespace NMib
 		{
 		}
 
-		void CActor::fp_DisptachInternal(NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToDisptach)
+		void CActor::fp_DisptachInternal(NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach)
 		{
 			_fToDisptach();
 		}
 	
-		void CActor::f_Dispatch(NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToDisptach)
+		void CActor::f_Dispatch(NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach)
 		{
 			_fToDisptach();
 		}

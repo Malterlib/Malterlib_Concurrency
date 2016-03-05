@@ -128,12 +128,15 @@ namespace NMib
 				mc_bAllowInternalAccess = t_CActor::mc_bAllowInternalAccess
 			};
 
-			t_CActor &f_AccessInternal();
-			t_CActor const &f_AccessInternal() const;
+			inline_always t_CActor &f_AccessInternal();
+			inline_always t_CActor const &f_AccessInternal() const;
+
+			inline_always CConcurrencyManager &f_ConcurrencyManager() const;
+			inline_always EPriority f_GetPriority() const;
 
 			template 
 				<
-					typename tf_CRet
+					typename tf_CFunction
 					, typename tf_CFunctor
 					, typename tf_CResultActor
 					, typename tf_CResultFunctor

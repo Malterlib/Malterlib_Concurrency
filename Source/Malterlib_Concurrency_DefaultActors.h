@@ -26,5 +26,18 @@ namespace NMib
 				mc_Priority = EPriority_Low
 			};
 		};		
+		
+		class CAnyConcurrentActor : public CConcurrentActor
+		{
+		};
+		
+		TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor();
+
+		class CAnyConcurrentActorLowPrio : public CConcurrentActor
+		{
+		};
+		
+		TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();
+		
 	}
 }

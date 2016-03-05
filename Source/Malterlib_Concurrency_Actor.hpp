@@ -109,6 +109,23 @@ namespace NMib
 		{
 			return &(*m_pInternalActor);
 		}
+		
+		template <typename t_CActor>
+		inline_always TCActor<CActor> const &TCActor<t_CActor>::f_GetActor() const
+		{
+			return *reinterpret_cast<TCActor<CActor> const *>(this);
+		}
+		
+		template <>
+		inline_always TCActor<CActor> const &TCActor<CAnyConcurrentActor>::f_GetActor() const
+		{
+			return *reinterpret_cast<TCActor<CActor> const *>(&fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal));
+		}
+		template <>
+		inline_always TCActor<CActor> const &TCActor<CAnyConcurrentActorLowPrio>::f_GetActor() const
+		{
+			return *reinterpret_cast<TCActor<CActor> const *>(&fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low));
+		}
 
 		template <typename t_CActor>
 		void TCActor<t_CActor>::f_Clear()
@@ -197,7 +214,7 @@ namespace NMib
 		}
 		
 		template <typename tf_CReturnType>
-		tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunction<tf_CReturnType (NFunction::CThisTag &)> &&_fToDisptach)
+		tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunction<tf_CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach)
 		{
 			return _fToDisptach();
 		}

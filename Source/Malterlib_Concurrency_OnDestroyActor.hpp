@@ -18,7 +18,7 @@ namespace NMib
 		template <typename t_CResultCall>
 		void COnDestroyActor::TCCallback<t_CResultCall>::f_DoCallback()
 		{
-			fg_ConcurrentActor()(&CConcurrentActor::f_Call)
+			fg_AnyConcurrentActor()(&CConcurrentActor::f_Call)
 				> fg_Move(m_ResultCall)
 			;
 		}

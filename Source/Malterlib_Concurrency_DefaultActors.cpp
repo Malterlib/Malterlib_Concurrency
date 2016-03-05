@@ -14,5 +14,17 @@ namespace NMib
 		{
 			_ToDispatch();
 		}
+		
+		TCActor<CAnyConcurrentActor> g_AnyConcurrentActor;
+		TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor()
+		{
+			return g_AnyConcurrentActor;
+		}
+
+		TCActor<CAnyConcurrentActorLowPrio> g_AnyConcurrentActorLowPrio;
+		TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio()
+		{
+			return g_AnyConcurrentActorLowPrio;
+		}
 	}
 }

@@ -344,12 +344,12 @@ namespace NMib
 			{
 				{
 					DMibLock(m_pConcurrentActorLock);
-					for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					{
 						for (auto &Actor : m_ConcurrentActors[Prio])
 							Actor->fp_Terminate();
 					}
-					for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 						m_ConcurrentActors[Prio].f_Clear();
 					
 					m_nThreads = 0;
@@ -367,10 +367,10 @@ namespace NMib
 			{
 				nActors = m_nThreads;
 				
-				for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					m_ConcurrentActors[Prio].f_SetLen(nActors);
 				
-				for (mint Prio = EPriority_Normal; Prio < EPriority_Max; ++Prio)
+				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				{
 					mint iActor = 0;
 					for (auto &Actor : m_ConcurrentActors[Prio])

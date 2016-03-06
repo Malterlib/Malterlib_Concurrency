@@ -296,6 +296,7 @@ namespace NMib
 						while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 						{
 							NTime::CCyclesClock Clock;
+							Clock.f_Start();
 							while (true)
 							{
 								f_RunProcess();

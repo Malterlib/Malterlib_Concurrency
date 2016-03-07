@@ -16,7 +16,7 @@ namespace NMib
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 
 			pActor(&CActor::f_Destroy)
-				> fg_AnyConcurrentActor() /  [pActor, _ResultCall](TCAsyncResult<void> &&_Result)
+				> fg_AnyConcurrentActor() /  [pActor, _ResultCall](TCAsyncResult<void> &&_Result) mutable
 				{
 					pActor->fp_Terminate();
 					_ResultCall.mp_Actor->f_QueueProcess

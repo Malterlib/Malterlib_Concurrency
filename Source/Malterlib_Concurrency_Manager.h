@@ -70,8 +70,16 @@ namespace NMib
 				{
 					for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
 					{
-						m_JobQueueIndex[iQueue] = NMisc::fg_GetRandomUnsigned();
-						m_iConcurrentActor[iQueue] = NMisc::fg_GetRandomUnsigned();
+						NMisc::CRandomShiftRNG RandomGenerator
+							{
+								uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
+								, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
+								, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
+							}
+						;
+						mint nCores = NSys::fg_Thread_GetVirtualCores();
+						m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
+						m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
 					}
 				}
 				

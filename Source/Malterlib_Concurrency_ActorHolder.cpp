@@ -70,12 +70,12 @@ namespace NMib
 		void CActorHolder::f_RunProcess()
 		{
 			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
-			DMibRequire(!ThreadLocal.m_pCurrentlyProcessingActorHolder);
+			auto pOldHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
 			
 			auto Cleanup = g_OnScopeExit > [&]
 				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = nullptr;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldHolder;
 				}
 			;
 			
@@ -375,7 +375,7 @@ namespace NMib
 
 		CConcurrentRunQueue::CConcurrentRunQueue()
 		{
-			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory);
+			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory, "");
 		}
 		
 		CConcurrentRunQueue::~CConcurrentRunQueue()

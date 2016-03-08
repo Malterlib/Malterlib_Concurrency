@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -16,14 +16,15 @@ namespace NMib
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 
 			pActor(&CActor::f_Destroy)
-				> fg_AnyConcurrentActor() /  [pActor, _ResultCall](TCAsyncResult<void> &&_Result) mutable
+				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall)](TCAsyncResult<void> &&_Result) mutable
 				{
 					pActor->fp_Terminate();
-					_ResultCall.mp_Actor->f_QueueProcess
+					auto ResultActor = ResultCall.mp_Actor;
+					ResultActor->f_QueueProcess
 						(
-							[ResultCall = fg_Move(_ResultCall), Result = fg_Move(_Result)]() mutable
+							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
 							{
-								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor->fp_GetActor(), fg_Move(Result));
+								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor.f_GetActor()->fp_GetActor(), fg_Move(Result));
 							}
 						)
 					;

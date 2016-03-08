@@ -8,8 +8,6 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		
-		
 		CActorHolder::CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
 			: mp_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)

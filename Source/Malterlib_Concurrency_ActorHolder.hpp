@@ -19,7 +19,7 @@ namespace NMib
 				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall)](TCAsyncResult<void> &&_Result) mutable
 				{
 					pActor->fp_Terminate();
-					auto ResultActor = ResultCall.mp_Actor;
+					auto ResultActor = ResultCall.mp_Actor.f_GetActor();
 					ResultActor->f_QueueProcess
 						(
 							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable

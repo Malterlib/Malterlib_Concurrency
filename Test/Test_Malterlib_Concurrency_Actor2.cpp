@@ -125,6 +125,30 @@ namespace
 				DMibTest(DMibExpr(fg_ThrowsException(Exception)) == DMibLExpr(TestException.f_Get()));
 			};
 		}
+
+		void f_DestroyTests()
+		{
+			DMibTestSuite("Destroy")
+			{
+				using namespace NMib::NThread;
+				using namespace NMib::NConcurrency;
+				auto pActor = fg_ConstructActor<CTestActor>();
+				
+				CEvent Event;
+				
+				pActor->f_Destroy
+					(
+						fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
+						{
+							Event.f_SetSignaled();
+						}
+					)
+				;
+				
+				bool bTimedOut = Event.f_WaitTimeout(20.0);
+				DMibExpectFalse(bTimedOut);				
+			};
+		}
 		
 		void f_GeneralTests()
 		{
@@ -700,6 +724,7 @@ namespace
 		void f_DoTests()
 		{
 			f_TestAsyncResult();
+			f_DestroyTests();
 			f_GeneralTests();
 		}
 	};

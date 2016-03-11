@@ -130,10 +130,7 @@ namespace NMib
 		TCActorResultVector<t_CType>::~TCActorResultVector()
 		{
 			if (mp_pInternal)
-			{
-				mp_pInternal->mp_GetResults.f_Clear();
 				mp_pInternal.f_Clear();
-			}
 		}
 
 		template <typename t_CType>
@@ -150,15 +147,13 @@ namespace NMib
 		auto TCActorResultVector<t_CType>::f_GetResults() 
 		{
 			auto &Internal = *mp_pInternal;
-			Internal.mp_GetResults = [pInternal = mp_pInternal]() mutable -> TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> 
-				{
-					return pInternal->f_GetResults();
-				}
-			;
-			return fg_AnyConcurrentActor()
+			return fg_AnyConcurrentActor().f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>>>
-					, Internal.mp_GetResults
+					, [pInternal = mp_pInternal]() mutable -> TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> 
+					{
+						return pInternal->f_GetResults();
+					}
 				)
 			;
 		}

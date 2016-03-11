@@ -22,9 +22,8 @@ namespace NMib
 		template <typename t_CActor, typename t_CFunctor>
 		struct TCActorResultCall;
 		
-		template <typename t_CActor, typename t_CFunctor, typename t_CParams>
+		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 		struct TCActorCall;
-
 		
 		struct CInternalActorAllocator : public NMem::CAllocator_Heap
 		{
@@ -91,14 +90,10 @@ namespace NMib
 			inline_small explicit operator bool() const;
 			
 			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
-				-> TCActorCall
-				<
-					TCActor
-					, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
-					, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
-				>
-			;
+			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+			
+			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+			auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 			
 			template <typename tf_FResult>
 			auto operator / (tf_FResult &&_fResult) const

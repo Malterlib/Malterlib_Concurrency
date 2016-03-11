@@ -55,7 +55,10 @@ namespace NMib
 		void TCContinuation<t_CReturnValue>::CData::fp_ReportNothingSet()
 		{
 			if ((m_OnResultSet.f_FetchOr(4) & (2 | 4)) == 2)
-				m_OnResult(); // Report nothing set
+			{
+				m_OnResult(fg_Move(m_Result)); // Report nothing set
+				m_OnResult.f_Clear();
+			}
 		}
 		
 		template <typename t_CReturnValue>
@@ -73,10 +76,25 @@ namespace NMib
 		template <typename t_CReturnValue>
 		void TCContinuation<t_CReturnValue>::CData::fp_OnResult()
 		{
-			if (m_OnResultSet.f_FetchOr(1) & 2)
-				m_OnResult();
+			if (m_OnResultSet.f_FetchOr(1 | 4) & 2)
+			{
+				m_OnResult(fg_Move(m_Result));
+				m_OnResult.f_Clear();
+			}
 		}
 
+		template <typename t_CReturnValue>
+		void TCContinuation<t_CReturnValue>::f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult)
+		{
+			auto pData = m_pData.f_Get();
+			pData->m_OnResult = fg_Move(_fOnResult);
+			if (pData->m_OnResultSet.f_FetchOr(4 | 2) & 1)
+			{
+				pData->m_OnResult(fg_Move(pData->m_Result));
+				pData->m_OnResult.f_Clear();
+			}
+		}
+		
 		template <typename t_CReturnValue>
 		void TCContinuation<t_CReturnValue>::CData::f_SetResult()
 		{

@@ -39,6 +39,7 @@ namespace NMib
 						TCActor<CActorClass>
 						, CMemberFunction
 						, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+						, NMeta::TCTypeList<tfp_CCallParams...>
 					>
 					(
 						Actor
@@ -87,6 +88,36 @@ namespace NMib
 				TCActorCallWithParams &operator =(TCActorCallWithParams &&);
 			};
 
+			template <typename tf_CToBind, typename... tfp_CParams, mint... tfp_Indicies, typename tf_CRawParams>
+			auto fg_BindTupleHelper(tf_CToBind &&_ToBind, NContainer::TCTuple<tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...>, tf_CRawParams)
+			{
+				return TCActorCallWithParams
+					<
+						typename NTraits::TCRemoveReference<tf_CToBind>::CType
+						, decltype(NContainer::fg_Tuple(fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...))
+						, NMeta::TCIndices<tfp_Indicies...>
+						, tf_CRawParams
+					>
+					(
+						fg_Forward<tf_CToBind>(_ToBind)
+						, fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...
+					)
+				;
+			}
+			
+			template <typename tf_CTypeList, typename tf_CToBind, typename... tfp_CParams>
+			auto fg_BindHelper(tf_CToBind &&_ToBind, NContainer::TCTuple<tfp_CParams...> const &_Params)
+			{
+				return fg_BindTupleHelper
+					(
+						fg_Forward<tf_CToBind>(_ToBind)
+						, _Params
+						, typename NMeta::TCMakeConsecutiveIndices<TCConstruct<void, tfp_CParams...>::mc_nParams>::CType()
+						, tf_CTypeList()
+					)
+				;
+			}
+			
 			template <typename tf_CToBind, typename... tfp_CParams, mint... tfp_Indicies>
 			auto fg_BindConstructHelper(tf_CToBind &&_ToBind, TCConstruct<void, tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...> )
 			{
@@ -104,8 +135,8 @@ namespace NMib
 				;
 			}
 			
-			template <typename tf_CToBind, typename... tfp_CParams>
-			auto fg_BindConstruct(tf_CToBind &&_ToBind, TCConstruct<void, tfp_CParams...> const &_Params)
+			template <typename tf_CTypeList, typename tf_CToBind, typename... tfp_CParams>
+			auto fg_BindHelper(tf_CToBind &&_ToBind, TCConstruct<void, tfp_CParams...> const &_Params)
 			{
 				return fg_BindConstructHelper
 					(
@@ -115,7 +146,6 @@ namespace NMib
 					)
 				;
 			}
-			
 		}
 
 		template <typename t_CActor, typename t_CFunctor>
@@ -184,9 +214,9 @@ namespace NMib
 			{
 			}
 			
-			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams>
-			TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams>> 
-			operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams> &&_OtherCall)
+			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
+			TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>> 
+			operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
 			{
 				return NContainer::fg_TupleConcatenate(fg_Move(m_Calls), NContainer::fg_Tuple(fg_Move(_OtherCall)));
 			}
@@ -220,7 +250,7 @@ namespace NMib
 			};
 		}
 
-		template <typename t_CActor, typename t_CFunctor, typename t_CParams>
+		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 		struct TCActorCall
 		{
 			static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
@@ -228,6 +258,7 @@ namespace NMib
 			static_assert(!NTraits::TCIsReference<t_CParams>::mc_Value, "Incorrect type");
 			
 			using CReturnType = typename NPrivate::TCGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<t_CFunctor>::CReturn>::CType;
+			using CTypeList = t_CTypeList;
 			
 			t_CActor mp_Actor;
 			t_CFunctor mp_Functor;
@@ -273,12 +304,11 @@ namespace NMib
 				mp_Functor = fg_Move(_Other.mp_Functor);
 				mp_Params = fg_Move(_Other.mp_Params);
 			}
-
-			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams>
-			auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams> &&_OtherCall)
-				-> TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams>> 
+			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
+			auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
+				-> TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>> 
 			{
-				return TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams>>
+				return TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>>
 					(NContainer::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
 				;
 			}
@@ -288,7 +318,7 @@ namespace NMib
 			{
 				mp_Actor->template f_Call<t_CFunctor>
 					(
-						NPrivate::fg_BindConstruct
+						NPrivate::fg_BindHelper<t_CTypeList>
 						(
 							fg_Move(mp_Functor)
 							, fg_Move(mp_Params)
@@ -423,8 +453,9 @@ namespace NMib
 				typename t_CActor
 				, typename t_CFunctionPtr
 				, typename t_CParams
+				, typename t_CTypeList
 			>
-			struct TCGetActorCallFunctionPointer<TCActorCall<t_CActor, t_CFunctionPtr, t_CParams>>
+			struct TCGetActorCallFunctionPointer<TCActorCall<t_CActor, t_CFunctionPtr, t_CParams, t_CTypeList>>
 			{
 				typedef t_CFunctionPtr CType;
 			};
@@ -455,7 +486,7 @@ namespace NMib
 					(
 						NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor->template f_Call<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>
 						(
-							NPrivate::fg_BindConstruct
+							NPrivate::fg_BindHelper<typename NTraits::TCRemoveReference<decltype(NContainer::fg_Get<tfp_Indices>(m_Calls))>::CType::CTypeList>
 							(
 								fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Functor)
 								, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
@@ -479,11 +510,10 @@ namespace NMib
 					(
 						NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor->template f_Call<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>
 						(
-							NPrivate::fg_BindConstruct
+							NPrivate::fg_BindHelper<typename NTraits::TCRemoveReference<decltype(NContainer::fg_Get<tfp_Indices>(m_Calls))>::CType::CTypeList>
 							(
 								fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Functor)
 								, fg_Move(NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Params)
-
 							)
 							, Actor
 							, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)

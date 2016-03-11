@@ -61,7 +61,7 @@ namespace NMib
 			struct CData
 			{
 				TCAsyncResult<t_CReturnValue> m_Result;
-				NFunction::TCFunction<void ()> m_OnResult;
+				NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> m_OnResult;
 				NAtomic::TCAtomic<mint> m_OnResultSet;
 
 				void fp_ReportNothingSet();
@@ -94,6 +94,8 @@ namespace NMib
 			template <typename tf_CResult>
 			void f_SetException(tf_CResult &&_Result) const;
 			void f_SetCurrentException() const;
+			
+			void f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult);
 			
 		public:
 			NPtr::TCSharedPointer<CData> m_pData;

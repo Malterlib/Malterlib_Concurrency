@@ -40,7 +40,6 @@ namespace NMib
 				align_cacheline NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 				NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
 				TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsContinuation;
-				NFunction::TCFunction<TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> (NFunction::CThisTag &)> mp_GetResults;
 				bool mp_bDefinedSize = false;
 				bool mp_bLazyResultsGotten = false;
 

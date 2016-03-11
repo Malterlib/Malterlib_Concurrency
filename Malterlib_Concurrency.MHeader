@@ -23,6 +23,23 @@ Import "../Core/Lib_Malterlib.MTarget"
 	}
 }
 
+Property
+{
+	MalterlibConcurrency_DistributedActors "false"
+	{
+		!!MalterlibConcurrency_DistributedActors ""
+	}
+}
+
+Compile
+{
+	!!CompileDialect "C"
+	PreprocessorDefines "DMibEnableDistributedActors;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DistributedActors true
+	}
+}
+
 
 Property
 {
@@ -45,11 +62,21 @@ Property
 	}
 }
 
+%Group "{Test}/{Malterlib_Concurrency}"
+{
+	Property.MalterlibConcurrency_DistributedActors true
+	%Group "Tests"
+	{
+		%File "Test/*"
+	}
+}
+
 Property
 {
 	!!MalterlibEnableInternalTests true
 	
 	MalterlibTests "Malterlib_Concurrency;@(MalterlibTests)"
-	MalterlibTestFiles_Malterlib_Concurrency "@('Test/*'->MakeAbsolute())"
+	MalterlibTestExtraGroups_Malterlib_Concurrency "{Test}/{Malterlib_Concurrency}"
+	MalterlibTestFiles_Malterlib_Concurrency ""
 }
 

@@ -131,43 +131,6 @@ namespace NMib
 
 			// Continuation result
 			
-			template <typename t_CData, typename t_CLocal>
-			struct TCCallWithAsyncResultHelper
-			{					
-				mutable t_CLocal m_Local;
-				mutable t_CData m_pData;
-				TCCallWithAsyncResultHelper(t_CData _pData, t_CLocal &&_Local)
-					: m_pData(_pData)
-					, m_Local(fg_Move(_Local))
-				{
-				}
-				TCCallWithAsyncResultHelper(TCCallWithAsyncResultHelper const &_Other)
-					: m_Local(fg_Move(NMib::fg_RemoveQualifiers(_Other.m_Local)))
-					, m_pData(fg_Move(NMib::fg_RemoveQualifiers(_Other.m_pData)))
-				{
-				}
-				void operator ()() const
-				{
-					m_pData->m_OnResultSet.f_FetchOr(4);
-					if (m_pData->m_Result.f_IsSet())
-					{
-#if DMibConcurrencyDebugActorCallstacks
-						auto Callstacks = fg_Move(m_Local.m_Result.m_Callstacks);
-#endif
-						m_Local.m_Result = fg_Move(m_pData->m_Result);
-#if DMibConcurrencyDebugActorCallstacks
-						m_Local.m_Result.m_Callstacks = fg_Move(Callstacks);
-#endif
-					}
-					else
-						m_Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
-
-					auto pActor = m_Local.f_GetResultActor();
-					m_Local.m_pActorInternal = nullptr;
-					pActor->f_QueueProcess(fg_Move(m_Local));
-				}
-			};
-
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
 				typename TCEnableIf
 				<
@@ -197,17 +160,31 @@ namespace NMib
 					return;
 				}
 				auto Continuation = _Local.m_ToCall(*pActor);
-				auto pData = Continuation.m_pData.f_Get();
 				
-				pData->m_OnResult = TCCallWithAsyncResultHelper
-					<
-						decltype(pData)
-						, typename NTraits::TCRemoveQualifiers<tf_CLocal>::CType
-					>
-					(pData, fg_Move(fg_RemoveQualifiers(_Local)))
+				Continuation.f_OnResultSet
+					(
+						[Local = fg_Move(fg_RemoveQualifiers(_Local))](auto &&_Result) mutable
+						{
+							if (_Result.f_IsSet())
+							{
+		#if DMibConcurrencyDebugActorCallstacks
+								auto Callstacks = fg_Move(Local.m_Result.m_Callstacks);
+		#endif
+								Local.m_Result = fg_Move(_Result);
+		#if DMibConcurrencyDebugActorCallstacks
+								Local.m_Result.m_Callstacks = fg_Move(Callstacks);
+		#endif
+							}
+							else
+								Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
+
+							auto pActor = Local.f_GetResultActor();
+							Local.m_pActorInternal = nullptr;
+							pActor->f_QueueProcess(fg_Move(Local));
+						}
+					)
 				;
-				if (pData->m_OnResultSet.f_FetchOr(2) & 1)
-					pData->m_OnResult();
+				 
 				return;
 			}
 

@@ -77,6 +77,16 @@ namespace NMib
 			return f_Get();
 		}
 
+		void TCAsyncResult<void>::f_SetException(std::exception_ptr const &_pException)
+		{
+			m_pException = _pException;
+		}
+		
+		void TCAsyncResult<void>::f_SetException(std::exception_ptr &&_pException)
+		{
+			m_pException = fg_Move(_pException);
+		}
+		
 		void TCAsyncResult<void>::f_SetCurrentException()
 		{
 			DMibRequire(!m_bHasBeenSet);

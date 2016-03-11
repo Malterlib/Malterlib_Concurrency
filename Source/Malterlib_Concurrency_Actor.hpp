@@ -192,23 +192,37 @@ namespace NMib
 		template <typename t_CActor>
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
-			-> TCActorCall
-			<
-				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
-			>
 		{
 			return TCActorCall
 				<
 					TCActor
 					, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
 					, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+					, NMeta::TCTypeList<tfp_CCallParams...>
 				>
 				(
 					*this
 					, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
 					, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+				)
+			;
+		}
+		
+		template <typename t_CActor>
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto TCActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+		{
+			return TCActorCall
+				<
+					TCActor
+					, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+					, typename NTraits::TCRemoveReference<decltype(NContainer::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+					, NMeta::TCTypeList<tfp_CCallParams...>
+				>
+				(
+					*this
+					, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+					, NContainer::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 				)
 			;
 		}

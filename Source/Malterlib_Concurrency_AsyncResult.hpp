@@ -164,6 +164,18 @@ namespace NMib
 			m_Callstacks = _AsyncResult.m_Callstacks;
 #endif
 		}
+		
+		template <typename t_CType>
+		void TCAsyncResult<t_CType>::f_SetException(std::exception_ptr const &_pException)
+		{
+			m_pException = _pException;
+		}
+		
+		template <typename t_CType>
+		void TCAsyncResult<t_CType>::f_SetException(std::exception_ptr &&_pException)
+		{
+			m_pException = fg_Move(_pException);
+		}
 
 		template <typename t_CType>
 		void TCAsyncResult<t_CType>::f_SetCurrentException()

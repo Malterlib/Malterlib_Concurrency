@@ -144,7 +144,7 @@ namespace NMib
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
 
 			pActor(&CActor::f_Destroy)
-				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result)
+				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result) mutable
 				{
 					_Result.f_Get();
 					pActor->fp_Terminate();

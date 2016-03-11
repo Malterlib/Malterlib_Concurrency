@@ -47,6 +47,8 @@ namespace NMib
 			void f_SetException(TCAsyncResult<tf_CType> & _AsyncResult);
 			template <typename tf_CType>
 			void f_SetException(TCAsyncResult<tf_CType> const& _AsyncResult);
+			void f_SetException(std::exception_ptr const &_pException);
+			void f_SetException(std::exception_ptr &&_pException);
 			
 			void f_SetCurrentException();
 			template <typename tf_CType>
@@ -91,6 +93,8 @@ namespace NMib
 			void f_SetException(TCAsyncResult<tf_CType> & _AsyncResult);
 			template <typename tf_CType>
 			void f_SetException(TCAsyncResult<tf_CType> const& _AsyncResult);
+			void f_SetException(std::exception_ptr const &_pException);
+			void f_SetException(std::exception_ptr &&_pException);
 			
 			void f_SetCurrentException();
 			void f_SetResult();

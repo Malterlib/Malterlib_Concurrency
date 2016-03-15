@@ -35,7 +35,7 @@ namespace
 		};
 	}
 
-	class CDistributedActorBase : public CActor
+	class CDistributedActorBase : public CDistributedActor
 	{
 	public:
 		virtual void f_AddIntVirtual(uint32 _Value) pure;

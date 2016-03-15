@@ -22,7 +22,7 @@ namespace NMib
 		
 		namespace NPrivate
 		{
-			template <typename t_CException, uint32 t_NameHash = fg_GetExceptionHash<t_CException>()>
+			template <typename t_CException, uint32 t_NameHash = fg_GetTypeHash<t_CException>()>
 			struct TCRuntimeTypeRegistryEntry_Exception final : public CRuntimeTypeRegistryEntry_Exception
 			{
 				TCRuntimeTypeRegistryEntry_Exception ();

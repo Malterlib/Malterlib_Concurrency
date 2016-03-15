@@ -16,6 +16,7 @@ namespace NMib
 				fg_ConcurrencyManager(); // Add dependency to subsystem
 				
 				m_TestActor = fg_ConstructActor<CActor>();
+				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>();
 			}
 			
 			CSubSystem_Concurrency_DistributedActor::~CSubSystem_Concurrency_DistributedActor()
@@ -44,6 +45,11 @@ namespace NMib
 				
 				_Continuation.f_SetResult();
 			}
+			
+			TCActor<CActorDistributionManager> const &f_GetDistributionManager()
+			{
+				return fg_DistributedActorSubSystem().m_DistributionManager;
+			}			
 		}			
 	}
 }

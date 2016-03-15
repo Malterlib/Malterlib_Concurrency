@@ -48,6 +48,7 @@ namespace NMib
 				~CSubSystem_Concurrency_DistributedActor();
 				
 				TCActor<CActor> m_TestActor;
+				TCActor<CActorDistributionManager> m_DistributionManager;
 				
 				void f_DestroyThreadSpecific() override;
 			};

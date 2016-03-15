@@ -24,6 +24,9 @@ namespace NMib
 			, m_MemberPointer(_MemberPointer)
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();
+			// Check that we don't have any hash collisions
+			DMibFastCheck(!SubSystem.m_EntryByHash_MemberFunction.f_FindEqual(_Hash));
+			DMibFastCheck(!SubSystem.m_EntryByMemberPointer.f_FindEqual(_MemberPointer));
 			SubSystem.m_EntryByHash_MemberFunction.f_Insert(this);
 			SubSystem.m_EntryByMemberPointer.f_Insert(this);
 		}
@@ -39,7 +42,8 @@ namespace NMib
 			: m_Hash(_Hash)
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();
-			SubSystem.m_EntryByHash_Exception.f_Insert(this);
+			DMibFastCheck(!SubSystem.m_EntryByHash_Exception.f_FindEqual(_Hash));
+ 			SubSystem.m_EntryByHash_Exception.f_Insert(this);
 		}
 
 		CRuntimeTypeRegistryEntry_Exception::~CRuntimeTypeRegistryEntry_Exception()

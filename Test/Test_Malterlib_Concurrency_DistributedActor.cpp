@@ -20,8 +20,29 @@ namespace
 	using namespace NMib::NConcurrency;
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
+	
+	namespace NTest1
+	{
+		struct CTest
+		{
+		};
+	}
+	
+	namespace NTest2
+	{
+		struct CTest
+		{
+		};
+	}
 
-	class CDistributedActor : public CActor
+	class CDistributedActorBase : public CActor
+	{
+	public:
+		virtual void f_AddIntVirtual(uint32 _Value) pure;
+		virtual uint32 f_GetResultVirtual() pure;
+	};
+
+	class CDistributedActor : public CDistributedActorBase
 	{
 		zuint32 m_Value;
 	public:
@@ -33,6 +54,23 @@ namespace
 		{
 			return m_Value;
 		}
+
+		void f_AddIntVirtual(uint32 _Value) override
+		{
+			m_Value += _Value;
+		}
+		
+		uint32 f_GetResultVirtual() override
+		{
+			return m_Value;
+		}
+		
+		template <typename tf_CTest>
+		uint32 f_GetResultTemplated()
+		{
+			return m_Value;
+		}
+		
 
 		TCContinuation<uint32> f_GetResultDeferred()
 		{
@@ -70,7 +108,6 @@ namespace
 			return Continuation;
 		}
 
-
 		TCContinuation<uint32> f_GetResultDeferredException()
 		{
 			TCContinuation<uint32> Continuation;
@@ -92,7 +129,6 @@ namespace
 			;
 			return Continuation;
 		}
-		
 	};
 	
 	class CDistributedActor_Tests : public NMib::NTest::CTest
@@ -108,6 +144,33 @@ namespace
 					DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync();
 					
 					uint32 Result = DMibCallActor(Actor, CDistributedActor::f_GetResult).f_CallSync();
+					DMibExpect(Result, ==, 5);
+				};
+				DMibTestSuite("DirectTemplate")
+				{
+					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
+					DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync();
+
+					uint32 Result1 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest1::CTest>).f_CallSync();
+					DMibExpect(Result1, ==, 5);
+					uint32 Result2 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest2::CTest>).f_CallSync();
+					DMibExpect(Result2, ==, 5);
+				};
+				DMibTestSuite("Virtual")
+				{
+					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
+					DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync();
+
+					uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync();
+					DMibExpect(Result, ==, 5);
+				};
+				DMibTestSuite("VirtualActor")
+				{
+					TCDistributedActor<CDistributedActorBase> Actor = fg_ConstructDistributedActor<CDistributedActor>();
+					
+					DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync();
+
+					uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync();
 					DMibExpect(Result, ==, 5);
 				};
 				DMibTestSuite("Deferred")

@@ -8,6 +8,23 @@
 
 namespace NMib
 {
+	namespace NPtr
+	{
+		namespace NPrivate
+		{
+			template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
+			struct TCIsValidConversion<NConcurrency::TCDistributedActorWrapper<t_CActor0>, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
+			{
+				enum
+				{
+					mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
+				};
+			};
+		}
+	}
+}
+namespace NMib
+{
 	namespace NConcurrency
 	{
 		namespace NPrivate

@@ -9,6 +9,7 @@
 #include "Malterlib_Concurrency_Actor.h"
 
 #include <Mib/Web/HTTP/URL>
+#include <Mib/Memory/Allocators/Secure>
 
 namespace NMib
 {
@@ -49,35 +50,76 @@ namespace NMib
 		
 		struct CActorDistributionHost
 		{
+			CActorDistributionHost();
+			~CActorDistributionHost();
+			
 			NStr::CStr m_Name;
 			NStr::CStr m_UniqueID;
 		};
+		
+		struct CActorDistributionCryptographyRemoteServer
+		{
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
+			
+			NContainer::TCVector<uint8> m_PublicServerCertificate;
+			NContainer::TCVector<uint8> m_PublicClientCertificate;
+		};
 
+		struct CActorDistributionCryptographySettings
+		{
+			CActorDistributionCryptographySettings();
+			~CActorDistributionCryptographySettings();
+			void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, int32 _KeyBits = 4096);
+			NContainer::TCVector<uint8> f_GenerateRequest() const;
+			NContainer::TCVector<uint8> f_SignRequest(NContainer::TCVector<uint8> const &_Request);
+			void f_AddRemoteServer(NHTTP::CURL const &_URL, NContainer::TCVector<uint8> const &_ServerCert, NContainer::TCVector<uint8> const &_ClientCert);
+			
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
+			
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateCertificate;
+			NContainer::TCVector<uint8> m_PublicCertificate;
+			
+			NContainer::TCMap<NHTTP::CURL, CActorDistributionCryptographyRemoteServer> m_RemoteClientCertificates;
+			
+			NContainer::TCMap<NStr::CStr, NContainer::TCVector<uint8>> m_SignedClientCertificates;
+			
+			NStr::CStr m_Subject;
+			
+			int32 m_Serial = 0;
+		};
+		
 		struct CActorDistributionConnectionSettings
 		{
-			NHTTP::CURL m_ServerURL;
-			NContainer::TCVector<uint8> m_Certificate;
+			CActorDistributionConnectionSettings();
+			~CActorDistributionConnectionSettings();
+
+			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 			
+			NHTTP::CURL m_ServerURL;
+			NContainer::TCVector<uint8> m_PublicServerCertificate;
+			NContainer::TCVector<uint8> m_PublicClientCertificate;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateClientCertificate;
+			bool m_bRetryConnectOnFailure = true;
 		};
 
 		struct CActorDistributionListenSettings
 		{
-			NNet::CNetAddress m_ListenAddress;
-			NContainer::TCVector<uint8> m_Certificate;
+			CActorDistributionListenSettings(uint16 _Port);			
+			CActorDistributionListenSettings(NContainer::TCVector<NNet::CNetAddress> const &_Address);
+			~CActorDistributionListenSettings();
 
-			CActorDistributionListenSettings(uint16 _Port)
-			{
-				NNet::CNetAddressTCPv4 AnyAddress;
-				AnyAddress.m_Port = _Port;
-				m_ListenAddress = AnyAddress;
-			}
-			
-			CActorDistributionListenSettings(NNet::CNetAddress const &_Address)
-				: m_ListenAddress(_Address)
-			{
-			}
-			
-			static CActorDistributionConnectionSettings fs_GenerateNewSettings(NHTTP::CURL const &_URL);
+			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
+
+			NContainer::TCVector<NNet::CNetAddress> m_ListenAddresses;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateCertificate;
+			NContainer::TCVector<uint8> m_PublicCertificate;
+			bool m_bRetryOnListenFailure = true;
 		};
 
 		struct CAbstractDistributedActor
@@ -98,12 +140,53 @@ namespace NMib
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
 		};
 		
+		namespace NPrivate
+		{
+			template <typename tf_CFirst>
+			void fg_GetDistributedActorInheritanceHierarchy(NContainer::TCVector<uint32> &_Settings)
+			{
+				_Settings.f_Insert(fg_GetTypeHash<tf_CFirst>());
+				fg_GetDistributedActorInheritanceHierarchy<typename NTraits::TCGetBase<tf_CFirst>::CType>(_Settings);
+			}
+			
+			template <>
+			inline_always_debug void fg_GetDistributedActorInheritanceHierarchy<CDistributedActor>(NContainer::TCVector<uint32> &_Settings)
+			{
+			}
+		}
+		
+		template <typename tf_CFirst>
+		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy()
+		{
+			NContainer::TCVector<uint32> Return;
+			
+			NPrivate::fg_GetDistributedActorInheritanceHierarchy<tf_CFirst>(Return);
+			
+			return Return;
+		}
+		
+		
+		struct CDistributedActorInheritanceHeirarchyPublish
+		{
+			template <typename tf_CFirstToPublish>
+			CDistributedActorInheritanceHeirarchyPublish()
+				: mp_Hierarchy(fg_GetDistributedActorInheritanceHierarchy<tf_CFirstToPublish>())
+			{
+			}
+		private:
+			NContainer::TCVector<uint32> mp_Hierarchy;
+		};
+		
 		struct CActorDistributionManager : public CActor
 		{
-			void f_Connect(CActorDistributionConnectionSettings const &_Setting);
-			void f_Listen(CActorDistributionConnectionSettings const &_Setting);
+			CActorDistributionManager();
+			~CActorDistributionManager();
 			
-			void f_PublishActor(TCDistributedActor<CActor> &&_Actor, NContainer::TCVector<NStr::CStr> const &_NameSpaces);
+			TCContinuation<void> f_Connect(CActorDistributionConnectionSettings const &_Settings);
+			TCContinuation<void> f_Listen(CActorDistributionListenSettings const &_Settings);
+			
+			void f_PublishActor(TCDistributedActor<CActor> &&_Actor, NContainer::TCVector<NStr::CStr> const &_NameSpaces, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
+			void f_PublishInsecureActor(TCDistributedActor<CActor> &&_Actor, NContainer::TCVector<NStr::CStr> const &_NameSpaces, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
 			
 			CActorCallback f_SubscribeActors
 				(
@@ -112,15 +195,19 @@ namespace NMib
 					, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor, CActorDistributionHost const &_Host)> &&_fOnNewActor
 				)
 			;
+			
+		private:
+			struct CInternal;
+			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};
 		
-		TCActor<CActorDistributionManager> const &f_GetDistributionManager();
+		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		
 #define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor<decltype(&d_Function), &d_Function, fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function))>(d_Actor, ##d_Args)
 		
 #ifndef DMibPNoShortCuts
 #	define DCallActor DMibCallActor
-#endif		
+#endif
 	}
 }
 

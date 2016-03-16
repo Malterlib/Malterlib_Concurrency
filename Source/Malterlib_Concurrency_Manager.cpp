@@ -122,8 +122,11 @@ namespace NMib
 				auto &Queue = m_Queues[Prio];
 				for (auto &Queue : Queue)
 				{
-					Queue.m_pThread->f_Stop(false);
-					Queue.m_Event.f_Signal();
+					if (Queue.m_pThread)
+					{
+						Queue.m_pThread->f_Stop(false);
+						Queue.m_Event.f_Signal();
+					}
 				}
 
 				for (auto &Queue : Queue)
@@ -150,6 +153,7 @@ namespace NMib
 
 		CConcurrencyManager::~CConcurrencyManager()
 		{
+			f_Stop();
 			for (mint i = 0; i < EPriority_Max; ++i)
 			{
 				for (auto &Queue : m_Queues[i])

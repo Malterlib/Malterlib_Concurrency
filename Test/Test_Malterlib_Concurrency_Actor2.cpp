@@ -154,6 +154,8 @@ namespace
 		{
 			DMibTestSuite("General")
 			{
+				CConcurrencyManager ConcurrencyManager;
+				
 				using namespace NMib::NThread;
 				using namespace NMib::NConcurrency;
 
@@ -189,7 +191,6 @@ namespace
 					)
 				;
 
-				CConcurrencyManager &ConcurrencyManager = fg_ConcurrencyManager();
 				{
 					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](FActorQueueDispatch &&_Functor){_Functor();}));
 					auto pActor = fg_ConstructActor<CTestActor>();

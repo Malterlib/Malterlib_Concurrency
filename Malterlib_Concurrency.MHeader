@@ -65,11 +65,13 @@ Property
 %Group "{Test}/{Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
+	Property.MalterlibLinkWithOpenSSL true
 	%Group "Tests"
 	{
 		%File "Test/*"
 	}
 	%Dependency Lib_Malterlib_Web
+	%Dependency Lib_Malterlib_Network
 }
 
 Property

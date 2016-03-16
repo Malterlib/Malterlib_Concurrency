@@ -10,6 +10,7 @@
 #include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Web/WebSocket>
+#include <Mib/Log/Destinations>
 
 namespace
 {
@@ -136,6 +137,8 @@ namespace
 	public:
 		void f_FunctionalTests()
 		{
+			NMib::fg_GetSys()->f_GetLogger().f_PushGlobalDestination(NLog::fg_LogTo_DebugOut, nullptr);
+			
 			DMibTestCategory("Local")
 			{
 				DMibTestSuite("Direct")
@@ -214,6 +217,41 @@ namespace
 
 					DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
 					DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
+				}; 
+			};
+			DMibTestCategory("Remote")
+			{
+				DMibTestSuite("Connection")
+				{
+					TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>();
+					
+					CActorDistributionCryptographySettings ServerCryptography;
+					ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+					
+					CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
+					ListenSettings.f_SetCryptography(ServerCryptography);
+					ListenSettings.m_bRetryOnListenFailure = false;
+					ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync();
+					
+					CActorDistributionConnectionSettings ConnectionSettings;
+					ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
+					ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
+					CActorDistributionCryptographySettings ClientCryptography;
+					ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+					auto CertificateRequest = ClientCryptography.f_GenerateRequest();
+					
+					auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
+					
+					ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
+					
+					ConnectionSettings.f_SetCryptography(ClientCryptography);
+					ConnectionSettings.m_bRetryConnectOnFailure = false;
+					
+					ServerManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync();
+					
+					bool bConnectionSuccessful = true; // If not we would have had exceptions above
+					
+					DMibExpectTrue(bConnectionSuccessful);
 				};
 			};
 		}

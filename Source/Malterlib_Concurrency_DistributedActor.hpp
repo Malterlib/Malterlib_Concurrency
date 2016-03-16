@@ -200,5 +200,41 @@ namespace NMib
 				)
 			;
 		}
+		
+		template <typename tf_CStream>
+		void CActorDistributionCryptographySettings::f_Feed(tf_CStream &_Stream) const
+		{
+			_Stream << m_PrivateCertificate;
+			_Stream << m_PublicCertificate;
+			_Stream << m_RemoteClientCertificates;
+			_Stream << m_SignedClientCertificates;
+			_Stream << m_Serial;
+			_Stream << m_Subject;
+		}
+		
+		template <typename tf_CStream>
+		void CActorDistributionCryptographySettings::f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_PrivateCertificate;
+			_Stream >> m_PublicCertificate;
+			_Stream >> m_RemoteClientCertificates;
+			_Stream >> m_SignedClientCertificates;
+			_Stream >> m_Serial;
+			_Stream >> m_Subject;
+		}
+	
+		template <typename tf_CStream>
+		void CActorDistributionCryptographyRemoteServer::f_Feed(tf_CStream &_Stream) const
+		{
+			_Stream << m_PublicServerCertificate;
+			_Stream << m_PublicClientCertificate;
+		}
+		
+		template <typename tf_CStream>
+		void CActorDistributionCryptographyRemoteServer::f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_PublicServerCertificate;
+			_Stream >> m_PublicClientCertificate;
+		}
 	}
 }

@@ -6,6 +6,8 @@
 #include "Malterlib_Concurrency_RuntimeTypeRegistry.h"
 #include "Malterlib_Concurrency_Manager.h"
 
+#include <Mib/Cryptography/RandomID>
+
 namespace NMib
 {
 	namespace NPtr
@@ -47,7 +49,6 @@ namespace NMib
 				CSubSystem_Concurrency_DistributedActor();
 				~CSubSystem_Concurrency_DistributedActor();
 				
-				TCActor<CActor> m_TestActor;
 				TCActor<CActorDistributionManager> m_DistributionManager;
 				
 				void f_DestroyThreadSpecific() override;
@@ -83,7 +84,7 @@ namespace NMib
 			}
 			
 			template <typename tf_CResult>
-			void fg_CopyReplyToContinuation(TCContinuation<tf_CResult> &_Continuation, NContainer::TCVector<uint8> const &_Data)
+			void fg_CopyReplyToContinuation(TCContinuation<tf_CResult> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
 			{
 				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 				ReplyStream.f_OpenRead(_Data);
@@ -96,7 +97,7 @@ namespace NMib
 			}
 
 			template <>
-			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8> const &_Data);
+			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data);
 		}
 		
 		template <typename t_CActor>
@@ -105,12 +106,63 @@ namespace NMib
 			: t_CActor(fg_Forward<tf_CActor>(p_Params)...)
 		{
 		}
-
+		
 		template <typename tf_CActor, typename... tfp_CParams>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(tfp_CParams &&...p_Params)
 		{
-			return fg_ConstructActor<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...);
+			auto &ConcurrencyManager = fg_ConcurrencyManager();
+
+			NPtr::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
+			pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
+			
+			NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 
+				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+			;
+			
+			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
+				(
+					fg_Move(pActor)
+					, fg_Construct<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...)
+				)
+			;
 		}
+		
+		namespace NPrivate
+		{
+			template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, mint... tfp_Indidies>
+			TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActorHelper(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, NMeta::TCIndices<tfp_Indidies...> const&, tfp_CParams &&...p_Params)
+			{
+				auto &ConcurrencyManager = fg_ConcurrencyManager();
+				
+				NPtr::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
+				pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
+				
+				NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 
+					= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+				;
+				
+				return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
+					(
+						fg_Move(pActor)
+						, fg_Construct<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...)
+						, fg_Forward<tfp_CHolderParams>(NContainer::fg_Get<tfp_Indidies>(_HolderParams.m_Params))...
+					)
+				;
+			}
+		}
+		
+		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
+		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params)
+		{
+			return NPrivate::fg_ConstructActorHelper<tf_CActor>
+				(
+					fg_Move(_HolderParams)
+					, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams)>::CType()
+					, fg_Forward<tfp_CParams>(p_Params)...
+				)
+			;
+		}
+		
 		
 		template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
 		auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
@@ -118,10 +170,16 @@ namespace NMib
 			using CReturn = typename NPrivate::TCRemoveContinuation<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CReturn>::CType;
 			
 			NFunction::TCFunction<TCContinuation<CReturn> (NFunction::CThisTag &)> ToDispatch;
-			if (1) // Only when remote
+			
+			auto *pActorDataRaw = static_cast<NPrivate::CDistributedActorData *>(_Actor->f_GetDistributedActorData().f_Get());
+			
+			if (pActorDataRaw && pActorDataRaw->m_bRemote) // Only when remote
 			{
 				DMibConcurrencyRegisterMemberFunction(tf_CMemberFunction, t_pMemberFunction, t_NameHash);
-				NStream::CBinaryStreamMemory<> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+				Stream << uint8(0); // Dummy command
+				Stream << uint64(0); // Dummy packet ID
+				Stream << pActorDataRaw->m_ActorID;				
 				Stream << t_NameHash;
 				std::initializer_list<bool> Dummy = 
 					{
@@ -133,45 +191,32 @@ namespace NMib
 				;
 				(void)Dummy;
 				
-				ToDispatch = [_Actor, Data = Stream.f_MoveVector()]() mutable
+				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
+				
+				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData)]() mutable
 					{
 						TCContinuation<CReturn> Continuation;
 						
-						auto &TypeRegistry = fg_RuntimeTypeRegistry();
+						TCActor<CActorDistributionManager> const &DistributionManager = fg_GetDistributionManager();
 						
-						NStream::CBinaryStreamMemoryPtr<> Stream;
-						Stream.f_OpenRead(Data);
-						
-						uint32 FunctionHash;
-						Stream >> FunctionHash;
-						
-						auto pEntry = TypeRegistry.m_EntryByHash_MemberFunction.f_FindEqual(FunctionHash);
-						
-						if (!pEntry)
-						{
-							Continuation.f_SetException(DMibErrorInstance("Member function entry not found"));
-							return Continuation;
-						}
-
-						NConcurrency::TCContinuation<NContainer::TCVector<uint8>> Return = pEntry->f_Call
-							(
-								Stream
-								, &_Actor->f_AccessInternal()
-							)
-						;
-						
-						Return.f_OnResultSet
-							(
-								[Continuation](auto &&_Result) mutable
+						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data))
+							> [Continuation](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+							{
+								if (!_Result)
 								{
-									if (!_Result)
-										Continuation.f_SetException(fg_Move(_Result));
-									else
-										NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result);
+									Continuation.f_SetException(fg_Move(_Result));
+									return;
 								}
-							)
+								try
+								{
+									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result);
+								}
+								catch (NException::CException const &_Exception)
+								{
+									Continuation.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+								}								
+							}
 						;
-						
 						return Continuation;
 					}
 				;
@@ -191,9 +236,7 @@ namespace NMib
 					}
 				;
 			}
-			auto &SubSystem = NPrivate::fg_DistributedActorSubSystem();
-			
-			return SubSystem.m_TestActor.f_CallByValue
+			return fg_AnyConcurrentActor().f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturn>>
 					, ToDispatch

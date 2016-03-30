@@ -19,7 +19,6 @@ namespace NMib
 			{
 				fg_ConcurrencyManager(); // Add dependency to subsystem
 				
-				m_TestActor = fg_ConstructActor<CActor>();
 				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>();
 			}
 			
@@ -29,7 +28,6 @@ namespace NMib
 			
 			void CSubSystem_Concurrency_DistributedActor::f_DestroyThreadSpecific()
 			{
-				m_TestActor.f_Clear();
 				m_DistributionManager.f_Clear();
 			}			
 			
@@ -41,7 +39,7 @@ namespace NMib
 			}
 			
 			template <>
-			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8> const &_Data)
+			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
 			{
 				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 				ReplyStream.f_OpenRead(_Data);
@@ -59,15 +57,6 @@ namespace NMib
 
 
 		
-		CActorDistributionHost::CActorDistributionHost()
-		{
-		}
-		
-		CActorDistributionHost::~CActorDistributionHost()
-		{
-		}
-
-
 		CActorDistributionCryptographySettings::CActorDistributionCryptographySettings()
 		{
 		}

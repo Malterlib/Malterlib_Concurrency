@@ -6,7 +6,6 @@
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
-
 namespace NMib
 {
 	namespace NConcurrency
@@ -35,23 +34,12 @@ namespace NMib
 			}
 		}
 		
-		void CActorDistributionManager::f_PublishActor
-			(
-				TCDistributedActor<CActor> &&_Actor
-				, NContainer::TCVector<NStr::CStr> const &_NameSpaces
-				, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish
-			)
+		CActorDistributionManager::CInternal::CHost::~CHost()
 		{
-		}
-
-		CActorCallback CActorDistributionManager::f_SubscribeActors
-			(
-				NContainer::TCVector<NStr::CStr> const &_NameSpaces
-				, TCActor<CActor> const &_Actor
-				, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor, CActorDistributionHost const &_Host)> &&_fOnNewActor
-			)
-		{
-			return CActorCallback();
+			m_Incoming_ReceivedPackets.f_DeleteAll();
+			m_Incoming_QueuedPackets.f_DeleteAll();
+			m_Outgoing_QueuedPackets.f_DeleteAll();
+			m_Outgoing_SentPackets.f_DeleteAll();
 		}
 	}
 }

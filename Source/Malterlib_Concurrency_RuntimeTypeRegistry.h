@@ -30,6 +30,8 @@ namespace NMib
 	}
 	namespace NConcurrency
 	{
+		class CAsyncResult;
+		
 		template <typename t_CType>
 		class TCAsyncResult;
 		

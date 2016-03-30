@@ -8,11 +8,22 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		CActorHolder::CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
+		ICDistributedActorData::~ICDistributedActorData()
+		{
+		}
+
+		CActorHolder::CActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+			)
 			: mp_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)
 			, mp_Priority(_Priority)
 			, mp_iFixedCore(DMibBitRangeTyped(0, sizeof(mint)*8 - 3, mint))
+			, mp_pDistributedActorData(fg_Move(_pDistributedActorData))
 		{
 		}
 		
@@ -23,6 +34,16 @@ namespace NMib
 			m_ActorLink.f_Unlink();
 #endif
 			--mp_pConcurrencyManager->m_nActors;
+		}
+
+		NPtr::TCSharedPointer<ICDistributedActorData> &CActorHolder::f_GetDistributedActorData()
+		{
+			return mp_pDistributedActorData;
+		}
+		
+		NPtr::TCSharedPointer<ICDistributedActorData> const &CActorHolder::f_GetDistributedActorData() const
+		{
+			return mp_pDistributedActorData;
 		}
 		
 		void CActorHolder::f_SetFixedCore(mint _iFixedCore)
@@ -270,8 +291,15 @@ namespace NMib
 		///
 		/// CSeparateThreadActorHolder
 		///
-		CSeparateThreadActorHolder::CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStr::CStr const &_ThreadName)
-			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
+		CSeparateThreadActorHolder::CSeparateThreadActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				, NStr::CStr const &_ThreadName
+			)
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 			, mp_ThreadName(_ThreadName)
 		{
 
@@ -326,8 +354,15 @@ namespace NMib
 		/// CDispatchingActorHolder
 		///
 		
-		CDispatchingActorHolder::CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher)
-			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
+		CDispatchingActorHolder::CDispatchingActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher
+			)
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 			, m_Dispatcher(_Dispatcher)
 		{
 		}
@@ -366,8 +401,14 @@ namespace NMib
 		{
 			CActorHolder::fp_Construct();
 		}			
-		CDefaultActorHolder::CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority)
-			: CActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority)
+		CDefaultActorHolder::CDefaultActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+			)
+			: CActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		{
 		}
 

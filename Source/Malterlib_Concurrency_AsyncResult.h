@@ -12,24 +12,39 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		template <typename t_CType>
-		class TCAsyncResult
+		class CAsyncResult
 		{
 			template <typename t_CType2>
 			friend class TCAsyncResult;
-
+			
 			std::exception_ptr m_pException;
-			NContainer::TCVariant<void, t_CType> m_Result;
 		public:
 #if DMibConcurrencyDebugActorCallstacks
 			CAsyncCallstacks m_Callstacks;
 #endif
 		public:
-			TCAsyncResult();
-			TCAsyncResult(TCAsyncResult const &_Other);
-			TCAsyncResult &operator =(TCAsyncResult const &_Other);
-			TCAsyncResult(TCAsyncResult &&_Other);
-			TCAsyncResult &operator =(TCAsyncResult &&_Other);
+			CAsyncResult();
+			CAsyncResult(CAsyncResult const &_Other);
+			CAsyncResult(CAsyncResult &&_Other);
+			CAsyncResult &operator =(CAsyncResult const &_Other);
+			CAsyncResult &operator =(CAsyncResult &&_Other);
+			
+			void f_Access() const;
+		};
+		
+		template <typename t_CType>
+		class TCAsyncResult : public CAsyncResult
+		{
+			template <typename t_CType2>
+			friend class TCAsyncResult;
+
+			NContainer::TCVariant<void, t_CType> m_Result;
+		public:
+			TCAsyncResult() = default;
+			TCAsyncResult(TCAsyncResult const &_Other) = default;
+			TCAsyncResult &operator =(TCAsyncResult const &_Other) = default;
+			TCAsyncResult(TCAsyncResult &&_Other) = default;
+			TCAsyncResult &operator =(TCAsyncResult &&_Other) = default;
 
 			t_CType const &f_Get() const;
 			t_CType &f_Get();
@@ -61,17 +76,12 @@ namespace NMib
 		};
 
 		template <>
-		class TCAsyncResult<void>
+		class TCAsyncResult<void> : public CAsyncResult
 		{
 			template <typename t_CType2>
 			friend class TCAsyncResult;
 
-			std::exception_ptr m_pException;
-			bint m_bHasBeenSet;
-		public:
-#if DMibConcurrencyDebugActorCallstacks
-			CAsyncCallstacks m_Callstacks;
-#endif
+			bint m_bHasBeenSet = false;
 		public:
 			TCAsyncResult();
 			TCAsyncResult(TCAsyncResult &&_Other);

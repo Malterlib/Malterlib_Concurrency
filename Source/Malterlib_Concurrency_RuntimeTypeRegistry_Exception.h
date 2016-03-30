@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Memory/Allocators/Secure>
+
 namespace NMib
 {
 	namespace NConcurrency
@@ -13,7 +15,7 @@ namespace NMib
 			~CRuntimeTypeRegistryEntry_Exception();
 					
 			virtual std::exception_ptr f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) pure;
-			virtual void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8>> &_Stream, NException::CExceptionBase const &_Exception) pure;
+			virtual void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) pure;
 			
 			uint32 m_Hash;
 			
@@ -28,7 +30,7 @@ namespace NMib
 				TCRuntimeTypeRegistryEntry_Exception ();
 
 				std::exception_ptr f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) override;
-				void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8>> &_Stream, NException::CExceptionBase const &_Exception) override;
+				void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) override;
 			};
 			
 			template <typename t_CException>
@@ -37,14 +39,14 @@ namespace NMib
 				static TCRuntimeTypeRegistryEntry_Exception<t_CException> ms_Entry;
 			};
 			
-			template <typename tf_CType>
-			NContainer::TCVector<uint8> fg_StreamAsyncResultException(NConcurrency::TCAsyncResult<tf_CType> const &_Result);
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception);
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result);
 			
 			template <typename tf_CType>
-			NContainer::TCVector<uint8> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result);
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result);
 			
 			template <>
-			inline_always_debug NContainer::TCVector<uint8> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result);
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result);
 		}
 		
 #define DMibConcurrencyRegisterException(d_Exception) (void)::NMib::NConcurrency::NPrivate::TCExceptionRegistry<d_Exception>::ms_Entry

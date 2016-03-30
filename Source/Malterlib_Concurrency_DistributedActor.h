@@ -7,6 +7,7 @@
 #include "Malterlib_Concurrency_Continuation.h"
 #include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_Actor.h"
+#include "Malterlib_Concurrency_ActorHolder.h"
 
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
@@ -15,15 +16,20 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		class CDistributedActor : public CActor
+		namespace NPrivate
 		{
-			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
-		};
+			struct CDistributedActorData : public ICDistributedActorData
+			{
+				NStr::CStr m_ActorID;
+				bool m_bWasDestroyed = false;
+				bool m_bRemote = false;
+			};
+		}
 
 		template <typename t_CActor>
 		struct TCDistributedActorWrapper : public t_CActor
 		{
-			static_assert(NTraits::TCIsBaseOf<t_CActor, CDistributedActor>::mc_Value, "Need to be base of CDistributedActor");
+			//static_assert(NTraits::TCIsBaseOf<t_CActor, CDistributedActor>::mc_Value, "Need to be base of CDistributedActor");
 			enum
 			{
 				mc_bAllowInternalAccess = true
@@ -35,6 +41,9 @@ namespace NMib
 		
 		template <typename t_CActor>
 		using TCDistributedActor = TCActor<TCDistributedActorWrapper<t_CActor>>;
+		
+		template <typename t_CActor>
+		using TCWeakDistributedActor = TCWeakActor<TCDistributedActorWrapper<t_CActor>>;
 
 		template <typename tf_CActor, typename... tfp_CParams>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(tfp_CParams &&...p_Params);
@@ -47,15 +56,6 @@ namespace NMib
 		
 		template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
 		auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params);
-		
-		struct CActorDistributionHost
-		{
-			CActorDistributionHost();
-			~CActorDistributionHost();
-			
-			NStr::CStr m_Name;
-			NStr::CStr m_UniqueID;
-		};
 		
 		struct CActorDistributionCryptographyRemoteServer
 		{
@@ -133,8 +133,9 @@ namespace NMib
 					DMibFastCheck(false);
 					return TCDistributedActor<tf_CType>();
 				}
-				return TCDistributedActor<tf_CType>(mp_Actor);
+				return (TCDistributedActor<tf_CType> &)mp_Actor;
 			}
+			CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy);
 		private:
 			TCDistributedActor<CActor> mp_Actor;
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
@@ -150,7 +151,7 @@ namespace NMib
 			}
 			
 			template <>
-			inline_always_debug void fg_GetDistributedActorInheritanceHierarchy<CDistributedActor>(NContainer::TCVector<uint32> &_Settings)
+			inline_always_debug void fg_GetDistributedActorInheritanceHierarchy<CActor>(NContainer::TCVector<uint32> &_Settings)
 			{
 			}
 		}
@@ -165,16 +166,52 @@ namespace NMib
 			return Return;
 		}
 		
-		
 		struct CDistributedActorInheritanceHeirarchyPublish
 		{
 			template <typename tf_CFirstToPublish>
+			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy()
+			{
+				CDistributedActorInheritanceHeirarchyPublish Ret;
+				Ret.mp_Hierarchy = fg_GetDistributedActorInheritanceHierarchy<tf_CFirstToPublish>();
+				return Ret;
+			}
+			NContainer::TCVector<uint32> const &f_GetHierarchy() const
+			{
+				return mp_Hierarchy;
+			}
+			
+		private:
 			CDistributedActorInheritanceHeirarchyPublish()
-				: mp_Hierarchy(fg_GetDistributedActorInheritanceHierarchy<tf_CFirstToPublish>())
 			{
 			}
-		private:
 			NContainer::TCVector<uint32> mp_Hierarchy;
+		};
+		
+		struct CDistributedActorSecurity
+		{
+			NContainer::TCVector<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
+			NContainer::TCVector<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;
+		};
+		
+		struct CActorDistributionManager;
+		struct CDistributedActorPublication
+		{
+			friend struct CActorDistributionManager;
+			
+			~CDistributedActorPublication();
+			
+			CDistributedActorPublication(CDistributedActorPublication const &) = delete;
+			CDistributedActorPublication &operator = (CDistributedActorPublication const &) = delete;
+			
+			CDistributedActorPublication(CDistributedActorPublication &&);
+			CDistributedActorPublication &operator = (CDistributedActorPublication &&);
+			
+		private:
+			CDistributedActorPublication(TCActor<CActorDistributionManager> _DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
+			
+			TCActor<CActorDistributionManager> mp_DistributionManager;
+			NStr::CStr mp_Namespace;
+			NStr::CStr mp_ActorID;
 		};
 		
 		struct CActorDistributionManager : public CActor
@@ -182,21 +219,34 @@ namespace NMib
 			CActorDistributionManager();
 			~CActorDistributionManager();
 			
+			void f_SetSecurity(CDistributedActorSecurity const &_Security);
+			
 			TCContinuation<void> f_Connect(CActorDistributionConnectionSettings const &_Settings);
 			TCContinuation<void> f_Listen(CActorDistributionListenSettings const &_Settings);
 			
-			void f_PublishActor(TCDistributedActor<CActor> &&_Actor, NContainer::TCVector<NStr::CStr> const &_NameSpaces, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
-			void f_PublishInsecureActor(TCDistributedActor<CActor> &&_Actor, NContainer::TCVector<NStr::CStr> const &_NameSpaces, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
+			TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_CallRemote
+				(
+					NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
+					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData 
+				)
+			;
+			
+			TCContinuation<CDistributedActorPublication> f_PublishActor(TCDistributedActor<CActor> &&_Actor, NStr::CStr const &_Namespace, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
 			
 			CActorCallback f_SubscribeActors
 				(
-					NContainer::TCVector<NStr::CStr> const &_NameSpaces
+					NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 					, TCActor<CActor> const &_Actor
-					, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor, CActorDistributionHost const &_Host)> &&_fOnNewActor
+					, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+					, NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
 				)
 			;
 			
 		private:
+			
+			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
+			
+			friend struct CDistributedActorPublication;
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};

@@ -58,7 +58,7 @@ namespace NMib
 						
 						auto pSocketInfo = static_cast<NNet::CSocketConnectionInfo_SSL const *>(NewServerConnection.m_Info.m_pSocketInfo.f_Get());
 
-						if (pSocketInfo->m_PeerCertificate.f_IsEmpty())
+						if (!pSocketInfo || pSocketInfo->m_PeerCertificate.f_IsEmpty())
 						{
 							fReject("Missing peer certificate");
 							return;
@@ -73,28 +73,38 @@ namespace NMib
 						NStr::CStr ConnectionUniqueName = pSocketInfo->m_PeerCertificateFingerprint;
 
 						auto pConnection = m_ServerConnections.f_Insert(fg_Construct(fg_Construct()));
-							
+						
+						auto HostID = pSocketInfo->m_PeerCertificateFingerprint;
+						auto &Host = this->m_Hosts[HostID];
+						pConnection->m_pHost = &Host;
+
+						Host.m_bIncoming = true;
+						
 						NewServerConnection.m_fOnClose = [this, pConnection](NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
 							{
 								fp_ServerConnectionClosed(pConnection);
 							}
 						;
 						
-						NewServerConnection.m_fOnReceiveBinaryMessage = [pConnection](NPtr::TCSharedPointer<NContainer::TCVector<uint8>> const &_pMessage)
+						NewServerConnection.m_fOnReceiveBinaryMessage = [this, pConnection](NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
 							{
-								
+								if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
+								{
+									// TODO: Assume malicious client
+								}
 							}
 						;
 
 						pConnection->m_Connection = NewServerConnection.f_Accept
 							(
 								"MalterlibDistributedActors"
-								, NMib::NConcurrency::fg_ConcurrentActor() / [pConnection, Address = NewServerConnection.m_Info.m_PeerAddress](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
+								, NMib::NConcurrency::fg_ConcurrentActor() / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
 								{
 									if (_Subscription)
 									{
 										DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Accepted connection from '{}'", Address.f_GetString());
 										pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
+										fp_Identify(pConnection.f_Get());
 									}
 									else
 									{

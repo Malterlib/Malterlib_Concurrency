@@ -48,6 +48,11 @@ namespace NMib
 			align_cacheline NAtomic::TCAtomic<CQueueEntry *> mp_pFirstQueued;
 		};
 		
+		struct ICDistributedActorData : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
+		{
+			virtual ~ICDistributedActorData();
+		};
+		
 		class CActorHolder : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 		{
 			typedef NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer> CSuper;
@@ -59,7 +64,7 @@ namespace NMib
 			virtual void fp_Construct();
 		public:
 			
-			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
+			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
@@ -88,6 +93,9 @@ namespace NMib
 			inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 			inline_always EPriority f_GetPriority() const;
 			
+			NPtr::TCSharedPointer<ICDistributedActorData> &f_GetDistributedActorData();
+			NPtr::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
+			
 		private:
 			void fp_Destroy();
 			void fp_Terminate();
@@ -100,7 +108,11 @@ namespace NMib
 #endif
 			
 		protected:
-			// Alignment zone 1: vptr, refcount
+			// Alignment zone 1: 
+			// vptr
+			// refcount
+			NPtr::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData; 
+			
 			// Alignment zone 2
 			CConcurrentRunQueue mp_ConcurrentRunQueue;
 			CConcurrencyManager *mp_pConcurrencyManager;
@@ -122,7 +134,14 @@ namespace NMib
 			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 			virtual void fp_Construct()	override;
 		public:
-			CDefaultActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority);
+			CDefaultActorHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				)
+			;
 			~CDefaultActorHolder();
 
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
@@ -135,7 +154,15 @@ namespace NMib
 
 			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 		public:
-			CDispatchingActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher);
+			CDispatchingActorHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+					, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher
+				)
+			;
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 		};
 
@@ -148,7 +175,15 @@ namespace NMib
 			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 			void fp_Construct() override;
 		public:
-			CSeparateThreadActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStr::CStr const &_ThreadName);
+			CSeparateThreadActorHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+					, NStr::CStr const &_ThreadName
+				)
+			;
 			~CSeparateThreadActorHolder();
 			void f_DestroyThreaded();
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);

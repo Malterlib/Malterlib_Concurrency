@@ -96,6 +96,7 @@ namespace NMib
 			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 
 			inline_never mint fp_InitConcurrentActors();
+			
 		public:
 			CConcurrencyManager();
 			~CConcurrencyManager();
@@ -103,6 +104,14 @@ namespace NMib
 
 			template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
 			TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
+
+			template <typename tf_CType, typename... tfp_CParams>
+			TCActor<tf_CType> f_ConstructFromInternalActor
+				(
+					NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pInternalActor
+					, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
+				)
+			;
 
 			void f_BlockOnDestroy();
 			TCActor<CConcurrentActor> const &f_GetConcurrentActor();

@@ -13,7 +13,13 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		void CActorDistributionManager::CInternal::fp_ScheduleReconnect(NPtr::TCSharedPointer<CClientConnection> const &_pConnection, TCContinuation<void> &_Continuation, bool _bRetry, mint _Sequence)
+		void CActorDistributionManager::CInternal::fp_ScheduleReconnect
+			(
+				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
+				, TCContinuation<void> &_Continuation
+				, bool _bRetry
+				, mint _Sequence
+			)
 		{
 			fg_TimerActor()
 				(
@@ -67,14 +73,47 @@ namespace NMib
 						_Continuation.f_SetException(DMibErrorInstance("Connection sequence missmatch"));
 						return;
 					}
+					
 					auto &Result = *_Result;
+					
+					auto pSocketInfo = static_cast<NNet::CSocketConnectionInfo_SSL const *>(Result.m_pSocketInfo.f_Get());
+
+					if (!pSocketInfo || pSocketInfo->m_PeerCertificate.f_IsEmpty())
+					{
+						if (!_bRetry)
+						{
+							_Continuation.f_SetException(DMibErrorInstance("Missing peer certificate"));
+							return;
+						}
+						fp_ScheduleReconnect(_pConnection, _Continuation, _bRetry, Sequence);
+						return;
+					}
+
+					if (pSocketInfo->m_PeerCertificateFingerprint.f_IsEmpty())
+					{
+						if (!_bRetry)
+						{
+							_Continuation.f_SetException(DMibErrorInstance("Missing peer fingerprint"));
+							return;
+						}
+						fp_ScheduleReconnect(_pConnection, _Continuation, _bRetry, Sequence);
+						return;
+					}
+ 
+					auto HostID = pSocketInfo->m_PeerCertificateFingerprint;
+					auto &Host = this->m_Hosts[HostID];
+					_pConnection->m_pHost = &Host;
+					
+					Host.m_bOutgoing = true;
+					
 					Result.m_fOnClose = [this, _pConnection, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
 						{
 							DMibLogWithCategory
 								(
 									Mib/Concurrency/Actors
 									, Error
-									, "Lost connection to '{}': {} {} {}", _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
+									, "Lost connection to '{}': {} {} {}"
+									, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 									, _Reason	
 									, _Message
 								)
@@ -84,16 +123,21 @@ namespace NMib
 						}
 					;
 					
-					Result.m_fOnReceiveBinaryMessage = [_pConnection, Sequence](NPtr::TCSharedPointer<NContainer::TCVector<uint8>> const &_pMessage)
+					Result.m_fOnReceiveBinaryMessage = [this, _pConnection, Sequence](NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
 						{
 							if (Sequence != _pConnection->m_ConnectionSequence)
 								return;
+							if (!fp_HandleProtocolIncoming(_pConnection.f_Get(), _pMessage))
+							{
+								// TODO: Assume malicious client
+							}
 						}
 					;
 					
+					
 					_pConnection->m_Connection = Result.f_Accept
 						(
-							fg_ThisActor(m_pThis) / [this, _pConnection, _Continuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Callback) mutable
+							fg_ThisActor(m_pThis) / [this, _pConnection, _Continuation, Sequence, _bRetry, HostID](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Callback) mutable
 							{
 								if (Sequence != _pConnection->m_ConnectionSequence)
 								{
@@ -123,6 +167,8 @@ namespace NMib
 								
 								_Continuation.f_SetResult();
 								_pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
+								
+								fp_Identify(_pConnection.f_Get());
 							}
 						)
 					; 

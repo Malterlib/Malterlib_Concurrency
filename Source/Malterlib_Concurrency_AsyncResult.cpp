@@ -8,44 +8,25 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		TCAsyncResult<void>::TCAsyncResult()
-			: m_bHasBeenSet(false)
+		CAsyncResult::CAsyncResult(CAsyncResult const &_Other) = default;
+		CAsyncResult::CAsyncResult(CAsyncResult &&_Other) = default;
+		
+		void CAsyncResult::f_Access() const
 		{
+			if (m_pException != nullptr)
+				std::rethrow_exception(m_pException);
 		}
-		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other)
-			: m_pException(fg_Move(_Other.m_pException))
-			, m_bHasBeenSet(_Other.m_bHasBeenSet)
-#if DMibConcurrencyDebugActorCallstacks
-			, m_Callstacks(fg_Move(_Other.m_Callstacks))
-#endif
-		{
-		}
-		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other)
-			: m_pException(_Other.m_pException)
-			, m_bHasBeenSet(_Other.m_bHasBeenSet)
-#if DMibConcurrencyDebugActorCallstacks
-			, m_Callstacks(_Other.m_Callstacks)
-#endif
-		{
-		}
-		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other)
-		{
-			m_pException = fg_Move(_Other.m_pException);
-			m_bHasBeenSet = _Other.m_bHasBeenSet;
-#if DMibConcurrencyDebugActorCallstacks
-			m_Callstacks = fg_Move(_Other.m_Callstacks);
-#endif
-			return *this;
-		}
-		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other)
-		{
-			m_pException = _Other.m_pException;
-			m_bHasBeenSet = _Other.m_bHasBeenSet;
-#if DMibConcurrencyDebugActorCallstacks
-			m_Callstacks = _Other.m_Callstacks;
-#endif
-			return *this;
-		}
+
+		CAsyncResult::CAsyncResult() = default;
+		CAsyncResult &CAsyncResult::operator =(CAsyncResult const &_Other) = default;
+		CAsyncResult &CAsyncResult::operator =(CAsyncResult &&_Other) = default;
+		
+		TCAsyncResult<void>::TCAsyncResult() = default;
+		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other) = default;
+		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
+		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
+		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
+		
 		void TCAsyncResult<void>::f_Get() const
 		{
 			if (m_pException != nullptr)

@@ -116,9 +116,10 @@ namespace NMib
 			
 		public:
 
-			TCActorInternal(CConcurrencyManager *_pConcurrencyManager);
+			TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
+			
 			template <typename tf_CP0>
-			TCActorInternal(CConcurrencyManager *_pConcurrencyManager, tf_CP0 &&_P0);
+			TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData, tf_CP0 &&_P0);
 			~TCActorInternal();
 
 		public:

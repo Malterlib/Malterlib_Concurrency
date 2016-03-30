@@ -60,11 +60,15 @@ namespace NMib
 			
 			TCActor<t_CActor> f_Lock() const;
 			
-			bool operator < (TCWeakActor const& _Right) const;
-			bool operator < (TCActor<t_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator < (TCWeakActor<tf_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator < (TCActor<tf_CActor> const& _Right) const;
 			
-			bool operator == (TCWeakActor const& _Right) const;
-			bool operator == (TCActor<t_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator == (TCWeakActor<tf_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator == (TCActor<tf_CActor> const& _Right) const;
 
 			inline_small explicit operator bool() const;
 			

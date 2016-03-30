@@ -81,11 +81,16 @@ namespace NMib
 			void f_Clear();
 			bool f_IsEmpty() const;
 			TCWeakActor<t_CActor> f_Weak() const;
-			bool operator < (TCActor const& _Right) const;
-			bool operator < (TCWeakActor<t_CActor> const& _Right) const;
 
-			bool operator == (TCActor const& _Right) const;
-			bool operator == (TCWeakActor<t_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator < (TCActor<tf_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator < (TCWeakActor<tf_CActor> const& _Right) const;
+
+			template <typename tf_CActor>
+			bool operator == (TCActor<tf_CActor> const& _Right) const;
+			template <typename tf_CActor>
+			bool operator == (TCWeakActor<tf_CActor> const& _Right) const;
 
 			inline_small explicit operator bool() const;
 			

@@ -7,12 +7,15 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
-		TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params)
+		
+		template <typename tf_CType, typename... tfp_CParams>
+		TCActor<tf_CType> CConcurrencyManager::f_ConstructFromInternalActor
+			(
+				NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pInternalActor
+				, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
+			)
 		{
-			NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor = fg_Construct(this, fg_Forward<tfp_CHolderParams>(p_Params)...);
-
-			NMem::TCAllocator_Placement<sizeof(tf_CType)> Allocator(pActor->m_ActorMemory.m_Aligned);
+			NMem::TCAllocator_Placement<sizeof(tf_CType)> Allocator(_pInternalActor->m_ActorMemory.m_Aligned);
 			NPtr::TCUniquePointer<tf_CType, NMem::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
 			NPtr::TCUniquePointer<tf_CType, NMem::CAllocator_Placement> pRealActor{fg_Explicit(pActorPlacement.f_Detach())};
 			
@@ -20,25 +23,33 @@ namespace NMib
 #ifdef DMibDebug
 			{
 				DMibLock(m_ActorListLock);
-				m_Actors.f_Insert(*pActor);
+				m_Actors.f_Insert(*_pInternalActor);
 			}
 #endif
-			pRealActor->self.m_pThis = pActor.f_Get();
+			pRealActor->self.m_pThis = _pInternalActor.f_Get();
 			pRealActor->mp_pConcurrencyManager = this;
-			pActor->mp_pActor = fg_Move(pRealActor);
-			pActor->mp_pConcurrencyManager = this;
-			pActor->f_RefCountIncrease();
+			_pInternalActor->mp_pActor = fg_Move(pRealActor);
+			_pInternalActor->mp_pConcurrencyManager = this;
+			_pInternalActor->f_RefCountIncrease();
 			
 			// Handle exception in construct
 			auto Cleanup = g_OnScopeExit > [&]
 				{
-					pActor->f_RefCountDecrease();
+					_pInternalActor->f_RefCountDecrease();
 				}
 			;
-			pActor->fp_Construct();
+			_pInternalActor->fp_Construct();
 			Cleanup.f_Clear(); // Disable refcount decrease
 			
-			return pActor;
+			return fg_Move(_pInternalActor);
+		}
+
+		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
+		TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params)
+		{
+			NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor = fg_Construct(this, nullptr, fg_Forward<tfp_CHolderParams>(p_Params)...);
+			
+			return f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
 		}
 		
 		template <typename tf_CActor, typename... tfp_CParams>

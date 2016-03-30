@@ -41,6 +41,8 @@ namespace NMib
 			virtual TCContinuation<void> f_Destroy();
 			
 		public:
+			void f_GetBaseHelper();
+			
 			typedef CDefaultActorHolder CActorHolder;
 			
 			inline_always CConcurrencyManager &f_ConcurrencyManager() const

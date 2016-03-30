@@ -146,27 +146,39 @@ namespace NMib
 		}
 		
 		template <typename t_CActor>
-		bool TCActor<t_CActor>::operator < (TCActor const& _Right) const
+		template <typename tf_CActor>
+		bool TCActor<t_CActor>::operator < (TCActor<tf_CActor> const& _Right) const
 		{
-			return m_pInternalActor < _Right.m_pInternalActor;
+			return (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)m_pInternalActor 
+				< (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)_Right.m_pInternalActor
+			;
 		}
 
 		template <typename t_CActor>
-		bool TCActor<t_CActor>::operator < (TCWeakActor<t_CActor> const& _Right) const
+		template <typename tf_CActor>
+		bool TCActor<t_CActor>::operator < (TCWeakActor<tf_CActor> const& _Right) const
 		{
-			return m_pInternalActor < _Right.m_pInternalActor;
+			return (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)m_pInternalActor 
+				< (NPtr::TCWeakPointer<CActorHolder, CInternalActorAllocator> const &)_Right.m_pInternalActor
+			;
 		}
 			
 		template <typename t_CActor>
-		bool TCActor<t_CActor>::operator == (TCActor const& _Right) const
+		template <typename tf_CActor>
+		bool TCActor<t_CActor>::operator == (TCActor<tf_CActor> const& _Right) const
 		{
-			return m_pInternalActor == _Right.m_pInternalActor;
+			return (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)m_pInternalActor 
+				== (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)_Right.m_pInternalActor
+			;
 		}
 		
 		template <typename t_CActor>
-		bool TCActor<t_CActor>::operator == (TCWeakActor<t_CActor> const& _Right) const
+		template <typename tf_CActor>
+		bool TCActor<t_CActor>::operator == (TCWeakActor<tf_CActor> const& _Right) const
 		{
-			return m_pInternalActor == _Right.m_pInternalActor;
+			return (NPtr::TCSharedPointer<CActorHolder, CInternalActorAllocator> const &)m_pInternalActor 
+				== (NPtr::TCWeakPointer<CActorHolder, CInternalActorAllocator> const &)_Right.m_pInternalActor
+			;
 		}
 
 		

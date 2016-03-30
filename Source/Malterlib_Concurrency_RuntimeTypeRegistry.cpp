@@ -19,8 +19,9 @@ namespace NMib
 			return *NPrivate::g_MalterlibSubSystem_Concurrency_RuntimeTypeRegistry;
 		}
 
-		CRuntimeTypeRegistryEntry_MemberFunction::CRuntimeTypeRegistryEntry_MemberFunction(uint32 _Hash, CRuntimeTypeRegistry_MemberFunctionPointer const &_MemberPointer)
+		CRuntimeTypeRegistryEntry_MemberFunction::CRuntimeTypeRegistryEntry_MemberFunction(uint32 _Hash, uint32 _TypeHash, CRuntimeTypeRegistry_MemberFunctionPointer const &_MemberPointer)
 			: m_Hash(_Hash)
+			, m_TypeHash(_TypeHash)
 			, m_MemberPointer(_MemberPointer)
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();

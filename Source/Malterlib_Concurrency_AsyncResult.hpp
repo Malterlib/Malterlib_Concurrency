@@ -12,50 +12,6 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename t_CType>
-		TCAsyncResult<t_CType>::TCAsyncResult()
-		{
-		}
-		template <typename t_CType>
-		TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult const &_Other)
-			: m_pException(_Other.m_pException)
-			, m_Result(_Other.m_Result)
-#if DMibConcurrencyDebugActorCallstacks
-			, m_Callstacks(_Other.m_Callstacks)
-#endif
-		{
-		}
-		template <typename t_CType>
-		TCAsyncResult<t_CType> &TCAsyncResult<t_CType>::operator =(TCAsyncResult const &_Other)
-		{
-			m_pException = _Other.m_pException;
-			m_Result = _Other.m_Result;
-#if DMibConcurrencyDebugActorCallstacks
-			m_Callstacks = _Other.m_Callstacks;
-#endif
-			return *this;
-		}
-		template <typename t_CType>
-		TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult &&_Other)
-			: m_pException(fg_Move(_Other.m_pException))
-			, m_Result(fg_Move(_Other.m_Result))
-#if DMibConcurrencyDebugActorCallstacks
-			, m_Callstacks(fg_Move(_Other.m_Callstacks))
-#endif
-		{
-		}
-
-		template <typename t_CType>
-		TCAsyncResult<t_CType> &TCAsyncResult<t_CType>::operator =(TCAsyncResult &&_Other)
-		{
-			m_pException = fg_Move(_Other.m_pException);
-			m_Result = fg_Move(_Other.m_Result);
-#if DMibConcurrencyDebugActorCallstacks
-			m_Callstacks = fg_Move(_Other.m_Callstacks);
-#endif
-			return *this;
-		}
-
-		template <typename t_CType>
 		t_CType const &TCAsyncResult<t_CType>::f_Get() const
 		{
 			if (m_pException != nullptr)

@@ -51,15 +51,15 @@ namespace NMib
 		}
 
 		template <typename t_CActor>
-		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager)
-			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority)
+		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData)
+			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority, fg_Move(_pDistributedActorData))
 		{
 		}
 
 		template <typename t_CActor>
 		template <typename tf_CP0>
-		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager, tf_CP0 &&_P0)
-			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority, fg_Forward<tf_CP0>(_P0))
+		TCActorInternal<t_CActor>::TCActorInternal(CConcurrencyManager *_pConcurrencyManager, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData, tf_CP0 &&_P0)
+			: CSuper(_pConcurrencyManager, t_CActor::mc_bImmediateDelete, (EPriority)t_CActor::mc_Priority, fg_Move(_pDistributedActorData), fg_Forward<tf_CP0>(_P0))
 		{
 		}
 

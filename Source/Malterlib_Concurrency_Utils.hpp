@@ -146,7 +146,6 @@ namespace NMib
 		template <typename t_CType>
 		auto TCActorResultVector<t_CType>::f_GetResults() 
 		{
-			auto &Internal = *mp_pInternal;
 			return fg_AnyConcurrentActor().f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>>>

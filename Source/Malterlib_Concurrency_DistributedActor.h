@@ -12,6 +12,8 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 
+#include <initializer_list>
+
 namespace NMib
 {
 	namespace NConcurrency
@@ -168,11 +170,23 @@ namespace NMib
 		
 		struct CDistributedActorInheritanceHeirarchyPublish
 		{
-			template <typename tf_CFirstToPublish>
+			template <typename ...tfp_CToPublish>
 			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy()
 			{
 				CDistributedActorInheritanceHeirarchyPublish Ret;
-				Ret.mp_Hierarchy = fg_GetDistributedActorInheritanceHierarchy<tf_CFirstToPublish>();
+				
+				std::initializer_list<bool> Dummy = 
+					{
+						[&]
+						{
+							Ret.mp_Hierarchy.f_Insert(fg_GetTypeHash<tfp_CToPublish>());
+							return true;
+						}
+						()...
+					}
+				;
+				(void)Dummy;
+				
 				return Ret;
 			}
 			NContainer::TCVector<uint32> const &f_GetHierarchy() const

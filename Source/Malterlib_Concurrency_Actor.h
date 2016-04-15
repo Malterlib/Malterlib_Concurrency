@@ -41,7 +41,6 @@ namespace NMib
 			virtual TCContinuation<void> f_Destroy();
 			
 		public:
-			void f_GetBaseHelper();
 			
 			typedef CDefaultActorHolder CActorHolder;
 			

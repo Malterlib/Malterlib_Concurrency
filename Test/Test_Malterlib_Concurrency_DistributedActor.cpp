@@ -12,6 +12,8 @@
 #include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>
 
+#include <type_traits>
+
 namespace
 {
 	using namespace NMib;
@@ -53,7 +55,9 @@ namespace
 		}
 		uint32 f_GetResult()
 		{
-			return m_Value;
+			auto Ret = m_Value;
+			m_Value = 0;
+			return Ret;
 		}
 
 		void f_AddIntVirtual(uint32 _Value) override
@@ -63,15 +67,18 @@ namespace
 		
 		uint32 f_GetResultVirtual() override
 		{
-			return m_Value;
+			auto Ret = m_Value;
+			m_Value = 0;
+			return Ret;
 		}
 		
 		template <typename tf_CTest>
 		uint32 f_GetResultTemplated()
 		{
-			return m_Value;
+			auto Ret = m_Value;
+			m_Value = 0;
+			return Ret;
 		}
-		
 
 		TCContinuation<uint32> f_GetResultDeferred()
 		{
@@ -134,197 +141,337 @@ namespace
 	
 	class CDistributedActor_Tests : public NMib::NTest::CTest
 	{
+		void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor)
+		{
+			DMibTestSuite("Direct")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync(60.0);
+				
+				uint32 Result = DMibCallActor(Actor, CDistributedActor::f_GetResult).f_CallSync(60.0);
+				DMibExpect(Result, ==, 5);
+			};
+			DMibTestSuite("DirectTemplate")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync(60.0);
+
+				uint32 Result1 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest1::CTest>).f_CallSync(60.0);
+				DMibExpect(Result1, ==, 5);
+				
+				DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync(60.0);
+				uint32 Result2 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest2::CTest>).f_CallSync(60.0);
+				DMibExpect(Result2, ==, 5);
+			};
+			DMibTestSuite("Virtual")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync(60.0);
+
+				uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync(60.0);
+				DMibExpect(Result, ==, 5);
+			};
+			DMibTestSuite("VirtualActor")
+			{
+				TCDistributedActor<CDistributedActorBase> Actor = _fGetActor();
+				
+				DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync(60.0);
+
+				uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync(60.0);
+				DMibExpect(Result, ==, 5);
+			};
+			DMibTestSuite("Deferred")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				DMibCallActor(Actor, CDistributedActor::f_AddIntDeferred, 5).f_CallSync(60.0);
+				
+				uint32 Result = DMibCallActor(Actor, CDistributedActor::f_GetResultDeferred).f_CallSync(60.0);
+				DMibExpect(Result, ==, 5);
+			};
+			DMibTestSuite("Exception")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto fTestCall = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_AddIntException, 5).f_CallSync(60.0);
+					}
+				;
+				auto fTestResult = [&]
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_GetResultException).f_CallSync(60.0);
+					}
+				;
+
+				DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
+				DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
+			};
+			DMibTestSuite("DeferredException")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto fTestCall = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_AddIntDeferredException, 5).f_CallSync(60.0);
+					}
+				;
+				auto fTestResult = [&]
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_GetResultDeferredException).f_CallSync(60.0);
+					}
+				;
+
+				DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
+				DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
+				
+				
+			}; 
+		}
+		struct CTestState
+		{
+			CTestState()
+			{
+				f_Init();
+			}
+
+			void f_Init()
+			{
+				TCActor<CActorDistributionManager> &ServerManager = m_ServerManager;
+				TCActor<CActorDistributionManager> &ClientManager = m_ClientManager; 
+				
+				ServerManager = fg_ConstructActor<CActorDistributionManager>();
+				ClientManager = fg_ConstructActor<CActorDistributionManager>();
+				
+				CActorDistributionCryptographySettings ServerCryptography;
+				ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+				
+				CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
+				ListenSettings.f_SetCryptography(ServerCryptography);
+				ListenSettings.m_bRetryOnListenFailure = false;
+				ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
+
+				TCDistributedActor<CDistributedActor> &PublishedActor = m_LocalActor;
+				PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
+				
+				ServerManager
+					(
+						&CActorDistributionManager::f_PublishActor
+						, PublishedActor
+						, "Test"
+						, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CDistributedActor, CDistributedActorBase>()
+					).f_CallSync(60.0)
+				;
+				
+				CActorDistributionConnectionSettings ConnectionSettings;
+				ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
+				ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
+				CActorDistributionCryptographySettings ClientCryptography;
+				ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+				auto CertificateRequest = ClientCryptography.f_GenerateRequest();
+				
+				auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
+				
+				ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
+				
+				ConnectionSettings.f_SetCryptography(ClientCryptography);
+				ConnectionSettings.m_bRetryConnectOnFailure = false;
+
+				mint RemoteEvents = 0;
+				
+				auto &ConcurrentActor = fg_ConcurrentActor();
+				
+				ClientManager
+					(
+						&CActorDistributionManager::f_SubscribeActors
+						, fg_CreateVector<NStr::CStr>("Test")
+						, ConcurrentActor 
+						, [&](CAbstractDistributedActor &&_NewActor)
+						{
+							DMibLock(m_RemoteLock);
+							_NewActor.f_GetActor<CDistributedActorBase>();
+							m_RemoteActor = _NewActor.f_GetActor<CDistributedActor>();
+							m_RemoteEvent.f_Signal();
+							++RemoteEvents;
+						}
+						, [&](TCWeakDistributedActor<CActor> const &_RemovedActor)
+						{
+							DMibLock(m_RemoteLock);
+							if (_RemovedActor == m_RemoteActor)
+								m_RemoteActor.f_Clear();
+							m_RemoteEvent.f_Signal();
+							++RemoteEvents;
+						}
+					)
+					> ConcurrentActor / [&](TCAsyncResult<CActorCallback> &&_Result)
+					{
+						DMibLock(m_RemoteLock);
+						m_RemoteActorsSubscription = fg_Move(*_Result);
+						m_RemoteEvent.f_Signal();
+						++RemoteEvents;
+					}
+				;
+				
+				ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
+				
+				bool bTimedOutWatingForActor = false;
+				while (!bTimedOutWatingForActor)
+				{
+					DMibLock(m_RemoteLock);
+					if (RemoteEvents >= 2)
+						break;
+					bTimedOutWatingForActor = m_RemoteEvent.f_WaitTimeout(60.0);
+				}
+				if (bTimedOutWatingForActor)
+					DMibError("bTimedOutWatingForActor");
+			}
+			
+			TCActor<CActorDistributionManager> m_ServerManager;
+			TCActor<CActorDistributionManager> m_ClientManager;
+
+			NThread::CMutual m_RemoteLock;
+			NThread::CEventAutoReset m_RemoteEvent;
+			CActorCallback m_RemoteActorsSubscription;
+			
+			TCDistributedActor<CDistributedActor> m_LocalActor;
+			TCDistributedActor<CDistributedActor> m_RemoteActor;
+		};
+		
+		void fp_BasicTests()
+		{
+			TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>();
+			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>();
+			
+			CActorDistributionCryptographySettings ServerCryptography;
+			ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			
+			CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
+			ListenSettings.f_SetCryptography(ServerCryptography);
+			ListenSettings.m_bRetryOnListenFailure = false;
+			ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
+
+			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
+			
+			ServerManager
+				(
+					&CActorDistributionManager::f_PublishActor
+					, PublishedActor
+					, "Test"
+					, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CDistributedActorBase>()
+				).f_CallSync(60.0)
+			;
+			
+			CActorDistributionConnectionSettings ConnectionSettings;
+			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
+			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
+			CActorDistributionCryptographySettings ClientCryptography;
+			ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
+			
+			auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
+			
+			ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
+			
+			ConnectionSettings.f_SetCryptography(ClientCryptography);
+			ConnectionSettings.m_bRetryConnectOnFailure = false;
+
+			NThread::CMutual RemoteLock;
+			NThread::CEventAutoReset RemoteEvent;
+			TCDistributedActor<CDistributedActorBase> RemoteActor;
+			CActorCallback RemoteActorsSubscription;
+			mint RemoteEvents = 0;
+			
+			auto &ConcurrentActor = fg_ConcurrentActor();
+			
+			ClientManager
+				(
+					&CActorDistributionManager::f_SubscribeActors
+					, fg_CreateVector<NStr::CStr>("Test")
+					, ConcurrentActor 
+					, [&](CAbstractDistributedActor &&_NewActor)
+					{
+						DMibLock(RemoteLock);
+						RemoteActor = _NewActor.f_GetActor<CDistributedActorBase>();
+						RemoteEvent.f_Signal();
+						++RemoteEvents;
+					}
+					, [&](TCWeakDistributedActor<CActor> const &_RemovedActor)
+					{
+						DMibLock(RemoteLock);
+						if (_RemovedActor == RemoteActor)
+							RemoteActor.f_Clear();
+						RemoteEvent.f_Signal();
+						++RemoteEvents;
+					}
+				)
+				> ConcurrentActor / [&](TCAsyncResult<CActorCallback> &&_Result)
+				{
+					DMibLock(RemoteLock);
+					RemoteActorsSubscription = fg_Move(*_Result);
+					RemoteEvent.f_Signal();
+					++RemoteEvents;
+				}
+			;
+			
+			ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
+			
+			bool bConnectionSuccessful = true; // If not we would have had exceptions above
+			
+			DMibExpectTrue(bConnectionSuccessful);
+			
+			bool bTimedOutWatingForActor = false;
+			while (!bTimedOutWatingForActor)
+			{
+				DMibLock(RemoteLock);
+				if (RemoteEvents >= 2)
+					break;
+				bTimedOutWatingForActor = RemoteEvent.f_WaitTimeout(60.0);
+			}
+
+			{
+				DMibLock(RemoteLock);
+
+				DMibAssertFalse(bTimedOutWatingForActor);
+				DMibAssert(RemoteEvents, ==, 2);
+				DMibAssertTrue(RemoteActor);
+				DMibAssertTrue(RemoteActorsSubscription);
+			}
+			
+			DMibCallActor(RemoteActor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync(60.0);
+			uint32 Result = DMibCallActor(RemoteActor, CDistributedActorBase::f_GetResultVirtual).f_CallSync(60.0);
+			DMibExpect(Result, ==, 5);
+		}
 	public:
 		void f_FunctionalTests()
 		{
-			NMib::fg_GetSys()->f_GetLogger().f_PushGlobalDestination(NLog::fg_LogTo_DebugOut, nullptr);
-			
 			DMibTestCategory("Local")
 			{
-				DMibTestSuite("Direct")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync();
-					
-					uint32 Result = DMibCallActor(Actor, CDistributedActor::f_GetResult).f_CallSync();
-					DMibExpect(Result, ==, 5);
-				};
-				DMibTestSuite("DirectTemplate")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					DMibCallActor(Actor, CDistributedActor::f_AddInt, 5).f_CallSync();
-
-					uint32 Result1 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest1::CTest>).f_CallSync();
-					DMibExpect(Result1, ==, 5);
-					uint32 Result2 = DMibCallActor(Actor, CDistributedActor::f_GetResultTemplated<NTest2::CTest>).f_CallSync();
-					DMibExpect(Result2, ==, 5);
-				};
-				DMibTestSuite("Virtual")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync();
-
-					uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync();
-					DMibExpect(Result, ==, 5);
-				};
-				DMibTestSuite("VirtualActor")
-				{
-					TCDistributedActor<CDistributedActorBase> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					
-					DMibCallActor(Actor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync();
-
-					uint32 Result = DMibCallActor(Actor, CDistributedActorBase::f_GetResultVirtual).f_CallSync();
-					DMibExpect(Result, ==, 5);
-				};
-				DMibTestSuite("Deferred")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					DMibCallActor(Actor, CDistributedActor::f_AddIntDeferred, 5).f_CallSync();
-					
-					uint32 Result = DMibCallActor(Actor, CDistributedActor::f_GetResultDeferred).f_CallSync();
-					DMibExpect(Result, ==, 5);
-				};
-				DMibTestSuite("Exception")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					auto fTestCall = [&]
+				fp_RunTests
+					(
+						[]
 						{
-							DMibCallActor(Actor, CDistributedActor::f_AddIntException, 5).f_CallSync();
+							return fg_ConstructDistributedActor<CDistributedActor>();
 						}
-					;
-					auto fTestResult = [&]
-						{
-							return DMibCallActor(Actor, CDistributedActor::f_GetResultException).f_CallSync();
-						}
-					;
-
-					DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
-					DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
-				};
-				DMibTestSuite("DeferredException")
-				{
-					TCDistributedActor<CDistributedActor> Actor = fg_ConstructDistributedActor<CDistributedActor>();
-					auto fTestCall = [&]
-						{
-							DMibCallActor(Actor, CDistributedActor::f_AddIntDeferredException, 5).f_CallSync();
-						}
-					;
-					auto fTestResult = [&]
-						{
-							return DMibCallActor(Actor, CDistributedActor::f_GetResultDeferredException).f_CallSync();
-						}
-					;
-
-					DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
-					DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
-				}; 
+					)
+				;
 			};
 			DMibTestCategory("Remote")
 			{
 				DMibTestSuite("Basics")
 				{
-					TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>();
-					TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>();
-					
-					CActorDistributionCryptographySettings ServerCryptography;
-					ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
-					
-					CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
-					ListenSettings.f_SetCryptography(ServerCryptography);
-					ListenSettings.m_bRetryOnListenFailure = false;
-					ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync();
-
-					TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
-					
-					ServerManager
-						(
-							&CActorDistributionManager::f_PublishActor
-							, PublishedActor
-							, "Test"
-							, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CDistributedActorBase>()
-						).f_CallSync(60.0)
-					;
-					
-					CActorDistributionConnectionSettings ConnectionSettings;
-					ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
-					ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
-					CActorDistributionCryptographySettings ClientCryptography;
-					ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
-					auto CertificateRequest = ClientCryptography.f_GenerateRequest();
-					
-					auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
-					
-					ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
-					
-					ConnectionSettings.f_SetCryptography(ClientCryptography);
-					ConnectionSettings.m_bRetryConnectOnFailure = false;
-
-					NThread::CMutual RemoteLock;
-					NThread::CEventAutoReset RemoteEvent;
-					TCDistributedActor<CDistributedActorBase> RemoteActor;
-					CActorCallback RemoteActorsSubscription;
-					mint RemoteEvents = 0;
-					
-					auto &ConcurrentActor = fg_ConcurrentActor();
-					
-					ClientManager
-						(
-							&CActorDistributionManager::f_SubscribeActors
-							, fg_CreateVector<NStr::CStr>("Test")
-							, ConcurrentActor 
-							, [&](CAbstractDistributedActor &&_NewActor)
-							{
-								DMibLock(RemoteLock);
-								RemoteActor = _NewActor.f_GetActor<CDistributedActorBase>();
-								RemoteEvent.f_Signal();
-								++RemoteEvents;
-							}
-							, [&](TCWeakDistributedActor<CActor> const &_RemovedActor)
-							{
-								DMibLock(RemoteLock);
-								if (_RemovedActor == RemoteActor)
-									RemoteActor.f_Clear();
-								RemoteEvent.f_Signal();
-								++RemoteEvents;
-							}
-						)
-						> ConcurrentActor / [&](TCAsyncResult<CActorCallback> &&_Result)
-						{
-							DMibLock(RemoteLock);
-							RemoteActorsSubscription = fg_Move(*_Result);
-							RemoteEvent.f_Signal();
-							++RemoteEvents;
-						}
-					;
-					
-					ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
-					
-					bool bConnectionSuccessful = true; // If not we would have had exceptions above
-					
-					DMibExpectTrue(bConnectionSuccessful);
-					
-					bool bTimedOutWatingForActor = false;
-					while (!bTimedOutWatingForActor)
-					{
-						DMibLock(RemoteLock);
-						if (RemoteEvents >= 2)
-							break;
-						bTimedOutWatingForActor = RemoteEvent.f_WaitTimeout(60.0);
-					}
-
-					{
-						DMibLock(RemoteLock);
-
-						DMibAssertFalse(bTimedOutWatingForActor);
-						DMibAssert(RemoteEvents, ==, 2);
-						DMibAssertTrue(RemoteActor);
-						DMibAssertTrue(RemoteActorsSubscription);
-					}
-					
-					DMibCallActor(RemoteActor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync();
-					uint32 Result = DMibCallActor(RemoteActor, CDistributedActorBase::f_GetResultVirtual).f_CallSync();
-					DMibExpect(Result, ==, 5);
+					fp_BasicTests();
 				};
+				
+				TCSharedPointer<CTestState> pTestState;
+				
+				fp_RunTests
+					(
+						[&]
+						{
+							if (!pTestState)
+								pTestState = fg_Construct();
+							
+							return pTestState->m_RemoteActor;
+						}
+					)
+				;
 			};
 		}
 

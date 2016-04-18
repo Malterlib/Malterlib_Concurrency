@@ -98,7 +98,7 @@ namespace NMib
 						pConnection->m_Connection = NewServerConnection.f_Accept
 							(
 								"MalterlibDistributedActors"
-								, NMib::NConcurrency::fg_ConcurrentActor() / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
+								, fg_ThisActor(m_pThis) / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
 								{
 									if (_Subscription)
 									{

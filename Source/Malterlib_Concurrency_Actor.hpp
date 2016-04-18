@@ -40,6 +40,15 @@ namespace NMib
 		{
 		}
 		
+		template <typename tf_CActor, typename tf_CActorSource>
+		TCActor<tf_CActor> fg_StaticCast(TCActor<tf_CActorSource> const &_Actor)
+		{
+			auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+			(void)pDummy;
+
+			return reinterpret_cast<TCActor<tf_CActor> const &>(_Actor);
+		}
+		
 		template <typename t_CActor>
 		template <typename tf_CActor>
 		TCActor<t_CActor>::TCActor(TCActor<tf_CActor> const &_Other)

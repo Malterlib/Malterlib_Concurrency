@@ -62,18 +62,12 @@ namespace NMib
 			{
 				CPacket()
 				{
-					m_Link.f_Construct();
 				}
 				NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> m_pData; // Shared pointer because we need to keep this around and possibly resend it
 				uint64 f_GetPacketID() const;
 
-				DMibListLinkD_Trans(CPacket, m_Link);
-				DMibIntrusiveLink_Define(CPacket, NIntrusive::TCAVLLinkAggregate<>, m_TreeLink);
-				union
-				{
-					DMibListLinkDSA_Member(m_Link);
-					DMibIntrusiveLink_Member(m_TreeLink);
-				};
+				DMibIntrusiveLink(CPacket, NIntrusive::TCAVLLinkAggregate<>, m_TreeLink);
+				DMibListLinkDS_Link(CPacket, m_Link);
 				
 				struct CSortPacketID
 				{
@@ -97,14 +91,10 @@ namespace NMib
 				
 				DMibListLinkDS_Link(CRemoteActor, m_Link);
 				
-/*				DMibIntrusiveLink(CPacket, NIntrusive::TCAVLLink<>, m_TreeLink);
-				struct CSortActorID
+				~CRemoteActor()
 				{
-					inline_always_debug auto &operator ()(CRemoteActor const &_Entry)
-					{
-						return _Entry.m_ActorID;
-					}
-				};*/
+					DMibCheck(!m_Link.f_IsInList());
+				}
 			};			
 
 			struct CRemoteNamespace
@@ -134,7 +124,7 @@ namespace NMib
 				NContainer::TCMap<NStr::CStr, CRemoteActor> m_RemoteActors;
 				
 				NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
-				bool m_bAllowAllNamespaces;
+				bool m_bAllowAllNamespaces = false;
 				
 				bool m_bIncoming = false;
 				bool m_bOutgoing = false;

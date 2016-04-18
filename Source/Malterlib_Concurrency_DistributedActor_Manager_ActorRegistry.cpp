@@ -20,10 +20,31 @@ namespace NMib
 			, mp_ActorID(_ActorID)
 		{
 		}
-		
+
+		CDistributedActorPublication::CDistributedActorPublication() = default;
+
 		CDistributedActorPublication::~CDistributedActorPublication()
 		{
+			f_Clear();
+		}
 		
+		void CDistributedActorPublication::f_Clear()
+		{
+			if (mp_DistributionManager)
+			{
+				mp_DistributionManager
+					(
+						&CActorDistributionManager::fp_RemoveActorPublication
+						, mp_Namespace
+						, mp_ActorID
+					)
+					> fg_DiscardResult()
+				;
+				
+				mp_DistributionManager.f_Clear();
+				mp_Namespace.f_Clear();
+				mp_ActorID.f_Clear();
+			}
 		}
 		
 		TCContinuation<CDistributedActorPublication> CActorDistributionManager::f_PublishActor
@@ -174,7 +195,9 @@ namespace NMib
 				RemoteActor.m_Hierarchy = Publish.m_Hierarchy;
 				
 				fp_NotifyNewActor(pHost, RemoteActor);
-			}							
+				
+				m_RemoteNamespaces[Publish.m_Namespace].m_RemoteActors.f_Insert(RemoteActor);
+			}
 			
 			return true;
 		}
@@ -189,6 +212,12 @@ namespace NMib
 			if (pRemoteActor)
 			{
 				fp_NotifyRemovedActor(*pRemoteActor);
+				auto pRemoteNamespace = m_RemoteNamespaces.f_FindEqual(pRemoteActor->m_Namespace);
+				DMibCheck(pRemoteNamespace);
+				pRemoteNamespace->m_RemoteActors.f_Remove(pRemoteActor);
+				if (pRemoteNamespace->m_RemoteActors.f_IsEmpty())
+					m_RemoteNamespaces.f_Remove(pRemoteNamespace);
+				
 				pHost->m_RemoteActors.f_Remove(pRemoteActor);
 			}
 			

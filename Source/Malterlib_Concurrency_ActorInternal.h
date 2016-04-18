@@ -24,6 +24,9 @@ namespace NMib
 		{
 			typedef typename t_CActor::CActorHolder CSuper;
 
+			template <typename t_CActor2>
+			friend class TCActor;
+			
 			template <typename t_CActor0>
 			friend class TCActorInternal;
 

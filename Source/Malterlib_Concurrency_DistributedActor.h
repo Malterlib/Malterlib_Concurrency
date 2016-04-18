@@ -137,6 +137,11 @@ namespace NMib
 				}
 				return (TCDistributedActor<tf_CType> &)mp_Actor;
 			}
+			template <typename tf_CType>
+			TCDistributedActor<tf_CType> f_GetActorUnsafe() const
+			{
+				return (TCDistributedActor<tf_CType> &)mp_Actor;
+			}
 			CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy);
 		private:
 			TCDistributedActor<CActor> mp_Actor;
@@ -212,6 +217,7 @@ namespace NMib
 		{
 			friend struct CActorDistributionManager;
 			
+			CDistributedActorPublication();
 			~CDistributedActorPublication();
 			
 			CDistributedActorPublication(CDistributedActorPublication const &) = delete;
@@ -219,6 +225,8 @@ namespace NMib
 			
 			CDistributedActorPublication(CDistributedActorPublication &&);
 			CDistributedActorPublication &operator = (CDistributedActorPublication &&);
+			
+			void f_Clear();
 			
 		private:
 			CDistributedActorPublication(TCActor<CActorDistributionManager> _DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
@@ -267,7 +275,13 @@ namespace NMib
 		
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		
-#define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor<decltype(&d_Function), &d_Function, fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function))>(d_Actor, ##d_Args)
+#define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor \
+			< \
+				decltype(&d_Function) \
+				, &d_Function \
+				, fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+			> \
+			(d_Actor, ##d_Args)
 		
 #ifndef DMibPNoShortCuts
 #	define DCallActor DMibCallActor

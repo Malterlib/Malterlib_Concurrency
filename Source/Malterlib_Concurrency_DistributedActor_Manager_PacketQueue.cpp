@@ -32,7 +32,6 @@ namespace NMib
 			}
 			
 			pPacket->m_pData = fg_Construct(_Data);
-			pPacket->m_Link.f_Construct();
 			_pHost->m_Outgoing_QueuedPackets.f_Insert(pPacket.f_Detach());
 			fp_SendPacketQueue(_pHost);
 		}

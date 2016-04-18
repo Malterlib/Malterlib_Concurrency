@@ -11,23 +11,6 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename tf_CStream>
-		void CDistributedActorCommand_Identify::CActorPublication::f_Feed(tf_CStream &_Stream) const
-		{
-			_Stream << m_ActorID;
-			_Stream << m_Namespace;
-			_Stream << m_Hierarchy;
-		}
-		
-		template <typename tf_CStream>
-		void CDistributedActorCommand_Identify::CActorPublication::f_Consume(tf_CStream &_Stream)
-		{
-			_Stream >> m_ActorID;
-			_Stream >> m_Namespace;
-			_Stream >> m_Hierarchy;
-		}
-
-		
-		template <typename tf_CStream>
 		void CDistributedActorCommand_Identify::f_Feed(tf_CStream &_Stream) const
 		{
 			_Stream << uint8(EDistributedActorCommand_Identify);
@@ -36,7 +19,6 @@ namespace NMib
 			_Stream << m_MissingPacketIDs;
 			_Stream << m_HighestSeenPacketID;
 			_Stream << m_AllowedNamespaces;
-			_Stream << m_ActorPublications;
 			_Stream << m_bAllowAllNamespaces;
 		}
 			
@@ -48,7 +30,6 @@ namespace NMib
 			_Stream >> m_MissingPacketIDs;
 			_Stream >> m_HighestSeenPacketID;
 			_Stream >> m_AllowedNamespaces;
-			_Stream >> m_ActorPublications;
 			_Stream >> m_bAllowAllNamespaces;
 		}
 		

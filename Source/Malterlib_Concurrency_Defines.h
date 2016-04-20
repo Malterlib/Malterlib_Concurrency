@@ -81,7 +81,7 @@ namespace NMib
 			void f_Clear();
 			bool f_IsEmpty() const;
 			TCWeakActor<t_CActor> f_Weak() const;
-
+			
 			template <typename tf_CActor>
 			bool operator < (TCActor<tf_CActor> const& _Right) const;
 			template <typename tf_CActor>
@@ -107,6 +107,10 @@ namespace NMib
 			
 			inline_always TCActor<CActor> const &f_GetActor() const;
 		};
+
+		template <typename tf_CActor, typename tf_CActorSource>
+		TCActor<tf_CActor> fg_StaticCast(TCActor<tf_CActorSource> const &_Actor);
+
 		
 		template <typename tf_CActor>
 		TCActor<tf_CActor> fg_ThisActor(tf_CActor *_pActor);

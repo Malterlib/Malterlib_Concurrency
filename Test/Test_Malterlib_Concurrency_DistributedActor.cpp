@@ -1,6 +1,8 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
+#define DMibRuntimeTypeRegistry
+
 #include <Mib/Concurrency/RuntimeTypeRegistry>
 
 #include <Mib/Test/Performance>
@@ -9,6 +11,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/DistributedActor>
+#include <Mib/Concurrency/TestHelpers>
 #include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>
 
@@ -225,114 +228,6 @@ namespace
 				
 			}; 
 		}
-		struct CTestState
-		{
-			CTestState()
-			{
-				f_Init();
-			}
-
-			void f_Init()
-			{
-				TCActor<CActorDistributionManager> &ServerManager = m_ServerManager;
-				TCActor<CActorDistributionManager> &ClientManager = m_ClientManager; 
-				
-				ServerManager = fg_ConstructActor<CActorDistributionManager>();
-				ClientManager = fg_ConstructActor<CActorDistributionManager>();
-				
-				CActorDistributionCryptographySettings ServerCryptography;
-				ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
-				
-				CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
-				ListenSettings.f_SetCryptography(ServerCryptography);
-				ListenSettings.m_bRetryOnListenFailure = false;
-				ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
-
-				TCDistributedActor<CDistributedActor> &PublishedActor = m_LocalActor;
-				PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
-				
-				ServerManager
-					(
-						&CActorDistributionManager::f_PublishActor
-						, PublishedActor
-						, "Test"
-						, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CDistributedActor, CDistributedActorBase>()
-					).f_CallSync(60.0)
-				;
-				
-				CActorDistributionConnectionSettings ConnectionSettings;
-				ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
-				ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
-				CActorDistributionCryptographySettings ClientCryptography;
-				ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
-				auto CertificateRequest = ClientCryptography.f_GenerateRequest();
-				
-				auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
-				
-				ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
-				
-				ConnectionSettings.f_SetCryptography(ClientCryptography);
-				ConnectionSettings.m_bRetryConnectOnFailure = false;
-
-				mint RemoteEvents = 0;
-				
-				auto &ConcurrentActor = fg_ConcurrentActor();
-				
-				ClientManager
-					(
-						&CActorDistributionManager::f_SubscribeActors
-						, fg_CreateVector<NStr::CStr>("Test")
-						, ConcurrentActor 
-						, [&](CAbstractDistributedActor &&_NewActor)
-						{
-							DMibLock(m_RemoteLock);
-							_NewActor.f_GetActor<CDistributedActorBase>();
-							m_RemoteActor = _NewActor.f_GetActor<CDistributedActor>();
-							m_RemoteEvent.f_Signal();
-							++RemoteEvents;
-						}
-						, [&](TCWeakDistributedActor<CActor> const &_RemovedActor)
-						{
-							DMibLock(m_RemoteLock);
-							if (_RemovedActor == m_RemoteActor)
-								m_RemoteActor.f_Clear();
-							m_RemoteEvent.f_Signal();
-							++RemoteEvents;
-						}
-					)
-					> ConcurrentActor / [&](TCAsyncResult<CActorCallback> &&_Result)
-					{
-						DMibLock(m_RemoteLock);
-						m_RemoteActorsSubscription = fg_Move(*_Result);
-						m_RemoteEvent.f_Signal();
-						++RemoteEvents;
-					}
-				;
-				
-				ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
-				
-				bool bTimedOutWatingForActor = false;
-				while (!bTimedOutWatingForActor)
-				{
-					DMibLock(m_RemoteLock);
-					if (RemoteEvents >= 2)
-						break;
-					bTimedOutWatingForActor = m_RemoteEvent.f_WaitTimeout(60.0);
-				}
-				if (bTimedOutWatingForActor)
-					DMibError("bTimedOutWatingForActor");
-			}
-			
-			TCActor<CActorDistributionManager> m_ServerManager;
-			TCActor<CActorDistributionManager> m_ClientManager;
-
-			NThread::CMutual m_RemoteLock;
-			NThread::CEventAutoReset m_RemoteEvent;
-			CActorCallback m_RemoteActorsSubscription;
-			
-			TCDistributedActor<CDistributedActor> m_LocalActor;
-			TCDistributedActor<CDistributedActor> m_RemoteActor;
-		};
 		
 		void fp_BasicTests()
 		{
@@ -349,7 +244,7 @@ namespace
 
 			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
 			
-			ServerManager
+			auto ActorPublication = ServerManager
 				(
 					&CActorDistributionManager::f_PublishActor
 					, PublishedActor
@@ -377,6 +272,7 @@ namespace
 			TCDistributedActor<CDistributedActorBase> RemoteActor;
 			CActorCallback RemoteActorsSubscription;
 			mint RemoteEvents = 0;
+			bool bRemoved = false;
 			
 			auto &ConcurrentActor = fg_ConcurrentActor();
 			
@@ -396,7 +292,10 @@ namespace
 					{
 						DMibLock(RemoteLock);
 						if (_RemovedActor == RemoteActor)
+						{
 							RemoteActor.f_Clear();
+							bRemoved = true;
+						}
 						RemoteEvent.f_Signal();
 						++RemoteEvents;
 					}
@@ -419,9 +318,11 @@ namespace
 			bool bTimedOutWatingForActor = false;
 			while (!bTimedOutWatingForActor)
 			{
-				DMibLock(RemoteLock);
-				if (RemoteEvents >= 2)
-					break;
+				{
+					DMibLock(RemoteLock);
+					if (RemoteEvents >= 2)
+						break;
+				}
 				bTimedOutWatingForActor = RemoteEvent.f_WaitTimeout(60.0);
 			}
 
@@ -437,6 +338,22 @@ namespace
 			DMibCallActor(RemoteActor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync(60.0);
 			uint32 Result = DMibCallActor(RemoteActor, CDistributedActorBase::f_GetResultVirtual).f_CallSync(60.0);
 			DMibExpect(Result, ==, 5);
+			
+			ActorPublication.f_Clear();
+			
+			bool bTimedOutWatingForUnPublish = false;
+			while (!bTimedOutWatingForUnPublish)
+			{
+				{
+					DMibLock(RemoteLock);
+					if (RemoteEvents >= 3)
+						break;
+				}
+				bTimedOutWatingForUnPublish = RemoteEvent.f_WaitTimeout(60.0);
+			}
+
+			DMibAssertFalse(bTimedOutWatingForUnPublish);
+			DMibExpectTrue(bRemoved);
 		}
 	public:
 		void f_FunctionalTests()
@@ -459,16 +376,28 @@ namespace
 					fp_BasicTests();
 				};
 				
-				TCSharedPointer<CTestState> pTestState;
+				TCSharedPointer<CDistributedActorTestHelper> pTestState;
 				
 				fp_RunTests
 					(
 						[&]
 						{
 							if (!pTestState)
+							{
 								pTestState = fg_Construct();
+								
+								pTestState->f_SeparateServerManager();
+								pTestState->f_Init();
+								pTestState->f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Test");
+								pTestState->f_Subscribe("Test");
+							}
 							
-							return pTestState->m_RemoteActor;
+							auto Actor = pTestState->f_GetRemoteActor<CDistributedActor>();
+							
+							if (!Actor)
+								DMibError("Failed to distributed actor environment");
+							
+							return Actor;
 						}
 					)
 				;

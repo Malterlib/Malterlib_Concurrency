@@ -92,28 +92,28 @@ namespace NMib
 							}
 						}
 
-						bool bAllowAllNamespaces = false;
-						auto &AllowedNamespaces = fp_GetAllowedNamespacesForHost(pHost, bAllowAllNamespaces);
-						
-						for (auto &ActorPublication : Identity.m_ActorPublications)
-						{
-							if (!bAllowAllNamespaces && !AllowedNamespaces.f_FindEqual(ActorPublication.m_Namespace))
-								continue;
-							auto Mapped = pHost->m_RemoteActors(ActorPublication.m_ActorID);
-							
-							if (Mapped.f_WasCreated())
-							{
-								auto &RemoteActor = *Mapped;
-								RemoteActor.m_Namespace = ActorPublication.m_Namespace;
-								RemoteActor.m_Hierarchy = ActorPublication.m_Hierarchy;
-								
-								m_RemoteNamespaces[ActorPublication.m_Namespace].m_RemoteActors.f_Insert(RemoteActor);
-								
-								fp_NotifyNewActor(pHost, RemoteActor);
-							}							
-						}
-						
 						pHost->m_ActiveConnections.f_Insert(*_pConnection);
+						
+						for (auto &NamespaceActors : m_LocalNamespaces)
+						{
+							auto &Namespace = NamespaceActors.f_GetNamespace();
+							if (!pHost->m_bAllowAllNamespaces && !pHost->m_AllowedNamespaces.f_FindEqual(Namespace))
+								continue;
+							
+							for (auto &Actor : NamespaceActors.m_Actors)
+							{
+								CDistributedActorCommand_Publish Publish;
+								Publish.m_ActorID = Actor.f_GetActorID();
+								Publish.m_Namespace = Namespace;
+								Publish.m_Hierarchy = Actor.m_Hierarchy; 
+
+								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+								Stream << Publish;
+								auto Data = Stream.f_MoveVector();
+
+								fp_QueuePacket(pHost, fg_TempCopy(Data));
+							}
+						}
 					}
 					break;
 				case EDistributedActorCommand_Acknowledge:
@@ -143,7 +143,6 @@ namespace NMib
 						Stream >> PacketID;
 						
 						NPtr::TCUniquePointer<CPacket> pPacket = fg_Construct();
-						pPacket->m_Link.f_Construct();
 						pPacket->m_pData = _pMessage;
 						auto iPacket = _pConnection->m_pHost->m_Incoming_ReceivedPackets.f_GetIterator();
 						iPacket.f_Reverse(_pConnection->m_pHost->m_Incoming_ReceivedPackets);
@@ -191,17 +190,6 @@ namespace NMib
 			Identity.m_bAllowAllNamespaces = bAllowAllNamespaces; 
 			if (!bAllowAllNamespaces)
 				Identity.m_AllowedNamespaces = AllowedNamespaces; 
-			
-			for (auto &NamespaceActors : m_LocalNamespaces)
-			{
-				for (auto &Actor : NamespaceActors.m_Actors)
-				{
-					auto &Publication = Identity.m_ActorPublications.f_Insert();
-					Publication.m_Namespace = NamespaceActors.f_GetNamespace();
-					Publication.m_ActorID = Actor.f_GetActorID();
-					Publication.m_Hierarchy = Actor.m_Hierarchy;
-				}
-			}
 			
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 			Stream << Identity;

@@ -32,24 +32,11 @@ namespace NMib
 			template <typename tf_CStream>
 			void f_Consume(tf_CStream &_Stream);
 
-			struct CActorPublication
-			{
-				template <typename tf_CStream>
-				void f_Feed(tf_CStream &_Stream) const;
-				template <typename tf_CStream>
-				void f_Consume(tf_CStream &_Stream);
-
-				NStr::CStr m_ActorID;
-				NStr::CStr m_Namespace;
-				NContainer::TCVector<uint32> m_Hierarchy;
-			};
-			
 			uint32 m_ProtocolVersion = EProtocolVersion;
 			NStr::CStr m_ExecutionID;
 			NContainer::TCVector<uint64> m_MissingPacketIDs;
 			uint64 m_HighestSeenPacketID = 0;
 			NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
-			NContainer::TCVector<CActorPublication> m_ActorPublications;
 			uint8 m_bAllowAllNamespaces;
 		};
 

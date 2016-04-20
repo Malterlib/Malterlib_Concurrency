@@ -5,6 +5,7 @@ Import "../Core/Lib_Malterlib.MTarget"
 
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
+	Property.MalterlibConcurrency_DistributedActors true
 	%Group Concurrency
 	{
 		%Group Include
@@ -55,6 +56,7 @@ Property
 	{
 		!!MalterlibLibrary_Concurrency true
 	}
+	MalterlibLibrarySeparate_Lib_Malterlib_Concurrency true
 //	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency true
 	MalterlibIncludeRoots "@('Include'->MakeAbsolute());@(MalterlibIncludeRoots)"
 	{
@@ -72,6 +74,7 @@ Property
 	}
 	%Dependency Lib_Malterlib_Web
 	%Dependency Lib_Malterlib_Network
+	%Dependency Lib_Malterlib_Concurrency
 }
 
 Property

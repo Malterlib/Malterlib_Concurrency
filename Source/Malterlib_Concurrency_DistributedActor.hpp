@@ -29,6 +29,16 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		template <typename tf_CActor, typename tf_CActorSource>
+		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_StaticCast(TCActor<TCDistributedActorWrapper<tf_CActorSource>> const &_Actor)
+		{
+			auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+			(void)pDummy;
+
+			return reinterpret_cast<TCActor<TCDistributedActorWrapper<tf_CActor>> const &>(_Actor);
+		}
+		
+		
 		namespace NPrivate
 		{
 			

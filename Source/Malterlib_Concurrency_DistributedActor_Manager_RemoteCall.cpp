@@ -46,7 +46,6 @@ namespace NMib
 			
 			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct();
 			pPacket->m_pData = fg_Construct(fg_Move(_CallData));
-			pPacket->m_Link.f_Construct();
 			pHost->m_Outgoing_QueuedPackets.f_Insert(pPacket.f_Detach());
 			
 			pHost->m_OutstandingCalls[PacketID] = Continuation;

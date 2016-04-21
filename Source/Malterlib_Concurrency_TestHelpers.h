@@ -15,6 +15,8 @@ namespace NMib
 			CDistributedActorTestHelper();
 			void f_SeparateServerManager();
 			void f_Init();
+			void f_InitClient(CDistributedActorTestHelper &_Server);
+			void f_InitServer();
 			void f_Subscribe(NStr::CStr const &_Namespace);
 			void f_Unsubscribe();
 			template <typename ...tfp_CDistributedActors>
@@ -27,6 +29,10 @@ namespace NMib
 		private:
 			TCActor<CActorDistributionManager> mp_ServerManager;
 			TCActor<CActorDistributionManager> mp_ClientManager;
+			
+			CActorDistributionCryptographySettings mp_ServerCryptography;
+			CActorDistributionListenSettings mp_ListenSettings;
+
 
 			NThread::CMutual mp_RemoteLock;
 			NThread::CEventAutoReset mp_RemoteEvent;

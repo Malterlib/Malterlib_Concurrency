@@ -8,6 +8,7 @@ namespace NMib
 	namespace NConcurrency
 	{
 		CDistributedActorTestHelper::CDistributedActorTestHelper()
+			: mp_ListenSettings{1392} // 1392 is 'mib' encoded with alphabet positions
 		{
 			mp_ServerManager = fg_GetDistributionManager();
 		}
@@ -19,29 +20,39 @@ namespace NMib
 
 		void CDistributedActorTestHelper::f_Init()
 		{
+			f_InitServer();
+			f_InitClient(*this);
+		}
+		
+		
+		void CDistributedActorTestHelper::f_InitServer()
+		{
 			TCActor<CActorDistributionManager> &ServerManager = mp_ServerManager;
+			
+			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			
+			mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
+			mp_ListenSettings.m_bRetryOnListenFailure = false;
+			ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(60.0);
+
+		}
+
+		void CDistributedActorTestHelper::f_InitClient(CDistributedActorTestHelper &_Server)
+		{
 			TCActor<CActorDistributionManager> &ClientManager = mp_ClientManager; 
 			
 			ClientManager = fg_ConstructActor<CActorDistributionManager>();
-			
-			CActorDistributionCryptographySettings ServerCryptography;
-			ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
-			
-			CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
-			ListenSettings.f_SetCryptography(ServerCryptography);
-			ListenSettings.m_bRetryOnListenFailure = false;
-			ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
-			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
+			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_PublicCertificate;
 			CActorDistributionCryptographySettings ClientCryptography;
 			ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
 			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
 			
-			auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
+			auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
 			
-			ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, ServerCryptography.m_PublicCertificate, SignedRequest);
+			ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
 			
 			ConnectionSettings.f_SetCryptography(ClientCryptography);
 			ConnectionSettings.m_bRetryConnectOnFailure = false;

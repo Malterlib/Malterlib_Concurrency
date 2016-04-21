@@ -13,6 +13,16 @@ namespace NMib
 			mp_ServerManager = fg_GetDistributionManager();
 		}
 		
+		CActorDistributionCryptographySettings const &CDistributedActorTestHelper::f_GetClientCryptograhySettings() const
+		{
+			return mp_ClientCryptography;
+		}
+		
+		CActorDistributionCryptographySettings const &CDistributedActorTestHelper::f_GetServerCryptograhySettings() const
+		{
+			return mp_ServerCryptography;
+		}		
+		
 		void CDistributedActorTestHelper::f_SeparateServerManager()
 		{
 			mp_ServerManager = fg_ConstructActor<CActorDistributionManager>();
@@ -46,15 +56,14 @@ namespace NMib
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
 			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_PublicCertificate;
-			CActorDistributionCryptographySettings ClientCryptography;
-			ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
-			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
+			mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
 			
 			auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
 			
-			ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
+			mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
 			
-			ConnectionSettings.f_SetCryptography(ClientCryptography);
+			ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 			ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);

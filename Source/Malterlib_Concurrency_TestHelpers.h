@@ -23,6 +23,9 @@ namespace NMib
 			void f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace);
 			void f_Unpublish();
 			
+			CActorDistributionCryptographySettings const &f_GetClientCryptograhySettings() const;
+			CActorDistributionCryptographySettings const &f_GetServerCryptograhySettings() const;
+			
 			template <typename tf_CActor>
 			TCDistributedActor<tf_CActor> f_GetRemoteActor();
 			
@@ -33,6 +36,7 @@ namespace NMib
 			CActorDistributionCryptographySettings mp_ServerCryptography;
 			CActorDistributionListenSettings mp_ListenSettings;
 
+			CActorDistributionCryptographySettings mp_ClientCryptography;
 
 			NThread::CMutual mp_RemoteLock;
 			NThread::CEventAutoReset mp_RemoteEvent;

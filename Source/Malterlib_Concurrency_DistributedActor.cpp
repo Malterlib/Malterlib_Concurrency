@@ -128,6 +128,11 @@ namespace NMib
 			NewRemote.m_PublicClientCertificate = _ClientCert;
 		}
 		
+		NStr::CStr CActorDistributionCryptographySettings::f_GetHostID() const
+		{
+			return NNet::CSSLContext::fs_GetCertificateFingerprint(m_PublicCertificate);
+		}		
+		
 		CActorDistributionConnectionSettings::CActorDistributionConnectionSettings()
 		{
 		}

@@ -78,6 +78,7 @@ namespace NMib
 			NContainer::TCVector<uint8> f_GenerateRequest() const;
 			NContainer::TCVector<uint8> f_SignRequest(NContainer::TCVector<uint8> const &_Request);
 			void f_AddRemoteServer(NHTTP::CURL const &_URL, NContainer::TCVector<uint8> const &_ServerCert, NContainer::TCVector<uint8> const &_ClientCert);
+			NStr::CStr f_GetHostID() const;
 			
 			template <typename tf_CStream>
 			void f_Feed(tf_CStream &_Stream) const;

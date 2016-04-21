@@ -279,7 +279,7 @@ namespace NMib
 			< \
 				decltype(&d_Function) \
 				, &d_Function \
-				, fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+				, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
 			> \
 			(d_Actor, ##d_Args)
 		

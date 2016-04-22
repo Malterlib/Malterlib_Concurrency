@@ -49,6 +49,11 @@ namespace NMib
 				_Continuation.f_SetResult();
 			}
 		}
+		
+		NStr::CStr CActorDistributionManager::fs_GetCallingHostID()
+		{
+			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
+		}
 
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager()
 		{

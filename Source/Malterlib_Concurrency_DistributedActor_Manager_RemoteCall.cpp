@@ -163,8 +163,16 @@ namespace NMib
 			Actor
 				(
 					&CActor::f_DispatchWithReturn<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>
-					, [pEntry, Actor, ParamData = fg_Move(ParamData)]
+					, [pEntry, Actor, ParamData = fg_Move(ParamData), HostID = _pConnection->m_pHost->f_GetHostID()]
 					{
+						auto PreviousHostID = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
+						NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID = HostID;
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID = PreviousHostID;
+							}
+						;
+						
 						NStream::CBinaryStreamMemoryPtr<> Stream;
 						Stream.f_OpenRead(ParamData);
 						return pEntry->f_Call

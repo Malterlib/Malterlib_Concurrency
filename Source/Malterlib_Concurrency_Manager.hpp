@@ -21,6 +21,7 @@ namespace NMib
 			
 			++m_nActors;
 #ifdef DMibDebug
+			_pInternalActor->mp_ActorTypeName = fg_GetTypeName<tf_CType>();
 			{
 				DMibLock(m_ActorListLock);
 				m_Actors.f_Insert(*_pInternalActor);

@@ -10,8 +10,8 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		CActorDistributionManager::CActorDistributionManager()
-			: mp_pInternal(fg_Construct(this))
+		CActorDistributionManager::CActorDistributionManager(NStr::CStr const &_HostID)
+			: mp_pInternal(fg_Construct(this, _HostID))
 		{
 		}
 

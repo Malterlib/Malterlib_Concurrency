@@ -4,6 +4,7 @@
 #include <Mib/Network/Sockets/SSL>
 
 #include "Malterlib_Concurrency_TestHelpers.h"
+#include <Mib/Cryptography/RandomID>
 
 namespace NMib
 {
@@ -11,8 +12,11 @@ namespace NMib
 	{
 		CDistributedActorTestHelper::CDistributedActorTestHelper()
 			: mp_ListenSettings{1392} // 1392 is 'mib' encoded with alphabet positions
+			, mp_ServerHostID(NCryptography::fg_RandomID())
+			, mp_ClientHostID(NCryptography::fg_RandomID())
+			, mp_ServerCryptography(mp_ServerHostID)
+			, mp_ClientCryptography(mp_ClientHostID)
 		{
-			mp_ServerManager = fg_GetDistributionManager();
 		}
 		
 		CActorDistributionCryptographySettings const &CDistributedActorTestHelper::f_GetClientCryptograhySettings() const
@@ -25,21 +29,38 @@ namespace NMib
 			return mp_ServerCryptography;
 		}		
 		
+		NStr::CStr const &CDistributedActorTestHelper::f_GetServerHostID() const
+		{
+			return mp_ServerHostID; 
+		}
+		
+		NStr::CStr const &CDistributedActorTestHelper::f_GetClientHostID() const
+		{
+			return mp_ClientHostID; 
+		}
+		
 		void CDistributedActorTestHelper::f_SeparateServerManager()
 		{
-			mp_ServerManager = fg_ConstructActor<CActorDistributionManager>();
+			mp_ServerManager = fg_ConstructActor<CActorDistributionManager>(mp_ServerHostID);
 		}
 
-		NStr::CStr CDistributedActorTestHelper::f_Init()
+		void CDistributedActorTestHelper::f_Init()
 		{
 			f_InitServer();
-			return f_InitClient(*this);
+			f_InitClient(*this);
 		}
 		
 		
 		void CDistributedActorTestHelper::f_InitServer()
 		{
 			TCActor<CActorDistributionManager> &ServerManager = mp_ServerManager;
+			
+			if (!ServerManager)
+			{
+				mp_ServerHostID = fg_InitDistributionManager(mp_ServerHostID);
+				mp_ServerCryptography.m_HostID = mp_ServerHostID; 
+				ServerManager = fg_GetDistributionManager();
+			}
 			
 			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
 			
@@ -49,11 +70,11 @@ namespace NMib
 
 		}
 
-		NStr::CStr CDistributedActorTestHelper::f_InitClient(CDistributedActorTestHelper &_Server)
+		void CDistributedActorTestHelper::f_InitClient(CDistributedActorTestHelper &_Server)
 		{
 			TCActor<CActorDistributionManager> &ClientManager = mp_ClientManager; 
 			
-			ClientManager = fg_ConstructActor<CActorDistributionManager>();
+			ClientManager = fg_ConstructActor<CActorDistributionManager>(mp_ClientHostID);
 
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
@@ -69,8 +90,6 @@ namespace NMib
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 			ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
-			
-			return NNet::CSSLContext::fs_GetCertificateFingerprint(SignedRequest);
 		}
 		
 		void CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace)

@@ -21,6 +21,8 @@ namespace NMib
 				, mint _Sequence
 			)
 		{
+			_pConnection->m_Connection.f_Clear();
+			_pConnection->m_ConnectionSubscription.f_Clear();
 			fg_TimerActor()
 				(
 					&CTimerActor::f_OneshotTimer
@@ -55,7 +57,7 @@ namespace NMib
 					, NHTTP::CRequest()
 					, NNet::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
 				)
-				> fg_ThisActor(m_pThis) / [this, _pConnection, _Continuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
+				> [this, _pConnection, _Continuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 				{
 					if (!_Result)
 					{
@@ -88,19 +90,37 @@ namespace NMib
 						fp_ScheduleReconnect(_pConnection, _Continuation, _bRetry, Sequence);
 						return;
 					}
-
-					if (pSocketInfo->m_PeerCertificateFingerprint.f_IsEmpty())
+					
+					NStr::CStr HostID;
+					try
+					{
+						auto Extensions = NNet::CSSLContext::fs_GetCertificateExtensions(pSocketInfo->m_PeerCertificate);
+						
+						auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
+						if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1 || (*pHostIDExtension)[0].m_Value.f_IsEmpty())
+						{
+							if (!_bRetry)
+							{
+								_Continuation.f_SetException(DMibErrorInstance("Missing or incorrect Host ID in server certificate"));
+								return;
+							}
+							fp_ScheduleReconnect(_pConnection, _Continuation, _bRetry, Sequence);
+							return;
+						}
+						
+						HostID = (*pHostIDExtension)[0].m_Value;
+					}
+					catch (NException::CException const &_Exception)
 					{
 						if (!_bRetry)
 						{
-							_Continuation.f_SetException(DMibErrorInstance("Missing peer fingerprint"));
+							_Continuation.f_SetException(DMibErrorInstance("Incorrect peer certificate"));
 							return;
 						}
 						fp_ScheduleReconnect(_pConnection, _Continuation, _bRetry, Sequence);
 						return;
 					}
- 
-					auto HostID = pSocketInfo->m_PeerCertificateFingerprint;
+
 					auto &Host = this->m_Hosts[HostID];
 					_pConnection->m_pHost = &Host;
 					
@@ -200,6 +220,5 @@ namespace NMib
 			
 			return Continuation;
 		}
-
 	}
 }

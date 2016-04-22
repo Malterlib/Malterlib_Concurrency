@@ -21,17 +21,13 @@ namespace NMib
 	{
 		struct CActorDistributionManager::CInternal
 		{
-			CInternal(CActorDistributionManager *_pThis)
+			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID)
 				: m_pThis(_pThis)
+				, m_HostID(_HostID) 
 				, m_ExecutionID(NCryptography::fg_RandomID())
 			{
 				
 			}
-			
-			TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
-			CActorCallback m_ListenCallbackSubscription;
-
-			TCActor<NWeb::CWebSocketClientActor> m_WebsocketClientConnector;
 			
 			struct CHost;
 			
@@ -184,6 +180,7 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CHost> m_Hosts;
 			CActorDistributionManager *m_pThis;
 			NStr::CStr m_ExecutionID;
+			NStr::CStr m_HostID;
 			
 			NContainer::TCMap<NStr::CStr, CLocalNamespace> m_LocalNamespaces;
 			NContainer::TCMap<NStr::CStr, CRemoteNamespace> m_RemoteNamespaces;
@@ -194,6 +191,11 @@ namespace NMib
 			NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
 			NContainer::TCSet<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;
 			NContainer::TCSet<NStr::CStr> m_AllowedBothNamespaces;
+			
+			TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
+			CActorCallback m_ListenCallbackSubscription;
+
+			TCActor<NWeb::CWebSocketClientActor> m_WebsocketClientConnector;
 			
 			void fp_ScheduleReconnect(NPtr::TCSharedPointer<CClientConnection> const &_pConnection, TCContinuation<void> &_Continuation, bool _bRetry, mint _Sequence);
 			void fp_Reconnect(NPtr::TCSharedPointer<CClientConnection> const &_pConnection, TCContinuation<void> &_Continuation, bool _bRetry);

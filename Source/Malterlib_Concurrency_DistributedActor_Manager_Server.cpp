@@ -64,17 +64,28 @@ namespace NMib
 							return;
 						}
 
-						if (pSocketInfo->m_PeerCertificateFingerprint.f_IsEmpty())
+						NStr::CStr HostID;
+						try
 						{
-							fReject("Missing peer fingerprint");
+							auto Extensions = NNet::CSSLContext::fs_GetCertificateExtensions(pSocketInfo->m_PeerCertificate);
+							
+							auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
+							if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1 || (*pHostIDExtension)[0].m_Value.f_IsEmpty())
+							{
+								fReject("Missing or incorrect Host ID in peer certificate");
+								return;
+							}
+							
+							HostID = (*pHostIDExtension)[0].m_Value;
+						}
+						catch (NException::CException const &_Exception)
+						{
+							fReject("Incorrect peer certificate");
 							return;
 						}
 						
-						NStr::CStr ConnectionUniqueName = pSocketInfo->m_PeerCertificateFingerprint;
-
 						auto pConnection = m_ServerConnections.f_Insert(fg_Construct(fg_Construct()));
 						
-						auto HostID = pSocketInfo->m_PeerCertificateFingerprint;
 						auto &Host = this->m_Hosts[HostID];
 						pConnection->m_pHost = &Host;
 

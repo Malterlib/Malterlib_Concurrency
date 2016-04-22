@@ -41,5 +41,10 @@ namespace NMib
 			m_Outgoing_QueuedPackets.f_DeleteAll();
 			m_Outgoing_SentPackets.f_DeleteAll();
 		}
+		
+		NStr::CStr const &CActorDistributionManager::CInternal::CHost::f_GetHostID() const
+		{
+			return NContainer::TCMap<NStr::CStr, CHost>::fs_GetKey(*this);
+		}
 	}
 }

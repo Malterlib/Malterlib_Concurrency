@@ -1,6 +1,8 @@
 ﻿// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
+#include <Mib/Network/Sockets/SSL>
+
 #include "Malterlib_Concurrency_TestHelpers.h"
 
 namespace NMib
@@ -28,10 +30,10 @@ namespace NMib
 			mp_ServerManager = fg_ConstructActor<CActorDistributionManager>();
 		}
 
-		void CDistributedActorTestHelper::f_Init()
+		NStr::CStr CDistributedActorTestHelper::f_Init()
 		{
 			f_InitServer();
-			f_InitClient(*this);
+			return f_InitClient(*this);
 		}
 		
 		
@@ -47,7 +49,7 @@ namespace NMib
 
 		}
 
-		void CDistributedActorTestHelper::f_InitClient(CDistributedActorTestHelper &_Server)
+		NStr::CStr CDistributedActorTestHelper::f_InitClient(CDistributedActorTestHelper &_Server)
 		{
 			TCActor<CActorDistributionManager> &ClientManager = mp_ClientManager; 
 			
@@ -67,6 +69,8 @@ namespace NMib
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 			ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
+			
+			return NNet::CSSLContext::fs_GetCertificateFingerprint(SignedRequest);
 		}
 		
 		void CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace)

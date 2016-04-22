@@ -61,6 +61,13 @@ namespace NMib
 				
 				TCActor<CActorDistributionManager> m_DistributionManager;
 				
+				struct CThreadLocal
+				{
+					NStr::CStr m_CallingHostID;
+				};
+				
+				NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;
+				
 				void f_DestroyThreadSpecific() override;
 			};
 			

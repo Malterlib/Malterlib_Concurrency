@@ -14,8 +14,8 @@ namespace NMib
 		{
 			CDistributedActorTestHelper();
 			void f_SeparateServerManager();
-			void f_Init();
-			void f_InitClient(CDistributedActorTestHelper &_Server);
+			NStr::CStr f_Init();
+			NStr::CStr f_InitClient(CDistributedActorTestHelper &_Server);
 			void f_InitServer();
 			void f_Subscribe(NStr::CStr const &_Namespace);
 			void f_Unsubscribe();

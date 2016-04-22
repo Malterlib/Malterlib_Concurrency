@@ -130,6 +130,9 @@ namespace NMib
 				bool m_bOutgoing = false;
 				
 				~CHost();
+			
+				NStr::CStr const &f_GetHostID() const;
+				
 			};
 			
 			struct CDistributedActorDataInternal : public NPrivate::CDistributedActorData

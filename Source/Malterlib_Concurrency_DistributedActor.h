@@ -264,6 +264,8 @@ namespace NMib
 					, NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
 				)
 			;
+
+			static NStr::CStr fs_GetCallingHostID();
 			
 		private:
 			

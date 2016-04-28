@@ -11,6 +11,7 @@
 
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
+#include <Mib/Concurrency/WeakActor>
 
 #include <initializer_list>
 
@@ -18,6 +19,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		struct CActorDistributionManager;
 		namespace NPrivate
 		{
 			struct CDistributedActorData : public ICDistributedActorData
@@ -25,6 +27,7 @@ namespace NMib
 				NStr::CStr m_ActorID;
 				bool m_bWasDestroyed = false;
 				bool m_bRemote = false;
+				TCWeakActor<CActorDistributionManager> m_DistributionManager;
 			};
 		}
 
@@ -72,7 +75,7 @@ namespace NMib
 
 		struct CActorDistributionCryptographySettings
 		{
-			CActorDistributionCryptographySettings();
+			CActorDistributionCryptographySettings(NStr::CStr const &_HostID);
 			~CActorDistributionCryptographySettings();
 			void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, int32 _KeyBits = 4096);
 			NContainer::TCVector<uint8> f_GenerateRequest() const;
@@ -81,9 +84,11 @@ namespace NMib
 			NStr::CStr f_GetHostID() const;
 			
 			template <typename tf_CStream>
-			void f_Feed(tf_CStream &_Stream) const;
+ 			void f_Feed(tf_CStream &_Stream) const;
 			template <typename tf_CStream>
 			void f_Consume(tf_CStream &_Stream);
+			
+			NStr::CStr m_HostID;
 			
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateCertificate;
 			NContainer::TCVector<uint8> m_PublicCertificate;
@@ -239,7 +244,7 @@ namespace NMib
 		
 		struct CActorDistributionManager : public CActor
 		{
-			CActorDistributionManager();
+			CActorDistributionManager(NStr::CStr const &_HostID);
 			~CActorDistributionManager();
 			
 			void f_SetSecurity(CDistributedActorSecurity const &_Security);
@@ -254,7 +259,13 @@ namespace NMib
 				)
 			;
 			
-			TCContinuation<CDistributedActorPublication> f_PublishActor(TCDistributedActor<CActor> &&_Actor, NStr::CStr const &_Namespace, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish);
+			TCContinuation<CDistributedActorPublication> f_PublishActor
+				(
+					TCDistributedActor<CActor> &&_Actor
+					, NStr::CStr const &_Namespace
+					, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish
+				)
+			;
 			
 			CActorCallback f_SubscribeActors
 				(
@@ -276,6 +287,7 @@ namespace NMib
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};
 		
+		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		
 #define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor \

@@ -58,17 +58,13 @@ namespace NMib
 			{
 				CSubSystem_Concurrency_DistributedActor();
 				~CSubSystem_Concurrency_DistributedActor();
-				
-				TCActor<CActorDistributionManager> m_DistributionManager;
-				
+
 				struct CThreadLocal
 				{
 					NStr::CStr m_CallingHostID;
 				};
 				
 				NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;
-				
-				void f_DestroyThreadSpecific() override;
 			};
 			
 			CSubSystem_Concurrency_DistributedActor &fg_DistributedActorSubSystem();
@@ -214,7 +210,13 @@ namespace NMib
 					{
 						TCContinuation<CReturn> Continuation;
 						
-						TCActor<CActorDistributionManager> const &DistributionManager = fg_GetDistributionManager();
+						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
+						
+						if (!DistributionManager)
+						{
+							Continuation.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
+							return Continuation;
+						}
 						
 						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data))
 							> [Continuation](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable

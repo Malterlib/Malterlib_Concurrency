@@ -12,6 +12,7 @@
 #include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/TestHelpers>
+#include <Mib/Cryptography/RandomID>
 #include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>
 
@@ -26,6 +27,7 @@ namespace
 	using namespace NMib::NConcurrency;
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
+	using namespace NMib::NStr;
 	
 	namespace NTest1
 	{
@@ -46,6 +48,7 @@ namespace
 	public:
 		virtual void f_AddIntVirtual(uint32 _Value) pure;
 		virtual uint32 f_GetResultVirtual() pure;
+		virtual CStr f_GetCallingHostID() const pure;
 	};
 
 	class CDistributedActor : public CDistributedActorBase
@@ -74,6 +77,11 @@ namespace
 			m_Value = 0;
 			return Ret;
 		}
+
+		CStr f_GetCallingHostID() const override
+		{
+			return CActorDistributionManager::fs_GetCallingHostID();
+		}
 		
 		template <typename tf_CTest>
 		uint32 f_GetResultTemplated()
@@ -82,7 +90,7 @@ namespace
 			m_Value = 0;
 			return Ret;
 		}
-
+		
 		TCContinuation<uint32> f_GetResultDeferred()
 		{
 			TCContinuation<uint32> Continuation;
@@ -231,11 +239,13 @@ namespace
 		
 		void fp_BasicTests()
 		{
-			TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>();
-			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>();
+			CStr ServerHostID = NCryptography::fg_RandomID();
+			CStr ClientHostID = NCryptography::fg_RandomID();
+			TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(ServerHostID);
+			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(ClientHostID);
 			
-			CActorDistributionCryptographySettings ServerCryptography;
-			ServerCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
+			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
 			
 			CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
 			ListenSettings.f_SetCryptography(ServerCryptography);
@@ -256,8 +266,8 @@ namespace
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
 			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
-			CActorDistributionCryptographySettings ClientCryptography;
-			ClientCryptography.f_GenerateNewCert(fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			CActorDistributionCryptographySettings ClientCryptography{ClientHostID};
+			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
 			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
 			
 			auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
@@ -279,7 +289,7 @@ namespace
 			ClientManager
 				(
 					&CActorDistributionManager::f_SubscribeActors
-					, fg_CreateVector<NStr::CStr>("Test")
+					, fg_CreateVector<CStr>("Test")
 					, ConcurrentActor 
 					, [&](CAbstractDistributedActor &&_NewActor)
 					{
@@ -338,6 +348,9 @@ namespace
 			DMibCallActor(RemoteActor, CDistributedActorBase::f_AddIntVirtual, 5).f_CallSync(60.0);
 			uint32 Result = DMibCallActor(RemoteActor, CDistributedActorBase::f_GetResultVirtual).f_CallSync(60.0);
 			DMibExpect(Result, ==, 5);
+
+			CStr RemoteCallingHostID = (DMibCallActor(RemoteActor, CDistributedActorBase::f_GetCallingHostID)).f_CallSync(60.0);
+			DMibExpect(RemoteCallingHostID, ==, ClientHostID);
 			
 			ActorPublication.f_Clear();
 			

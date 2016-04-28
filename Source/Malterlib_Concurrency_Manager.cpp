@@ -323,10 +323,31 @@ namespace NMib
 			fp_InitConcurrentActors(); // Make sure concurrent actors are created
 			f_GetTimerActor(); // Make sure timer actor is created
 			{
+#ifdef DMibDebug
+				NTime::CCyclesClock Clock;
+				Clock.f_Start();
+#endif
 				// Disregard concurrent actor from destroy
 				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
 				while (m_nActors.f_Load() > nExpectedActors)
+				{
 					NSys::fg_Thread_SmallestSleep();
+					
+#ifdef DMibDebug
+					if (Clock.f_GetTime() > 10.0)
+					{
+						DMibDTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
+						DMibLock(m_ActorListLock);
+						for (auto &Actor : this->m_Actors)
+						{
+							if (Actor.mp_ActorTypeName.f_StartsWith("NMib::NConcurrency::CConcurrentActor") || Actor.mp_ActorTypeName == "NMib::NConcurrency::CTimerActor")
+								continue;
+							DMibDTrace("\t{}   RefCount {}   WeakCount {}{\n}", Actor.mp_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+						}
+						Clock.f_Start();
+					}
+#endif
+				}
 			}
 
 			// Delete the timer actor

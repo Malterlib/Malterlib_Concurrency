@@ -15,21 +15,71 @@ namespace NMib
 	{
 		namespace NPrivate
 		{
+			struct CSubSystem_Concurrency_DistributedActorDefaultManager : public CSubSystem
+			{
+				CSubSystem_Concurrency_DistributedActorDefaultManager();
+				CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID);
+				~CSubSystem_Concurrency_DistributedActorDefaultManager();
+
+				NStr::CStr m_DistributionManagerHostID;
+				TCActor<CActorDistributionManager> m_DistributionManager;
+				
+				void f_DestroyThreadSpecific() override;
+			};
+			
+			CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager()
+			{
+				DMibError("You need to call fg_InitDistributionManager before using distributed actors");
+			}
+			
+ 			CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID)
+				: m_DistributionManagerHostID(_HostID)
+			{
+				fg_ConcurrencyManager(); // Add dependency to subsystem
+				
+				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>(_HostID);
+			}
+			
+			CSubSystem_Concurrency_DistributedActorDefaultManager::~CSubSystem_Concurrency_DistributedActorDefaultManager()
+			{
+				if (m_DistributionManager)
+				{
+					m_DistributionManager->f_BlockDestroy();
+					m_DistributionManager.f_Clear();
+				}
+			}
+			
+			void CSubSystem_Concurrency_DistributedActorDefaultManager::f_DestroyThreadSpecific()
+			{
+				if (m_DistributionManager)
+				{
+					m_DistributionManager->f_BlockDestroy();
+					m_DistributionManager.f_Clear();
+				}
+			}
+			
+			
 			CSubSystem_Concurrency_DistributedActor::CSubSystem_Concurrency_DistributedActor()
 			{
 				fg_ConcurrencyManager(); // Add dependency to subsystem
 				
-				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>();
+				NNet::CSSLContext::fs_RegisterExtension
+					(
+						"1.3.6.1.4.1.555555.1.1"
+						, "MalterlibHostID"
+						, "Malterlib Host ID"
+					)
+				;
+				
 			}
 			
 			CSubSystem_Concurrency_DistributedActor::~CSubSystem_Concurrency_DistributedActor()
 			{
 			}
 			
-			void CSubSystem_Concurrency_DistributedActor::f_DestroyThreadSpecific()
-			{
-				m_DistributionManager.f_Clear();
-			}			
+			TCSubSystem<CSubSystem_Concurrency_DistributedActorDefaultManager, ESubSystemDestruction_BeforeMemoryManager> 
+				g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager = {DAggregateInit}
+			;
 			
 			TCSubSystem<CSubSystem_Concurrency_DistributedActor, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedActor = {DAggregateInit};
 			
@@ -55,14 +105,29 @@ namespace NMib
 			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
 		}
 
-		TCActor<CActorDistributionManager> const &fg_GetDistributionManager()
+		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID)
 		{
-			return NPrivate::fg_DistributedActorSubSystem().m_DistributionManager;
+			if (NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager.f_WasCreated())
+				return NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager->m_DistributionManagerHostID;
+			NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager.f_Construct
+				(
+					[&](void *_pMemory) -> NPrivate::CSubSystem_Concurrency_DistributedActorDefaultManager *
+					{
+						return new(_pMemory) NPrivate::CSubSystem_Concurrency_DistributedActorDefaultManager(_HostID);
+					}
+				)
+			;
+			
+			return _HostID;
 		}
 
-
+		TCActor<CActorDistributionManager> const &fg_GetDistributionManager()
+		{
+			return NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager->m_DistributionManager;
+		}
 		
-		CActorDistributionCryptographySettings::CActorDistributionCryptographySettings()
+		CActorDistributionCryptographySettings::CActorDistributionCryptographySettings(NStr::CStr const &_HostID)
+			: m_HostID(_HostID)
 		{
 		}
 		
@@ -72,14 +137,23 @@ namespace NMib
 		
 		void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, int32 _KeyBits)
 		{
+			NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
+
 			m_Subject = fg_Format("Malterlib Distributed Actors - {} - {}", NProcess::NPlatform::fg_Process_GetComputerName(), NCryptography::fg_RandomID());
+			
+			NNet::CSSLContext::CCertificateOptions Options;
+			Options.m_KeyLength = _KeyBits;
+			Options.m_Hostnames = _HostNames;
+			Options.m_Subject = m_Subject; 
+			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
+			Extension.m_bCritical = false; 
+			Extension.m_Value = m_HostID;
+			
 			NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey
 				(
-					m_Subject
-					, _HostNames
+					Options
 					, m_PublicCertificate
 					, m_PrivateCertificate
-					, _KeyBits
 					, 1
 					, 10*365
 				)
@@ -92,14 +166,22 @@ namespace NMib
 		
 		NContainer::TCVector<uint8> CActorDistributionCryptographySettings::f_GenerateRequest() const
 		{
+			NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
+			
 			NContainer::TCVector<uint8> Return;
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> KeyData = m_PrivateCertificate;
+			
+			NNet::CSSLContext::CCertificateOptions Options;
+			Options.m_Subject = m_Subject; 
+			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
+			Extension.m_bCritical = false; 
+			Extension.m_Value = m_HostID; 
+			
 			NNet::CSSLContext::fs_GenerateClientCertificateRequest
 				(
-					m_Subject
+					Options
 					, Return
 					, KeyData
-					, 0
 				)
 			;
 			return Return;

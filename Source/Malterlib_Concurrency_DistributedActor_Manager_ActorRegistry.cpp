@@ -139,6 +139,7 @@ namespace NMib
 				NPtr::TCSharedPointer<CDistributedActorDataInternal> pDistributedActorData = fg_Construct();
 				pDistributedActorData->m_pHost = _pHost;
 				pDistributedActorData->m_bRemote = true;
+				pDistributedActorData->m_DistributionManager = fg_ThisActor(m_pThis);
 				pDistributedActorData->m_ActorID = _RemoteActor.f_GetActorID();
 				
 				NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 

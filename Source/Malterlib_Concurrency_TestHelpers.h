@@ -14,14 +14,17 @@ namespace NMib
 		{
 			CDistributedActorTestHelper();
 			void f_SeparateServerManager();
-			NStr::CStr f_Init();
-			NStr::CStr f_InitClient(CDistributedActorTestHelper &_Server);
+			void f_Init();
+			void f_InitClient(CDistributedActorTestHelper &_Server);
 			void f_InitServer();
 			void f_Subscribe(NStr::CStr const &_Namespace);
 			void f_Unsubscribe();
 			template <typename ...tfp_CDistributedActors>
 			void f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace);
 			void f_Unpublish();
+			
+			NStr::CStr const &f_GetServerHostID() const;
+			NStr::CStr const &f_GetClientHostID() const;
 			
 			CActorDistributionCryptographySettings const &f_GetClientCryptograhySettings() const;
 			CActorDistributionCryptographySettings const &f_GetServerCryptograhySettings() const;
@@ -30,6 +33,9 @@ namespace NMib
 			TCDistributedActor<tf_CActor> f_GetRemoteActor();
 			
 		private:
+			NStr::CStr mp_ServerHostID;
+			NStr::CStr mp_ClientHostID;
+			
 			TCActor<CActorDistributionManager> mp_ServerManager;
 			TCActor<CActorDistributionManager> mp_ClientManager;
 			
@@ -46,7 +52,7 @@ namespace NMib
 			TCDistributedActor<CActor> mp_RemoteActor;
 			
 			CDistributedActorPublication mp_Publication;
-
+			
 			mint mp_RemoteEvents = 0;
 		};
 	}

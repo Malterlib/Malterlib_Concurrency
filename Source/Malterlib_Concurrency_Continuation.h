@@ -49,6 +49,13 @@ namespace NMib
 			TCContinuation &operator =(TCContinuation &&_Other);
 			TCContinuation(TCContinuation &&_Other);
 			TCContinuation();
+
+			template <typename tf_CType>
+			TCContinuation(TCExplicit<tf_CType> &&_Data);
+			TCContinuation(TCExplicit<void> &&_Data);
+
+			template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
+			TCContinuation(tf_CType &&_Exception);
 			
 			template <typename tf_CResult>
 			static TCContinuation fs_Finished(tf_CResult &&_Result);

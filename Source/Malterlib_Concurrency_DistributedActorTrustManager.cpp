@@ -65,6 +65,21 @@ namespace NMib
 			return fg_Default();
 		}
 		
+		NConcurrency::TCActor<NConcurrency::CActorDistributionManager> CDistributedActorTrustManager::f_GetDistributionManager() const
+		{
+			return fg_Default();
+		}
+		
+		NStr::CStr CDistributedActorTrustManager::f_GetHostID() const
+		{
+			return fg_Default();
+		}
+		
+		TCContinuation<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState(bool _bWaitForAttepmts)
+		{
+			return fg_Default();
+		}
+		
 		bool CDistributedActorTrustManager_Address::operator == (CDistributedActorTrustManager_Address const &_Right) const
 		{
 			return NContainer::fg_TupleReferences(m_URL, m_PreferType) == NContainer::fg_TupleReferences(_Right.m_URL, _Right.m_PreferType); 

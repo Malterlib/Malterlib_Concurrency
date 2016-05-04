@@ -389,7 +389,7 @@ namespace
 					fp_BasicTests();
 				};
 				
-				TCSharedPointer<CDistributedActorTestHelper> pTestState;
+				TCSharedPointer<CDistributedActorTestHelperCombined> pTestState;
 				
 				fp_RunTests
 					(

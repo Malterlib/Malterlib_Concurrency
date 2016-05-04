@@ -8,10 +8,22 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename ...tfp_CDistributedActors>
+		void CDistributedActorTestHelperCombined::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
+		{
+			mp_pServer->f_Publish<tfp_CDistributedActors...>(_Actor, _Namespace);
+		}	
+		
+		template <typename tf_CActor>
+		TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor()
+		{
+			return mp_pClient->f_GetRemoteActor<tf_CActor>();
+		}
+
+		template <typename ...tfp_CDistributedActors>
 		void CDistributedActorTestHelper::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
 		{
 			mp_PublishedActors.f_Insert(_Actor);
-			mp_Publication = mp_ServerManager
+			mp_Publication = mp_Manager
 				(
 					&CActorDistributionManager::f_PublishActor
 					, fg_TempCopy(_Actor)

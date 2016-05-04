@@ -60,7 +60,27 @@ namespace NMib
 			return fg_Default();
 		}
 		
+		TCContinuation<void> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address)
+		{
+			return fg_Default();
+		}
+		
 		TCContinuation<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+		{
+			return fg_Default();
+		}
+		
+		NConcurrency::TCActor<NConcurrency::CActorDistributionManager> CDistributedActorTrustManager::f_GetDistributionManager() const
+		{
+			return fg_Default();
+		}
+		
+		NStr::CStr CDistributedActorTrustManager::f_GetHostID() const
+		{
+			return fg_Default();
+		}
+		
+		TCContinuation<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState(bool _bWaitForAttepmts)
 		{
 			return fg_Default();
 		}

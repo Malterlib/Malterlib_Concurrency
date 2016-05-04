@@ -36,6 +36,29 @@ namespace NMib
 		}
 		
 		template <typename t_CReturnValue>
+		template <typename tf_CType>
+		TCContinuation<t_CReturnValue>::TCContinuation(TCExplicit<tf_CType> &&_Data)
+			: m_pData(fg_Construct())
+		{
+			f_SetResult(*_Data);
+		}
+
+		template <typename t_CReturnValue>
+		TCContinuation<t_CReturnValue>::TCContinuation(TCExplicit<void> &&_Data)
+			: m_pData(fg_Construct())
+		{
+			f_SetResult();
+		}
+		
+		template <typename t_CReturnValue>
+		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> *>
+		TCContinuation<t_CReturnValue>::TCContinuation(tf_CType &&_Exception)
+			: m_pData(fg_Construct())
+		{
+			f_SetException(fg_Forward<tf_CType>(_Exception));
+		}		
+		
+		template <typename t_CReturnValue>
 		template <typename tf_CResult>
 		TCContinuation<t_CReturnValue> TCContinuation<t_CReturnValue>::fs_Finished(tf_CResult &&_Result)
 		{

@@ -38,36 +38,41 @@ namespace NMib
 						if (Identity.m_ProtocolVersion < 0x101 || Identity.m_ProtocolVersion > CDistributedActorCommand_Identify::EProtocolVersion)
 							return false;
 						
-						auto pHost = _pConnection->m_pHost;
+						auto &pHost = _pConnection->m_pHost;
 						DMibCheck(pHost);
 						
 						if (pHost->m_LastExecutionID != Identity.m_ExecutionID)
 						{
-							// Old connections are no longer valid
-							pHost->m_ActiveConnections.f_Clear();
-							pHost->m_pLastSendConnection = nullptr;
-							
-							pHost->m_Incoming_ReceivedPackets.f_DeleteAll();
-							pHost->m_Incoming_QueuedPackets.f_DeleteAll();
-							
-							pHost->m_Incoming_ReceivedPacketID = 1;
-							pHost->m_Incoming_AckedPacketID = 0;
+							if (pHost->m_LastExecutionID.f_IsEmpty())
+								pHost->m_LastExecutionID = Identity.m_ExecutionID;
+							else
+							{
+								// Old connections are no longer valid
+								pHost->m_ActiveConnections.f_Clear();
+								pHost->m_pLastSendConnection = nullptr;
+								
+								pHost->m_Incoming_ReceivedPackets.f_DeleteAll();
+								pHost->m_Incoming_QueuedPackets.f_DeleteAll();
+								
+								pHost->m_Incoming_ReceivedPacketID = 1;
+								pHost->m_Incoming_AckedPacketID = 0;
 
-							pHost->m_Outgoing_QueuedPackets.f_DeleteAll();
-							pHost->m_Outgoing_SentPackets.f_DeleteAll();
-							pHost->m_Outgoing_CurrentPacketID = 0;
-							pHost->m_Outgoing_AckedPacketID = 0;
-							
-							for (auto Call : pHost->m_OutstandingCalls)
-								Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
-							
-							pHost->m_OutstandingCalls.f_Clear();
-							
-							pHost->m_LastExecutionID = Identity.m_ExecutionID; 
+								pHost->m_Outgoing_QueuedPackets.f_DeleteAll();
+								pHost->m_Outgoing_SentPackets.f_DeleteAll();
+								pHost->m_Outgoing_CurrentPacketID = 0;
+								pHost->m_Outgoing_AckedPacketID = 0;
+								
+								for (auto Call : pHost->m_OutstandingCalls)
+									Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
+								
+								pHost->m_OutstandingCalls.f_Clear();
+								
+								pHost->m_LastExecutionID = Identity.m_ExecutionID;
+							}
 						}
 						
 						// Remove packets that remote already knows about
-						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() < Identity.m_HighestSeenPacketID; ++iPacket)
+						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identity.m_HighestSeenPacketID; ++iPacket)
 							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
 						pHost->m_Outgoing_AckedPacketID = fg_Max(Identity.m_HighestSeenPacketID, pHost->m_Outgoing_AckedPacketID);
 						
@@ -94,24 +99,29 @@ namespace NMib
 
 						pHost->m_ActiveConnections.f_Insert(*_pConnection);
 						
-						for (auto &NamespaceActors : m_LocalNamespaces)
+						if (pHost->m_bIncoming || !pHost->m_bAnonymous)
 						{
-							auto &Namespace = NamespaceActors.f_GetNamespace();
-							if (!pHost->m_bAllowAllNamespaces && !pHost->m_AllowedNamespaces.f_FindEqual(Namespace))
-								continue;
-							
-							for (auto &Actor : NamespaceActors.m_Actors)
+							for (auto &NamespaceActors : m_LocalNamespaces)
 							{
-								CDistributedActorCommand_Publish Publish;
-								Publish.m_ActorID = Actor.f_GetActorID();
-								Publish.m_Namespace = Namespace;
-								Publish.m_Hierarchy = Actor.m_Hierarchy; 
+								auto &Namespace = NamespaceActors.f_GetNamespace();
+								if (!pHost->m_bAllowAllNamespaces && !pHost->m_AllowedNamespaces.f_FindEqual(Namespace))
+									continue;
+								if (pHost->m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
+									continue;
+								
+								for (auto &Actor : NamespaceActors.m_Actors)
+								{
+									CDistributedActorCommand_Publish Publish;
+									Publish.m_ActorID = Actor.f_GetActorID();
+									Publish.m_Namespace = Namespace;
+									Publish.m_Hierarchy = Actor.m_Hierarchy; 
 
-								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-								Stream << Publish;
-								auto Data = Stream.f_MoveVector();
+									NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+									Stream << Publish;
+									auto Data = Stream.f_MoveVector();
 
-								fp_QueuePacket(pHost, fg_TempCopy(Data));
+									fp_QueuePacket(pHost, fg_TempCopy(Data));
+								}
 							}
 						}
 					}
@@ -124,10 +134,10 @@ namespace NMib
 						CDistributedActorCommand_Acknowledge Acknowledge;
 						Stream >> Acknowledge;
 
-						auto pHost = _pConnection->m_pHost;
+						auto &pHost = _pConnection->m_pHost;
 						
 						// Remove packets that remote already knows about
-						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() < Acknowledge.m_LastInOrderPacketID; ++iPacket)
+						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Acknowledge.m_LastInOrderPacketID; ++iPacket)
 							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
 					}
 					break;
@@ -144,18 +154,19 @@ namespace NMib
 						
 						NPtr::TCUniquePointer<CPacket> pPacket = fg_Construct();
 						pPacket->m_pData = _pMessage;
-						auto iPacket = _pConnection->m_pHost->m_Incoming_ReceivedPackets.f_GetIterator();
-						iPacket.f_Reverse(_pConnection->m_pHost->m_Incoming_ReceivedPackets);
+						auto &pHost = _pConnection->m_pHost;
+						auto iPacket = pHost->m_Incoming_ReceivedPackets.f_GetIterator();
+						iPacket.f_Reverse(pHost->m_Incoming_ReceivedPackets);
 						for (; iPacket; --iPacket)
 						{
 							if (iPacket->f_GetPacketID() < PacketID)
 							{
-								_pConnection->m_pHost->m_Incoming_ReceivedPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
+								pHost->m_Incoming_ReceivedPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
 								break;
 							}
 						}
 						if (!iPacket)
-							_pConnection->m_pHost->m_Incoming_ReceivedPackets.f_InsertFirst(pPacket.f_Detach());
+							pHost->m_Incoming_ReceivedPackets.f_InsertFirst(pPacket.f_Detach());
 						fp_ProcessPacketQueue(_pConnection);
 					}
 					break;
@@ -174,7 +185,7 @@ namespace NMib
 		
 		void CActorDistributionManager::CInternal::fp_Identify(CConnection *_pConnection)
 		{
-			auto pHost = _pConnection->m_pHost;
+			auto &pHost = _pConnection->m_pHost;
 			CDistributedActorCommand_Identify Identity;
 			Identity.m_ExecutionID = m_ExecutionID;
 			for (auto &SentPacket : pHost->m_Outgoing_SentPackets)

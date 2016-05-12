@@ -165,7 +165,58 @@ namespace NMib
 			TCActorResultCall<TCActor<CInternalActor>, CResultReceived> f_AddResult(tf_CKey &&_Key);
 			auto f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults));
 		};
-		
+
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		void fg_CombineResults
+			(
+				NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		void fg_CombineResults
+			(
+				NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			)
+		;
 	}
 }
 

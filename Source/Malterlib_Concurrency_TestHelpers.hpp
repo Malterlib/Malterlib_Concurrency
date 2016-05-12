@@ -8,22 +8,24 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename ...tfp_CDistributedActors>
-		void CDistributedActorTestHelperCombined::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
+		NStr::CStr CDistributedActorTestHelperCombined::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
 		{
-			mp_pServer->f_Publish<tfp_CDistributedActors...>(_Actor, _Namespace);
+			return mp_pServer->f_Publish<tfp_CDistributedActors...>(_Actor, _Namespace);
 		}	
 		
 		template <typename tf_CActor>
-		TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor()
+		TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor(NStr::CStr const &_SubscriptionID)
 		{
-			return mp_pClient->f_GetRemoteActor<tf_CActor>();
+			return mp_pClient->f_GetRemoteActor<tf_CActor>(_SubscriptionID);
 		}
 
 		template <typename ...tfp_CDistributedActors>
-		void CDistributedActorTestHelper::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
+		NStr::CStr CDistributedActorTestHelper::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
 		{
-			mp_PublishedActors.f_Insert(_Actor);
-			mp_Publication = mp_Manager
+			NStr::CStr PublicationID = NCryptography::fg_RandomID();
+			auto &Publication = mp_Publications[PublicationID];
+			Publication.m_Actor = _Actor;
+			Publication.m_Publication = mp_Manager
 				(
 					&CActorDistributionManager::f_PublishActor
 					, fg_TempCopy(_Actor)
@@ -31,12 +33,14 @@ namespace NMib
 					, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<tfp_CDistributedActors...>()
 				).f_CallSync(60.0)
 			;
-		}	
+			
+			return PublicationID;
+		}
 		
 		template <typename tf_CActor>
-		TCDistributedActor<tf_CActor> CDistributedActorTestHelper::f_GetRemoteActor()
+		TCDistributedActor<tf_CActor> CDistributedActorTestHelper::f_GetRemoteActor(NStr::CStr const &_Subscription)
 		{
-			return fg_StaticCast<tf_CActor>(mp_RemoteActor);
+			return fg_StaticCast<tf_CActor>(mp_Subscriptions[_Subscription].m_RemoteActor);
 		}
 	}
 }

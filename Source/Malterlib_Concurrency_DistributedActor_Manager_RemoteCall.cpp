@@ -27,9 +27,9 @@ namespace NMib
 				return Continuation;
 			}
 			
-			auto *pHost = DistributedData.m_pHost;
+			auto pHost = DistributedData.m_pHost.f_Lock();
 			
-			if (!pHost)
+			if (!pHost || pHost->m_bDeleted)
 			{
 				Continuation.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
 				return Continuation;
@@ -78,7 +78,7 @@ namespace NMib
 			return true;
 		}
 		
-		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCallWithException(CHost *_pHost, uint64 _PacketID, NException::CExceptionBase const &_Exception)
+		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCallWithException(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, NException::CExceptionBase const &_Exception)
 		{
 			auto Data = NPrivate::fg_StreamAsyncResultException(_Exception);
 			
@@ -92,7 +92,7 @@ namespace NMib
 			fp_QueuePacket(_pHost, Stream.f_MoveVector());
 		}
 		
-		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCallWithException(CHost *_pHost, uint64 _PacketID, CAsyncResult const &_Exception)
+		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCallWithException(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, CAsyncResult const &_Exception)
 		{
 			auto Data = NPrivate::fg_StreamAsyncResultException(_Exception);
 			
@@ -106,7 +106,7 @@ namespace NMib
 			fp_QueuePacket(_pHost, Stream.f_MoveVector());
 		}
 		
-		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCall(CHost *_pHost, uint64 _PacketID, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
+		void CActorDistributionManager::CInternal::fp_ReplyToRemoteCall(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
 		{
 			CDistributedActorCommand_RemoteCallResult Result;
 			Result.m_ReplyToPacketID = _PacketID;
@@ -126,13 +126,19 @@ namespace NMib
 			uint32 FunctionHash;
 			_Stream >> FunctionHash;
 			
-			auto pHost = _pConnection->m_pHost;
+			auto &pHost = _pConnection->m_pHost;
 			
 			auto pActor = m_PublishedActors.f_FindEqual(RemoteCall.m_ActorID);
 			
 			if (!pActor)
 			{
 				fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Remote actor no longer exists"));
+				return true;
+			}
+			
+			if (pHost->m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pActor->m_pNamespace->f_GetNamespace()))
+			{
+				fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Access denied"));
 				return true;
 			}
 			
@@ -163,7 +169,7 @@ namespace NMib
 			Actor
 				(
 					&CActor::f_DispatchWithReturn<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>
-					, [pEntry, Actor, ParamData = fg_Move(ParamData), HostID = _pConnection->m_pHost->f_GetHostID()]
+					, [pEntry, Actor, ParamData = fg_Move(ParamData), HostID = pHost->m_RealHostID]
 					{
 						auto PreviousHostID = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
 						NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID = HostID;

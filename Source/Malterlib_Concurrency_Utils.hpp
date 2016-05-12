@@ -374,5 +374,202 @@ namespace NMib
 			return true;
 		}
 
+	
+	
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
+		void fg_CombineResults
+			(
+				NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+				DMibError(Errors);
+		}
+
+		template <typename tf_CKey, typename tf_FOnResult>
+		void fg_CombineResults
+			(
+				NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results->fs_GetKey(Result));
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+				DMibError(Errors);
+		}
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			if (!_Results)
+				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			else
+			{
+				for (auto &Result : *_Results)
+				{
+					if (Result)
+						_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
+					else
+						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			if (!_Results)
+				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			else
+			{
+				for (auto &Result : *_Results)
+				{
+					if (Result)
+						_fOnResult(_Results->fs_GetKey(Result));
+					else
+						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			if (!_Results)
+				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			else
+			{
+				for (auto &Result : *_Results)
+				{
+					if (Result)
+						_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
+					else
+						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			if (!_Results)
+				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			else
+			{
+				for (auto &Result : *_Results)
+				{
+					if (Result)
+						_fOnResult(_Results->fs_GetKey(Result));
+					else
+						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+		
+		template
+		<
+			typename tf_FToDispatch
+			, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+			= nullptr
+		>
+		auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
+		{
+			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
+			
+			if (NPrivate::TCIsContinuation<CReturnType>::mc_Value)
+			{
+				return fg_ConcurrentActor().f_CallByValue
+					(
+						&CActor::f_DispatchWithReturn<CReturnType>
+						, fg_Forward<tf_FToDispatch>(_fDispatch)
+					)
+				;
+			}
+		}
+
+		template
+		<
+			typename tf_FToDispatch
+			, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+			= nullptr
+		>
+		auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
+		{
+			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
+			
+			return fg_ConcurrentActor().f_CallByValue
+				(
+					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
+					, [fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
+					{
+						return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
+					}
+				)
+			;
+		}
 	}
 }

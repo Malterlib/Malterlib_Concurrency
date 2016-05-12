@@ -39,23 +39,6 @@ namespace NMib
 				};
 			};
 
-			template <typename t_CFunctorType, typename t_CRet, bool t_bIsMemberFunctionPtr = NTraits::TCIsMemberFunctionPointer<t_CFunctorType>::mc_Value>
-			struct TCGetResultFunctorType
-			{
-				typedef NFunction::TCFunction
-					<
-						void (NFunction::CThisTag &, NConcurrency::TCAsyncResult<typename TCGetReturnType<t_CRet>::CType> &&_Result)
-						, NFunction::CFunctionNoCopyTag
-					> CType
-				;
-			};
-
-			template <typename t_CFunctorType, typename t_CRet>
-			struct TCGetResultFunctorType<t_CFunctorType, t_CRet, true>
-			{
-				typedef decltype((NFunction::fg_MemberFunctionFunctor(fg_GetType<t_CFunctorType>()))) CType;
-			};
-
 			// Direct result
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
 				typename TCEnableIf
@@ -199,28 +182,6 @@ namespace NMib
 #endif
 				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
 				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
-			}
-
-			template 
-				<				
-					typename tf_CFunction2
-					, typename tf_CResultActor
-					, typename tf_CResult
-				>
-			void fg_CallResultFunctor
-				(
-					NMib::NFunction::TCMemberFunctionFunctor<tf_CFunction2> &_ResultFunctor
-					, tf_CResultActor _pResultActor
-					, tf_CResult &&_Result
-				)
-			{
-				auto &ConcurrencyManager =_pResultActor->f_ConcurrencyManager();
-#if DMibConcurrencyDebugActorCallstacks
-				auto &Callstack = _Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
-#endif
-				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
-				_ResultFunctor(_pResultActor, fg_Forward<tf_CResult>(_Result));
 			}
 		}
 	}

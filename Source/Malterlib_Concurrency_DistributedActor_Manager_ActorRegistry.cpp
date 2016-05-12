@@ -14,7 +14,7 @@ namespace NMib
 		CDistributedActorPublication::CDistributedActorPublication(CDistributedActorPublication &&) = default;
 		CDistributedActorPublication &CDistributedActorPublication::operator = (CDistributedActorPublication &&) = default;
 			
-		CDistributedActorPublication::CDistributedActorPublication(TCActor<CActorDistributionManager> _DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID)
+		CDistributedActorPublication::CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID)
 			: mp_DistributionManager(_DistributionManager)
 			, mp_Namespace(_Namespace) 
 			, mp_ActorID(_ActorID)
@@ -32,19 +32,18 @@ namespace NMib
 		{
 			if (mp_DistributionManager)
 			{
-				mp_DistributionManager
-					(
-						&CActorDistributionManager::fp_RemoveActorPublication
-						, mp_Namespace
-						, mp_ActorID
-					)
-					> fg_DiscardResult()
-				;
+				if (auto DistributionManager = mp_DistributionManager.f_Lock())
+					DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID) > fg_DiscardResult();
 				
 				mp_DistributionManager.f_Clear();
 				mp_Namespace.f_Clear();
 				mp_ActorID.f_Clear();
 			}
+		}
+		
+		bool CActorDistributionManager::CInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace)
+		{
+			return _Namespace.f_StartsWith("Anonymous/");
 		}
 		
 		TCContinuation<CDistributedActorPublication> CActorDistributionManager::f_PublishActor
@@ -67,6 +66,8 @@ namespace NMib
 				Continuation.f_SetException(DMibErrorInstance("This actor has already been published in this namespace"));
 				return Continuation;
 			}
+			
+			PublishedActor.m_pNamespace = &LocalNamespace; 
 			Internal.m_PublishedActors.f_Insert(PublishedActor);
 			PublishedActor.m_Actor = _Actor;
 			PublishedActor.m_Hierarchy = _ClassesToPublish.f_GetHierarchy();
@@ -81,12 +82,16 @@ namespace NMib
 			Stream << Publish;
 			auto Data = Stream.f_MoveVector();
 			
-			for (auto &Host : Internal.m_Hosts)
+			for (auto &pHost : Internal.m_Hosts)
 			{
+				auto &Host = *pHost;
 				if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 					continue;
 				
-				Internal.fp_QueuePacket(&Host, fg_TempCopy(Data));
+				if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+					continue;
+				
+				Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
 			}
 
 			Continuation.f_SetResult(CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID));
@@ -116,22 +121,26 @@ namespace NMib
 			Stream << Unpublish;
 			auto Data = Stream.f_MoveVector();
 			
-			for (auto &Host : Internal.m_Hosts)
+			for (auto &pHost : Internal.m_Hosts)
 			{
+				auto &Host = *pHost;
 				if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 					continue;
+				if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+					continue;
 				
-				Internal.fp_QueuePacket(&Host, fg_TempCopy(Data));
+				Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
 			}
 		}
 		
-		CAbstractDistributedActor::CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy)
+		CAbstractDistributedActor::CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy, NStr::CStr const &_HostID)
 			: mp_Actor(_Actor)
 			, mp_InheritanceHierarchy(_InheritanceHierarchy)
+			, mp_HostID(_HostID)
 		{
 		}
 
-		void CActorDistributionManager::CInternal::fp_NotifyNewActor(CHost *_pHost, CRemoteActor &_RemoteActor)
+		void CActorDistributionManager::CInternal::fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor)
 		{
 			{
 				auto &ConcurrencyManager = fg_ConcurrencyManager();
@@ -154,7 +163,7 @@ namespace NMib
 				;
 			}
 			
-			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy);
+			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_RealHostID);
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
 				pAll->m_fOnNewActor(fg_TempCopy(AbstractActor));
@@ -177,10 +186,13 @@ namespace NMib
 		
 		bool CActorDistributionManager::CInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
+			auto &pHost = _pConnection->m_pHost;
+			if ((pHost->m_bAnonymous && pHost->m_bIncoming) || pHost->m_bDeleted)
+				return true; // Anon not allowed to publish
+
 			CDistributedActorCommand_Publish Publish;
 			_Stream >> Publish;
 			
-			auto pHost = _pConnection->m_pHost;
 			bool bAllowAllNamespaces = false;
 			auto &AllowedNamespaces = fp_GetAllowedNamespacesForHost(pHost, bAllowAllNamespaces);
 			
@@ -194,6 +206,7 @@ namespace NMib
 				auto &RemoteActor = *Mapped;
 				RemoteActor.m_Namespace = Publish.m_Namespace;
 				RemoteActor.m_Hierarchy = Publish.m_Hierarchy;
+				RemoteActor.m_pHost = pHost.f_Get();
 				
 				fp_NotifyNewActor(pHost, RemoteActor);
 				
@@ -205,10 +218,13 @@ namespace NMib
 		
 		bool CActorDistributionManager::CInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
+			auto &pHost = _pConnection->m_pHost;
+			if ((pHost->m_bAnonymous && pHost->m_bIncoming) || pHost->m_bDeleted)
+				return true; // Anon not allowed to publish
+
 			CDistributedActorCommand_Unpublish Unpublish;
 			_Stream >> Unpublish;
 			
-			auto pHost = _pConnection->m_pHost;
 			auto pRemoteActor = pHost->m_RemoteActors.f_FindEqual(Unpublish.m_ActorID);
 			if (pRemoteActor)
 			{
@@ -225,10 +241,13 @@ namespace NMib
 			return true;
 		}
 
-		CActorDistributionManager::CInternal::CActorSubscription::CActorSubscription(CActorDistributionManager *_pManager)
-			: m_fOnNewActor(_pManager, false)
-			, m_fOnRemovedActorActor(_pManager, false)
+		namespace NActorDistributionManagerInternal
 		{
+			CActorSubscription::CActorSubscription(CActorDistributionManager *_pManager)
+				: m_fOnNewActor(_pManager, false)
+				, m_fOnRemovedActorActor(_pManager, false)
+			{
+			}
 		}
 
 		CActorCallback CActorDistributionManager::f_SubscribeActors
@@ -251,7 +270,7 @@ namespace NMib
 				for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
 				{
 					for (auto &RemoteActor : RemoteNamespace.m_RemoteActors)
-						_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy));
+						_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
 				}
 			}
 			else
@@ -265,7 +284,7 @@ namespace NMib
 					if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(Namespace))
 					{
 						for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)
-							_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy));
+							_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
 					}
 				}
 			}

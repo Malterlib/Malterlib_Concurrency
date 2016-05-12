@@ -34,17 +34,49 @@ namespace NMib
 			}
 		}
 		
-		CActorDistributionManager::CInternal::CHost::~CHost()
+		NStr::CStr CActorDistributionManager::fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate)
 		{
-			m_Incoming_ReceivedPackets.f_DeleteAll();
-			m_Incoming_QueuedPackets.f_DeleteAll();
-			m_Outgoing_QueuedPackets.f_DeleteAll();
-			m_Outgoing_SentPackets.f_DeleteAll();
+			auto Extensions = NNet::CSSLContext::fs_GetCertificateExtensions(_Certificate);
+			
+			auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
+			if (pHostIDExtension && pHostIDExtension->f_GetLen() == 1)
+				return (*pHostIDExtension)[0].m_Value;
+			
+			return fg_Default();
 		}
 		
-		NStr::CStr const &CActorDistributionManager::CInternal::CHost::f_GetHostID() const
+		namespace NActorDistributionManagerInternal
 		{
-			return NContainer::TCMap<NStr::CStr, CHost>::fs_GetKey(*this);
+			CHost::~CHost()
+			{
+				f_Clear(nullptr);
+			}
+			void CHost::f_Clear(CActorDistributionManager::CInternal *_pInternal)
+			{
+				m_bDeleted = true;
+				m_ActiveConnections.f_Clear();
+				for (auto Call : m_OutstandingCalls)
+					Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
+				m_OutstandingCalls.f_Clear();
+				for (auto &RemoteActor : m_RemoteActors)
+				{
+					if (RemoteActor.m_Link.f_IsInList())
+					{
+						DMibFastCheck(_pInternal);
+						auto pRemoteNamespace = _pInternal->m_RemoteNamespaces.f_FindEqual(RemoteActor.m_Namespace);
+						DMibFastCheck(pRemoteNamespace);
+						pRemoteNamespace->m_RemoteActors.f_Remove(RemoteActor);
+						if (pRemoteNamespace->m_RemoteActors.f_IsEmpty())
+							_pInternal->m_RemoteNamespaces.f_Remove(pRemoteNamespace);
+					}
+				}
+				m_RemoteActors.f_Clear();
+				m_AllowedNamespaces.f_Clear();
+				m_Incoming_ReceivedPackets.f_DeleteAll();
+				m_Incoming_QueuedPackets.f_DeleteAll();
+				m_Outgoing_QueuedPackets.f_DeleteAll();
+				m_Outgoing_SentPackets.f_DeleteAll();
+			}
 		}
 	}
 }

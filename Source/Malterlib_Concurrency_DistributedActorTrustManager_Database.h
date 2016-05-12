@@ -7,9 +7,8 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
+		namespace NDistributedActorTrustManagerDatabase
 		{
-		public:
 			struct CBasicConfig
 			{
 				enum 
@@ -23,7 +22,6 @@ namespace NMib
 				void f_Consume(tf_CStream &_Stream);
 
 				NStr::CStr m_HostID;
-				NStr::CStr m_Subject;
 
 				NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_CAPrivateKey;
 				NContainer::TCVector<uint8> m_CACertificate;
@@ -92,6 +90,16 @@ namespace NMib
 				NContainer::TCVector<uint8> m_PublicServerCertificate;
 				NContainer::TCVector<uint8> m_PublicClientCertificate;
 			};
+		}
+		
+		class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
+		{
+		public:
+			using CBasicConfig = NDistributedActorTrustManagerDatabase::CBasicConfig;
+			using CServerCertificate = NDistributedActorTrustManagerDatabase::CServerCertificate;
+			using CListenConfig = NDistributedActorTrustManagerDatabase::CListenConfig;
+			using CClient = NDistributedActorTrustManagerDatabase::CClient;
+			using CClientConnection = NDistributedActorTrustManagerDatabase::CClientConnection;
 			
 			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() pure;
 			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) pure;

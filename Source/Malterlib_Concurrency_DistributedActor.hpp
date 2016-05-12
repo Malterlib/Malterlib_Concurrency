@@ -266,7 +266,7 @@ namespace NMib
 		template <typename tf_CStream>
 		void CActorDistributionCryptographySettings::f_Feed(tf_CStream &_Stream) const
 		{
-			_Stream << m_PrivateCertificate;
+			_Stream << m_PrivateKey;
 			_Stream << m_PublicCertificate;
 			_Stream << m_RemoteClientCertificates;
 			_Stream << m_SignedClientCertificates;
@@ -277,7 +277,7 @@ namespace NMib
 		template <typename tf_CStream>
 		void CActorDistributionCryptographySettings::f_Consume(tf_CStream &_Stream)
 		{
-			_Stream >> m_PrivateCertificate;
+			_Stream >> m_PrivateKey;
 			_Stream >> m_PublicCertificate;
 			_Stream >> m_RemoteClientCertificates;
 			_Stream >> m_SignedClientCertificates;
@@ -297,6 +297,27 @@ namespace NMib
 		{
 			_Stream >> m_PublicServerCertificate;
 			_Stream >> m_PublicClientCertificate;
+		}
+		
+		template <typename tf_CType>
+		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
+		{
+			uint32 Hash = fg_GetTypeHash<tf_CType>();
+			if (mp_InheritanceHierarchy.f_BinarySearch(Hash) < 0)
+			{
+				DMibFastCheck(false);
+				return TCDistributedActor<tf_CType>();
+			}
+			return (TCDistributedActor<tf_CType> &)mp_Actor;
+		}
+		template <typename tf_CType>
+		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActorUnsafe() const
+		{
+			return (TCDistributedActor<tf_CType> &)mp_Actor;
+		}
+		inline NStr::CStr const &CAbstractDistributedActor::f_GetHostID() const
+		{
+			return mp_HostID;
 		}
 	}
 }

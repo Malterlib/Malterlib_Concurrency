@@ -70,7 +70,6 @@ namespace NMib
 						, "Malterlib Host ID"
 					)
 				;
-				
 			}
 			
 			CSubSystem_Concurrency_DistributedActor::~CSubSystem_Concurrency_DistributedActor()
@@ -100,6 +99,11 @@ namespace NMib
 			}
 		}
 		
+		void fg_InitDistributedActorSystem()
+		{
+			NPrivate::fg_DistributedActorSubSystem();
+		}
+
 		NStr::CStr CActorDistributionManager::fs_GetCallingHostID()
 		{
 			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
@@ -153,7 +157,7 @@ namespace NMib
 				(
 					Options
 					, m_PublicCertificate
-					, m_PrivateCertificate
+					, m_PrivateKey
 					, 1
 					, 10*365
 				)
@@ -169,7 +173,7 @@ namespace NMib
 			NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 			
 			NContainer::TCVector<uint8> Return;
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> KeyData = m_PrivateCertificate;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> KeyData = m_PrivateKey;
 			
 			NNet::CSSLContext::CCertificateOptions Options;
 			Options.m_Subject = m_Subject; 
@@ -193,7 +197,7 @@ namespace NMib
 			NNet::CSSLContext::fs_SignClientCertificate
 				(
 					m_PublicCertificate
-					, m_PrivateCertificate
+					, m_PrivateKey
 					, _Request
 					, Return
 					, ++m_Serial
@@ -233,20 +237,26 @@ namespace NMib
 			auto pRemote = _Settings.m_RemoteClientCertificates.f_FindEqual(m_ServerURL);
 			if (pRemote)
 			{
-				m_PrivateClientCertificate = _Settings.m_PrivateCertificate;
+				m_PrivateClientKey = _Settings.m_PrivateKey;
 				m_PublicClientCertificate = pRemote->m_PublicClientCertificate;
 				m_PublicServerCertificate = pRemote->m_PublicServerCertificate;
 			}
 		}
 		
-		CActorDistributionListenSettings::CActorDistributionListenSettings(uint16 _Port)
+		CActorDistributionListenSettings::CActorDistributionListenSettings(uint16 _Port, NNet::ENetAddressType _AddressType)
 		{
-			NNet::CNetAddressTCPv4 AnyAddress;
-			AnyAddress.m_Port = _Port;
-			m_ListenAddresses.f_Insert(AnyAddress);
-			NNet::CNetAddressTCPv6 AnyAddressV6;
-			AnyAddressV6.m_Port = _Port;
-			m_ListenAddresses.f_Insert(AnyAddressV6);
+			if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv4)
+			{
+				NNet::CNetAddressTCPv4 AnyAddress;
+				AnyAddress.m_Port = _Port;
+				m_ListenAddresses.f_Insert(AnyAddress);
+			}
+			if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv6)
+			{
+				NNet::CNetAddressTCPv6 AnyAddressV6;
+				AnyAddressV6.m_Port = _Port;
+				m_ListenAddresses.f_Insert(AnyAddressV6);
+			}
 		}
 
 		CActorDistributionListenSettings::~CActorDistributionListenSettings()
@@ -261,7 +271,8 @@ namespace NMib
 		void CActorDistributionListenSettings::f_SetCryptography(CActorDistributionCryptographySettings const &_Settings)
 		{
 			m_PublicCertificate = _Settings.m_PublicCertificate;
-			m_PrivateCertificate = _Settings.m_PrivateCertificate;
+			m_CACertificate = _Settings.m_PublicCertificate;
+			m_PrivateKey = _Settings.m_PrivateKey;
 		}		
 	}
 }

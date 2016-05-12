@@ -55,12 +55,6 @@ namespace
 		{
 			return _Value0 + _Value1 + _Value2 + _Value3 + _Value4 + _Value5 + _Value6 + _Value7;
 		}
-		void f_Receive(TCAsyncResult<void> &&_Result)
-		{
-		}
-		void f_ReceiveInt(TCAsyncResult<int> &&_Result)
-		{
-		}
 
 		TCContinuation<void> f_TestContinuation()
 		{
@@ -401,13 +395,6 @@ namespace
 								HandlersFinished.f_SetSignaled();
 						}
 					;
-					pActor(&CTestActor::f_TestValue)
-						> pActor / &CTestActor::f_Receive
-					;
-					
-					pActor(&CTestActor::f_TestValue)
-						> pActor / &CTestActor::f_Receive
-					;
 					++nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue1, 1)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
@@ -581,8 +568,6 @@ namespace
 								HandlersFinished.f_SetSignaled();
 						}
 					;
-					
-					pActor(&CTestActor::f_TestValue1, 1) > pActor / &CTestActor::f_ReceiveInt;
 					
 					++nExpectedHandlers;
 					pActor(&CTestActor::f_TestValue2, 1, 1)

@@ -32,6 +32,7 @@ namespace
 		
 		TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) override
 		{
+			m_BasicConfig = _BasicConfig;
 			return fg_Explicit();
 		}
 		
@@ -211,6 +212,7 @@ namespace
 								{
 									return fg_ConstructActor<CActorDistributionManager>(_HostID);
 								}
+								, 1024 
 							)
 						;
 					}
@@ -225,6 +227,7 @@ namespace
 								{
 									return fg_ConstructActor<CActorDistributionManager>(_HostID);
 								}
+								, 1024 
 							)
 						;
 					}
@@ -234,30 +237,34 @@ namespace
 					{
 						CDistributedActorTestHelper ServerHelper{_ServerTrustManager};
 						CDistributedActorTestHelper ClientHelper{_ClientTrustManager};
-			
+
 						ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
-						ClientHelper.f_Subscribe("Test");
-						
-						TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>();
-						
+						NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
+
+						TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
 						uint32 Result = DMibCallActor(Actor, CTestActor::f_Test).f_CallSync(60.0);
 						DMibExpect(Result, ==, 5);
 					}
 				;
+				
 				{
 					DMibTestPath("Initial");
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:1392/";
+					ServerAddress.m_URL = "wss://localhost:31392/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
 					
 					fDoTests(ServerTrustManager, ClientTrustManager);
+					
+					ClientTrustManager->f_BlockDestroy();
+					ServerTrustManager->f_BlockDestroy();
 				}
 				
 				{
@@ -266,6 +273,9 @@ namespace
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
 
 					fDoTests(ServerTrustManager, ClientTrustManager);
+					
+					ClientTrustManager->f_BlockDestroy();
+					ServerTrustManager->f_BlockDestroy();
 				}
 
 				{
@@ -273,11 +283,11 @@ namespace
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:1393/";
+					ServerAddress.m_URL = "wss://localhost:31393/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
-					OldServerAddress.m_URL = "wss://localhost:1392/";
+					OldServerAddress.m_URL = "wss://localhost:31392/";
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(60.0);;
 
@@ -287,6 +297,9 @@ namespace
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, OldServerAddress).f_CallSync(60.0);
 					
 					fDoTests(ServerTrustManager, ClientTrustManager);
+					
+					ClientTrustManager->f_BlockDestroy();
+					ServerTrustManager->f_BlockDestroy();
 				}
 
 				{
@@ -295,6 +308,7 @@ namespace
 					{
 						TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
 						HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+						ClientTrustManager->f_BlockDestroy();
 					}
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
 					
@@ -313,6 +327,46 @@ namespace
 					DMibExpect(Address.m_Error, !=, "");
 					
 					DMibExpectExceptionType(fDoTests(ServerTrustManager, ClientTrustManager), NException::CException);
+					
+					ClientTrustManager->f_BlockDestroy();
+					ServerTrustManager->f_BlockDestroy();
+				}
+
+				{
+					DMibTestPath("Remove client while connected");
+					ServerDatabase = fg_ConstructActor<CTrustManagerDatabase>();
+					ClientDatabase = fg_ConstructActor<CTrustManagerDatabase>();
+
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+					
+					CDistributedActorTrustManager_Address ServerAddress;
+					ServerAddress.m_URL = "wss://localhost:31392/";
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					
+					fDoTests(ServerTrustManager, ClientTrustManager);
+					
+					auto HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(60.0);;
+					
+					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState, true).f_CallSync(60.0);
+					
+					DMibAssertFalse(ConnectionState.m_Hosts.f_IsEmpty());
+					DMibAssertFalse(ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_IsEmpty());
+					
+					auto &Address = *ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_FindAny();
+					
+					DMibExpectFalse(Address.m_bConnected);
+					DMibExpect(Address.m_Error, !=, "");
+					
+					DMibExpectExceptionType(fDoTests(ServerTrustManager, ClientTrustManager), NException::CException);
+					
+					ClientTrustManager->f_BlockDestroy();
+					ServerTrustManager->f_BlockDestroy();
 				}
 			};
 		}

@@ -247,10 +247,10 @@ namespace
 			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
 			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
 			
-			CActorDistributionListenSettings ListenSettings{1392}; // 1392 is 'mib' encoded with alphabet positions
+			CActorDistributionListenSettings ListenSettings{31392}; // 1392 is 'mib' encoded with alphabet positions
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
-			ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
+			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
 			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
 			
@@ -264,8 +264,8 @@ namespace
 			;
 			
 			CActorDistributionConnectionSettings ConnectionSettings;
-			ConnectionSettings.m_ServerURL = "wss://localhost:1392/";
-			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_PublicCertificate;
+			ConnectionSettings.m_ServerURL = "wss://localhost:31392/";
+			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_CACertificate;
 			CActorDistributionCryptographySettings ClientCryptography{ClientHostID};
 			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
 			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
@@ -319,7 +319,7 @@ namespace
 				}
 			;
 			
-			ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0);
+			CDistributedActorConnectionReference ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;
 			
 			bool bConnectionSuccessful = true; // If not we would have had exceptions above
 			
@@ -367,6 +367,48 @@ namespace
 
 			DMibAssertFalse(bTimedOutWatingForUnPublish);
 			DMibExpectTrue(bRemoved);
+			
+			ClientConnectionReference.f_Disconnect().f_CallSync(60.0);
+			DMibExpectExceptionType(ClientConnectionReference.f_Disconnect().f_CallSync(60.0), NException::CException);
+			
+			ListenReference.f_Stop().f_CallSync(60.0);
+			DMibExpectExceptionType(ListenReference.f_Stop().f_CallSync(60.0), NException::CException);
+		}
+		void fp_AnonymousClientTests()
+		{
+			CDistributedActorTestHelperCombined TestHelper;
+			
+			TestHelper.f_SeparateServerManager();
+			TestHelper.f_InitServer();
+			CDistributedActorSecurity Security;
+			Security.m_AllowedIncomingConnectionNamespaces.f_Insert("Anonymous/Test");
+			Security.m_AllowedIncomingConnectionNamespaces.f_Insert("Anonymous/Test2");
+			Security.m_AllowedIncomingConnectionNamespaces.f_Insert("Test");
+			TestHelper.f_GetServer().f_SetSecurity(Security);
+			TestHelper.f_InitAnonymousClient(TestHelper);
+			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Anonymous/Test");
+			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Test");
+			CStr Subscription = TestHelper.f_Subscribe("Anonymous/Test");
+			auto Actor = TestHelper.f_GetRemoteActor<CDistributedActor>(Subscription);
+			if (!Actor)
+				DMibError("Failed to distributed actor environment");
+			
+			auto HostID = DMibCallActor(Actor, CDistributedActorBase::f_GetCallingHostID).f_CallSync();
+			DMibExpectTrue(HostID.f_StartsWith("Anonymous_"));
+			
+			{
+				DMibTestPath("Anonymous cannot access normal publications");
+				TestHelper.f_GetClient().f_SubscribeExpectFailure("Test");
+			}
+
+			TestHelper.f_GetClient().f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Anonymous/Test2");
+			{
+				DMibTestPath("Anonymous cannot publish");
+				TestHelper.f_GetServer().f_SubscribeExpectFailure("Anonymous/Test2");
+			}
+			
+			int x = 0;
+			++x;
 		}
 	public:
 		void f_FunctionalTests()
@@ -388,8 +430,13 @@ namespace
 				{
 					fp_BasicTests();
 				};
+				DMibTestSuite("Anonymous client")
+				{
+					fp_AnonymousClientTests();
+				};
 				
 				TCSharedPointer<CDistributedActorTestHelperCombined> pTestState;
+				CStr SubscriptionID;
 				
 				fp_RunTests
 					(
@@ -402,10 +449,10 @@ namespace
 								pTestState->f_SeparateServerManager();
 								pTestState->f_Init();
 								pTestState->f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Test");
-								pTestState->f_Subscribe("Test");
+								SubscriptionID = pTestState->f_Subscribe("Test");
 							}
 							
-							auto Actor = pTestState->f_GetRemoteActor<CDistributedActor>();
+							auto Actor = pTestState->f_GetRemoteActor<CDistributedActor>(SubscriptionID);
 							
 							if (!Actor)
 								DMibError("Failed to distributed actor environment");

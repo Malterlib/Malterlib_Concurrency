@@ -11,14 +11,17 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		uint64 CActorDistributionManager::CInternal::CPacket::f_GetPacketID() const
+		namespace NActorDistributionManagerInternal
 		{
-			DMibRequire(m_pData && m_pData->f_GetLen() >= sizeof(uint64));
-			uint8 const *pData = m_pData->f_GetArray() + 1;
-			return fg_ByteSwapLE(*((uint64 const *)pData));
-		}	
+			uint64 CPacket::f_GetPacketID() const
+			{
+				DMibRequire(m_pData && m_pData->f_GetLen() >= sizeof(uint64));
+				uint8 const *pData = m_pData->f_GetArray() + 1;
+				return fg_ByteSwapLE(*((uint64 const *)pData));
+			}	
+		}
 		
-		void CActorDistributionManager::CInternal::fp_QueuePacket(CHost *_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
+		void CActorDistributionManager::CInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
 		{
 			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct();
 
@@ -36,7 +39,7 @@ namespace NMib
 			fp_SendPacketQueue(_pHost);
 		}
 		
-		void CActorDistributionManager::CInternal::fp_SendPacketQueue(CHost *_pHost)
+		void CActorDistributionManager::CInternal::fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost)
 		{
 			if (_pHost->m_ActiveConnections.f_IsEmpty())
 				return; // No connections to send over
@@ -61,7 +64,6 @@ namespace NMib
 					}
 				;
 				pPacket->m_Link.f_Unlink();
-				pPacket->m_TreeLink.f_Construct();
 				_pHost->m_Outgoing_SentPackets.f_Insert(pPacket);
 				++iConnection;
 				if (!iConnection)
@@ -73,7 +75,7 @@ namespace NMib
 		
 		void CActorDistributionManager::CInternal::fp_ProcessPacketQueue(CConnection *_pConnection)
 		{
-			auto pHost = _pConnection->m_pHost;
+			auto &pHost = _pConnection->m_pHost;
 			uint64 AckPacket;
 			bool bAccPacket = false;
 			auto *pPacket = pHost->m_Incoming_ReceivedPackets.f_GetFirst();
@@ -149,6 +151,7 @@ namespace NMib
 			if (bAccPacket)
 			{
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+				Stream << uint8(EDistributedActorCommand_Acknowledge);
 				Stream << AckPacket;
 				
 				NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> pMessage = fg_Construct(Stream.f_MoveVector());

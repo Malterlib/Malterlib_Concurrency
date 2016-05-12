@@ -90,7 +90,7 @@ namespace NMib
 			
 			NStr::CStr m_HostID;
 			
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateCertificate;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateKey;
 			NContainer::TCVector<uint8> m_PublicCertificate;
 			
 			NContainer::TCMap<NHTTP::CURL, CActorDistributionCryptographyRemoteServer> m_RemoteClientCertificates;
@@ -110,48 +110,42 @@ namespace NMib
 			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 			
 			NHTTP::CURL m_ServerURL;
+			NNet::ENetAddressType m_ServerURLPreferAddress = NNet::ENetAddressType_None;
 			NContainer::TCVector<uint8> m_PublicServerCertificate;
 			NContainer::TCVector<uint8> m_PublicClientCertificate;
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateClientCertificate;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateClientKey;
 			bool m_bRetryConnectOnFailure = true;
+			bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty 
 		};
 
 		struct CActorDistributionListenSettings
 		{
-			CActorDistributionListenSettings(uint16 _Port);			
+			CActorDistributionListenSettings(uint16 _Port, NNet::ENetAddressType _AddressType = NNet::ENetAddressType_None);			
 			CActorDistributionListenSettings(NContainer::TCVector<NNet::CNetAddress> const &_Address);
 			~CActorDistributionListenSettings();
 
 			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
 			NContainer::TCVector<NNet::CNetAddress> m_ListenAddresses;
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateCertificate;
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateKey;
+			NContainer::TCVector<uint8> m_CACertificate;
 			NContainer::TCVector<uint8> m_PublicCertificate;
 			bool m_bRetryOnListenFailure = true;
 		};
 
 		struct CAbstractDistributedActor
 		{
+			CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy, NStr::CStr const &_HostID);
+			
 			template <typename tf_CType>
-			TCDistributedActor<tf_CType> f_GetActor() const
-			{
-				uint32 Hash = fg_GetTypeHash<tf_CType>();
-				if (mp_InheritanceHierarchy.f_BinarySearch(Hash) < 0)
-				{
-					DMibFastCheck(false);
-					return TCDistributedActor<tf_CType>();
-				}
-				return (TCDistributedActor<tf_CType> &)mp_Actor;
-			}
+			TCDistributedActor<tf_CType> f_GetActor() const;
 			template <typename tf_CType>
-			TCDistributedActor<tf_CType> f_GetActorUnsafe() const
-			{
-				return (TCDistributedActor<tf_CType> &)mp_Actor;
-			}
-			CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy);
+			TCDistributedActor<tf_CType> f_GetActorUnsafe() const;
+			inline NStr::CStr const &f_GetHostID() const;
 		private:
 			TCDistributedActor<CActor> mp_Actor;
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
+			NStr::CStr mp_HostID;
 		};
 		
 		namespace NPrivate
@@ -235,22 +229,130 @@ namespace NMib
 			void f_Clear();
 			
 		private:
-			CDistributedActorPublication(TCActor<CActorDistributionManager> _DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
+			CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
 			
-			TCActor<CActorDistributionManager> mp_DistributionManager;
+			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
 			NStr::CStr mp_Namespace;
 			NStr::CStr mp_ActorID;
+		};
+
+		struct CDistributedActorListenReference
+		{
+			friend struct CActorDistributionManager;
+			
+			CDistributedActorListenReference();
+			~CDistributedActorListenReference();
+			
+			CDistributedActorListenReference(CDistributedActorListenReference const &) = delete;
+			CDistributedActorListenReference &operator = (CDistributedActorListenReference const &) = delete;
+			
+			CDistributedActorListenReference(CDistributedActorListenReference &&);
+			CDistributedActorListenReference &operator = (CDistributedActorListenReference &&);
+			
+			void f_Clear();
+			auto f_Stop() -> 
+				TCActorCall
+				<
+					TCActor<CConcurrentActor>
+					, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
+					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
+					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+				>
+			; 
+			
+		private:
+			CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
+			
+			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
+			NStr::CStr mp_ListenID;
+		};
+
+		struct CDistributedActorConnectionStatus
+		{
+			NStr::CStr m_HostID;
+			NStr::CStr m_Error;
+			bool m_bConnected = false;
+		};
+		
+		struct CDistributedActorConnectionReference
+		{
+			friend struct CActorDistributionManager;
+			
+			CDistributedActorConnectionReference();
+			~CDistributedActorConnectionReference();
+			
+			CDistributedActorConnectionReference(CDistributedActorConnectionReference const &) = delete;
+			CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference const &) = delete;
+			
+			CDistributedActorConnectionReference(CDistributedActorConnectionReference &&);
+			CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&);
+			
+			void f_Clear();
+			auto f_Disconnect() -> 
+				TCActorCall
+				<
+					TCActor<CConcurrentActor>
+					, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
+					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
+					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+				>
+			; 
+
+			auto f_GetStatus() -> 
+				TCActorCall
+				<
+					TCActor<CConcurrentActor>
+					, TCContinuation<CDistributedActorConnectionStatus> 
+					(CActor::*)
+					(NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
+					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
+					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+				>
+			; 
+			
+			NContainer::TCVector<NContainer::TCVector<uint8>> const &f_GetCertificateChain() const;
+			
+		private:
+			CDistributedActorConnectionReference
+				(
+					TCWeakActor<CActorDistributionManager> const &_DistributionManager
+					, NStr::CStr const &_ConnectionID
+				)
+			;
+			
+			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
+			NStr::CStr mp_ConnectionID;
+		};
+
+		struct ICActorDistributionManagerAccessHandler : public CActor
+		{
+			virtual TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) pure;
 		};
 		
 		struct CActorDistributionManager : public CActor
 		{
+			struct CInternal;
+			
+			struct CConnectionResult
+			{
+				CDistributedActorConnectionReference m_ConnectionReference;
+				NStr::CStr m_HostID;
+				NContainer::TCVector<NContainer::TCVector<uint8>> m_CertificateChain;
+				
+				CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
+					: m_ConnectionReference(_DistributionManager, _ConnectionID)
+				{
+				}
+			};
+			
 			CActorDistributionManager(NStr::CStr const &_HostID);
 			~CActorDistributionManager();
 			
 			void f_SetSecurity(CDistributedActorSecurity const &_Security);
+			void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
 			
-			TCContinuation<void> f_Connect(CActorDistributionConnectionSettings const &_Settings);
-			TCContinuation<void> f_Listen(CActorDistributionListenSettings const &_Settings);
+			TCContinuation<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings const &_Settings);
+			TCContinuation<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings);
 			
 			TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_CallRemote
 				(
@@ -258,6 +360,8 @@ namespace NMib
 					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData 
 				)
 			;
+			
+			TCContinuation<void> f_KickHost(NStr::CStr const &_HostID); 
 			
 			TCContinuation<CDistributedActorPublication> f_PublishActor
 				(
@@ -277,18 +381,23 @@ namespace NMib
 			;
 
 			static NStr::CStr fs_GetCallingHostID();
+			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			
 		private:
-			
+			void fp_RemoveListen(NStr::CStr const &_ListenID);
+			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
 			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
+			TCContinuation<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
 			
 			friend struct CDistributedActorPublication;
-			struct CInternal;
+			friend struct CDistributedActorListenReference;
+			friend struct CDistributedActorConnectionReference;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};
 		
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
+		void fg_InitDistributedActorSystem();
 		
 #define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor \
 			< \

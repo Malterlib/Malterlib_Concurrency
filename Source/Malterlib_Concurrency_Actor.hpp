@@ -214,6 +214,18 @@ namespace NMib
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
+#ifdef DMibConcurrency_CheckFunctionCalls
+			static_assert
+				(
+					NTraits::TCIsCallableWith
+					<
+						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						, void (tfp_CCallParams...)
+					>::mc_Value 
+					, "Invalid params for function"
+				)
+			;
+#endif
 			return TCActorCall
 				<
 					TCActor
@@ -233,6 +245,18 @@ namespace NMib
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto TCActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
+#ifdef DMibConcurrency_CheckFunctionCalls
+			static_assert
+				(
+					NTraits::TCIsCallableWith
+					<
+						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						, void (tfp_CCallParams...)
+					>::mc_Value 
+					, "Invalid params for function"
+				)
+			;
+#endif
 			return TCActorCall
 				<
 					TCActor

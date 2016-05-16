@@ -26,6 +26,19 @@ namespace NMib
 			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 			auto CThisActor::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 			{
+#ifdef DMibConcurrency_CheckFunctionCalls
+				static_assert
+					(
+						NTraits::TCIsCallableWith
+						<
+							typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+							, void (tfp_CCallParams...)
+						>::mc_Value 
+						, "Invalid params for function"
+					)
+				;
+#endif
+				
 				using CMemberFunction = typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType;
 				using CActorClass = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CClass;
 
@@ -263,10 +276,10 @@ namespace NMib
 			t_CActor mp_Actor;
 			t_CFunctor mp_Functor;
 			t_CParams mp_Params;
-			TCActorCall(t_CActor const &_Actor, t_CFunctor const &_Functor, t_CParams const &_Params)
+			TCActorCall(t_CActor const &_Actor, t_CFunctor const &_Functor, t_CParams &&_Params)
 				: mp_Actor(_Actor)
 				, mp_Functor(_Functor)
-				, mp_Params(_Params)
+				, mp_Params(fg_Move(_Params))
 			{
 			}
 
@@ -316,6 +329,14 @@ namespace NMib
 			template <typename tf_CResultActor, typename tf_CResultFunctor>
 			void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
 			{
+#ifdef DMibConcurrency_CheckFunctionCalls
+				static_assert
+					(
+						NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<CReturnType> &&)>::mc_Value
+						, "Incorrect type in result call"
+					)
+				;
+#endif
 				mp_Actor->template f_Call<t_CFunctor>
 					(
 						NPrivate::fg_BindHelper<t_CTypeList>
@@ -470,6 +491,15 @@ namespace NMib
 		>
 		void TCActorCallPack<tp_CCalls...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>)
 		{
+#ifdef DMibConcurrency_CheckFunctionCalls
+				static_assert
+					(
+						NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CCalls::CReturnType> && ...)>::mc_Value
+						, "Incorrect types in result call"
+					)
+				;
+#endif
+			
 			typedef NMeta::TCTypeList
 				<
 					typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType...
@@ -543,7 +573,15 @@ namespace NMib
 		{
 			mutable t_CFunctor m_ToCall;
 			mutable NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> m_Result;
-			mutable typename NPrivate::TCGetResultFunctorType<typename NTraits::TCRemoveReference<t_CResultFunctor>::CType, t_CRet>::CType m_ResultFunctor;
+			
+			using CResultFunctor = NFunction::TCFunction
+				<
+					void (NFunction::CThisTag &, NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> &&_Result)
+					, NFunction::CFunctionNoCopyTag
+				>
+			;
+			
+			mutable CResultFunctor m_ResultFunctor;
 			mutable TCActor<t_CResultActor> m_pResultActor;
 			mutable TCActorInternal<t_CActor> *m_pActorInternal;
 

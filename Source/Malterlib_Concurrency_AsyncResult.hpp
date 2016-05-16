@@ -77,10 +77,10 @@ namespace NMib
 			}
 			catch (...)
 			{
-				m_pException = std::current_exception();
+				m_pException = fg_CurrentException();
 			}
 #else
-			m_pException = std::make_exception_ptr(fg_Forward<tf_CType>(_Exception));
+			m_pException = fg_ExceptionPointer(fg_Forward<tf_CType>(_Exception));
 #endif
 		}
 
@@ -122,13 +122,13 @@ namespace NMib
 		}
 		
 		template <typename t_CType>
-		void TCAsyncResult<t_CType>::f_SetException(std::exception_ptr const &_pException)
+		void TCAsyncResult<t_CType>::f_SetException(CExceptionPointer const &_pException)
 		{
 			m_pException = _pException;
 		}
 		
 		template <typename t_CType>
-		void TCAsyncResult<t_CType>::f_SetException(std::exception_ptr &&_pException)
+		void TCAsyncResult<t_CType>::f_SetException(CExceptionPointer &&_pException)
 		{
 			m_pException = fg_Move(_pException);
 		}
@@ -138,7 +138,7 @@ namespace NMib
 		{
 			DMibRequire(m_Result.template f_IsOfType<void>());
 			DMibRequire(!m_pException);
-			m_pException = std::current_exception();
+			m_pException = fg_CurrentException();
 		}
 
 		template <typename t_CType>
@@ -160,6 +160,14 @@ namespace NMib
 		bool TCAsyncResult<t_CType>::f_IsSet() const
 		{
 			return !m_Result.template f_IsOfType<void>() || m_pException != nullptr;
+		}
+
+		template <typename t_CType>
+		CExceptionPointer TCAsyncResult<t_CType>::f_GetException() const
+		{
+			if (m_pException != nullptr)
+				return m_pException;
+			return nullptr;
 		}
 
 		template <typename t_CType>
@@ -188,10 +196,10 @@ namespace NMib
 			}
 			catch (...)
 			{
-				m_pException = std::current_exception();
+				m_pException = fg_CurrentException();
 			}
 #else
-			m_pException = std::make_exception_ptr(fg_Forward<tf_CType>(_Exception));
+			m_pException = fg_ExceptionPointer(fg_Forward<tf_CType>(_Exception));
 #endif
 		}
 

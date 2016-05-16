@@ -58,12 +58,12 @@ namespace NMib
 			return f_Get();
 		}
 
-		void TCAsyncResult<void>::f_SetException(std::exception_ptr const &_pException)
+		void TCAsyncResult<void>::f_SetException(CExceptionPointer const &_pException)
 		{
 			m_pException = _pException;
 		}
 		
-		void TCAsyncResult<void>::f_SetException(std::exception_ptr &&_pException)
+		void TCAsyncResult<void>::f_SetException(CExceptionPointer &&_pException)
 		{
 			m_pException = fg_Move(_pException);
 		}
@@ -72,7 +72,7 @@ namespace NMib
 		{
 			DMibRequire(!m_bHasBeenSet);
 			DMibRequire(!m_pException);
-			m_pException = std::current_exception();
+			m_pException = fg_CurrentException();
 		}
 
 		void TCAsyncResult<void>::f_SetResult()
@@ -92,6 +92,13 @@ namespace NMib
 			return m_bHasBeenSet || m_pException != nullptr;
 		}
 		
+		CExceptionPointer TCAsyncResult<void>::f_GetException() const
+		{
+			if (m_pException != nullptr)
+				return m_pException;
+			return nullptr;
+		}
+
 		NStr::CStr TCAsyncResult<void>::f_GetExceptionStr() const
 		{
 			try

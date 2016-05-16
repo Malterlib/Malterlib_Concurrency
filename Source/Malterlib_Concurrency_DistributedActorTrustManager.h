@@ -36,12 +36,16 @@ namespace NMib
 			
 			struct CAddressConnectionState
 			{
+				inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
+
 				bool m_bConnected = false;
 				NStr::CStr m_Error;
 			};
 			
 			struct CHostConnectionState
 			{
+				inline NStr::CStr const &f_GetHostID() const;
+				
 				NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState> m_Addresses;
 			};
 			
@@ -57,10 +61,15 @@ namespace NMib
 					<
 						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
 					> const &_fConstructManager = nullptr
+					,  uint32 _KeySize = 4096
 				)
 			;
 			
 			~CDistributedActorTrustManager();
+			
+			void f_Construct() override;
+			
+			TCContinuation<void> f_Initialize(); 
 			
 			TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
@@ -68,14 +77,14 @@ namespace NMib
 			TCContinuation<CTrustTicket> f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
 			
-			TCContinuation<void> f_AddClientConnection(CTrustTicket const &_TrustTicket);
+			TCContinuation<void> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
 			TCContinuation<void> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
 
-			TCContinuation<CConnectionState> f_GetConnectionState(bool _bWaitForAttepmts);
+			TCContinuation<CConnectionState> f_GetConnectionState();
 			
-			NStr::CStr f_GetHostID() const; 
-			NConcurrency::TCActor<NConcurrency::CActorDistributionManager> f_GetDistributionManager() const;
+			TCContinuation<NStr::CStr> f_GetHostID() const; 
+			TCContinuation<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> f_GetDistributionManager() const;
 			
 			// Handle renewal of certificates
 			

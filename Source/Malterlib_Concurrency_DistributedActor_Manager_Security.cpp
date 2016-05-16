@@ -26,7 +26,7 @@ namespace NMib
 			}
 		}
 		
-		NContainer::TCSet<NStr::CStr> const &CActorDistributionManager::CInternal::fp_GetAllowedNamespacesForHost(CHost *_pHost, bool &o_bAllowAll)
+		NContainer::TCSet<NStr::CStr> const &CActorDistributionManager::CInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll)
 		{
 			if (_pHost->m_bIncoming && _pHost->m_bOutgoing)
 			{
@@ -45,6 +45,12 @@ namespace NMib
 			
 			DMibNeverGetHere;
 			return m_AllowedOutgoingConnectionNamespaces;
+		}		
+
+		void CActorDistributionManager::f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler)
+		{
+			auto &Internal = *mp_pInternal;
+			Internal.m_AccessHandler = _AccessHandler;		
 		}		
 	}
 }

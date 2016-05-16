@@ -149,8 +149,7 @@ namespace NMib
 					DMibTraceSafe("{}\n", ToLog);
 			}
 #endif
-
-			this->f_QueueProcess(CReportLocal(fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this));
+			this->f_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this});
 			
 			return true; // Dummy return to allow for fg_Swallow on arguments
 		}		

@@ -58,7 +58,7 @@ namespace NMib
 			{
 				using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 				
-				NContainer::TCTuple<tfp_CParams...> ParamList;
+				NContainer::TCTuple<typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tfp_CParams>::CType>::CType...> ParamList;
 				
 				std::initializer_list<bool> Dummy = 
 					{

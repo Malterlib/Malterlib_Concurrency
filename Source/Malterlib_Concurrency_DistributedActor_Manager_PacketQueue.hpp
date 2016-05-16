@@ -9,7 +9,7 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename tf_CCommand>
-		void CActorDistributionManager::CInternal::fp_QueueCommand(CHost *_pHost, tf_CCommand const &_Command)
+		void CActorDistributionManager::CInternal::fp_QueueCommand(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, tf_CCommand const &_Command)
 		{
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 			Stream << _Command;

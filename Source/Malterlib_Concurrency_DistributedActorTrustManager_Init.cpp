@@ -348,7 +348,7 @@ namespace NMib
 										, [&](CListenConfig const &_Config, CDistributedActorListenReference &&_ListenReference)
 										{
 											auto ListenMapped = m_Listen(_Config);
-											DMibCheck(!ListenMapped.f_WasCreated());
+											DMibFastCheck(!ListenMapped.f_WasCreated());
 											auto &Listen = *ListenMapped;
 											
 											Listen.m_ListenReference = fg_Move(_ListenReference);
@@ -368,7 +368,7 @@ namespace NMib
 										, [&](CDistributedActorTrustManager_Address const &_Address, CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 										{
 											auto ConnectionMapped = m_ClientConnections(_Address);
-											DMibCheck(!ConnectionMapped.f_WasCreated());
+											DMibFastCheck(!ConnectionMapped.f_WasCreated());
 											auto &ClientConnection = *ConnectionMapped;
 											
 											ClientConnection.m_ConnectionReference = fg_Move(_ConnectionResult.m_ConnectionReference);

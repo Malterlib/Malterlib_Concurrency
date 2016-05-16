@@ -40,26 +40,39 @@ namespace NMib
 				{
 				}
 				
+				void f_Reset();
+				void f_Destroy();
+				
 				TCActor<NWeb::CWebSocketActor> m_Connection;
 				CActorCallback m_ConnectionSubscription;
 				NPtr::TCSharedPointer<NNet::CSSLContext> m_pSSLContext;
-				DMibListLinkDS_Link(CConnection, m_Link);
 				NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> m_pHost;
-				bool m_bConnected = false;
-				NStr::CStr m_LastConnectionError;
+				DMibListLinkDS_Link(CConnection, m_Link);
+				DMibListLinkDS_Link(CConnection, m_HostLink);
+				bool m_bIncoming = false;
 			};
 
 			struct CClientConnection : public CConnection 
 			{
+				void f_Reset();
+				void f_Destroy();
+				
 				NStr::CStr m_ConnectionID;
 				NHTTP::CURL m_ServerURL;
 				NMib::NNet::ENetAddressType m_PreferAddress;
 				mint m_ConnectionSequence = 0;
+				bool m_bConnected = false;
+				NStr::CStr m_LastConnectionError;
 			};
 
 			struct CServerConnection : public CConnection 
 			{
-				mint m_ConnectionID;
+				CServerConnection(mint _ConnectionID)
+					: m_ConnectionID(_ConnectionID)
+				{
+				}
+				
+				mint const m_ConnectionID;
 			};
 			
 			struct CPacket
@@ -87,7 +100,7 @@ namespace NMib
 				NStr::CStr m_Namespace;
 				TCDistributedActor<CActor> m_Actor;
 				NContainer::TCVector<uint32> m_Hierarchy;
-				CHost *m_pHost;			
+				CHost *m_pHost = nullptr;			
 				
 				NStr::CStr const &f_GetActorID() const
 				{
@@ -98,7 +111,7 @@ namespace NMib
 				
 				~CRemoteActor()
 				{
-					DMibCheck(!m_Link.f_IsInList());
+					DMibFastCheck(!m_Link.f_IsInList());
 				}
 			};			
 
@@ -109,6 +122,9 @@ namespace NMib
 			
 			struct CHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 			{
+				DMibListLinkDS_List(CClientConnection, m_HostLink) m_ClientConnections;
+				DMibListLinkDS_List(CServerConnection, m_HostLink) m_ServerConnections;
+				
 				DMibListLinkDS_List(CConnection, m_Link) m_ActiveConnections;
 				CConnection *m_pLastSendConnection = nullptr;
 				
@@ -140,10 +156,10 @@ namespace NMib
 				
 				~CHost();
 				
-				void f_Clear(CActorDistributionManager::CInternal *_pInternal);
-			
-				//NStr::CStr const &f_GetHostID() const;
-				
+				void f_Clear();
+				void f_Destroy();
+				bool f_CanReceivePublish() const;
+				bool f_CanSendPublish() const;
 			};
 			
 			struct CDistributedActorDataInternal : public NPrivate::CDistributedActorData
@@ -157,7 +173,7 @@ namespace NMib
 			{
 				TCWeakDistributedActor<CActor> m_Actor;
 				NContainer::TCVector<uint32> m_Hierarchy;
-				CLocalNamespace *m_pNamespace;
+				CLocalNamespace *m_pNamespace = nullptr;
 
 				NStr::CStr const &f_GetActorID() const
 				{
@@ -221,17 +237,12 @@ namespace NMib
 			
 			friend struct NActorDistributionManagerInternal::CHost;
 			
-			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID)
-				: m_pThis(_pThis)
-				, m_HostID(_HostID) 
-				, m_ExecutionID(NCryptography::fg_RandomID())
-			{
-				
-			}
+			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID);
+			~CInternal();
 			
 			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CClientConnection>> m_ClientConnections;
 			NContainer::TCMap<mint, NPtr::TCSharedPointer<CServerConnection>> m_ServerConnections;
-			mint m_ConnectionID = 0;
+			mint m_NextConnectionID = 0;
 			
 			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag>> m_Hosts;
 			CActorDistributionManager *m_pThis;
@@ -270,7 +281,11 @@ namespace NMib
 					, bool _bRetry
 				)
 			;
-			void fp_ServerConnectionClosed(NPtr::TCSharedPointer<CServerConnection> const &_pConnection);
+			void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost);
+			void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost);
+
+			void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection);
+			void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection);
 			void fp_Listen
 				(
 					NStr::CStr const &_ListenID
@@ -296,7 +311,7 @@ namespace NMib
 			bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
-			bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace);
+			bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
 		};
 	}
 }

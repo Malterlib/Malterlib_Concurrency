@@ -12,12 +12,25 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		using CExceptionPointer = std::exception_ptr;
+		
+		template <typename tf_CException>
+		CExceptionPointer fg_ExceptionPointer(tf_CException _Exception)
+		{
+			return std::make_exception_ptr(_Exception);
+		}
+
+		inline_always CExceptionPointer fg_CurrentException()
+		{
+			return std::current_exception();
+		}
+		
 		class CAsyncResult
 		{
 			template <typename t_CType2>
 			friend class TCAsyncResult;
 			
-			std::exception_ptr m_pException;
+			CExceptionPointer m_pException;
 		public:
 #if DMibConcurrencyDebugActorCallstacks
 			CAsyncCallstacks m_Callstacks;
@@ -62,8 +75,8 @@ namespace NMib
 			void f_SetException(TCAsyncResult<tf_CType> & _AsyncResult);
 			template <typename tf_CType>
 			void f_SetException(TCAsyncResult<tf_CType> const& _AsyncResult);
-			void f_SetException(std::exception_ptr const &_pException);
-			void f_SetException(std::exception_ptr &&_pException);
+			void f_SetException(CExceptionPointer const &_pException);
+			void f_SetException(CExceptionPointer &&_pException);
 			
 			void f_SetCurrentException();
 			template <typename tf_CType>
@@ -73,6 +86,7 @@ namespace NMib
 			bool f_IsSet() const;
 			
 			NStr::CStr f_GetExceptionStr() const;
+			CExceptionPointer f_GetException() const;
 		};
 
 		template <>
@@ -103,8 +117,8 @@ namespace NMib
 			void f_SetException(TCAsyncResult<tf_CType> & _AsyncResult);
 			template <typename tf_CType>
 			void f_SetException(TCAsyncResult<tf_CType> const& _AsyncResult);
-			void f_SetException(std::exception_ptr const &_pException);
-			void f_SetException(std::exception_ptr &&_pException);
+			void f_SetException(CExceptionPointer const &_pException);
+			void f_SetException(CExceptionPointer &&_pException);
 			
 			void f_SetCurrentException();
 			void f_SetResult();
@@ -113,6 +127,7 @@ namespace NMib
 			bool f_IsSet() const;
 
 			NStr::CStr f_GetExceptionStr() const;
+			CExceptionPointer f_GetException() const;
 		};
 	}
 }

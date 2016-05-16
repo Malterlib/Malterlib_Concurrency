@@ -140,7 +140,7 @@ namespace NMib
 		{
 			if (!_bAllowUnconnected)
 			{
-				auto State = _TrustManager(&CDistributedActorTrustManager::f_GetConnectionState, true).f_CallSync(60.0);
+				auto State = _TrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
 				for (auto &Host : State.m_Hosts)
 				{
 					for (auto &Address : Host.m_Addresses)

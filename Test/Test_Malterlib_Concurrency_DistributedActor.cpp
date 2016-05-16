@@ -406,9 +406,6 @@ namespace
 				DMibTestPath("Anonymous cannot publish");
 				TestHelper.f_GetServer().f_SubscribeExpectFailure("Anonymous/Test2");
 			}
-			
-			int x = 0;
-			++x;
 		}
 	public:
 		void f_FunctionalTests()

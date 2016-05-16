@@ -41,12 +41,12 @@ namespace NMib
 			}
 
 			template <typename t_CException, uint32 t_NameHash>
-			std::exception_ptr TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream)
+			CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream)
 			{
 				auto Exception = DMibImpExceptionInstance(t_CException, "");
 				_Stream >> Exception;
 				
-				return std::make_exception_ptr(fg_Move(Exception));
+				return fg_ExceptionPointer(fg_Move(Exception));
 			}
 			
 			template <typename t_CException, uint32 t_NameHash>

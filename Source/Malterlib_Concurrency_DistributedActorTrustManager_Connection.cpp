@@ -89,7 +89,7 @@ namespace NMib
 								}
 								catch (NException::CException const &_Exception)
 								{
-									DMibError(fg_Format("Failed to generate listen certificate request: {}", _Exception.f_GetErrorStr()));
+									DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
 								}
 								
 								return Results;
@@ -208,21 +208,20 @@ namespace NMib
 					, [this, Continuation, _Address]
 					{
 						auto &Internal = *mp_pInternal;
+
 						CListenConfig ListenConfig;
 						ListenConfig.m_Address = _Address;
 						auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
-						
 						if (!pListen)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Cloud not find listen with this address"));
+							Continuation.f_SetException(DMibErrorInstance("Could not find listen with this address"));
 							return;
 						}
 						
 						auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
-						
 						if (!pServerCertificate)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Cloud not find and server certificate for this address"));
+							Continuation.f_SetException(DMibErrorInstance("Could not find and server certificate for this address"));
 							return;
 						}
 						
@@ -257,6 +256,12 @@ namespace NMib
 
 		TCContinuation<void> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout)
 		{
+			// Connect to remote host with anonymous connection
+			// Subscribe to internal interface (time out if no publication arrives)
+			// Generate certificate request and send to remote host
+			// Save client connection to database 
+			// Connect again to remote host with signed client certificate (if failure, remove from database again)
+			
 			auto &Internal = *mp_pInternal;
 			TCContinuation<void> Continuation;
 			Internal.f_RunAfterInit
@@ -274,6 +279,7 @@ namespace NMib
 							Continuation.f_SetException(DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr())));
 							return;
 						}
+						
 						if (ServerHostID.f_IsEmpty())
 						{
 							Continuation.f_SetException(DMibErrorInstance("Trust ticket server certificate does not include Host ID"));
@@ -283,11 +289,8 @@ namespace NMib
 						auto &Internal = *mp_pInternal;
 						
 						auto *pClientConnection = Internal.m_ClientConnections.f_FindEqual(_TrustTicket.m_ServerAddress);
-						
 						if (pClientConnection)
-						{
 							Internal.f_RemoveClientConnection(pClientConnection);
-						}
 						
 						NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 						ConnectionSettings.m_ServerURL = _TrustTicket.m_ServerAddress.m_URL;
@@ -323,7 +326,6 @@ namespace NMib
 								};
 								
 								NPtr::TCSharedPointer<CConnectionState> pConnectionState = fg_Construct();
-								
 								pConnectionState->m_AnonymousConnection = fg_Move(_ConnectionResult->m_ConnectionReference);
 
 								Internal.m_ActorDistributionManager
@@ -337,6 +339,7 @@ namespace NMib
 												return;
 											if (pConnectionState->m_bReplied)
 												return;
+											
 											pConnectionState->m_bDisableTimeout = true;
 											pConnectionState->m_TicketInterface = _NewActor.f_GetActor<CInternal::CTicketInterface>();
 
@@ -363,7 +366,7 @@ namespace NMib
 											catch (NException::CException const &_Exception)
 											{
 												pConnectionState->f_Replied();
-												Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to genaret certificate request for trust: {}", _Exception.f_GetErrorStr())));
+												Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to generate certificate request for trust: {}", _Exception.f_GetErrorStr())));
 												return;
 											}
 											
@@ -418,6 +421,7 @@ namespace NMib
 																;
 																return;
 															}
+															
 															auto &Internal = *mp_pInternal;
 															CActorDistributionConnectionSettings ClientSettings;
 															ClientSettings.m_ServerURL = Address.m_URL;
@@ -457,7 +461,11 @@ namespace NMib
 																			(
 																				DMibErrorInstance
 																				(
-																					fg_Format("Failed to connect the finished trust to server: {}", _ConnectionResult.f_GetExceptionStr())
+																					fg_Format
+																					(
+																						"Failed to establish final connection to trusted server: {}"
+																						, _ConnectionResult.f_GetExceptionStr()
+																					)
 																				)
 																			)
 																		;
@@ -523,6 +531,9 @@ namespace NMib
 		
 		TCContinuation<void> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address)
 		{
+			// Connect with insecure connection to server to get server certificate
+			// Connect with server certificate to verify that trust is correct
+			// Connect with server certificate and client certificate at the end
 			auto &Internal = *mp_pInternal;
 			TCContinuation<void> Continuation;
 			Internal.f_RunAfterInit
@@ -533,7 +544,6 @@ namespace NMib
 						auto &Internal = *mp_pInternal;
 						
 						auto *pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
-						
 						if (pClientConnection)
 						{
 							Continuation.f_SetException(DMibErrorInstance("Address already exists"));
@@ -564,7 +574,7 @@ namespace NMib
 									return;
 								}
 
-								DMibCheck(!ConnectionResult.m_HostID.f_IsEmpty());
+								DMibFastCheck(!ConnectionResult.m_HostID.f_IsEmpty());
 								
 								NStr::CStr ServerHostID = ConnectionResult.m_HostID; 
 								
@@ -602,7 +612,7 @@ namespace NMib
 								
 										if (!_ConnectionResult)
 										{
-											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed verify connection to server: {}", _ConnectionResult.f_GetExceptionStr())));
+											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to verify connection to server: {}", _ConnectionResult.f_GetExceptionStr())));
 											return;
 										}
 
@@ -718,7 +728,6 @@ namespace NMib
 								}
 								
 								auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
-								
 								if (pClientConnection)
 								{
 									pClientConnection->m_ConnectionReference.f_Disconnect() > [this, _Address, Continuation](TCAsyncResult<void> &&_Result)
@@ -736,7 +745,9 @@ namespace NMib
 												return;
 											}
 											auto &Internal = *mp_pInternal;
-											Internal.m_ClientConnections.f_Remove(_Address);
+											auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
+											if (pConnection)
+												Internal.f_RemoveClientConnection(pConnection);
 											Continuation.f_SetResult();
 										}
 									;
@@ -751,7 +762,7 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState(bool _bWaitForAttepmts)
+		TCContinuation<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState()
 		{
 			auto &Internal = *mp_pInternal;
 			TCContinuation<CDistributedActorTrustManager::CConnectionState> Continuation;

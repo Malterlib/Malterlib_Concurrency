@@ -139,11 +139,9 @@ namespace NMib
 				, NStr::CStr const &_ConnectionError 
 			)
 		{
-			_pConnection->m_bConnected = false;
-			_pConnection->m_LastConnectionError = _ConnectionError; 
-			_pConnection->m_ConnectionSubscription.f_Clear();
-			if (_pConnection->m_Connection)
-				_pConnection->m_Connection->f_Destroy();
+			_pConnection->f_Reset();
+			_pConnection->m_LastConnectionError = _ConnectionError;
+			
 			fg_TimerActor()
 				(
 					&CTimerActor::f_OneshotTimer
@@ -160,6 +158,19 @@ namespace NMib
 				)
 				> fg_DiscardResult()
 			;
+		}
+		
+		void CActorDistributionManager::CInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost)
+		{
+			_Connection.f_Destroy();
+			auto &pHost = _Connection.m_pHost; 
+			if (!_bSaveHost && pHost && pHost->m_bAnonymous)
+			{
+				fp_DestroyHost(*pHost, &_Connection);
+				pHost = nullptr;
+			}
+			
+			m_ClientConnections.f_Remove(_Connection.m_ConnectionID);
 		}
 
 		void CActorDistributionManager::CInternal::fp_Reconnect
@@ -188,25 +199,31 @@ namespace NMib
 				)
 				> [this, _pConnection, _pContinuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 				{
+					auto fReportError = [this, _bRetry, _pContinuation, _pConnection, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
+						{
+							if (!_bRetry)
+							{
+								if (_pContinuation)
+									_pContinuation->f_SetException(_Exception);
+								return;
+							}
+							if (_pContinuation)
+								_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
+							fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, _Error);
+						}
+					;
+					
 					if (!_Result)
 					{
 						auto Error = fg_Format("Error connecting to '{}':", _pConnection->m_ServerURL.f_Encode(), _Result.f_GetExceptionStr());
 						DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
-						if (!_bRetry)
-						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(_Result);
-							return;
-						}
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-						fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
+						fReportError(Error, _Result.f_GetException());
 						return;
 					}
 					if (Sequence != _pConnection->m_ConnectionSequence)
 					{
 						if (_pContinuation)
-							_pContinuation->f_SetException(DMibErrorInstance("Connection sequence missmatch"));
+							_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 						return;
 					}
 					
@@ -217,15 +234,7 @@ namespace NMib
 					if (!pSocketInfo || pSocketInfo->m_PeerCertificate.f_IsEmpty())
 					{
 						NStr::CStr Error = "Missing peer certificate";
-						if (!_bRetry)
-						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(DMibErrorInstance(Error));
-							return;
-						}
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-						fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
+						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
 						return;
 					}
 					
@@ -236,51 +245,27 @@ namespace NMib
 						if (HostID.f_IsEmpty())
 						{
 							NStr::CStr Error = "Missing or incorrect Host ID in server certificate";
-							if (!_bRetry)
-							{
-								if (_pContinuation)
-									_pContinuation->f_SetException(DMibErrorInstance(Error));
-								return;
-							}
-							if (_pContinuation)
-								_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-							fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
+							fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
 							return;
 						}
 					}
 					catch (NException::CException const &_Exception)
 					{
 						NStr::CStr Error = "Incorrect peer certificate";
-						if (!_bRetry)
-						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(DMibErrorInstance(Error));
-							return;
-						}
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-						fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
+						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
 						return;
 					}
 					
 					auto &pHost = _pConnection->m_pHost;
 					
-					DMibCheck(pHost);
+					DMibFastCheck(pHost);
 					
 					if (pHost->m_RealHostID.f_IsEmpty())
 						pHost->m_RealHostID = HostID;
 					else if (pHost->m_RealHostID != HostID)
 					{
 						NStr::CStr Error = "Host ID mismatch";
-						if (!_bRetry)
-						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(DMibErrorInstance(Error));
-							return;
-						}
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-						fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
+						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
 						return;
 					}
 
@@ -309,21 +294,7 @@ namespace NMib
 							;
 							auto &pHost = _pConnection->m_pHost; 
 							if (pHost && pHost->m_bAnonymous)
-							{
-								if (pHost)
-								{
-									pHost->m_ActiveConnections.f_Remove(*_pConnection);
-								 	pHost->f_Clear(this);
-									m_Hosts.f_Remove(pHost->m_UniqueHostID);
-									pHost = nullptr;
-								}
-								
-								_pConnection->m_ConnectionSubscription.f_Clear();
-								if (_pConnection->m_Connection)
-									_pConnection->m_Connection->f_Destroy();
-								
-								m_ClientConnections.f_Remove(_pConnection->m_ConnectionID);
-							}
+								fp_DestroyClientConnection(*_pConnection, false);
 							else
 								fp_ScheduleReconnect(_pConnection, nullptr, true, Sequence, Error);
 						}
@@ -351,16 +322,16 @@ namespace NMib
 								, _pConnection
 								, _pContinuation
 								, Sequence
-								, _bRetry
 								, HostID
 								, CertificateChain = pSocketInfo->m_CertificateChain
+								, fReportError
 							]
 							(NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Callback) mutable
 							{
 								if (Sequence != _pConnection->m_ConnectionSequence)
 								{
 									if (_pContinuation)
-										_pContinuation->f_SetException(DMibErrorInstance("Connection sequence missmatch"));
+										_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 									return;
 								}
 								
@@ -381,15 +352,8 @@ namespace NMib
 											, Error
 										)
 									;
-									if (_bRetry)
-									{
-										if (_pContinuation)
-											_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
 
-										fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, Error);
-									}
-									else if (_pContinuation)
-										_pContinuation->f_SetException(_Callback);
+									fReportError(Error, _Callback.f_GetException());
 									return;
 								}
 
@@ -460,7 +424,7 @@ namespace NMib
 				pHost->m_bAnonymous = bAnonymous;
 			}
 			else
-				DMibCheck(!bAnonymous);
+				DMibFastCheck(!bAnonymous);
 			
 			TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
 			
@@ -473,6 +437,7 @@ namespace NMib
 			
 			pConnection->m_ConnectionID = ConnectionID;
 			pConnection->m_pHost = pHost;
+			pHost->m_ClientConnections.f_Insert(*pConnection);
 			
 			if (!_Settings.m_PrivateClientKey.f_IsEmpty())
 			{
@@ -516,12 +481,7 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 			if (pConnection)
-			{
-				(*pConnection)->m_ConnectionSubscription.f_Clear();
-				if ((*pConnection)->m_Connection)
-					(*pConnection)->m_Connection->f_Destroy();
-				Internal.m_ClientConnections.f_Remove(pConnection);
-			}
+				Internal.fp_DestroyClientConnection(**pConnection, false);
 		}
 	}
 }

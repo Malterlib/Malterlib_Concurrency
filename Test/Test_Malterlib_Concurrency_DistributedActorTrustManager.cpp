@@ -316,7 +316,7 @@ namespace
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
 					
-					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState, true).f_CallSync(60.0);
+					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
 					
 					DMibAssertFalse(ConnectionState.m_Hosts.f_IsEmpty());
 					DMibAssertFalse(ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_IsEmpty());
@@ -353,7 +353,7 @@ namespace
 					auto HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(60.0);;
 					
-					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState, true).f_CallSync(60.0);
+					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
 					
 					DMibAssertFalse(ConnectionState.m_Hosts.f_IsEmpty());
 					DMibAssertFalse(ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_IsEmpty());

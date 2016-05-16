@@ -37,10 +37,7 @@ namespace NMib
 				
 				DMibListLinkDS_Link(CConnectionState, m_Link);
 				
-				CDistributedActorTrustManager_Address const &f_GetAddress() const
-				{
-					return NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState>::fs_GetKey(*this);
-				}
+				inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
 			};
 			
 			struct CTicketState
@@ -52,10 +49,7 @@ namespace NMib
 			{
 				DMibListLinkDS_List(CConnectionState, m_Link) m_ClientConnections;
 				
-				NStr::CStr const &f_GetHostID() const
-				{
-					return NContainer::TCMap<NStr::CStr, CHostState>::fs_GetKey(*this);
-				}
+				inline NStr::CStr const &f_GetHostID() const;
 			};
 
 			struct CTicketInterface : public CActor
@@ -99,7 +93,7 @@ namespace NMib
 			;
 			
 			template <typename tf_CReturn>
-			void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_Function);
+			void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToRun);
 			
 			void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 			
@@ -130,7 +124,7 @@ namespace NMib
 			
 			NTime::CTimer m_TicketTimer;
 			
-			uint32 m_KeySize;
+			uint32 const m_KeySize;
 			
 			EInitialize m_Initialize = EInitialize_None;
 			NStr::CStr m_InitializeError;

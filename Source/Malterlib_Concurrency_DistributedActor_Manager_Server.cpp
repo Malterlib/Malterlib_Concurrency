@@ -82,37 +82,17 @@ namespace NMib
 			;
 		}		
 		
-		TCContinuation<void> CActorDistributionManager::f_KickHost(NStr::CStr const &_HostID)
+		void CActorDistributionManager::CInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost)
 		{
-			auto &Internal = *mp_pInternal;
-			auto *pHost = Internal.m_Hosts.f_FindEqual(_HostID);
-			if (!pHost)
-			{
-				// Already gone
-				return fg_Explicit();
-			}
-			(*pHost)->f_Clear(&Internal);
-			
-			Internal.m_Hosts.f_Remove(pHost);
-			
-			return fg_Explicit();
-		}
-
-		void CActorDistributionManager::CInternal::fp_ServerConnectionClosed(NPtr::TCSharedPointer<CActorDistributionManager::CInternal::CServerConnection> const &_pConnection)
-		{
-			auto *pConnection = m_ServerConnections.f_FindEqual(_pConnection->m_ConnectionID);
+			auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
 			if (pConnection)
 			{
-				_pConnection->m_ConnectionSubscription.f_Clear();
-				_pConnection->m_Connection->f_Destroy();
-				_pConnection->m_Connection.f_Clear();
-				_pConnection->m_pSSLContext.f_Clear();
-				auto &pHost = _pConnection->m_pHost;
-				pHost->m_ActiveConnections.f_Remove(_pConnection.f_Get());
-				if (pHost->m_bAnonymous)
+				_Connection.f_Destroy();
+				
+				auto &pHost = _Connection.m_pHost;
+				if (!_bSaveHost && pHost && pHost->m_bAnonymous)
 				{
-					pHost->f_Clear(this);
-					m_Hosts.f_Remove(pHost->m_UniqueHostID);
+					fp_DestroyHost(*pHost, &_Connection);
 					pHost = nullptr;
 				}
 				m_ServerConnections.f_Remove(pConnection);
@@ -182,9 +162,7 @@ namespace NMib
 						}
 						
 						auto pSocketInfo = static_cast<NNet::CSocketConnectionInfo_SSL const *>(NewServerConnection.m_Info.m_pSocketInfo.f_Get());
-
 						NStr::CStr HostID;
-						
 						bool bAnonymous = false;
 						
 						if (!pSocketInfo || pSocketInfo->m_PeerCertificate.f_IsEmpty())
@@ -214,10 +192,9 @@ namespace NMib
 							{
 								NWeb::CWebSocketNewServerConnection &NewServerConnection = *pNewServerConnection;
 								
-								mint ConnectionID = m_ConnectionID++;
+								mint ConnectionID = m_NextConnectionID++;
 								
-								auto pConnection = m_ServerConnections[ConnectionID] = fg_Construct();
-								pConnection->m_ConnectionID = ConnectionID;
+								NPtr::TCSharedPointer<CServerConnection> pConnection = fg_Construct(ConnectionID);
 								
 								auto MappedHost = this->m_Hosts(HostID);
 								if (MappedHost.f_WasCreated())
@@ -231,19 +208,22 @@ namespace NMib
 								auto &Host = **MappedHost;
 								if (Host.m_bAnonymous != bAnonymous)
 								{
-									fReject("Missmatching anonymous for host");
+									fReject("Mismatching anonymous for host");
 									return;
 								}
-								
+
+								m_ServerConnections[ConnectionID] = pConnection;
 								pConnection->m_pHost = *MappedHost;
+								Host.m_ServerConnections.f_Insert(*pConnection);
 
 								Host.m_bIncoming = true;
+								pConnection->m_bIncoming = true;
 								
 								NewServerConnection.m_fOnClose = [this, pConnection](NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
 									{
 										if (!pConnection->m_pHost)
 											return;
-										fp_ServerConnectionClosed(pConnection);
+										fp_DestroyServerConnection(*pConnection, false);
 									}
 								;
 								
@@ -377,9 +357,7 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			TCContinuation<CDistributedActorListenReference> Continuation;
 			
-			NStr::CStr ListenID = NCryptography::fg_RandomID();
-			
-			Internal.fp_Listen(ListenID, _Settings, fg_Construct(Continuation));
+			Internal.fp_Listen(NCryptography::fg_RandomID(), _Settings, fg_Construct(Continuation));
 			
 			return Continuation;
 		}
@@ -393,8 +371,8 @@ namespace NMib
 				pListen->m_ListenCallbackSubscription.f_Clear();
 				if (pListen->m_WebsocketServer)
 					pListen->m_WebsocketServer->f_Destroy();
+				Internal.m_Listens.f_Remove(pListen);
 			}
-			Internal.m_Listens.f_Remove(pListen);
 		}
 	}
 }

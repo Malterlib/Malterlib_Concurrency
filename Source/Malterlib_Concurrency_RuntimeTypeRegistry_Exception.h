@@ -9,12 +9,13 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		using CExceptionPointer = std::exception_ptr;
 		struct CRuntimeTypeRegistryEntry_Exception
 		{
 			CRuntimeTypeRegistryEntry_Exception(uint32 _Hash);
 			~CRuntimeTypeRegistryEntry_Exception();
 					
-			virtual std::exception_ptr f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) pure;
+			virtual CExceptionPointer f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) pure;
 			virtual void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) pure;
 			
 			uint32 m_Hash;
@@ -29,7 +30,7 @@ namespace NMib
 			{
 				TCRuntimeTypeRegistryEntry_Exception ();
 
-				std::exception_ptr f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) override;
+				CExceptionPointer f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) override;
 				void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) override;
 			};
 			

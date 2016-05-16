@@ -32,55 +32,32 @@ namespace NMib
 				{
 				case EDistributedActorCommand_Identify:
 					{
-						CDistributedActorCommand_Identify Identity;
-						Stream >> Identity;
+						CDistributedActorCommand_Identify Identify;
+						Stream >> Identify;
 						
-						if (Identity.m_ProtocolVersion < 0x101 || Identity.m_ProtocolVersion > CDistributedActorCommand_Identify::EProtocolVersion)
+						if (Identify.m_ProtocolVersion < 0x101 || Identify.m_ProtocolVersion > CDistributedActorCommand_Identify::EProtocolVersion)
 							return false;
 						
 						auto &pHost = _pConnection->m_pHost;
-						DMibCheck(pHost);
+						DMibFastCheck(pHost);
 						
-						if (pHost->m_LastExecutionID != Identity.m_ExecutionID)
+						if (pHost->m_LastExecutionID != Identify.m_ExecutionID)
 						{
-							if (pHost->m_LastExecutionID.f_IsEmpty())
-								pHost->m_LastExecutionID = Identity.m_ExecutionID;
-							else
-							{
-								// Old connections are no longer valid
-								pHost->m_ActiveConnections.f_Clear();
-								pHost->m_pLastSendConnection = nullptr;
-								
-								pHost->m_Incoming_ReceivedPackets.f_DeleteAll();
-								pHost->m_Incoming_QueuedPackets.f_DeleteAll();
-								
-								pHost->m_Incoming_ReceivedPacketID = 1;
-								pHost->m_Incoming_AckedPacketID = 0;
-
-								pHost->m_Outgoing_QueuedPackets.f_DeleteAll();
-								pHost->m_Outgoing_SentPackets.f_DeleteAll();
-								pHost->m_Outgoing_CurrentPacketID = 0;
-								pHost->m_Outgoing_AckedPacketID = 0;
-								
-								for (auto Call : pHost->m_OutstandingCalls)
-									Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
-								
-								pHost->m_OutstandingCalls.f_Clear();
-								
-								pHost->m_LastExecutionID = Identity.m_ExecutionID;
-							}
+							if (!pHost->m_LastExecutionID.f_IsEmpty())
+								fp_ResetHostState(*pHost, _pConnection);
+							pHost->m_LastExecutionID = Identify.m_ExecutionID;
 						}
 						
 						// Remove packets that remote already knows about
-						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identity.m_HighestSeenPacketID; ++iPacket)
+						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_HighestSeenPacketID; ++iPacket)
 							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
-						pHost->m_Outgoing_AckedPacketID = fg_Max(Identity.m_HighestSeenPacketID, pHost->m_Outgoing_AckedPacketID);
+						pHost->m_Outgoing_AckedPacketID = fg_Max(Identify.m_HighestSeenPacketID, pHost->m_Outgoing_AckedPacketID);
 						
-						pHost->m_bAllowAllNamespaces = Identity.m_bAllowAllNamespaces;
-						pHost->m_AllowedNamespaces = Identity.m_AllowedNamespaces;
+						pHost->m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
+						pHost->m_AllowedNamespaces = Identify.m_AllowedNamespaces;
 
 						// Resend packets that remote think are missing
-						for (auto &MissingPacketID : Identity.m_MissingPacketIDs)
+						for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
 						{
 							auto pPacket = pHost->m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
 							if (pPacket)
@@ -99,7 +76,7 @@ namespace NMib
 
 						pHost->m_ActiveConnections.f_Insert(*_pConnection);
 						
-						if (pHost->m_bIncoming || !pHost->m_bAnonymous)
+						if (pHost->f_CanSendPublish())
 						{
 							for (auto &NamespaceActors : m_LocalNamespaces)
 							{
@@ -186,24 +163,24 @@ namespace NMib
 		void CActorDistributionManager::CInternal::fp_Identify(CConnection *_pConnection)
 		{
 			auto &pHost = _pConnection->m_pHost;
-			CDistributedActorCommand_Identify Identity;
-			Identity.m_ExecutionID = m_ExecutionID;
+			CDistributedActorCommand_Identify Identify;
+			Identify.m_ExecutionID = m_ExecutionID;
 			for (auto &SentPacket : pHost->m_Outgoing_SentPackets)
 			{
 				auto PacketID = SentPacket.f_GetPacketID();
-				Identity.m_MissingPacketIDs.f_Insert(PacketID);
-				Identity.m_HighestSeenPacketID = fg_Max(Identity.m_HighestSeenPacketID, PacketID);
+				Identify.m_MissingPacketIDs.f_Insert(PacketID);
+				Identify.m_HighestSeenPacketID = fg_Max(Identify.m_HighestSeenPacketID, PacketID);
 			}
 			
 			bool bAllowAllNamespaces = false;
 			auto &AllowedNamespaces = fp_GetAllowedNamespacesForHost(pHost, bAllowAllNamespaces);
 			
-			Identity.m_bAllowAllNamespaces = bAllowAllNamespaces; 
+			Identify.m_bAllowAllNamespaces = bAllowAllNamespaces; 
 			if (!bAllowAllNamespaces)
-				Identity.m_AllowedNamespaces = AllowedNamespaces; 
+				Identify.m_AllowedNamespaces = AllowedNamespaces; 
 			
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-			Stream << Identity;
+			Stream << Identify;
 			
 			NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> pPacketData = fg_Construct(Stream.f_MoveVector());
 

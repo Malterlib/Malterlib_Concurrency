@@ -310,11 +310,13 @@ namespace NMib
 			}
 			return (TCDistributedActor<tf_CType> &)mp_Actor;
 		}
+		
 		template <typename tf_CType>
 		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActorUnsafe() const
 		{
 			return (TCDistributedActor<tf_CType> &)mp_Actor;
 		}
+		
 		inline NStr::CStr const &CAbstractDistributedActor::f_GetHostID() const
 		{
 			return mp_HostID;

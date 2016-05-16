@@ -73,11 +73,24 @@ namespace NMib
 			Ret.f_SetResult();
 			return Ret;
 		}
+		
+		enum EContinuationResultFlag
+		{
+			EContinuationResultFlag_DataSet = DMibBit(0)
+			, EContinuationResultFlag_ResultFunctorSet = DMibBit(1)
+		};
 
 		template <typename t_CReturnValue>
 		void TCContinuation<t_CReturnValue>::CData::fp_ReportNothingSet()
 		{
-			if ((m_OnResultSet.f_FetchOr(1) & (1 | 2)) == 2)
+			if 
+				(
+					(
+						m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet) 
+						& (EContinuationResultFlag_DataSet | EContinuationResultFlag_ResultFunctorSet)
+					) 
+					== EContinuationResultFlag_ResultFunctorSet
+				)
 			{
 				m_OnResult(fg_Move(m_Result)); // Report nothing set
 				m_OnResult.f_Clear();
@@ -99,7 +112,7 @@ namespace NMib
 		template <typename t_CReturnValue>
 		void TCContinuation<t_CReturnValue>::CData::fp_OnResult()
 		{
-			if (m_OnResultSet.f_FetchOr(1) & 2)
+			if (m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet) & EContinuationResultFlag_ResultFunctorSet)
 			{
 				m_OnResult(fg_Move(m_Result));
 				m_OnResult.f_Clear();
@@ -107,11 +120,15 @@ namespace NMib
 		}
 
 		template <typename t_CReturnValue>
-		void TCContinuation<t_CReturnValue>::f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult)
+		void TCContinuation<t_CReturnValue>::f_OnResultSet
+			(
+				NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
+				, NFunction::CFunctionNoCopyTag> &&_fOnResult
+			)
 		{
 			auto pData = m_pData.f_Get();
 			pData->m_OnResult = fg_Move(_fOnResult);
-			if (pData->m_OnResultSet.f_FetchOr(2) & 1)
+			if (pData->m_OnResultSet.f_FetchOr(EContinuationResultFlag_ResultFunctorSet) & EContinuationResultFlag_DataSet)
 			{
 				pData->m_OnResult(fg_Move(pData->m_Result));
 				pData->m_OnResult.f_Clear();

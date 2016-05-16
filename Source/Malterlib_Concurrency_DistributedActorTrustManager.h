@@ -36,23 +36,17 @@ namespace NMib
 			
 			struct CAddressConnectionState
 			{
+				inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
+
 				bool m_bConnected = false;
 				NStr::CStr m_Error;
-				
-				CDistributedActorTrustManager_Address const &f_GetAddress() const
-				{
-					return NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState>::fs_GetKey(*this);
-				}
-				
 			};
 			
 			struct CHostConnectionState
 			{
+				inline NStr::CStr const &f_GetHostID() const;
+				
 				NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState> m_Addresses;
-				NStr::CStr const &f_GetHostID() const
-				{
-					return NContainer::TCMap<NStr::CStr, CHostConnectionState>::fs_GetKey(*this);
-				}
 			};
 			
 			struct CConnectionState
@@ -87,7 +81,7 @@ namespace NMib
 			TCContinuation<void> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
 
-			TCContinuation<CConnectionState> f_GetConnectionState(bool _bWaitForAttepmts);
+			TCContinuation<CConnectionState> f_GetConnectionState();
 			
 			TCContinuation<NStr::CStr> f_GetHostID() const; 
 			TCContinuation<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> f_GetDistributionManager() const;

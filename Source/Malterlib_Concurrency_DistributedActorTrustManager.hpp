@@ -31,6 +31,16 @@ namespace NMib
 			_Stream >> m_ServerPublicCert;
 			_Stream >> m_Token;
 		}
+		
+		CDistributedActorTrustManager_Address const &CDistributedActorTrustManager::CAddressConnectionState::f_GetAddress() const
+		{
+			return NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState>::fs_GetKey(*this);
+		}
+		
+		NStr::CStr const &CDistributedActorTrustManager::CHostConnectionState::f_GetHostID() const
+		{
+			return NContainer::TCMap<NStr::CStr, CHostConnectionState>::fs_GetKey(*this);
+		}
 	}
 }
 

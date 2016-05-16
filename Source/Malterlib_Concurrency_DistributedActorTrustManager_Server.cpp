@@ -145,7 +145,6 @@ namespace NMib
 											{
 												DMibError(fg_Format("Failed to generate listen certificate request: {}", _Exception.f_GetErrorStr()));
 											}
-
 											
 											try
 											{
@@ -162,7 +161,7 @@ namespace NMib
 											}
 											catch (NException::CException const &_Exception)
 											{
-												DMibError(fg_Format("Failed to generate listen certificate request: {}", _Exception.f_GetErrorStr()));
+												DMibError(fg_Format("Failed to generate sign certificate request: {}", _Exception.f_GetErrorStr()));
 											}
 											
 											return ServerCert;

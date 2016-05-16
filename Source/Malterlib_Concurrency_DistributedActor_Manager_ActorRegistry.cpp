@@ -41,7 +41,7 @@ namespace NMib
 			}
 		}
 		
-		bool CActorDistributionManager::CInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace)
+		bool CActorDistributionManager::CInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
 		{
 			return _Namespace.f_StartsWith("Anonymous/");
 		}
@@ -85,9 +85,10 @@ namespace NMib
 			for (auto &pHost : Internal.m_Hosts)
 			{
 				auto &Host = *pHost;
+				if (!Host.f_CanSendPublish())
+					continue;
 				if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 					continue;
-				
 				if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 					continue;
 				
@@ -124,6 +125,8 @@ namespace NMib
 			for (auto &pHost : Internal.m_Hosts)
 			{
 				auto &Host = *pHost;
+				if (!Host.f_CanSendPublish())
+					continue;
 				if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 					continue;
 				if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
@@ -187,8 +190,9 @@ namespace NMib
 		bool CActorDistributionManager::CInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
 			auto &pHost = _pConnection->m_pHost;
-			if ((pHost->m_bAnonymous && pHost->m_bIncoming) || pHost->m_bDeleted)
-				return true; // Anon not allowed to publish
+			
+			if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted)
+				return true;
 
 			CDistributedActorCommand_Publish Publish;
 			_Stream >> Publish;
@@ -219,8 +223,8 @@ namespace NMib
 		bool CActorDistributionManager::CInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
 			auto &pHost = _pConnection->m_pHost;
-			if ((pHost->m_bAnonymous && pHost->m_bIncoming) || pHost->m_bDeleted)
-				return true; // Anon not allowed to publish
+			if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted)
+				return true;
 
 			CDistributedActorCommand_Unpublish Unpublish;
 			_Stream >> Unpublish;

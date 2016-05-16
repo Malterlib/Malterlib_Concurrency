@@ -15,24 +15,63 @@ namespace NMib
 		{
 		}
 
+		void CActorDistributionManager::CInternal::CConnection::f_Reset()
+		{
+			m_Link.f_Unlink();
+			m_ConnectionSubscription.f_Clear();
+			if (m_Connection)
+				m_Connection->f_Destroy();
+			m_Connection.f_Clear();
+			
+			if (m_pHost && m_pHost->m_pLastSendConnection == this)
+				m_pHost->m_pLastSendConnection = nullptr;
+		}
+		
+		void CActorDistributionManager::CInternal::CConnection::f_Destroy()
+		{
+			f_Reset();
+			m_pSSLContext.f_Clear();
+		}
+
+		void CActorDistributionManager::CInternal::CClientConnection::f_Reset()
+		{
+			CConnection::f_Reset();
+			m_bConnected = false;
+		}
+
+		void CActorDistributionManager::CInternal::CClientConnection::f_Destroy()
+		{
+			CConnection::f_Destroy();
+			m_bConnected = false;
+		}
+
 		CActorDistributionManager::~CActorDistributionManager()
 		{
 			auto &Internal = *mp_pInternal;
 			
 			for (auto &pConnection : Internal.m_ClientConnections)
 			{
-				pConnection->m_ConnectionSubscription.f_Clear();
-				pConnection->m_Connection.f_Clear();
-				pConnection->m_pSSLContext.f_Clear();
 				++pConnection->m_ConnectionSequence;
+				pConnection->f_Destroy();
 			}
 			for (auto &pConnection : Internal.m_ServerConnections)
-			{
-				pConnection->m_ConnectionSubscription.f_Clear();
-				pConnection->m_Connection.f_Clear();
-				pConnection->m_pSSLContext.f_Clear();
-			}
+				pConnection->f_Destroy();
 		}
+		
+		CActorDistributionManager::CInternal::CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID)
+			: m_pThis(_pThis)
+			, m_HostID(_HostID) 
+			, m_ExecutionID(NCryptography::fg_RandomID())
+		{
+			
+		}
+		
+		CActorDistributionManager::CInternal::~CInternal()
+		{
+			while (auto *pHost = m_Hosts.f_FindAny())
+				fp_DestroyHost(**pHost, nullptr);
+		}
+		
 		
 		NStr::CStr CActorDistributionManager::fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate)
 		{
@@ -43,40 +82,6 @@ namespace NMib
 				return (*pHostIDExtension)[0].m_Value;
 			
 			return fg_Default();
-		}
-		
-		namespace NActorDistributionManagerInternal
-		{
-			CHost::~CHost()
-			{
-				f_Clear(nullptr);
-			}
-			void CHost::f_Clear(CActorDistributionManager::CInternal *_pInternal)
-			{
-				m_bDeleted = true;
-				m_ActiveConnections.f_Clear();
-				for (auto Call : m_OutstandingCalls)
-					Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
-				m_OutstandingCalls.f_Clear();
-				for (auto &RemoteActor : m_RemoteActors)
-				{
-					if (RemoteActor.m_Link.f_IsInList())
-					{
-						DMibFastCheck(_pInternal);
-						auto pRemoteNamespace = _pInternal->m_RemoteNamespaces.f_FindEqual(RemoteActor.m_Namespace);
-						DMibFastCheck(pRemoteNamespace);
-						pRemoteNamespace->m_RemoteActors.f_Remove(RemoteActor);
-						if (pRemoteNamespace->m_RemoteActors.f_IsEmpty())
-							_pInternal->m_RemoteNamespaces.f_Remove(pRemoteNamespace);
-					}
-				}
-				m_RemoteActors.f_Clear();
-				m_AllowedNamespaces.f_Clear();
-				m_Incoming_ReceivedPackets.f_DeleteAll();
-				m_Incoming_QueuedPackets.f_DeleteAll();
-				m_Outgoing_QueuedPackets.f_DeleteAll();
-				m_Outgoing_SentPackets.f_DeleteAll();
-			}
 		}
 	}
 }

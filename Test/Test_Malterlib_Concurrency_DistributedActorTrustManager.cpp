@@ -7,6 +7,7 @@
 
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Concurrency/TestHelpers>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -61,7 +62,7 @@ namespace
 		TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override
 		{
 			if (!m_ServerCertificates(_HostName, _Certificate).f_WasCreated())
-				return DMibErrorInstance("Server certifacet already exists");
+				return DMibErrorInstance("Server certificate already exists");
 			return fg_Explicit();
 		}
 		
@@ -196,12 +197,19 @@ namespace
 				return 5;
 			}
 		};
-		void f_DoTests()
+		
+		void fp_DoBasicTests
+			(
+				NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (NStr::CStr const &_Name)> const &_fDatabaseFactory
+				, NFunction::TCFunction<void ()> const &_fCleanup
+			)
 		{
 			DMibTestSuite("Basic")
 			{
-				TCActor<CTrustManagerDatabase> ServerDatabase = fg_ConstructActor<CTrustManagerDatabase>();
-				TCActor<CTrustManagerDatabase> ClientDatabase = fg_ConstructActor<CTrustManagerDatabase>();
+				_fCleanup();
+				
+				TCActor<ICDistributedActorTrustManagerDatabase> ServerDatabase = _fDatabaseFactory("Server");
+				TCActor<ICDistributedActorTrustManagerDatabase> ClientDatabase = _fDatabaseFactory("Client");
 				
 				auto fCreateServerTrustManager = [&] 
 					{
@@ -368,6 +376,45 @@ namespace
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();
 				}
+				
+				ServerDatabase->f_BlockDestroy();
+				ClientDatabase->f_BlockDestroy();
+				
+				_fCleanup();
+			};
+		}
+		void f_DoTests()
+		{
+			DMibTestCategory("Dummy Database")
+			{
+				fp_DoBasicTests
+					(
+						[](NStr::CStr const &_Name)
+						{
+							return fg_ConstructActor<CTrustManagerDatabase>();
+						}
+						, []
+						{
+						}
+					)
+				;
+			};
+			DMibTestCategory("JSON Directory Database")
+			{
+				NStr::CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager";
+				fp_DoBasicTests
+					(
+						[BaseDirectory](NStr::CStr const &_Name)
+						{
+							return fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory + "/" + _Name);
+						}
+						, [BaseDirectory]
+						{
+							if (NFile::CFile::fs_FileExists(BaseDirectory))
+								NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
+						}
+					)
+				;
 			};
 		}
 	};

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Web/HTTP/URL>
+
 namespace NMib
 {
 	namespace NConcurrency

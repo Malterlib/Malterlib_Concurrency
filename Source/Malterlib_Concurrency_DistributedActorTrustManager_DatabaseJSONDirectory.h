@@ -1,0 +1,49 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+#pragma once
+
+#include "Malterlib_Concurrency_DistributedActorTrustManager_Database.h"
+
+namespace NMib
+{
+	namespace NConcurrency
+	{
+		class CDistributedActorTrustManagerDatabase_JSONDirectory : public ICDistributedActorTrustManagerDatabase
+		{
+		public:
+			CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory);
+			~CDistributedActorTrustManagerDatabase_JSONDirectory();
+			
+			TCContinuation<CBasicConfig> f_GetBasicConfig() override;
+			TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) override;
+			TCContinuation<int32> f_GetNewCertificateSerial() override;
+			
+			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumServerCertificates() override;
+			TCContinuation<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) override;
+			TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override;
+			TCContinuation<void> f_SetServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override;
+			TCContinuation<void> f_RemoveServerCertificate(NStr::CStr const &_HostName) override;
+			
+			TCContinuation<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() override;
+			TCContinuation<void> f_AddListenConfig(CListenConfig const &_Config) override;
+			TCContinuation<void> f_RemoveListenConfig(CListenConfig const &_Config) override;
+
+			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() override;
+ 			TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) override;
+			TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) override;
+			TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) override;
+			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
+			
+			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections() override;
+			TCContinuation<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+			TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;
+			TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;
+			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+			
+		private:
+			struct CInternal;
+			NPtr::TCUniquePointer<CInternal> mp_pInternal;
+		};
+	}
+}

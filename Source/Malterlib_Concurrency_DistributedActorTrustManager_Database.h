@@ -3,6 +3,10 @@
 
 #pragma once
 
+#include <Mib/Concurrency/ConcurrencyDefines>
+#include "Malterlib_Concurrency_Actor.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
+
 namespace NMib
 {
 	namespace NConcurrency

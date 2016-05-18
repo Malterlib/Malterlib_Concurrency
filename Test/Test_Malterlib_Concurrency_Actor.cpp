@@ -485,6 +485,61 @@ namespace
 					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
+				{
+					DMibTestPath("Return actor call to continuation");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+					
+					uint32 Value = fDispatchBoilerplate
+						(
+							[TestActor]() -> TCContinuation<uint32>
+							{
+								return TestActor(&CExceptionActor::f_GetNoError);								
+							}
+						)
+					;
+					DMibExpect(Value, ==, 5);
+					
+					auto fCallWithError = [&] 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCContinuation<uint32>
+									{
+										return TestActor(&CExceptionActor::f_GetError);
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+				}
+				{
+					DMibTestPath("Return actor call to continuation void");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+					
+					fDispatchBoilerplate
+						(
+							[TestActor]() -> TCContinuation<void>
+							{
+								return TestActor(&CExceptionActor::f_GetNoErrorVoid);
+							}
+						)
+					;
+					
+					auto fCallWithError = [&] 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCContinuation<void>
+									{
+										return TestActor(&CExceptionActor::f_GetErrorVoid);
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+				}				
 			};
 			
 			DMibTestSuite("Inheritance")

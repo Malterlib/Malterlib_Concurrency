@@ -56,7 +56,15 @@ namespace NMib
 			: m_pData(fg_Construct())
 		{
 			f_SetException(fg_Forward<tf_CType>(_Exception));
-		}		
+		}
+		
+		template <typename t_CReturnValue>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
+		TCContinuation<t_CReturnValue>::TCContinuation(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
+			: m_pData(fg_Construct())
+		{
+			_ActorCall > *this;
+		}
 		
 		template <typename t_CReturnValue>
 		template <typename tf_CResult>

@@ -338,7 +338,112 @@ namespace NMib
 		NPrivate::TCRunProtectedHelper<t_CReturnValue, tf_CException> TCContinuation<t_CReturnValue>::fs_RunProtected()
 		{
 			return NPrivate::TCRunProtectedHelper<t_CReturnValue, tf_CException>();
+		}
+
+		namespace NPrivate
+		{
+			template <typename tf_FFunctor>
+			struct TCGetFunctorFirstParam
+			{
+				using CType = typename NTraits::TCRemoveReference
+					<
+						typename NMeta::TCTypeList_GetOrVoid
+						<
+							0
+							, typename NTraits::TCFunctionTraits
+							<
+								typename NTraits::NPrivate::TCFunctionObjectType_Helper
+								<
+									typename NTraits::TCRemoveReference<tf_FFunctor>::CType
+								>::CType
+							>::CParams
+						>::CType
+					>::CType
+				;
+			};
+		}
+
+		template <typename t_CReturnValue>
+		template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		auto TCContinuation<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+		{
+			return [Continuation = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
+				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				{
+					if (!_Result)
+					{
+						Continuation.f_SetException(fg_Move(_Result));
+						return;
+					}
+					fResultHandler();
+				}
+			;
 		}		
+
+		template <typename t_CReturnValue>
+		template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		auto TCContinuation<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+		{
+			return [Continuation = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
+				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				{
+					if (!_Result)
+					{
+						Continuation.f_SetException(fg_Move(_Result));
+						return;
+					}
+					fResultHandler(fg_Move(*_Result));
+				}
+			;
+		}
+		
+		template <typename t_CReturnValue>
+		template <typename tf_CErrorString>
+		auto TCContinuation<t_CReturnValue>::operator % (tf_CErrorString &&_ErrorString) const
+		{
+			return TCContinuationWithError<t_CReturnValue, typename NTraits::TCDecay<tf_CErrorString>::CType>(*this, _ErrorString);
+		}
+		
+		template <typename t_CReturnValue, typename t_CError>
+		TCContinuationWithError<t_CReturnValue, t_CError>::TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, t_CError const &_Error)
+			: m_Continuation(_Continuation)
+			, m_Error(_Error)
+		{
+		}
+
+		template <typename t_CReturnValue, typename t_CError>
+		template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
+		{
+			return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
+				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				{
+					if (!_Result)
+					{
+						Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, _Result.f_GetExceptionStr())));
+						return;
+					}
+					fResultHandler();
+				}
+			;
+		}
+
+		template <typename t_CReturnValue, typename t_CError>
+		template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
+		{
+			return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
+				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				{
+					if (!_Result)
+					{
+						Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, _Result.f_GetExceptionStr())));
+						return;
+					}
+					fResultHandler(fg_Move(*_Result));
+				}
+			;
+		}
 	}
 }
 

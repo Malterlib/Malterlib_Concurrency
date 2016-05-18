@@ -213,5 +213,68 @@ namespace NMib
 			return !m_pInternalActor.f_IsEmpty();
 		}
 
+		template <typename t_CActor>
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+		{
+#ifdef DMibConcurrency_CheckFunctionCalls
+			static_assert
+				(
+					NTraits::TCIsCallableWith
+					<
+						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						, void (tfp_CCallParams...)
+					>::mc_Value 
+					, "Invalid params for function"
+				)
+			;
+#endif
+			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+			return TCActorCall
+				<
+					TCWeakActor
+					, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+					, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+					, NMeta::TCTypeList<tfp_CCallParams...>
+				>
+				(
+					*this
+					, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+					, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+				)
+			;
+		}
+		
+		template <typename t_CActor>
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto TCWeakActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+		{
+#ifdef DMibConcurrency_CheckFunctionCalls
+			static_assert
+				(
+					NTraits::TCIsCallableWith
+					<
+						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						, void (tfp_CCallParams...)
+					>::mc_Value 
+					, "Invalid params for function"
+				)
+			;
+#endif
+			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+			return TCActorCall
+				<
+					TCWeakActor
+					, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+					, typename NTraits::TCRemoveReference<decltype(NContainer::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+					, NMeta::TCTypeList<tfp_CCallParams...>
+				>
+				(
+					*this
+					, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+					, NContainer::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+				)
+			;
+		}
 	}
 }

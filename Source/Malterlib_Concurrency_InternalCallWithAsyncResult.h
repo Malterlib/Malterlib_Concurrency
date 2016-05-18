@@ -39,6 +39,24 @@ namespace NMib
 				};
 			};
 
+			template <typename t_CType>
+			struct TCIsContinuationWithError
+			{
+				enum
+				{
+					mc_Value = false
+				};
+			};
+
+			template <typename t_CReturnValue, typename t_CError>
+			struct TCIsContinuationWithError<TCContinuationWithError<t_CReturnValue, t_CError>>
+			{
+				enum
+				{
+					mc_Value = true
+				};
+			};
+
 			// Direct result
 			template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
 				typename TCEnableIf
@@ -69,7 +87,7 @@ namespace NMib
 					else
 						_Local.m_Result.f_SetResult(_Local.m_ToCall(*(pActor)));
 				}
-				auto pResultActor = _Local.f_GetResultActor();
+				auto pResultActor = fg_GetResultActor(_Local.m_pResultActor);
 				_Local.m_pActorInternal = nullptr;
 				if (_Local.fs_ShouldDiscardResult())
 					return;
@@ -105,7 +123,7 @@ namespace NMib
 					if (!_Local.fs_ShouldDiscardResult())
 						_Local.m_Result.f_SetResult();
 				}
-				auto pResultActor = _Local.f_GetResultActor();
+				auto pResultActor = fg_GetResultActor(_Local.m_pResultActor);
 				_Local.m_pActorInternal = nullptr;
 				if (_Local.fs_ShouldDiscardResult())
 					return;
@@ -161,7 +179,7 @@ namespace NMib
 							else
 								Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
 
-							auto pActor = Local.f_GetResultActor();
+							auto pActor = fg_GetResultActor(Local.m_pResultActor);
 							Local.m_pActorInternal = nullptr;
 							pActor->f_QueueProcess(fg_Move(Local));
 						}

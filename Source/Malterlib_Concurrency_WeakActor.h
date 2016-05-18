@@ -18,7 +18,8 @@ namespace NMib
 			
 			friend class CConcurrencyManager;
 		public:
-			typedef TCActorInternal<t_CActor> CActorInternal;
+			using CActorInternal = TCActorInternal<t_CActor>;
+			using CContainedActor = t_CActor;
 		private:
 			NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> m_pInternalActor;
 		public:
@@ -72,6 +73,11 @@ namespace NMib
 
 			inline_small explicit operator bool() const;
 			
+			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+			
+			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+			auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 		};
 	}
 }

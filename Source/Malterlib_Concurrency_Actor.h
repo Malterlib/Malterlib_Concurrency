@@ -59,6 +59,7 @@ namespace NMib
 				mc_bAllowInternalAccess = false
 				, mc_bImmediateDelete = false
 				, mc_Priority = EPriority_Normal
+				, mc_bCanBeEmpty = false
 			};
 		};
 		

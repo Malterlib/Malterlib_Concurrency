@@ -226,6 +226,7 @@ namespace NMib
 				)
 			;
 #endif
+			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
 			return TCActorCall
 				<
 					TCActor
@@ -257,6 +258,8 @@ namespace NMib
 				)
 			;
 #endif
+			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+			
 			return TCActorCall
 				<
 					TCActor

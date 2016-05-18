@@ -529,39 +529,38 @@ namespace NMib
 			}
 			return true;
 		}
-		
+
 		template
 		<
-			typename tf_FToDispatch
+			typename tf_CActor
+			, typename tf_FToDispatch
 			, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			if (NPrivate::TCIsContinuation<CReturnType>::mc_Value)
-			{
-				return fg_ConcurrentActor().f_CallByValue
-					(
-						&CActor::f_DispatchWithReturn<CReturnType>
-						, fg_Forward<tf_FToDispatch>(_fDispatch)
-					)
-				;
-			}
+			return _Actor.f_CallByValue
+				(
+					&CActor::f_DispatchWithReturn<CReturnType>
+					, fg_Forward<tf_FToDispatch>(_fDispatch)
+				)
+			;
 		}
 
 		template
 		<
-			typename tf_FToDispatch
+			typename tf_CActor
+			, typename tf_FToDispatch
 			, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return fg_ConcurrentActor().f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
 					, [fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
@@ -570,6 +569,12 @@ namespace NMib
 					}
 				)
 			;
+		}
+		
+		template <typename tf_FToDispatch>
+		auto fg_ConcurrentDispatch(tf_FToDispatch &&_fDispatch)
+		{
+			return fg_Dispatch(fg_ConcurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 		}
 	}
 }

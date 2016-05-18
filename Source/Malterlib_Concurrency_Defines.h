@@ -52,7 +52,8 @@ namespace NMib
 			friend class TCActorInternal;
 
 		public:
-			typedef TCActorInternal<t_CActor> CActorInternal;
+			using CActorInternal = TCActorInternal<t_CActor>;
+			using CContainedActor = t_CActor;
 			
 		private:
 			NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> m_pInternalActor;

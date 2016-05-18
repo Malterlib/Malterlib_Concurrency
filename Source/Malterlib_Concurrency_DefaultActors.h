@@ -29,12 +29,22 @@ namespace NMib
 		
 		class CAnyConcurrentActor : public CConcurrentActor
 		{
+		public:
+			enum
+			{
+				mc_bCanBeEmpty = true
+			};
 		};
 		
 		TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor();
 
 		class CAnyConcurrentActorLowPrio : public CConcurrentActor
 		{
+		public:
+			enum
+			{
+				mc_bCanBeEmpty = true
+			};
 		};
 		
 		TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();

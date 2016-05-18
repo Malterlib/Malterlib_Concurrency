@@ -39,7 +39,10 @@ namespace NMib
 				TCContinuation<void> operator > (tf_FToRun &&_ToRun) const;
 			};
 
+			template <typename tf_FFunctor>
+			struct TCGetFunctorFirstParam;
 		}
+		
 		template <typename t_CReturnValue>
 		struct TCContinuation
 		{
@@ -104,8 +107,32 @@ namespace NMib
 			
 			void f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult);
 			
+			template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			auto operator / (tf_FResultHandler &&_fResultHandler) const;
+
+			template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			auto operator / (tf_FResultHandler &&_fResultHandler) const;
+
+			template <typename tf_CErrorString>
+			auto operator % (tf_CErrorString &&_ErrorString) const;
+			
 		public:
 			NPtr::TCSharedPointer<CData> m_pData;
+		};
+		
+		template <typename t_CReturnValue, typename t_CError>
+		struct TCContinuationWithError
+		{
+			TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, t_CError const &_Error);
+
+			template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			auto operator / (tf_FResultHandler &&_fResultHandler) const;
+
+			template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			auto operator / (tf_FResultHandler &&_fResultHandler) const;
+
+			TCContinuation<t_CReturnValue> const &m_Continuation;
+			t_CError const &m_Error;
 		};
 	}
 }

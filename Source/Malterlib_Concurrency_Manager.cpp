@@ -474,6 +474,19 @@ namespace NMib
 				return m_pTimerActor;
 			}
 		}
+		
+		TCActor<CActor> CConcurrencyManager::f_CurrentActor()
+		{
+			auto &ThreadLocal = *m_ThreadLocal;
+			if (!ThreadLocal.m_pCurrentActor)
+				return fg_Default();
+			return fg_ThisActor(ThreadLocal.m_pCurrentActor);
+		}
+
+		TCActor<CActor> fg_CurrentActor()
+		{
+			return fg_ConcurrencyManager().f_CurrentActor();
+		}
 
 		auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor())
 		{

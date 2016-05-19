@@ -17,7 +17,7 @@ namespace NMib
 		{
 			CHost::~CHost()
 			{
-				f_Clear();
+				f_DeletePackets();
 			}
 			
 			bool CHost::f_CanReceivePublish() const
@@ -38,19 +38,12 @@ namespace NMib
 
 				m_bDeleted = true;
 				
-				f_Clear();
+				f_DeletePackets();
 			}
 			
-			void CHost::f_Clear()
+			void CHost::f_DeletePackets()
 			{
 				DMibFastCheck(m_RemoteActors.f_IsEmpty());
-				
-				m_ActiveConnections.f_Clear();
-				m_OutstandingCalls.f_Clear();
-				m_RemoteActors.f_Clear();
-				m_ClientConnections.f_Clear();
-				m_ServerConnections.f_Clear();
-				m_AllowedNamespaces.f_Clear();
 				m_Incoming_ReceivedPackets.f_DeleteAll();
 				m_Incoming_QueuedPackets.f_DeleteAll();
 				m_Outgoing_QueuedPackets.f_DeleteAll();
@@ -87,7 +80,6 @@ namespace NMib
 				
 				fp_DestroyClientConnection(Connection, true);
 			}
-			Host.m_ClientConnections.f_Clear();
 			
 			for (auto iServerConnection = Host.m_ServerConnections.f_GetIterator(); iServerConnection; )
 			{
@@ -99,7 +91,8 @@ namespace NMib
 				
 				fp_DestroyServerConnection(Connection, true);
 			}
-			Host.m_ServerConnections.f_Clear();
+			
+			DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
 
 			for (auto &RemoteActor : Host.m_RemoteActors)
 			{
@@ -117,6 +110,8 @@ namespace NMib
 			Host.m_pLastSendConnection = nullptr;
 			
 			Host.m_bAllowAllNamespaces = false;
+			Host.m_AllowedNamespaces.f_Clear();
+			
 			if (_pSaveConnection)
 			{
 				Host.m_bIncoming = _pSaveConnection->m_bIncoming;
@@ -137,7 +132,7 @@ namespace NMib
 				Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
 			Host.m_OutstandingCalls.f_Clear();
 			
-			Host.f_Clear();
+			Host.f_DeletePackets();
 		}
 		
 		void CActorDistributionManager::CInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection)

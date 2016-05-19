@@ -203,7 +203,10 @@ namespace NMib
 			}
 			if (_bExpectFailure)
 			{
+#if DMibConfig_Tests_Enable
+
 				DMibTest(DMibExpr(bTimedOutWatingForActor) && DMibExpr(Subscription.m_RemoteActor.f_IsEmpty()));
+#endif
 				Subscription.m_Subscription.f_Clear();
 				return NStr::CStr();
 			}

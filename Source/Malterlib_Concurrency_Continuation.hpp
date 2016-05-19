@@ -59,6 +59,20 @@ namespace NMib
 		}
 		
 		template <typename t_CReturnValue>
+		TCContinuation<t_CReturnValue>::TCContinuation(TCAsyncResult<t_CReturnValue> const &_Result)
+			: m_pData(fg_Construct())
+		{
+			f_SetResult(_Result);
+		}
+		
+		template <typename t_CReturnValue>
+		TCContinuation<t_CReturnValue>::TCContinuation(TCAsyncResult<t_CReturnValue> &&_Result)
+			: m_pData(fg_Construct())
+		{
+			f_SetResult(fg_Move(_Result));
+		}
+		
+		template <typename t_CReturnValue>
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
 		TCContinuation<t_CReturnValue>::TCContinuation(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
 			: m_pData(fg_Construct())
@@ -273,6 +287,7 @@ namespace NMib
 			template <typename tf_FToRun>
 			TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, t_CException>::operator > (tf_FToRun &&_ToRun) const
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				TCContinuation<t_CReturnValue> Continuation;
 				try
 				{
@@ -289,6 +304,7 @@ namespace NMib
 			template <typename tf_FToRun>
 			TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, void>::operator > (tf_FToRun &&_ToRun) const
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				TCContinuation<t_CReturnValue> Continuation;
 				try
 				{
@@ -305,6 +321,7 @@ namespace NMib
 			template <typename tf_FToRun>
 			TCContinuation<void> TCRunProtectedHelper<void, t_CException>::operator > (tf_FToRun &&_ToRun) const
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				TCContinuation<void> Continuation;
 				try
 				{
@@ -321,6 +338,7 @@ namespace NMib
 			template <typename tf_FToRun>
 			TCContinuation<void> TCRunProtectedHelper<void, void>::operator > (tf_FToRun &&_ToRun) const
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				TCContinuation<void> Continuation;
 				try
 				{
@@ -350,57 +368,102 @@ namespace NMib
 
 		namespace NPrivate
 		{
-			template <typename tf_FFunctor>
-			struct TCGetFunctorFirstParam
+			template <typename t_CTypeList>
+			struct TCAllAsyncResultsAreVoidHelper
 			{
-				using CType = typename NTraits::TCRemoveReference
+			};
+
+			template <typename ...tp_CParam>
+			struct TCAllAsyncResultsAreVoidHelper<NMeta::TCTypeList<tp_CParam...>>
+			{
+				enum
+				{
+					mc_Value = NMeta::TCAllIsTrue
 					<
-						typename NMeta::TCTypeList_GetOrVoid
+						NTraits::TCIsVoid<tp_CParam>::mc_Value...
+					>::mc_Value
+				};
+			};
+			
+			template <typename tf_FFunctor>
+			struct TCAllAsyncResultsAreVoid
+			{
+				enum
+				{
+					mc_Value = TCAllAsyncResultsAreVoidHelper
+					<
+						typename NTraits::TCFunctionTraits
 						<
-							0
-							, typename NTraits::TCFunctionTraits
+							typename NTraits::NPrivate::TCFunctionObjectType_Helper
 							<
-								typename NTraits::NPrivate::TCFunctionObjectType_Helper
-								<
-									typename NTraits::TCRemoveReference<tf_FFunctor>::CType
-								>::CType
-							>::CParams
-						>::CType
-					>::CType
-				;
+								typename NTraits::TCRemoveReference<tf_FFunctor>::CType
+							>::CType
+						>::CParams
+					>::mc_Value
+				};
 			};
 		}
 
 		template <typename t_CReturnValue>
-		template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		template 
+		<
+			typename tf_FResultHandler
+			, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *
+		>
 		auto TCContinuation<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 		{
 			return [Continuation = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
-				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				(auto &&...p_Results) mutable
 				{
-					if (!_Result)
-					{
-						Continuation.f_SetException(fg_Move(_Result));
+					bool bFailed = false;
+					TCInitializerList<bool> Dummy = 
+						{
+							[&]
+							{
+								if (!bFailed && !p_Results)
+								{
+									Continuation.f_SetException(fg_Move(p_Results));
+									bFailed = true;
+								}
+								return true;
+							}
+							()...
+						}
+					;
+					if (bFailed)
 						return;
-					}
+					(void)Dummy;
 					fResultHandler();
 				}
 			;
 		}		
 
 		template <typename t_CReturnValue>
-		template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 		auto TCContinuation<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 		{
 			return [Continuation = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler)]
-				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				(auto &&...p_Results) mutable
 				{
-					if (!_Result)
-					{
-						Continuation.f_SetException(fg_Move(_Result));
+					bool bFailed = false;
+					TCInitializerList<bool> Dummy = 
+						{
+							[&]
+							{
+								if (!bFailed && !p_Results)
+								{
+									Continuation.f_SetException(fg_Move(p_Results));
+									bFailed = true;
+								}
+								return true;
+							}
+							()...
+						}
+					;
+					(void)Dummy;
+					if (bFailed)
 						return;
-					}
-					fResultHandler(fg_Move(*_Result));
+					fResultHandler(fg_Move(*p_Results)...);
 				}
 			;
 		}
@@ -420,35 +483,61 @@ namespace NMib
 		}
 
 		template <typename t_CReturnValue, typename t_CError>
-		template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 		auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
 		{
 			return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
-				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				(auto &&...p_Results) mutable
 				{
-					if (!_Result)
-					{
-						Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, _Result.f_GetExceptionStr())));
+					bool bFailed = false;
+					TCInitializerList<bool> Dummy = 
+						{
+							[&]
+							{
+								if (!bFailed && !p_Results)
+								{
+									Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
+									bFailed = true;
+								}
+								return true;
+							}
+							()...
+						}
+					;
+					(void)Dummy;
+					if (bFailed)
 						return;
-					}
 					fResultHandler();
 				}
 			;
 		}
 
 		template <typename t_CReturnValue, typename t_CError>
-		template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> *>
+		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 		auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
 		{
 			return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
-				(TCAsyncResult<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType> &&_Result) mutable
+				(auto &&...p_Results) mutable
 				{
-					if (!_Result)
-					{
-						Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, _Result.f_GetExceptionStr())));
+					bool bFailed = false;
+					TCInitializerList<bool> Dummy = 
+						{
+							[&]
+							{
+								if (!bFailed && !p_Results)
+								{
+									Continuation.f_SetException(DMibErrorInstance(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
+									bFailed = true;
+								}
+								return true;
+							}
+							()...
+						}
+					;
+					(void)Dummy;
+					if (bFailed)
 						return;
-					}
-					fResultHandler(fg_Move(*_Result));
+					fResultHandler(fg_Move(*p_Results)...);
 				}
 			;
 		}

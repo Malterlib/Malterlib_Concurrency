@@ -26,7 +26,7 @@ namespace NMib
 				)
 			;
 			
-			(*Internal.m_pInitOnce)() > [this](TCAsyncResult<void> &&_Result)
+			(*Internal.m_pInitOnce)() > [this](TCAsyncResult<NStr::CStr> &&_Result)
 				{
 					auto &Internal = *mp_pInternal; 
 					if (_Result)
@@ -40,13 +40,13 @@ namespace NMib
 			;
 		}
 
-		TCContinuation<void> CDistributedActorTrustManager::f_Initialize()
+		TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_Initialize()
 		{
-			TCContinuation<void> Continuation;
+			TCContinuation<NStr::CStr> Continuation;
 
 			auto &Internal = *mp_pInternal;
 			
-			(*Internal.m_pInitOnce)() > [Continuation](TCAsyncResult<void> &&_Result)
+			(*Internal.m_pInitOnce)() > [Continuation](TCAsyncResult<NStr::CStr> &&_Result)
 				{
 					Continuation.f_SetResult(fg_Move(_Result));
 				}
@@ -55,9 +55,9 @@ namespace NMib
 			return Continuation;
 		}
 
-		TCContinuation<void> CDistributedActorTrustManager::CInternal::f_InitAttempt()
+		TCContinuation<NStr::CStr> CDistributedActorTrustManager::CInternal::f_InitAttempt()
 		{
-			TCContinuation<void> Continuation;
+			TCContinuation<NStr::CStr> Continuation;
 			
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates)
@@ -148,7 +148,7 @@ namespace NMib
 		
 		void CDistributedActorTrustManager::CInternal::f_Init
 			(
-				TCContinuation<void> &_Continuation
+				TCContinuation<NStr::CStr> &_Continuation
 				, CBasicConfig const &_Basic
 				, NContainer::TCSet<CListenConfig> const &_Listen
 				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
@@ -209,7 +209,18 @@ namespace NMib
 				return;
 			}
 
-			m_ActorDistributionManager = m_fDistributionManagerFactory(m_BasicConfig.m_HostID);
+			if (m_fDistributionManagerFactory)
+				m_ActorDistributionManager = m_fDistributionManagerFactory(m_BasicConfig.m_HostID);
+			else
+			{
+				NStr::CStr ResultingHostID = fg_InitDistributionManager(m_BasicConfig.m_HostID);
+				if (ResultingHostID != m_BasicConfig.m_HostID)
+				{
+					_Continuation.f_SetException(DMibErrorInstance("Default distribution manager already initialized with the wrong host ID"));
+					return;
+				}
+				m_ActorDistributionManager = fg_GetDistributionManager();
+			}
 			m_AccessHandler = fg_ConstructActor<CActorDistributionManagerAccessHandler>(this, fg_ThisActor(m_pThis));
 			m_ActorDistributionManager(&CActorDistributionManager::f_SetAccessHandler, m_AccessHandler)
 				+ WriteDatabaseResults.f_GetResults()
@@ -399,7 +410,7 @@ namespace NMib
 								}
 							; 
 							
-							_Continuation.f_SetResult();
+							_Continuation.f_SetResult(m_BasicConfig.m_HostID);
 						}
 					;
 				}

@@ -27,33 +27,39 @@ namespace NMib
 		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
 		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
 		
-		void TCAsyncResult<void>::f_Get() const
+		CVoidTag TCAsyncResult<void>::f_Get() const
 		{
 			if (m_pException != nullptr)
 				std::rethrow_exception(m_pException);
 			else if (!m_bHasBeenSet)
 				DMibError("No result specified");
+			return CVoidTag();
 		}
-		void TCAsyncResult<void>::f_Get()
+		
+		CVoidTag TCAsyncResult<void>::f_Get()
 		{
 			if (m_pException != nullptr)
 				std::rethrow_exception(m_pException);
 			else if (!m_bHasBeenSet)
 				DMibError("No result specified");
+			return CVoidTag();
 		}
-		void TCAsyncResult<void>::f_Move()
+		
+		CVoidTag TCAsyncResult<void>::f_Move()
 		{
 			if (m_pException != nullptr)
 				std::rethrow_exception(m_pException);
 			else if (!m_bHasBeenSet)
 				DMibError("No result specified");
+			return CVoidTag();
 		}
 
-		void TCAsyncResult<void>::operator *() const
+		CVoidTag TCAsyncResult<void>::operator *() const
 		{
 			return f_Get();
 		}
-		void TCAsyncResult<void>::operator *()
+		
+		CVoidTag TCAsyncResult<void>::operator *()
 		{
 			return f_Get();
 		}

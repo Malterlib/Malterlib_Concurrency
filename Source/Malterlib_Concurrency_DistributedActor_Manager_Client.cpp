@@ -45,87 +45,64 @@ namespace NMib
 			}
 		}
 
-		auto CDistributedActorConnectionReference::f_GetStatus() -> 
-			TCActorCall
-			<
-				TCActor<CConcurrentActor>
-				, TCContinuation<CDistributedActorConnectionStatus> 
-				(CActor::*)
-				(NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-				, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-				, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
-			>
+		TCDispatchedActorCall<CDistributedActorConnectionStatus> CDistributedActorConnectionReference::f_GetStatus() 
 		{
 			bool bAlreadyRemoved = mp_DistributionManager.f_IsEmpty();
 			auto DistributionManager = mp_DistributionManager.f_Lock();
 			mp_DistributionManager.f_Clear();
-			return fg_ConcurrentActor().f_CallByValue
+			
+			return fg_ConcurrentDispatch
 				(
-					&CActor::f_DispatchWithReturn<TCContinuation<CDistributedActorConnectionStatus>>
-					, NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
-					(
-						[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = fg_Move(mp_ConnectionID)]
+					[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = fg_Move(mp_ConnectionID)]
+					{
+						TCContinuation<CDistributedActorConnectionStatus> Continuation;
+						if (DistributionManager)
 						{
-							TCContinuation<CDistributedActorConnectionStatus> Continuation;
-							if (DistributionManager)
-							{
-								DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, ConnectionID) 
-									> [Continuation](TCAsyncResult<CDistributedActorConnectionStatus> &&_ConnectionStatus)
-									{
-										Continuation.f_SetResult(fg_Move(_ConnectionStatus));
-									}
-								;
-								return Continuation;
-							}
-							if (bAlreadyRemoved)
-								Continuation.f_SetException(DMibErrorInstance("Connection has been disconnected"));
-							else
-								Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
-
+							DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, ConnectionID) 
+								> [Continuation](TCAsyncResult<CDistributedActorConnectionStatus> &&_ConnectionStatus)
+								{
+									Continuation.f_SetResult(fg_Move(_ConnectionStatus));
+								}
+							;
 							return Continuation;
 						}
-					)
+						if (bAlreadyRemoved)
+							Continuation.f_SetException(DMibErrorInstance("Connection has been disconnected"));
+						else
+							Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+
+						return Continuation;
+					}
 				)
 			;
 		}
 		
-		auto CDistributedActorConnectionReference::f_Disconnect() 
-			-> TCActorCall
-			<
-				TCActor<CConcurrentActor>
-				, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-				, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-				, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
-			>
+		TCDispatchedActorCall<void> CDistributedActorConnectionReference::f_Disconnect() 
 		{
 			bool bAlreadyRemoved = mp_DistributionManager.f_IsEmpty();
 			auto DistributionManager = mp_DistributionManager.f_Lock();
 			mp_DistributionManager.f_Clear();
-			return fg_ConcurrentActor().f_CallByValue
+			return fg_ConcurrentDispatch
 				(
-					&CActor::f_DispatchWithReturn<TCContinuation<void>>
-					, NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
-					(
-						[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = fg_Move(mp_ConnectionID)]
+					[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = fg_Move(mp_ConnectionID)]
+					{
+						TCContinuation<void> Continuation;
+						if (DistributionManager)
 						{
-							TCContinuation<void> Continuation;
-							if (DistributionManager)
-							{
-								DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID) > [Continuation](TCAsyncResult<void> &&_Result)
-									{
-										Continuation.f_SetResult(fg_Move(_Result));
-									}
-								;
-								return Continuation;
-							}
-							if (bAlreadyRemoved)
-								Continuation.f_SetException(DMibErrorInstance("Connection has already been disconnected"));
-							else
-								Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
-							
+							DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID) > [Continuation](TCAsyncResult<void> &&_Result)
+								{
+									Continuation.f_SetResult(fg_Move(_Result));
+								}
+							;
 							return Continuation;
 						}
-					)
+						if (bAlreadyRemoved)
+							Continuation.f_SetException(DMibErrorInstance("Connection has already been disconnected"));
+						else
+							Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+						
+						return Continuation;
+					}
 				)
 			;
 		}
@@ -277,7 +254,8 @@ namespace NMib
 						{
 							NStr::CStr Error = fg_Format
 								(
-									"Lost connection to '{}': {} {} {}"
+									"Lost outgoing connection to '{}': {} {} {}"
+									, _pConnection->m_ServerURL.f_Encode()
 									, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 									, _Reason	
 									, _Message
@@ -332,6 +310,13 @@ namespace NMib
 								{
 									if (_pContinuation)
 										_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
+									return;
+								}
+								
+								if (!_pConnection->m_Connection)
+								{
+									if (_pContinuation)
+										_pContinuation->f_SetException(DMibErrorInstance("Disconnected"));
 									return;
 								}
 								

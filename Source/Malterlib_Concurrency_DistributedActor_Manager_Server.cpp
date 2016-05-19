@@ -219,8 +219,23 @@ namespace NMib
 								Host.m_bIncoming = true;
 								pConnection->m_bIncoming = true;
 								
-								NewServerConnection.m_fOnClose = [this, pConnection](NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
+								NewServerConnection.m_fOnClose = [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress]
+									(NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
 									{
+										NStr::CStr CloseMessage = fg_Format
+											(
+												"Lost incoming connection from '{}': {} {} {}"
+												, Address.f_GetString()
+												, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
+												, _Reason
+												, _Message
+											)
+										;
+										
+										if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
+											DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
+										else
+											DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
 										if (!pConnection->m_pHost)
 											return;
 										fp_DestroyServerConnection(*pConnection, false);
@@ -242,14 +257,17 @@ namespace NMib
 								pConnection->m_Connection = NewServerConnection.f_Accept
 									(
 										"MalterlibDistributedActors"
-										, fg_ThisActor(m_pThis) / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress](NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
+										, fg_ThisActor(m_pThis) / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress, HostID]
+										(NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
 										{
 											if (_Subscription)
 											{
 												if (!pConnection->m_pHost)
 													return;
+												if (!pConnection->m_Connection)
+													return;
 
-												DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Accepted connection from '{}'", Address.f_GetString());
+												DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Accepted connection from '{}' with host ID '{}'", Address.f_GetString(), HostID);
 												pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
 												fp_Identify(pConnection.f_Get());
 											}

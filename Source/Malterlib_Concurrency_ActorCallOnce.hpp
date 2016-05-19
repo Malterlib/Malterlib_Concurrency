@@ -7,45 +7,59 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		template <typename tf_CResult>
-		TCActorCallOnce<tf_CResult>::TCActorCallOnce(TCWeakActor<CActor> const &_Actor, NFunction::TCFunction<TCContinuation<tf_CResult> (NFunction::CThisTag &)> &&_fFunction)
-			: m_CallState(fg_ConstructActor<CCallState>(_Actor, fg_Move(_fFunction))) 
+		template <typename t_CResult, typename ...tp_CParams>
+		TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
+			(
+				TCWeakActor<CActor> const &_Actor
+				, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fFunction
+				, NStr::CStr const &_ErrorOnRunning
+			)
+			: m_CallState(fg_ConstructActor<CCallState>(_Actor, fg_Move(_fFunction), _ErrorOnRunning)) 
 		{
 		}
 		
-		template <typename tf_CResult>
-		TCActorCallOnce<tf_CResult>::~TCActorCallOnce()
+		template <typename t_CResult, typename ...tp_CParams>
+		TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
 		{
 		}
 		
-		template <typename tf_CResult>
-		auto TCActorCallOnce<tf_CResult>::operator()()
+		template <typename t_CResult, typename ...tp_CParams>
+		auto TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
 		{
-			return m_CallState(&CCallState::f_Call);
+			return m_CallState.f_CallByValue(&CCallState::f_Call, p_Params...);
 		}
 	
-		template <typename tf_CResult>
-		TCActorCallOnce<tf_CResult>::CCallState::CCallState(TCWeakActor<CActor> const &_Actor, NFunction::TCFunction<TCContinuation<tf_CResult> (NFunction::CThisTag &)> &&_fToPerform)
+		template <typename t_CResult, typename ...tp_CParams>
+		TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
+			(
+				TCWeakActor<CActor> const &_Actor
+				, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fToPerform
+				, NStr::CStr const &_ErrorOnRunning
+			)
 			: m_Actor(_Actor)
 			, m_fToPerform(fg_Move(_fToPerform))
+			, m_ErrorOnRunning(_ErrorOnRunning)
 		{
 		}
 		
-		template <typename tf_CResult>
-		TCContinuation<tf_CResult> TCActorCallOnce<tf_CResult>::CCallState::f_Call()
+		template <typename t_CResult, typename ...tp_CParams>
+		TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
 		{
-			TCContinuation<tf_CResult> Continuation;
-
 			if (m_Result.f_IsSet())
 			{
-				Continuation.f_SetResult(m_Result);
-				return Continuation;
+				return m_Result;
 			}
 			
 			if (m_bRunning)
 			{
-				m_Continuations.f_Insert(Continuation);
-				return Continuation;
+				if (m_ErrorOnRunning.f_IsEmpty())
+				{
+					return m_Continuations.f_Insert();
+				}
+				else
+				{
+					return DMibErrorInstance(m_ErrorOnRunning);
+				}
 			}
 			
 			auto Actor = m_Actor.f_Lock();
@@ -53,22 +67,23 @@ namespace NMib
 				return DMibErrorInstance("Actor for call once call has been deleted");
 
 			m_bRunning = true;
-			
-			Actor
+
+			TCContinuation<t_CResult> Continuation;
+
+			fg_Dispatch
 				(
-					&CActor::f_DispatchWithReturn<TCContinuation<tf_CResult>>
-					, [this]() mutable
+					Actor
+					, [this, p_Params...]() mutable
 					{
-						return m_fToPerform();
+						return m_fToPerform(p_Params...);
 					}
 				)
-				> [this, Continuation](TCAsyncResult<tf_CResult> const &_Result)
+				> [this, Continuation](TCAsyncResult<t_CResult> const &_Result)
 				{
 					Continuation.f_SetResult(_Result);
 					
-					for (auto &Continuation : m_Continuations)
-						Continuation.f_SetResult(_Result);
-					
+					for (auto &DeferredContinuation : m_Continuations)
+						DeferredContinuation.f_SetResult(_Result);
 					m_Continuations.f_Clear();
 					
 					if (_Result)

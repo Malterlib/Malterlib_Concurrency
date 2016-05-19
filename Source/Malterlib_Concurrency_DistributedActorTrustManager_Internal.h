@@ -81,10 +81,10 @@ namespace NMib
 					, uint32 _KeySize 
 				)
 			;
-			TCContinuation<void> f_InitAttempt();
+			TCContinuation<NStr::CStr> f_InitAttempt();
 			void f_Init
 				(
-					TCContinuation<void> &_Continuation
+					TCContinuation<NStr::CStr> &_Continuation
 					, CBasicConfig const &_Basic
 					, NContainer::TCSet<CListenConfig> const &_Listen
 					, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
@@ -110,7 +110,7 @@ namespace NMib
 			TCDistributedActor<CTicketInterface> m_TicketInterface;
 			CDistributedActorPublication m_TicketInterfacePublication;		
 
-			NPtr::TCUniquePointer<TCActorCallOnce<void>> m_pInitOnce;
+			NPtr::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
 			
 			CBasicConfig m_BasicConfig;
 			

@@ -46,14 +46,9 @@ namespace NMib
 			
 			TCContinuation<NContainer::TCVector<uint8>> Continuation;
 
-			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) > [this, Continuation, _CertificateRequest](TCAsyncResult<int32> &&_Serial)
+			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
+				> Continuation % "Failed to get new certificate serial" / [this, Continuation, _CertificateRequest](int32 _Serial)
 				{
-					if (!_Serial)
-					{
-						Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to get new certificate serial: {}", _Serial.f_GetExceptionStr())));
-						return;
-					}
-					
 					struct CResults
 					{
 						NContainer::TCVector<uint8> m_SignedCertificate;
@@ -66,7 +61,7 @@ namespace NMib
 								CaCertificate = m_BasicConfig.m_CACertificate
 								, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
 								, _CertificateRequest
-								, Serial = *_Serial
+								, Serial = _Serial
 							]
 							{
 								CResults Results;
@@ -95,29 +90,21 @@ namespace NMib
 								return Results;
 							}
 						) 
-						> [this, Continuation](TCAsyncResult<CResults> &&_Results)
+						> Continuation / [this, Continuation](CResults &&_Results)
 						{
-							if (_Results)
-							{
-								auto &Results = *_Results;
-								ICDistributedActorTrustManagerDatabase::CClient Client;
-								Client.m_PublicCertificate = Results.m_SignedCertificate;
-								m_Database
-									(
-										&ICDistributedActorTrustManagerDatabase::f_AddClient
-										, Results.m_HostID
-										, Client
-									)
-									> [this, Continuation, Certificate = Results.m_SignedCertificate](TCAsyncResult<void> &&_Client)
-									{
-										if (!_Client)
-											DMibError(fg_Format("Failed to add client to trust database: {}", _Client.f_GetExceptionStr()));
-										Continuation.f_SetResult(fg_Move(Certificate));
-									}
-								;
-							}
-							else
-								Continuation.f_SetException(_Results);
+							ICDistributedActorTrustManagerDatabase::CClient Client;
+							Client.m_PublicCertificate = _Results.m_SignedCertificate;
+							m_Database
+								(
+									&ICDistributedActorTrustManagerDatabase::f_AddClient
+									, _Results.m_HostID
+									, Client
+								)
+								> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+								{
+									Continuation.f_SetResult(fg_Move(Certificate));
+								}
+							;
 						}
 					;
 				}
@@ -132,29 +119,15 @@ namespace NMib
 				, NContainer::TCVector<uint8> const &_CertificateRequest
 			)
 		{
-			auto ThisActor = mp_ThisActor.f_Lock();
-			if (!ThisActor)
-				return DMibErrorInstance("Trust manager actor deleted");
-			
-			TCContinuation<NContainer::TCVector<uint8>> Continuation;
-			
-			ThisActor
+			return fg_Dispatch
 				(
-					&CActor::f_DispatchWithReturn<TCContinuation<NContainer::TCVector<uint8>>>
+					mp_ThisActor
 					, [pInternal = mp_pInternal, _Token, _CertificateRequest]
 					{
 						return pInternal->f_SignCertificate(_Token, _CertificateRequest);
 					}
 				)
-				> [Continuation](TCAsyncResult<NContainer::TCVector<uint8>> &&_Result)
-				{
-					if (_Result)
-						Continuation.f_SetResult(fg_Move(*_Result));
-					else
-						Continuation.f_SetException(_Result);
-				}
 			;
-			return Continuation;
 		}
 
 		CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::CActorDistributionManagerAccessHandler
@@ -173,29 +146,15 @@ namespace NMib
 				, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain
 			)
 		{
-			auto ThisActor = mp_ThisActor.f_Lock();
-			if (!ThisActor)
-				return DMibErrorInstance("Trust manager actor deleted");
-			
-			TCContinuation<NStr::CStr> Continuation;
-			
-			ThisActor
+			return fg_Dispatch
 				(
-					&CActor::f_DispatchWithReturn<TCContinuation<NStr::CStr>>
+					mp_ThisActor
 					, [pInternal = mp_pInternal, _HostID, _CertificateChain]
 					{
 						return pInternal->f_ValidateClientAccess(_HostID, _CertificateChain);
 					}
 				)
-				> [Continuation](TCAsyncResult<NStr::CStr> &&_Result)
-				{
-					if (_Result)
-						Continuation.f_SetResult(fg_Move(*_Result));
-					else
-						Continuation.f_SetException(_Result);
-				}
 			;
-			return Continuation;
 		}		
 		
 		TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedActorTrustManager::f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address)
@@ -557,17 +516,11 @@ namespace NMib
 						ConnectionSettings.m_bAllowInsecureConnection = true;
 					
 						Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings) 
-							> [this, Continuation, _Address](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+							> Continuation % "Failed to connect to server" / [this, Continuation, _Address](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 							{
 								auto &Internal = *mp_pInternal;
-								
-								if (!_ConnectionResult)
-								{
-									Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to connect to server: {}", _ConnectionResult.f_GetExceptionStr())));
-									return;
-								}
 
-								auto &ConnectionResult = *_ConnectionResult;
+								auto &ConnectionResult = _ConnectionResult;
 								if (ConnectionResult.m_CertificateChain.f_IsEmpty())
 								{
 									Continuation.f_SetException(DMibErrorInstance("Missing certificate chain in connection result"));
@@ -606,15 +559,10 @@ namespace NMib
 								ConnectionSettings.m_bRetryConnectOnFailure = false;
 							
 								Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings) 
-									> [this, Continuation, _Address, NewClientConnection, ServerHostID](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+									> Continuation % "Failed to verify connection to server" 
+									/ [this, Continuation, _Address, NewClientConnection, ServerHostID](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 									{
 										auto &Internal = *mp_pInternal;
-								
-										if (!_ConnectionResult)
-										{
-											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to verify connection to server: {}", _ConnectionResult.f_GetExceptionStr())));
-											return;
-										}
 
 										NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 										ConnectionSettings.m_ServerURL = _Address.m_URL;
@@ -625,7 +573,8 @@ namespace NMib
 										ConnectionSettings.m_bRetryConnectOnFailure = true;
 									
 										Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings) 
-											> 
+											> Continuation % "Failed to connect to server" 
+											/
 											[
 												this
 												, Continuation
@@ -633,20 +582,8 @@ namespace NMib
 												, NewClientConnection
 												, ServerHostID
 											]
-											(TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+											(CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 											{
-												if (!_ConnectionResult)
-												{
-													Continuation.f_SetException
-														(
-															DMibErrorInstance
-															(
-																fg_Format("Failed to connect to server: {}", _ConnectionResult.f_GetExceptionStr())
-															)
-														)
-													;
-													return;
-												}
 												auto &Internal = *mp_pInternal;
 								
 												Internal.m_Database
@@ -655,26 +592,18 @@ namespace NMib
 														, _Address
 														, NewClientConnection
 													) 
-													>
+													> Continuation % "Failed to save new client connection to database"
+													/ 
 													[
 														this
 														, Continuation
 														, _Address
 														, NewClientConnection
 														, ServerHostID
-														, ConnectionReference = fg_Move(_ConnectionResult->m_ConnectionReference) 
+														, ConnectionReference = fg_Move(_ConnectionResult.m_ConnectionReference) 
 													]
-													(TCAsyncResult<void> &&_Result) mutable
+													() mutable
 													{
-														if (!_Result)
-														{
-															Continuation.f_SetException
-																(
-																	DMibErrorInstance(fg_Format("Failed to save new client connection to database: {}", _Result.f_GetExceptionStr()))
-																)
-															;
-															return;
-														}
 														auto &Internal = *mp_pInternal;
 														
 														auto &LocalClientConnection = Internal.m_ClientConnections[_Address];
@@ -710,40 +639,15 @@ namespace NMib
 					{
 						auto &Internal = *mp_pInternal; 
 						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address) 
-							> [this, Continuation, _Address](TCAsyncResult<void> &&_Result)
+							> Continuation % "Failed to remove client connection from database" / [this, Continuation, _Address]()
 							{
 								auto &Internal = *mp_pInternal;
-								
-								if (!_Result)
-								{
-									Continuation.f_SetException
-										(
-											DMibErrorInstance
-											(
-												fg_Format("Failed to remove client connection from database: {}", _Result.f_GetExceptionStr())
-											)
-										)
-									;
-									return;
-								}
-								
 								auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 								if (pClientConnection)
 								{
-									pClientConnection->m_ConnectionReference.f_Disconnect() > [this, _Address, Continuation](TCAsyncResult<void> &&_Result)
+									pClientConnection->m_ConnectionReference.f_Disconnect() 
+										> Continuation % "Failed to disconnect client connection" / [this, _Address, Continuation]()
 										{
-											if (!_Result)
-											{
-												Continuation.f_SetException
-													(
-														DMibErrorInstance
-														(
-															fg_Format("Failed to disconnect client connection: {}", _Result.f_GetExceptionStr())
-														)
-													)
-												;
-												return;
-											}
 											auto &Internal = *mp_pInternal;
 											auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 											if (pConnection)
@@ -756,6 +660,44 @@ namespace NMib
 									Continuation.f_SetResult();
 							}
 						;
+					}
+				)
+			;
+			return Continuation;
+		}
+
+		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumClientConnections()
+		{
+			auto &Internal = *mp_pInternal;
+			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation]
+					{
+						auto &Internal = *mp_pInternal;
+						NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
+						for (auto iClientConnection = Internal.m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
+							Addresses[iClientConnection.f_GetKey()];
+						
+						Continuation.f_SetResult(fg_Move(Addresses));
+					}
+				)
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
+		{
+			auto &Internal = *mp_pInternal;
+			TCContinuation<bool> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation, _Address]
+					{
+						auto &Internal = *mp_pInternal;
+						Continuation.f_SetResult(Internal.m_ClientConnections.f_FindEqual(_Address) != nullptr);
 					}
 				)
 			;
@@ -777,16 +719,10 @@ namespace NMib
 							iConnection->m_ConnectionReference.f_GetStatus() > ConnectionResults.f_AddResult(iConnection->f_GetAddress());
 						
 						ConnectionResults.f_GetResults() 
-							> [Continuation](TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<CDistributedActorConnectionStatus>>> &&_Results)
+							> Continuation / [Continuation](NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<CDistributedActorConnectionStatus>> &&_Results)
 							{
-								if (!_Results)
-								{
-									Continuation.f_SetException(fg_Move(_Results));
-									return;
-								}
-						
 								CDistributedActorTrustManager::CConnectionState ConnectionState;
-								for (auto iStatus = _Results->f_GetIterator(); iStatus; ++iStatus)
+								for (auto iStatus = _Results.f_GetIterator(); iStatus; ++iStatus)
 								{
 									auto &Address = iStatus.f_GetKey();
 									auto &StatusResult = *iStatus;

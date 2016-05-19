@@ -129,6 +129,11 @@ namespace
 				return DMibErrorInstance("No client for host ID");
 			return fg_Explicit(*pClient);
 		}
+
+		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override
+		{
+			return fg_Explicit(m_Clients.f_FindEqual(_HostID) != nullptr);
+		}
 		
 		TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) override
 		{
@@ -162,7 +167,7 @@ namespace
 				return DMibErrorInstance("No client connection for address");
 			return fg_Explicit(*pClientConnection);
 		}
-		
+
 		TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override
 		{
 			if (!m_ClientConnections(_Address, _ClientConnection).f_WasCreated())
@@ -264,12 +269,35 @@ namespace
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = "wss://localhost:31392/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(60.0));
 
+					auto AllListens = ServerTrustManager(&CDistributedActorTrustManager::f_EnumListens).f_CallSync(60.0);
+					NContainer::TCSet<CDistributedActorTrustManager_Address> ExpectedListens;
+					ExpectedListens[ServerAddress];
+					DMibExpect(AllListens, ==, ExpectedListens);
+					
+					
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
 					
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					DMibExpectTrue(ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, TrustTicket.m_ServerAddress).f_CallSync(60.0));
+					
+					auto AllClientConnections = ClientTrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(60.0);
+					NContainer::TCSet<CDistributedActorTrustManager_Address> ExpectedClientConnections;
+					ExpectedClientConnections[TrustTicket.m_ServerAddress];
+					DMibExpect(AllClientConnections, ==, ExpectedClientConnections);
+					
 					
 					fDoTests(ServerTrustManager, ClientTrustManager);
+					
+					NStr::CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+					
+					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasClient, ClientHostID).f_CallSync(60.0));
+					
+					auto AllClients = ServerTrustManager(&CDistributedActorTrustManager::f_EnumClients).f_CallSync(60.0);
+					NContainer::TCSet<NStr::CStr> ExpectedClients;
+					ExpectedClients[ClientHostID];
+					DMibExpect(AllClients, ==, ExpectedClients);
 					
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();

@@ -7,6 +7,11 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		namespace NPrivate
+		{
+			template <typename t_CType>
+			struct TCIsContinuation;
+		}
 		
 		template <typename t_CActor>
 		TCWeakActor<t_CActor>::TCWeakActor()
@@ -51,29 +56,33 @@ namespace NMib
 		template <typename t_CActor>
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor>::TCWeakActor(TCWeakActor<tf_CActor> const &_Other)
-			: m_pInternalActor(_Other.m_pInternalActor)
+			: m_pInternalActor(reinterpret_cast<TCWeakActor const &>(_Other).m_pInternalActor)
 		{
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		}
 		
 		template <typename t_CActor>
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor>::TCWeakActor(TCWeakActor<tf_CActor> &&_Other)
-			: m_pInternalActor(fg_Move(_Other.m_pInternalActor))
+			: m_pInternalActor(fg_Move(reinterpret_cast<TCWeakActor &>(_Other).m_pInternalActor))
 		{
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		}
 
 		template <typename t_CActor>
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor>::TCWeakActor(TCActor<tf_CActor> const &_Other)
-			: m_pInternalActor(_Other.m_pInternalActor)
+			: m_pInternalActor(reinterpret_cast<TCActor<t_CActor> const &>(_Other).m_pInternalActor)
 		{
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		}
 		
 		template <typename t_CActor>
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor>::TCWeakActor(TCActor<tf_CActor> &&_Other)
-			: m_pInternalActor(fg_Move(_Other.m_pInternalActor))
+			: m_pInternalActor(fg_Move(reinterpret_cast<TCActor<t_CActor> &>(_Other).m_pInternalActor))
 		{
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		}
 		
 		template <typename t_CActor>
@@ -123,7 +132,8 @@ namespace NMib
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor<tf_CActor> const &_Other)
 		{
-			m_pInternalActor = _Other.m_pInternalActor;
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
+			m_pInternalActor = reinterpret_cast<TCWeakActor const &>(_Other).m_pInternalActor;
 			return *this;
 		}
 		
@@ -131,7 +141,8 @@ namespace NMib
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCWeakActor<tf_CActor> &&_Other)
 		{
-			m_pInternalActor = fg_Move(_Other.m_pInternalActor);
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
+			m_pInternalActor = fg_Move(reinterpret_cast<TCWeakActor &>(_Other).m_pInternalActor);
 			return *this;
 		}	
 
@@ -139,7 +150,8 @@ namespace NMib
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActor<tf_CActor> const &_Other)
 		{
-			m_pInternalActor = _Other.m_pInternalActor;
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
+			m_pInternalActor = reinterpret_cast<TCActor<t_CActor> const &>(_Other).m_pInternalActor;
 			return *this;
 		}
 		
@@ -147,7 +159,8 @@ namespace NMib
 		template <typename tf_CActor>
 		TCWeakActor<t_CActor> &TCWeakActor<t_CActor>::operator =(TCActor<tf_CActor> &&_Other)
 		{
-			m_pInternalActor = fg_Move(_Other.m_pInternalActor);
+			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
+			m_pInternalActor = fg_Move(reinterpret_cast<TCActor<t_CActor> &>(_Other).m_pInternalActor);
 			return *this;
 		}
 		
@@ -273,6 +286,50 @@ namespace NMib
 					*this
 					, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
 					, NContainer::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+				)
+			;
+		}
+
+		template
+		<
+			typename tf_CActor
+			, typename tf_FToDispatch
+			, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+			= nullptr
+		>
+		auto fg_Dispatch(TCWeakActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		{
+			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
+			
+			return TCWeakActor<CActor>(_Actor).f_CallByValue
+				(
+					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
+					, NFunction::TCFunction<TCContinuation<CReturnType> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
+					(
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
+						{
+							return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
+						}
+					)
+				)
+			;
+		}
+
+		template
+		<
+			typename tf_CActor
+			, typename tf_FToDispatch
+			, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+			= nullptr
+		>
+		auto fg_Dispatch(TCWeakActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		{
+			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
+			
+			return TCWeakActor<CActor>(_Actor).f_CallByValue
+				(
+					&CActor::f_DispatchWithReturn<CReturnType>
+					, NFunction::TCFunction<CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>(fg_Forward<tf_FToDispatch>(_fDispatch))
 				)
 			;
 		}

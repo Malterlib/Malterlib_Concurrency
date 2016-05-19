@@ -21,7 +21,7 @@ namespace NMib
 				return;				
 			}
 			
-			(*m_pInitOnce)() > [this, _Continuation, Function = fg_Move(_fToRun)](TCAsyncResult<void> &&_Result) mutable
+			(*m_pInitOnce)() > [this, _Continuation, Function = fg_Move(_fToRun)](TCAsyncResult<NStr::CStr> &&_Result) mutable
 				{
 					if (_Result)
 						Function();

@@ -13,8 +13,6 @@
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
 
-#include <initializer_list>
-
 namespace NMib
 {
 	namespace NConcurrency
@@ -180,7 +178,7 @@ namespace NMib
 			{
 				CDistributedActorInheritanceHeirarchyPublish Ret;
 				
-				std::initializer_list<bool> Dummy = 
+				TCInitializerList<bool> Dummy = 
 					{
 						[&]
 						{
@@ -288,27 +286,8 @@ namespace NMib
 			CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&);
 			
 			void f_Clear();
-			auto f_Disconnect() -> 
-				TCActorCall
-				<
-					TCActor<CConcurrentActor>
-					, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
-				>
-			; 
-
-			auto f_GetStatus() -> 
-				TCActorCall
-				<
-					TCActor<CConcurrentActor>
-					, TCContinuation<CDistributedActorConnectionStatus> 
-					(CActor::*)
-					(NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<CDistributedActorConnectionStatus> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
-				>
-			; 
+			TCDispatchedActorCall<void> f_Disconnect();  
+			TCDispatchedActorCall<CDistributedActorConnectionStatus> f_GetStatus(); 
 			
 			NContainer::TCVector<NContainer::TCVector<uint8>> const &f_GetCertificateChain() const;
 			
@@ -395,6 +374,7 @@ namespace NMib
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};
 		
+		NStr::CStr fg_GetCallingHostID();
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();

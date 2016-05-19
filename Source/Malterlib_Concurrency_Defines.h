@@ -19,12 +19,31 @@ namespace NMib
 		class TCActorInternal;
 
 		class CConcurrencyManager;
+		class CSeparateThreadActorHolder;
+		struct CSeparateThreadActor;
 
 		template <typename t_CActor, typename t_CFunctor>
 		struct TCActorResultCall;
 		
 		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 		struct TCActorCall;
+
+		template <typename t_CActor>
+		class TCActor;
+
+		template <typename t_CReturnValue>
+		struct TCContinuation;
+		
+		template <typename t_CReturn>
+		using TCDispatchedActorCall = 
+			TCActorCall
+			<
+				TCActor<CActor>
+				, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
+				, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
+				, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+			>
+		;
 		
 		struct CInternalActorAllocator : public NMem::CAllocator_Heap
 		{
@@ -145,6 +164,7 @@ namespace NMib
 		CConcurrencyManager &fg_ConcurrencyManager();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
+		TCActor<CActor> fg_CurrentActor();
 
 		TCActor<CTimerActor> fg_TimerActor();
 	}

@@ -251,6 +251,16 @@ namespace NMib
 			;
 		}
 		
+		TCContinuation<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(NStr::CStr const &_HostID)
+		{
+			return TCContinuation<bool>::fs_RunProtected<NException::CException>() > [&]
+				{
+					auto &Internal = *mp_pInternal;
+					return Internal.f_Exists("Clients", _HostID);
+				}
+			;
+		}
+		
 		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(NStr::CStr const &_HostID, CClient const &_Client)
 		{
 			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
@@ -390,7 +400,7 @@ namespace NMib
 		{
 			NStr::CStr Return = m_BaseDirectory;
 			
-			std::initializer_list<bool> Dummy = 
+			TCInitializerList<bool> Dummy = 
 				{
 					[&]
 					{

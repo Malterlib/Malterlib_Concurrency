@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <initializer_list>
-
 #include "Malterlib_Concurrency_AsyncResult.h"
 #include "Malterlib_Concurrency_Continuation.h"
 

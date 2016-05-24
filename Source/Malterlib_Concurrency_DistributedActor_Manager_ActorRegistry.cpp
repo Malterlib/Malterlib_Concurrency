@@ -274,7 +274,7 @@ namespace NMib
 				for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
 				{
 					for (auto &RemoteActor : RemoteNamespace.m_RemoteActors)
-						_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
+						Subscribed.m_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
 				}
 			}
 			else
@@ -288,7 +288,7 @@ namespace NMib
 					if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(Namespace))
 					{
 						for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)
-							_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
+							Subscribed.m_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
 					}
 				}
 			}

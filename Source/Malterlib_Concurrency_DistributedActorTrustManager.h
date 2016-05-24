@@ -69,17 +69,23 @@ namespace NMib
 			
 			void f_Construct() override;
 			
-			TCContinuation<void> f_Initialize(); 
+			TCContinuation<NStr::CStr> f_Initialize(); 
 			
+			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens();
 			TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
+			TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
 
+			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients();
 			TCContinuation<CTrustTicket> f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
+			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
 			
+			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections();
 			TCContinuation<void> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
 			TCContinuation<void> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
+			TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 
 			TCContinuation<CConnectionState> f_GetConnectionState();
 			

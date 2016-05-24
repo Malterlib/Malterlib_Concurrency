@@ -31,6 +31,7 @@ namespace NMib
 
 			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() override;
  			TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) override;
+ 			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
 			TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 			TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;

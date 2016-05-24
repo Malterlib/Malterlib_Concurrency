@@ -210,6 +210,46 @@ namespace NMib
 			;
 			return Continuation;
 		}
+
+		TCContinuation<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
+		{
+			auto &Internal = *mp_pInternal; 
+			TCContinuation<bool> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation, _Address]()
+					{
+						auto &Internal = *mp_pInternal; 
+						ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
+						ListenConfig.m_Address = _Address;
+						auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
+						Continuation.f_SetResult(pListenConfig != nullptr);
+					}
+				)
+			;
+			return Continuation;
+		}
+
+		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
+		{
+			auto &Internal = *mp_pInternal;
+			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation]
+					{
+						auto &Internal = *mp_pInternal;
+						NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
+						for (auto iClientConnection = Internal.m_Listen.f_GetIterator(); iClientConnection; ++iClientConnection)
+							Addresses[iClientConnection.f_GetKey().m_Address];
+						Continuation.f_SetResult(fg_Move(Addresses));
+					}
+				)
+			;
+			return Continuation;
+		}
 		
 		TCContinuation<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
 		{

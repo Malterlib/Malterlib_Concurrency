@@ -389,6 +389,139 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
+					DMibTestPath("Forward call pack errors to continuation");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+					
+					uint32 Value = fDispatchBoilerplate
+						(
+							[TestActor]
+							{
+								TCContinuation<uint32> Continuation;
+								TestActor(&CExceptionActor::f_GetNoError)
+									+ TestActor(&CExceptionActor::f_GetNoError)
+									> Continuation / [Continuation](uint32 _Result0, uint32 _Result1)
+									{
+										Continuation.f_SetResult(_Result0);
+									}
+								;
+								return Continuation;
+							}
+						)
+					;
+					DMibExpect(Value, ==, 5);
+					
+					auto fCallWithError = [&] 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]
+									{
+										TCContinuation<uint32> Continuation;
+										TestActor(&CExceptionActor::f_GetError) 
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Continuation / [Continuation](uint32 _Result0, uint32 _Result1)
+											{
+												Continuation.f_SetResult(_Result0);
+											}
+										;
+										return Continuation;
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+					
+					auto fCallWithErrorString = [&](auto _Error) 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]
+									{
+										TCContinuation<uint32> Continuation;
+										TestActor(&CExceptionActor::f_GetNoError) 
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Continuation % _Error / [Continuation](uint32 _Result0, uint32 _Result1)
+											{
+												Continuation.f_SetResult(_Result0);
+											}
+										;
+										return Continuation;
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
+					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
+				}
+				{
+					DMibTestPath("Forward call pack errors to continuation void");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+					
+					fDispatchBoilerplate
+						(
+							[TestActor]
+							{
+								TCContinuation<void> Continuation;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid)
+									+ TestActor(&CExceptionActor::f_GetNoErrorVoid)
+									> Continuation / [Continuation]()
+									{
+										Continuation.f_SetResult();
+									}
+								;
+								return Continuation;
+							}
+						)
+					;
+					
+					auto fCallWithError = [&] 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]
+									{
+										TCContinuation<void> Continuation;
+										TestActor(&CExceptionActor::f_GetErrorVoid) 
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Continuation / [Continuation](CVoidTag, uint32 _Value)
+											{
+												Continuation.f_SetResult();
+											}
+										;
+										return Continuation;
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+					
+					auto fCallWithErrorString = [&](auto _Error) 
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]
+									{
+										TCContinuation<void> Continuation;
+										TestActor(&CExceptionActor::f_GetNoErrorVoid) 
+											+ TestActor(&CExceptionActor::f_GetErrorVoid)
+											> Continuation % _Error / [Continuation]()
+											{
+												Continuation.f_SetResult();
+											}
+										;
+										return Continuation;
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
+					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
+				}				
+				{
 					DMibTestPath("Forward result to continuation");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					

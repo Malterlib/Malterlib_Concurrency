@@ -20,5 +20,11 @@ namespace NMib
 			_Stream >> m_URL;
 			_Stream >> m_PreferType;
 		}
+		
+		template <typename tf_CStr>
+		void CDistributedActorTrustManager_Address::f_Format(tf_CStr &o_IntoStr) const
+		{
+			o_IntoStr += typename tf_CStr::CFormat("{} {}") << m_URL.f_Encode() << m_PreferType;
+		}
 	}
 }

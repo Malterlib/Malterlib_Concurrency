@@ -60,7 +60,7 @@ namespace NMib
 				
 				NContainer::TCTuple<typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tfp_CParams>::CType>::CType...> ParamList;
 				
-				std::initializer_list<bool> Dummy = 
+				TCInitializerList<bool> Dummy = 
 					{
 						[&]
 						{
@@ -122,7 +122,7 @@ namespace NMib
 				
 				NContainer::TCTuple<tfp_CParams...> ParamList;
 				
-				std::initializer_list<bool> Dummy = 
+				TCInitializerList<bool> Dummy = 
 					{
 						[&]
 						{
@@ -185,7 +185,7 @@ namespace NMib
 				
 				NContainer::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
 				
-				std::initializer_list<bool> Dummy = 
+				TCInitializerList<bool> Dummy = 
 					{
 						[&]
 						{

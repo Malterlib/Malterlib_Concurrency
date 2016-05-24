@@ -156,7 +156,7 @@ namespace NMib
 				
 				~CHost();
 				
-				void f_Clear();
+				void f_DeletePackets();
 				void f_Destroy();
 				bool f_CanReceivePublish() const;
 				bool f_CanSendPublish() const;
@@ -249,7 +249,6 @@ namespace NMib
 			NStr::CStr m_ExecutionID;
 			NStr::CStr m_HostID;
 			
-			NIntrusive::TCAVLTree<CPublishedActor::CLinkTraits_m_TreeLink, CPublishedActor::CSortActorID> m_PublishedActors;
 			NContainer::TCMap<NStr::CStr, CActorSubscription> m_SubscribedActors;
 
 			NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
@@ -262,6 +261,8 @@ namespace NMib
 			
 			NContainer::TCMap<NStr::CStr, CLocalNamespace> m_LocalNamespaces;
 			NContainer::TCMap<NStr::CStr, CRemoteNamespace> m_RemoteNamespaces;
+
+			NIntrusive::TCAVLTree<CPublishedActor::CLinkTraits_m_TreeLink, CPublishedActor::CSortActorID> m_PublishedActors;
 			
 			TCActor<ICActorDistributionManagerAccessHandler> m_AccessHandler;
 			

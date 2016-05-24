@@ -5,6 +5,7 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
+#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib
 {
@@ -18,10 +19,24 @@ namespace NMib
 		void CActorDistributionManager::CInternal::CConnection::f_Reset()
 		{
 			m_Link.f_Unlink();
+			m_HostLink.f_Unlink();
 			m_ConnectionSubscription.f_Clear();
 			if (m_Connection)
-				m_Connection->f_Destroy();
-			m_Connection.f_Clear();
+			{
+				m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Connection reset", 5.0)
+					> fg_ConcurrentActor() / [Connection = m_Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
+					{
+						if (_Result)
+						{
+							if (_Result->m_Status != NWeb::EWebSocketStatus_AlreadyClosed)
+								DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection: {} - {}", _Result->m_Status, _Result->m_Reason);
+						}
+						else
+							DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
+					}
+				;
+				m_Connection.f_Clear();
+			}
 			
 			if (m_pHost && m_pHost->m_pLastSendConnection == this)
 				m_pHost->m_pLastSendConnection = nullptr;

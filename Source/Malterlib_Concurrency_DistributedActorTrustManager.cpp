@@ -83,24 +83,53 @@ namespace NMib
 								&ICDistributedActorTrustManagerDatabase::f_RemoveClient
 								, _HostID
 							)
-							> [this, Continuation, _HostID](TCAsyncResult<void> &&_Result)
+							> Continuation % "Failed to remove client from trust database" / [this, Continuation, _HostID]()
 							{
-								if (!_Result)
-								{
-									Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to remove client from trust database: {}", _Result.f_GetExceptionStr())));
-									return;
-								}
 								auto &Internal = *mp_pInternal;
-								Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) > [Continuation](TCAsyncResult<void> &&_Result) 
-									{
-										if (!_Result)
-										{
-											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to kick host from distribution manager: {}", _Result.f_GetExceptionStr())));
-											return;
-										}
-										Continuation.f_SetResult();
-									}
-								;
+								Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) > Continuation % "Failed to kick host from distribution manager";
+							}
+						;
+					}
+				)
+			;
+			return Continuation;
+		}
+
+		TCContinuation<NContainer::TCSet<NStr::CStr>> CDistributedActorTrustManager::f_EnumClients()
+		{
+			auto &Internal = *mp_pInternal;
+			TCContinuation<NContainer::TCSet<NStr::CStr>> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation]
+					{
+						auto &Internal = *mp_pInternal;
+						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients) > (Continuation % "Failed to enum clients in database"); 
+					}
+				)
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
+		{
+			auto &Internal = *mp_pInternal;
+			TCContinuation<bool> Continuation;
+			Internal.f_RunAfterInit
+				(
+					Continuation
+					, [this, Continuation, _HostID]
+					{
+						auto &Internal = *mp_pInternal;
+						Internal.m_Database
+							(
+								&ICDistributedActorTrustManagerDatabase::f_HasClient
+								, _HostID
+							)
+							> Continuation % "Failed to check for client existence" / [this, Continuation, _HostID](bool _bExists)
+							{
+								Continuation.f_SetResult(_bExists);
 							}
 						;
 					}

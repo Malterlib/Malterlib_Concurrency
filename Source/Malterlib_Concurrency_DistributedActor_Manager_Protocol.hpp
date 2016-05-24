@@ -16,6 +16,7 @@ namespace NMib
 			_Stream << uint8(EDistributedActorCommand_Identify);
 			_Stream << m_ProtocolVersion;
 			_Stream << m_ExecutionID;
+			_Stream << m_LastSeenExecutionID;
 			_Stream << m_MissingPacketIDs;
 			_Stream << m_HighestSeenPacketID;
 			_Stream << m_AllowedNamespaces;
@@ -27,6 +28,7 @@ namespace NMib
 		{
 			_Stream >> m_ProtocolVersion;
 			_Stream >> m_ExecutionID;
+			_Stream >> m_LastSeenExecutionID;
 			_Stream >> m_MissingPacketIDs;
 			_Stream >> m_HighestSeenPacketID;
 			_Stream >> m_AllowedNamespaces;

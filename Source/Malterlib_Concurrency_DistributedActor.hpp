@@ -194,7 +194,7 @@ namespace NMib
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;				
 				Stream << t_NameHash;
-				std::initializer_list<bool> Dummy = 
+				TCInitializerList<bool> Dummy = 
 					{
 						[&]
 						{

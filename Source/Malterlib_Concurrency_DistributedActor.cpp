@@ -108,6 +108,11 @@ namespace NMib
 		{
 			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
 		}
+		
+		NStr::CStr fg_GetCallingHostID()
+		{
+			return CActorDistributionManager::fs_GetCallingHostID();
+		}
 
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID)
 		{

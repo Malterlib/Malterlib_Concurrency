@@ -50,14 +50,19 @@ namespace NMib
 		{
 			mp_iFixedCore = _iFixedCore;
 		}
+
+		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 		
 		void CActorHolder::fp_Construct()
 		{
+			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
+			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
 			NPrivate::CCurrentActorScope CurrentActor(*mp_pConcurrencyManager, mp_pActor.f_Get());
 			mp_pActor->f_Construct();
+			mint NewWorking = mp_Working.f_Exchange(0);
+			if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
+				f_QueueProcess([]{}, false); // Reschedule
 		}
-		
-		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 		
 		bool CActorHolder::fp_AddToQueue(FActorQueueDispatch &&_Functor)
 		{

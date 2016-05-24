@@ -541,10 +541,10 @@ namespace NMib
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return _Actor.f_CallByValue
+			return TCActor<CActor>(_Actor).f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<CReturnType>
-					, fg_Forward<tf_FToDispatch>(_fDispatch)
+					, NFunction::TCFunction<CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>(fg_Forward<tf_FToDispatch>(_fDispatch))
 				)
 			;
 		}
@@ -560,15 +560,24 @@ namespace NMib
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return _Actor.f_CallByValue
+			return TCActor<CActor>(_Actor).f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
-					, [fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
-					{
-						return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
-					}
+					, NFunction::TCFunction<TCContinuation<CReturnType> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
+					(
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
+						{
+							return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
+						}
+					)
 				)
 			;
+		}
+		
+		template <typename tf_FToDispatch>
+		auto fg_Dispatch(tf_FToDispatch &&_fDispatch)
+		{
+			return fg_Dispatch(fg_CurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 		}
 		
 		template <typename tf_FToDispatch>

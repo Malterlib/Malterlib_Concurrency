@@ -44,7 +44,7 @@ namespace NMib
 			};
 
 			template <typename tf_FFunctor>
-			struct TCGetFunctorFirstParam;
+			struct TCAllAsyncResultsAreVoid;
 		}
 		
 		template <typename t_CReturnValue>
@@ -66,6 +66,9 @@ namespace NMib
 			
 			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
 			TCContinuation(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
+			
+			TCContinuation(TCAsyncResult<t_CReturnValue> const &_Result);
+			TCContinuation(TCAsyncResult<t_CReturnValue> &&_Result);
 
 			template <typename tf_CResult>
 			static TCContinuation fs_Finished(tf_CResult &&_Result);
@@ -114,10 +117,10 @@ namespace NMib
 			
 			void f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult);
 			
-			template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 			auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
-			template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 			auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
 			template <typename tf_CErrorString>
@@ -132,14 +135,14 @@ namespace NMib
 		{
 			TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, t_CError const &_Error);
 
-			template <typename tf_FResultHandler, TCEnableIfType<NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 			auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
-			template <typename tf_FResultHandler, TCEnableIfType<!NTraits::TCIsVoid<typename NPrivate::TCGetFunctorFirstParam<tf_FResultHandler>::CType>::mc_Value> * = nullptr>
+			template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 			auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
-			TCContinuation<t_CReturnValue> const &m_Continuation;
-			t_CError const &m_Error;
+			TCContinuation<t_CReturnValue> m_Continuation;
+			t_CError m_Error;
 		};
 	}
 }

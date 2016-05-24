@@ -103,11 +103,11 @@ namespace NMib
 			TCAsyncResult &operator =(TCAsyncResult &&_Other);
 			TCAsyncResult &operator =(TCAsyncResult const &_Other);
 			
-			void f_Get() const;
-			void f_Get();
-			void f_Move();
-			void operator *() const;
-			void operator *();
+			CVoidTag f_Get() const;
+			CVoidTag f_Get();
+			CVoidTag f_Move();
+			CVoidTag operator *() const;
+			CVoidTag operator *();
 			
 			template <typename tf_CType>
 			void f_SetException(tf_CType &&_Exception);

@@ -310,6 +310,106 @@ namespace NMib
 
 			return fg_Move(pCallbackHandle);
 		}
+		
+		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period)
+		{
+			return fg_ConcurrentDispatch
+				(
+					[_Period]()
+					{
+						TCContinuation<void> Continuation;
+						fg_TimerActor()
+							(
+								&CTimerActor::f_OneshotTimer
+								, _Period
+								, fg_AnyConcurrentActor()
+								, [Continuation]
+								{
+									Continuation.f_SetResult();
+								}
+							)
+							> fg_DiscardResult();
+						;
+						return Continuation;
+					}
+				)
+			;
+		}
+		
+		TCDispatchedActorCall<CActorCallback> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		{
+			return fg_ConcurrentDispatch
+				(
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					{
+						TCContinuation<CActorCallback> Continuation;
+						fg_TimerActor()
+							(
+								&CTimerActor::f_OneshotTimerAbortable
+								, _Period
+								, _pActor
+								, [fCallback = fg_Move(fCallback)]() mutable
+								{
+									fCallback();
+								}
+							)
+							> Continuation;
+						;
+						return Continuation;
+					}
+				)
+			;
+		}
+
+		TCDispatchedActorCall<CActorCallback> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		{
+			return fg_ConcurrentDispatch
+				(
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					{
+						TCContinuation<CActorCallback> Continuation;
+						fg_TimerActor()
+							(
+								&CTimerActor::f_RegisterTimer
+								, _Period
+								, _pActor
+								, [fCallback = fg_Move(fCallback)]() mutable
+								{
+									fCallback();
+								}
+							)
+							> Continuation;
+						;
+						return Continuation;
+					}
+				)
+			;
+		}
+		
+		TCDispatchedActorCall<CActorCallback> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		{
+			return fg_ConcurrentDispatch
+				(
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					{
+						TCContinuation<CActorCallback> Continuation;
+						fg_TimerActor()
+							(
+								&CTimerActor::f_RegisterExactTimer
+								, _Period
+								, _pActor
+								, [fCallback = fg_Move(fCallback)]() mutable
+								{
+									fCallback();
+								}
+							)
+							> Continuation;
+						;
+						return Continuation;
+					}
+				)
+			;
+		}
 	}
 }
 

@@ -1,9 +1,7 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
-
-#include <initializer_list>
 
 namespace NMib
 {
@@ -391,6 +389,23 @@ namespace NMib
 				;
 			}
 
+			template 
+			<
+				typename tf_CFunctor
+				, TCEnableIfType
+				<
+					!TCIsActorResultCall<tf_CFunctor>::mc_Value 
+					&& !NPrivate::TCIsContinuation<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
+					&& !NPrivate::TCIsContinuationWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
+				> * = nullptr
+			>
+			void operator > (tf_CFunctor &&_Functor)
+			{
+				auto pActor = mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+				DMibFastCheck(pActor);
+				*this > fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor);
+			}
+			
 			template <typename tf_CResultActor, typename tf_CResultFunctor>
 			void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
 			{
@@ -407,23 +422,6 @@ namespace NMib
 #ifdef DMibContractConfigure_CheckEnabled
 				mp_Actor.f_Clear();
 #endif
-			}
-
-			template 
-			<
-				typename tf_CFunctor
-				, TCEnableIfType
-				<
-					!TCIsActorResultCall<tf_CFunctor>::mc_Value 
-					&& !NPrivate::TCIsContinuation<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
-					&& !NPrivate::TCIsContinuationWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
-				> * = nullptr
-			>
-			void operator > (tf_CFunctor &&_Functor)
-			{
-				auto pActor = mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
-				DMibFastCheck(pActor);
-				*this > fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor);
 			}
 
 			template <typename tf_CResult>
@@ -462,7 +460,7 @@ namespace NMib
 				;
 			}
 			
-			CReturnType f_CallSync()
+			auto f_CallSync()
 			{
 				TCAsyncResult<CReturnType> Result;
 				NThread::CEvent WaitEvent;
@@ -478,7 +476,7 @@ namespace NMib
 				return Result.f_Move();
 			}
 
-			CReturnType f_CallSync(fp64 _Timeout)
+			auto f_CallSync(fp64 _Timeout)
 			{
 				NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 				*this > fg_AnyConcurrentActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
@@ -489,13 +487,12 @@ namespace NMib
 				;
 
 				if (pResult->m_WaitEvent.f_WaitTimeout(_Timeout))
-					DMibError("Timed out waiting for synchronous actor call to finish");
+					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish", fg_GetTypeName<t_CFunctor>()));
 
 				return pResult->m_Result.f_Move();
 			}
 		};
-		
-		
+
 		namespace NPrivate
 		{
 
@@ -612,7 +609,7 @@ namespace NMib
 			if (_ResultCall.mp_Actor->f_GetPriority() == EPriority_Normal)
 			{
 				auto &Actor = fg_AnyConcurrentActor();
-				std::initializer_list<bool> Dummy =
+				TCInitializerList<bool> Dummy =
 					{
 						NPrivate::fg_CallActorInternal
 						(
@@ -632,7 +629,7 @@ namespace NMib
 			else
 			{
 				auto &Actor = fg_AnyConcurrentActorLowPrio();
-				std::initializer_list<bool> Dummy =
+				TCInitializerList<bool> Dummy =
 					{
 						NPrivate::fg_CallActorInternal
 						(

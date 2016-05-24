@@ -34,6 +34,7 @@ namespace NMib
 
 			uint32 m_ProtocolVersion = EProtocolVersion;
 			NStr::CStr m_ExecutionID;
+			NStr::CStr m_LastSeenExecutionID;
 			NContainer::TCVector<uint64> m_MissingPacketIDs;
 			uint64 m_HighestSeenPacketID = 0;
 			NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;

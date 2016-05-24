@@ -41,7 +41,7 @@ namespace NMib
 						auto &pHost = _pConnection->m_pHost;
 						DMibFastCheck(pHost);
 						
-						if (pHost->m_LastExecutionID != Identify.m_ExecutionID)
+						if (pHost->m_LastExecutionID != Identify.m_ExecutionID || (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID))
 						{
 							if (!pHost->m_LastExecutionID.f_IsEmpty())
 								fp_ResetHostState(*pHost, _pConnection);
@@ -165,6 +165,7 @@ namespace NMib
 			auto &pHost = _pConnection->m_pHost;
 			CDistributedActorCommand_Identify Identify;
 			Identify.m_ExecutionID = m_ExecutionID;
+			Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
 			for (auto &SentPacket : pHost->m_Outgoing_SentPackets)
 			{
 				auto PacketID = SentPacket.f_GetPacketID();

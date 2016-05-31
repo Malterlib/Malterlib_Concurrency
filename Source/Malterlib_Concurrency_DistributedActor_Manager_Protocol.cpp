@@ -19,7 +19,10 @@ namespace NMib
 		{
 			mint Length = _pMessage->f_GetLen();
 			if (Length < 1)
+			{
+				DMibLog(DebugVerbose2, " ---- {} {} Too small", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 				return false;
+			}
 			
 			NStream::CBinaryStreamMemoryPtr<> Stream;
 			Stream.f_OpenRead(_pMessage->f_GetArray(), _pMessage->f_GetLen());
@@ -28,6 +31,7 @@ namespace NMib
 			
 			try
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				switch (Command)
 				{
 				case EDistributedActorCommand_Identify:
@@ -36,10 +40,17 @@ namespace NMib
 						Stream >> Identify;
 						
 						if (Identify.m_ProtocolVersion < 0x101 || Identify.m_ProtocolVersion > CDistributedActorCommand_Identify::EProtocolVersion)
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 							return false;
+						}
 						
 						auto &pHost = _pConnection->m_pHost;
 						DMibFastCheck(pHost);
+
+						// Remove packets that remote already knows about
+						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_AckedPacketID; ++iPacket)
+							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
 						
 						if (pHost->m_LastExecutionID != Identify.m_ExecutionID || (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID))
 						{
@@ -48,33 +59,34 @@ namespace NMib
 							pHost->m_LastExecutionID = Identify.m_ExecutionID;
 						}
 						
-						// Remove packets that remote already knows about
-						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_HighestSeenPacketID; ++iPacket)
-							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
-						pHost->m_Outgoing_AckedPacketID = fg_Max(Identify.m_HighestSeenPacketID, pHost->m_Outgoing_AckedPacketID);
-						
 						pHost->m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
 						pHost->m_AllowedNamespaces = Identify.m_AllowedNamespaces;
-
+						
 						// Resend packets that remote think are missing
 						for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
 						{
 							auto pPacket = pHost->m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
 							if (pPacket)
+								fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData));
+						}
+						
+						{
+							decltype(pHost->m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
+							iSentPackets.f_InitForSearch(pHost->m_Outgoing_SentPackets);
+							iSentPackets.f_FindSmallestGreaterThanEqualForward(Identify.m_HighestSeenPacketID);
+							
+							while (iSentPackets)
 							{
-								_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, pPacket->m_pData, 0) 
-									> [](TCAsyncResult<void> &&_Result)
-									{
-										if (!_Result)
-										{
-											// TODO: Early reschedule here by deleting the connection?
-										}						
-									}
-								;
+								fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData));
+								++iSentPackets;
 							}
 						}
+						
+						DMibLog(DebugVerbose2, " ---- {} {} Identify", pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 
 						pHost->m_ActiveConnections.f_Insert(*_pConnection);
+						fp_SendPacketQueue(pHost);
+						fp_ProcessPacketQueue(_pConnection);
 						
 						if (pHost->f_CanSendPublish())
 						{
@@ -106,7 +118,10 @@ namespace NMib
 				case EDistributedActorCommand_Acknowledge:
 					{
 						if (!_pConnection->m_Link.f_IsInList()) // Not an active connection
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} Not active ack", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 							return false;
+						}
 						
 						CDistributedActorCommand_Acknowledge Acknowledge;
 						Stream >> Acknowledge;
@@ -123,36 +138,55 @@ namespace NMib
 				case EDistributedActorCommand_Publish:
 				case EDistributedActorCommand_Unpublish:
 					{
-						if (!_pConnection->m_Link.f_IsInList()) // Not an active connection
-							return false;
+						auto &pHost = _pConnection->m_pHost;
 						
 						uint64 PacketID;
 						Stream >> PacketID;
 						
-						NPtr::TCUniquePointer<CPacket> pPacket = fg_Construct();
-						pPacket->m_pData = _pMessage;
-						auto &pHost = _pConnection->m_pHost;
+						if (PacketID < pHost->m_Incoming_NextPacketID)
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} IGNORING PACKET {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
+							return true; // Already received
+						}
+						
 						auto iPacket = pHost->m_Incoming_ReceivedPackets.f_GetIterator();
 						iPacket.f_Reverse(pHost->m_Incoming_ReceivedPackets);
 						for (; iPacket; --iPacket)
 						{
-							if (iPacket->f_GetPacketID() < PacketID)
+							if (iPacket->f_GetPacketID() == PacketID)
 							{
+								DMibLog(DebugVerbose2, " ---- {} {} ALREADY RECEIVED PACKET {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
+								return true; // Already received
+							}
+							else if (iPacket->f_GetPacketID() < PacketID)
+							{
+								DMibLog(DebugVerbose2, " ---- {} {} Receive packet {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
+								NPtr::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage);
 								pHost->m_Incoming_ReceivedPackets.f_InsertAfter(pPacket.f_Detach(), &*iPacket);
 								break;
 							}
 						}
 						if (!iPacket)
+						{
+							NPtr::TCUniquePointer<CPacket> pPacket = fg_Construct(_pMessage);
+							DMibLog(DebugVerbose2, " ---- {} {} Receive2 packet {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
 							pHost->m_Incoming_ReceivedPackets.f_InsertFirst(pPacket.f_Detach());
-						fp_ProcessPacketQueue(_pConnection);
+						}
+						if (_pConnection->m_Link.f_IsInList()) // Only active connections
+							fp_ProcessPacketQueue(_pConnection);
+						else
+							DMibLog(DebugVerbose2, " ---- {} {} NOT ACTIVE {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), PacketID);
+							
 					}
 					break;
 				default:
+					DMibLog(DebugVerbose2, " ---- {} {} Invalid packet command", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 					return false;
 				}
 			}
-			catch (NException::CException const &)
+			catch (NException::CException const &_Exception)
 			{
+				DMibLog(DebugVerbose2, " ---- {} {} Exception processing data {}", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID(), _Exception.f_GetErrorStr());
 				// Malicious client
 				return false;
 			}
@@ -166,10 +200,17 @@ namespace NMib
 			CDistributedActorCommand_Identify Identify;
 			Identify.m_ExecutionID = m_ExecutionID;
 			Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
-			for (auto &SentPacket : pHost->m_Outgoing_SentPackets)
+			Identify.m_AckedPacketID = pHost->m_Incoming_NextPacketID - 1;
+			Identify.m_HighestSeenPacketID = Identify.m_AckedPacketID; 
+			uint64 NextExpectedPacketID = pHost->m_Incoming_NextPacketID; 
+			for (auto &ReceivedPacket : pHost->m_Incoming_ReceivedPackets)
 			{
-				auto PacketID = SentPacket.f_GetPacketID();
-				Identify.m_MissingPacketIDs.f_Insert(PacketID);
+				uint64 PacketID = ReceivedPacket.f_GetPacketID();
+				while (NextExpectedPacketID < PacketID)
+				{
+					Identify.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+					++NextExpectedPacketID;
+				}
 				Identify.m_HighestSeenPacketID = fg_Max(Identify.m_HighestSeenPacketID, PacketID);
 			}
 			
@@ -185,15 +226,7 @@ namespace NMib
 			
 			NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> pPacketData = fg_Construct(Stream.f_MoveVector());
 
-			_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(pPacketData), 0) 
-				> [](TCAsyncResult<void> &&_Result)
-				{
-					if (!_Result)
-					{
-						// TODO: Early reschedule here by deleting the connection?
-					}						
-				}
-			;
+			fp_SendPacket(_pConnection, fg_Move(pPacketData));
 		}
 	}
 }

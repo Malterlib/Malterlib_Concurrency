@@ -135,11 +135,6 @@ namespace NMib
 			}
 		}
 
-		void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
-		{
-			return fp_QueueProcess(fg_Move(_Functor), _bSame);
-		}
-		
 		bool CActorHolder::f_ImmediateDelete() const
 		{
 			return mp_bImmediateDelete;
@@ -314,10 +309,6 @@ namespace NMib
 		{
 			DMibRequire(m_pThread.f_IsEmpty());
 		}
-		void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
-		{
-			f_QueueProcess(fg_Move(_Functor), _bSame);
-		}
 		void CSeparateThreadActorHolder::fp_Construct()
 		{
 			m_pThread = NThread::CThreadObject::fs_StartThread
@@ -372,11 +363,6 @@ namespace NMib
 		{
 		}
 
-		void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
-		{
-			f_QueueProcess(fg_Move(_Functor), _bSame);
-		}
-		
 		void CDispatchingActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
@@ -397,11 +383,6 @@ namespace NMib
 		/// CDefaultActorHolder
 		///
 
-		void CDefaultActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
-		{
-			f_QueueProcess(fg_Move(_Functor), _bSame);
-		}
-		
 		void CDefaultActorHolder::fp_Construct()
 		{
 			CActorHolder::fp_Construct();

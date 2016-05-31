@@ -38,71 +38,94 @@ namespace NMib
 			m_Tickets.f_Remove(_Token);
 			
 			if (Age.f_GetTime() > 60.0*60.0) // 1 hour ticket time
-			{
 				return DMibErrorInstance("Invalid token");
-			}
 			
-			NContainer::TCVector<uint8> SignedCertificate;
+			auto HostID = CActorDistributionManager::fs_GetCertificateRequestHostID(_CertificateRequest);
 			
-			TCContinuation<NContainer::TCVector<uint8>> Continuation;
+			if (HostID.f_IsEmpty())
+				return DMibErrorInstance("Certificate request has no host ID");
 
-			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
-				> Continuation % "Failed to get new certificate serial" / [this, Continuation, _CertificateRequest](int32 _Serial)
-				{
-					struct CResults
-					{
-						NContainer::TCVector<uint8> m_SignedCertificate;
-						NStr::CStr m_HostID;
-					};
+			TCContinuation<NContainer::TCVector<uint8>> Continuation;
 			
-					fg_ConcurrentDispatch
-						(
-							[
-								CaCertificate = m_BasicConfig.m_CACertificate
-								, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
-								, _CertificateRequest
-								, Serial = _Serial
-							]
-							{
-								CResults Results;
-								try
-								{
-									NNet::CSSLContext::fs_SignClientCertificate
-										(
-											CaCertificate
-											, CaPrivateKey
-											, _CertificateRequest
-											, Results.m_SignedCertificate
-											, Serial
-											, 10*365
-										)
-									;
-									
-									Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
-									if (Results.m_HostID.f_IsEmpty())
-										DMibError("Missing host ID in certificate request");
-								}
-								catch (NException::CException const &_Exception)
-								{
-									DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
-								}
-								
-								return Results;
-							}
-						) 
-						> Continuation / [this, Continuation](CResults &&_Results)
+			m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
+				> Continuation % "Failed to check for existing client" / [this, Continuation, _CertificateRequest](NPtr::TCUniquePointer<CClient> &&_ExistingClient)
+				{
+					bool bExistingClient = !_ExistingClient.f_IsEmpty();
+					if (bExistingClient)
+					{
+						try
 						{
-							ICDistributedActorTrustManagerDatabase::CClient Client;
-							Client.m_PublicCertificate = _Results.m_SignedCertificate;
-							m_Database
+							NException::CDisableExceptionTraceScope DisableTrace;
+							NNet::CSSLContext::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, _ExistingClient->m_PublicCertificate);
+						}
+						catch (NException::CException const &_Exception)
+						{
+							Continuation.f_SetException(DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr())));
+							return;
+						}
+					}
+					NContainer::TCVector<uint8> SignedCertificate;
+
+					m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
+						> Continuation % "Failed to get new certificate serial" / [this, Continuation, _CertificateRequest, bExistingClient](int32 _Serial)
+						{
+							struct CResults
+							{
+								NContainer::TCVector<uint8> m_SignedCertificate;
+								NStr::CStr m_HostID;
+							};
+					
+							fg_ConcurrentDispatch
 								(
-									&ICDistributedActorTrustManagerDatabase::f_AddClient
-									, _Results.m_HostID
-									, Client
-								)
-								> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+									[
+										CaCertificate = m_BasicConfig.m_CACertificate
+										, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
+										, _CertificateRequest
+										, Serial = _Serial
+									]
+									{
+										CResults Results;
+										try
+										{
+											NException::CDisableExceptionTraceScope DisableTrace;
+											NNet::CSSLContext::fs_SignClientCertificate
+												(
+													CaCertificate
+													, CaPrivateKey
+													, _CertificateRequest
+													, Results.m_SignedCertificate
+													, Serial
+													, 10*365
+												)
+											;
+											
+											Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
+											if (Results.m_HostID.f_IsEmpty())
+												DMibError("Missing host ID in certificate request");
+										}
+										catch (NException::CException const &_Exception)
+										{
+											DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
+										}
+										
+										return Results;
+									}
+								) 
+								> Continuation / [this, Continuation, bExistingClient](CResults &&_Results)
 								{
-									Continuation.f_SetResult(fg_Move(Certificate));
+									ICDistributedActorTrustManagerDatabase::CClient Client;
+									Client.m_PublicCertificate = _Results.m_SignedCertificate;
+									m_Database
+										(
+											bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
+											, _Results.m_HostID
+											, Client
+										)
+										> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+										{
+											Continuation.f_SetResult(fg_Move(Certificate));
+										}
+									;
 								}
 							;
 						}
@@ -231,6 +254,7 @@ namespace NMib
 						NStr::CStr ServerHostID;
 						try
 						{
+							NException::CDisableExceptionTraceScope DisableTrace;
 							ServerHostID = CActorDistributionManager::fs_GetCertificateHostID(_TrustTicket.m_ServerPublicCert);
 						}
 						catch (NException::CException const &_Exception)
@@ -286,15 +310,17 @@ namespace NMib
 								
 								NPtr::TCSharedPointer<CConnectionState> pConnectionState = fg_Construct();
 								pConnectionState->m_AnonymousConnection = fg_Move(_ConnectionResult->m_ConnectionReference);
+								
+								NStr::CStr UniqueHostID = _ConnectionResult->m_UniqueHostID;
 
 								Internal.m_ActorDistributionManager
 									(
 										&CActorDistributionManager::f_SubscribeActors
 										, NContainer::fg_CreateVector<NStr::CStr>("Anonymous/MalterlibDistributedTrustManagerTicket")
 										, fg_ThisActor(this)
-										, [this, Continuation, pConnectionState, _TrustTicket, ServerHostID](CAbstractDistributedActor &&_NewActor)
+										, [this, Continuation, pConnectionState, _TrustTicket, ServerHostID, UniqueHostID](CAbstractDistributedActor &&_NewActor)
 										{
-											if (_NewActor.f_GetHostID() != ServerHostID)
+											if (_NewActor.f_GetUniqueHostID() != UniqueHostID)
 												return;
 											if (pConnectionState->m_bReplied)
 												return;
@@ -314,6 +340,7 @@ namespace NMib
 											NContainer::TCVector<uint8> CertificateRequest;
 											try
 											{
+												NException::CDisableExceptionTraceScope DisableTrace;
 												NNet::CSSLContext::fs_GenerateClientCertificateRequest
 													(
 														Options
@@ -527,9 +554,10 @@ namespace NMib
 									return;
 								}
 
-								DMibFastCheck(!ConnectionResult.m_HostID.f_IsEmpty());
+								DMibFastCheck(!ConnectionResult.m_RealHostID.f_IsEmpty());
+								DMibFastCheck(!ConnectionResult.m_UniqueHostID.f_IsEmpty());
 								
-								NStr::CStr ServerHostID = ConnectionResult.m_HostID; 
+								NStr::CStr ServerHostID = ConnectionResult.m_RealHostID; 
 								
 								auto &RootCertificate = ConnectionResult.m_CertificateChain.f_GetLast();
 								

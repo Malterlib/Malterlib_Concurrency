@@ -60,7 +60,6 @@ namespace NMib
 			friend class CActor;
 		protected:
 			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
-			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) pure;
 			virtual void fp_Construct();
 		public:
 			
@@ -68,9 +67,9 @@ namespace NMib
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
+			virtual void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) pure;
 			bool f_ImmediateDelete() const;
-			void f_DestroyThreaded();
+			virtual void f_DestroyThreaded();
 			bool f_IsDestroyed() const;
 			void f_Destroy();
 			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
@@ -132,8 +131,7 @@ namespace NMib
 		class CDefaultActorHolder : public CActorHolder
 		{
 		protected:
-			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
-			virtual void fp_Construct()	override;
+			void fp_Construct()	override;
 		public:
 			CDefaultActorHolder
 				(
@@ -145,15 +143,13 @@ namespace NMib
 			;
 			~CDefaultActorHolder();
 
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
 		};
 
 		class CDispatchingActorHolder : public CDefaultActorHolder
 		{
 		protected:
 			NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
-
-			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 		public:
 			CDispatchingActorHolder
 				(
@@ -164,7 +160,7 @@ namespace NMib
 					, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher
 				)
 			;
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
 		};
 
 		class CSeparateThreadActorHolder : public CDefaultActorHolder
@@ -173,7 +169,6 @@ namespace NMib
 			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
 			NStr::CStr mp_ThreadName;
 
-			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 			void fp_Construct() override;
 		public:
 			CSeparateThreadActorHolder
@@ -186,8 +181,8 @@ namespace NMib
 				)
 			;
 			~CSeparateThreadActorHolder();
-			void f_DestroyThreaded();
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
+			void f_DestroyThreaded() override;
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
 		};
 	}
 }

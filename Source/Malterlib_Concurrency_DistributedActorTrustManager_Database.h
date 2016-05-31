@@ -121,6 +121,7 @@ namespace NMib
 
 			virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() pure;
  			virtual TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) pure;
+ 			virtual TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) pure;
  			virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) pure;
 			virtual TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) pure;
 			virtual TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) pure;

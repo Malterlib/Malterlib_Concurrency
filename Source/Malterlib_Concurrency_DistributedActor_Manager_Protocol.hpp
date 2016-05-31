@@ -18,6 +18,7 @@ namespace NMib
 			_Stream << m_ExecutionID;
 			_Stream << m_LastSeenExecutionID;
 			_Stream << m_MissingPacketIDs;
+			_Stream << m_AckedPacketID;
 			_Stream << m_HighestSeenPacketID;
 			_Stream << m_AllowedNamespaces;
 			_Stream << m_bAllowAllNamespaces;
@@ -30,6 +31,7 @@ namespace NMib
 			_Stream >> m_ExecutionID;
 			_Stream >> m_LastSeenExecutionID;
 			_Stream >> m_MissingPacketIDs;
+			_Stream >> m_AckedPacketID;
 			_Stream >> m_HighestSeenPacketID;
 			_Stream >> m_AllowedNamespaces;
 			_Stream >> m_bAllowAllNamespaces;

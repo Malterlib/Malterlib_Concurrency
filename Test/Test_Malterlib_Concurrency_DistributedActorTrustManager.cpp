@@ -8,6 +8,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Concurrency/TestHelpers>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Network/SSL>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -129,6 +130,14 @@ namespace
 				return DMibErrorInstance("No client for host ID");
 			return fg_Explicit(*pClient);
 		}
+		
+		TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) override
+		{
+			auto pClient = m_Clients.f_FindEqual(_HostID);
+			if (!pClient)
+				return fg_Explicit(nullptr);
+			return fg_Explicit(fg_Construct(*pClient));
+		}
 
 		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override
 		{
@@ -202,6 +211,70 @@ namespace
 				return 5;
 			}
 		};
+
+		struct CState
+		{
+			auto f_CreateServerTrustManager() const
+			{
+				return fg_ConstructActor<CDistributedActorTrustManager>
+					(
+						m_ServerDatabase
+						, [](NStr::CStr const &_HostID)
+						{
+							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+						}
+						, 1024 
+					)
+				;
+			}
+			
+			auto f_CreateClientTrustManager() const 
+			{
+				return fg_ConstructActor<CDistributedActorTrustManager>
+					(
+						m_ClientDatabase
+						, [](NStr::CStr const &_HostID)
+						{
+							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+						}
+						, 1024 
+					)
+				;
+			}
+			
+			CState(NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (NStr::CStr const &_Name)> const &_fDatabaseFactory, NFunction::TCFunction<void ()> const &_fCleanup)
+				: m_fCleanup(_fCleanup)
+			{
+				_fCleanup();
+				m_ServerDatabase = _fDatabaseFactory("Server");
+				m_ClientDatabase = _fDatabaseFactory("Client");
+			}
+			~CState()
+			{
+				m_ServerDatabase->f_BlockDestroy();
+				m_ClientDatabase->f_BlockDestroy();
+				m_fCleanup();
+			}
+			
+			
+			TCActor<ICDistributedActorTrustManagerDatabase> m_ServerDatabase;
+			TCActor<ICDistributedActorTrustManagerDatabase> m_ClientDatabase;
+			NFunction::TCFunction<void ()> m_fCleanup;
+		};
+
+		void fp_DoTests(TCActor<CDistributedActorTrustManager> const &_ServerTrustManager, TCActor<CDistributedActorTrustManager> const &_ClientTrustManager)
+		{
+			CDistributedActorTestHelper ServerHelper{_ServerTrustManager};
+			CDistributedActorTestHelper ClientHelper{_ClientTrustManager};
+
+			ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+			NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
+
+			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
+			uint32 Result = DMibCallActor(Actor, CTestActor::f_Test).f_CallSync(60.0);
+			DMibExpect(Result, ==, 5);
+		}
 		
 		void fp_DoBasicTests
 			(
@@ -211,60 +284,12 @@ namespace
 		{
 			DMibTestSuite("Basic")
 			{
-				_fCleanup();
-				
-				TCActor<ICDistributedActorTrustManagerDatabase> ServerDatabase = _fDatabaseFactory("Server");
-				TCActor<ICDistributedActorTrustManagerDatabase> ClientDatabase = _fDatabaseFactory("Client");
-				
-				auto fCreateServerTrustManager = [&] 
-					{
-						return fg_ConstructActor<CDistributedActorTrustManager>
-							(
-								ServerDatabase
-								, [](NStr::CStr const &_HostID)
-								{
-									return fg_ConstructActor<CActorDistributionManager>(_HostID);
-								}
-								, 1024 
-							)
-						;
-					}
-				;
-				
-				auto fCreateClientTrustManager = [&] 
-					{
-						return fg_ConstructActor<CDistributedActorTrustManager>
-							(
-								ClientDatabase
-								, [](NStr::CStr const &_HostID)
-								{
-									return fg_ConstructActor<CActorDistributionManager>(_HostID);
-								}
-								, 1024 
-							)
-						;
-					}
-				;
-
-				auto fDoTests = [&](TCActor<CDistributedActorTrustManager> const &_ServerTrustManager, TCActor<CDistributedActorTrustManager> const &_ClientTrustManager)
-					{
-						CDistributedActorTestHelper ServerHelper{_ServerTrustManager};
-						CDistributedActorTestHelper ClientHelper{_ClientTrustManager};
-
-						ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
-						NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
-
-						TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
-
-						uint32 Result = DMibCallActor(Actor, CTestActor::f_Test).f_CallSync(60.0);
-						DMibExpect(Result, ==, 5);
-					}
-				;
+				CState State{_fDatabaseFactory, _fCleanup};
 				
 				{
 					DMibTestPath("Initial");
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = "wss://localhost:31392/";
@@ -288,7 +313,7 @@ namespace
 					DMibExpect(AllClientConnections, ==, ExpectedClientConnections);
 					
 					
-					fDoTests(ServerTrustManager, ClientTrustManager);
+					fp_DoTests(ServerTrustManager, ClientTrustManager);
 					
 					NStr::CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
@@ -305,10 +330,10 @@ namespace
 				
 				{
 					DMibTestPath("From database");
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
-					fDoTests(ServerTrustManager, ClientTrustManager);
+					fp_DoTests(ServerTrustManager, ClientTrustManager);
 					
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();
@@ -316,7 +341,7 @@ namespace
 
 				{
 					DMibTestPath("Change listen");
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = "wss://localhost:31393/";
@@ -327,12 +352,12 @@ namespace
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(60.0);;
 
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 					
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, ServerAddress).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, OldServerAddress).f_CallSync(60.0);
 					
-					fDoTests(ServerTrustManager, ClientTrustManager);
+					fp_DoTests(ServerTrustManager, ClientTrustManager);
 					
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();
@@ -342,15 +367,15 @@ namespace
 					DMibTestPath("Remove client");
 					NStr::CStr HostID;
 					{
-						TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+						TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 						HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 						ClientTrustManager->f_BlockDestroy();
 					}
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(60.0);;
 
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 					
 					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
 					
@@ -362,53 +387,194 @@ namespace
 					DMibExpectFalse(Address.m_bConnected);
 					DMibExpect(Address.m_Error, !=, "");
 					
-					DMibExpectExceptionType(fDoTests(ServerTrustManager, ClientTrustManager), NException::CException);
+					DMibExpectExceptionType(fp_DoTests(ServerTrustManager, ClientTrustManager), NException::CException);
 					
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();
+				}
+
+			};
+			
+			DMibTestSuite("Remove client while connected")
+			{
+				CState State{_fDatabaseFactory, _fCleanup};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+				
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+				
+				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+				
+				fp_DoTests(ServerTrustManager, ClientTrustManager);
+				
+				auto HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+				ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(60.0);
+				
+				auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
+				
+				DMibAssertFalse(ConnectionState.m_Hosts.f_IsEmpty());
+				DMibAssertFalse(ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_IsEmpty());
+				
+				auto &Address = *ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_FindAny();
+				
+				DMibExpectFalse(Address.m_bConnected);
+				DMibExpect(Address.m_Error, !=, "");
+				
+				DMibExpectExceptionType(fp_DoTests(ServerTrustManager, ClientTrustManager), NException::CException);
+				
+				ClientTrustManager->f_BlockDestroy();
+				ServerTrustManager->f_BlockDestroy();
+			};
+
+			DMibTestSuite("Disconnects")
+			{
+				CState State{_fDatabaseFactory, _fCleanup};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+				
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+				{
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+				}
+
+				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
+				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
+
+				ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+				NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
+
+				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+				
+				TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
+
+				NStr::CStr DispatchError;
+				mint nCalls = 0;
+				fg_Dispatch
+					(
+						DispatchActor
+						, [&]
+						{
+							NTime::CClock Clock;
+							Clock.f_Start();
+							while (Clock.f_GetTime() < 1.5)
+							{
+								try
+								{
+									DMibCallActor(Actor, CTestActor::f_Test).f_CallSync(10.0);
+									++nCalls;
+								}
+								catch (NException::CException const &_Exception)
+								{
+									DispatchError = _Exception.f_GetErrorStr();
+									break;
+								}
+							}
+						}
+					)
+					> fg_DiscardResult();
+				;
+
+				NTime::CClock Clock;
+				Clock.f_Start();
+				while (Clock.f_GetTime() < 1.5)
+				{
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					NSys::fg_Thread_Sleep(0.05);
+				}
+
+				DispatchActor->f_BlockDestroy();
+				
+				DMibExpect(DispatchError, ==, "");
+				DMibExpect(nCalls, >, 1);
+				
+				ServerTrustManager->f_BlockDestroy();
+				ClientTrustManager->f_BlockDestroy();
+
+			};
+			
+			DMibTestSuite("Security")
+			{
+				CState State{_fDatabaseFactory, _fCleanup};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+				
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+				{
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
+					
+					// Check that you cannot reuse old ticket
+					DMibExpectExceptionType(ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0), NException::CException);
+					
+					// Check that you can add trust to server, even with old client in database
+					TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
 				}
 
 				{
-					DMibTestPath("Remove client while connected");
-					ServerDatabase = fg_ConstructActor<CTrustManagerDatabase>();
-					ClientDatabase = fg_ConstructActor<CTrustManagerDatabase>();
+					DMibTestPath("Before fraudulent try");
+					fp_DoTests(ServerTrustManager, ClientTrustManager);
+				}
 
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = fCreateServerTrustManager();
-					TCActor<CDistributedActorTrustManager> ClientTrustManager = fCreateClientTrustManager();
-					
-					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31392/";
-					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+				TCActor<ICDistributedActorTrustManagerDatabase> Client2Database = _fDatabaseFactory("Client2");
 
-					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+				{
+					NDistributedActorTrustManagerDatabase::CBasicConfig BasicConfig;
+					BasicConfig.m_HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					NNet::CSSLContext::CCertificateOptions Options;
+					Options.m_KeyLength = 1024;
+					Options.m_Subject = fg_Format("Malterlib Distributed Actors Root - {}", BasicConfig.m_HostID).f_Left(64); 
+					auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
+					Extension.m_bCritical = false; 
+					Extension.m_Value = BasicConfig.m_HostID;
 					
-					fDoTests(ServerTrustManager, ClientTrustManager);
-					
-					auto HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
-					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID).f_CallSync(60.0);;
-					
-					auto ConnectionState = ClientTrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
-					
-					DMibAssertFalse(ConnectionState.m_Hosts.f_IsEmpty());
-					DMibAssertFalse(ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_IsEmpty());
-					
-					auto &Address = *ConnectionState.m_Hosts.f_FindAny()->m_Addresses.f_FindAny();
-					
-					DMibExpectFalse(Address.m_bConnected);
-					DMibExpect(Address.m_Error, !=, "");
-					
-					DMibExpectExceptionType(fDoTests(ServerTrustManager, ClientTrustManager), NException::CException);
-					
-					ClientTrustManager->f_BlockDestroy();
-					ServerTrustManager->f_BlockDestroy();
+					NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, 1, 100*365);
+						
+					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(60.0);
 				}
 				
-				ServerDatabase->f_BlockDestroy();
-				ClientDatabase->f_BlockDestroy();
+				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
+					(
+						Client2Database
+						, [](NStr::CStr const &_HostID)
+						{
+							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+						}
+						, 1024 
+					)
+				;
 				
-				_fCleanup();
+				auto TrustTicket2 = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+				// Test fraudulent client add
+				DMibExpectExceptionType(Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2, 30.0).f_CallSync(60.0), NException::CException);
+				
+				{
+					DMibTestPath("After fraudulent try");
+					fp_DoTests(ServerTrustManager, ClientTrustManager);
+				}
+				Client2TrustManager->f_BlockDestroy();
+				Client2Database->f_BlockDestroy();
+				ClientTrustManager->f_BlockDestroy();
+				ServerTrustManager->f_BlockDestroy();
 			};
 		}
 		void f_DoTests()

@@ -66,7 +66,7 @@ namespace NMib
 		template <typename t_CActor>
 		TCActorInternal<t_CActor>::~TCActorInternal()
 		{
-			CSuper::f_DestroyThreaded();
+			this->f_DestroyThreaded();
 		}
 
 

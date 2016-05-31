@@ -136,10 +136,18 @@ namespace NMib
 			}
 		}
 		
-		CAbstractDistributedActor::CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy, NStr::CStr const &_HostID)
+		CAbstractDistributedActor::CAbstractDistributedActor
+			(
+				TCDistributedActor<CActor> const &_Actor
+				, NContainer::TCVector<uint32> const &_InheritanceHierarchy
+				, NStr::CStr const &_UniqueHostID
+				, NStr::CStr const &_RealHostID
+			 
+			)
 			: mp_Actor(_Actor)
 			, mp_InheritanceHierarchy(_InheritanceHierarchy)
-			, mp_HostID(_HostID)
+			, mp_UniqueHostID(_UniqueHostID)
+			, mp_RealHostID(_RealHostID)
 		{
 		}
 
@@ -166,7 +174,7 @@ namespace NMib
 				;
 			}
 			
-			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_RealHostID);
+			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_UniqueHostID, _pHost->m_RealHostID);
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
 				pAll->m_fOnNewActor(fg_TempCopy(AbstractActor));
@@ -274,7 +282,13 @@ namespace NMib
 				for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
 				{
 					for (auto &RemoteActor : RemoteNamespace.m_RemoteActors)
-						Subscribed.m_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
+					{
+						Subscribed.m_fOnNewActor
+							(
+								CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
+							)
+						;
+					}
 				}
 			}
 			else
@@ -288,7 +302,13 @@ namespace NMib
 					if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(Namespace))
 					{
 						for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)
-							Subscribed.m_fOnNewActor(CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_RealHostID));
+						{
+							Subscribed.m_fOnNewActor
+								(
+									CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
+								)
+							;
+						}
 					}
 				}
 			}

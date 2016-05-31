@@ -251,6 +251,21 @@ namespace NMib
 			;
 		}
 		
+		TCContinuation<NPtr::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(NStr::CStr const &_HostID)
+		{
+			return TCContinuation<NPtr::TCUniquePointer<CClient>>::fs_RunProtected<NException::CException>() > 
+				[&]() -> NPtr::TCUniquePointer<CClient>
+				{
+					auto &Internal = *mp_pInternal;
+					
+					CClient Client;
+					if (!Internal.f_Read(Client, "Clients", _HostID))
+						return nullptr;
+					return fg_Construct(fg_Move(Client));
+				}
+			;
+		}
+		
 		TCContinuation<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(NStr::CStr const &_HostID)
 		{
 			return TCContinuation<bool>::fs_RunProtected<NException::CException>() > [&]

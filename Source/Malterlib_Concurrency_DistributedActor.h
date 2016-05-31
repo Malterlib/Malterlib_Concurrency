@@ -133,17 +133,26 @@ namespace NMib
 
 		struct CAbstractDistributedActor
 		{
-			CAbstractDistributedActor(TCDistributedActor<CActor> const &_Actor, NContainer::TCVector<uint32> const &_InheritanceHierarchy, NStr::CStr const &_HostID);
+			CAbstractDistributedActor
+				(
+					TCDistributedActor<CActor> const &_Actor
+					, NContainer::TCVector<uint32> const &_InheritanceHierarchy
+					, NStr::CStr const &_UniqueHostID
+					, NStr::CStr const &_RealHostID
+				)
+			;
 			
 			template <typename tf_CType>
 			TCDistributedActor<tf_CType> f_GetActor() const;
 			template <typename tf_CType>
 			TCDistributedActor<tf_CType> f_GetActorUnsafe() const;
-			inline NStr::CStr const &f_GetHostID() const;
+			inline NStr::CStr const &f_GetUniqueHostID() const;
+			inline NStr::CStr const &f_GetRealHostID() const;
 		private:
 			TCDistributedActor<CActor> mp_Actor;
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
-			NStr::CStr mp_HostID;
+			NStr::CStr mp_UniqueHostID;
+			NStr::CStr mp_RealHostID;
 		};
 		
 		namespace NPrivate
@@ -315,7 +324,8 @@ namespace NMib
 			struct CConnectionResult
 			{
 				CDistributedActorConnectionReference m_ConnectionReference;
-				NStr::CStr m_HostID;
+				NStr::CStr m_UniqueHostID;
+				NStr::CStr m_RealHostID;
 				NContainer::TCVector<NContainer::TCVector<uint8>> m_CertificateChain;
 				
 				CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
@@ -361,6 +371,7 @@ namespace NMib
 
 			static NStr::CStr fs_GetCallingHostID();
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
+			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
 			
 		private:
 			void fp_RemoveListen(NStr::CStr const &_ListenID);

@@ -35,24 +35,16 @@ namespace NMib
 				return Continuation;
 			}
 			
-			uint64 PacketID = ++pHost->m_Outgoing_CurrentPacketID;
-
 			{
 				NStream::CBinaryStreamMemoryPtr<> Stream;
 				Stream.f_OpenReadWrite(_CallData.f_GetArray(), _CallData.f_GetLen(), _CallData.f_GetLen());
 				Stream << uint8(EDistributedActorCommand_RemoteCall);
-				Stream << PacketID;
 			}
-			
-			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct();
-			pPacket->m_pData = fg_Construct(fg_Move(_CallData));
-			pHost->m_Outgoing_QueuedPackets.f_Insert(pPacket.f_Detach());
-			
-			pHost->m_OutstandingCalls[PacketID] = Continuation;
 			
 			auto &Internal = *mp_pInternal;
 			
-			Internal.fp_SendPacketQueue(pHost);
+			auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
+			pHost->m_OutstandingCalls[PacketID] = Continuation;
 
 			return Continuation;			
 		}

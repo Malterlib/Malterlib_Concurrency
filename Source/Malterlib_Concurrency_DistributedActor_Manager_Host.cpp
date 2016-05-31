@@ -45,7 +45,6 @@ namespace NMib
 			{
 				DMibFastCheck(m_RemoteActors.f_IsEmpty());
 				m_Incoming_ReceivedPackets.f_DeleteAll();
-				m_Incoming_QueuedPackets.f_DeleteAll();
 				m_Outgoing_QueuedPackets.f_DeleteAll();
 				m_Outgoing_SentPackets.f_DeleteAll();
 			}
@@ -61,9 +60,26 @@ namespace NMib
 				return fg_Explicit();
 			}
 			
-			Internal.fp_DestroyHost(**pHost, nullptr);
+			auto &Host = **pHost;
+
+			TCActorResultVector<void> Results;
+			for (auto &ClientConnection : Host.m_ClientConnections)
+				ClientConnection.f_Disconnect() > Results.f_AddResult();
 			
-			return fg_Explicit();
+			for (auto &ServerConnection : Host.m_ServerConnections)
+				ServerConnection.f_Disconnect() > Results.f_AddResult();
+			
+			Internal.fp_DestroyHost(**pHost, nullptr);
+
+			TCContinuation<void> Continuation;
+			Results.f_GetResults() > fg_ConcurrentActor() / [Continuation](auto &&_Results)
+				{
+					// Ignore errors
+					Continuation.f_SetResult();
+				}
+			;
+			
+			return Continuation;
 		}
 
 		void CActorDistributionManager::CInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection)
@@ -78,7 +94,7 @@ namespace NMib
 				if (&Connection == _pSaveConnection)
 					continue;
 				
-				fp_DestroyClientConnection(Connection, true);
+				fp_DestroyClientConnection(Connection, true, "Reset host state");
 			}
 			
 			for (auto iServerConnection = Host.m_ServerConnections.f_GetIterator(); iServerConnection; )
@@ -89,7 +105,7 @@ namespace NMib
 				if (&Connection == _pSaveConnection)
 					continue;
 				
-				fp_DestroyServerConnection(Connection, true);
+				fp_DestroyServerConnection(Connection, true, "Reset host state");
 			}
 			
 			DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
@@ -122,11 +138,9 @@ namespace NMib
 				Host.m_bIncoming = false;
 				Host.m_bOutgoing = false;
 			}
-			Host.m_Incoming_ReceivedPacketID = 1;
-			Host.m_Incoming_AckedPacketID = 0;
+			Host.m_Incoming_NextPacketID = 1;
 
 			Host.m_Outgoing_CurrentPacketID = 0;
-			Host.m_Outgoing_AckedPacketID = 0;
 			
 			for (auto &Call : Host.m_OutstandingCalls)
 				Call.f_SetException(DMibErrorInstance("Remote host no longer running"));

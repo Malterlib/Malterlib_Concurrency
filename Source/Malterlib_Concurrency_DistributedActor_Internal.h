@@ -40,8 +40,11 @@ namespace NMib
 				{
 				}
 				
-				void f_Reset();
-				void f_Destroy();
+				void f_Reset(bool _bResetHost);
+				void f_Destroy(NStr::CStr const &_Error);
+				TCDispatchedActorCall<void> f_Disconnect();
+				static void fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result);
+				virtual NStr::CStr f_GetConnectionID() const pure;
 				
 				TCActor<NWeb::CWebSocketActor> m_Connection;
 				CActorCallback m_ConnectionSubscription;
@@ -49,13 +52,15 @@ namespace NMib
 				NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> m_pHost;
 				DMibListLinkDS_Link(CConnection, m_Link);
 				DMibListLinkDS_Link(CConnection, m_HostLink);
+				NStr::CStr m_LastError;
 				bool m_bIncoming = false;
 			};
 
 			struct CClientConnection : public CConnection 
 			{
-				void f_Reset();
-				void f_Destroy();
+				void f_Reset(bool _bResetHost);
+				void f_Destroy(NStr::CStr const &_Error);
+				NStr::CStr f_GetConnectionID() const override;
 				
 				NStr::CStr m_ConnectionID;
 				NHTTP::CURL m_ServerURL;
@@ -67,17 +72,16 @@ namespace NMib
 
 			struct CServerConnection : public CConnection 
 			{
-				CServerConnection(mint _ConnectionID)
-					: m_ConnectionID(_ConnectionID)
-				{
-				}
+				CServerConnection(mint _ConnectionID);
+				NStr::CStr f_GetConnectionID() const override;
 				
 				mint const m_ConnectionID;
 			};
 			
 			struct CPacket
 			{
-				CPacket()
+				CPacket(NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pData)
+					: m_pData(_pData)
 				{
 				}
 				NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> m_pData; // Shared pointer because we need to keep this around and possibly resend it
@@ -129,14 +133,11 @@ namespace NMib
 				CConnection *m_pLastSendConnection = nullptr;
 				
 				DMibListLinkDS_List(CPacket, m_Link) m_Incoming_ReceivedPackets;
-				DMibListLinkDS_List(CPacket, m_Link) m_Incoming_QueuedPackets;
-				uint64 m_Incoming_ReceivedPacketID = 1;
-				uint64 m_Incoming_AckedPacketID = 0;
+				uint64 m_Incoming_NextPacketID = 1;
 
 				DMibListLinkDS_List(CPacket, m_Link) m_Outgoing_QueuedPackets;
 				NIntrusive::TCAVLTree<CPacket::CLinkTraits_m_TreeLink, CPacket::CSortPacketID> m_Outgoing_SentPackets;
 				uint64 m_Outgoing_CurrentPacketID = 0;
-				uint64 m_Outgoing_AckedPacketID = 0;
 				
 				NContainer::TCMap<uint32, TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>> m_OutstandingCalls;
 				
@@ -282,8 +283,8 @@ namespace NMib
 					, bool _bRetry
 				)
 			;
-			void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost);
-			void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost);
+			void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
+			void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
 
 			void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection);
 			void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection);
@@ -296,9 +297,10 @@ namespace NMib
 			;
 			template <typename tf_CCommand>
 			void fp_QueueCommand(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, tf_CCommand const &_Command);
-			void fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data);
+			uint64 fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data);
 			void fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost);
 			void fp_ProcessPacketQueue(CConnection *_pConnection);
+			void fp_SendPacket(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_pMessage);
 			bool fp_HandleProtocolIncoming(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage);
 			void fp_Identify(CConnection *_pConnection);
 			NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll);

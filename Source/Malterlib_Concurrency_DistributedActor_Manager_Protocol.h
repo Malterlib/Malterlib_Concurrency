@@ -36,6 +36,7 @@ namespace NMib
 			NStr::CStr m_ExecutionID;
 			NStr::CStr m_LastSeenExecutionID;
 			NContainer::TCVector<uint64> m_MissingPacketIDs;
+			uint64 m_AckedPacketID = 0;
 			uint64 m_HighestSeenPacketID = 0;
 			NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 			uint8 m_bAllowAllNamespaces;

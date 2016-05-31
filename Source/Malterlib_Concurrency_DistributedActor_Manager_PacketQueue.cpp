@@ -20,12 +20,27 @@ namespace NMib
 				return fg_ByteSwapLE(*((uint64 const *)pData));
 			}	
 		}
-		
-		void CActorDistributionManager::CInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
-		{
-			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct();
 
+		void CActorDistributionManager::CInternal::fp_SendPacket(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_pMessage)
+		{
+			if (!_pConnection->m_Connection)
+				return;
+			_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(_pMessage), 0) 
+				> [](TCAsyncResult<void> &&_Result)
+				{
+					if (!_Result)
+					{
+						DMibLog(DebugVerbose2, " ---- Error sending packet {}", _Result.f_GetExceptionStr());
+						// TODO: Early reschedule here by deleting the connection?
+					}						
+				}
+			;
+		}
+		
+		uint64 CActorDistributionManager::CInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
+		{
 			auto PacketID = ++_pHost->m_Outgoing_CurrentPacketID;
+			DMibLog(DebugVerbose2, " ---- {} Queueing packet {}", _pHost->m_bIncoming, PacketID);
 
 			{
 				NStream::CBinaryStreamMemoryPtr<> Stream;
@@ -34,9 +49,11 @@ namespace NMib
 				Stream << PacketID;
 			}
 			
-			pPacket->m_pData = fg_Construct(_Data);
+			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct(fg_Construct(_Data));
 			_pHost->m_Outgoing_QueuedPackets.f_Insert(pPacket.f_Detach());
 			fp_SendPacketQueue(_pHost);
+			
+			return PacketID;
 		}
 		
 		void CActorDistributionManager::CInternal::fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost)
@@ -53,16 +70,9 @@ namespace NMib
 			while (auto *pPacket = _pHost->m_Outgoing_QueuedPackets.f_GetFirst())
 			{
 				auto *pConnection = &*iConnection;
+				DMibLog(DebugVerbose2, " ---- {} {} Sending packet {}", _pHost->m_bIncoming, pConnection->f_GetConnectionID(), pPacket->f_GetPacketID());
 				
-				pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, pPacket->m_pData, 0) 
-					> [](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-						{
-							// TODO: Early reschedule here by deleting the connection?
-						}						
-					}
-				;
+				fp_SendPacket(pConnection, fg_TempCopy(pPacket->m_pData));
 				pPacket->m_Link.f_Unlink();
 				_pHost->m_Outgoing_SentPackets.f_Insert(pPacket);
 				++iConnection;
@@ -79,16 +89,18 @@ namespace NMib
 			uint64 AckPacket;
 			bool bAccPacket = false;
 			auto *pPacket = pHost->m_Incoming_ReceivedPackets.f_GetFirst();
-			while (pPacket && pPacket->f_GetPacketID() == pHost->m_Incoming_ReceivedPacketID)
+			while (pPacket && pPacket->f_GetPacketID() == pHost->m_Incoming_NextPacketID)
 			{
-				AckPacket = pHost->m_Incoming_ReceivedPacketID; 
-				++pHost->m_Incoming_ReceivedPacketID;
+				DMibLog(DebugVerbose2, " ---- {} {} Processing packet {}", pHost->m_bIncoming, _pConnection->f_GetConnectionID(), pPacket->f_GetPacketID());
+				AckPacket = pHost->m_Incoming_NextPacketID;
+				++pHost->m_Incoming_NextPacketID;
 				bAccPacket = true;
 				pHost->m_Incoming_ReceivedPackets.f_Remove(pPacket);
 				NPtr::TCUniquePointer<CPacket> pPacketStore = fg_Explicit(pPacket);
 				
 				try
 				{
+					NException::CDisableExceptionTraceScope DisableTrace;
 					auto &Data = *pPacketStore->m_pData;
 					NStream::CBinaryStreamMemoryPtr<> Stream;
 					Stream.f_OpenRead(Data.f_GetArray(), Data.f_GetLen());
@@ -156,15 +168,7 @@ namespace NMib
 				
 				NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> pMessage = fg_Construct(Stream.f_MoveVector());
 				
-				_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(pMessage), 0) 
-					> [](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-						{
-							// TODO: Early reschedule here by deleting the connection?
-						}						
-					}
-				;
+				fp_SendPacket(_pConnection, fg_Move(pMessage));
 			}
 		}
 	}

@@ -146,7 +146,7 @@ namespace NMib
 					for (auto &Address : Host.m_Addresses)
 					{
 						if (!Address.m_bConnected)
-							DMibError("Found unconnected address");
+							DMibError(fg_Format("Found unconnected address: {}", Address.m_Error));
 					}			
 				}
 			}

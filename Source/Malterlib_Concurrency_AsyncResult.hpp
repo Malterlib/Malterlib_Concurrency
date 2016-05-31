@@ -68,6 +68,7 @@ namespace NMib
 		template <typename tf_CType>
 		void TCAsyncResult<t_CType>::f_SetException(tf_CType &&_Exception)
 		{
+			static_assert(NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value, "Probably unintended non CException exception");
 			DMibRequire(m_Result.template f_IsOfType<void>());
 			DMibRequire(!m_pException);
 #if defined(DCompiler_MSVC) && DMibCompilerVersion < 1700
@@ -187,6 +188,7 @@ namespace NMib
 		template <typename tf_CType>
 		void TCAsyncResult<void>::f_SetException(tf_CType &&_Exception)
 		{
+			static_assert(NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value, "Probably unintended non CException exception");
 			DMibRequire(!m_bHasBeenSet);
 			DMibRequire(!m_pException);
 #if defined(DCompiler_MSVC) && DMibCompilerVersion < 1700

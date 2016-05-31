@@ -82,12 +82,12 @@ namespace NMib
 			;
 		}		
 		
-		void CActorDistributionManager::CInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost)
+		void CActorDistributionManager::CInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
 		{
 			auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
 			if (pConnection)
 			{
-				_Connection.f_Destroy();
+				_Connection.f_Destroy(_Error);
 				
 				auto &pHost = _Connection.m_pHost;
 				if (!_bSaveHost && pHost && pHost->m_bAnonymous)
@@ -174,6 +174,7 @@ namespace NMib
 						{
 							try
 							{
+								NException::CDisableExceptionTraceScope DisableTrace;
 								HostID = fs_GetCertificateHostID(pSocketInfo->m_PeerCertificate);
 								if (HostID.f_IsEmpty())
 								{
@@ -219,13 +220,17 @@ namespace NMib
 								Host.m_bIncoming = true;
 								pConnection->m_bIncoming = true;
 								
-								NewServerConnection.m_fOnClose = [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress]
+								NewServerConnection.m_fOnClose = [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress, HostID]
 									(NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
 									{
+										if (!pConnection->m_pHost)
+											return;
 										NStr::CStr CloseMessage = fg_Format
 											(
-												"Lost incoming connection from '{}': {} {} {}"
+												"Lost incoming connection({}) from '{}' with host ID '{}': {} {} {}"
+												, pConnection->f_GetConnectionID()
 												, Address.f_GetString()
+												, HostID
 												, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 												, _Reason
 												, _Message
@@ -236,9 +241,7 @@ namespace NMib
 											DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
 										else
 											DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
-										if (!pConnection->m_pHost)
-											return;
-										fp_DestroyServerConnection(*pConnection, false);
+										fp_DestroyServerConnection(*pConnection, false, CloseMessage);
 									}
 								;
 								
@@ -267,7 +270,16 @@ namespace NMib
 												if (!pConnection->m_Connection)
 													return;
 
-												DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Accepted connection from '{}' with host ID '{}'", Address.f_GetString(), HostID);
+												DMibLogWithCategory
+													(
+														Mib/Concurrency/Actors
+														, Info
+														, "Accepted connection({}) from '{}' with host ID '{}'"
+														, pConnection->f_GetConnectionID()
+														, Address.f_GetString()
+														, HostID
+													)
+												;
 												pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
 												fp_Identify(pConnection.f_Get());
 											}

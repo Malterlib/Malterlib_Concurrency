@@ -56,7 +56,7 @@ namespace NMib
 										
 										if (!_ListenRef)
 										{
-											Continuation.f_SetException(fg_Format("Failed to listen: {}", _ListenRef.f_GetExceptionStr()));
+											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to listen: {}", _ListenRef.f_GetExceptionStr())));
 											return;
 										}
 										auto &ListenState = Internal.m_Listen[ListenConfig];

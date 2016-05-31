@@ -228,6 +228,7 @@ namespace NMib
 								}
 								try
 								{
+									NException::CDisableExceptionTraceScope DisableTrace;
 									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result);
 								}
 								catch (NException::CException const &_Exception)
@@ -317,9 +318,13 @@ namespace NMib
 			return (TCDistributedActor<tf_CType> &)mp_Actor;
 		}
 		
-		inline NStr::CStr const &CAbstractDistributedActor::f_GetHostID() const
+		inline NStr::CStr const &CAbstractDistributedActor::f_GetUniqueHostID() const
 		{
-			return mp_HostID;
+			return mp_UniqueHostID;
+		}
+		inline NStr::CStr const &CAbstractDistributedActor::f_GetRealHostID() const
+		{
+			return mp_RealHostID;
 		}
 	}
 }

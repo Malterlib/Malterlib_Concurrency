@@ -15,6 +15,7 @@
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>
+#include <Mib/File/File>
 
 #include <type_traits>
 
@@ -237,7 +238,7 @@ namespace
 			}; 
 		}
 		
-		void fp_BasicTests()
+		void fp_BasicTests(NStr::CStr const &_Address)
 		{
 			CStr ServerHostID = NCryptography::fg_RandomID();
 			CStr ClientHostID = NCryptography::fg_RandomID();
@@ -245,9 +246,26 @@ namespace
 			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(ClientHostID);
 			
 			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
-			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
+			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), 1024);
 			
-			CActorDistributionListenSettings ListenSettings{31392}; // 1392 is 'mib' encoded with alphabet positions
+			NNet::CNetAddress ListenAddress;
+			NHTTP::CURL ConnectAddress;
+			
+			if (_Address == "localhost")
+			{
+				NNet::CNetAddressTCPv4 Address;
+				Address.m_Port = 31392;
+				ConnectAddress = fg_Format("wss://{}:31392/", _Address);
+				ListenAddress = Address;
+			}
+			else
+			{
+				ListenAddress = NNet::CSocket::fs_ResolveAddress(_Address);
+				ConnectAddress = "wss://localhost/";
+				ConnectAddress.f_SetHost(_Address);
+			}
+			
+			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ListenAddress)}; // 1392 is 'mib' encoded with alphabet positions
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
@@ -264,10 +282,10 @@ namespace
 			;
 			
 			CActorDistributionConnectionSettings ConnectionSettings;
-			ConnectionSettings.m_ServerURL = "wss://localhost:31392/";
+			ConnectionSettings.m_ServerURL = ConnectAddress;
 			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_CACertificate;
 			CActorDistributionCryptographySettings ClientCryptography{ClientHostID};
-			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>("localhost"), 1024);
+			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), 1024);
 			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
 			
 			auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);
@@ -425,7 +443,11 @@ namespace
 			{
 				DMibTestSuite("Basics")
 				{
-					fp_BasicTests();
+					fp_BasicTests("localhost");
+				};
+				DMibTestSuite("Basics Unix Sockets")
+				{
+					fp_BasicTests(fg_Format("UNIX:{}/TestDistributedActor.socket", NMib::NFile::CFile::fs_GetProgramDirectory()));
 				};
 				DMibTestSuite("Anonymous client")
 				{

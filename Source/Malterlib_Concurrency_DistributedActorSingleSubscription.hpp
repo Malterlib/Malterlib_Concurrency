@@ -8,37 +8,23 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename t_CActor>
-		TCDistributedActorSingleSubscription<t_CActor>::TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace)
+		TCDistributedActorSingleSubscription<t_CActor>::TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager)
 			: mp_Namespace(_Namespace)
+			, mp_DistributionManager(_DistributionManager)
 		{
 		}
 
 		template <typename t_CActor>
 		void TCDistributedActorSingleSubscription<t_CActor>::f_Construct()
 		{
-			DMibFastCheck(mp_ThreadID == 0);
-			mp_ThreadID = NSys::fg_Thread_GetCurrentUID();
-			auto Cleanup = g_OnScopeExit > [this]
-				{
-					mp_ThreadID = 0;
-				}
-			;
 			DMibCheck(fg_CurrentActor() == fg_ThisActor(this));
-			fg_GetDistributionManager()
+			mp_DistributionManager
 				(
 					&CActorDistributionManager::f_SubscribeActors
-					, fg_CreateVector(mp_Namespace)
+					, NContainer::fg_CreateVector(mp_Namespace)
 					, fg_CurrentActor()
 					, [this](CAbstractDistributedActor &&_NewActor)
 					{
-						DMibFastCheck(mp_ThreadID == 0);
-						fg_MemoryFence();
-						mp_ThreadID = NSys::fg_Thread_GetCurrentUID();
-						auto Cleanup = g_OnScopeExit > [this]
-							{
-								mp_ThreadID = 0;
-							}
-						;
 						mp_DistributedActor = {};
 						auto Actor = _NewActor.f_GetActor<t_CActor>();
 						if (!Actor)
@@ -52,26 +38,12 @@ namespace NMib
 					}
 					, [this](const TCWeakDistributedActor<CActor> &_RemovedActor)
 					{
-						DMibFastCheck(mp_ThreadID == 0);
-						mp_ThreadID = NSys::fg_Thread_GetCurrentUID();
-						auto Cleanup = g_OnScopeExit > [this]
-							{
-								mp_ThreadID = 0;
-							}
-						;
 						if (mp_DistributedActor && *mp_DistributedActor == _RemovedActor)
 							mp_DistributedActor = {}; 
 					}
 				)
 				> [this](TCAsyncResult<CActorCallback> &&_Subscription)
 				{
-					DMibFastCheck(mp_ThreadID == 0);
-					mp_ThreadID = NSys::fg_Thread_GetCurrentUID();
-					auto Cleanup = g_OnScopeExit > [this]
-						{
-							mp_ThreadID = 0;
-						}
-					;
 					if (!_Subscription)
 					{
 						mp_DistributedActor.f_SetException(fg_Move(_Subscription));
@@ -86,14 +58,6 @@ namespace NMib
 		template <typename t_CActor>
 		TCContinuation<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
 		{
-			DMibFastCheck(mp_ThreadID == 0);
-			mp_ThreadID = NSys::fg_Thread_GetCurrentUID();
-			auto Cleanup = g_OnScopeExit > [this]
-				{
-					mp_ThreadID = 0;
-				}
-			;
-				
 			if (mp_DistributedActor.f_IsSet())
 				return mp_DistributedActor;
 			

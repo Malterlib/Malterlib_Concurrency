@@ -7,40 +7,14 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		CRuntimeTypeRegistry_MemberFunctionPointer::CRuntimeTypeRegistry_MemberFunctionPointer(void **_pPtrs, mint _nPtrs)
-		{
-			mint iPtr = 0;
-			for (; iPtr < _nPtrs; ++iPtr)
-				m_pPtrs[iPtr] = _pPtrs[_nPtrs];
-			for (; iPtr < EMaxPtrs; ++iPtr)
-				m_pPtrs[iPtr] = nullptr;
-		}
-			
-		bool CRuntimeTypeRegistry_MemberFunctionPointer::operator < (CRuntimeTypeRegistry_MemberFunctionPointer const &_Other) const
-		{
-			for (mint iPtr = 0; iPtr < EMaxPtrs; ++iPtr)
-			{
-				if (m_pPtrs[iPtr] < _Other.m_pPtrs[iPtr])
-					return true;
-				else if (m_pPtrs[iPtr] > _Other.m_pPtrs[iPtr])
-					return false;
-			}
-			
-			return false;
-		}
-		
 		namespace NPrivate
 		{
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction>
-			t_CMemberFunction const TCStaticMemberPointer<t_CMemberFunction, t_pMemberFunction>::mc_Value = t_pMemberFunction;
-
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CReturn>
 			TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CReturn>::TCRuntimeTypeRegistryEntry_MemberFunction()
 				: CRuntimeTypeRegistryEntry_MemberFunction
 				(
 					t_NameHash
 					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
-					, reinterpret_cast<CRuntimeTypeRegistry_MemberFunctionPointer const &>(TCStaticMemberPointer<t_CMemberFunction, t_pMemberFunction>::mc_Value)
 				)
 			{
 			}
@@ -103,7 +77,6 @@ namespace NMib
 				(
 					t_NameHash
 					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
-					, reinterpret_cast<CRuntimeTypeRegistry_MemberFunctionPointer const &>(TCStaticMemberPointer<t_CMemberFunction, t_pMemberFunction>::mc_Value)
 				)
 			{
 			}
@@ -166,7 +139,6 @@ namespace NMib
 				(
 					t_NameHash
 					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
-					, reinterpret_cast<CRuntimeTypeRegistry_MemberFunctionPointer const &>(TCStaticMemberPointer<t_CMemberFunction, t_pMemberFunction>::mc_Value)
 				)
 			{
 			}

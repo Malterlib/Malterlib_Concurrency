@@ -236,7 +236,7 @@ namespace NMib
 			m_ClientConnections.f_Remove(_pClientConnection);
 		}
 
-		TCContinuation<void> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout)
+		TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout)
 		{
 			// Connect to remote host with anonymous connection
 			// Subscribe to internal interface (time out if no publication arrives)
@@ -245,7 +245,7 @@ namespace NMib
 			// Connect again to remote host with signed client certificate (if failure, remove from database again)
 			
 			auto &Internal = *mp_pInternal;
-			TCContinuation<void> Continuation;
+			TCContinuation<NStr::CStr> Continuation;
 			Internal.f_RunAfterInit
 				(
 					Continuation
@@ -277,7 +277,6 @@ namespace NMib
 						
 						NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 						ConnectionSettings.m_ServerURL = _TrustTicket.m_ServerAddress.m_URL;
-						ConnectionSettings.m_ServerURLPreferAddress = _TrustTicket.m_ServerAddress.m_PreferType;
 						ConnectionSettings.m_bRetryConnectOnFailure = false;
 						ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 					
@@ -411,7 +410,6 @@ namespace NMib
 															auto &Internal = *mp_pInternal;
 															CActorDistributionConnectionSettings ClientSettings;
 															ClientSettings.m_ServerURL = Address.m_URL;
-															ClientSettings.m_ServerURLPreferAddress = Address.m_PreferType;
 															ClientSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 															ClientSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 															ClientSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
@@ -466,7 +464,7 @@ namespace NMib
 																	LocalClientConnection.m_pHost = &Host;
 																	LocalClientConnection.m_ConnectionReference = fg_Move(_ConnectionResult->m_ConnectionReference);
 																	pConnectionState->f_Replied();
-																	Continuation.f_SetResult();
+																	Continuation.f_SetResult(ServerHostID);
 																}
 															;												
 														}
@@ -515,13 +513,13 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<void> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address)
+		TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address)
 		{
 			// Connect with insecure connection to server to get server certificate
 			// Connect with server certificate to verify that trust is correct
 			// Connect with server certificate and client certificate at the end
 			auto &Internal = *mp_pInternal;
-			TCContinuation<void> Continuation;
+			TCContinuation<NStr::CStr> Continuation;
 			Internal.f_RunAfterInit
 				(
 					Continuation
@@ -538,7 +536,6 @@ namespace NMib
 						
 						NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 						ConnectionSettings.m_ServerURL = _Address.m_URL;
-						ConnectionSettings.m_ServerURLPreferAddress = _Address.m_PreferType;
 						ConnectionSettings.m_bRetryConnectOnFailure = false;
 						ConnectionSettings.m_bAllowInsecureConnection = true;
 					
@@ -582,7 +579,6 @@ namespace NMib
 										
 								NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 								ConnectionSettings.m_ServerURL = _Address.m_URL;
-								ConnectionSettings.m_ServerURLPreferAddress = _Address.m_PreferType;
 								ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
 								ConnectionSettings.m_bRetryConnectOnFailure = false;
 							
@@ -594,7 +590,6 @@ namespace NMib
 
 										NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 										ConnectionSettings.m_ServerURL = _Address.m_URL;
-										ConnectionSettings.m_ServerURLPreferAddress = _Address.m_PreferType;
 										ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
 										ConnectionSettings.m_PublicClientCertificate = NewClientConnection.m_PublicClientCertificate;
 										ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
@@ -641,7 +636,7 @@ namespace NMib
 														Host.m_ClientConnections.f_Insert(LocalClientConnection);
 														LocalClientConnection.m_pHost = &Host;
 														LocalClientConnection.m_ConnectionReference = fg_Move(ConnectionReference);
-														Continuation.f_SetResult();
+														Continuation.f_SetResult(ServerHostID);
 													}
 												;
 											}

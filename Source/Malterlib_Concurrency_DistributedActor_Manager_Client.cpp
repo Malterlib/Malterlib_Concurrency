@@ -164,7 +164,7 @@ namespace NMib
 					&NWeb::CWebSocketClientActor::f_Connect
 					, _pConnection->m_ServerURL.f_GetHost()
 					, ""
-					, _pConnection->m_PreferAddress 
+					, NNet::ENetAddressType_None
 					, _pConnection->m_ServerURL.f_GetPort()
 					, _pConnection->m_ServerURL.f_GetFullPath()
 					, _pConnection->m_ServerURL.f_Encode()
@@ -457,7 +457,6 @@ namespace NMib
 				return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
 			}
 			pConnection->m_ServerURL = _Settings.m_ServerURL;
-			pConnection->m_PreferAddress = _Settings.m_ServerURLPreferAddress;
 			
 			Internal.fp_Reconnect(pConnection, fg_Construct(Continuation), _Settings.m_bRetryConnectOnFailure);
 			

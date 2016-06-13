@@ -108,7 +108,6 @@ namespace NMib
 			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 			
 			NHTTP::CURL m_ServerURL;
-			NNet::ENetAddressType m_ServerURLPreferAddress = NNet::ENetAddressType_None;
 			NContainer::TCVector<uint8> m_PublicServerCertificate;
 			NContainer::TCVector<uint8> m_PublicClientCertificate;
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateClientKey;
@@ -119,12 +118,12 @@ namespace NMib
 		struct CActorDistributionListenSettings
 		{
 			CActorDistributionListenSettings(uint16 _Port, NNet::ENetAddressType _AddressType = NNet::ENetAddressType_None);			
-			CActorDistributionListenSettings(NContainer::TCVector<NNet::CNetAddress> const &_Address);
+			CActorDistributionListenSettings(NContainer::TCVector<NHTTP::CURL> const &_Addresses);
 			~CActorDistributionListenSettings();
 
 			void f_SetCryptography(CActorDistributionCryptographySettings const &_Settings);
 
-			NContainer::TCVector<NNet::CNetAddress> m_ListenAddresses;
+			NContainer::TCVector<NHTTP::CURL> m_ListenAddresses;
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateKey;
 			NContainer::TCVector<uint8> m_CACertificate;
 			NContainer::TCVector<uint8> m_PublicCertificate;
@@ -336,6 +335,8 @@ namespace NMib
 			
 			CActorDistributionManager(NStr::CStr const &_HostID);
 			~CActorDistributionManager();
+			
+			void f_Construct();
 			
 			void f_SetSecurity(CDistributedActorSecurity const &_Security);
 			void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);

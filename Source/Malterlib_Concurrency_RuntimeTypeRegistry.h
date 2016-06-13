@@ -57,18 +57,12 @@ namespace NMib
 				inline_always_debug uint32 operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry);
 			};
 
-			struct CSort_MemberPointer
-			{
-				inline_always_debug CRuntimeTypeRegistry_MemberFunctionPointer const &operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry);
-			};
-
 			struct CSortException_Hash
 			{
 				inline_always_debug uint32 operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry);
 			};
 			
 			NIntrusive::TCAVLTree<CRuntimeTypeRegistryEntry_MemberFunction::CLinkTraits_m_HashLink, CSortMemberFunction_Hash> m_EntryByHash_MemberFunction;
-			NIntrusive::TCAVLTree<CRuntimeTypeRegistryEntry_MemberFunction::CLinkTraits_m_MemberPointerLink, CSort_MemberPointer> m_EntryByMemberPointer;
 			
 			NIntrusive::TCAVLTree<CRuntimeTypeRegistryEntry_Exception::CLinkTraits_m_HashLink, CSortException_Hash> m_EntryByHash_Exception;
 		};

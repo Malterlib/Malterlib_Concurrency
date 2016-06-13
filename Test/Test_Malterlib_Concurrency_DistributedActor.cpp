@@ -248,7 +248,6 @@ namespace
 			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
 			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), 1024);
 			
-			NNet::CNetAddress ListenAddress;
 			NHTTP::CURL ConnectAddress;
 			
 			if (_Address == "localhost")
@@ -256,16 +255,13 @@ namespace
 				NNet::CNetAddressTCPv4 Address;
 				Address.m_Port = 31392;
 				ConnectAddress = fg_Format("wss://{}:31392/", _Address);
-				ListenAddress = Address;
 			}
 			else
 			{
-				ListenAddress = NNet::CSocket::fs_ResolveAddress(_Address);
-				ConnectAddress = "wss://localhost/";
-				ConnectAddress.f_SetHost(_Address);
+				ConnectAddress = fg_Format("wss://[{}]/", _Address);
 			}
 			
-			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ListenAddress)}; // 1392 is 'mib' encoded with alphabet positions
+			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)}; // 1392 is 'mib' encoded with alphabet positions
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);

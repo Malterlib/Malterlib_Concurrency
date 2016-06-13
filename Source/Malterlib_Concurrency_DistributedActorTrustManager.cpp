@@ -60,12 +60,12 @@ namespace NMib
 
 		bool CDistributedActorTrustManager_Address::operator == (CDistributedActorTrustManager_Address const &_Right) const
 		{
-			return NContainer::fg_TupleReferences(m_URL, m_PreferType) == NContainer::fg_TupleReferences(_Right.m_URL, _Right.m_PreferType); 
+			return m_URL == _Right.m_URL; 
 		}
 
 		bool CDistributedActorTrustManager_Address::operator < (CDistributedActorTrustManager_Address const &_Right) const
 		{
-			return NContainer::fg_TupleReferences(m_URL, m_PreferType) < NContainer::fg_TupleReferences(_Right.m_URL, _Right.m_PreferType); 
+			return m_URL < _Right.m_URL; 
 		}
 		
 		TCContinuation<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)

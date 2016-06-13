@@ -12,6 +12,7 @@
 #include <Mib/Intrusive/AVLTree>
 #include <Mib/Concurrency/WeakActor>
 #include <Mib/Concurrency/ActorCallbackManager>
+#include <Mib/Network/ResolveActor>
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 
@@ -64,7 +65,6 @@ namespace NMib
 				
 				NStr::CStr m_ConnectionID;
 				NHTTP::CURL m_ServerURL;
-				NMib::NNet::ENetAddressType m_PreferAddress;
 				mint m_ConnectionSequence = 0;
 				bool m_bConnected = false;
 				NStr::CStr m_LastConnectionError;
@@ -259,6 +259,8 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CListen> m_Listens;
 			
 			TCActor<NWeb::CWebSocketClientActor> m_WebsocketClientConnector;
+			
+			TCActor<NNet::CResolveActor> m_ResolveActor;
 			
 			NContainer::TCMap<NStr::CStr, CLocalNamespace> m_LocalNamespaces;
 			NContainer::TCMap<NStr::CStr, CRemoteNamespace> m_RemoteNamespaces;

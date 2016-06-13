@@ -82,8 +82,8 @@ namespace NMib
 			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
 			
 			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections();
-			TCContinuation<void> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
-			TCContinuation<void> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
+			TCContinuation<NStr::CStr> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
+			TCContinuation<NStr::CStr> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 

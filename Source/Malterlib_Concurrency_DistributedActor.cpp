@@ -252,15 +252,13 @@ namespace NMib
 		{
 			if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv4)
 			{
-				NNet::CNetAddressTCPv4 AnyAddress;
-				AnyAddress.m_Port = _Port;
-				m_ListenAddresses.f_Insert(AnyAddress);
+				NHTTP::CURL URL{NStr::fg_Format("wss://[IPv4:0.0.0.0]:{}/", _Port)};
+				m_ListenAddresses.f_Insert(URL);
 			}
 			if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv6)
 			{
-				NNet::CNetAddressTCPv6 AnyAddressV6;
-				AnyAddressV6.m_Port = _Port;
-				m_ListenAddresses.f_Insert(AnyAddressV6);
+				NHTTP::CURL URL{NStr::fg_Format("wss://[IPv6:::]:{}/", _Port)};
+				m_ListenAddresses.f_Insert(URL);
 			}
 		}
 
@@ -268,7 +266,7 @@ namespace NMib
 		{
 		}
 		
-		CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NNet::CNetAddress> const &_Addresses)
+		CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NHTTP::CURL> const &_Addresses)
 			: m_ListenAddresses(_Addresses)
 		{
 		}

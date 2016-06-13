@@ -15,11 +15,6 @@ namespace NMib
 			return _Entry.m_Hash;
 		}
 
-		CRuntimeTypeRegistry_MemberFunctionPointer const &CSubSystem_Concurrency_RuntimeTypeRegistry::CSort_MemberPointer::operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry)
-		{
-			return _Entry.m_MemberPointer;
-		}
-
 		uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortException_Hash::operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry)
 		{
 			return _Entry.m_Hash;

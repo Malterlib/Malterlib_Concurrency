@@ -19,24 +19,20 @@ namespace NMib
 			return *NPrivate::g_MalterlibSubSystem_Concurrency_RuntimeTypeRegistry;
 		}
 
-		CRuntimeTypeRegistryEntry_MemberFunction::CRuntimeTypeRegistryEntry_MemberFunction(uint32 _Hash, uint32 _TypeHash, CRuntimeTypeRegistry_MemberFunctionPointer const &_MemberPointer)
+		CRuntimeTypeRegistryEntry_MemberFunction::CRuntimeTypeRegistryEntry_MemberFunction(uint32 _Hash, uint32 _TypeHash)
 			: m_Hash(_Hash)
 			, m_TypeHash(_TypeHash)
-			, m_MemberPointer(_MemberPointer)
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();
 			// Check that we don't have any hash collisions
 			DMibFastCheck(!SubSystem.m_EntryByHash_MemberFunction.f_FindEqual(_Hash));
-			DMibFastCheck(!SubSystem.m_EntryByMemberPointer.f_FindEqual(_MemberPointer));
 			SubSystem.m_EntryByHash_MemberFunction.f_Insert(this);
-			SubSystem.m_EntryByMemberPointer.f_Insert(this);
 		}
 
 		CRuntimeTypeRegistryEntry_MemberFunction::~CRuntimeTypeRegistryEntry_MemberFunction()
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();
 			SubSystem.m_EntryByHash_MemberFunction.f_Remove(this);
-			SubSystem.m_EntryByMemberPointer.f_Remove(this);
 		}
 
 		CRuntimeTypeRegistryEntry_Exception::CRuntimeTypeRegistryEntry_Exception(uint32 _Hash)

@@ -10,7 +10,7 @@ namespace NMib
 		template <typename t_CActor>
 		struct TCDistributedActorSingleSubscription : public CActor
 		{
-			TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace);
+			TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager = fg_GetDistributionManager());
 			void f_Construct();
 			
 			TCContinuation<TCDistributedActor<t_CActor>> f_GetActor();
@@ -19,10 +19,10 @@ namespace NMib
 			void fp_ResultAvailable();
 			
 			TCAsyncResult<TCDistributedActor<t_CActor>> mp_DistributedActor;
+			TCActor<CActorDistributionManager> mp_DistributionManager;
 			CActorCallback mp_DistributedActorSubscription;
 			NStr::CStr mp_Namespace;
-			TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
-			mint mp_ThreadID = 0;
+			NContainer::TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
 		};
 	}
 }

@@ -16,6 +16,12 @@ namespace NMib
 		{
 		}
 
+		void CActorDistributionManager::f_Construct()
+		{
+			auto &Internal = *mp_pInternal;
+			Internal.m_ResolveActor = fg_ConstructActor<NNet::CResolveActor>();
+		}
+
 		void CActorDistributionManager::CInternal::CConnection::fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result)
 		{
 			if (_Result)

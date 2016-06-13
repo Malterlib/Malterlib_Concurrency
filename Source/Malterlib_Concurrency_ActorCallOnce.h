@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <Mib/Concurrency/ConcurrencyManager>
+#include <Mib/Concurrency/WeakActor>
+
 namespace NMib
 {
 	namespace NConcurrency

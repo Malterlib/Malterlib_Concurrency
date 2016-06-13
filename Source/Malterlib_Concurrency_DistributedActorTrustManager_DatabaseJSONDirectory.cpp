@@ -5,6 +5,7 @@
 
 #include <Mib/Encoding/EJSON>
 #include <Mib/Cryptography/Hashes/SHA>
+#include <Mib/Web/HTTP/URL>
 
 namespace NMib
 {
@@ -37,6 +38,8 @@ namespace NMib
 			bool f_Delete(tfp_CComponent const &...p_Component) const;
 			template <typename tf_CObject>
 			NStr::CStr f_GetNameHash(tf_CObject const &_Object) const;
+			NStr::CStr f_PercentEncode(NStr::CStr const &_Str) const;
+			NStr::CStr f_PercentDecode(NStr::CStr const &_Str) const;
 			template <typename ...tfp_CComponent>
 			NContainer::TCSet<NStr::CStr> f_Find(tfp_CComponent const &...p_Component) const;
 			template <typename ...tfp_CComponent>
@@ -119,7 +122,12 @@ namespace NMib
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					return Internal.f_Find("ServerCertificates");
+					
+					NContainer::TCSet<NStr::CStr> ReturnCertificates;
+					for (auto &FileName : Internal.f_Find("ServerCertificates"))
+						ReturnCertificates[Internal.f_PercentDecode(FileName)];
+					
+					return ReturnCertificates;
 				}
 			;
 		}
@@ -131,7 +139,8 @@ namespace NMib
 				{
 					auto &Internal = *mp_pInternal;
 					CServerCertificate ServerCertificate;
-					if (!Internal.f_Read(ServerCertificate, "ServerCertificates", _HostName))
+					NStr::CStr FileName = Internal.f_PercentEncode(_HostName);
+					if (!Internal.f_Read(ServerCertificate, "ServerCertificates", FileName))
 						DMibError("No server certificate for host");
 					return ServerCertificate;
 				}
@@ -144,9 +153,10 @@ namespace NMib
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					if (Internal.f_Exists("ServerCertificates", _HostName))
+					NStr::CStr FileName = Internal.f_PercentEncode(_HostName);
+					if (Internal.f_Exists("ServerCertificates", FileName))
 						DMibError("Server certificate already exists");
-					Internal.f_Write(_Certificate, "ServerCertificates", _HostName);
+					Internal.f_Write(_Certificate, "ServerCertificates", FileName);
 				}
 			;
 		}
@@ -157,9 +167,10 @@ namespace NMib
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					if (!Internal.f_Exists("ServerCertificates", _HostName))
+					NStr::CStr FileName = Internal.f_PercentEncode(_HostName);
+					if (!Internal.f_Exists("ServerCertificates", FileName))
 						DMibError("No server certificate for host");
-					Internal.f_Write(_Certificate, "ServerCertificates", _HostName);
+					Internal.f_Write(_Certificate, "ServerCertificates", FileName);
 				}
 			;
 		}
@@ -170,7 +181,8 @@ namespace NMib
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					if (!Internal.f_Delete("ServerCertificates", _HostName))
+					NStr::CStr FileName = Internal.f_PercentEncode(_HostName);
+					if (!Internal.f_Delete("ServerCertificates", FileName))
 						DMibError("No server certificate for host");
 				}
 			;
@@ -450,6 +462,20 @@ namespace NMib
 			auto Digest = HashStream.f_GetDigest();
 			return Digest.f_GetString();
 		}
+		
+		NStr::CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_PercentEncode(NStr::CStr const &_Str) const
+		{
+			NStr::CStr Encoded;
+			NHTTP::CURL::fs_PercentEncode(Encoded, _Str);
+			return Encoded;
+		}
+		
+		NStr::CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_PercentDecode(NStr::CStr const &_Str) const
+		{
+			NStr::CStr Decoded;
+			NHTTP::CURL::fs_PercentDecode(Decoded, _Str);
+			return Decoded;
+		}
 
 		template <typename ...tfp_CComponent>
 		NContainer::TCSet<NStr::CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Find(tfp_CComponent const &...p_Component) const
@@ -498,16 +524,7 @@ namespace NMib
 		CDistributedActorTrustManager_Address CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_DecodeAddress(NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
 			CDistributedActorTrustManager_Address Address;
-			Address.m_URL = _JSON["URL"].f_String();
-			NStr::CStr ConnectionType = _JSON["PreferType"].f_String();
-			if (ConnectionType == "None")
-				Address.m_PreferType = NNet::ENetAddressType_None;
-			else if (ConnectionType == "TCPv4")
-				Address.m_PreferType = NNet::ENetAddressType_TCPv4;
-			else if (ConnectionType == "TCPv6")
-				Address.m_PreferType = NNet::ENetAddressType_TCPv6;
-			else
-				DMibError(NStr::fg_Format("Invalid prefer address type found in '{}'", _Name));
+			Address.m_URL = _JSON.f_String();
 			
 			NStr::CStr FileName = NFile::CFile::fs_GetFileNoExt(_Name);
 			
@@ -519,23 +536,7 @@ namespace NMib
 
 		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_EncodeAddress(NEncoding::CEJSON &_JSON, CDistributedActorTrustManager_Address const &_Address) const
 		{
-			_JSON["URL"] = _Address.m_URL.f_Encode();
-			NStr::CStr ConnectionType = _JSON["PreferType"].f_String();
-			switch (_Address.m_PreferType)
-			{
-			case NNet::ENetAddressType_None:
-				_JSON["PreferType"] = "None";
-				break;
-			case NNet::ENetAddressType_TCPv4:
-				_JSON["PreferType"] = "TCPv4";
-				break;
-			case NNet::ENetAddressType_TCPv6:
-				_JSON["PreferType"] = "TCPv6";
-				break;
-			default:
-				DMibNeverGetHere;
-				break;
-			}
+			_JSON = _Address.m_URL.f_Encode();
 		}
 
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CSerial const &_Serial) const

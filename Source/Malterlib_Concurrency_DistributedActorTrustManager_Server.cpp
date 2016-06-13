@@ -32,22 +32,15 @@ namespace NMib
 							return;
 						}
 						
-						uint16 Port = _Address.m_URL.f_GetPortFromScheme();
-						if (!Port)
-						{
-							Continuation.f_SetException(DMibErrorInstance("Port must be know for listen"));
-							return;
-						}
-						
-						auto fDoListen = [this, Continuation, Port, ListenConfig](CServerCertificate const *_pServerCert)
+						auto fDoListen = [this, Continuation, _Address, ListenConfig](CServerCertificate const *_pServerCert)
 							{
 								auto &Internal = *mp_pInternal;
 								
-								CActorDistributionListenSettings ListenSettings(Port);
+								CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NHTTP::CURL>(_Address.m_URL));
 								ListenSettings.m_PrivateKey = _pServerCert->m_PrivateKey;
 								ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
 								ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;
-								ListenSettings.m_bRetryOnListenFailure = true;
+								ListenSettings.m_bRetryOnListenFailure = false;
 								
 								Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) 
 									> [this, Continuation, ListenConfig](TCAsyncResult<CDistributedActorListenReference> &&_ListenRef)

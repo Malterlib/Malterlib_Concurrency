@@ -19,7 +19,6 @@ namespace NMib
 			bool operator < (CDistributedActorTrustManager_Address const &_Right) const;
 			
 			NHTTP::CURL m_URL;
-			NNet::ENetAddressType m_PreferType = NNet::ENetAddressType_TCPv4;
 			
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_IntoStr) const;

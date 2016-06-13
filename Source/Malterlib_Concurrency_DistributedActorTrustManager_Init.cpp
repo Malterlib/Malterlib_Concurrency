@@ -288,13 +288,7 @@ namespace NMib
 					for (auto iListen = m_Listen.f_GetIterator(); iListen; ++iListen)
 					{
 						auto &Listen = iListen.f_GetKey();
-						uint16 Port = Listen.m_Address.m_URL.f_GetPortFromScheme();
-						if (!Port)
-						{
-							_Continuation.f_SetException(DMibErrorInstance("Invalid trust manager port in listen. Broken database?"));
-							return;
-						}
-						CActorDistributionListenSettings ListenSettings(Port);
+						CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NHTTP::CURL>(Listen.m_Address.m_URL));
 						
 						auto *pServerCert = m_ServerCertificates.f_FindEqual(Listen.m_Address.m_URL.f_GetHost());
 						if (!pServerCert)
@@ -320,7 +314,6 @@ namespace NMib
 						
 						CActorDistributionConnectionSettings ClientSettings;
 						ClientSettings.m_ServerURL = Address.m_URL;
-						ClientSettings.m_ServerURLPreferAddress = Address.m_PreferType;
 						ClientSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 						ClientSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 						ClientSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;

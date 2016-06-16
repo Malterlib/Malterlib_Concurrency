@@ -32,6 +32,21 @@ namespace NMib
 			m_Output.f_Insert(fg_Construct(_Output, _OutputType));
 		}																			 
 
+		void CDistributedAppCommandLineResults::f_AddStdOut(CStr const &_Output)
+		{
+			m_Output.f_Insert(fg_Construct(_Output, EOutputType_StdOut));
+		}
+		
+		void CDistributedAppCommandLineResults::f_AddStdErr(CStr const &_Output)
+		{
+			m_Output.f_Insert(fg_Construct(_Output, EOutputType_StdErr));
+		}
+		
+		void CDistributedAppCommandLineResults::f_SetExitStatus(uint32 _Status)
+		{
+			m_Status = _Status;
+		}
+		
 		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_RunCommandLine
 			(
 				NStr::CStr const &_FromHostID

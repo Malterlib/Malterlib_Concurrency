@@ -104,7 +104,8 @@ namespace NMib
 		private:
 #ifdef DMibDebug
 			DMibListLinkDS_Link(CActorHolder, m_ActorLink);
-			NStr::CStr mp_ActorTypeName;
+		public:
+			NStr::CStr m_ActorTypeName;
 #endif
 			
 		protected:

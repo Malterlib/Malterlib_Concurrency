@@ -68,6 +68,7 @@ namespace NMib
 			~CDistributedActorTrustManager();
 			
 			void f_Construct() override;
+			TCContinuation<void> f_Destroy() override;
 			
 			TCContinuation<NStr::CStr> f_Initialize(); 
 			

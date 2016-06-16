@@ -336,6 +336,22 @@ namespace NMib
 			;
 		}
 		
+		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback, TCActor<CActor> const &_pActor)
+		{
+			TCActor<CActor> pActor = _pActor;
+			if (!pActor)
+				pActor = fg_ConcurrencyManager().f_CurrentActor();
+			fg_TimerActor()
+				(
+					&CTimerActor::f_OneshotTimer
+					, _Period
+					, fg_Move(pActor)
+					, fg_Move(_fCallback)
+				)
+				> fg_DiscardResult();
+			;
+		}
+		
 		TCDispatchedActorCall<CActorCallback> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			return fg_ConcurrentDispatch

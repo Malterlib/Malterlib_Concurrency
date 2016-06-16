@@ -16,12 +16,22 @@ namespace NMib
 			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor)
 			{
 				m_Actor = _Actor;
-				m_Actor(&CDistributedAppActor::f_StartApp).f_CallSync();
+				m_Actor(&CDistributedAppActor::f_StartApp) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
+					{
+						if (!_Result)
+						{
+							DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
+						}
+					}
+				;
 			}
 			~CDistributedDaemonDaemon()
 			{
 				if (m_Actor)
-					m_Actor->f_BlockDestroy();
+				{
+					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync();
+					m_Actor = nullptr;
+				}
 			}
 		
 			TCActor<CDistributedAppActor> m_Actor;
@@ -237,7 +247,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Remove);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Remove);
 					}
 				)
 			;
@@ -251,7 +261,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Start);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Start);
 					}
 				)
 			;
@@ -265,7 +275,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Restart);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Restart);
 					}
 				)
 			;
@@ -279,7 +289,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Stop);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Stop);
 					}
 				)
 			;
@@ -295,7 +305,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_RunAsProgram);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_RunAsProgram);
 					}
 				)
 			;
@@ -314,7 +324,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Exists);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Exists);
 					}
 				)
 			;
@@ -360,7 +370,7 @@ namespace NMib
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Run);
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Run);
 					}
 				)
 			;

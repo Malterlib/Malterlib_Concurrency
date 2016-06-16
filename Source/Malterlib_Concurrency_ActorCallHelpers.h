@@ -302,7 +302,7 @@ namespace NMib
 							[ResultActor, fResultFunctor = fg_Move(_fResultFunctor)]() mutable
 							{
 								TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList>::CReturnType> Result;
-								Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
+								Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
 								NPrivate::fg_CallResultFunctor(fResultFunctor, ResultActor->fp_GetActor(), fg_Move(Result));
 							}
 						)
@@ -791,7 +791,11 @@ namespace NMib
 					return;
 				if (m_pActorInternal)
 				{
+#ifdef DMibDebug
+					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
+#else
 					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
+#endif
 					auto pActor = fg_GetResultActor(m_pResultActor);
 					m_pActorInternal = nullptr;
 					pActor->f_QueueProcess(fg_Move(*this));

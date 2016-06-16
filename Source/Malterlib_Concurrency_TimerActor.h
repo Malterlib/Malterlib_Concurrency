@@ -84,6 +84,7 @@ namespace NMib
 		};
 
 		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period);
+		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback, TCActor<CActor> const &_pActor = nullptr);
 		TCDispatchedActorCall<CActorCallback> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback);
 		TCDispatchedActorCall<CActorCallback> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback);
 		TCDispatchedActorCall<CActorCallback> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback);

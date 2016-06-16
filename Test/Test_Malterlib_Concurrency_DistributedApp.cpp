@@ -56,6 +56,11 @@ namespace
 		{
 			return fg_Explicit();
 		}
+
+		TCContinuation<void> fp_StopApp() override 
+		{
+			return fg_Explicit();
+		}
 	};
 	
 	class CDistributedApp_Tests : public NMib::NTest::CTest

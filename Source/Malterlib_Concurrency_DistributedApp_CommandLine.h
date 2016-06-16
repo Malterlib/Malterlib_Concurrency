@@ -41,6 +41,10 @@ namespace NMib
 			CDistributedAppCommandLineResults();
 			CDistributedAppCommandLineResults(NStr::CStr const &_Output, EOutputType _OutputType = EOutputType_StdOut);
 			
+			void f_AddStdOut(NStr::CStr const &_Output);
+			void f_AddStdErr(NStr::CStr const &_Output);
+			void f_SetExitStatus(uint32 _Status);
+			
 			template <typename tf_CStream>
 			void f_Feed(tf_CStream &_Stream) const;
 			template <typename tf_CStream>

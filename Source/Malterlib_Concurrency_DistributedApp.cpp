@@ -211,13 +211,23 @@ namespace NMib
 						TCContinuation<void> Continuation;
 						(*mp_pInitOnce)() > Continuation % "Failed to initialize" / [this, Continuation]()
 							{
-								fg_ThisActor(this)(&CDistributedAppActor::fp_StartApp) > Continuation % "Failed to start app";
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
+								fg_ThisActor(this)(&CDistributedAppActor::fp_StartApp) > Continuation % "Failed to start app" / [this, Continuation]
+									{
+										DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
+										fg_ThisActor(this)(&CDistributedAppActor::fp_PublishCommandLine) > Continuation % "Failed to publish command line" / [Continuation] 
+											{
+												Continuation.f_SetResult();
+											}
+										;
+									}
+								;
 							}
 						 ;
 						return Continuation;
 					 }
 				)
-				> [Continuation](TCAsyncResult<void> &&_Result)
+				> [this, Continuation](TCAsyncResult<void> &&_Result)
 				{
 					if (!_Result)
 					{
@@ -237,26 +247,63 @@ namespace NMib
 			mp_pCommandLineSpec = fg_Construct();
 			fp_BuildCommandLine(*mp_pCommandLineSpec);
 		}
+
+		TCContinuation<void> CDistributedAppActor::f_StopApp()
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "App shutting down");
+			TCContinuation<void> Continuation;
+
+			fg_Dispatch
+				(
+					[this]() -> TCContinuation<void>
+					{
+						if (mp_CommandLine)
+						{
+							TCContinuation<void> Continuation;
+							mp_CommandLine->f_Destroy
+								(
+									[this, Continuation](TCAsyncResult<void> &&_Result)
+									{
+										Continuation.f_SetResult(fg_Move(_Result));
+									}
+								)
+							;
+							mp_CommandLine = nullptr;
+							return Continuation;
+						}
+						return fg_Explicit();
+					}
+				)
+				> Continuation % "Failed to stop command line interface" / [this, Continuation]
+				{
+					fg_ThisActor(this)(&CDistributedAppActor::fp_StopApp) > Continuation % "Failed to stop app" / [Continuation]
+						{
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped");
+							
+							Continuation.f_SetResult();
+						}
+					;
+				}
+			;
+			
+			return Continuation;
+		}
 		
 		TCContinuation<void> CDistributedAppActor::f_Destroy()
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 			
-			if (mp_pInitOnce)
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "App shutting down");
-			
-			if (mp_CommandLine)
+			if (mp_TrustManager)
 			{
-				mp_CommandLine->f_Destroy
+				mp_TrustManager->f_Destroy
 					(
-						[this, pCanDestroy](TCAsyncResult<void> &&_Result)
+						[this, pCanDestroy](TCAsyncResult<void> &&)
 						{
 						}
 					)
 				;
-				mp_CommandLine = nullptr;
 			}
-
+			
 			return pCanDestroy->m_Continuation;
 		}
 		

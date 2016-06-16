@@ -262,17 +262,6 @@ namespace NMib
 			if (pCurrentOption)
 				DMibError(fg_Format("Missing parameter for option: {}", pCurrentOption->m_Names.f_GetFirst()));
 			
-			if (iCommandParameter && !iCommandParameter->m_bOptional)
-				DMibError(fg_Format("Missing required command parameter: {}", iCommandParameter->m_Identifier));
-			
-			for (; iCommandParameter; ++iCommandParameter)
-			{
-				if (iCommandParameter->m_bVector && bUsedVectorParam)
-					break;
-				if (iCommandParameter->m_Default.f_IsValid())
-					CommandParams[iCommandParameter->m_Identifier] = iCommandParameter->m_Default;
-			}
-			
 			if (!pFoundCommand)
 				pFoundCommand = CommandLineSpec.m_pDefaultCommand;
 			
@@ -293,6 +282,17 @@ namespace NMib
 				fCheckOption(Option);
 			for (auto &Option : pFoundCommand->m_Options)
 				fCheckOption(Option);
+			
+			if (iCommandParameter && !iCommandParameter->m_bOptional)
+				DMibError(fg_Format("Missing required command parameter: {}", iCommandParameter->m_Identifier));
+			
+			for (; iCommandParameter; ++iCommandParameter)
+			{
+				if (iCommandParameter->m_bVector && bUsedVectorParam)
+					break;
+				if (iCommandParameter->m_Default.f_IsValid())
+					CommandParams[iCommandParameter->m_Identifier] = iCommandParameter->m_Default;
+			}
 				
 			return f_RunCommand(pFoundCommand->m_Names.f_GetFirst(), CommandParams);
 		}

@@ -58,6 +58,7 @@ namespace NMib
 			void f_Construct();
 
 			TCContinuation<void> f_StartApp(); 
+			TCContinuation<void> f_StopApp(); 
 			
 			TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 
 
@@ -85,6 +86,7 @@ namespace NMib
 
 		protected:
 			virtual TCContinuation<void> fp_StartApp() pure;
+			virtual TCContinuation<void> fp_StopApp() pure;
 			virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
 			
 			NEncoding::CSimpleJSONDatabase mp_StateDatabase;
@@ -99,6 +101,8 @@ namespace NMib
 			TCContinuation<void> fp_CreateCommandLineTrust();
 			TCContinuation<void> fp_SetupCommandLineListen();
 			TCContinuation<void> fp_SetupCommandLineTrust();
+			
+			TCContinuation<void> fp_PublishCommandLine();
 			
 			bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 			

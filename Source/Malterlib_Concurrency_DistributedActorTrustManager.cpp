@@ -45,6 +45,41 @@ namespace NMib
 		{
 		}
 		
+		TCContinuation<void> CDistributedActorTrustManager::f_Destroy()
+		{
+			auto &Internal = *mp_pInternal;
+			TCActorResultVector<void> Stops;
+			for (auto &Connection : Internal.m_ClientConnections)
+				Connection.m_ConnectionReference.f_Disconnect() > Stops.f_AddResult();
+			
+			for (auto &Listen : Internal.m_Listen)
+				Listen.m_ListenReference.f_Stop() > Stops.f_AddResult();
+			
+			TCContinuation<void> Continuation;
+			
+			Stops.f_GetResults() > Continuation / [Continuation](NContainer::TCVector<TCAsyncResult<void>> &&_StopResults)
+				{
+					for (auto &Result : _StopResults)
+					{
+						if (!Result)
+						{
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/Actors
+									, Error
+									, "Failed to stop connection or listen: {}"
+									, Result.f_GetExceptionStr()
+								)
+							;
+						}
+					}
+					Continuation.f_SetResult();
+				}
+			;
+			
+			return Continuation;
+		}
+		
 		NStr::CStr CDistributedActorTrustManager::CTrustTicket::f_ToStringTicket() const
 		{
 			auto Data = NStream::fg_ToByteVector(*this);

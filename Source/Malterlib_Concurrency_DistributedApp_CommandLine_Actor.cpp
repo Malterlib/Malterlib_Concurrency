@@ -167,6 +167,30 @@ namespace NMib
 			return Continuation;
 		}
 		
+		TCContinuation<void> CDistributedAppActor::fp_PublishCommandLine()
+		{
+			TCContinuation<void> Continuation;
+			mp_CommandLine = fg_ConstructDistributedActor<CCommandLine>(fg_ThisActor(this));
+			DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
+			
+			mp_DistributionManager
+				(
+					&CActorDistributionManager::f_PublishActor
+					, mp_CommandLine
+					, "Malterlib/Concurrency/Commandline"
+					, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<ICCommandLine>()
+				)
+				> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Command line published");
+					mp_CommandLinePublication = fg_Move(_Publication);
+					Continuation.f_SetResult();
+				}
+			;
+			
+			return Continuation;
+		}
+
 		TCContinuation<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 		{
 			TCContinuation<void> Continuation;
@@ -174,25 +198,10 @@ namespace NMib
 			
 			fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Continuation / [this, Continuation]()
 				{
-					fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Continuation / [this, Continuation]()
+					fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Continuation / [Continuation]
 						{
-							mp_CommandLine = fg_ConstructDistributedActor<CCommandLine>(fg_ThisActor(this));
-							DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished setting up command line trust, publishing command line actor");
-							
-							mp_DistributionManager
-								(
-									&CActorDistributionManager::f_PublishActor
-									, mp_CommandLine
-									, "Malterlib/Concurrency/Commandline"
-									, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<ICCommandLine>()
-								)
-								> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)
-								{
-									DMibLogWithCategory(Mib/Concurrency/App, Info, "Command line published");
-									mp_CommandLinePublication = fg_Move(_Publication);
-									Continuation.f_SetResult();
-								}
-							;
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished setting up command line trust");
+							Continuation.f_SetResult();
 						}
 					;
 				}

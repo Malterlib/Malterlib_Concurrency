@@ -331,6 +331,11 @@ namespace
 				{
 					DMibTestPath("From database");
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+					
+					CDistributedActorTrustManager_Address ServerAddress;
+					ServerAddress.m_URL = "wss://localhost:31392/";
+					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(60.0));
+					
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 					fp_DoTests(ServerTrustManager, ClientTrustManager);

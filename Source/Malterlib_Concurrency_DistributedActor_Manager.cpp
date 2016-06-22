@@ -45,7 +45,7 @@ namespace NMib
 							Continuation.f_SetResult();
 							return Continuation;
 						}
-						Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Connection reset", 5.0)
+						Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0)
 							> fg_ConcurrentActor() / [Connection, Continuation](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 							{
 								fs_LogClose(_Result);
@@ -69,7 +69,7 @@ namespace NMib
 			m_ConnectionSubscription.f_Clear();
 			if (m_Connection)
 			{
-				m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Connection reset", 5.0)
+				m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal reset", 5.0)
 					> fg_ConcurrentActor() / [Connection = m_Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 					{
 						fs_LogClose(_Result);

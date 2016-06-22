@@ -176,6 +176,31 @@ namespace NMib
 			;
 		}
 		
+		namespace NPrivate
+		{
+			template <typename t_CTypes>
+			struct TCStreamArguments
+			{
+				
+			};
+			template <typename ...tp_CParam>
+			struct TCStreamArguments<NMeta::TCTypeList<tp_CParam...>>
+			{
+				template <typename tf_CStream>
+				static void fs_Stream(tf_CStream &_Stream, typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tp_CParam>::CType>::CType const &...p_Params)
+				{
+					TCInitializerList<bool> Dummy = 
+						{
+							[&]
+							{
+								_Stream << p_Params; return true;
+							}()...
+						}
+					;
+					(void)Dummy;
+				}
+			};
+		}
 		
 		template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
 		auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
@@ -194,15 +219,8 @@ namespace NMib
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;				
 				Stream << t_NameHash;
-				TCInitializerList<bool> Dummy = 
-					{
-						[&]
-						{
-							Stream << p_Params; return true;
-						}()...
-					}
-				;
-				(void)Dummy;
+				
+				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream(Stream, p_Params...);
 				
 				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 				

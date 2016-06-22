@@ -114,6 +114,8 @@ namespace NMib
 			{
 				if (RemoteActor.m_Link.f_IsInList())
 				{
+					fp_NotifyRemovedActor(RemoteActor);
+
 					auto pRemoteNamespace = m_RemoteNamespaces.f_FindEqual(RemoteActor.m_Namespace);
 					DMibFastCheck(pRemoteNamespace);
 					pRemoteNamespace->m_RemoteActors.f_Remove(RemoteActor);

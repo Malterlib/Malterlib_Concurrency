@@ -399,8 +399,16 @@ namespace NMib
 			> \
 			(d_Actor, ##d_Args)
 		
+#define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunction \
+		( \
+			decltype(&d_Function) \
+			, &d_Function \
+			, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+		)
+		
 #ifndef DMibPNoShortCuts
 #	define DCallActor DMibCallActor
+#	define DPublishActorFunction DMibPublishActorFunction
 #endif
 	}
 }

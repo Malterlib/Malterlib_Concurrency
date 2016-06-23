@@ -148,7 +148,7 @@ namespace NMib
 		{
 			NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 
-			m_Subject = fg_Format("Malterlib Distributed Actors - {} - {}", NProcess::NPlatform::fg_Process_GetComputerName(), NCryptography::fg_RandomID());
+			m_Subject = fg_Format("Malterlib Distributed Actors - {}", NCryptography::fg_RandomID());
 			
 			NNet::CSSLContext::CCertificateOptions Options;
 			Options.m_KeyLength = _KeyBits;

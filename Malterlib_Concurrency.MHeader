@@ -72,9 +72,9 @@ Property
 	{
 		%File "Test/*"
 	}
-	%Dependency Lib_Malterlib_Web
 	%Dependency Lib_Malterlib_Network
 	%Dependency Lib_Malterlib_Concurrency
+	%Dependency Lib_Malterlib_Web
 }
 
 Property

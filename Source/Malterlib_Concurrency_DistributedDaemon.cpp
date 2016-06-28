@@ -79,6 +79,8 @@ namespace NMib
 					o_DaemonParams.f_SetRunAsGroup(_Params["Daemon_RunAsGroup"].f_String());
 				if (_Params.f_GetMember("Daemon_FailIfAdded"))
 					o_DaemonParams.f_SetActionParam(_Params["Daemon_FailIfAdded"].f_Boolean());
+				else if (_Params.f_GetMember("Daemon_Wait"))
+					o_DaemonParams.f_SetActionParam(_Params["Daemon_Wait"].f_Boolean());
 				if (_Params.f_GetMember("Daemon_Daemonize"))
 					o_DaemonParams.f_SetKey("-Daemonize", _Params["Daemon_Daemonize"].f_Boolean());
 				if (_Params.f_GetMember("Daemon_DoStart"))
@@ -87,6 +89,8 @@ namespace NMib
 					o_DaemonParams.f_SetKey("-DoStop", _Params["Daemon_DoStop"].f_Boolean());
 				if (_Params.f_GetMember("Daemon_DoStatus"))
 					o_DaemonParams.f_SetKey("-DoStatus", _Params["Daemon_DoStatus"].f_Boolean());
+				o_DaemonParams.f_SetDisableWriteService(true); // Handled locally
+				o_DaemonParams.f_SetExecutablePath(NFile::CFile::fs_GetProgramPath());
 			}
 			
 			aint fg_RunDaemon
@@ -140,6 +144,8 @@ namespace NMib
 					
 					DaemonSettings["Name"] = _Params["Daemon_Name"];
 					DaemonSettings["Mode"] = _Params["Daemon_Mode"];
+					
+					NFile::CFile::fs_WriteStringToFile(SettingsFile, DaemonSettings.f_ToString());
 				}
 				return Result;
 			}
@@ -191,6 +197,14 @@ namespace NMib
 					)
 				}
 			;
+			auto DaemonWaitOption = "Daemon_Wait?"_= 
+				{
+					"Names"_= {"--daemon-wait"}
+					, "Default"_= true
+					, "Description"_= "Wait for service to stop"
+				}
+			;
+			
 			Section.f_RegisterDirectCommand
 				(
 					{
@@ -271,6 +285,10 @@ namespace NMib
 						"Names"_= {"--daemon-restart"}
 						, "Description"_= "Restart the daemon.\n"
 						, "SectionOptions"_= {"Daemon_Mode"}
+						, "Options"_=
+						{
+							DaemonWaitOption
+						}
 						, "Parameters"_= {DaemonNameParam}
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
@@ -285,6 +303,10 @@ namespace NMib
 						"Names"_= {"--daemon-stop"}
 						, "Description"_= "Stop the daemon.\n"
 						, "SectionOptions"_= {"Daemon_Mode"}
+						, "Options"_=
+						{
+							DaemonWaitOption
+						}
 						, "Parameters"_= {DaemonNameParam}
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32

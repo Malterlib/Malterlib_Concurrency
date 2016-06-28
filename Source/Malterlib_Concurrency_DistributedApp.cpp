@@ -232,6 +232,7 @@ namespace NMib
 					if (!_Result)
 					{
 						DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", _Result.f_GetExceptionStr());
+						Continuation.f_SetException(fg_Move(_Result));
 						return;
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished");

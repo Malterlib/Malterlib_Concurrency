@@ -7,6 +7,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Concurrency/ActorCallOnce>
 #include <Mib/Encoding/Base64>
+#include <Mib/String/FuzzyMatch>
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
 namespace NMib
@@ -238,7 +239,36 @@ namespace NMib
 					}
 
 					if (Parameter.f_StartsWith("-") && (!pFoundCommand || pFoundCommand->m_bErrorOnOptionAsParameter))
-						DMibError(fg_Format("No such option or command '{}'", ParsedParameter));
+					{
+						fp64 BestScore = fp64::fs_Inf();
+						CStr BestName;
+
+						auto fCheckName = [&](CStr const &_Name)
+							{
+								fp64 Score = NStr::fg_FuzzyMatchString(_Name, Parameter);
+								if (Score < BestScore)
+								{
+									BestScore = Score;
+									BestName = _Name;
+								}
+							}
+						;
+						
+						for (auto iName = CommandLineSpec.m_CommandByName.f_GetIterator(); iName; ++iName)
+							fCheckName(iName.f_GetKey());
+						
+						if (pCurrentCommand)
+						{
+							for (auto iName = pCurrentCommand->m_OptionsByName.f_GetIterator(); iName; ++iName)
+								fCheckName(iName.f_GetKey());
+						}
+						
+						CStr Error = fg_Format("No such option or command '{}'", ParsedParameter);
+						if (!BestName.f_IsEmpty())
+							Error += fg_Format(". Did you mean '{}'?", BestName);
+						
+						DMibError(Error);
+					}
 				}
 				
 				if (!iCommandParameter)

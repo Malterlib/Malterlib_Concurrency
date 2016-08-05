@@ -32,7 +32,11 @@ namespace NMib
 
 		NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress()
 		{
+#ifndef DPlatformFamily_Windows
+#error "Implement unix socket emulation support on Windows before attempting this"
+#else
 			return NHTTP::CURL{fg_Format("wss://[UNIX:{}/{}.socket]/", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName)};
+#endif
 		}
 		
 		TCContinuation<void> CDistributedAppActor::fp_SetupListen()

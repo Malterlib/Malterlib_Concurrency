@@ -441,10 +441,12 @@ namespace
 				{
 					fp_BasicTests("localhost");
 				};
+#ifndef DPlatformFamily_Windows
 				DMibTestSuite("Basics Unix Sockets")
 				{
 					fp_BasicTests(fg_Format("UNIX:{}/TestDistributedActor.socket", NMib::NFile::CFile::fs_GetProgramDirectory()));
 				};
+#endif
 				DMibTestSuite("Anonymous client")
 				{
 					fp_AnonymousClientTests();

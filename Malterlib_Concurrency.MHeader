@@ -6,6 +6,9 @@ Import "../Core/Lib_Malterlib.MTarget"
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
+	{
+		!PlatformFamily Windows
+	}
 	%Group Concurrency
 	{
 		%Group Include
@@ -17,6 +20,28 @@ Import "../Core/Lib_Malterlib.MTarget"
 			%File "Include/Mib/Concurrency/^*"
 		}
 		%File "Source/*"
+		%File "Source/Malterlib_Concurrency_Distributed*"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+
+		}
+		%File "Source/Malterlib_Concurrency_RuntimeTypeRegistry*"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+		}
+		%File "Source/Malterlib_Concurrency_TestHelpers*"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+		}
 		%Group Documentation
 		{
 			%File "Documentation/*"
@@ -67,10 +92,22 @@ Property
 %Group "{Test}/{Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
+	{
+		!PlatformFamily Windows
+	}
+
 	Property.MalterlibLinkWithOpenSSL true
 	%Group "Tests"
 	{
 		%File "Test/*"
+		%File "Test/Test_Malterlib_Concurrency_Distributed*"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+
+		}
 	}
 	%Dependency Lib_Malterlib_Network
 	%Dependency Lib_Malterlib_Concurrency

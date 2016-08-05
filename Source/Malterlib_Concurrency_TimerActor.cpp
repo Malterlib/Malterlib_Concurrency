@@ -356,7 +356,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
 						TCContinuation<CActorCallback> Continuation;
 						fg_TimerActor()
@@ -364,9 +364,9 @@ namespace NMib
 								&CTimerActor::f_OneshotTimerAbortable
 								, _Period
 								, _pActor
-								, [fCallback = fg_Move(fCallback)]() mutable
+								, [fCallback]() mutable
 								{
-									fCallback();
+									(*fCallback)();
 								}
 							)
 							> Continuation;
@@ -381,7 +381,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
 						TCContinuation<CActorCallback> Continuation;
 						fg_TimerActor()
@@ -389,9 +389,9 @@ namespace NMib
 								&CTimerActor::f_RegisterTimer
 								, _Period
 								, _pActor
-								, [fCallback = fg_Move(fCallback)]() mutable
+								, [fCallback]() mutable
 								{
-									fCallback();
+									(*fCallback)();
 								}
 							)
 							> Continuation;
@@ -406,7 +406,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
 						TCContinuation<CActorCallback> Continuation;
 						fg_TimerActor()
@@ -414,9 +414,9 @@ namespace NMib
 								&CTimerActor::f_RegisterExactTimer
 								, _Period
 								, _pActor
-								, [fCallback = fg_Move(fCallback)]() mutable
+								, [fCallback]() mutable
 								{
-									fCallback();
+									(*fCallback)();
 								}
 							)
 							> Continuation;

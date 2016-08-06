@@ -17,7 +17,7 @@ namespace NMib
 					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 					, void *_pObject
 				)
-				pure
+				= 0
 			;
 			
 			uint32 m_Hash;

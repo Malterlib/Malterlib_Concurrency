@@ -45,7 +45,7 @@ namespace NMib
 				void f_Destroy(NStr::CStr const &_Error);
 				TCDispatchedActorCall<void> f_Disconnect();
 				static void fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result);
-				virtual NStr::CStr f_GetConnectionID() const pure;
+				virtual NStr::CStr f_GetConnectionID() const = 0;
 				
 				TCActor<NWeb::CWebSocketActor> m_Connection;
 				CActorCallback m_ConnectionSubscription;

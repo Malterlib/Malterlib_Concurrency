@@ -105,33 +105,33 @@ namespace NMib
 			using CClient = NDistributedActorTrustManagerDatabase::CClient;
 			using CClientConnection = NDistributedActorTrustManagerDatabase::CClientConnection;
 			
-			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() pure;
-			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) pure;
-			virtual TCContinuation<int32> f_GetNewCertificateSerial() pure;
+			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() = 0;
+			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
+			virtual TCContinuation<int32> f_GetNewCertificateSerial() = 0;
 			
-			virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumServerCertificates() pure;
-			virtual TCContinuation<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) pure;
-			virtual TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) pure;
-			virtual TCContinuation<void> f_SetServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) pure;
-			virtual TCContinuation<void> f_RemoveServerCertificate(NStr::CStr const &_HostName) pure;
+			virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumServerCertificates() = 0;
+			virtual TCContinuation<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) = 0;
+			virtual TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) = 0;
+			virtual TCContinuation<void> f_SetServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) = 0;
+			virtual TCContinuation<void> f_RemoveServerCertificate(NStr::CStr const &_HostName) = 0;
 			
-			virtual TCContinuation<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() pure;
-			virtual TCContinuation<void> f_AddListenConfig(CListenConfig const &_Config) pure;
-			virtual TCContinuation<void> f_RemoveListenConfig(CListenConfig const &_Config) pure;
+			virtual TCContinuation<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() = 0;
+			virtual TCContinuation<void> f_AddListenConfig(CListenConfig const &_Config) = 0;
+			virtual TCContinuation<void> f_RemoveListenConfig(CListenConfig const &_Config) = 0;
 
-			virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() pure;
- 			virtual TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) pure;
- 			virtual TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) pure;
- 			virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) pure;
-			virtual TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) pure;
-			virtual TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) pure;
-			virtual TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) pure;
+			virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() = 0;
+ 			virtual TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) = 0;
+ 			virtual TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) = 0;
+ 			virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
+			virtual TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) = 0;
+			virtual TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) = 0;
+			virtual TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
 			
-			virtual TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections() pure;
-			virtual TCContinuation<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address) pure;
-			virtual TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) pure;
-			virtual TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) pure;
-			virtual TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) pure;
+			virtual TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections() = 0;
+			virtual TCContinuation<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+			virtual TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
+			virtual TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
+			virtual TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 		};
 	}
 }

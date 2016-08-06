@@ -15,8 +15,8 @@ namespace NMib
 			CRuntimeTypeRegistryEntry_Exception(uint32 _Hash);
 			~CRuntimeTypeRegistryEntry_Exception();
 					
-			virtual CExceptionPointer f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) pure;
-			virtual void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) pure;
+			virtual CExceptionPointer f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) = 0;
+			virtual void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) = 0;
 			
 			uint32 m_Hash;
 			

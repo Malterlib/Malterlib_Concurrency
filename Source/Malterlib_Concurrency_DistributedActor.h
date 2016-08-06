@@ -313,7 +313,7 @@ namespace NMib
 
 		struct ICActorDistributionManagerAccessHandler : public CActor
 		{
-			virtual TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) pure;
+			virtual TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) = 0;
 		};
 		
 		struct CActorDistributionManager : public CActor

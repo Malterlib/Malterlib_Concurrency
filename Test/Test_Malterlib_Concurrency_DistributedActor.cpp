@@ -47,9 +47,9 @@ namespace
 	class CDistributedActorBase : public CActor
 	{
 	public:
-		virtual void f_AddIntVirtual(uint32 _Value) pure;
-		virtual uint32 f_GetResultVirtual() pure;
-		virtual CStr f_GetCallingHostID() const pure;
+		virtual void f_AddIntVirtual(uint32 _Value) = 0;
+		virtual uint32 f_GetResultVirtual() = 0;
+		virtual CStr f_GetCallingHostID() const = 0;
 	};
 
 	class CDistributedActor : public CDistributedActorBase

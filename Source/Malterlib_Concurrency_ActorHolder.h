@@ -67,7 +67,7 @@ namespace NMib
 			virtual ~CActorHolder();
 
 			void f_RunProcess();
-			virtual void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) pure;
+			virtual void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) = 0;
 			bool f_ImmediateDelete() const;
 			virtual void f_DestroyThreaded();
 			bool f_IsDestroyed() const;

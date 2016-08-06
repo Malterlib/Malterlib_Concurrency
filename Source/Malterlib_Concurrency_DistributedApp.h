@@ -85,8 +85,8 @@ namespace NMib
 			TCContinuation<void> f_Destroy();
 
 		protected:
-			virtual TCContinuation<void> fp_StartApp() pure;
-			virtual TCContinuation<void> fp_StopApp() pure;
+			virtual TCContinuation<void> fp_StartApp() = 0;
+			virtual TCContinuation<void> fp_StopApp() = 0;
 			virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
 			
 			NEncoding::CSimpleJSONDatabase mp_StateDatabase;

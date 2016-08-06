@@ -56,7 +56,7 @@ namespace NMib
 		
 		struct ICCommandLine : public CActor
 		{
-			virtual TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Parameters) pure;
+			virtual TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Parameters) = 0;
 		};
 		
 		struct CDistributedAppActor;

@@ -77,7 +77,7 @@ namespace NMib
 
 			template <typename tf_CActor, typename tf_CFunctor>
 			void f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall);
-			
+
 			template <typename tf_CActor, typename tf_CFunctor>
 			void f_Destroy(tf_CActor &&_Actor, tf_CFunctor &&_Functor);
 			
@@ -96,8 +96,11 @@ namespace NMib
 			NPtr::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
 			
 		private:
-			void fp_Destroy();
-			void fp_Terminate();
+			template <typename tf_CActor, typename tf_CFunctor>
+			void fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
+			
+			void fp_Destroy(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
+			void fp_Terminate(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
 
 			bool fp_DequeueProcess(bool _bRun);
 			
@@ -150,7 +153,7 @@ namespace NMib
 		class CDispatchingActorHolder : public CDefaultActorHolder
 		{
 		protected:
-			NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
+			NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> m_Dispatcher;
 		public:
 			CDispatchingActorHolder
 				(
@@ -158,7 +161,7 @@ namespace NMib
 					, bool _bImmediateDelete
 					, EPriority _Priority
 					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
-					, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher
+					, NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> &&_Dispatcher
 				)
 			;
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;

@@ -11,6 +11,28 @@ namespace NMib
 	{
 
 		template <typename tf_CActor, typename tf_CFunctor>
+		void CActorHolder::fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed)
+		{
+			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+
+			pActor(&CActor::f_Destroy)
+				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall), fOnDestroyed = fg_Move(_fOnDestroyed)](TCAsyncResult<void> &&_Result) mutable
+				{
+					pActor->fp_Terminate(fg_Move(fOnDestroyed));
+					auto ResultActor = ResultCall.mp_Actor.f_GetActor();
+					ResultActor->f_QueueProcess
+						(
+							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
+							{
+								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor.f_GetActor()->fp_GetActor(), fg_Move(Result));
+							}
+						)
+					;
+				}
+			;
+		}
+
+		template <typename tf_CActor, typename tf_CFunctor>
 		void CActorHolder::f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall)
 		{
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
@@ -18,7 +40,7 @@ namespace NMib
 			pActor(&CActor::f_Destroy)
 				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall)](TCAsyncResult<void> &&_Result) mutable
 				{
-					pActor->fp_Terminate();
+					pActor->fp_Terminate(nullptr);
 					auto ResultActor = ResultCall.mp_Actor.f_GetActor();
 					ResultActor->f_QueueProcess
 						(

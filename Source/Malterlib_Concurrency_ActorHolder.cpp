@@ -147,16 +147,16 @@ namespace NMib
 		
 		bool CActorHolder::f_IsDestroyed() const
 		{
-			return mp_bDestroyed.f_Load() == 0;
+			return mp_bDestroyed.f_Load() != 0;
 		}
 
 		
-		void CActorHolder::fp_Terminate()
+		void CActorHolder::fp_Terminate(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed)
 		{
 			smint Expected = 0;
 			if (mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 			{
-				fp_Destroy();
+				fp_Destroy(fg_Move(_fOnDestroyed));
 			}
 		}
 	
@@ -168,7 +168,7 @@ namespace NMib
 				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result) mutable
 				{
 					_Result.f_Get();
-					pActor->fp_Terminate();
+					pActor->fp_Terminate(nullptr);
 				}
 			;
 		}
@@ -185,43 +185,50 @@ namespace NMib
 				if (_EventLoop.m_fProcess && _EventLoop.m_fWake)
 				{
 					align_cacheline NAtomic::TCAtomic<smint> Finished;
-					pActor->f_Destroy
+					pActor->fp_Destroy
 						(
 							fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result) mutable
 							{
-								{
-									DMibLock(ResultLock);
-									Result = fg_Move(_Result);
-								}
-								Finished.f_Exchange(1);
-								_EventLoop.m_fWake();
+								DMibLock(ResultLock);
+								Result = fg_Move(_Result);
+								if (Finished.f_FetchOr(2) == 1)
+									_EventLoop.m_fWake();
+							}
+							, [&]
+							{
+								if (Finished.f_FetchOr(1) == 2)
+									_EventLoop.m_fWake();
 							}
 						)
 					;
 					
-					while (!Finished.f_Load())
-					{
+					while (Finished.f_Load() != 3)
 						_EventLoop.m_fProcess();
-					}
 				}
 				else
 				{
+					align_cacheline NAtomic::TCAtomic<smint> Finished;
 					NThread::CEventAutoReset Event;
 
-					pActor->f_Destroy
+					pActor->fp_Destroy
 						(
 							fg_ConcurrentActor() / [&](TCAsyncResult<void> &&_Result) mutable
 							{
-								{
-									DMibLock(ResultLock);
-									Result = fg_Move(_Result);
-								}
-								Event.f_Signal();
+								DMibLock(ResultLock);
+								Result = fg_Move(_Result);
+								if (Finished.f_FetchOr(2) == 1)
+									Event.f_Signal();
+							}
+							, [&]
+							{
+								if (Finished.f_FetchOr(1) == 2)
+									Event.f_Signal();
 							}
 						)
 					;
 
-					Event.f_Wait();
+					while (Finished.f_Load() != 3)
+						Event.f_Wait();
 				}
 			}
 
@@ -242,25 +249,29 @@ namespace NMib
 				if (mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 				{
 					// Only our own reference is left, schedule destroy
-					fp_Destroy();
+					fp_Destroy(nullptr);
 				}
 			}
 			return Ret;
 		}
 		
 		
-		void CActorHolder::fp_Destroy()
+		void CActorHolder::fp_Destroy(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed)
 		{
 			auto OnExit
 				= fg_OnScopeExit
 				(
-					[this]()
+					[this, fOnDestroyed = fg_Move(_fOnDestroyed)]()
 					{
 						if (mp_pActor)
 						{
 							mp_pActor.f_Clear();
 							mp_bDestroyed.f_Exchange(2);
-							TCActor<CActor> pToDelete = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+							if (fOnDestroyed)
+								fOnDestroyed();
+							TCActor<CActor> pToDelete 
+								= NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this))
+							;
 							if (CSuper::f_RefCountDecrease() == 1)
 							{
 								// Dispatch to our queue again, otherwise we ourselves could be in callstack
@@ -356,10 +367,10 @@ namespace NMib
 				, bool _bImmediateDelete
 				, EPriority _Priority
 				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
-				, NFunction::TCFunction<void (FActorQueueDispatch &&_Dispatch)> const &_Dispatcher
+				, NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> &&_Dispatcher
 			)
 			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
-			, m_Dispatcher(_Dispatcher)
+			, m_Dispatcher(fg_Move(_Dispatcher))
 		{
 		}
 

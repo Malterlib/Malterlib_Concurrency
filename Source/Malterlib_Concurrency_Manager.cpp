@@ -340,9 +340,9 @@ namespace NMib
 						DMibLock(m_ActorListLock);
 						for (auto &Actor : this->m_Actors)
 						{
-							if (Actor.m_ActorTypeName.f_StartsWith("NMib::NConcurrency::CConcurrentActor") || Actor.m_ActorTypeName == "NMib::NConcurrency::CTimerActor")
+							if (Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0 || Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0)
 								continue;
-							DMibDTrace("\t{}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibConOut("\t{}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
 						}
 						Clock.f_Start();
 					}
@@ -372,7 +372,7 @@ namespace NMib
 					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					{
 						for (auto &Actor : m_ConcurrentActors[Prio])
-							Actor->fp_Terminate();
+							Actor->fp_Terminate(nullptr);
 					}
 					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 						m_ConcurrentActors[Prio].f_Clear();

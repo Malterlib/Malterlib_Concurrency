@@ -133,3 +133,7 @@ namespace NMib
 }
 
 #include "Malterlib_Concurrency_AsyncResult.hpp"
+
+#ifndef DMibPNoShortCuts
+	using namespace NMib::NConcurrency;
+#endif

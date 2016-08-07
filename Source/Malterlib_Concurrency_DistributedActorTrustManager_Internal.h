@@ -78,7 +78,8 @@ namespace NMib
 					<
 						TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
 					> const &_fConstructManager
-					, uint32 _KeySize 
+					, uint32 _KeySize
+					, NNet::ENetFlag _ListenFlags
 				)
 			;
 			TCContinuation<NStr::CStr> f_InitAttempt();
@@ -125,6 +126,7 @@ namespace NMib
 			NTime::CTimer m_TicketTimer;
 			
 			uint32 const m_KeySize;
+			NNet::ENetFlag const m_ListenFlags;
 			
 			EInitialize m_Initialize = EInitialize_None;
 			NStr::CStr m_InitializeError;

@@ -407,6 +407,7 @@ namespace NMib
 							return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID);
 						}
 						, Internal.m_Settings.m_KeySize
+						, Internal.m_Settings.m_ListenFlags
 					)
 				;
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);

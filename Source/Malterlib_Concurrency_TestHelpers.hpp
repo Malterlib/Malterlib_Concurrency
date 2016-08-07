@@ -10,12 +10,16 @@ namespace NMib
 		template <typename ...tfp_CDistributedActors>
 		NStr::CStr CDistributedActorTestHelperCombined::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
 		{
+			if (!mp_pServer)
+				DMibError("Server not there");
 			return mp_pServer->f_Publish<tfp_CDistributedActors...>(_Actor, _Namespace);
 		}	
 		
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor(NStr::CStr const &_SubscriptionID)
 		{
+			if (!mp_pClient)
+				DMibError("Client not corrected");
 			return mp_pClient->f_GetRemoteActor<tf_CActor>(_SubscriptionID);
 		}
 
@@ -40,7 +44,10 @@ namespace NMib
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> CDistributedActorTestHelper::f_GetRemoteActor(NStr::CStr const &_Subscription)
 		{
-			return fg_StaticCast<tf_CActor>(mp_Subscriptions[_Subscription].m_RemoteActor);
+			auto pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
+			if (!pSubscription)
+				DMibError("No such subscription");				
+			return fg_StaticCast<tf_CActor>(pSubscription->m_RemoteActor);
 		}
 	}
 }

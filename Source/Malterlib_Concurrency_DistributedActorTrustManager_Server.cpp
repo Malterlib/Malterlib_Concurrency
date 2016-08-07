@@ -41,6 +41,7 @@ namespace NMib
 								ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
 								ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;
 								ListenSettings.m_bRetryOnListenFailure = false;
+								ListenSettings.m_ListenFlags = Internal.m_ListenFlags;
 								
 								Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) 
 									> [this, Continuation, ListenConfig](TCAsyncResult<CDistributedActorListenReference> &&_ListenRef)

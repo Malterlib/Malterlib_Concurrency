@@ -264,6 +264,7 @@ namespace
 			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)}; // 1392 is 'mib' encoded with alphabet positions
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
+			ListenSettings.m_ListenFlags = NNet::ENetFlag_ReuseAddress;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
 			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();

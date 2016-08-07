@@ -88,7 +88,8 @@ namespace NMib
 								{
 									return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID);
 								}
-								, mp_Settings.m_KeySize 
+								, mp_Settings.m_KeySize
+								, mp_Settings.m_ListenFlags 
 							)
 						;
 						State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)

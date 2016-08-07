@@ -153,6 +153,7 @@ namespace NMib
 							mp_TrustManagerDatabase
 							, fManagerFactor
 							, mp_Settings.m_KeySize
+							, mp_Settings.m_ListenFlags
 						)
 					;
 					

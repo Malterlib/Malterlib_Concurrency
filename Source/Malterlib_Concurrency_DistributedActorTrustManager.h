@@ -62,6 +62,7 @@ namespace NMib
 						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
 					> const &_fConstructManager = nullptr
 					,  uint32 _KeySize = 4096
+					, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None  
 				)
 			;
 			

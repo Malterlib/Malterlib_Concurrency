@@ -38,6 +38,7 @@ namespace NMib
 			bool m_bRequireListen = false;
 			bool m_bSeparateConcurrencyManager = false;
 			uint32 m_KeySize = 4096;
+			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 		};
 		
 		struct CDistributedAppActor : public CActor

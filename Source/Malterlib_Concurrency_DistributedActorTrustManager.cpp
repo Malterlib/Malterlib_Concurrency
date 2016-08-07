@@ -18,9 +18,10 @@ namespace NMib
 				<
 					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
 				> const &_fConstructManager
-				,  uint32 _KeySize
+				, uint32 _KeySize
+				, NNet::ENetFlag _ListenFlags
 			)
-			: mp_pInternal(fg_Construct(this, _Database, _fConstructManager, _KeySize))
+			: mp_pInternal(fg_Construct(this, _Database, _fConstructManager, _KeySize, _ListenFlags))
 		{
 		}
 			
@@ -37,11 +38,13 @@ namespace NMib
 					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
 				> const &_fConstructManager
 				, uint32 _KeySize
+				, NNet::ENetFlag _ListenFlags
 			)
 			: m_pThis(_pThis)
 			, m_Database(_Database)
 			, m_fDistributionManagerFactory(_fConstructManager)
 			, m_KeySize(_KeySize)
+			, m_ListenFlags(_ListenFlags)
 		{
 		}
 		

@@ -203,6 +203,7 @@ namespace NMib
 						(
 							&NWeb::CWebSocketServerActor::f_StartListenAddress
 							, fg_Move(Addresses)
+							, NMib::NNet::ENetFlag_None
 							, fg_ThisActor(m_pThis)
 							, [this](NWeb::CWebSocketNewServerConnection &&_NewServerConnection)
 							{

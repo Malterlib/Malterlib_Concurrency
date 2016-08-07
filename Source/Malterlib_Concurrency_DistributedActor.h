@@ -127,6 +127,7 @@ namespace NMib
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> m_PrivateKey;
 			NContainer::TCVector<uint8> m_CACertificate;
 			NContainer::TCVector<uint8> m_PublicCertificate;
+			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 			bool m_bRetryOnListenFailure = true;
 		};
 

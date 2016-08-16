@@ -294,7 +294,7 @@ namespace
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31392/";
+					ServerAddress.m_URL = "wss://localhost:31394/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(60.0));
 
@@ -335,7 +335,7 @@ namespace
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31392/";
+					ServerAddress.m_URL = "wss://localhost:31394/";
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(60.0));
 					
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
@@ -351,11 +351,11 @@ namespace
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31393/";
+					ServerAddress.m_URL = "wss://localhost:31395/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
-					OldServerAddress.m_URL = "wss://localhost:31392/";
+					OldServerAddress.m_URL = "wss://localhost:31394/";
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(60.0);;
 
@@ -410,7 +410,7 @@ namespace
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 				
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerAddress.m_URL = "wss://localhost:31396/";
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
@@ -446,7 +446,7 @@ namespace
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 				
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerAddress.m_URL = "wss://localhost:31397/";
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 				{
@@ -519,7 +519,7 @@ namespace
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 				
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31392/";
+				ServerAddress.m_URL = "wss://localhost:31398/";
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 				{

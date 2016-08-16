@@ -12,10 +12,11 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined()
-			: mp_ListenSettings{31392} // 1392 is 'mib' encoded with alphabet positions
+		CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(uint16 _TestPort)
+			: mp_ListenSettings{_TestPort}
 			, mp_ServerCryptography(NCryptography::fg_RandomID())
 			, mp_ClientCryptography(NCryptography::fg_RandomID())
+			, mp_ListenPort(_TestPort)
 		{
 		}
 
@@ -80,7 +81,7 @@ namespace NMib
 			TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 			
 			CActorDistributionConnectionSettings ConnectionSettings;
-			ConnectionSettings.m_ServerURL = "wss://localhost:31392/";
+			ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
 			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 			mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
 			auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
@@ -102,7 +103,7 @@ namespace NMib
 			TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 			
 			CActorDistributionConnectionSettings ConnectionSettings;
-			ConnectionSettings.m_ServerURL = "wss://localhost:31392/";
+			ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
 			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 

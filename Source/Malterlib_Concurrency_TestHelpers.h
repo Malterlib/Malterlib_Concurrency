@@ -58,7 +58,7 @@ namespace NMib
 		
 		struct CDistributedActorTestHelperCombined
 		{
-			CDistributedActorTestHelperCombined();
+			CDistributedActorTestHelperCombined(uint16 _TestPort);
 			~CDistributedActorTestHelperCombined();
 			void f_SeparateServerManager();
 			void f_Init();
@@ -93,6 +93,8 @@ namespace NMib
 
 			CActorDistributionCryptographySettings mp_ClientCryptography;
 			CDistributedActorConnectionReference mp_ClientConnectionReference;
+			
+			uint16 mp_ListenPort;
 		};
 	}
 }

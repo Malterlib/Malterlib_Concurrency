@@ -253,15 +253,15 @@ namespace
 			if (_Address == "localhost")
 			{
 				NNet::CNetAddressTCPv4 Address;
-				Address.m_Port = 31392;
-				ConnectAddress = fg_Format("wss://{}:31392/", _Address);
+				Address.m_Port = 31393;
+				ConnectAddress = fg_Format("wss://{}:31393/", _Address);
 			}
 			else
 			{
 				ConnectAddress = fg_Format("wss://[{}]/", _Address);
 			}
 			
-			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)}; // 1392 is 'mib' encoded with alphabet positions
+			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
 			ListenSettings.m_ListenFlags = NNet::ENetFlag_ReuseAddress;
@@ -391,7 +391,9 @@ namespace
 		}
 		void fp_AnonymousClientTests()
 		{
-			CDistributedActorTestHelperCombined TestHelper;
+			uint16 Port = 31402;
+			
+			CDistributedActorTestHelperCombined TestHelper{Port};
 			
 			TestHelper.f_SeparateServerManager();
 			TestHelper.f_InitServer();
@@ -462,7 +464,9 @@ namespace
 						{
 							if (!pTestState)
 							{
-								pTestState = fg_Construct();
+								uint16 Port = 31403;
+								
+								pTestState = fg_Construct(Port);
 								
 								pTestState->f_SeparateServerManager();
 								pTestState->f_Init();

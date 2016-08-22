@@ -255,14 +255,14 @@ namespace NMib
 
 		namespace NActorDistributionManagerInternal
 		{
-			CActorSubscription::CActorSubscription(CActorDistributionManager *_pManager)
+			CActorPublicationSubscription::CActorPublicationSubscription(CActorDistributionManager *_pManager)
 				: m_fOnNewActor(_pManager, false)
 				, m_fOnRemovedActorActor(_pManager, false)
 			{
 			}
 		}
 
-		CActorCallback CActorDistributionManager::f_SubscribeActors
+		CActorSubscription CActorDistributionManager::f_SubscribeActors
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces
 				, TCActor<CActor> const &_Actor

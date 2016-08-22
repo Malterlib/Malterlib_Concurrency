@@ -20,7 +20,7 @@ namespace NMib
 			
 			TCAsyncResult<TCDistributedActor<t_CActor>> mp_DistributedActor;
 			TCActor<CActorDistributionManager> mp_DistributionManager;
-			CActorCallback mp_DistributedActorSubscription;
+			CActorSubscription mp_DistributedActorSubscription;
 			NStr::CStr mp_Namespace;
 			NContainer::TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
 		};

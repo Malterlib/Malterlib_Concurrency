@@ -191,7 +191,7 @@ namespace NMib
 
 			// This makes it self-referencing, so it will not be deleted until the callback is run. Because the callback handler saves the actor weakly it will not prevent deletion of
 			// _pActor unless it's referenced from within _fCallback
-			NPtr::TCSharedPointer<NPtr::TCSharedPointer<CActorCallback>> pCallbackHandle = fg_Construct(fg_Construct());
+			NPtr::TCSharedPointer<NPtr::TCSharedPointer<CActorSubscription>> pCallbackHandle = fg_Construct(fg_Construct());
 
 			**pCallbackHandle = Timer.m_Callbacks.f_Register
 				(
@@ -208,7 +208,7 @@ namespace NMib
 			fp_StartThread();
 		}
 
-		CActorCallback CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
@@ -240,7 +240,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorCallback CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			auto &Timer = *m_RegisteredTimers(_Period, this);
@@ -277,7 +277,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorCallback CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));
@@ -352,13 +352,13 @@ namespace NMib
 			;
 		}
 		
-		TCDispatchedActorCall<CActorCallback> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		TCDispatchedActorCall<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			return fg_ConcurrentDispatch
 				(
 					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
-						TCContinuation<CActorCallback> Continuation;
+						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()
 							(
 								&CTimerActor::f_OneshotTimerAbortable
@@ -377,13 +377,13 @@ namespace NMib
 			;
 		}
 
-		TCDispatchedActorCall<CActorCallback> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			return fg_ConcurrentDispatch
 				(
 					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
-						TCContinuation<CActorCallback> Continuation;
+						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()
 							(
 								&CTimerActor::f_RegisterTimer
@@ -402,13 +402,13 @@ namespace NMib
 			;
 		}
 		
-		TCDispatchedActorCall<CActorCallback> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
+		TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunction<void (NFunction::CThisTag &)> && _fCallback)
 		{
 			return fg_ConcurrentDispatch
 				(
 					[_Period, _pActor, fCallback = fg_LambdaMove(_fCallback)]()
 					{
-						TCContinuation<CActorCallback> Continuation;
+						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()
 							(
 								&CTimerActor::f_RegisterExactTimer

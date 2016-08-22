@@ -90,7 +90,7 @@ namespace
 	
 	class CCallbackActor : public CActor
 	{
-		TCActorCallbackManager<void (int32)> m_CallbackManager;
+		TCActorSubscriptionManager<void (int32)> m_CallbackManager;
 	public:
 		CCallbackActor()
 			: CActor()
@@ -98,7 +98,7 @@ namespace
 		{
 		}
 		
-		TCUniquePointer<CActorCallbackReference> f_RegisterCallback(TCActor<CActor> _pActor, TCFunction<void (int32 _Value)> && _fCallback)
+		CActorSubscription f_RegisterCallback(TCActor<CActor> _pActor, TCFunction<void (int32 _Value)> && _fCallback)
 		{
 			return m_CallbackManager.f_Register(_pActor, fg_Move(_fCallback));
 		}
@@ -699,7 +699,7 @@ namespace
 				TCActor<CCallbackActor> TestActor = fg_ConstructActor<CCallbackActor>();
 				
 				CMutual Lock;
-				TCUniquePointer<CActorCallbackReference> CallbackReference;
+				CActorSubscription CallbackReference;
 				CEventAutoReset FinishedEvent;
 				NAtomic::TCAtomic<uint32> CallbackValue;
 				TestActor
@@ -712,7 +712,7 @@ namespace
 							FinishedEvent.f_Signal();
 						}
 					)
-					> fg_ConcurrentActor() / [&](TCAsyncResult<TCUniquePointer<CActorCallbackReference>> && _Result)
+					> fg_ConcurrentActor() / [&](TCAsyncResult<CActorSubscription> && _Result)
 					{
 						DMibLock(Lock);
 						CallbackReference = fg_Move(*_Result);

@@ -316,6 +316,21 @@ namespace NMib
 		{
 			virtual TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) = 0;
 		};
+
+		struct CCallingHostInfo
+		{
+			CCallingHostInfo();
+			CCallingHostInfo(TCActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_UniqueHostID, NStr::CStr const &_RealHostID, NStr::CStr const &_LastExecutionID);
+			NStr::CStr const &f_GetRealHostID() const;
+			NStr::CStr const &f_GetUniqueHostID() const;
+			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
+			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const;
+		private:
+			TCActor<CActorDistributionManager> mp_DistributionManager;
+			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous 
+			NStr::CStr mp_RealHostID; 
+			NStr::CStr mp_LastExecutionID;
+		};
 		
 		struct CActorDistributionManager : public CActor
 		{
@@ -362,7 +377,7 @@ namespace NMib
 				)
 			;
 			
-			CActorCallback f_SubscribeActors
+			CActorSubscription f_SubscribeActors
 				(
 					NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 					, TCActor<CActor> const &_Actor
@@ -371,7 +386,7 @@ namespace NMib
 				)
 			;
 
-			static NStr::CStr fs_GetCallingHostID();
+			static CCallingHostInfo const &fs_GetCallingHostInfo();
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
 			
@@ -380,14 +395,24 @@ namespace NMib
 			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
 			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
 			TCContinuation<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
+			CActorSubscription fp_OnRemoteDisconnect
+				(
+					TCActor<CActor> const &_Actor
+					, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect
+					, NStr::CStr const &_UniqueHostID
+					, NStr::CStr const &_LastExecutionID
+				)
+			;
 			
 			friend struct CDistributedActorPublication;
 			friend struct CDistributedActorListenReference;
 			friend struct CDistributedActorConnectionReference;
+			friend struct CCallingHostInfo;
+			
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
 		};
 		
-		NStr::CStr fg_GetCallingHostID();
+		CCallingHostInfo const &fg_GetCallingHostInfo();
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();

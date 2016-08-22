@@ -190,9 +190,9 @@ namespace
 					auto pActor = fg_ConstructActor<CTestActor>();
 					auto pLockActor = fg_ConstructActor<TCLockActor<int, NThread::CMutual>>(fg_Construct("MalterlibTestSeparateActorThread"), Object, Lock);
 
-					CActorCallback OneshotAbortableTimer;
-					CActorCallback ExactTimer;
-					CActorCallback NormalTimer;
+					CActorSubscription OneshotAbortableTimer;
+					CActorSubscription ExactTimer;
+					CActorSubscription NormalTimer;
 					NAtomic::TCAtomic<mint> nExpectedHandlers(1);
 					NAtomic::TCAtomic<bool> bHandledTimer0;
 					NAtomic::TCAtomic<bool> bHandledTimer1;
@@ -254,7 +254,7 @@ namespace
 										HandlersFinished.f_SetSignaled();
 								}
 							)
-							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorCallback> &&_Result)
+							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
 							{
 								DMibLock(TimersLock);
 								if (OneshotAbortableTimer.f_IsEmpty())
@@ -279,7 +279,7 @@ namespace
 									}
 								}
 							)
-							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorCallback> &&_Result)
+							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
 							{
 								DMibLock(TimersLock);
 								OneshotAbortableTimer = fg_Move(*_Result);
@@ -299,7 +299,7 @@ namespace
 									DMibNeverGetHere;
 								}
 							)
-							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorCallback> &&_Result)
+							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
 							{
 								DMibLock(TimersLock);
 								if (!NormalTimer.f_IsEmpty())
@@ -324,7 +324,7 @@ namespace
 									}
 								}
 							)
-							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorCallback> &&_Result)
+							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
 							{
 								DMibLock(TimersLock);
 								NormalTimer = fg_Move(*_Result);
@@ -348,7 +348,7 @@ namespace
 									}
 								}
 							)
-							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorCallback> &&_Result)
+							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
 							{
 								DMibLock(TimersLock);
 								ExactTimer = fg_Move(*_Result);

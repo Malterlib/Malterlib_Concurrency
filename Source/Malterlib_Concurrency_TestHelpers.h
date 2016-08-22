@@ -41,7 +41,7 @@ namespace NMib
 			};
 			struct CSubscription
 			{
-				CActorCallback m_Subscription;
+				CActorSubscription m_Subscription;
 				TCDistributedActor<CActor> m_RemoteActor;
 			};
 			
@@ -65,6 +65,7 @@ namespace NMib
 			void f_InitClient(CDistributedActorTestHelperCombined &_Server);
 			void f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server);
 			void f_InitServer();
+			void f_DisconnectClient(bool _bNewExecutionID);
 			NStr::CStr f_Subscribe(NStr::CStr const &_Namespace);
 			void f_Unsubscribe(NStr::CStr const &_Subscription);
 			template <typename ...tfp_CDistributedActors>

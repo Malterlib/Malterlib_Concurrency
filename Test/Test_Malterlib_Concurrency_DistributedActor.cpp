@@ -55,6 +55,7 @@ namespace
 	class CDistributedActor : public CDistributedActorBase
 	{
 		zuint32 m_Value;
+		TCMap<CStr, CActorSubscription> m_CallingHostTests;
 	public:
 		void f_AddInt(uint32 _Value)
 		{
@@ -81,7 +82,45 @@ namespace
 
 		CStr f_GetCallingHostID() const override
 		{
-			return CActorDistributionManager::fs_GetCallingHostID();
+			return CActorDistributionManager::fs_GetCallingHostInfo().f_GetRealHostID();
+		}
+		
+		TCContinuation<CStr> f_TestOnDisconnect() 
+		{
+			auto &HostInfo = CActorDistributionManager::fs_GetCallingHostInfo();
+			CStr HostID = HostInfo.f_GetRealHostID();
+			
+			if (HostID.f_IsEmpty())
+				return fg_Explicit(CStr());
+			
+			TCContinuation<CStr> Continuation;
+			HostInfo.f_OnDisconnect
+				(
+					fg_ThisActor(this)
+					, [this, HostID]
+					{
+						m_CallingHostTests.f_Remove(HostID);
+					}
+				)
+				> Continuation / [this, Continuation, HostID](CActorSubscription &&_Subscription)
+				{
+					if (!_Subscription)
+					{
+						Continuation.f_SetException(DMibErrorInstance("Subscription failed"));
+						return;
+					}
+					m_CallingHostTests[HostID] = fg_Move(_Subscription);
+					
+					Continuation.f_SetResult(HostID);
+				}
+			;
+			
+			return Continuation;
+		}
+		
+		uint8 f_HasOnDisconnect(CStr const &_HostID) const
+		{
+			return m_CallingHostTests.f_FindEqual(_HostID) != nullptr;
 		}
 		
 		template <typename tf_CTest>
@@ -295,7 +334,7 @@ namespace
 			NThread::CMutual RemoteLock;
 			NThread::CEventAutoReset RemoteEvent;
 			TCDistributedActor<CDistributedActorBase> RemoteActor;
-			CActorCallback RemoteActorsSubscription;
+			CActorSubscription RemoteActorsSubscription;
 			mint RemoteEvents = 0;
 			bool bRemoved = false;
 			
@@ -325,7 +364,7 @@ namespace
 						++RemoteEvents;
 					}
 				)
-				> ConcurrentActor / [&](TCAsyncResult<CActorCallback> &&_Result)
+				> ConcurrentActor / [&](TCAsyncResult<CActorSubscription> &&_Result)
 				{
 					DMibLock(RemoteLock);
 					RemoteActorsSubscription = fg_Move(*_Result);
@@ -424,6 +463,31 @@ namespace
 				TestHelper.f_GetServer().f_SubscribeExpectFailure("Anonymous/Test2");
 			}
 		}
+		
+		void fp_OnDisconnectedTests()
+		{
+			uint16 Port = 31404;
+			CDistributedActorTestHelperCombined TestState(Port);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init();
+			auto LocalActor = fg_ConstructDistributedActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+			
+			CStr HostID = DMibCallActor(Actor, CDistributedActor::f_TestOnDisconnect).f_CallSync(60.0);
+			
+			DMibExpect(HostID, != , "");
+			bool bHasClient = DMibCallActor(Actor, CDistributedActor::f_HasOnDisconnect, HostID).f_CallSync(60.0);
+			DMibExpectTrue(bHasClient);
+			TestState.f_DisconnectClient(true);
+			TestState.f_InitClient(TestState);
+			SubscriptionID = TestState.f_Subscribe("Test");
+			Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+			bHasClient = LocalActor(&CDistributedActor::f_HasOnDisconnect, HostID).f_CallSync(60.0);
+			DMibExpectFalse(bHasClient);
+		}
+		
 	public:
 		void f_FunctionalTests()
 		{
@@ -453,6 +517,11 @@ namespace
 				DMibTestSuite("Anonymous client")
 				{
 					fp_AnonymousClientTests();
+				};
+
+				DMibTestSuite("On disconnected")
+				{
+					fp_OnDisconnectedTests();
 				};
 				
 				TCSharedPointer<CDistributedActorTestHelperCombined> pTestState;

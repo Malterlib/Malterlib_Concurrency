@@ -11,7 +11,7 @@ namespace NMib
 	{
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		template <typename ...tfp_CParam>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackHandle::CCallbackHandle(tfp_CParam && ...p_ExtraData)
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackHandle::CCallbackHandle(tfp_CParam && ...p_ExtraData)
 			: t_CExtraData(fg_Forward<tfp_CParam>(p_ExtraData)...)
 		{
 		}
@@ -19,20 +19,20 @@ namespace NMib
 
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CInternal::CInternal(CActor *_pActor, bool _bDeferrCallbacks)
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CInternal::CInternal(CActor *_pActor, bool _bDeferrCallbacks)
 			: mp_pActor(_pActor)
 			, mp_bDeferrCallbacks(_bDeferrCallbacks)
 		{
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::TCActorCallbackManager(CActor *_pActor, bool _bDeferrCallbacks)
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks)
 			: mp_pInternal(fg_Construct(_pActor, _bDeferrCallbacks))
 		{
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::~TCActorCallbackManager()
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::~TCActorSubscriptionManager()
 		{
 			auto &Internal = *mp_pInternal;
 			Internal.mp_bDestroyed = true;
@@ -42,7 +42,7 @@ namespace NMib
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		template <typename ...tfp_CParam>
-		CActorCallback TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Register
+		CActorSubscription TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Register
 			(
 				TCActor<CActor> _pActor
 				, NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback
@@ -73,14 +73,14 @@ namespace NMib
 		}
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		bool TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_IsEmpty()
+		bool TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_IsEmpty()
 		{
 			auto &Internal = *mp_pInternal;
 			return Internal.mp_Callbacks.f_IsEmpty();
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		void TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Clear()
+		void TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Clear()
 		{
 			auto &Internal = *mp_pInternal;
 			Internal.mp_DeferredCallbacks.f_Clear();
@@ -93,7 +93,7 @@ namespace NMib
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		void TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_StopDeferring()
+		void TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_StopDeferring()
 		{
 			auto &Internal = *mp_pInternal;
 			Internal.mp_DeferredCallbacks.f_Clear();
@@ -118,7 +118,7 @@ namespace NMib
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		template <bool tf_bSupportMultiple>
-		typename TCEnableIf<tf_bSupportMultiple>::CType TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
+		typename TCEnableIf<tf_bSupportMultiple>::CType TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
 		{
 			auto &Internal = *mp_pInternal;
 			if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
@@ -204,7 +204,7 @@ namespace NMib
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		template <bool tf_bSupportMultiple>
-		typename TCEnableIf<!tf_bSupportMultiple>::CType TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
+		typename TCEnableIf<!tf_bSupportMultiple>::CType TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
 		{
 			auto &Internal = *mp_pInternal;
 			if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
@@ -286,7 +286,7 @@ namespace NMib
 		}
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		void TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
+		void TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
 		{
 			if (m_pHandle)
 			{
@@ -313,7 +313,7 @@ namespace NMib
 			}
 		}
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference
 			(
 				CCallbackHandle *_pHandle
 				, NPtr::TCSharedPointer<CInternal> const &_pManager
@@ -326,21 +326,21 @@ namespace NMib
 		}
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference()
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference()
 			: m_pHandle(nullptr)
 		{
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference(CCallbackReference &&_Other)
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference(CCallbackReference &&_Other)
 			: m_pHandle(_Other.m_pHandle)
 		{
 			_Other.m_pHandle = nullptr;
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		typename TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference &
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::operator =(CCallbackReference &&_Other)
+		typename TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference &
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::operator =(CCallbackReference &&_Other)
 		{ 
 			fp_RemoveCallback();
 			m_pHandle = _Other.m_pHandle;
@@ -349,13 +349,13 @@ namespace NMib
 		}
 
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::~CCallbackReference()
+		TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::~CCallbackReference()
 		{
 			fp_RemoveCallback();
 		}
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		bool TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::f_IsValid()
+		bool TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::f_IsValid()
 		{
 			return m_pHandle;
 		}

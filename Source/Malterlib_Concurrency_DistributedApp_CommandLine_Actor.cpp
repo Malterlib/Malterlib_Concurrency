@@ -23,7 +23,7 @@ namespace NMib
 		
 		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::CCommandLine::f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 		{
-			return mp_Actor(&CDistributedAppActor::f_RunCommandLine, fg_GetCallingHostID(), _Command, _Params);
+			return mp_Actor(&CDistributedAppActor::f_RunCommandLine, fg_GetCallingHostInfo().f_GetRealHostID(), _Command, _Params);
 		}
 		
 		TCContinuation<void> CDistributedAppActor::fp_CreateCommandLineTrust()

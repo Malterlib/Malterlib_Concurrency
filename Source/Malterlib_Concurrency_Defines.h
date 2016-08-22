@@ -151,15 +151,15 @@ namespace NMib
 		
 		struct CCanDestroyTracker;
 		
-		class CActorCallbackReference
+		class CActorSubscriptionReference
 		{
 		public:
-			virtual ~CActorCallbackReference()
+			virtual ~CActorSubscriptionReference()
 			{
 			}
 		};
 		
-		typedef NPtr::TCUniquePointer<CActorCallbackReference> CActorCallback;
+		typedef NPtr::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;
 		
 		CConcurrencyManager &fg_ConcurrencyManager();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActor();

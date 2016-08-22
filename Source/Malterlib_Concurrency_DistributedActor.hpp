@@ -61,7 +61,7 @@ namespace NMib
 
 				struct CThreadLocal
 				{
-					NStr::CStr m_CallingHostID;
+					CCallingHostInfo m_CallingHostInfo;
 				};
 				
 				NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;

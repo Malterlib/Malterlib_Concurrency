@@ -42,7 +42,7 @@ namespace NMib
 							mp_DistributedActor = {}; 
 					}
 				)
-				> [this](TCAsyncResult<CActorCallback> &&_Subscription)
+				> [this](TCAsyncResult<CActorSubscription> &&_Subscription)
 				{
 					if (!_Subscription)
 					{

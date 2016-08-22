@@ -315,7 +315,7 @@ namespace NMib
 								, CertificateChain = pSocketInfo->m_CertificateChain
 								, fReportError
 							]
-							(NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Callback) mutable
+							(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Callback) mutable
 							{
 								if (Sequence != _pConnection->m_ConnectionSequence)
 								{
@@ -421,7 +421,7 @@ namespace NMib
 			auto &pHost = Internal.m_Hosts[UniqueHostID];
 			if (!pHost)
 			{
-				pHost = fg_Construct();
+				pHost = fg_Construct(*this);
 				pHost->m_RealHostID = HostID;
 				pHost->m_UniqueHostID = UniqueHostID;
 				pHost->m_bAnonymous = bAnonymous;

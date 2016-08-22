@@ -25,7 +25,7 @@ namespace NMib
 			friend class TCActorInternal;
 			
 			template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
-			friend class TCActorCallbackManager;
+			friend class TCActorSubscriptionManager;
 			
 			friend class CActorHolder;
 

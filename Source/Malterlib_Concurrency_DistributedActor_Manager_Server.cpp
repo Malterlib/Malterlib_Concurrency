@@ -269,7 +269,7 @@ namespace NMib
 										auto MappedHost = this->m_Hosts(HostID);
 										if (MappedHost.f_WasCreated())
 										{
-											*MappedHost = fg_Construct();
+											*MappedHost = fg_Construct(*m_pThis);
 											(*MappedHost)->m_RealHostID = HostID;
 											(*MappedHost)->m_UniqueHostID = HostID;
 											(*MappedHost)->m_bAnonymous = bAnonymous;
@@ -330,7 +330,7 @@ namespace NMib
 											(
 												"MalterlibDistributedActors"
 												, fg_ThisActor(m_pThis) / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress, HostID]
-												(NConcurrency::TCAsyncResult<NConcurrency::CActorCallback> &&_Subscription)
+												(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
 												{
 													if (_Subscription)
 													{
@@ -401,7 +401,7 @@ namespace NMib
 							}
 							, NNet::CSocket_SSL::fs_GetFactory(pServerContext)
 						)
-						> [this, _ListenID, _pContinuation, _Settings, pListenState, fReportListenFailure](TCAsyncResult<CActorCallback> &&_Result) mutable
+						> [this, _ListenID, _pContinuation, _Settings, pListenState, fReportListenFailure](TCAsyncResult<CActorSubscription> &&_Result) mutable
 						{
 							if (!_Result)
 							{

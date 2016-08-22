@@ -294,7 +294,7 @@ namespace NMib
 								{
 									bool m_bReplied = false;
 									bool m_bDisableTimeout = false;
-									CActorCallback m_Subscription;
+									CActorSubscription m_Subscription;
 									CDistributedActorConnectionReference m_AnonymousConnection;
 									TCDistributedActor<CInternal::CTicketInterface> m_TicketInterface;
 									

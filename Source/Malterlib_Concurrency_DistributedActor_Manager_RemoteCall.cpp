@@ -110,6 +110,30 @@ namespace NMib
 			fp_QueuePacket(_pHost, Stream.f_MoveVector());
 		}
 		
+		CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
+			(
+				TCActor<CActor> const &_Actor
+				, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect
+				, NStr::CStr const &_UniqueHostID
+				, NStr::CStr const &_LastExecutionID
+			)
+		{
+			auto &Internal = *mp_pInternal;
+			
+			auto *pHost = Internal.m_Hosts.f_FindEqual(_UniqueHostID);
+			
+			if (!pHost || (*pHost)->m_LastExecutionID != _LastExecutionID)
+			{
+				// Report disconnect
+				fg_Dispatch(_Actor, _fOnDisconnect) > fg_DiscardResult();
+				return nullptr;
+			}
+			
+			auto &Host = **pHost;
+			
+			return Host.m_OnDisconnect.f_Register(_Actor, fg_Move(_fOnDisconnect));			
+		}
+		
 		bool CActorDistributionManager::CInternal::fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
 			CDistributedActorCommand_RemoteCall RemoteCall;
@@ -161,13 +185,22 @@ namespace NMib
 			Actor
 				(
 					&CActor::f_DispatchWithReturn<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>
-					, [pEntry, Actor, ParamData = fg_Move(ParamData), HostID = pHost->m_RealHostID]
+					, 
+					[
+						pEntry
+						, Actor
+						, ParamData = fg_Move(ParamData)
+						, HostID = pHost->m_RealHostID
+						, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), pHost->m_UniqueHostID, pHost->m_RealHostID, pHost->m_LastExecutionID)
+					] 
+					() mutable
 					{
-						auto PreviousHostID = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
-						NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID = HostID;
+						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+						auto PreviousHostInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
+						ThreadLocal.m_CallingHostInfo = fg_Move(CallingHostInfo);
 						auto Cleanup = g_OnScopeExit > [&]
 							{
-								NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID = PreviousHostID;
+								ThreadLocal.m_CallingHostInfo = fg_Move(PreviousHostInfo);
 							}
 						;
 						

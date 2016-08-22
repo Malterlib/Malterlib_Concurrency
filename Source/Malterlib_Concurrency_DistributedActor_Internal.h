@@ -48,7 +48,7 @@ namespace NMib
 				virtual NStr::CStr f_GetConnectionID() const = 0;
 				
 				TCActor<NWeb::CWebSocketActor> m_Connection;
-				CActorCallback m_ConnectionSubscription;
+				CActorSubscription m_ConnectionSubscription;
 				NPtr::TCSharedPointer<NNet::CSSLContext> m_pSSLContext;
 				NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> m_pHost;
 				DMibListLinkDS_Link(CConnection, m_Link);
@@ -126,6 +126,14 @@ namespace NMib
 			
 			struct CHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 			{
+				CHost(CActorDistributionManager &_DistributionManager);
+				~CHost();
+				
+				void f_DeletePackets();
+				void f_Destroy();
+				bool f_CanReceivePublish() const;
+				bool f_CanSendPublish() const;
+				
 				DMibListLinkDS_List(CClientConnection, m_HostLink) m_ClientConnections;
 				DMibListLinkDS_List(CServerConnection, m_HostLink) m_ServerConnections;
 				
@@ -147,6 +155,8 @@ namespace NMib
 				
 				NContainer::TCMap<NStr::CStr, CRemoteActor> m_RemoteActors;
 				
+				TCActorSubscriptionManager<void (), true> m_OnDisconnect;
+				
 				NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 				bool m_bAllowAllNamespaces = false;
 				
@@ -155,12 +165,6 @@ namespace NMib
 				bool m_bAnonymous = false;
 				bool m_bDeleted = false;
 				
-				~CHost();
-				
-				void f_DeletePackets();
-				void f_Destroy();
-				bool f_CanReceivePublish() const;
-				bool f_CanSendPublish() const;
 			};
 			
 			struct CDistributedActorDataInternal : public NPrivate::CDistributedActorData
@@ -202,17 +206,17 @@ namespace NMib
 				}
 			};
 			
-			struct CActorSubscription
+			struct CActorPublicationSubscription
 			{
-				CActorSubscription(CActorDistributionManager *_pManager);
-				TCActorCallbackManager<void (CAbstractDistributedActor &&_NewActor), true> m_fOnNewActor;
-				TCActorCallbackManager<void (TCWeakDistributedActor<CActor> const &_RemovedActor), true> m_fOnRemovedActorActor;
+				CActorPublicationSubscription(CActorDistributionManager *_pManager);
+				TCActorSubscriptionManager<void (CAbstractDistributedActor &&_NewActor), true> m_fOnNewActor;
+				TCActorSubscriptionManager<void (TCWeakDistributedActor<CActor> const &_RemovedActor), true> m_fOnRemovedActorActor;
 			};
 
 			struct CListen
 			{
 				TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
-				CActorCallback m_ListenCallbackSubscription;
+				CActorSubscription m_ListenCallbackSubscription;
 				
 				NStr::CStr const &f_GetID() const
 				{
@@ -233,7 +237,7 @@ namespace NMib
 			using CDistributedActorDataInternal = NActorDistributionManagerInternal::CDistributedActorDataInternal;
 			using CPublishedActor = NActorDistributionManagerInternal::CPublishedActor;
 			using CLocalNamespace = NActorDistributionManagerInternal::CLocalNamespace;
-			using CActorSubscription = NActorDistributionManagerInternal::CActorSubscription;
+			using CActorPublicationSubscription = NActorDistributionManagerInternal::CActorPublicationSubscription;
 			using CListen = NActorDistributionManagerInternal::CListen;
 			
 			friend struct NActorDistributionManagerInternal::CHost;
@@ -250,7 +254,7 @@ namespace NMib
 			NStr::CStr m_ExecutionID;
 			NStr::CStr m_HostID;
 			
-			NContainer::TCMap<NStr::CStr, CActorSubscription> m_SubscribedActors;
+			NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
 
 			NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
 			NContainer::TCSet<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;

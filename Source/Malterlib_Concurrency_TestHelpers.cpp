@@ -74,25 +74,33 @@ namespace NMib
 			mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(60.0);
 		}
 
+		void CDistributedActorTestHelperCombined::f_DisconnectClient(bool _bNewExecutionID)
+		{
+			mp_ClientConnectionReference.f_Disconnect().f_CallSync(60.0);
+			if (_bNewExecutionID)
+				mp_pClient.f_Clear();
+		}
+		
 		void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server)
 		{
-			mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(mp_ClientCryptography.m_HostID));
-			
-			TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
-			
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
 			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
-			mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
-			auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
-			
-			auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
-			
-			mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
-			
+			if (!mp_pClient)
+			{
+				mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(mp_ClientCryptography.m_HostID));
+			}
+			if (mp_ClientCryptography.m_RemoteClientCertificates.f_IsEmpty())
+			{
+				mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
+				auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
+				auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
+				mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
+			}
 			ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
 			ConnectionSettings.m_bRetryConnectOnFailure = false;
 
+			TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 			mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;
 		}
 		

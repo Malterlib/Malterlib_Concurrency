@@ -12,10 +12,10 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename t_CCallbackSignature, bool t_bSupportMultiple = false, typename t_CExtraData = CEmpty>
-		class TCActorCallbackManager;
+		class TCActorSubscriptionManager;
 		
 		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		class TCActorCallbackManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
+		class TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
 		{
 		public:
 			struct CCallbackHandle : public t_CExtraData
@@ -26,11 +26,11 @@ namespace NMib
 				NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> m_fCallback;
 			};
 		public:
-			TCActorCallbackManager(CActor *_pActor, bool _bDeferrCallbacks);
-			~TCActorCallbackManager();
+			TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks);
+			~TCActorSubscriptionManager();
 
 			template <typename ...tfp_CParam>
-			CActorCallback f_Register(TCActor<CActor> _pActor, NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
 			
 			bool f_IsEmpty();
 			void f_StopDeferring();
@@ -54,7 +54,7 @@ namespace NMib
 				bool mp_bDestroyed = false;
 			};
 
-			class CCallbackReference : public CActorCallbackReference
+			class CCallbackReference : public CActorSubscriptionReference
 			{
 				CCallbackHandle *m_pHandle;
 				NPtr::TCSharedPointer<CInternal> m_pCallbackManager;
@@ -79,14 +79,14 @@ namespace NMib
 			NPtr::TCSharedPointer<CInternal> mp_pInternal;
 		};
 		
-		class CCombinedCallbackReference : public CActorCallbackReference
+		class CCombinedCallbackReference : public CActorSubscriptionReference
 		{
 		public:
-			NContainer::TCVector<CActorCallback> m_References;
+			NContainer::TCVector<CActorSubscription> m_References;
 		};
 		
 		template <typename... tf_CParam>
-		CActorCallback fg_CombinedCallbackReference(tf_CParam &&...p_Params)
+		CActorSubscription fg_CombinedCallbackReference(tf_CParam &&...p_Params)
 		{
 			NPtr::TCUniquePointer<CCombinedCallbackReference> pCombinedReference = fg_Construct();
 			fg_Swallow(pCombinedReference->m_References.f_Insert(fg_Move(p_Params))...);

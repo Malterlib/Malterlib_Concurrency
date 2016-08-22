@@ -15,6 +15,11 @@ namespace NMib
 	{
 		namespace NActorDistributionManagerInternal
 		{
+			CHost::CHost(CActorDistributionManager &_DistributionManager)
+				: m_OnDisconnect(&_DistributionManager, false)
+			{
+			}
+
 			CHost::~CHost()
 			{
 				f_DeletePackets();
@@ -109,6 +114,9 @@ namespace NMib
 			}
 			
 			DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
+			
+			Host.m_OnDisconnect();
+			Host.m_OnDisconnect.f_Clear();
 
 			for (auto &RemoteActor : Host.m_RemoteActors)
 			{

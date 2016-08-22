@@ -20,11 +20,10 @@ namespace NMib
 				CSubSystem_Concurrency_DistributedActorDefaultManager();
 				CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID);
 				~CSubSystem_Concurrency_DistributedActorDefaultManager();
+				void f_DestroyThreadSpecific() override;
 
 				NStr::CStr m_DistributionManagerHostID;
 				TCActor<CActorDistributionManager> m_DistributionManager;
-				
-				void f_DestroyThreadSpecific() override;
 			};
 			
 			CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager()
@@ -104,14 +103,14 @@ namespace NMib
 			NPrivate::fg_DistributedActorSubSystem();
 		}
 
-		NStr::CStr CActorDistributionManager::fs_GetCallingHostID()
+		CCallingHostInfo const &CActorDistributionManager::fs_GetCallingHostInfo()
 		{
-			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostID;
+			return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 		}
 		
-		NStr::CStr fg_GetCallingHostID()
+		CCallingHostInfo const &fg_GetCallingHostInfo()
 		{
-			return CActorDistributionManager::fs_GetCallingHostID();
+			return CActorDistributionManager::fs_GetCallingHostInfo();
 		}
 
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID)
@@ -277,5 +276,52 @@ namespace NMib
 			m_CACertificate = _Settings.m_PublicCertificate;
 			m_PrivateKey = _Settings.m_PrivateKey;
 		}		
+		
+		CCallingHostInfo::CCallingHostInfo()
+		{
+		}
+
+		CCallingHostInfo::CCallingHostInfo
+			(
+				TCActor<CActorDistributionManager> const &_DistributionManager
+				, NStr::CStr const &_UniqueHostID
+				, NStr::CStr const &_RealHostID
+				, NStr::CStr const &_LastExecutionID
+			)
+			: mp_DistributionManager(_DistributionManager)
+			, mp_UniqueHostID(_UniqueHostID) 
+			, mp_RealHostID(_RealHostID)
+			, mp_LastExecutionID(_LastExecutionID)
+		{
+		}
+		
+		NStr::CStr const &CCallingHostInfo::f_GetRealHostID() const
+		{
+			return mp_RealHostID;
+		}
+		
+		NStr::CStr const &CCallingHostInfo::f_GetUniqueHostID() const
+		{
+			return mp_UniqueHostID;
+		}
+		
+		TCActor<CActorDistributionManager> const &CCallingHostInfo::f_GetDistributionManager() const
+		{
+			return mp_DistributionManager;
+		}
+		
+		TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const
+		{
+			return fg_ConcurrentDispatch
+				(
+					[DistributionManager = mp_DistributionManager, fOnDisconnect = fg_Move(_fOnDisconnect), UniqueHostID = mp_UniqueHostID, LastExecutionID = mp_LastExecutionID, _Actor]
+					{
+						TCContinuation<CActorSubscription> Continuation;
+						DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Continuation;
+						return Continuation;
+					}
+				)
+			;
+		}
 	}
 }

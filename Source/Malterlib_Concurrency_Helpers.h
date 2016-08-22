@@ -19,7 +19,7 @@ namespace NMib
 #		endif
 
 		template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
-		class TCActorCallbackManager;
+		class TCActorSubscriptionManager;
 
 		template <typename t_CActor>
 		class TCActorInternal;

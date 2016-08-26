@@ -52,7 +52,7 @@ namespace
 			;
 		}
 		
-		TCContinuation<void> fp_StartApp() override 
+		TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) override 
 		{
 			return fg_Explicit();
 		}

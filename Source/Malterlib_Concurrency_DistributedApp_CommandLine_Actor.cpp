@@ -44,7 +44,7 @@ namespace NMib
 				)
 				> Continuation / [this, Continuation, CommandLineTrustPath](bool _bAlreadySetUp)
 				{
-					if (_bAlreadySetUp && mp_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+					if (_bAlreadySetUp && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 					{
 						// Already setup
 						Continuation.f_SetResult();
@@ -94,14 +94,14 @@ namespace NMib
 						;
 						State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)
 							{
-								mp_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Continuation / [this, Continuation, pState, _HostID, pCleanup](bool _bHasClient)
+								mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Continuation / [this, Continuation, pState, _HostID, pCleanup](bool _bHasClient)
 									{
 										auto fContinue = [this, Continuation, pState, _HostID, pCleanup]
 											{
 												CDistributedActorTrustManager_Address LocalListenAddress;
 												LocalListenAddress.m_URL = fp_GetLocalAddress();
 										
-												mp_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress) 
+												mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress) 
 													> Continuation / [this, Continuation, pState, _HostID, pCleanup](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 													{
 														auto &State = *pState;
@@ -109,11 +109,11 @@ namespace NMib
 															> Continuation / [this, Continuation, _HostID, pCleanup, pState]
 															{
 																pCleanup->f_Clear();
-																auto &Setting = mp_StateDatabase.m_Data["CommandLineHostID"];
+																auto &Setting = mp_State.m_StateDatabase.m_Data["CommandLineHostID"];
 																if (!Setting.f_IsString() || Setting.f_String() != _HostID)
 																{
-																	mp_StateDatabase.m_Data["CommandLineHostID"] = _HostID;
-																	mp_StateDatabase.f_Save() > Continuation % "Failed to save state database"; 
+																	mp_State.m_StateDatabase.m_Data["CommandLineHostID"] = _HostID;
+																	mp_State.m_StateDatabase.f_Save() > Continuation % "Failed to save state database"; 
 																}
 																else
 																	Continuation.f_SetResult();
@@ -128,7 +128,7 @@ namespace NMib
 											fContinue();
 										else
 										{
-											mp_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID) > Continuation / [fContinue = fg_Move(fContinue)]()
+											mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID) > Continuation / [fContinue = fg_Move(fContinue)]()
 												{
 													fContinue();
 												}
@@ -151,14 +151,14 @@ namespace NMib
 			CDistributedActorTrustManager_Address LocalListenAddress;
 			LocalListenAddress.m_URL = fp_GetLocalAddress();
 			
-			mp_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress) > Continuation / [this, Continuation, LocalListenAddress](bool _bHasListen)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress) > Continuation / [this, Continuation, LocalListenAddress](bool _bHasListen)
 				{
 					if (_bHasListen)
 					{
 						Continuation.f_SetResult();
 						return;
 					}
-					mp_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Continuation / [this, Continuation]()
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Continuation / [this, Continuation]()
 						{
 							Continuation.f_SetResult();
 						}
@@ -174,7 +174,7 @@ namespace NMib
 			mp_CommandLine = fg_ConstructDistributedActor<CCommandLine>(fg_ThisActor(this));
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
 			
-			mp_DistributionManager
+			mp_State.m_DistributionManager
 				(
 					&CActorDistributionManager::f_PublishActor
 					, mp_CommandLine
@@ -213,7 +213,7 @@ namespace NMib
 
 		bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)
 		{
-			if (auto pCommandLineHost = mp_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+			if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 				return pCommandLineHost->f_String() == _HostID;
 			return false;
 		}

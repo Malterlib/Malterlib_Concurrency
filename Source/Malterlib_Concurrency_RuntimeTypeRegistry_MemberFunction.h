@@ -103,15 +103,21 @@ namespace NMib
 					override
 				;
 			};
-			
+
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			struct TCRuntimeTypeRegistryEntry_MemberFunctionInit
+			{
+				TCRuntimeTypeRegistryEntry_MemberFunctionInit();
+			};
+
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
 			struct TCMemberFunctionRegistry
 			{
-				static TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash> ms_Entry;
+				static TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash> ms_EntryInit;
 			};
 		}
 		
 #define DMibConcurrencyRegisterMemberFunction(d_CMemberFunction, d_pMemberFunction, d_NameHash) \
-			(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash>::ms_Entry
+			(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash>::ms_EntryInit
 	}
 }

@@ -35,6 +35,7 @@ namespace NMib
 				: m_DistributionManagerHostID(_HostID)
 			{
 				fg_ConcurrencyManager(); // Add dependency to subsystem
+				fg_RuntimeTypeRegistry();
 				
 				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>(_HostID);
 			}
@@ -304,6 +305,20 @@ namespace NMib
 		{
 			return mp_UniqueHostID;
 		}
+
+		bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
+		{
+			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_RealHostID, mp_LastExecutionID) 
+				== NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_RealHostID, _Right.mp_LastExecutionID)
+			; 
+		}		
+
+		bool CCallingHostInfo::operator <(CCallingHostInfo const &_Right) const
+		{
+			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_RealHostID, mp_LastExecutionID) 
+				< NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_RealHostID, _Right.mp_LastExecutionID)
+			; 
+		}		
 		
 		TCActor<CActorDistributionManager> const &CCallingHostInfo::f_GetDistributionManager() const
 		{

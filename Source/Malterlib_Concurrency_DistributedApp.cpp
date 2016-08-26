@@ -17,9 +17,14 @@ namespace NMib
 	
 	namespace NConcurrency
 	{
+		CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
+			: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
+			, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
+		{
+		}
+		
 		CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
-			: mp_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
-			, mp_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
+			: mp_State(_Settings)
 			, mp_Settings(_Settings)
 		{
 			fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
@@ -46,7 +51,7 @@ namespace NMib
 			
 			TCSet<CDistributedActorTrustManager_Address> WantedListens;
 			
-			auto const *pListen = mp_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
+			auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 			if (!pListen && mp_Settings.m_bRequireListen)
 				return DMibErrorInstance(fg_Format("Missing 'Listen' array section in {}Config.json", mp_Settings.m_AppName));
 			
@@ -85,7 +90,7 @@ namespace NMib
 			}
 			WantedListens[LocalListen];
 			
-			mp_TrustManager(&CDistributedActorTrustManager::f_EnumListens) 
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens) 
 				> Continuation % "Failed to enum current listen" / [this, Continuation, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)
 				{
 					TCActorResultVector<void> ChangesResults;
@@ -94,7 +99,7 @@ namespace NMib
 					{
 						if (WantedListens.f_FindEqual(CurrentListen))
 							continue;
-						mp_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, CurrentListen) > ChangesResults.f_AddResult();
+						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, CurrentListen) > ChangesResults.f_AddResult();
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Removing listen config {}", CurrentListen.m_URL.f_Encode());
 						bChanged = true;
 					}
@@ -102,7 +107,7 @@ namespace NMib
 					{
 						if (_Listens.f_FindEqual(WantedListen))
 							continue;
-						mp_TrustManager(&CDistributedActorTrustManager::f_AddListen, WantedListen) > ChangesResults.f_AddResult();
+						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, WantedListen) > ChangesResults.f_AddResult();
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Adding listen config {}", WantedListen.m_URL.f_Encode());
 						bChanged = true;
 					}
@@ -132,8 +137,8 @@ namespace NMib
 			TCContinuation<void> Continuation;
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
 			
-			mp_StateDatabase.f_Load()
-				+ mp_ConfigDatabase.f_Load()
+			mp_State.m_StateDatabase.f_Load()
+				+ mp_State.m_ConfigDatabase.f_Load()
 				> Continuation / [this, Continuation]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
@@ -148,7 +153,7 @@ namespace NMib
 						;
 					}
 					
-					mp_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
+					mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 						(
 							mp_TrustManagerDatabase
 							, fManagerFactor
@@ -157,14 +162,14 @@ namespace NMib
 						)
 					;
 					
-					mp_TrustManager(&CDistributedActorTrustManager::f_Initialize)
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
 						> Continuation % "Failed to initialize trust manager" / [this, Continuation]()
 						{
-							mp_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
+							mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
 								> Continuation % "Failed to initialize trust manager"
 								/ [this, Continuation](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager)
 								{
-									mp_DistributionManager = fg_Move(_DistributionManager);
+									mp_State.m_DistributionManager = fg_Move(_DistributionManager);
 									fg_ThisActor(this)(&CDistributedAppActor::fp_SetupListen) 
 										> Continuation % "Failed to setup listen config" / [this, Continuation]()
 										{
@@ -186,7 +191,7 @@ namespace NMib
 			return Continuation;				
 		}
 
-		TCContinuation<void> CDistributedAppActor::f_StartApp()
+		TCContinuation<void> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params)
 		{
 			if (!mp_pInitOnce)
 			{
@@ -211,13 +216,13 @@ namespace NMib
 			TCContinuation<void> Continuation;
 			fg_Dispatch
 				(
-					[this]()
+					[this, _Params]()
 					{
 						TCContinuation<void> Continuation;
-						(*mp_pInitOnce)() > Continuation % "Failed to initialize" / [this, Continuation]()
+						(*mp_pInitOnce)() > Continuation % "Failed to initialize" / [this, Continuation, _Params]()
 							{
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
-								fg_ThisActor(this)(&CDistributedAppActor::fp_StartApp) > Continuation % "Failed to start app" / [this, Continuation]
+								fg_ThisActor(this)(&CDistributedAppActor::fp_StartApp, _Params) > Continuation % "Failed to start app" / [this, Continuation]
 									{
 										DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
 										fg_ThisActor(this)(&CDistributedAppActor::fp_PublishCommandLine) > Continuation % "Failed to publish command line" / [Continuation] 
@@ -299,9 +304,9 @@ namespace NMib
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 			
-			if (mp_TrustManager)
+			if (mp_State.m_TrustManager)
 			{
-				mp_TrustManager->f_Destroy
+				mp_State.m_TrustManager->f_Destroy
 					(
 						[this, pCanDestroy](TCAsyncResult<void> &&)
 						{
@@ -330,10 +335,10 @@ namespace NMib
 				
 				CommandLineClient.f_SetLazyStartApp
 					(
-						[&]()
+						[&](NEncoding::CEJSON const &_Params)
 						{
 							if (_bStartApp)
-								AppActor(&CDistributedAppActor::f_StartApp).f_CallSync();
+								AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
 							else
 								fg_GetSys()->f_RemoveTraceLogger();
 						}

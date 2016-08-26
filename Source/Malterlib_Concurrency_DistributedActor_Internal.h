@@ -68,6 +68,7 @@ namespace NMib
 				mint m_ConnectionSequence = 0;
 				bool m_bConnected = false;
 				NStr::CStr m_LastConnectionError;
+				NStr::CStr m_LastLoggedError;
 			};
 
 			struct CServerConnection : public CConnection 

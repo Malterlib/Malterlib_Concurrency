@@ -41,6 +41,21 @@ namespace NMib
 			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 		};
 		
+		struct CDistributedAppActor;
+		
+		struct CDistributedAppState
+		{
+			NEncoding::CSimpleJSONDatabase m_StateDatabase;
+			NEncoding::CSimpleJSONDatabase m_ConfigDatabase;
+			TCActor<CDistributedActorTrustManager> m_TrustManager;
+			TCActor<CActorDistributionManager> m_DistributionManager;
+
+		private:
+			friend struct CDistributedAppActor;
+			
+			CDistributedAppState(CDistributedAppActor_Settings const &_Settings);			
+		};
+		
 		struct CDistributedAppActor : public CActor
 		{
 			struct CCommandLine : public ICCommandLine
@@ -58,7 +73,7 @@ namespace NMib
 			
 			void f_Construct();
 
-			TCContinuation<void> f_StartApp(); 
+			TCContinuation<void> f_StartApp(NEncoding::CEJSON const &_Params); 
 			TCContinuation<void> f_StopApp(); 
 			
 			TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 
@@ -86,14 +101,11 @@ namespace NMib
 			TCContinuation<void> f_Destroy();
 
 		protected:
-			virtual TCContinuation<void> fp_StartApp() = 0;
+			virtual TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 			virtual TCContinuation<void> fp_StopApp() = 0;
 			virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
 			
-			NEncoding::CSimpleJSONDatabase mp_StateDatabase;
-			NEncoding::CSimpleJSONDatabase mp_ConfigDatabase;
-			TCActor<CDistributedActorTrustManager> mp_TrustManager;
-			TCActor<CActorDistributionManager> mp_DistributionManager;
+			CDistributedAppState mp_State;
 			
 		private:
 			TCContinuation<void> fp_Initialize();

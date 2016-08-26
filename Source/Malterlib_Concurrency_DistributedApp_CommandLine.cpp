@@ -91,7 +91,7 @@ namespace NMib
 			}
 			
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			mp_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0) 
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0) 
 				> Continuation / [Continuation](CStr &&_HostID)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}'", _HostID);
@@ -114,7 +114,7 @@ namespace NMib
 				ForListen.m_URL = _ForListen;
 				
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			mp_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, mp_PrimaryListen) 
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, mp_PrimaryListen) 
 				> Continuation / [Continuation](CDistributedActorTrustManager::CTrustTicket &&_Ticket)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address: {}", _Ticket.m_ServerAddress.m_URL.f_Encode());

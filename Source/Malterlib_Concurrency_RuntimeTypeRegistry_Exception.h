@@ -33,11 +33,17 @@ namespace NMib
 				CExceptionPointer f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream) override;
 				void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception) override;
 			};
+
+			template <typename t_CException>
+			struct TCRuntimeTypeRegistryEntry_ExceptionInit
+			{
+				TCRuntimeTypeRegistryEntry_ExceptionInit();
+			};
 			
 			template <typename t_CException>
 			struct TCExceptionRegistry
 			{
-				static TCRuntimeTypeRegistryEntry_Exception<t_CException> ms_Entry;
+				static TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException> ms_EntryInit;
 			};
 			
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception);
@@ -50,7 +56,7 @@ namespace NMib
 			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result);
 		}
 		
-#define DMibConcurrencyRegisterException(d_Exception) (void)::NMib::NConcurrency::NPrivate::TCExceptionRegistry<d_Exception>::ms_Entry
+#define DMibConcurrencyRegisterException(d_Exception) (void)::NMib::NConcurrency::NPrivate::TCExceptionRegistry<d_Exception>::ms_EntryInit
 		
 	}
 }

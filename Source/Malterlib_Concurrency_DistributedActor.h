@@ -321,10 +321,15 @@ namespace NMib
 		{
 			CCallingHostInfo();
 			CCallingHostInfo(TCActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_UniqueHostID, NStr::CStr const &_RealHostID, NStr::CStr const &_LastExecutionID);
+			
 			NStr::CStr const &f_GetRealHostID() const;
 			NStr::CStr const &f_GetUniqueHostID() const;
 			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const;
+			
+			bool operator ==(CCallingHostInfo const &_Right) const;
+			bool operator <(CCallingHostInfo const &_Right) const;
+			
 		private:
 			TCActor<CActorDistributionManager> mp_DistributionManager;
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous 

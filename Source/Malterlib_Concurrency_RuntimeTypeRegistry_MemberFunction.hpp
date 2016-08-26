@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
+#include <Mib/Storage/Aggregate>
 
 namespace NMib
 {
@@ -54,8 +55,12 @@ namespace NMib
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CReturn>
-			NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CReturn>
-				::f_Call(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject)
+			auto TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CReturn>::f_Call
+				(
+					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+					, void *_pObject
+				)
+				-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 			{
 				using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 				return fp_Call
@@ -83,13 +88,14 @@ namespace NMib
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
 			template <mint... tfp_Indices, typename... tfp_CParams>
-			NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, void>::fp_Call
+			auto TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, void>::fp_Call
 				(
 					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_ParamsStream
 					, void *_pObject
 					, NMeta::TCIndices<tfp_Indices...> const &
 					, NMeta::TCTypeList<tfp_CParams...> const &
 				)
+				-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 			{
 				using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 				
@@ -115,7 +121,12 @@ namespace NMib
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
-			NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, void>::f_Call(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject)
+			auto TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, void>::f_Call
+				(
+					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+					, void *_pObject
+				)
+				-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 			{
 				using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 				return fp_Call
@@ -145,13 +156,14 @@ namespace NMib
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CResult>
 			template <mint... tfp_Indices, typename... tfp_CParams>
-			NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, NConcurrency::TCContinuation<t_CResult>>::fp_Call
+			auto TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, NConcurrency::TCContinuation<t_CResult>>::fp_Call
 				(
 					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_ParamsStream
 					, void *_pObject
 					, NMeta::TCIndices<tfp_Indices...> const &
 					, NMeta::TCTypeList<tfp_CParams...> const &
 				)
+				-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 			{
 				using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 				
@@ -168,7 +180,7 @@ namespace NMib
 				;
 				(void)Dummy;
 				
-				auto Continuation = (((CClass *)_pObject)->*t_pMemberFunction)(NContainer::fg_Get<tfp_Indices>(ParamList)...);
+				auto Continuation = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indices>(ParamList))...);
 			
 				NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Return;
 				
@@ -185,7 +197,12 @@ namespace NMib
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CResult>
-			NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, NConcurrency::TCContinuation<t_CResult>>::f_Call(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream, void *_pObject)
+			auto TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, NConcurrency::TCContinuation<t_CResult>>::f_Call
+				(
+					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
+					, void *_pObject
+				)
+				-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 			{
 				using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 				return fp_Call
@@ -203,7 +220,26 @@ namespace NMib
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
-			TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash> TCMemberFunctionRegistry<t_CMemberFunction, t_pMemberFunction, t_NameHash>::ms_Entry;
+			TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash> 
+				TCMemberFunctionRegistry<t_CMemberFunction, t_pMemberFunction, t_NameHash>::ms_EntryInit
+			;
+			
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			struct TCMemberFunctionRegistryImpl
+			{
+				static NAggregate::TCAggregate<TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash>> ms_Entry;
+			};
+
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			NAggregate::TCAggregate<TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash>> 
+				TCMemberFunctionRegistryImpl<t_CMemberFunction, t_pMemberFunction, t_NameHash>::ms_Entry = {DAggregateInit}
+			;
+			
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash>::TCRuntimeTypeRegistryEntry_MemberFunctionInit()
+			{
+				*TCMemberFunctionRegistryImpl<t_CMemberFunction, t_pMemberFunction, t_NameHash>::ms_Entry;
+			}
 		}
 	}
 }

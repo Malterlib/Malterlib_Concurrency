@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Storage/Aggregate>
+
 namespace NMib
 {
 	namespace NConcurrency
@@ -61,7 +63,22 @@ namespace NMib
 			}			
 
 			template <typename t_CException>
-			TCRuntimeTypeRegistryEntry_Exception<t_CException> TCExceptionRegistry<t_CException>::ms_Entry;
+			TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException> TCExceptionRegistry<t_CException>::ms_EntryInit;
+			
+			template <typename t_CException>
+			struct TCExceptionRegistryImpl
+			{
+				static NAggregate::TCAggregate<TCRuntimeTypeRegistryEntry_Exception<t_CException>> ms_Entry;
+			};
+			
+			template <typename t_CException>
+			NAggregate::TCAggregate<TCRuntimeTypeRegistryEntry_Exception<t_CException>> TCExceptionRegistryImpl<t_CException>::ms_Entry = {DAggregateInit};
+			
+			template <typename t_CException>
+			TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException>::TCRuntimeTypeRegistryEntry_ExceptionInit()
+			{
+				*TCExceptionRegistryImpl<t_CException>::ms_Entry;
+			}
 		}
 	}
 }

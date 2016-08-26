@@ -261,14 +261,22 @@ namespace NMib
 			}
 			else // When local
 			{
-				ToDispatch = [_Actor, p_Params...]
+				ToDispatch = [_Actor, Params = NContainer::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
 						TCContinuation<CReturn> Continuation;
-						_Actor(t_pMemberFunction, p_Params...)
-							> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<CReturn> &&_Result)
-							{
-								Continuation.f_SetResult(fg_Move(_Result));
-							}
+						std::apply
+							(
+								[&](auto ..._Params)
+								{
+									_Actor(t_pMemberFunction, fg_Forward<tfp_CParams>(_Params)...)
+										> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<CReturn> &&_Result)
+										{
+											Continuation.f_SetResult(fg_Move(_Result));
+										}
+									;
+								}
+								, fg_Move(Params) 
+							)
 						;
 						return Continuation;
 					}

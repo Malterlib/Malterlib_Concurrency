@@ -191,10 +191,17 @@ namespace NMib
 					if (!_Result)
 					{
 						auto Error = fg_Format("Error connecting to '{}': {}", _pConnection->m_ServerURL.f_Encode(), _Result.f_GetExceptionStr());
-						DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+						if (_pConnection->m_LastLoggedError != Error)
+						{
+							_pConnection->m_LastLoggedError = Error;
+							DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+						}
 						fReportError(Error, _Result.f_GetException());
 						return;
 					}
+					
+					_pConnection->m_LastLoggedError.f_Clear();
+					
 					if (Sequence != _pConnection->m_ConnectionSequence)
 					{
 						if (_pContinuation)

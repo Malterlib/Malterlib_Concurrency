@@ -272,6 +272,26 @@ namespace NMib
 		{
 			auto &Internal = *mp_pInternal;
 			NPtr::TCUniquePointer<CCombinedCallbackReference> pCallback = fg_Construct();
+			
+			auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
+				{
+					fg_Dispatch
+						(
+							_Actor
+							,
+							[
+								fOnNewActor = fg_Move(_fOnNewActor)
+								, Actor = fg_Move(_RemoteActor)
+							]
+							() mutable
+							{
+								fOnNewActor(fg_Move(Actor));
+							}
+						)
+						> fg_DiscardResult()
+					;
+				}
+			;
 			if (_NameSpaces.f_IsEmpty())
 			{
 				auto &Subscribed = *Internal.m_SubscribedActors("", this);
@@ -283,7 +303,7 @@ namespace NMib
 				{
 					for (auto &RemoteActor : RemoteNamespace.m_RemoteActors)
 					{
-						Subscribed.m_fOnNewActor
+						fReportExistingActor
 							(
 								CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
 							)
@@ -303,7 +323,7 @@ namespace NMib
 					{
 						for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)
 						{
-							Subscribed.m_fOnNewActor
+							fReportExistingActor
 								(
 									CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
 								)

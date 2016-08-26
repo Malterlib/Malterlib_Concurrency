@@ -13,10 +13,10 @@ namespace NMib
 		using namespace NService;
 		struct CDistributedDaemonDaemon : public CServiceImp
 		{
-			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor)
+			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
 			{
 				m_Actor = _Actor;
-				m_Actor(&CDistributedAppActor::f_StartApp) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
+				m_Actor(&CDistributedAppActor::f_StartApp, _Params) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 						{
@@ -110,7 +110,7 @@ namespace NMib
 						, nullptr
 						, [&]() -> NPtr::TCUniquePointer<NService::CServiceImp>
 						{
-							return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor);
+							return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor, _Params);
 						}
 						, nullptr
 						, [] (NStr::CStr const& _Errors)

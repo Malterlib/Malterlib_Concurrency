@@ -224,7 +224,7 @@ namespace
 							return fg_ConstructActor<CActorDistributionManager>(_HostID);
 						}
 						, 1024 
-						, NNet::ENetFlag_ReuseAddress 
+						, NNet::ENetFlag_None
 					)
 				;
 			}
@@ -239,7 +239,7 @@ namespace
 							return fg_ConstructActor<CActorDistributionManager>(_HostID);
 						}
 						, 1024
-						, NNet::ENetFlag_ReuseAddress
+						, NNet::ENetFlag_None
 					)
 				;
 			}
@@ -567,7 +567,7 @@ namespace
 							return fg_ConstructActor<CActorDistributionManager>(_HostID);
 						}
 						, 1024 
-						, NNet::ENetFlag_ReuseAddress
+						, NNet::ENetFlag_None
 					)
 				;
 				

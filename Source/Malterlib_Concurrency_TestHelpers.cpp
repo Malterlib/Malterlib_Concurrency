@@ -70,7 +70,7 @@ namespace NMib
 			
 			mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 			mp_ListenSettings.m_bRetryOnListenFailure = false;
-			mp_ListenSettings.m_ListenFlags = NNet::ENetFlag_ReuseAddress;
+			mp_ListenSettings.m_ListenFlags = NNet::ENetFlag_None;
 			mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(60.0);
 		}
 

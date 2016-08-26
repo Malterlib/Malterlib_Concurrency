@@ -303,7 +303,7 @@ namespace
 			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
-			ListenSettings.m_ListenFlags = NNet::ENetFlag_ReuseAddress;
+			ListenSettings.m_ListenFlags = NNet::ENetFlag_None;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
 			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();

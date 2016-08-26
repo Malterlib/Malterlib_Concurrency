@@ -51,7 +51,17 @@ Import "../Core/Lib_Malterlib.MTarget"
 
 Property
 {
-	MalterlibConcurrency_DistributedActors "false"
+	MalterlibConcurrency_DistributedActorsInAnyTarget_Template "true"
+	{
+		&
+		{
+			!Explodee ""
+			"true" "@(Builtin.Function->GetProperty('Property', 'MalterlibConcurrency_DistributedActors', '@(Explodee)'))"
+			"true" "@(Builtin.Function->GetProperty('Property', 'TargetIsExecutable', '@(Explodee)'))"
+		}
+	}
+	MalterlibConcurrency_DistributedActorsInAnyTarget "@(Builtin.Function->ExplodeList('@(Workspace.AllTargets)', ';', 'MalterlibConcurrency_DistributedActorsInAnyTarget_Template'))"
+	MalterlibConcurrency_DistributedActors false
 	{
 		!!MalterlibConcurrency_DistributedActors ""
 	}

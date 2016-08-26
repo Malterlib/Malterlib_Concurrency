@@ -268,7 +268,7 @@ namespace NMib
 							(
 								[&](auto ..._Params)
 								{
-									_Actor(t_pMemberFunction, fg_Forward<tfp_CParams>(_Params)...)
+									_Actor(t_pMemberFunction, fg_Forward<typename NTraits::TCDecayForward<tfp_CParams>::CType>(_Params)...)
 										> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<CReturn> &&_Result)
 										{
 											Continuation.f_SetResult(fg_Move(_Result));

@@ -77,7 +77,7 @@ namespace
 					NFile::CFile::fs_DeleteDirectoryRecursive(ConfigDir);
 			}
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>();
-			AppActor(&CDistributedAppActor::f_StartApp).f_CallSync();
+			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}).f_CallSync();
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
 			
 			_fTests(CommandLineClient);

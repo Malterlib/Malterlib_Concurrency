@@ -7,6 +7,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Concurrency/ActorCallOnce>
 #include <Mib/Encoding/Base64>
+#include <Mib/Encoding/JSONShortcuts>
 #include <Mib/String/FuzzyMatch>
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
@@ -35,7 +36,7 @@ namespace NMib
 			
 			auto &CommandLineSpec = *(Internal.m_pCommandLineSpecification->mp_pInternal);
 			
-			NEncoding::CEJSON CommandParams;
+			NEncoding::CEJSON CommandParams = EJSONType_Object;
 			
 			for (auto &Option : CommandLineSpec.m_GlobalOptions)
 			{

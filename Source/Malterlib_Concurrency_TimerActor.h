@@ -91,3 +91,4 @@ namespace NMib
 	}
 }
 
+#include "Malterlib_Concurrency_TimerActor.hpp"

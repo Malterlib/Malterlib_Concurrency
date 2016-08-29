@@ -280,6 +280,5 @@ namespace NMib
 		{
 			return _fToDisptach();
 		}
-		
 	}
 }

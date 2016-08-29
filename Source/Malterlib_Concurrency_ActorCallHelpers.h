@@ -132,7 +132,7 @@ namespace NMib
 			}
 			
 			template <typename tf_CToBind, typename... tfp_CParams, mint... tfp_Indicies>
-			auto fg_BindConstructHelper(tf_CToBind &&_ToBind, TCConstruct<void, tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...> )
+			auto fg_BindConstructHelper(tf_CToBind &&_ToBind, TCConstruct<void, tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...>)
 			{
 				return TCActorCallWithParams
 					<
@@ -159,6 +159,30 @@ namespace NMib
 					)
 				;
 			}
+			
+			template <typename... tfp_CParams>
+			auto fg_ToTupleByValue(NContainer::TCTuple<tfp_CParams...> &&_Params)
+			{
+				return fg_Move(_Params);
+			}
+			
+			template <typename... tfp_CParams, mint... tfp_Indicies>
+			auto fg_ToTupleByValueHelper(TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
+			{
+				return NContainer::fg_Tuple
+					(
+						NContainer::fg_Get<tfp_Indicies>(fg_Move(_Params.m_Params))...
+					)
+				;
+			}
+			
+			template <typename... tfp_CParams>
+			auto fg_ToTupleByValue(TCConstruct<void, tfp_CParams...> &&_Params)
+			{
+				return fg_ToTupleByValueHelper(fg_Move(_Params), typename NMeta::TCMakeConsecutiveIndices<TCConstruct<void, tfp_CParams...>::mc_nParams>::CType());
+			}
+			
+			
 		}
 
 		template <typename t_CActor, typename t_CFunctor>
@@ -346,6 +370,13 @@ namespace NMib
 			{
 			}
 
+			TCActorCall(t_CActor &&_Actor, t_CFunctor &&_Functor, t_CParams &&_Params)
+				: mp_Actor(fg_Move(_Actor))
+				, mp_Functor(fg_Move(_Functor))
+				, mp_Params(fg_Move(_Params))
+			{
+			}
+
 			TCActorCall(TCActorCall const &_Other)
 				: mp_Actor(_Other.mp_Actor)
 				, mp_Functor(_Other.mp_Functor)
@@ -367,6 +398,17 @@ namespace NMib
 			}
 #endif
 
+			auto f_ByValue()
+			{
+				return TCActorCall<t_CActor, t_CFunctor, decltype(NPrivate::fg_ToTupleByValue(fg_Move(mp_Params))), t_CTypeList>
+					{
+						fg_Move(mp_Actor)
+						, fg_Move(mp_Functor)
+						, NPrivate::fg_ToTupleByValue(fg_Move(mp_Params))
+					}
+				;
+			}
+			
 			TCActorCall &operator =(TCActorCall const &_Other)
 			{
 				mp_Actor = _Other.mp_Actor;
@@ -459,6 +501,8 @@ namespace NMib
 					)
 				;
 			}
+			
+			TCDispatchedActorCall<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage); // Include <Mib/Concurency/Actor/Timer> to use
 			
 			auto f_CallSync()
 			{

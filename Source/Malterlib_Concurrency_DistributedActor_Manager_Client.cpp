@@ -33,6 +33,11 @@ namespace NMib
 			f_Clear();
 		}
 
+		bool CDistributedActorConnectionReference::f_IsValid() const
+		{
+			return !mp_DistributionManager.f_IsEmpty();
+		}
+
 		void CDistributedActorConnectionReference::f_Clear()
 		{
 			if (mp_DistributionManager)
@@ -105,6 +110,27 @@ namespace NMib
 			;
 		}
 		
+		TCDispatchedActorCall<void> CDistributedActorConnectionReference::f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings)
+		{
+			auto DistributionManager = mp_DistributionManager.f_Lock();
+			return fg_ConcurrentDispatch
+				(
+					[DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID, _Settings]
+					{
+						TCContinuation<void> Continuation;
+						
+						if (!DistributionManager)
+						{
+							Continuation.f_SetException(DMibErrorInstance("Conection disconnected"));
+							return Continuation;
+						}
+						DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, ConnectionID, _Settings) > Continuation;
+						return Continuation;
+					}
+				)
+			;
+		}
+		
 		void CActorDistributionManager::CInternal::fp_ScheduleReconnect
 			(
 				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
@@ -115,7 +141,7 @@ namespace NMib
 			)
 		{
 			_pConnection->f_Reset(false);
-			_pConnection->m_LastConnectionError = _ConnectionError;
+			_pConnection->f_SetLastError(_ConnectionError);
 			
 			fg_TimerActor()
 				(
@@ -265,8 +291,9 @@ namespace NMib
 							
 							NStr::CStr Error = fg_Format
 								(
-									"Lost outgoing connection to '{}': {} {} {}"
+									"Lost outgoing connection to '{}' <{}>: {} {} {}"
 									, _pConnection->m_ServerURL.f_Encode()
+									, _pConnection->f_GetHostInfo().f_GetDesc()
 									, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 									, _Reason	
 									, _Message
@@ -307,7 +334,8 @@ namespace NMib
 							}
 						}
 					;
-					
+
+					_pConnection->m_IdentifyContinuation = TCContinuation<void>();
 					_pConnection->m_Connection = Result.f_Accept
 						(
 							fg_ThisActor(m_pThis) 
@@ -356,29 +384,58 @@ namespace NMib
 									return;
 								}
 
-								DMibLogWithCategory
-									(
-										Mib/Concurrency/Actors
-										, Info
-										, "Connection({}) to '{}' was successful. Host ID: {}   Unique host ID: {}"
-										, _pConnection->f_GetConnectionID()
-										, _pConnection->m_ServerURL.f_Encode()
-										, HostID
-										, UniqueHostID
-									)
-								;
-
-								if (_pContinuation)
-								{
-									CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), _pConnection->m_ConnectionID};
-									ConnectionResult.m_CertificateChain = fg_Move(CertificateChain);
-									ConnectionResult.m_RealHostID = HostID;
-									ConnectionResult.m_UniqueHostID = UniqueHostID;
-									_pContinuation->f_SetResult(fg_Move(ConnectionResult));
-								}
-								_pConnection->m_bConnected = true;
 								_pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
+								fg_Dispatch
+									(
+										[this, _pConnection]
+										{
+											return _pConnection->m_IdentifyContinuation;
+										}
+									)
+									> [this, HostID, UniqueHostID, Sequence, _pConnection, _pContinuation, CertificateChain = fg_Move(CertificateChain)]
+									(TCAsyncResult<void> &&_Result) mutable
+									{
+										if (Sequence != _pConnection->m_ConnectionSequence)
+										{
+											if (_pContinuation)
+												_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
+											return;
+										}
+										if (!_Result)
+										{
+											if (_pContinuation)
+												_pContinuation->f_SetException(fg_Move(_Result));
+											return;
+										}
+										
+										DMibLogWithCategory
+											(
+												Mib/Concurrency/Actors
+												, Info
+												, "Connection({}) to '{}' <{}> was successful. Host ID: {}   Unique host ID: {}"
+												, _pConnection->f_GetConnectionID()
+												, _pConnection->m_ServerURL.f_Encode()
+												, _pConnection->f_GetHostInfo().f_GetDesc()
+												, HostID
+												, UniqueHostID
+											)
+										;
+
+										if (_pContinuation)
+										{
+											CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), _pConnection->m_ConnectionID};
+											ConnectionResult.m_CertificateChain = fg_Move(CertificateChain);
+											ConnectionResult.m_RealHostID = HostID;
+											ConnectionResult.m_UniqueHostID = UniqueHostID;
+											ConnectionResult.m_HostInfo.m_HostID = HostID;
+											ConnectionResult.m_HostInfo.m_FriendlyName = _pConnection->m_pHost->m_FriendlyName;
+											_pContinuation->f_SetResult(fg_Move(ConnectionResult));
+										}
+										_pConnection->m_bConnected = true;
+									}
+								;
+								
 								fp_Identify(_pConnection.f_Get());
 							}
 						)
@@ -387,18 +444,27 @@ namespace NMib
 			;
 		}
 
-		TCContinuation<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
+		template <typename tf_CReturnType>
+		bool CActorDistributionManager::CInternal::fp_DecodeClientConnectionSettings
+			(
+				CActorDistributionConnectionSettings const &_Settings
+				, TCContinuation<tf_CReturnType> &_Continuation
+				, CDecodedClientConnectionSetting &o_DecodedSettings
+			)
 		{
-			auto &Internal = *mp_pInternal;
+			bool &bAnonymous = o_DecodedSettings.m_bAnonymous; 
+			NStr::CStr &UniqueHostID = o_DecodedSettings.m_UniqueHostID;
+			NStr::CStr &RealHostID = o_DecodedSettings.m_RealHostID;
+			NNet::CSSLSettings &ClientSettings = o_DecodedSettings.m_ClientSettings;
 			
-			bool bAnonymous = _Settings.m_PrivateClientKey.f_IsEmpty();
+			bAnonymous = _Settings.m_PrivateClientKey.f_IsEmpty();
 			
 			if (_Settings.m_bRetryConnectOnFailure && bAnonymous)
-				return DMibErrorInstance("Anonymous connections cannot reconnect on failure");
+			{
+				_Continuation = DMibErrorInstance("Anonymous connections cannot reconnect on failure"); 
+				return false;
+			}
 			
-			NStr::CStr UniqueHostID;
-			NStr::CStr HostID;
-			NNet::CSSLSettings ClientSettings;
 			if (_Settings.m_PublicServerCertificate.f_IsEmpty())
 			{
 				if (_Settings.m_bAllowInsecureConnection)
@@ -412,31 +478,50 @@ namespace NMib
 				ClientSettings.m_CACertificateData = _Settings.m_PublicServerCertificate;
 				try
 				{
-					HostID = UniqueHostID = fs_GetCertificateHostID(_Settings.m_PublicServerCertificate);
+					RealHostID = UniqueHostID = fs_GetCertificateHostID(_Settings.m_PublicServerCertificate);
 				}
 				catch (NException::CException const &_Exception)
 				{
-					return DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr()));
+					_Continuation = DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr()));
+					return false;
 				}
 				if (bAnonymous)
-					UniqueHostID = fg_Format("Anonymous_{}_{}", HostID, NCryptography::fg_RandomID());
+					UniqueHostID = fg_Format("Anonymous_{}_{}", RealHostID, NCryptography::fg_RandomID());
 				
-				if (HostID.f_IsEmpty())
-					return DMibErrorInstance("Server certifate has no host ID");
+				if (RealHostID.f_IsEmpty())
+				{
+					_Continuation = DMibErrorInstance("Server certifate has no host ID"); 
+					return false;
+				}
 			}
+			if (!_Settings.m_PrivateClientKey.f_IsEmpty())
+			{
+				ClientSettings.m_PrivateKeyData = _Settings.m_PrivateClientKey;
+				ClientSettings.m_PublicCertificateData = _Settings.m_PublicClientCertificate; 
+			}
+			return true;
+		}
+		
+		TCContinuation<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
+		{
+			auto &Internal = *mp_pInternal;
 			
-			auto &pHost = Internal.m_Hosts[UniqueHostID];
+			TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
+			
+			CInternal::CDecodedClientConnectionSetting DecodedSettings;
+			if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
+				return Continuation;
+
+			auto &pHost = Internal.m_Hosts[DecodedSettings.m_UniqueHostID];
 			if (!pHost)
 			{
 				pHost = fg_Construct(*this);
-				pHost->m_RealHostID = HostID;
-				pHost->m_UniqueHostID = UniqueHostID;
-				pHost->m_bAnonymous = bAnonymous;
+				pHost->m_RealHostID = DecodedSettings.m_RealHostID;
+				pHost->m_UniqueHostID = DecodedSettings.m_UniqueHostID;
+				pHost->m_bAnonymous = DecodedSettings.m_bAnonymous;
 			}
 			else
-				DMibFastCheck(!bAnonymous);
-			
-			TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
+				DMibFastCheck(!DecodedSettings.m_bAnonymous);
 			
 			if (!Internal.m_WebsocketClientConnector)
 				Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>();
@@ -449,15 +534,9 @@ namespace NMib
 			pConnection->m_pHost = pHost;
 			pHost->m_ClientConnections.f_Insert(*pConnection);
 			
-			if (!_Settings.m_PrivateClientKey.f_IsEmpty())
-			{
-				ClientSettings.m_PrivateKeyData = _Settings.m_PrivateClientKey;
-				ClientSettings.m_PublicCertificateData = _Settings.m_PublicClientCertificate; 
-			}
-			
 			try
 			{
-				pConnection->m_pSSLContext = fg_Construct(NNet::CSSLContext::EType_Client, ClientSettings);
+				pConnection->m_pSSLContext = fg_Construct(NNet::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
 			}
 			catch (NException::CException const &_Exception)
 			{
@@ -479,9 +558,11 @@ namespace NMib
 			
 			auto &Connection = **pConnection;
 			CDistributedActorConnectionStatus Return;
-			Return.m_HostID = Connection.m_pHost->m_RealHostID;
+			Return.m_HostInfo.m_HostID = Connection.m_pHost->m_RealHostID;
+			Return.m_HostInfo.m_FriendlyName = Connection.m_pHost->m_FriendlyName; 
 			Return.m_bConnected = Connection.m_bConnected;
 			Return.m_Error = Connection.m_LastConnectionError;
+			Return.m_ErrorTime = Connection.m_LastConnectionErrorTime;
 			return fg_Explicit(Return);
 		}
 
@@ -491,6 +572,45 @@ namespace NMib
 			auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 			if (pConnection)
 				Internal.fp_DestroyClientConnection(**pConnection, false, "Remove connection");
+		}
+		
+		TCContinuation<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)
+		{
+			auto &Internal = *mp_pInternal;
+			auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
+			if (!pConnection)
+				return DMibErrorInstance("No such client connection");
+			
+			auto &Connection = **pConnection;
+			if (!Connection.m_pHost)
+				return DMibErrorInstance("Client has no host");
+			
+			auto &Host = *Connection.m_pHost;
+		
+			TCContinuation<void> Continuation;
+			CInternal::CDecodedClientConnectionSetting DecodedSettings;
+			if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
+				return Continuation;
+			
+			if (DecodedSettings.m_bAnonymous != Host.m_bAnonymous)
+				return DMibErrorInstance("You cannot change the anonymous status of the connection");
+			if (DecodedSettings.m_UniqueHostID != Host.m_UniqueHostID || DecodedSettings.m_RealHostID != Host.m_RealHostID)
+				return DMibErrorInstance("You cannot change the host ID of the connection");
+				
+			NPtr::TCSharedPointer<NNet::CSSLContext> pNewSSLContext;
+			try
+			{
+				pNewSSLContext = fg_Construct(NNet::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			}
+			
+			Connection.m_pSSLContext = fg_Move(pNewSSLContext);
+			Connection.m_ServerURL = _Settings.m_ServerURL;
+			
+			return Continuation;
 		}
 	}
 }

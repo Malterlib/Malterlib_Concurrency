@@ -314,6 +314,39 @@ namespace NMib
 							}
 						;
 						
+						auto fGetCommandUsage = [&](CCommandEntry const &_CommandEntry)
+							{
+								auto &Command = *_CommandEntry.m_pCommand;
+								CStr Usage;
+								Usage = NFile::CFile::fs_GetFileNoExt(NFile::CFile::fs_GetProgramPath());
+								Usage += " "; 
+								Usage += Command.m_Names.f_GetFirst(); 
+								
+								fAddOptionsUsage(Usage, Internal.m_GlobalOptions);
+								
+								for (auto &Option : Command.m_pSection->m_SectionOptions)
+								{
+									if (Command.m_DisallowedSectionOptions.f_FindEqual(Option.m_Identifier))
+										continue;
+									if (!Option.m_bDefaultEnabled && !Command.m_AllowedSectionOptions.f_FindEqual(Option.m_Identifier))
+										continue;
+									
+									fAddOptionUsage(Usage, Option);
+								}
+
+								fAddOptionsUsage(Usage, Command.m_Options);
+
+								Usage += " [--]";
+								
+								if (!_CommandEntry.m_Parameters.f_IsEmpty())
+								{
+									Usage += " ";
+									Usage += _CommandEntry.m_Parameters;
+								}
+								return Usage;
+							}
+						;
+						
 						auto fOutputVerboseCommand = [&](CCommandEntry const &_CommandEntry)
 							{
 								auto &Command = *_CommandEntry.m_pCommand;
@@ -322,34 +355,7 @@ namespace NMib
 								fOutputSectionedText(Command.m_LongDescription);
 								
 								{
-									CStr Usage;
-									{
-										Usage = NFile::CFile::fs_GetFileNoExt(NFile::CFile::fs_GetProgramPath());
-										Usage += " "; 
-										Usage += Command.m_Names.f_GetFirst(); 
-										
-										fAddOptionsUsage(Usage, Internal.m_GlobalOptions);
-										
-										for (auto &Option : Command.m_pSection->m_SectionOptions)
-										{
-											if (Command.m_DisallowedSectionOptions.f_FindEqual(Option.m_Identifier))
-												continue;
-											if (!Option.m_bDefaultEnabled && !Command.m_AllowedSectionOptions.f_FindEqual(Option.m_Identifier))
-												continue;
-											
-											fAddOptionUsage(Usage, Option);
-										}
-
-										fAddOptionsUsage(Usage, Command.m_Options);
-
-										Usage += " [--]";
-										
-										if (!_CommandEntry.m_Parameters.f_IsEmpty())
-										{
-											Usage += " ";
-											Usage += _CommandEntry.m_Parameters;
-										}
-									}
+									CStr Usage = fGetCommandUsage(_CommandEntry);
 									auto UsageScope = fOutputHeading("Usage");
 									fOutputLine(Usage, true, 2);
 								}
@@ -408,18 +414,64 @@ namespace NMib
 							return 0;
 						}
 						
-						auto &Commands = _Params["Commands"].f_Array();
+						auto &CommandNames = _Params["Commands"].f_Array();
 						
-						if (!Commands.f_IsEmpty())
+						if (!CommandNames.f_IsEmpty())
 						{
-							for (auto &Command : Commands)
+							TCSet<CInternal::CCommand *> CommandsMap;
+							TCMap<CInternal::CSection *, TCVector<CInternal::CCommand *>> SectionMap;
+							TCVector<CInternal::CSection *> Sections;
+							
+							auto fAddCommand = [&](CInternal::CCommand *_pCommand)
+								{
+									if (!CommandsMap(_pCommand).f_WasCreated())
+										return;
+									auto &Command = *_pCommand;
+									auto MappedSection = SectionMap(Command.m_pSection);
+									if (MappedSection.f_WasCreated())
+										Sections.f_Insert(Command.m_pSection);
+									(*MappedSection).f_Insert(&Command);
+								}
+							;
+							for (auto &CommandName : CommandNames)
 							{
-								auto *pCommand = Internal.m_CommandByName.f_FindEqual(Command.f_String());
+								bool bFound = false;
+								for (auto &pCommand : Internal.m_CommandByName)
+								{
+									CStr const &Name = Internal.m_CommandByName.fs_GetKey(pCommand);
+									
+									if (NStr::fg_StrMatchWildcard(Name.f_GetStr(), CommandName.f_String().f_GetStr()) == NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+									{
+										bFound = true;
+										fAddCommand(pCommand);
+									}
+								}
 								
-								if (!pCommand)
-									DMibError(fg_Format("No such command '{}' exists to display help for", Command.f_String()));
+								if (!bFound)
+									DMibError(fg_Format("No commands found matching '{}'", CommandName.f_String()));
+							}
+							fOutputOptions("Global Options", Internal.m_GlobalOptions, bVerbose);
+							
+							for (auto pSection : Sections)
+							{
+								auto &Section = *pSection;
+								auto SectionScope = fOutputHeading(Section.m_Heading);
+								if (bVerbose)
+									fOutputSectionedText(Section.m_Description);
+								fOutputOptions("Shared Options", Section.m_SectionOptions, bVerbose);
+
+								COnScopeExitShared IndentScope;
+								IndentScope = fOutputHeading("Commands");
 								
-								fOutputVerboseCommand(fGetCommandEntry(**pCommand));
+								for (auto &pCommand : SectionMap[pSection])
+								{
+									auto &Command = *pCommand;
+									if (bVerbose)
+										fOutputVerboseCommand(fGetCommandEntry(Command));
+									else
+										fOutputLine(fGetCommandUsage(fGetCommandEntry(Command)));
+								}
+								fOutputEndSection();
 							}
 							return 0;
 						}

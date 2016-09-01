@@ -15,6 +15,8 @@ namespace NMib
 		{
 			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
 			{
+				fg_ApplyLoggingOption(_Params);
+				
 				m_Actor = _Actor;
 				m_Actor(&CDistributedAppActor::f_StartApp, _Params) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
 					{

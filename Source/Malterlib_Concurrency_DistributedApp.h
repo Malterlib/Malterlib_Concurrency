@@ -24,17 +24,14 @@ namespace NMib
 					, NStr::CStr const &_ConfigDirectory = NFile::CFile::fs_GetProgramDirectory()
 					, bool _bSeparateConcurrencyManager = false
 					, uint32 _KeySize = 4096
+					, NStr::CStr const &_FriendlyName = NStr::CStr()
 				)
-				: m_AppName(_AppName)
-				, m_bRequireListen(_bRequireListen)
-				, m_ConfigDirectory(_ConfigDirectory)
-				, m_bSeparateConcurrencyManager(_bSeparateConcurrencyManager)
-				, m_KeySize(_KeySize)
-			{
-			}
+			;
+			NStr::CStr f_GetCompositeFriendlyName() const;
 			
 			NStr::CStr m_AppName;
 			NStr::CStr m_ConfigDirectory;
+			NStr::CStr m_FriendlyName;
 			bool m_bRequireListen = false;
 			bool m_bSeparateConcurrencyManager = false;
 			uint32 m_KeySize = 4096;
@@ -80,23 +77,24 @@ namespace NMib
 
 			TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(NStr::CStr const &_FromHostID, NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 			
-			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddConnection(NStr::CStr const &_Ticket); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddConnection(NStr::CStr const &_Ticket, bool _bIncludeFriendlyHostName); 
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GenerateTrustTicket(NStr::CStr const &_ForListen);
 
-			/* TODO:
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListTrustedHosts(bool _bIncludeFriendlyHostName);
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveTrustedHost(NStr::CStr const &_HostID);
+			
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GetHostID();
 			 
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GetConnetionStatus();
 			 
-			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListConnections();
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListConnections(bool _bIncludeFriendlyHostName);
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveConnection(NStr::CStr const &_URL);
-			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL);
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL, bool _bIncludeFriendlyHostName);
 			 
-			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddListen(); 
-			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveListen(); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddListen(NStr::CStr const &_URL); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveListen(NStr::CStr const &_URL); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_SetPrimaryListen(NStr::CStr const &_URL);
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListListen();
-			 */
-
 			
 			TCContinuation<void> f_Destroy();
 
@@ -115,6 +113,13 @@ namespace NMib
 			TCContinuation<void> fp_SetupCommandLineListen();
 			TCContinuation<void> fp_SetupCommandLineTrust();
 			
+			TCContinuation<CDistributedAppCommandLineResults> fp_RunCommandLineAndLogError
+				(
+					NStr::CStr const &_Description
+					, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> ()> &&_fCommand
+				)
+			;
+			
 			TCContinuation<void> fp_PublishCommandLine();
 			
 			bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
@@ -130,7 +135,8 @@ namespace NMib
 			NPtr::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce; 
 			CDistributedAppActor_Settings mp_Settings;
 		};
-		
+
+		void fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
 		aint fg_RunApp
 			(
 				NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory

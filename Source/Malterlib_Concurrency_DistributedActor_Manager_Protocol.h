@@ -40,6 +40,7 @@ namespace NMib
 			uint64 m_HighestSeenPacketID = 0;
 			NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 			uint8 m_bAllowAllNamespaces;
+			NStr::CStr m_FriendlyName;
 		};
 
 		struct CDistributedActorCommand_Acknowledge

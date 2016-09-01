@@ -51,10 +51,13 @@ namespace NMib
 				CActorSubscription m_ConnectionSubscription;
 				NPtr::TCSharedPointer<NNet::CSSLContext> m_pSSLContext;
 				NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> m_pHost;
+				TCContinuation<void> m_IdentifyContinuation;
 				DMibListLinkDS_Link(CConnection, m_Link);
 				DMibListLinkDS_Link(CConnection, m_HostLink);
 				NStr::CStr m_LastError;
 				bool m_bIncoming = false;
+				
+				CHostInfo f_GetHostInfo() const;
 			};
 
 			struct CClientConnection : public CConnection 
@@ -62,12 +65,14 @@ namespace NMib
 				void f_Reset(bool _bResetHost);
 				void f_Destroy(NStr::CStr const &_Error);
 				NStr::CStr f_GetConnectionID() const override;
+				void f_SetLastError(NStr::CStr const &_Error);
 				
 				NStr::CStr m_ConnectionID;
 				NHTTP::CURL m_ServerURL;
 				mint m_ConnectionSequence = 0;
 				bool m_bConnected = false;
 				NStr::CStr m_LastConnectionError;
+				NTime::CTime m_LastConnectionErrorTime;
 				NStr::CStr m_LastLoggedError;
 			};
 
@@ -153,6 +158,7 @@ namespace NMib
 				NStr::CStr m_LastExecutionID;
 				NStr::CStr m_UniqueHostID; // Differs from HostID when anonymous 
 				NStr::CStr m_RealHostID; 
+				NStr::CStr m_FriendlyName; 
 				
 				NContainer::TCMap<NStr::CStr, CRemoteActor> m_RemoteActors;
 				
@@ -224,6 +230,13 @@ namespace NMib
 					return NContainer::TCMap<NStr::CStr, CListen>::fs_GetKey(*this);
 				}
 			};
+			struct CDecodedClientConnectionSetting
+			{
+				bool m_bAnonymous;
+				NNet::CSSLSettings m_ClientSettings;
+				NStr::CStr m_UniqueHostID;
+				NStr::CStr m_RealHostID;
+			};
 		}
 		
 		struct CActorDistributionManager::CInternal
@@ -240,10 +253,11 @@ namespace NMib
 			using CLocalNamespace = NActorDistributionManagerInternal::CLocalNamespace;
 			using CActorPublicationSubscription = NActorDistributionManagerInternal::CActorPublicationSubscription;
 			using CListen = NActorDistributionManagerInternal::CListen;
+			using CDecodedClientConnectionSetting = NActorDistributionManagerInternal::CDecodedClientConnectionSetting;
 			
 			friend struct NActorDistributionManagerInternal::CHost;
 			
-			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID);
+			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
 			~CInternal();
 			
 			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CClientConnection>> m_ClientConnections;
@@ -254,6 +268,9 @@ namespace NMib
 			CActorDistributionManager *m_pThis;
 			NStr::CStr m_ExecutionID;
 			NStr::CStr m_HostID;
+			NStr::CStr m_FriendlyName;
+			
+			TCActorSubscriptionManager<void (CHostInfo const &_HostInfo), true> m_OnHostInfoChanged;
 			
 			NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
 
@@ -292,8 +309,17 @@ namespace NMib
 			;
 			void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
 			void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
+			
+			template <typename tf_CReturnType>
+			bool fp_DecodeClientConnectionSettings
+				(
+					CActorDistributionConnectionSettings const &_Settings
+					, TCContinuation<tf_CReturnType> &_Continuation
+					, CDecodedClientConnectionSetting &o_DecodedSettings
+				)
+			;
 
-			void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection);
+			void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive);
 			void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection);
 			void fp_Listen
 				(

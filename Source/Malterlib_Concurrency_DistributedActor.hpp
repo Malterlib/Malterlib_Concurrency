@@ -352,5 +352,11 @@ namespace NMib
 		{
 			return mp_RealHostID;
 		}
+		
+		template <typename tf_CString>
+		void CHostInfo::f_Format(tf_CString &o_String) const
+		{
+			o_String += f_GetDesc();
+		}
 	}
 }

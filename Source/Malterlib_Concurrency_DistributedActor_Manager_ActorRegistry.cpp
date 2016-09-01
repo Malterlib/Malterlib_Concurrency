@@ -262,6 +262,16 @@ namespace NMib
 			}
 		}
 
+		CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged
+			(
+				TCActor<CActor> const &_Actor
+				, NFunction::TCFunction<void (NFunction::CThisTag &, CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+			)
+		{
+			auto &Internal = *mp_pInternal;
+			return Internal.m_OnHostInfoChanged.f_Register(_Actor, fg_Move(_fHostInfoChanged));
+		}
+		
 		CActorSubscription CActorDistributionManager::f_SubscribeActors
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces
@@ -280,8 +290,8 @@ namespace NMib
 							_Actor
 							,
 							[
-								fOnNewActor = fg_Move(_fOnNewActor)
-								, Actor = fg_Move(_RemoteActor)
+								fOnNewActor = _fOnNewActor
+								, Actor = _RemoteActor
 							]
 							() mutable
 							{

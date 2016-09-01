@@ -60,16 +60,16 @@ namespace NMib
 			TCContinuation<NStr::CStr> Continuation;
 			
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
-				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates)
+				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
-				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections)
+				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
 				> [this, Continuation]
 				(
 					TCAsyncResult<CBasicConfig> &&_BasicConfig 
-					, TCAsyncResult<NContainer::TCSet<NStr::CStr>> &&_ServerCertificates
+					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CServerCertificate>> &&_ServerCertificates
 					, TCAsyncResult<NContainer::TCSet<CListenConfig>> &&_ListenConfigs
-					, TCAsyncResult<NContainer::TCSet<CDistributedActorTrustManager_Address>> &&_ClientConnections
-				)
+					, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> &&_ClientConnections
+				) mutable
 				{
 					if (!_BasicConfig)
 						return Continuation.f_SetException(fg_Move(_BasicConfig));
@@ -80,70 +80,25 @@ namespace NMib
 					if (!_ClientConnections)
 						return Continuation.f_SetException(fg_Move(_ClientConnections));
 					
-					TCActorResultMap<NStr::CStr, CServerCertificate> ServerCertificates;
-					TCActorResultMap<CDistributedActorTrustManager_Address, CClientConnection> ClientConnections;
-
-					for (auto &HostName : *_ServerCertificates)
-						m_Database(&ICDistributedActorTrustManagerDatabase::f_GetServerCertificate, HostName) > ServerCertificates.f_AddResult(HostName);
-
-					for (auto &Address : *_ClientConnections)
-						m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClientConnection, Address) > ClientConnections.f_AddResult(Address);
-					
-					ServerCertificates.f_GetResults()
-						+ ClientConnections.f_GetResults()
-						> 
-						[
-							this
-							, Continuation
-							, BasicConfig = fg_Move(*_BasicConfig)
-							, ListenConfigs = fg_Move(*_ListenConfigs)
-						]
-						(
-							TCAsyncResult<NContainer::TCMap<NStr::CStr, TCAsyncResult<CServerCertificate>>> &&_ServerCertificates
-							, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<CClientConnection>>> &&_ClientConnections
-						) mutable
-						{
-							NContainer::TCMap<NStr::CStr, CServerCertificate> ServerCertificates;
-							if 
-								(
-									!fg_CombineResults
-									(
-										Continuation
-										, fg_Move(_ServerCertificates)
-										, [&](NStr::CStr const &_HostName, CServerCertificate &&_ServerCertificate)
-										{
-											ServerCertificates[_HostName] = fg_Move(_ServerCertificate);
-										}
-									)
-								)
-							{
-								return;
-							}
-							
-							NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> ClientConnections;
-							if 
-								(
-									!fg_CombineResults
-									(
-										Continuation
-										, fg_Move(_ClientConnections)
-										, [&](CDistributedActorTrustManager_Address const &_Address, CClientConnection &&_ClientConnection)
-										{
-											ClientConnections[_Address] = fg_Move(_ClientConnection);
-										}
-									)
-								)
-							{
-								return;
-							}
-							
-							f_Init(Continuation, BasicConfig, ListenConfigs, ServerCertificates, ClientConnections);
-						}
-					;
+					f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections);
 				}
 			;
 			
 			return Continuation;
+		}
+
+		CActorDistributionConnectionSettings CDistributedActorTrustManager::CInternal::f_GetConnectionSettings(CConnectionState const &_State)
+		{
+			auto &ClientConnection = _State.m_ClientConnection;
+			
+			CActorDistributionConnectionSettings ConnectionSettings;
+			ConnectionSettings.m_ServerURL = _State.f_GetAddress().m_URL;
+			ConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
+			ConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
+			ConnectionSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;
+			ConnectionSettings.m_bRetryConnectOnFailure = true;
+			
+			return ConnectionSettings;
 		}
 		
 		void CDistributedActorTrustManager::CInternal::f_Init
@@ -157,8 +112,10 @@ namespace NMib
 		{
 			auto pCleanup = fg_OnScopeExitShared
 				(
-					[this]
+					[this, pDestroyed = m_pDestroyed]
 					{
+						if (*pDestroyed)
+							return;
 						m_Listen.f_Clear();
 						m_ClientConnections.f_Clear();
 						m_Hosts.f_Clear();
@@ -210,10 +167,10 @@ namespace NMib
 			}
 
 			if (m_fDistributionManagerFactory)
-				m_ActorDistributionManager = m_fDistributionManagerFactory(m_BasicConfig.m_HostID);
+				m_ActorDistributionManager = m_fDistributionManagerFactory(m_BasicConfig.m_HostID, m_FriendlyName);
 			else
 			{
-				NStr::CStr ResultingHostID = fg_InitDistributionManager(m_BasicConfig.m_HostID);
+				NStr::CStr ResultingHostID = fg_InitDistributionManager(m_BasicConfig.m_HostID, m_FriendlyName);
 				if (ResultingHostID != m_BasicConfig.m_HostID)
 				{
 					_Continuation.f_SetException(DMibErrorInstance("Default distribution manager already initialized with the wrong host ID"));
@@ -223,6 +180,99 @@ namespace NMib
 			}
 			m_AccessHandler = fg_ConstructActor<CActorDistributionManagerAccessHandler>(this, fg_ThisActor(m_pThis));
 			m_ActorDistributionManager(&CActorDistributionManager::f_SetAccessHandler, m_AccessHandler)
+				+ m_ActorDistributionManager
+				(
+					&CActorDistributionManager::f_SubscribeHostInfoChanged
+					, fg_ThisActor(m_pThis)
+					, [this](CHostInfo const &_HostInfo)
+					{
+						auto *pHost = m_Hosts.f_FindEqual(_HostInfo.m_HostID);
+						if (pHost)
+						{
+							pHost->m_FriendlyName = _HostInfo.m_FriendlyName;
+							for (auto &ClientConnection : pHost->m_ClientConnections)
+							{
+								if (ClientConnection.m_ClientConnection.m_LastFriendlyName != _HostInfo.m_FriendlyName)
+								{
+									ClientConnection.m_ClientConnection.m_LastFriendlyName = _HostInfo.m_FriendlyName;
+									m_Database
+										(
+											&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+											, ClientConnection.f_GetAddress()
+											, ClientConnection.m_ClientConnection
+										)
+										> [](TCAsyncResult<void> &&_Result)
+										{
+											if (!_Result)
+											{
+												DMibLogWithCategory
+													(
+														Mib/Concurrency/Actors
+														, Error
+														, "Failed to set client connection in database when updating host info: {}"
+														, _Result.f_GetExceptionStr()
+													)
+												;
+												return;
+											}
+										}
+									;
+								}
+							}
+						}
+						
+						m_Database
+							(
+								&ICDistributedActorTrustManagerDatabase::f_TryGetClient
+								, _HostInfo.m_HostID
+							)
+							> [this, _HostInfo](TCAsyncResult<NPtr::TCUniquePointer<CClient>> &&_Client)
+							{
+								if (!_Client)
+								{
+									DMibLogWithCategory
+										(
+											Mib/Concurrency/Actors
+											, Error
+											, "Failed to get client from database when updating host info: {}"
+											, _Client.f_GetExceptionStr()
+										)
+									;
+									return;
+								}
+								if (!*_Client)
+									return;
+								auto &Client = **_Client;
+								if (Client.m_LastFriendlyName != _HostInfo.m_FriendlyName)
+								{
+									Client.m_LastFriendlyName = _HostInfo.m_FriendlyName;
+									m_Database
+										(
+											&ICDistributedActorTrustManagerDatabase::f_SetClient
+											, _HostInfo.m_HostID
+											, Client 
+										)
+										> [](TCAsyncResult<void> &&_Result)
+										{
+											if (!_Result)
+											{
+												DMibLogWithCategory
+													(
+														Mib/Concurrency/Actors
+														, Error
+														, "Failed to set client in database when updating host info: {}"
+														, _Result.f_GetExceptionStr()
+													)
+												;
+												return;
+											}
+										}
+									;
+								}
+							}
+						;
+					}
+				)
 				+ WriteDatabaseResults.f_GetResults()
 				> 
 				[
@@ -233,11 +283,11 @@ namespace NMib
 					, _ClientConnections
 					, pCleanup
 				]
-				(TCAsyncResult<void> &&_Result, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_WriteDatabaseResults)
+				(TCAsyncResult<void> &&_Result, TCAsyncResult<CActorSubscription> &&_HostInfoChangedSubscription, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_WriteDatabaseResults)
 				{
 					if (!_Result)
 					{
-						_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to set access handler : {}", _Result.f_GetExceptionStr())));
+						_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to set access handler: {}", _Result.f_GetExceptionStr())));
 						return;
 					}
 					if 
@@ -252,6 +302,13 @@ namespace NMib
 						return;
 					}
 					
+					if (!_HostInfoChangedSubscription)
+					{
+						_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to subscribe to info changes: {}", _HostInfoChangedSubscription.f_GetExceptionStr())));
+						return;
+					}					
+
+					m_HostInfoChangedSubscription = fg_Move(*_HostInfoChangedSubscription);
 					
 					for (auto &Listen : _Listen)
 						m_Listen[Listen];
@@ -310,17 +367,8 @@ namespace NMib
 					
 					for (auto iClientConnection = m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
 					{
-						auto &ClientConnection = iClientConnection->m_ClientConnection;
 						auto &Address = iClientConnection.f_GetKey();
-						
-						CActorDistributionConnectionSettings ClientSettings;
-						ClientSettings.m_ServerURL = Address.m_URL;
-						ClientSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
-						ClientSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
-						ClientSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;
-						ClientSettings.m_bRetryConnectOnFailure = true;
-
-						m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ClientSettings) > ConnectResults.f_AddResult(Address); 
+						m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(*iClientConnection)) > ConnectResults.f_AddResult(Address); 
 					}
 					
 					ListenResults.f_GetResults() 

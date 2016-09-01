@@ -44,11 +44,15 @@ namespace
 		}
 		
 		
-		TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumServerCertificates() override
+		TCContinuation<NContainer::TCMap<NStr::CStr, CServerCertificate>> f_EnumServerCertificates(bool _bIncludeFullInfo) override
 		{
-			NContainer::TCSet<NStr::CStr> Return;
+			NContainer::TCMap<NStr::CStr, CServerCertificate> Return;
 			for (auto iCertificate = m_ServerCertificates.f_GetIterator(); iCertificate; ++iCertificate)
-				Return[iCertificate.f_GetKey()];
+			{
+				auto &Certficate = Return[iCertificate.f_GetKey()];
+				if (_bIncludeFullInfo)
+					Certficate = *iCertificate; 
+			}
 			return fg_Explicit(Return);
 		}
 		
@@ -108,11 +112,15 @@ namespace
 		}
 		
 
-		TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() override
+		TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override
 		{
-			NContainer::TCSet<NStr::CStr> Return;
+			NContainer::TCMap<NStr::CStr, CClient> Return;
 			for (auto iClient = m_Clients.f_GetIterator(); iClient; ++iClient)
-				Return[iClient.f_GetKey()];
+			{
+				auto &Client = Return[iClient.f_GetKey()];
+				if (_bIncludeFullInfo)
+					Client = *iClient; 
+			}
 			return fg_Explicit(Return);
 		}
 		
@@ -161,11 +169,15 @@ namespace
 		}
 		
 		
-		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections() override
+		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> f_EnumClientConnections(bool _bIncludeFullInfo) override
 		{
-			NContainer::TCSet<CDistributedActorTrustManager_Address> Return;
+			NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> Return;
 			for (auto iClientConnection = m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
-				Return[iClientConnection.f_GetKey()];
+			{
+				auto &Connection = Return[iClientConnection.f_GetKey()];
+				if (_bIncludeFullInfo)
+					Connection = *iClientConnection; 
+			}
 			return fg_Explicit(Return);
 		}
 		
@@ -219,12 +231,13 @@ namespace
 				return fg_ConstructActor<CDistributedActorTrustManager>
 					(
 						m_ServerDatabase
-						, [](NStr::CStr const &_HostID)
+						, [](NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 						{
-							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+							return fg_ConstructActor<CActorDistributionManager>(_HostID, _FriendlyName);
 						}
 						, 1024 
 						, NNet::ENetFlag_None
+						, "TestServer" 
 					)
 				;
 			}
@@ -234,12 +247,13 @@ namespace
 				return fg_ConstructActor<CDistributedActorTrustManager>
 					(
 						m_ClientDatabase
-						, [](NStr::CStr const &_HostID)
+						, [](NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 						{
-							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+							return fg_ConstructActor<CActorDistributionManager>(_HostID, _FriendlyName);
 						}
 						, 1024
 						, NNet::ENetFlag_None
+						, "TestClient"
 					)
 				;
 			}
@@ -292,6 +306,9 @@ namespace
 					DMibTestPath("Initial");
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+
+					NStr::CStr ServerHostID = ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+					NStr::CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
 					CDistributedActorTrustManager_Address ServerAddress;
 					ServerAddress.m_URL = "wss://localhost:31394/";
@@ -303,27 +320,31 @@ namespace
 					ExpectedListens[ServerAddress];
 					DMibExpect(AllListens, ==, ExpectedListens);
 					
-					
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
 					
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
 					DMibExpectTrue(ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, TrustTicket.m_ServerAddress).f_CallSync(60.0));
 					
 					auto AllClientConnections = ClientTrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(60.0);
-					NContainer::TCSet<CDistributedActorTrustManager_Address> ExpectedClientConnections;
-					ExpectedClientConnections[TrustTicket.m_ServerAddress];
+					NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo> ExpectedClientConnections;
+					{
+						auto &ExpectedHostInfo = ExpectedClientConnections[TrustTicket.m_ServerAddress];
+						ExpectedHostInfo.m_FriendlyName = "TestServer";
+						ExpectedHostInfo.m_HostID = ServerHostID;
+					}
 					DMibExpect(AllClientConnections, ==, ExpectedClientConnections);
 					
-					
 					fp_DoTests(ServerTrustManager, ClientTrustManager);
-					
-					NStr::CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasClient, ClientHostID).f_CallSync(60.0));
 					
 					auto AllClients = ServerTrustManager(&CDistributedActorTrustManager::f_EnumClients).f_CallSync(60.0);
-					NContainer::TCSet<NStr::CStr> ExpectedClients;
-					ExpectedClients[ClientHostID];
+					NContainer::TCMap<NStr::CStr, CHostInfo> ExpectedClients;
+					{
+						auto &ExpectedHostInfo = ExpectedClients[ClientHostID];
+						ExpectedHostInfo.m_FriendlyName = "TestClient";
+						ExpectedHostInfo.m_HostID = ClientHostID;
+					}
 					DMibExpect(AllClients, ==, ExpectedClients);
 					
 					ClientTrustManager->f_BlockDestroy();
@@ -562,9 +583,9 @@ namespace
 				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 					(
 						Client2Database
-						, [](NStr::CStr const &_HostID)
+						, [](NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 						{
-							return fg_ConstructActor<CActorDistributionManager>(_HostID);
+							return fg_ConstructActor<CActorDistributionManager>(_HostID, _FriendlyName);
 						}
 						, 1024 
 						, NNet::ENetFlag_None

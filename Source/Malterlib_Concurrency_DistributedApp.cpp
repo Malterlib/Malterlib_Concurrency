@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
@@ -17,6 +18,32 @@ namespace NMib
 	
 	namespace NConcurrency
 	{
+		CDistributedAppActor_Settings::CDistributedAppActor_Settings
+			(
+				NStr::CStr const &_AppName
+				, bool _bRequireListen
+				, NStr::CStr const &_ConfigDirectory
+				, bool _bSeparateConcurrencyManager
+				, uint32 _KeySize
+				, NStr::CStr const &_FriendlyName
+			)
+			: m_AppName(_AppName)
+			, m_bRequireListen(_bRequireListen)
+			, m_ConfigDirectory(_ConfigDirectory)
+			, m_bSeparateConcurrencyManager(_bSeparateConcurrencyManager)
+			, m_KeySize(_KeySize)
+			, m_FriendlyName(_FriendlyName)
+		{
+		}
+		
+		NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName() const
+		{
+			CStr FriendlyName = m_FriendlyName;
+			if (FriendlyName.f_IsEmpty())
+				FriendlyName = NProcess::NPlatform::fg_Process_GetComputerName(); 
+			return fg_Format("{}/{}", FriendlyName, m_AppName);
+		}
+
 		CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
 			: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
 			, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
@@ -142,13 +169,16 @@ namespace NMib
 				> Continuation / [this, Continuation]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
-					NFunction::TCFunction<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)> fManagerFactor;
+					NFunction::TCFunction<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> 
+						(NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> 
+						fManagerFactor
+					;
 					
 					if (mp_Settings.m_bSeparateConcurrencyManager)
 					{
-						fManagerFactor = [](NStr::CStr const &_HostID)
+						fManagerFactor = [](NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 							{
-								return fg_ConstructActor<CActorDistributionManager>(_HostID);
+								return fg_ConstructActor<CActorDistributionManager>(_HostID, _FriendlyName);
 							}
 						;
 					}
@@ -159,6 +189,7 @@ namespace NMib
 							, fManagerFactor
 							, mp_Settings.m_KeySize
 							, mp_Settings.m_ListenFlags
+							, mp_Settings.f_GetCompositeFriendlyName()
 						)
 					;
 					
@@ -318,6 +349,35 @@ namespace NMib
 			return pCanDestroy->m_Continuation;
 		}
 		
+		void fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
+		{
+#if DMibEnableTrace > 0
+			if (!_Params["TraceLogger"].f_Boolean())
+				fg_GetSys()->f_RemoveTraceLogger();
+#endif
+			if (_Params["StdErrLogger"].f_Boolean())
+				fg_GetSys()->f_AddStdErrLogger();
+			if (_Params["ConcurrentLoging"].f_Boolean())
+			{
+				auto LoggerActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
+				
+				fg_GetSys()->f_GetLogger().f_SetDispatcher
+					(
+						[LoggerActor](NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDispatch)
+						{
+							fg_Dispatch
+								(
+									LoggerActor
+									, fg_Move(_fToDispatch)
+								)
+								> fg_DiscardResult() 
+							;
+						}
+					)
+				;
+			}
+		}
+
 		aint fg_RunApp
 			(
 				NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
@@ -337,10 +397,9 @@ namespace NMib
 					(
 						[&](NEncoding::CEJSON const &_Params)
 						{
+							fg_ApplyLoggingOption(_Params);
 							if (_bStartApp)
 								AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
-							else
-								fg_GetSys()->f_RemoveTraceLogger();
 						}
 					)
 				;

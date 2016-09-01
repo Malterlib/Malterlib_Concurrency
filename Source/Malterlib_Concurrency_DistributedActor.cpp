@@ -18,7 +18,7 @@ namespace NMib
 			struct CSubSystem_Concurrency_DistributedActorDefaultManager : public CSubSystem
 			{
 				CSubSystem_Concurrency_DistributedActorDefaultManager();
-				CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID);
+				CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
 				~CSubSystem_Concurrency_DistributedActorDefaultManager();
 				void f_DestroyThreadSpecific() override;
 
@@ -31,13 +31,13 @@ namespace NMib
 				DMibError("You need to call fg_InitDistributionManager before using distributed actors");
 			}
 			
- 			CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID)
+ 			CSubSystem_Concurrency_DistributedActorDefaultManager::CSubSystem_Concurrency_DistributedActorDefaultManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 				: m_DistributionManagerHostID(_HostID)
 			{
 				fg_ConcurrencyManager(); // Add dependency to subsystem
 				fg_RuntimeTypeRegistry();
 				
-				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>(_HostID);
+				m_DistributionManager = fg_ConstructActor<CActorDistributionManager>(_HostID, _FriendlyName);
 			}
 			
 			CSubSystem_Concurrency_DistributedActorDefaultManager::~CSubSystem_Concurrency_DistributedActorDefaultManager()
@@ -114,7 +114,7 @@ namespace NMib
 			return CActorDistributionManager::fs_GetCallingHostInfo();
 		}
 
-		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID)
+		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 		{
 			if (NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager.f_WasCreated())
 				return NPrivate::g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager->m_DistributionManagerHostID;
@@ -122,7 +122,7 @@ namespace NMib
 				(
 					[&](void *_pMemory) -> NPrivate::CSubSystem_Concurrency_DistributedActorDefaultManager *
 					{
-						return new(_pMemory) NPrivate::CSubSystem_Concurrency_DistributedActorDefaultManager(_HostID);
+						return new(_pMemory) NPrivate::CSubSystem_Concurrency_DistributedActorDefaultManager(_HostID, _FriendlyName);
 					}
 				)
 			;
@@ -337,6 +337,25 @@ namespace NMib
 					}
 				)
 			;
+		}
+		
+		NStr::CStr CHostInfo::f_GetDesc() const
+		{
+			if (m_FriendlyName.f_IsEmpty())
+				return m_HostID;
+			else if (m_HostID.f_IsEmpty())
+				return m_FriendlyName;
+			return fg_Format("{} [{}]", m_HostID, m_FriendlyName);
+		}
+	
+		bool CHostInfo::operator ==(CHostInfo const &_Right) const
+		{
+			return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) == NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
+		}
+		
+		bool CHostInfo::operator <(CHostInfo const &_Right) const
+		{
+			return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) < NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 		}
 	}
 }

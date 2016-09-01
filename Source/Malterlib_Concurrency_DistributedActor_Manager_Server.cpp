@@ -296,10 +296,10 @@ namespace NMib
 													return;
 												NStr::CStr CloseMessage = fg_Format
 													(
-														"Lost incoming connection({}) from '{}' with host ID '{}': {} {} {}"
+														"Lost incoming connection({}) from '{}' <{}>: {} {} {}"
 														, pConnection->f_GetConnectionID()
 														, Address.f_GetString()
-														, HostID
+														, pConnection->f_GetHostInfo().f_GetDesc()
 														, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 														, _Reason
 														, _Message
@@ -325,7 +325,8 @@ namespace NMib
 												}
 											}
 										;
-
+										
+										pConnection->m_IdentifyContinuation = TCContinuation<void>();
 										pConnection->m_Connection = NewServerConnection.f_Accept
 											(
 												"MalterlibDistributedActors"
@@ -338,23 +339,57 @@ namespace NMib
 															return;
 														if (!pConnection->m_Connection)
 															return;
-
-														DMibLogWithCategory
+														fg_Dispatch
 															(
-																Mib/Concurrency/Actors
-																, Info
-																, "Accepted connection({}) from '{}' with host ID '{}'"
-																, pConnection->f_GetConnectionID()
-																, Address.f_GetString()
-																, HostID
-															)
+																[pConnection]
+																{
+																	return pConnection->m_IdentifyContinuation;
+																}
+															) 
+															> [Address, pConnection, HostID](TCAsyncResult<void> &&_Result) mutable
+															{
+																if (!_Result)
+																{
+																	DMibLogWithCategory
+																		(
+																			Mib/Concurrency/Actors
+																			, Error
+																			, "Error identifying connection({}) from '{}': {}"
+																			, pConnection->f_GetConnectionID()
+																			, Address.f_GetString()
+																			, _Result.f_GetExceptionStr()
+																		)
+																	;
+																	return;
+																}
+																if (!pConnection->m_pHost)
+																	return;
+																DMibLogWithCategory
+																	(
+																		Mib/Concurrency/Actors
+																		, Info
+																		, "Accepted connection({}) from '{}' <{}>"
+																		, pConnection->f_GetConnectionID()
+																		, Address.f_GetString()
+																		, pConnection->f_GetHostInfo().f_GetDesc()
+																	)
+																;
+															}
 														;
 														pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
 														fp_Identify(pConnection.f_Get());
 													}
 													else
 													{
-														DMibLogWithCategory(Mib/Concurrency/Actors, Error, "Error accepting connection from '{}': {}", Address.f_GetString(), _Subscription.f_GetExceptionStr());
+														DMibLogWithCategory
+															(
+																Mib/Concurrency/Actors
+																, Error
+																, "Error accepting connection from '{}': {}"
+																, Address.f_GetString()
+																, _Subscription.f_GetExceptionStr()
+															)
+														;
 													}
 												}
 											)

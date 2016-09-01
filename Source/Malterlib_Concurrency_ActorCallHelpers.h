@@ -586,12 +586,12 @@ namespace NMib
 					NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 					m_Actor.f_GetActor()->f_QueueProcess
 						(
-							[pThis]()
+							[pThis, Handler = fg_Move(m_Handler)]() mutable
 							{
 								auto &This = *pThis;
 								auto &Internal = *This.m_Actor.f_GetActor()->fp_GetActor();
 								CCurrentActorScope CurrentActor(Internal.f_ConcurrencyManager(), &Internal);
-								This.m_Handler
+								Handler
 									(
 										fg_Move(NContainer::fg_Get<tp_ResultIndices>(This.m_Results))...
 									)

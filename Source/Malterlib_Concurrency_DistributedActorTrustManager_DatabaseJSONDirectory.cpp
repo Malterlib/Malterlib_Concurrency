@@ -116,16 +116,16 @@ namespace NMib
 			;
 		}
 		
-		TCContinuation<NContainer::TCSet<NStr::CStr>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates()
+		TCContinuation<NContainer::TCMap<NStr::CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
 		{
-			return TCContinuation<NContainer::TCSet<NStr::CStr>>::fs_RunProtected<NException::CException>() > 
+			return TCContinuation<NContainer::TCMap<NStr::CStr, CServerCertificate>>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
 					
-					NContainer::TCSet<NStr::CStr> ReturnCertificates;
+					NContainer::TCMap<NStr::CStr, CServerCertificate> ReturnCertificates;
 					for (auto &FileName : Internal.f_Find("ServerCertificates"))
-						ReturnCertificates[Internal.f_PercentDecode(FileName)];
+						Internal.f_Read(ReturnCertificates[Internal.f_PercentDecode(FileName)], "ServerCertificates", FileName);
 					
 					return ReturnCertificates;
 				}
@@ -237,13 +237,22 @@ namespace NMib
 			;
 		}
 
-		TCContinuation<NContainer::TCSet<NStr::CStr>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients()
+		TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients(bool _bIncludeFullInfo)
 		{
-			return TCContinuation<NContainer::TCSet<NStr::CStr>>::fs_RunProtected<NException::CException>() > 
+			return TCContinuation<NContainer::TCMap<NStr::CStr, CClient>>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					return Internal.f_Find("Clients");
+					auto FullInfo = Internal.f_Find("Clients");
+					NContainer::TCMap<NStr::CStr, CClient> Clients;
+					for (auto &HostID : Internal.f_Find("Clients"))
+					{
+						auto &Client = Clients[HostID];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(Client, "Clients", HostID);
+							
+					}
+					return Clients;
 				}
 			;
 		}
@@ -326,20 +335,24 @@ namespace NMib
 			;
 		}		
 		
-		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClientConnections()
+		auto CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClientConnections(bool _bIncludeFullInfo)
+			-> TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>
 		{
-			return TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>>::fs_RunProtected<NException::CException>() > 
+			return TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
 					auto FileNames = Internal.f_Find("ClientConnections");
 					
-					NContainer::TCSet<CDistributedActorTrustManager_Address> ClientConnections;
+					NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> ClientConnections;
 					for (auto const &FileName : FileNames)
 					{
 						CInternal::CInternalClientConnection ClientConnection;
 						Internal.f_Read(ClientConnection, "ClientConnections", FileName);
-						ClientConnections[ClientConnection.m_Address];
+						if (_bIncludeFullInfo)
+							ClientConnections[ClientConnection.m_Address] = ClientConnection.m_ClientConnection;
+						else
+							ClientConnections[ClientConnection.m_Address];
 					}
 					
 					return ClientConnections;
@@ -585,12 +598,17 @@ namespace NMib
 		{
 			NEncoding::CEJSON JSON;
 			JSON["PublicCertificate"] = _Client.m_PublicCertificate;
+			JSON["LastFriendlyName"] = _Client.m_LastFriendlyName;
 			return JSON;
 		}
 
 		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CClient &_Client, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
 			_Client.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
+			if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
+				_Client.m_LastFriendlyName = pName->f_String();
+			else
+				_Client.m_LastFriendlyName.f_Clear();			
 		}
 		
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CInternalClientConnection const &_ClientConnection) const
@@ -599,6 +617,7 @@ namespace NMib
 			f_EncodeAddress(JSON["Address"], _ClientConnection.m_Address);
 			JSON["PublicServerCertificate"] = _ClientConnection.m_ClientConnection.m_PublicServerCertificate;
 			JSON["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
+			JSON["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
 			return JSON;
 		}
 
@@ -606,6 +625,10 @@ namespace NMib
 		{
 			_ClientConnection.m_PublicServerCertificate = _JSON["PublicServerCertificate"].f_Binary();
 			_ClientConnection.m_PublicClientCertificate = _JSON["PublicClientCertificate"].f_Binary();
+			if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
+				_ClientConnection.m_LastFriendlyName = pName->f_String();
+			else
+				_ClientConnection.m_LastFriendlyName.f_Clear();			
 		}
 	
 		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CInternalClientConnection &_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const

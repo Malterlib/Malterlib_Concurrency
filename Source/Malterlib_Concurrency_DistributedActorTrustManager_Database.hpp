@@ -88,8 +88,8 @@ namespace NMib
 			void CClient::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
-				
 				_Stream << m_PublicCertificate;
+				_Stream << m_LastFriendlyName;
 			}
 				
 			template <typename tf_CStream>
@@ -101,6 +101,8 @@ namespace NMib
 					DMibError("Invalid client version");
 				
 				_Stream >> m_PublicCertificate;
+				if (Version >= 0x102) 
+					_Stream >> m_LastFriendlyName;
 			}
 
 			template <typename tf_CStream>
@@ -110,6 +112,7 @@ namespace NMib
 				
 				_Stream << m_PublicServerCertificate;
 				_Stream << m_PublicClientCertificate;
+				_Stream << m_LastFriendlyName;
 			}
 			
 			template <typename tf_CStream>
@@ -122,6 +125,8 @@ namespace NMib
 				
 				_Stream >> m_PublicServerCertificate;
 				_Stream >> m_PublicClientCertificate;
+				if (Version >= 0x102) 
+					_Stream >> m_LastFriendlyName;
 			}
 		}
 	}

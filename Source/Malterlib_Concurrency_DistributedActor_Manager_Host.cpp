@@ -87,17 +87,26 @@ namespace NMib
 			return Continuation;
 		}
 
-		void CActorDistributionManager::CInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection)
+		void CActorDistributionManager::CInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
 		{
 			auto &Host = _Host;
+			
+			bool bIncoming = false;
+			bool bOutgoing = false;
 			
 			for (auto iClientConnection = Host.m_ClientConnections.f_GetIterator(); iClientConnection; )
 			{
 				auto &Connection = *iClientConnection;
 				++iClientConnection;
 				
-				if (&Connection == _pSaveConnection)
+				if (&Connection == _pSaveConnection || (_bSaveInactive && !Connection.m_Link.f_IsInList()))
+				{
+					if (Connection.m_bIncoming)
+						bIncoming = true;
+					else
+						bOutgoing = true;
 					continue;
+				}
 				
 				fp_DestroyClientConnection(Connection, true, "Reset host state");
 			}
@@ -107,8 +116,14 @@ namespace NMib
 				auto &Connection = *iServerConnection;
 				++iServerConnection;
 				
-				if (&Connection == _pSaveConnection)
+				if (&Connection == _pSaveConnection || (_bSaveInactive && !Connection.m_Link.f_IsInList()))
+				{
+					if (Connection.m_bIncoming)
+						bIncoming = true;
+					else
+						bOutgoing = true;
 					continue;
+				}
 				
 				fp_DestroyServerConnection(Connection, true, "Reset host state");
 			}
@@ -138,16 +153,9 @@ namespace NMib
 			Host.m_bAllowAllNamespaces = false;
 			Host.m_AllowedNamespaces.f_Clear();
 			
-			if (_pSaveConnection)
-			{
-				Host.m_bIncoming = _pSaveConnection->m_bIncoming;
-				Host.m_bOutgoing = !_pSaveConnection->m_bIncoming;
-			}
-			else
-			{
-				Host.m_bIncoming = false;
-				Host.m_bOutgoing = false;
-			}
+			Host.m_bIncoming = bIncoming;
+			Host.m_bOutgoing = bOutgoing;
+			
 			Host.m_Incoming_NextPacketID = 1;
 
 			Host.m_Outgoing_CurrentPacketID = 0;
@@ -161,7 +169,7 @@ namespace NMib
 		
 		void CActorDistributionManager::CInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection)
 		{
-			fp_ResetHostState(_Host, _pSaveConnection);
+			fp_ResetHostState(_Host, _pSaveConnection, false);
 
 			_Host.f_Destroy();
 			m_Hosts.f_Remove(_Host.m_UniqueHostID);

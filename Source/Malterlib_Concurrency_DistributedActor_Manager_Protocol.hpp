@@ -22,6 +22,7 @@ namespace NMib
 			_Stream << m_HighestSeenPacketID;
 			_Stream << m_AllowedNamespaces;
 			_Stream << m_bAllowAllNamespaces;
+			_Stream << m_FriendlyName;
 		}
 			
 		template <typename tf_CStream>
@@ -35,6 +36,8 @@ namespace NMib
 			_Stream >> m_HighestSeenPacketID;
 			_Stream >> m_AllowedNamespaces;
 			_Stream >> m_bAllowAllNamespaces;
+			if (!_Stream.f_IsAtEndOfStream())
+				_Stream >> m_FriendlyName;
 		}
 		
 		template <typename tf_CStream>

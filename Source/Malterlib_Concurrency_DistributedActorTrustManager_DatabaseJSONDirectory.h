@@ -19,7 +19,7 @@ namespace NMib
 			TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) override;
 			TCContinuation<int32> f_GetNewCertificateSerial() override;
 			
-			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumServerCertificates() override;
+			TCContinuation<NContainer::TCMap<NStr::CStr, CServerCertificate>> f_EnumServerCertificates(bool _bIncludeFullInfo) override;
 			TCContinuation<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) override;
 			TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override;
 			TCContinuation<void> f_SetServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override;
@@ -29,7 +29,7 @@ namespace NMib
 			TCContinuation<void> f_AddListenConfig(CListenConfig const &_Config) override;
 			TCContinuation<void> f_RemoveListenConfig(CListenConfig const &_Config) override;
 
-			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients() override;
+			TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override;
  			TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) override;
 			TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) override;
  			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
@@ -37,7 +37,7 @@ namespace NMib
 			TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
 			
-			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections() override;
+			TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> f_EnumClientConnections(bool _bIncludeFullInfo) override;
 			TCContinuation<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 			TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;
 			TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;

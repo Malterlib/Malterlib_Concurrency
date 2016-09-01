@@ -40,6 +40,8 @@ namespace NMib
 
 				bool m_bConnected = false;
 				NStr::CStr m_Error;
+				NTime::CTime m_ErrorTime;
+				CHostInfo m_HostInfo;
 			};
 			
 			struct CHostConnectionState
@@ -59,10 +61,11 @@ namespace NMib
 					NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
 					, NFunction::TCFunction
 					<
-						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
+						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 					> const &_fConstructManager = nullptr
 					,  uint32 _KeySize = 4096
-					, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None  
+					, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None
+					, NStr::CStr const &_FriendlyName = NStr::CStr()
 				)
 			;
 			
@@ -78,14 +81,14 @@ namespace NMib
 			TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
 
-			TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumClients();
+			TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
 			TCContinuation<CTrustTicket> f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
 			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
 			
-			TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumClientConnections();
-			TCContinuation<NStr::CStr> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
-			TCContinuation<NStr::CStr> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
+			TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo>> f_EnumClientConnections();
+			TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
+			TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
 			TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 

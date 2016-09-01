@@ -48,6 +48,7 @@ namespace NMib
 			struct CHostState
 			{
 				DMibListLinkDS_List(CConnectionState, m_Link) m_ClientConnections;
+				NStr::CStr m_FriendlyName;
 				
 				inline NStr::CStr const &f_GetHostID() const;
 			};
@@ -76,12 +77,15 @@ namespace NMib
 					, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
 					, NFunction::TCFunction
 					<
-						TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
+						TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 					> const &_fConstructManager
 					, uint32 _KeySize
 					, NNet::ENetFlag _ListenFlags
+					, NStr::CStr const &_FriendlyName
 				)
 			;
+			~CInternal();
+			
 			TCContinuation<NStr::CStr> f_InitAttempt();
 			void f_Init
 				(
@@ -100,10 +104,13 @@ namespace NMib
 			
 			TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate(NStr::CStr const &_Token, NContainer::TCVector<uint8> const &_CertificateRequest);
 			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain);
-					  
+			
+			NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
+
+			NPtr::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			CDistributedActorTrustManager *m_pThis;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_Database;
-			NFunction::TCFunction<TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)> m_fDistributionManagerFactory;
+			NFunction::TCFunction<TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> m_fDistributionManagerFactory;
 			
 			TCActor<CActorDistributionManager> m_ActorDistributionManager;
 			TCActor<CActorDistributionManagerAccessHandler> m_AccessHandler;
@@ -112,6 +119,10 @@ namespace NMib
 			CDistributedActorPublication m_TicketInterfacePublication;		
 
 			NPtr::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
+			
+			CActorSubscription m_HostInfoChangedSubscription;
+			
+			NStr::CStr m_FriendlyName;
 			
 			CBasicConfig m_BasicConfig;
 			

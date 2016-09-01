@@ -16,12 +16,13 @@ namespace NMib
 				NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
 				, NFunction::TCFunction
 				<
-					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
+					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 				> const &_fConstructManager
 				, uint32 _KeySize
 				, NNet::ENetFlag _ListenFlags
+				, NStr::CStr const &_FriendlyName
 			)
-			: mp_pInternal(fg_Construct(this, _Database, _fConstructManager, _KeySize, _ListenFlags))
+			: mp_pInternal(fg_Construct(this, _Database, _fConstructManager, _KeySize, _ListenFlags, _FriendlyName))
 		{
 		}
 			
@@ -35,17 +36,24 @@ namespace NMib
 				, NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
 				, NFunction::TCFunction
 				<
-					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID)
+					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 				> const &_fConstructManager
 				, uint32 _KeySize
 				, NNet::ENetFlag _ListenFlags
+				, NStr::CStr const &_FriendlyName
 			)
 			: m_pThis(_pThis)
 			, m_Database(_Database)
 			, m_fDistributionManagerFactory(_fConstructManager)
 			, m_KeySize(_KeySize)
 			, m_ListenFlags(_ListenFlags)
+			, m_FriendlyName(_FriendlyName)
 		{
+		}
+		
+		CDistributedActorTrustManager::CInternal::~CInternal()
+		{
+			*m_pDestroyed = true;
 		}
 		
 		TCContinuation<void> CDistributedActorTrustManager::f_Destroy()
@@ -133,17 +141,29 @@ namespace NMib
 			return Continuation;
 		}
 
-		TCContinuation<NContainer::TCSet<NStr::CStr>> CDistributedActorTrustManager::f_EnumClients()
+		auto CDistributedActorTrustManager::f_EnumClients() -> TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>>
 		{
 			auto &Internal = *mp_pInternal;
-			TCContinuation<NContainer::TCSet<NStr::CStr>> Continuation;
+			TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> Continuation;
 			Internal.f_RunAfterInit
 				(
 					Continuation
 					, [this, Continuation]
 					{
 						auto &Internal = *mp_pInternal;
-						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients) > (Continuation % "Failed to enum clients in database"); 
+						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients, true) 
+							> (Continuation % "Failed to enum clients in database") / [Continuation](NContainer::TCMap<NStr::CStr, CClient> &&_Info)
+							{
+								NContainer::TCMap<NStr::CStr, CHostInfo> Clients;
+								for (auto iClient = _Info.f_GetIterator(); iClient; ++iClient)
+								{
+									auto &Client = Clients[iClient.f_GetKey()];
+									Client.m_HostID = iClient.f_GetKey();
+									Client.m_FriendlyName = iClient->m_LastFriendlyName;
+								}
+								Continuation.f_SetResult(fg_Move(Clients));
+							}
+						;
 					}
 				)
 			;

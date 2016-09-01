@@ -274,10 +274,25 @@ namespace NMib
 			NStr::CStr mp_ListenID;
 		};
 
-		struct CDistributedActorConnectionStatus
+		struct CHostInfo
 		{
 			NStr::CStr m_HostID;
+			NStr::CStr m_FriendlyName;
+			
+			NStr::CStr f_GetDesc() const;
+			
+			bool operator ==(CHostInfo const &_Right) const;
+			bool operator <(CHostInfo const &_Right) const;
+			
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
+		};
+		
+		struct CDistributedActorConnectionStatus
+		{
+			CHostInfo m_HostInfo;
 			NStr::CStr m_Error;
+			NTime::CTime m_ErrorTime;
 			bool m_bConnected = false;
 		};
 		
@@ -296,7 +311,9 @@ namespace NMib
 			
 			void f_Clear();
 			TCDispatchedActorCall<void> f_Disconnect();  
-			TCDispatchedActorCall<CDistributedActorConnectionStatus> f_GetStatus(); 
+			TCDispatchedActorCall<CDistributedActorConnectionStatus> f_GetStatus();
+			TCDispatchedActorCall<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
+			bool f_IsValid() const;
 			
 			NContainer::TCVector<NContainer::TCVector<uint8>> const &f_GetCertificateChain() const;
 			
@@ -347,6 +364,7 @@ namespace NMib
 				NStr::CStr m_UniqueHostID;
 				NStr::CStr m_RealHostID;
 				NContainer::TCVector<NContainer::TCVector<uint8>> m_CertificateChain;
+				CHostInfo m_HostInfo;
 				
 				CConnectionResult(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ConnectionID)
 					: m_ConnectionReference(_DistributionManager, _ConnectionID)
@@ -354,6 +372,7 @@ namespace NMib
 				}
 			};
 			
+			CActorDistributionManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
 			CActorDistributionManager(NStr::CStr const &_HostID);
 			~CActorDistributionManager();
 			
@@ -391,6 +410,13 @@ namespace NMib
 				)
 			;
 
+			CActorSubscription f_SubscribeHostInfoChanged
+				(
+					TCActor<CActor> const &_Actor
+					, NFunction::TCFunction<void (NFunction::CThisTag &, CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+				)
+			;
+
 			static CCallingHostInfo const &fs_GetCallingHostInfo();
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
@@ -398,6 +424,7 @@ namespace NMib
 		private:
 			void fp_RemoveListen(NStr::CStr const &_ListenID);
 			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
+			TCContinuation<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
 			TCContinuation<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
 			CActorSubscription fp_OnRemoteDisconnect
@@ -418,7 +445,7 @@ namespace NMib
 		};
 		
 		CCallingHostInfo const &fg_GetCallingHostInfo();
-		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID);
+		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName = {});
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();
 		

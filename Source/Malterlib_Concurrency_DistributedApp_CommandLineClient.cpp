@@ -403,12 +403,13 @@ namespace NMib
 						(
 							fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_ConfigDirectory, Internal.m_Settings.m_AppName)
 						)
-						, [](NStr::CStr const &_HostID) -> NConcurrency::TCActor<NConcurrency::CActorDistributionManager>
+						, [](NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName) -> NConcurrency::TCActor<NConcurrency::CActorDistributionManager>
 						{
-							return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID);
+							return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID, _FriendlyName);
 						}
 						, Internal.m_Settings.m_KeySize
 						, Internal.m_Settings.m_ListenFlags
+						, Internal.m_Settings.f_GetCompositeFriendlyName()
 					)
 				;
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);

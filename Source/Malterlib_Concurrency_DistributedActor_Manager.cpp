@@ -6,13 +6,19 @@
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 #include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Process/Platform>
 
 namespace NMib
 {
 	namespace NConcurrency
 	{
 		CActorDistributionManager::CActorDistributionManager(NStr::CStr const &_HostID)
-			: mp_pInternal(fg_Construct(this, _HostID))
+			: CActorDistributionManager(_HostID, NProcess::NPlatform::fg_Process_GetComputerName())
+		{
+		}
+		
+		CActorDistributionManager::CActorDistributionManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+			: mp_pInternal(fg_Construct(this, _HostID, _FriendlyName))
 		{
 		}
 
@@ -31,6 +37,21 @@ namespace NMib
 			}
 			else
 				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
+		}
+
+		CHostInfo CActorDistributionManager::CInternal::CConnection::f_GetHostInfo() const
+		{
+			CHostInfo Info;
+			
+			if (m_pHost)
+			{
+				Info.m_HostID = m_pHost->m_RealHostID;
+				Info.m_FriendlyName = m_pHost->m_FriendlyName;  
+			}
+			else
+				Info.m_HostID = "Unknown";
+			
+			return Info;
 		}
 
 		TCDispatchedActorCall<void> CActorDistributionManager::CInternal::CConnection::f_Disconnect()
@@ -95,17 +116,27 @@ namespace NMib
 		{
 			CConnection::f_Reset(_bResetHost);
 			m_bConnected = false;
+			if (!m_IdentifyContinuation.f_IsSet())
+				m_IdentifyContinuation.f_SetException(DMibErrorInstance("Connection reset"));
 		}
 
 		void CActorDistributionManager::CInternal::CClientConnection::f_Destroy(NStr::CStr const &_Error)
 		{
 			CConnection::f_Destroy(_Error);
+			if (!m_IdentifyContinuation.f_IsSet())
+				m_IdentifyContinuation.f_SetException(DMibErrorInstance(fg_Format("Connection destroyed: {}", _Error)));
 			m_bConnected = false;
 		}
 
 		NStr::CStr CActorDistributionManager::CInternal::CClientConnection::f_GetConnectionID() const
 		{
 			return m_ConnectionID;
+		}
+		
+		void CActorDistributionManager::CInternal::CClientConnection::f_SetLastError(NStr::CStr const &_Error)
+		{
+			m_LastConnectionError = _Error;
+			m_LastConnectionErrorTime = NTime::CTime::fs_NowUTC();
 		}
 
 		CActorDistributionManager::CInternal::CServerConnection::CServerConnection(mint _ConnectionID)
@@ -131,12 +162,15 @@ namespace NMib
 				pConnection->f_Destroy("");
 		}
 		
-		CActorDistributionManager::CInternal::CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID)
+		CActorDistributionManager::CInternal::CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 			: m_pThis(_pThis)
 			, m_HostID(_HostID) 
 			, m_ExecutionID(NCryptography::fg_RandomID())
+			, m_OnHostInfoChanged(_pThis, false)
+			, m_FriendlyName(_FriendlyName) 
 		{
-			
+			if (m_FriendlyName.f_IsEmpty())
+				m_FriendlyName = NProcess::NPlatform::fg_Process_GetComputerName();
 		}
 		
 		CActorDistributionManager::CInternal::~CInternal()

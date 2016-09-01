@@ -39,9 +39,11 @@ namespace NMib
 						CDistributedActorCommand_Identify Identify;
 						Stream >> Identify;
 						
-						if (Identify.m_ProtocolVersion < 0x101 || Identify.m_ProtocolVersion > CDistributedActorCommand_Identify::EProtocolVersion)
+						if (Identify.m_ProtocolVersion < 0x101)
 						{
 							DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+							if (!_pConnection->m_IdentifyContinuation.f_IsSet())
+								_pConnection->m_IdentifyContinuation.f_SetException(DMibErrorInstance("Invalid protocol version"));
 							return false;
 						}
 						
@@ -51,16 +53,36 @@ namespace NMib
 						// Remove packets that remote already knows about
 						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_AckedPacketID; ++iPacket)
 							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
+						 
+						bool bShouldReset = false;
 						
-						if (pHost->m_LastExecutionID != Identify.m_ExecutionID || (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID))
+						if (pHost->m_LastExecutionID != Identify.m_ExecutionID)
+							bShouldReset = true;
+						
+#if 0
+						// This seems to not be needed
+						if (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID)
 						{
-							if (!pHost->m_LastExecutionID.f_IsEmpty())
-								fp_ResetHostState(*pHost, _pConnection);
-							pHost->m_LastExecutionID = Identify.m_ExecutionID;
+							bShouldReset = true;
 						}
+#endif
+
+						if (bShouldReset && !pHost->m_LastExecutionID.f_IsEmpty())
+							fp_ResetHostState(*pHost, _pConnection, true);
+						
+						pHost->m_LastExecutionID = Identify.m_ExecutionID;
 						
 						pHost->m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
 						pHost->m_AllowedNamespaces = Identify.m_AllowedNamespaces;
+						
+						if (!Identify.m_FriendlyName.f_IsEmpty() && Identify.m_FriendlyName != pHost->m_FriendlyName)
+						{
+							pHost->m_FriendlyName = Identify.m_FriendlyName;
+							CHostInfo HostInfo;
+							HostInfo.m_HostID = pHost->m_RealHostID;
+							HostInfo.m_FriendlyName = pHost->m_FriendlyName; 
+							m_OnHostInfoChanged(HostInfo);
+						}
 						
 						// Resend packets that remote think are missing
 						for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
@@ -113,6 +135,9 @@ namespace NMib
 								}
 							}
 						}
+						
+						if (!_pConnection->m_IdentifyContinuation.f_IsSet())
+							_pConnection->m_IdentifyContinuation.f_SetResult();
 					}
 					break;
 				case EDistributedActorCommand_Acknowledge:
@@ -198,6 +223,7 @@ namespace NMib
 		{
 			auto &pHost = _pConnection->m_pHost;
 			CDistributedActorCommand_Identify Identify;
+			Identify.m_FriendlyName = m_FriendlyName;
 			Identify.m_ExecutionID = m_ExecutionID;
 			Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
 			Identify.m_AckedPacketID = pHost->m_Incoming_NextPacketID - 1;
@@ -225,7 +251,7 @@ namespace NMib
 			Stream << Identify;
 			
 			NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> pPacketData = fg_Construct(Stream.f_MoveVector());
-
+			
 			fp_SendPacket(_pConnection, fg_Move(pPacketData));
 		}
 	}

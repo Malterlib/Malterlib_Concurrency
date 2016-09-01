@@ -84,12 +84,13 @@ namespace NMib
 						State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 							(
 								State.m_TrustManagerDatabase
-								, [](CStr const &_HostID)
+								, [](CStr const &_HostID, NStr::CStr const &_FriendlyName)
 								{
-									return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID);
+									return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_HostID, _FriendlyName);
 								}
 								, mp_Settings.m_KeySize
-								, mp_Settings.m_ListenFlags 
+								, mp_Settings.m_ListenFlags
+								, mp_Settings.f_GetCompositeFriendlyName()
 							)
 						;
 						State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)

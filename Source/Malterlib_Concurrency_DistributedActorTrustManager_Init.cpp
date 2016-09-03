@@ -63,12 +63,14 @@ namespace NMib
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
+				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumNamespaces, true)
 				> [this, Continuation]
 				(
 					TCAsyncResult<CBasicConfig> &&_BasicConfig 
 					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CServerCertificate>> &&_ServerCertificates
 					, TCAsyncResult<NContainer::TCSet<CListenConfig>> &&_ListenConfigs
 					, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> &&_ClientConnections
+					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
 				) mutable
 				{
 					if (!_BasicConfig)
@@ -79,8 +81,10 @@ namespace NMib
 						return Continuation.f_SetException(fg_Move(_ListenConfigs));
 					if (!_ClientConnections)
 						return Continuation.f_SetException(fg_Move(_ClientConnections));
+					if (!_Namespaces)
+						return Continuation.f_SetException(fg_Move(_Namespaces));
 					
-					f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections);
+					f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces);
 				}
 			;
 			
@@ -108,6 +112,7 @@ namespace NMib
 				, NContainer::TCSet<CListenConfig> const &_Listen
 				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 				, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
+				, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
 			)
 		{
 			auto pCleanup = fg_OnScopeExitShared
@@ -207,7 +212,7 @@ namespace NMib
 											{
 												DMibLogWithCategory
 													(
-														Mib/Concurrency/Actors
+														Mib/Concurrency/Trust
 														, Error
 														, "Failed to set client connection in database when updating host info: {}"
 														, _Result.f_GetExceptionStr()
@@ -232,7 +237,7 @@ namespace NMib
 								{
 									DMibLogWithCategory
 										(
-											Mib/Concurrency/Actors
+											Mib/Concurrency/Trust
 											, Error
 											, "Failed to get client from database when updating host info: {}"
 											, _Client.f_GetExceptionStr()
@@ -258,7 +263,7 @@ namespace NMib
 											{
 												DMibLogWithCategory
 													(
-														Mib/Concurrency/Actors
+														Mib/Concurrency/Trust
 														, Error
 														, "Failed to set client in database when updating host info: {}"
 														, _Result.f_GetExceptionStr()
@@ -281,6 +286,7 @@ namespace NMib
 					, _Listen
 					, _ServerCertificates
 					, _ClientConnections
+					, _Namespaces
 					, pCleanup
 				]
 				(TCAsyncResult<void> &&_Result, TCAsyncResult<CActorSubscription> &&_HostInfoChangedSubscription, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_WriteDatabaseResults)
@@ -313,6 +319,15 @@ namespace NMib
 					for (auto &Listen : _Listen)
 						m_Listen[Listen];
 					m_ServerCertificates = _ServerCertificates;
+					
+					for (auto &Namespace : _Namespaces)
+					{
+						auto &NamespaceName = _Namespaces.fs_GetKey(Namespace);
+						auto &NamespaceState = m_Namespaces[NamespaceName];
+						NamespaceState.m_Namespace = Namespace;
+						NamespaceState.m_bExistsInDatabase = true;
+					}
+					
 					for (auto iClientConnection = _ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
 					{
 						NStr::CStr HostID;

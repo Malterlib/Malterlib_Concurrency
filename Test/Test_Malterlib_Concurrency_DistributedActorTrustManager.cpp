@@ -13,20 +13,12 @@
 using namespace NMib;
 using namespace NMib::NConcurrency;
 using namespace NMib::NContainer;
-
+using namespace NMib::NStr;
 
 namespace
 {
 	class CTrustManagerDatabase : public ICDistributedActorTrustManagerDatabase
 	{
-		CBasicConfig m_BasicConfig;
-		int32 m_CertificateSerial = 0;
-		
-		TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
-		NContainer::TCSet<CListenConfig> m_ListenConfigs;
-		TCMap<NStr::CStr, CClient> m_Clients;
-		TCMap<CDistributedActorTrustManager_Address, CClientConnection> m_ClientConnections;
-		
 		TCContinuation<CBasicConfig> f_GetBasicConfig() override
 		{
 			return fg_Explicit(m_BasicConfig);
@@ -211,12 +203,79 @@ namespace
 				return DMibErrorInstance("No client connection for address");
 			return fg_Explicit();
 		}
+		
+		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespace>> f_EnumNamespaces(bool _bIncludeFullInfo) override
+		{
+			NContainer::TCMap<NStr::CStr, CNamespace> Return;
+			for (auto iNamespace = m_Namespaces.f_GetIterator(); iNamespace; ++iNamespace)
+			{
+				auto &Namespace = Return[iNamespace.f_GetKey()];
+				if (_bIncludeFullInfo)
+					Namespace = *iNamespace; 
+			}
+			return fg_Explicit(Return);
+		}
+		
+		TCContinuation<CNamespace> f_GetNamespace(NStr::CStr const &_NamespaceName) override
+		{
+			auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
+			if (!pNamespace)
+				return DMibErrorInstance("No namespace for name");
+			return fg_Explicit(*pNamespace);
+		}
+		
+		TCContinuation<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override
+		{
+			if (!m_Namespaces(_NamespaceName, _Namespace).f_WasCreated())
+				return DMibErrorInstance("Namespace already exists");
+			return fg_Explicit();
+		}
+		
+		TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override
+		{
+			auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
+			if (!pNamespace)
+				return DMibErrorInstance("No namespace for name");
+			*pNamespace = _Namespace;
+			return fg_Explicit();
+		}
+		
+		TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) override
+		{
+			if (!m_Namespaces.f_Remove(_NamespaceName))
+				return DMibErrorInstance("No namespace for name");
+			return fg_Explicit();
+		}
+		
+		CBasicConfig m_BasicConfig;
+		int32 m_CertificateSerial = 0;
+		
+		TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
+		NContainer::TCSet<CListenConfig> m_ListenConfigs;
+		TCMap<NStr::CStr, CClient> m_Clients;
+		TCMap<CDistributedActorTrustManager_Address, CClientConnection> m_ClientConnections;
+		TCMap<NStr::CStr, CNamespace> m_Namespaces;
+		
 	};
 	
 	class CDistributedActorTrustManager_Tests : public NMib::NTest::CTest
 	{
 	public:
 		struct CTestActor : public CActor
+		{
+			uint32 f_Test()
+			{
+				return 5;
+			}
+		};
+		struct CTestActor2 : public CActor
+		{
+			uint32 f_Test()
+			{
+				return 5;
+			}
+		};
+		struct CTestActor3 : public CActor
 		{
 			uint32 f_Test()
 			{
@@ -258,18 +317,25 @@ namespace
 				;
 			}
 			
-			CState(NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (NStr::CStr const &_Name)> const &_fDatabaseFactory, NFunction::TCFunction<void ()> const &_fCleanup)
+			CState
+				(
+					NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (NStr::CStr const &_Name)> const &_fDatabaseFactory
+					, NFunction::TCFunction<void ()> const &_fCleanup
+					, NStr::CStr const &_NameDistinguish = {} 
+				)
 				: m_fCleanup(_fCleanup)
 			{
-				_fCleanup();
-				m_ServerDatabase = _fDatabaseFactory("Server");
-				m_ClientDatabase = _fDatabaseFactory("Client");
+				if (_fCleanup)
+					_fCleanup();
+				m_ServerDatabase = _fDatabaseFactory("Server" + _NameDistinguish);
+				m_ClientDatabase = _fDatabaseFactory("Client" + _NameDistinguish);
 			}
 			~CState()
 			{
 				m_ServerDatabase->f_BlockDestroy();
 				m_ClientDatabase->f_BlockDestroy();
-				m_fCleanup();
+				if (m_fCleanup)
+					m_fCleanup();
 			}
 			
 			
@@ -605,6 +671,366 @@ namespace
 				ClientTrustManager->f_BlockDestroy();
 				ServerTrustManager->f_BlockDestroy();
 			};
+			DMibTestSuite("Subscriptions")
+			{
+				CState State{_fDatabaseFactory, _fCleanup};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+				
+				CStr ServerHostID = ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = "wss://localhost:31405/";
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+				{
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+				}
+
+				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
+				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
+				
+				TCSet<CStr> ServerHosts;
+				ServerHosts[ServerHostID];
+				
+				TCSet<CStr> Published;
+				
+				auto TestActor = fg_ConcurrentActor();
+				{
+					DMibTestPath("General");
+					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					{
+						DMibTestPath("Before publish");
+						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
+					}
+					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test")];
+					NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
+
+					// Make sure that queue has been processed on test actor
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					{
+						DMibTestPath("After publish");
+						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
+					}
+					
+					NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnum;
+					{
+						auto &Host = ExpectedAllowedEnum["Test"].m_AllowedHosts[ServerHostID];
+						Host.m_HostID = ServerHostID;
+						Host.m_FriendlyName = "TestServer";
+					}
+					NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnumEmpty;
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					{
+						DMibTestPath("After allow");
+						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 1);
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
+					}
+
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					{
+						DMibTestPath("After allow again");
+						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 1);
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
+					}
+
+					{
+						TCSet<CStr> NonExistantHosts;
+						NonExistantHosts["NonHost"];
+						ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
+					}
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					{
+						DMibTestPath("After disallow");
+						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnum;
+						{
+							auto &Host = ExpectedAllowedEnum["Test"].m_DisallowedHosts[ServerHostID];
+							Host.m_HostID = ServerHostID;
+							Host.m_FriendlyName = "TestServer";
+						}
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
+					}
+					
+					TrustedSubscription.f_Clear();
+					{
+						DMibTestPath("After clear subscription");
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnumEmpty);
+					}
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					{
+						DMibTestPath("After allow without subscription");
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
+					}
+					
+					{
+						TCSet<CStr> NonExistantHosts;
+						NonExistantHosts["NonHost"];
+						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
+					}
+					{
+						DMibTestPath("After nonexistant disallow");
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
+					}
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0); // Test disallow without namespace
+					{
+						DMibTestPath("After double disallow");
+						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
+						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnumEmpty);
+					}
+				}
+				{
+					DMibTestPath("Double");
+					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test")];
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					
+					NStr::CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					auto TrustedSubscription1 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					{
+						DMibTestPath("After subscribe");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
+						DMibExpect(TrustedSubscription1.m_Actors.f_GetLen(), ==, 2);
+					}
+				}
+				auto fWaitForSubscribed = [&](auto &_Subscription, mint _nSubScribed)
+					{
+						NTime::CClock Clock{true};
+						mint nSubscribed = 0;
+						while (Clock.f_GetTime() < 10.0)
+						{
+							nSubscribed = fg_Dispatch
+								(
+									TestActor
+									, [&]
+									{ 
+										return _Subscription.m_Actors.f_GetLen();
+									}
+								).f_CallSync(60.0)
+							;
+							if (nSubscribed == _nSubScribed)
+								break;
+						}
+						return nSubscribed;
+					}
+				;
+				{
+					DMibTestPath("Concurrent subscribe");
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					
+					NStr::CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					auto Subscriptions =
+						(
+							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor)
+							+ ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor)
+						).f_CallSync()
+					;
+					auto &TrustedSubscription0 = fg_Get<0>(Subscriptions);
+					auto &TrustedSubscription1 = fg_Get<1>(Subscriptions);
+					{
+						DMibTestPath("After subscribe");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
+						DMibExpect(TrustedSubscription1.m_Actors.f_GetLen(), ==, 2);
+					}
+				}
+				{
+					DMibTestPath("Publish while subscribed");
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					
+					NStr::CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					{
+						DMibTestPath("After subscribe");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
+					}
+					NStr::CStr NewPublish = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 3), ==, 3);
+					
+					{
+						DMibTestPath("2 types");
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
+						NStr::CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
+						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
+						ServerHelper.f_Unpublish(NewPublish2);
+						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
+					}
+					{
+						DMibTestPath("2 types no sub unpublish");
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
+						NStr::CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
+						NStr::CStr Subscription = ClientHelper.f_Subscribe("Test");
+						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
+						TrustedSubscription2.f_Clear();
+						ServerHelper.f_Unpublish(NewPublish2);
+						NTime::CClock Clock{true};
+						while (Clock.f_GetTime() < 10.0)
+						{
+							if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+								break;
+						}
+						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+						ClientHelper.f_Unsubscribe(Subscription);
+					}
+					{
+						DMibTestPath("2 types not allowed");
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test2", TestActor).f_CallSync(60.0);
+						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test2", TestActor).f_CallSync(60.0);
+						NStr::CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test2");
+						NStr::CStr NewPublish3 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor>(), "Test2");
+						NStr::CStr Subscription = ClientHelper.f_Subscribe("Test2");
+						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+						ServerHelper.f_Unpublish(NewPublish2);
+						ServerHelper.f_Unpublish(NewPublish3);
+						NTime::CClock Clock{true};
+						while (Clock.f_GetTime() < 10.0)
+						{
+							if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+								break;
+						}
+						DMibExpectFalse(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+						ClientHelper.f_Unsubscribe(Subscription);
+					}
+					
+					ServerHelper.f_Unpublish(NewPublish);
+					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 2), ==, 2);
+					auto ToUnpublish = *Published.f_FindSmallest();
+					ServerHelper.f_Unpublish(ToUnpublish);
+					Published.f_Remove(ToUnpublish);
+					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 1), ==, 1);
+					ToUnpublish = *Published.f_FindSmallest();
+					ServerHelper.f_Unpublish(ToUnpublish);
+					Published.f_Remove(ToUnpublish);
+					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 0), ==, 0);
+				}
+				{
+					DMibTestPath("2 hosts no sub");
+					CState State2{_fDatabaseFactory, nullptr, "2"};
+					TCActor<CDistributedActorTrustManager> ServerTrustManager2 = State2.f_CreateServerTrustManager();
+					CDistributedActorTestHelper ServerHelper2{ServerTrustManager};
+					{
+						CDistributedActorTrustManager_Address ServerAddress;
+						ServerAddress.m_URL = "wss://localhost:31406/";
+						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					}
+					CStr ServerHostID2 = ServerTrustManager2(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
+					TCSet<CStr> ServerHosts2;
+					ServerHosts2[ServerHostID];
+					
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts2).f_CallSync(60.0);
+					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test3", TestActor).f_CallSync(60.0);
+					NStr::CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
+					NStr::CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
+					NStr::CStr Subscription = ClientHelper.f_Subscribe("Test3");
+					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+					ServerHelper.f_Unpublish(NewPublish2);
+					ServerHelper2.f_Unpublish(NewPublish3);
+					NTime::CClock Clock{true};
+					while (Clock.f_GetTime() < 10.0)
+					{
+						if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+							break;
+					}
+					DMibExpectFalse(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
+					ServerTrustManager2->f_BlockDestroy();
+				}
+				{
+					DMibTestPath("Subscribe stress");
+					TCActorResultVector<void> Dispatches;
+					for (mint i = 0; i < 100000; ++i)
+					{
+						fg_ConcurrentDispatch
+							(
+								[&]
+								{
+									ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor) > fg_DiscardResult();
+								}
+							)
+							> Dispatches.f_AddResult(); 
+						;
+					}
+					Dispatches.f_GetResults().f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+				}
+				{
+					DMibTestPath("Notifications");
+					NAtomic::TCAtomic<mint> nActors{0};
+					CStr Published = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+					NStr::CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					{
+						DMibTestPath("After subscribe");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
+					}
+					
+					TrustedSubscription0.f_OnNewActor
+						(
+							[&](TCDistributedActor<CTestActor> const &_Actor)
+							{
+								++nActors;
+							}
+						)
+					;
+					
+					TrustedSubscription0.f_OnRemoveActor
+						(
+							[&](TCWeakDistributedActor<CActor> const &_Actor)
+							{
+								--nActors;
+							}
+						)
+					;
+
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					
+					{
+						DMibTestPath("After allow");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 1);
+						DMibExpect(nActors.f_Load(), ==, 1);
+					}
+
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					
+					{
+						DMibTestPath("After disallow");
+						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
+						DMibExpect(nActors.f_Load(), ==, 0);
+					}
+				}
+
+				ClientTrustManager->f_BlockDestroy();
+				ServerTrustManager->f_BlockDestroy();
+			};
+			
 		}
 		void f_DoTests()
 		{

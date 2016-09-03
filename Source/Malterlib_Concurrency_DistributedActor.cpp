@@ -357,5 +357,20 @@ namespace NMib
 		{
 			return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) < NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 		}
+		
+		TCDistributedActor<CActor> CAbstractDistributedActor::f_GetActor(uint32 _TypeHash) const
+		{
+			if (mp_InheritanceHierarchy.f_BinarySearch(_TypeHash) < 0)
+			{
+				DMibFastCheck(false);
+				return {};
+			}
+			return mp_Actor;
+		}
+		
+		NContainer::TCVector<uint32> const &CAbstractDistributedActor::f_GetTypeHashes() const
+		{
+			return mp_InheritanceHierarchy;
+		}
 	}
 }

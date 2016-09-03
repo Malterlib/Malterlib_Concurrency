@@ -348,9 +348,15 @@ namespace NMib
 		{
 			return mp_UniqueHostID;
 		}
+		
 		inline NStr::CStr const &CAbstractDistributedActor::f_GetRealHostID() const
 		{
-			return mp_RealHostID;
+			return mp_HostInfo.m_HostID;
+		}
+		
+		inline CHostInfo const &CAbstractDistributedActor::f_GetHostInfo() const
+		{
+			return mp_HostInfo;
 		}
 		
 		template <typename tf_CString>

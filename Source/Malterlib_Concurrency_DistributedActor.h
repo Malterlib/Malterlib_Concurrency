@@ -29,6 +29,20 @@ namespace NMib
 			};
 		}
 
+		struct CHostInfo
+		{
+			NStr::CStr m_HostID;
+			NStr::CStr m_FriendlyName;
+			
+			NStr::CStr f_GetDesc() const;
+			
+			bool operator ==(CHostInfo const &_Right) const;
+			bool operator <(CHostInfo const &_Right) const;
+			
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
+		};
+		
 		template <typename t_CActor>
 		struct TCDistributedActorWrapper : public t_CActor
 		{
@@ -138,21 +152,25 @@ namespace NMib
 					TCDistributedActor<CActor> const &_Actor
 					, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 					, NStr::CStr const &_UniqueHostID
-					, NStr::CStr const &_RealHostID
+					, CHostInfo const &_HostInfo
 				)
 			;
 			
+			TCDistributedActor<CActor> f_GetActor(uint32 _TypeHash) const;
 			template <typename tf_CType>
 			TCDistributedActor<tf_CType> f_GetActor() const;
 			template <typename tf_CType>
 			TCDistributedActor<tf_CType> f_GetActorUnsafe() const;
 			inline NStr::CStr const &f_GetUniqueHostID() const;
 			inline NStr::CStr const &f_GetRealHostID() const;
+			inline CHostInfo const &f_GetHostInfo() const;
+			
+			NContainer::TCVector<uint32> const &f_GetTypeHashes() const;
 		private:
 			TCDistributedActor<CActor> mp_Actor;
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
 			NStr::CStr mp_UniqueHostID;
-			NStr::CStr mp_RealHostID;
+			CHostInfo mp_HostInfo;
 		};
 		
 		namespace NPrivate
@@ -274,20 +292,6 @@ namespace NMib
 			NStr::CStr mp_ListenID;
 		};
 
-		struct CHostInfo
-		{
-			NStr::CStr m_HostID;
-			NStr::CStr m_FriendlyName;
-			
-			NStr::CStr f_GetDesc() const;
-			
-			bool operator ==(CHostInfo const &_Right) const;
-			bool operator <(CHostInfo const &_Right) const;
-			
-			template <typename tf_CString>
-			void f_Format(tf_CString &o_String) const;
-		};
-		
 		struct CDistributedActorConnectionStatus
 		{
 			CHostInfo m_HostInfo;

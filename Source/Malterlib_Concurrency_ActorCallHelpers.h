@@ -241,6 +241,16 @@ namespace NMib
 		{
 		};
 
+		namespace NPrivate
+		{
+			template <typename t_CReturnType>
+			struct TCCallSyncState
+			{
+				NThread::CEvent m_WaitEvent;
+				TCAsyncResult<t_CReturnType> m_Result;
+			};
+		}
+		
 		template <typename... tp_CCalls>
 		struct TCActorCallPack
 		{
@@ -272,20 +282,76 @@ namespace NMib
 				fp_ActorCall(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
 			}
 			
+			auto f_CallSync(fp64 _Timeout = -1.0)
+			{
+				return fp_CallSync(_Timeout, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
+			}
+			
 		private:
+			template <mint... tfp_Indices>
+			auto fp_CallSync(fp64 _Timeout, NMeta::TCIndices<tfp_Indices...>)
+			{
+				using CReturnType = NContainer::TCTuple<typename tp_CCalls::CReturnType...>;
+				NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
+				*this > fg_AnyConcurrentActor() / [&](auto &&...p_Results)
+					{
+						CReturnType Result;
+						TCInitializerList<bool> Dummy =
+							{
+								[&]
+								{
+									if (!p_Results)
+									{
+										if (!pResult->m_Result.f_IsSet())
+											pResult->m_Result.f_SetException(p_Results);
+									}
+									else
+										NContainer::fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
+									return false;
+								}
+								()...
+							}
+						;
+						(void)Dummy;
+						
+						if (!pResult->m_Result.f_IsSet())
+							pResult->m_Result.f_SetResult(fg_Move(Result));
+							
+						pResult->m_WaitEvent.f_SetSignaled();
+					}
+				;
+
+				if (_Timeout >= 0.0)
+				{
+					if (pResult->m_WaitEvent.f_WaitTimeout(_Timeout))
+					{
+						NStr::CStr Names;
+						TCInitializerList<bool> Dummy =
+							{
+								[&]
+								{
+									NStr::fg_AddStrSep(Names, fg_GetTypeName<typename tp_CCalls::CFunctor>(), ",");
+									return false;
+								}
+								()...
+							}
+						;
+						(void)Dummy;
+						DMibError(NStr::fg_Format("Timed out waiting for synchronous actor calls to '{}' to finish", Names));
+					}
+				}
+				else
+					pResult->m_WaitEvent.f_Wait();
+
+				return pResult->m_Result.f_Move();
+			}
+			
 			template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
 			void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>);
 		};
 		
 		namespace NPrivate
 		{
-			template <typename t_CReturnType>
-			struct TCCallSyncState
-			{
-				NThread::CEvent m_WaitEvent;
-				TCAsyncResult<t_CReturnType> m_Result;
-			};
-			
 			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
 			bool fg_CallActorInternal
 				(
@@ -359,6 +425,7 @@ namespace NMib
 			
 			using CReturnType = typename NPrivate::TCGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<t_CFunctor>::CReturn>::CType;
 			using CTypeList = t_CTypeList;
+			using CFunctor = t_CFunctor;
 			
 			t_CActor mp_Actor;
 			t_CFunctor mp_Functor;

@@ -5,6 +5,7 @@
 
 #include <Mib/Concurrency/ConcurrencyDefines>
 #include "Malterlib_Concurrency_Actor.h"
+#include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
 
 namespace NMib
@@ -91,10 +92,26 @@ namespace NMib
 				void f_Feed(tf_CStream &_Stream) const;
 				template <typename tf_CStream>
 				void f_Consume(tf_CStream &_Stream);
+				CHostInfo f_GetHostInfo() const; 
 
 				NContainer::TCVector<uint8> m_PublicServerCertificate;
 				NContainer::TCVector<uint8> m_PublicClientCertificate;
 				NStr::CStr m_LastFriendlyName;
+			};
+
+			struct CNamespace
+			{
+				enum 
+				{
+					EVersion = 0x101
+				};
+				
+				template <typename tf_CStream>
+				void f_Feed(tf_CStream &_Stream) const;
+				template <typename tf_CStream>
+				void f_Consume(tf_CStream &_Stream);
+
+				NContainer::TCSet<NStr::CStr> m_AllowedHosts;
 			};
 		}
 		
@@ -106,6 +123,7 @@ namespace NMib
 			using CListenConfig = NDistributedActorTrustManagerDatabase::CListenConfig;
 			using CClient = NDistributedActorTrustManagerDatabase::CClient;
 			using CClientConnection = NDistributedActorTrustManagerDatabase::CClientConnection;
+			using CNamespace = NDistributedActorTrustManagerDatabase::CNamespace;
 			
 			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() = 0;
 			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
@@ -121,7 +139,7 @@ namespace NMib
 			virtual TCContinuation<void> f_AddListenConfig(CListenConfig const &_Config) = 0;
 			virtual TCContinuation<void> f_RemoveListenConfig(CListenConfig const &_Config) = 0;
 
-			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _IncludeFullInfo) = 0;
+			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) = 0;
  			virtual TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) = 0;
  			virtual TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) = 0;
  			virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
@@ -134,6 +152,12 @@ namespace NMib
 			virtual TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
 			virtual TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
 			virtual TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+			
+			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CNamespace>> f_EnumNamespaces(bool _bIncludeFullInfo) = 0;
+ 			virtual TCContinuation<CNamespace> f_GetNamespace(NStr::CStr const &_NamespaceName) = 0;
+			virtual TCContinuation<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
+			virtual TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
+			virtual TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) = 0;
 		};
 	}
 }

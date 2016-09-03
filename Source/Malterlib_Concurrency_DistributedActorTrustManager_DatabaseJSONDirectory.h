@@ -42,7 +42,12 @@ namespace NMib
 			TCContinuation<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;
 			TCContinuation<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) override;
 			TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
-			
+
+			TCContinuation<NContainer::TCMap<NStr::CStr, CNamespace>> f_EnumNamespaces(bool _bIncludeFullInfo) override;
+ 			TCContinuation<CNamespace> f_GetNamespace(NStr::CStr const &_NamespaceName) override;
+			TCContinuation<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override;
+			TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override;
+			TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) override;
 		private:
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;

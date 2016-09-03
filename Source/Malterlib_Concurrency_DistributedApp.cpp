@@ -352,29 +352,38 @@ namespace NMib
 		void fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 		{
 #if DMibEnableTrace > 0
-			if (!_Params["TraceLogger"].f_Boolean())
-				fg_GetSys()->f_RemoveTraceLogger();
-#endif
-			if (_Params["StdErrLogger"].f_Boolean())
-				fg_GetSys()->f_AddStdErrLogger();
-			if (_Params["ConcurrentLoging"].f_Boolean())
+			if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 			{
-				auto LoggerActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
-				
-				fg_GetSys()->f_GetLogger().f_SetDispatcher
-					(
-						[LoggerActor](NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDispatch)
-						{
-							fg_Dispatch
-								(
-									LoggerActor
-									, fg_Move(_fToDispatch)
-								)
-								> fg_DiscardResult() 
-							;
-						}
-					)
-				;
+				if (!pParam->f_Boolean())
+					fg_GetSys()->f_RemoveTraceLogger();
+			}
+#endif
+			if (auto *pParam = _Params.f_GetMember("StdErrLogger", EJSONType_Boolean))
+			{
+				if (pParam->f_Boolean())
+					fg_GetSys()->f_AddStdErrLogger();
+			}
+			if (auto *pParam = _Params.f_GetMember("ConcurrentLoging", EJSONType_Boolean))
+			{
+				if (pParam->f_Boolean())
+				{
+					auto LoggerActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
+					
+					fg_GetSys()->f_GetLogger().f_SetDispatcher
+						(
+							[LoggerActor](NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDispatch)
+							{
+								fg_Dispatch
+									(
+										LoggerActor
+										, fg_Move(_fToDispatch)
+									)
+									> fg_DiscardResult() 
+								;
+							}
+						)
+					;
+				}
 			}
 		}
 

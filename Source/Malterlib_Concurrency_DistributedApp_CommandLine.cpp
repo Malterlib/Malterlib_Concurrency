@@ -443,6 +443,72 @@ namespace NMib
 			return Continuation;
 		}
 		
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true)
+				> Continuation / [Continuation, _bIncludeTrustedHosts](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
+				{
+					CStr Result;
+					for (auto &Permissions : _Namespaces)
+					{
+						auto &Namespace = _Namespaces.fs_GetKey(Permissions);
+						Result += fg_Format("{}\n", Namespace);
+						if (_bIncludeTrustedHosts)
+						{
+							Result += "    Trusted\n";
+							for (auto &Host : Permissions.m_AllowedHosts)
+								Result += fg_Format("        {}\n", Host.f_GetDesc());
+							Result += "    Untrusted\n";
+							for (auto &Host : Permissions.m_DisallowedHosts)
+								Result += fg_Format("        {}\n", Host.f_GetDesc());
+						}
+					}
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported namespaces to command line");
+					Continuation.f_SetResult(Result);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
+			(
+				NStr::CStr const &_Namespace
+				, NStr::CStr const &_Host
+			)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			NContainer::TCSet<NStr::CStr> Hosts;
+			Hosts[_Host];
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, Hosts)
+				> Continuation / [Continuation, _Namespace, _Host]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Trusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
+					Continuation.f_SetResult(CStr());
+				}
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
+			(
+				NStr::CStr const &_Namespace
+				, NStr::CStr const &_Host
+			)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			NContainer::TCSet<NStr::CStr> Hosts;
+			Hosts[_Host];
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, Hosts)
+				> Continuation / [Continuation, _Namespace, _Host]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Untrusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
+					Continuation.f_SetResult(CStr());
+				}
+			;
+			return Continuation;
+		}
+		
 		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
 				CStr const &_Description
@@ -815,6 +881,102 @@ namespace NMib
 									, [this, _Params]
 									{
 										return f_CommandLine_RemoveListen(_Params["ListenURL"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-list-namespaces"}
+							, "Description"_= "Lists actor publication namespaces that this application publishes as well as the hosts that are trusted for those namespaces.\n"
+							, "Output"_= "A new line separated list of namespaces and the hosts that are trusted and untrusted."
+							, "Options"_=
+							{
+								"IncludeTrustedHosts?"_= 
+								{
+									"Names"_= {"--include-hosts"}
+									, "Default"_= true
+									, "Description"_= "Include trusted and untrusted hosts in output"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return f_CommandLine_ListNamespaces(_Params["IncludeTrustedHosts"].f_Boolean());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-namespace-add-trusted-host"}
+							, "Description"_= "Trust a host for the specified namespace.\n"
+							, "Parameters"_=
+							{
+								"TrustHost"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The host to trust."
+								}
+							}
+							, "Options"_=
+							{
+								"TrustNamespace"_= 
+								{
+									"Names"_= {"--namespace"}
+									, "Type"_= ""
+									, "Description"_= "The namespace to trust the host for."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Trusted host for namespace"
+									, [this, _Params]
+									{
+										return f_CommandLine_TrustHostForNamespace(_Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-namespace-remove-trusted-host"}
+							, "Description"_= "Untrust a host for the specified namespace.\n"
+							, "Parameters"_=
+							{
+								"TrustHost"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The host to untrust."
+								}
+							}
+							, "Options"_=
+							{
+								"TrustNamespace"_= 
+								{
+									"Names"_= {"--namespace"}
+									, "Type"_= ""
+									, "Description"_= "The namespace to untrust the host for."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Untrust host for namespace"
+									, [this, _Params]
+									{
+										return f_CommandLine_UntrustHostForNamespace(_Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
 									}
 								)
 							;

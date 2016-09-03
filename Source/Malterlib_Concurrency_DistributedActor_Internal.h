@@ -139,6 +139,7 @@ namespace NMib
 				void f_Destroy();
 				bool f_CanReceivePublish() const;
 				bool f_CanSendPublish() const;
+				CHostInfo f_GetHostInfo() const;
 				
 				DMibListLinkDS_List(CClientConnection, m_HostLink) m_ClientConnections;
 				DMibListLinkDS_List(CServerConnection, m_HostLink) m_ServerConnections;

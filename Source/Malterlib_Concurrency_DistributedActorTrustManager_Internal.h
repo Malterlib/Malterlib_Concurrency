@@ -53,6 +53,27 @@ namespace NMib
 				inline NStr::CStr const &f_GetHostID() const;
 			};
 
+			struct CNamespaceTypeState
+			{
+				NContainer::TCSet<NPtr::TCSharedPointer<CTrustedActorSubscriptionState>> m_Subscriptions;
+				NPtr::TCSharedPointer<NContainer::TCSet<TCDistributedActor<CActor>>> m_pAllowedActors = fg_Construct();
+				NContainer::TCMap<NStr::CStr, NContainer::TCSet<TCDistributedActor<CActor>>> m_HostToActors;
+				NContainer::TCMap<TCDistributedActor<CActor>, NStr::CStr> m_ActorToHost;
+			};
+			
+			struct CNamespaceState
+			{
+				CNamespace m_Namespace;
+				CActorSubscription m_Subscription;
+				NContainer::TCMap<uint32, CNamespaceTypeState> m_Types;
+				mint m_nSubscriptions = 0;
+				bool m_bExistsInDatabase = false;
+				bool m_bSubscribing = false;
+				NContainer::TCVector<NFunction::TCFunction<bool (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
+				
+				inline NStr::CStr const &f_GetNamespaceName() const;
+			};
+			
 			struct CTicketInterface : public CActor
 			{
 				TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate(NStr::CStr const &_Token, NContainer::TCVector<uint8> const &_CertificateRequest);
@@ -94,6 +115,7 @@ namespace NMib
 					, NContainer::TCSet<CListenConfig> const &_Listen
 					, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 					, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
+					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
 				)
 			;
 			
@@ -133,6 +155,8 @@ namespace NMib
 			NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState> m_ClientConnections;
 			
 			NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
+			
+			NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
 			
 			NTime::CTimer m_TicketTimer;
 			

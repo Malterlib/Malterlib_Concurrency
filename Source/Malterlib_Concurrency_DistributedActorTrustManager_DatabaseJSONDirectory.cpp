@@ -65,6 +65,8 @@ namespace NMib
 			void f_FromJSON(CInternalClientConnection &_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 			NEncoding::CEJSON f_ToJSON(CListenConfig const &_ListenConfig) const;
 			void f_FromJSON(CListenConfig &_ListenConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
+			NEncoding::CEJSON f_ToJSON(CNamespace const &_Namespace) const;
+			void f_FromJSON(CNamespace &_Namespace, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 		};
 		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory)
@@ -243,7 +245,6 @@ namespace NMib
 				[&]
 				{
 					auto &Internal = *mp_pInternal;
-					auto FullInfo = Internal.f_Find("Clients");
 					NContainer::TCMap<NStr::CStr, CClient> Clients;
 					for (auto &HostID : Internal.f_Find("Clients"))
 					{
@@ -429,7 +430,79 @@ namespace NMib
 				}
 			;
 		}
-	
+
+		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
+		{
+			return TCContinuation<NContainer::TCMap<NStr::CStr, CNamespace>>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					NContainer::TCMap<NStr::CStr, CNamespace> Namespaces;
+					for (auto &NamespaceName : Internal.f_Find("Namespaces"))
+					{
+						auto &Namespace = Namespaces[NamespaceName];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(Namespace, "Namespaces", NamespaceName);
+							
+					}
+					return Namespaces;
+				}
+			;
+		}
+		
+		TCContinuation<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(NStr::CStr const &_NamespaceName)
+		{
+			return TCContinuation<CNamespace>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					
+					CNamespace Namespace;
+					if (!Internal.f_Read(Namespace, "Namespaces", _NamespaceName))
+						DMibError("No namespace with that name");
+					return Namespace;
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (Internal.f_Exists("Namespaces", _NamespaceName))
+						DMibError("Namespace already exists");
+					Internal.f_Write(_Namespace, "Namespaces", _NamespaceName);
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Exists("Namespaces", _NamespaceName))
+						DMibError("No namespace with that name");
+					Internal.f_Write(_Namespace, "Namespaces", _NamespaceName);
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(NStr::CStr const &_NamespaceName)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Delete("Namespaces", _NamespaceName))
+						DMibError("No namespace with that name");
+				}
+			;
+		}		
+		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::CInternal(NStr::CStr const &_BaseDirectory)
 			: m_BaseDirectory(_BaseDirectory)
 		{
@@ -513,13 +586,13 @@ namespace NMib
 		}
 		
 		template <typename tf_CObject, typename ...tfp_CComponent>
-		bool CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Read(tf_CObject &_Object, tfp_CComponent const &...p_Component) const
+		bool CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Read(tf_CObject &o_Object, tfp_CComponent const &...p_Component) const
 		{
 			NStr::CStr Path = f_GetPath(p_Component...);
 			if (!NFile::CFile::fs_FileExists(Path))
 				return false;
 			
-			f_FromJSON(_Object, NEncoding::CEJSON::fs_FromString(NFile::CFile::fs_ReadStringFromFile(Path)), Path);
+			f_FromJSON(o_Object, NEncoding::CEJSON::fs_FromString(NFile::CFile::fs_ReadStringFromFile(Path)), Path);
 			return true;
 		}
 
@@ -547,9 +620,9 @@ namespace NMib
 			return Address;
 		}
 
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_EncodeAddress(NEncoding::CEJSON &_JSON, CDistributedActorTrustManager_Address const &_Address) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_EncodeAddress(NEncoding::CEJSON &o_JSON, CDistributedActorTrustManager_Address const &_Address) const
 		{
-			_JSON = _Address.m_URL.f_Encode();
+			o_JSON = _Address.m_URL.f_Encode();
 		}
 
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CSerial const &_Serial) const
@@ -559,9 +632,9 @@ namespace NMib
 			return JSON;
 		}
 		
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CSerial &_Serial, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CSerial &o_Serial, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_Serial.m_Serial = _JSON["Serial"].f_Integer();
+			o_Serial.m_Serial = _JSON["Serial"].f_Integer();
 		}
 
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CBasicConfig const &_BasicConfig) const
@@ -573,11 +646,11 @@ namespace NMib
 			return JSON;
 		}
 		
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CBasicConfig &_BasicConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CBasicConfig &o_BasicConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_BasicConfig.m_HostID = _JSON["HostID"].f_String();
-			_BasicConfig.m_CAPrivateKey = _JSON["CAPrivateKey"].f_Binary();
-			_BasicConfig.m_CACertificate = _JSON["CACertificate"].f_Binary();
+			o_BasicConfig.m_HostID = _JSON["HostID"].f_String();
+			o_BasicConfig.m_CAPrivateKey = _JSON["CAPrivateKey"].f_Binary();
+			o_BasicConfig.m_CACertificate = _JSON["CACertificate"].f_Binary();
 		}
 		
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CServerCertificate const &_Certificate) const
@@ -588,10 +661,10 @@ namespace NMib
 			return JSON;
 		}
 		
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CServerCertificate &_ServerCertificate, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CServerCertificate &o_ServerCertificate, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_ServerCertificate.m_PrivateKey = _JSON["PrivateKey"].f_Binary();
-			_ServerCertificate.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
+			o_ServerCertificate.m_PrivateKey = _JSON["PrivateKey"].f_Binary();
+			o_ServerCertificate.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
 		}
 		
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CClient const &_Client) const
@@ -602,13 +675,13 @@ namespace NMib
 			return JSON;
 		}
 
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CClient &_Client, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CClient &o_Client, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_Client.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
+			o_Client.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
 			if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
-				_Client.m_LastFriendlyName = pName->f_String();
+				o_Client.m_LastFriendlyName = pName->f_String();
 			else
-				_Client.m_LastFriendlyName.f_Clear();			
+				o_Client.m_LastFriendlyName.f_Clear();			
 		}
 		
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CInternalClientConnection const &_ClientConnection) const
@@ -621,20 +694,20 @@ namespace NMib
 			return JSON;
 		}
 
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CClientConnection &_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CClientConnection &o_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_ClientConnection.m_PublicServerCertificate = _JSON["PublicServerCertificate"].f_Binary();
-			_ClientConnection.m_PublicClientCertificate = _JSON["PublicClientCertificate"].f_Binary();
+			o_ClientConnection.m_PublicServerCertificate = _JSON["PublicServerCertificate"].f_Binary();
+			o_ClientConnection.m_PublicClientCertificate = _JSON["PublicClientCertificate"].f_Binary();
 			if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
-				_ClientConnection.m_LastFriendlyName = pName->f_String();
+				o_ClientConnection.m_LastFriendlyName = pName->f_String();
 			else
-				_ClientConnection.m_LastFriendlyName.f_Clear();			
+				o_ClientConnection.m_LastFriendlyName.f_Clear();			
 		}
 	
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CInternalClientConnection &_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CInternalClientConnection &o_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_ClientConnection.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
-			f_FromJSON(_ClientConnection.m_ClientConnection, _JSON, _Name);
+			o_ClientConnection.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
+			f_FromJSON(o_ClientConnection.m_ClientConnection, _JSON, _Name);
 		}
 		
 		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CListenConfig const &_ListenConfig) const
@@ -644,9 +717,25 @@ namespace NMib
 			return JSON;
 		}
 
-		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CListenConfig &_ListenConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CListenConfig &o_ListenConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
 		{
-			_ListenConfig.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
+			o_ListenConfig.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
+		}
+		
+		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CNamespace const &_Namespace) const
+		{
+			NEncoding::CEJSON JSON;
+			auto &AllowedHosts = JSON["AllowedHosts"].f_Array();
+			for (auto &AllowedHost : _Namespace.m_AllowedHosts)
+				AllowedHosts.f_Insert(AllowedHost);
+			return JSON;
+		}
+
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CNamespace &o_Namespace, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		{
+			o_Namespace.m_AllowedHosts.f_Clear();
+			for (auto &AllowedHost : _JSON["AllowedHosts"].f_Array())
+				o_Namespace.m_AllowedHosts[AllowedHost.f_String()];
 		}
 	}
 }

@@ -76,7 +76,7 @@ namespace NMib
 						{
 							DMibLogWithCategory
 								(
-									Mib/Concurrency/Actors
+									Mib/Concurrency/Trust
 									, Error
 									, "Failed to stop connection or listen: {}"
 									, Result.f_GetExceptionStr()
@@ -228,6 +228,20 @@ namespace NMib
 				)
 			;
 			return Continuation;
+		}
+		
+		CHostInfo NDistributedActorTrustManagerDatabase::CClientConnection::f_GetHostInfo() const
+		{
+			CHostInfo Info;
+			try
+			{
+				Info.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(m_PublicServerCertificate);
+			}
+			catch (NException::CException const &)
+			{
+			}
+			Info.m_FriendlyName = m_LastFriendlyName;
+			return Info;
 		}
 	}
 }

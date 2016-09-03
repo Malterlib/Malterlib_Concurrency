@@ -95,6 +95,10 @@ namespace NMib
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveListen(NStr::CStr const &_URL); 
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_SetPrimaryListen(NStr::CStr const &_URL);
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListListen();
+
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts);
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_TrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_UntrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
 			
 			TCContinuation<void> f_Destroy();
 

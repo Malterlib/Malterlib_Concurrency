@@ -13,9 +13,7 @@ namespace NMib
 			void CBasicConfig::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
-				
 				_Stream << m_HostID;
-
 				_Stream << m_CAPrivateKey;
 				_Stream << m_CACertificate;
 			}
@@ -27,9 +25,7 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid basic config version");
-				
 				_Stream >> m_HostID;
-
 				_Stream >> m_CAPrivateKey;
 				_Stream >> m_CACertificate;
 			}
@@ -38,7 +34,6 @@ namespace NMib
 			void CServerCertificate::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
-				
 				_Stream << m_PrivateKey;
 				_Stream << m_PublicCertificate;
 			}
@@ -50,7 +45,6 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid server certificate version");
-				
 				_Stream >> m_PrivateKey;
 				_Stream >> m_PublicCertificate;
 			}
@@ -59,7 +53,6 @@ namespace NMib
 			void CListenConfig::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
-				
 				_Stream << m_Address;
 			}
 			
@@ -70,7 +63,6 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid listen config version");
-				
 				_Stream >> m_Address;
 			}
 			
@@ -99,7 +91,6 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid client version");
-				
 				_Stream >> m_PublicCertificate;
 				if (Version >= 0x102) 
 					_Stream >> m_LastFriendlyName;
@@ -109,7 +100,6 @@ namespace NMib
 			void CClientConnection::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
-				
 				_Stream << m_PublicServerCertificate;
 				_Stream << m_PublicClientCertificate;
 				_Stream << m_LastFriendlyName;
@@ -122,11 +112,27 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid client connection version");
-				
 				_Stream >> m_PublicServerCertificate;
 				_Stream >> m_PublicClientCertificate;
 				if (Version >= 0x102) 
 					_Stream >> m_LastFriendlyName;
+			}
+			
+			template <typename tf_CStream>
+			void CNamespace::f_Feed(tf_CStream &_Stream) const
+			{
+				_Stream << EVersion;
+				_Stream << m_AllowedHosts;
+			}
+			
+			template <typename tf_CStream>
+			void CNamespace::f_Consume(tf_CStream &_Stream)
+			{
+				uint32 Version;
+				_Stream >> Version;
+				if (Version > EVersion)
+					DMibError("Invalid client connection version");
+				_Stream >> m_AllowedHosts;
 			}
 		}
 	}

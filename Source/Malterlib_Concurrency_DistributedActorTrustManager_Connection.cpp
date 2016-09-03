@@ -265,7 +265,7 @@ namespace NMib
 						
 						if (ServerHostID.f_IsEmpty())
 						{
-							Continuation.f_SetException(DMibErrorInstance("Trust ticket server certificate does not include Host ID"));
+							Continuation.f_SetException(DMibErrorInstance("Trust ticket server certificate does not include Host ID or Host ID is invalid"));
 							return;
 						}
 						
@@ -436,7 +436,7 @@ namespace NMib
 															{
 																DMibLogWithCategory
 																	(
-																		Mib/Concurrency/Actors
+																		Mib/Concurrency/Trust
 																		, Error
 																		, "Failed update client certificate for other client connections: {}"
 																		, _OtherConnections.f_GetExceptionStr()
@@ -451,7 +451,7 @@ namespace NMib
 																	{
 																		DMibLogWithCategory
 																			(
-																				Mib/Concurrency/Actors
+																				Mib/Concurrency/Trust
 																				, Error
 																				, "Failed update client certificate for other client connection: {}"
 																				, OtherConnectionResult.f_GetExceptionStr()

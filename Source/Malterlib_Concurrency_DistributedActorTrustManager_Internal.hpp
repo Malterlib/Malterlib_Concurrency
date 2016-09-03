@@ -40,5 +40,10 @@ namespace NMib
 		{
 			return NContainer::TCMap<NStr::CStr, CHostState>::fs_GetKey(*this);
 		}
+
+		NStr::CStr const &CDistributedActorTrustManager::CInternal::CNamespaceState::f_GetNamespaceName() const
+		{
+			return NContainer::TCMap<NStr::CStr, CNamespaceState>::fs_GetKey(*this);
+		}
 	}
 }

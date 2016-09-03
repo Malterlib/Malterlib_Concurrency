@@ -141,13 +141,13 @@ namespace NMib
 				TCDistributedActor<CActor> const &_Actor
 				, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 				, NStr::CStr const &_UniqueHostID
-				, NStr::CStr const &_RealHostID
+				, CHostInfo const &_HostInfo
 			 
 			)
 			: mp_Actor(_Actor)
 			, mp_InheritanceHierarchy(_InheritanceHierarchy)
 			, mp_UniqueHostID(_UniqueHostID)
-			, mp_RealHostID(_RealHostID)
+			, mp_HostInfo(_HostInfo)
 		{
 		}
 
@@ -174,7 +174,7 @@ namespace NMib
 				;
 			}
 			
-			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_UniqueHostID, _pHost->m_RealHostID);
+			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_UniqueHostID, _pHost->f_GetHostInfo());
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
 				pAll->m_fOnNewActor(fg_TempCopy(AbstractActor));
@@ -315,7 +315,7 @@ namespace NMib
 					{
 						fReportExistingActor
 							(
-								CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
+								CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->f_GetHostInfo())
 							)
 						;
 					}
@@ -335,7 +335,7 @@ namespace NMib
 						{
 							fReportExistingActor
 								(
-									CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->m_RealHostID)
+									CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->f_GetHostInfo())
 								)
 							;
 						}

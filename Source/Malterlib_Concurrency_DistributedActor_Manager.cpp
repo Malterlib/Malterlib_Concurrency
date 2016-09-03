@@ -178,17 +178,30 @@ namespace NMib
 			while (auto *pHost = m_Hosts.f_FindAny())
 				fp_DestroyHost(**pHost, nullptr);
 		}
-		
+
+		namespace 
+		{
+			bool fg_IsHostIDValid(NStr::CStr const &_HostID)
+			{
+				if (_HostID.f_GetLen() < 17 || _HostID.f_GetLen() > 128)
+					return false;
+				if (!_HostID.f_IsAnsiAlphaNumeric())
+					return false;
+				return true;
+			}
+		}
 		
 		NStr::CStr CActorDistributionManager::fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate)
 		{
 			auto Extensions = NNet::CSSLContext::fs_GetCertificateExtensions(_Certificate);
 			
 			auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
-			if (pHostIDExtension && pHostIDExtension->f_GetLen() == 1)
-				return (*pHostIDExtension)[0].m_Value;
-			
-			return fg_Default();
+			if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1)
+				return {};
+			NStr::CStr HostID = (*pHostIDExtension)[0].m_Value;
+			if (!fg_IsHostIDValid(HostID))
+				return {};
+			return HostID;
 		}
 		
 		NStr::CStr CActorDistributionManager::fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate)
@@ -196,10 +209,12 @@ namespace NMib
 			auto Extensions = NNet::CSSLContext::fs_GetCertificateRequestExtensions(_Certificate);
 			
 			auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
-			if (pHostIDExtension && pHostIDExtension->f_GetLen() == 1)
-				return (*pHostIDExtension)[0].m_Value;
-			
-			return fg_Default();
+			if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1)
+				return {};
+			NStr::CStr HostID = (*pHostIDExtension)[0].m_Value;
+			if (!fg_IsHostIDValid(HostID))
+				return {};
+			return HostID;
 		}
 	}
 }

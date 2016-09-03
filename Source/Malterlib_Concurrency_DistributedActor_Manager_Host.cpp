@@ -34,6 +34,14 @@ namespace NMib
 			{
 				return m_bIncoming || !m_bAnonymous;
 			}
+			
+			CHostInfo CHost::f_GetHostInfo() const
+			{
+				CHostInfo Info;
+				Info.m_HostID = m_RealHostID;
+				Info.m_FriendlyName = m_FriendlyName;
+				return Info;
+			}
 
 			void CHost::f_Destroy()
 			{

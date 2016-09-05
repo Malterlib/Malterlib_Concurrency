@@ -504,7 +504,7 @@ namespace NMib
 								fOutputOptions("Global Options", Internal.m_GlobalOptions, bVerbose);
 							}
 							
-							TCVector<CCommandEntry> CommandEntries;
+							TCMap<NStr::CStr, TCVector<CCommandEntry>> CommandEntries;
 							mint LongestName = 0;
 
 							if (bVerbose)
@@ -512,7 +512,7 @@ namespace NMib
 							
 							for (auto &Command : Section.m_Commands)
 							{
-								auto &Entry = CommandEntries.f_Insert(fGetCommandEntry(Command));
+								auto &Entry = CommandEntries[Command.m_Category].f_Insert(fGetCommandEntry(Command));
 								LongestName = fg_Max(LongestName, Entry.m_Names.f_GetLen());
 							}
 							
@@ -521,13 +521,22 @@ namespace NMib
 							{
 								IndentScope = fOutputHeading("Commands");
 							}
-							for (auto &CommandEntry : CommandEntries)
+							
+							for (auto &Category : CommandEntries)
 							{
-								bool bCommandVerbose = CommandEntry.m_pCommand->m_bAlwaysVerbose || bVerbose;
-								if (bCommandVerbose)
-									fOutputVerboseCommand(CommandEntry);
-								else
-									fOutputLine(fg_Format("{sl*,a-}   {}", CommandEntry.m_Names, LongestName, CommandEntry.m_pCommand->m_ShortDescription), false, LongestName + 5);
+								auto &CategoryName = CommandEntries.fs_GetKey(Category);
+								COnScopeExitShared CategoryScope;
+								if (!CategoryName.f_IsEmpty())
+									CategoryScope = fOutputHeading(CategoryName); 
+								for (auto &CommandEntry : Category)
+								{
+									bool bCommandVerbose = CommandEntry.m_pCommand->m_bAlwaysVerbose || bVerbose;
+									if (bCommandVerbose)
+										fOutputVerboseCommand(CommandEntry);
+									else
+										fOutputLine(fg_Format("{sl*,a-}   {}", CommandEntry.m_Names, LongestName, CommandEntry.m_pCommand->m_ShortDescription), false, LongestName + 5);
+								}
+								fOutputEndSection();
 							}
 							fOutputEndSection();
 							

@@ -286,19 +286,19 @@ namespace NMib
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager
 				, NStr::CStr const &_UniqueHostID
-				, NStr::CStr const &_RealHostID
+				, CHostInfo const &_HostInfo
 				, NStr::CStr const &_LastExecutionID
 			)
 			: mp_DistributionManager(_DistributionManager)
 			, mp_UniqueHostID(_UniqueHostID) 
-			, mp_RealHostID(_RealHostID)
+			, mp_HostInfo(_HostInfo)
 			, mp_LastExecutionID(_LastExecutionID)
 		{
 		}
 		
 		NStr::CStr const &CCallingHostInfo::f_GetRealHostID() const
 		{
-			return mp_RealHostID;
+			return mp_HostInfo.m_HostID;
 		}
 		
 		NStr::CStr const &CCallingHostInfo::f_GetUniqueHostID() const
@@ -306,17 +306,22 @@ namespace NMib
 			return mp_UniqueHostID;
 		}
 
+		CHostInfo const &CCallingHostInfo::f_GetHostInfo() const
+		{
+			return mp_HostInfo;
+		}
+
 		bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
 		{
-			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_RealHostID, mp_LastExecutionID) 
-				== NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_RealHostID, _Right.mp_LastExecutionID)
+			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID) 
+				== NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 			; 
 		}		
 
 		bool CCallingHostInfo::operator <(CCallingHostInfo const &_Right) const
 		{
-			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_RealHostID, mp_LastExecutionID) 
-				< NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_RealHostID, _Right.mp_LastExecutionID)
+			return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID) 
+				< NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 			; 
 		}		
 		
@@ -337,6 +342,20 @@ namespace NMib
 					}
 				)
 			;
+		}
+
+		CHostInfo::CHostInfo()
+		{
+		}
+		
+		CHostInfo::~CHostInfo()
+		{
+		}
+		
+		CHostInfo::CHostInfo(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+			: m_HostID(_HostID)
+			, m_FriendlyName(_FriendlyName)
+		{
 		}
 		
 		NStr::CStr CHostInfo::f_GetDesc() const

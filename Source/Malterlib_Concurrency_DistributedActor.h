@@ -31,8 +31,9 @@ namespace NMib
 
 		struct CHostInfo
 		{
-			NStr::CStr m_HostID;
-			NStr::CStr m_FriendlyName;
+			CHostInfo();
+			~CHostInfo();
+			CHostInfo(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
 			
 			NStr::CStr f_GetDesc() const;
 			
@@ -41,6 +42,9 @@ namespace NMib
 			
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
+
+			NStr::CStr m_HostID;
+			NStr::CStr m_FriendlyName;
 		};
 		
 		template <typename t_CActor>
@@ -251,7 +255,9 @@ namespace NMib
 			CDistributedActorPublication(CDistributedActorPublication &&);
 			CDistributedActorPublication &operator = (CDistributedActorPublication &&);
 			
+			bool f_IsValid() const;
 			void f_Clear();
+			void f_Republish(NStr::CStr const &_HostID) const;
 			
 		private:
 			CDistributedActorPublication(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_Namespace, NStr::CStr const &_ActorID);
@@ -341,10 +347,11 @@ namespace NMib
 		struct CCallingHostInfo
 		{
 			CCallingHostInfo();
-			CCallingHostInfo(TCActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_UniqueHostID, NStr::CStr const &_RealHostID, NStr::CStr const &_LastExecutionID);
+			CCallingHostInfo(TCActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_UniqueHostID, CHostInfo const &_HostInfo, NStr::CStr const &_LastExecutionID);
 			
 			NStr::CStr const &f_GetRealHostID() const;
 			NStr::CStr const &f_GetUniqueHostID() const;
+			CHostInfo const &f_GetHostInfo() const;
 			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const;
 			
@@ -353,8 +360,8 @@ namespace NMib
 			
 		private:
 			TCActor<CActorDistributionManager> mp_DistributionManager;
-			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous 
-			NStr::CStr mp_RealHostID; 
+			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
+			CHostInfo mp_HostInfo;
 			NStr::CStr mp_LastExecutionID;
 		};
 		
@@ -430,6 +437,7 @@ namespace NMib
 			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
 			TCContinuation<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
+			void fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID);
 			TCContinuation<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
 			CActorSubscription fp_OnRemoteDisconnect
 				(

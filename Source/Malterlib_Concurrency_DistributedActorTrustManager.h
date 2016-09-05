@@ -6,27 +6,13 @@
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Database.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_Private.h"
 
 namespace NMib
 {
 	namespace NConcurrency
 	{
 		class CDistributedActorTrustManager;
-		
-		struct CTrustedActorSubscriptionState : public NPtr::TCSharedPointerIntrusiveBase<>
-		{
-			friend class CDistributedActorTrustManager;
-			TCWeakActor<CActor> m_DispatchActor;
-			TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
-			NPtr::TCSharedPointer<NContainer::TCSet<TCDistributedActor<CActor>>> m_pActors;
-			uint32 m_TypeHash = 0;
-			NStr::CStr m_NamespaceName;
-		
-			CTrustedActorSubscriptionState();
-			virtual ~CTrustedActorSubscriptionState(); 
-			virtual void f_AddDistributedActors(NContainer::TCSet<TCDistributedActor<CActor>> const &_Actors) = 0;
-			virtual void f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors) = 0;
-		};
 		
 		template <typename t_CActor>
 		struct TCTrustedActorSubscription
@@ -48,7 +34,7 @@ namespace NMib
 		private:
 			friend class CDistributedActorTrustManager;
 			
-			struct CState : public CTrustedActorSubscriptionState
+			struct CState : public NPrivate::CTrustedActorSubscriptionState
 			{
 				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor)> m_fOnNewActor;
 				NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
@@ -59,6 +45,43 @@ namespace NMib
 			};
 			
 			NPtr::TCSharedPointer<CState> mp_pState;
+		};
+		
+		struct CTrustedPermissionSubscription
+		{
+			CTrustedPermissionSubscription(CTrustedPermissionSubscription const &) = delete;
+			CTrustedPermissionSubscription &operator =(CTrustedPermissionSubscription const &) = delete;
+			CTrustedPermissionSubscription(CTrustedPermissionSubscription &&);
+			CTrustedPermissionSubscription &operator =(CTrustedPermissionSubscription &&);
+			CTrustedPermissionSubscription() = default;
+			~CTrustedPermissionSubscription();
+
+			template <typename ...tfp_CPermission>
+			bool f_HostHasAnyPermission(NStr::CStr const &_Host, tfp_CPermission const &...p_Permission) const;
+			
+			bool f_HostHasPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const;
+			NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &f_GetPermissions() const;
+			
+			void f_Clear();
+
+			void f_OnPermissionsAdded
+				(
+					NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> &&_fOnPermissionsAdded
+				)
+			;
+			void f_OnPermissionsRemoved
+				(
+					NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
+				)
+			;
+			
+			
+		private:
+			friend class CDistributedActorTrustManager;
+			friend struct NPrivate::CTrustedPermissionSubscriptionState;
+			
+			NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
+			NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> mp_Permissions;
 		};
 		
 		class CDistributedActorTrustManager : public NConcurrency::CActor
@@ -162,20 +185,34 @@ namespace NMib
 			TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo);
 			TCContinuation<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts);
 			TCContinuation<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts);
-			
 			template <typename tf_CActor>
 			TCContinuation<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors(NStr::CStr const &_Namespace, TCActor<CActor> const &_Actor);
+			
+			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo);
+			TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions);
+			TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions);
+			TCContinuation<void> f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
+			TCContinuation<void> f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
+
+			TCContinuation<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
 			
 			// Handle renewal of certificates
 			
 		private:
 			template <typename t_CActor>
 			friend struct TCTrustedActorSubscription;
+			friend struct CTrustedPermissionSubscription;
 			
-			TCContinuation<void> fp_SubscribeTrustedActors(NPtr::TCSharedPointer<CTrustedActorSubscriptionState> const &_pState);
-			void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<CTrustedActorSubscriptionState> const &_pState);
 			TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 			
+			TCContinuation<NContainer::TCSet<TCDistributedActor<CActor>>> fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
+			void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
+			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>>> fp_SubscribeToPermissions
+				(
+					NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+				)
+			;
+			void fp_UnsubscribeToPermissions(NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
 			
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;			

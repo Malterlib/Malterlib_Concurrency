@@ -243,6 +243,38 @@ namespace NMib
 			Info.m_FriendlyName = m_LastFriendlyName;
 			return Info;
 		}
+		
+		TCContinuation<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)
+		{
+			CHostInfo HostInfo;
+			HostInfo.m_HostID = _HostID;
+			auto &Internal = *mp_pInternal;
+			auto *pHost = Internal.m_Hosts.f_FindEqual(_HostID);
+			if (pHost && !pHost->m_FriendlyName.f_IsEmpty())
+			{
+				HostInfo.m_FriendlyName = pHost->m_FriendlyName;
+				return fg_Explicit(HostInfo);
+			}
+			for (auto &ClientConnection : Internal.m_ClientConnections)
+			{
+				auto ClientHostInfo = ClientConnection.m_ClientConnection.f_GetHostInfo();
+				if (ClientHostInfo.m_HostID != _HostID)
+					continue;
+				if (ClientHostInfo.m_FriendlyName.f_IsEmpty())
+					continue;
+				return fg_Explicit(ClientHostInfo);
+			}
+			TCContinuation<CHostInfo> Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) 
+				> [Continuation, HostInfo = fg_Move(HostInfo)](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CClient> &&_Client) mutable
+				{
+					if (_Client)
+						HostInfo.m_FriendlyName = _Client->m_LastFriendlyName;
+					Continuation.f_SetResult(fg_Move(HostInfo));
+				}
+			;
+			return Continuation;
+		}
 	}
 }
 

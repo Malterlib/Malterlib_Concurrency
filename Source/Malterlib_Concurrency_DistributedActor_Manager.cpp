@@ -13,7 +13,7 @@ namespace NMib
 	namespace NConcurrency
 	{
 		CActorDistributionManager::CActorDistributionManager(NStr::CStr const &_HostID)
-			: CActorDistributionManager(_HostID, NProcess::NPlatform::fg_Process_GetComputerName())
+			: CActorDistributionManager(_HostID, fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName()))
 		{
 		}
 		
@@ -170,7 +170,7 @@ namespace NMib
 			, m_FriendlyName(_FriendlyName) 
 		{
 			if (m_FriendlyName.f_IsEmpty())
-				m_FriendlyName = NProcess::NPlatform::fg_Process_GetComputerName();
+				m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
 		}
 		
 		CActorDistributionManager::CInternal::~CInternal()

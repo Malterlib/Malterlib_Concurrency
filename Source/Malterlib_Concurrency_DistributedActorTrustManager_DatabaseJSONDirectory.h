@@ -48,6 +48,12 @@ namespace NMib
 			TCContinuation<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override;
 			TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override;
 			TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) override;
+			
+			TCContinuation<NContainer::TCMap<NStr::CStr, CHostPermissions>> f_EnumHostPermissions(bool _bIncludeFullInfo) override;
+ 			TCContinuation<CHostPermissions> f_GetHostPermissions(NStr::CStr const &_HostID) override;
+			TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
+			TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
+			TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) override;
 		private:
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;

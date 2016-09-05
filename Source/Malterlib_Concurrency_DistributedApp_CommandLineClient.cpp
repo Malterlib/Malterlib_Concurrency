@@ -241,17 +241,24 @@ namespace NMib
 
 					if (Parameter.f_StartsWith("-") && (!pFoundCommand || pFoundCommand->m_bErrorOnOptionAsParameter))
 					{
-						fp64 BestScore = fp64::fs_Inf();
-						CStr BestName;
-
+						struct CFuzzyEntry
+						{
+							CStr m_Name;
+							fp64 m_Score;
+							bool operator < (CFuzzyEntry const &_Right) const
+							{
+								return fg_TupleReferences(m_Score, m_Name) < fg_TupleReferences(_Right.m_Score, _Right.m_Name); 
+							}
+						};
+						
+						TCVector<CFuzzyEntry> FuzzyEntries;
+						
 						auto fCheckName = [&](CStr const &_Name)
 							{
 								fp64 Score = NStr::fg_FuzzyMatchString(_Name, Parameter);
-								if (Score < BestScore)
-								{
-									BestScore = Score;
-									BestName = _Name;
-								}
+								auto &Entry = FuzzyEntries.f_Insert();
+								Entry.m_Name = _Name;
+								Entry.m_Score = Score;
 							}
 						;
 						
@@ -263,10 +270,36 @@ namespace NMib
 							for (auto iName = pCurrentCommand->m_OptionsByName.f_GetIterator(); iName; ++iName)
 								fCheckName(iName.f_GetKey());
 						}
+
+						for (auto &Option : CommandLineSpec.m_GlobalOptions)
+						{
+							for (auto &Name : Option.m_Names)
+								fCheckName(Name);
+						}
+						
+						FuzzyEntries.f_Sort();
 						
 						CStr Error = fg_Format("No such option or command '{}'", ParsedParameter);
-						if (!BestName.f_IsEmpty())
-							Error += fg_Format(". Did you mean '{}'?", BestName);
+						if (!FuzzyEntries.f_IsEmpty())
+						{
+							CStr EntryNames;
+							fp64 BestScore = FuzzyEntries.f_GetFirst().m_Score;
+							for (auto &Entry : FuzzyEntries)
+							{
+#if 1
+								if ((Entry.m_Score - BestScore) > 0.2)
+									break;
+								fg_AddStrSep(EntryNames, fg_Format("   {}", Entry.m_Name) ,"\n");
+#else
+								if ((Entry.m_Score - BestScore) > 0.2)
+									fg_AddStrSep(EntryNames, fg_Format("-- {fe2} {}", Entry.m_Score, Entry.m_Name) ,"\n");
+								else
+									fg_AddStrSep(EntryNames, fg_Format("   {fe2} {}", Entry.m_Score, Entry.m_Name) ,"\n");
+#endif
+							}
+							if (!EntryNames.f_IsEmpty())
+								Error += fg_Format(". Did you mean any of the following?\n{}", EntryNames);
+						}
 						
 						DMibError(Error);
 					}
@@ -409,7 +442,7 @@ namespace NMib
 						}
 						, Internal.m_Settings.m_KeySize
 						, Internal.m_Settings.m_ListenFlags
-						, Internal.m_Settings.f_GetCompositeFriendlyName()
+						, Internal.m_Settings.f_GetCompositeFriendlyName() + "_CommandLine"
 					)
 				;
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);

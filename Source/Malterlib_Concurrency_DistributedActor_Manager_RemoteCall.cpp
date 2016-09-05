@@ -191,7 +191,7 @@ namespace NMib
 						, Actor
 						, ParamData = fg_Move(ParamData)
 						, HostID = pHost->m_RealHostID
-						, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), pHost->m_UniqueHostID, pHost->m_RealHostID, pHost->m_LastExecutionID)
+						, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), pHost->m_UniqueHostID, pHost->f_GetHostInfo(), pHost->m_LastExecutionID)
 					] 
 					() mutable
 					{

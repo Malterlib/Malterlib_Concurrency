@@ -83,6 +83,8 @@ namespace NMib
 				CSection * const m_pSection;
 				TCVector<CStr> const m_Names;
 
+				CStr m_Category;
+				
 				CStr m_ShortDescription;
 				CStr m_LongDescription;
 				CStr m_OutputDescription;

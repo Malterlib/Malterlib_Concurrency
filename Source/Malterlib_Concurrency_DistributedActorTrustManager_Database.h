@@ -113,6 +113,21 @@ namespace NMib
 
 				NContainer::TCSet<NStr::CStr> m_AllowedHosts;
 			};
+
+			struct CHostPermissions
+			{
+				enum 
+				{
+					EVersion = 0x101
+				};
+				
+				template <typename tf_CStream>
+				void f_Feed(tf_CStream &_Stream) const;
+				template <typename tf_CStream>
+				void f_Consume(tf_CStream &_Stream);
+
+				NContainer::TCSet<NStr::CStr> m_Permissions;
+			};
 		}
 		
 		class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
@@ -124,6 +139,7 @@ namespace NMib
 			using CClient = NDistributedActorTrustManagerDatabase::CClient;
 			using CClientConnection = NDistributedActorTrustManagerDatabase::CClientConnection;
 			using CNamespace = NDistributedActorTrustManagerDatabase::CNamespace;
+			using CHostPermissions = NDistributedActorTrustManagerDatabase::CHostPermissions;
 			
 			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() = 0;
 			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
@@ -158,6 +174,12 @@ namespace NMib
 			virtual TCContinuation<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
 			virtual TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
 			virtual TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) = 0;
+			
+			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CHostPermissions>> f_EnumHostPermissions(bool _bIncludeFullInfo) = 0;
+ 			virtual TCContinuation<CHostPermissions> f_GetHostPermissions(NStr::CStr const &_HostID) = 0;
+			virtual TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) = 0;
+			virtual TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) = 0;
+			virtual TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) = 0;
 		};
 	}
 }

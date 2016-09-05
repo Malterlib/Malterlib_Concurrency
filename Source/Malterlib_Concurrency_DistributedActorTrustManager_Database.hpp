@@ -131,8 +131,25 @@ namespace NMib
 				uint32 Version;
 				_Stream >> Version;
 				if (Version > EVersion)
-					DMibError("Invalid client connection version");
+					DMibError("Invalid namespace version");
 				_Stream >> m_AllowedHosts;
+			}
+			
+			template <typename tf_CStream>
+			void CHostPermissions::f_Feed(tf_CStream &_Stream) const
+			{
+				_Stream << EVersion;
+				_Stream << m_Permissions;
+			}
+			
+			template <typename tf_CStream>
+			void CHostPermissions::f_Consume(tf_CStream &_Stream)
+			{
+				uint32 Version;
+				_Stream >> Version;
+				if (Version > EVersion)
+					DMibError("Invalid host permissions version");
+				_Stream >> m_Permissions;
 			}
 		}
 	}

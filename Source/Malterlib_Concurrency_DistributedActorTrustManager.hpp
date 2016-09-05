@@ -121,18 +121,14 @@ namespace NMib
 			
 			TCContinuation<TCTrustedActorSubscription<t_CActor>> Continuation;
 			
-			fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState) > Continuation / [pState, Continuation]()
+			fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState) 
+				> Continuation / [pState, Continuation](NContainer::TCSet<TCDistributedActor<CActor>> &&_Actors)
 				{
 					TCTrustedActorSubscription<t_CActor> Result;
 					Result.mp_pState = pState;
 					pState->m_pSubscription = &Result;
-					
-					if (pState->m_pActors)
-					{
-						auto &Actors = *pState->m_pActors;
-						for (auto &Actor : Actors)
-							Result.m_Actors[(TCDistributedActor<t_CActor> &)Actor];
-					}
+					for (auto &Actor : _Actors)
+						Result.m_Actors[(TCDistributedActor<t_CActor> &)Actor];
 					Continuation.f_SetResult(fg_Move(Result));
 				}
 			;
@@ -142,13 +138,13 @@ namespace NMib
 		template <typename t_CActor>
 		void TCTrustedActorSubscription<t_CActor>::f_OnNewActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor)> &&_fOnNewActor)
 		{
-			mp_pState->m_fOnNewActor = _fOnNewActor;
+			mp_pState->m_fOnNewActor = fg_Move(_fOnNewActor);
 		}
 		
 		template <typename t_CActor>
 		void TCTrustedActorSubscription<t_CActor>::f_OnRemoveActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor)
 		{
-			mp_pState->m_fOnRemovedActor = _fOnRemovedActor;
+			mp_pState->m_fOnRemovedActor = fg_Move(_fOnRemovedActor);
 		}
 		
 		template <typename t_CActor>
@@ -203,6 +199,26 @@ namespace NMib
 				)
 				> fg_DiscardResult() 
 			;
+		}
+		
+		template <typename ...tfp_CPermission>
+		bool CTrustedPermissionSubscription::f_HostHasAnyPermission(NStr::CStr const &_Host, tfp_CPermission const &...p_Permission) const
+		{
+			bool bHasPermission = false;
+			fg_Swallow
+				(
+					[&]
+					{
+						if (bHasPermission)
+							return true;
+						if (f_HostHasPermission(_Host, p_Permission))
+							bHasPermission = true;
+						return true;
+					}
+					()...
+				)
+			;
+			return bHasPermission;
 		}
 	}
 }

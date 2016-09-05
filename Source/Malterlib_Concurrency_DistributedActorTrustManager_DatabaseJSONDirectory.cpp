@@ -67,6 +67,8 @@ namespace NMib
 			void f_FromJSON(CListenConfig &_ListenConfig, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 			NEncoding::CEJSON f_ToJSON(CNamespace const &_Namespace) const;
 			void f_FromJSON(CNamespace &_Namespace, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
+			NEncoding::CEJSON f_ToJSON(CHostPermissions const &_HostPermissions) const;
+			void f_FromJSON(CHostPermissions &_HostPermissions, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 		};
 		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory)
@@ -502,6 +504,78 @@ namespace NMib
 				}
 			;
 		}		
+
+		TCContinuation<NContainer::TCMap<NStr::CStr, CHostPermissions>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumHostPermissions(bool _bIncludeFullInfo)
+		{
+			return TCContinuation<NContainer::TCMap<NStr::CStr, CHostPermissions>>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					NContainer::TCMap<NStr::CStr, CHostPermissions> HostPermissions;
+					for (auto &HostID : Internal.f_Find("HostPermissions"))
+					{
+						auto &HostPermission = HostPermissions[HostID];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(HostPermission, "HostPermissions", HostID);
+							
+					}
+					return HostPermissions;
+				}
+			;
+		}
+		
+		TCContinuation<CHostPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetHostPermissions(NStr::CStr const &_HostID)
+		{
+			return TCContinuation<CHostPermissions>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					
+					CHostPermissions HostPermissions;
+					if (!Internal.f_Read(HostPermissions, "HostPermissions", _HostID))
+						DMibError("No host permissions for that host ID");
+					return HostPermissions;
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (Internal.f_Exists("HostPermissions", _HostID))
+						DMibError("Host permissions already exists for that host ID");
+					Internal.f_Write(_HostPermissions, "HostPermissions", _HostID);
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Exists("HostPermissions", _HostID))
+						DMibError("No host permissions for that host ID");
+					Internal.f_Write(_HostPermissions, "HostPermissions", _HostID);
+				}
+			;
+		}
+		
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveHostPermissions(NStr::CStr const &_HostID)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Delete("HostPermissions", _HostID))
+						DMibError("No host permissions for that host ID");
+				}
+			;
+		}
 		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::CInternal(NStr::CStr const &_BaseDirectory)
 			: m_BaseDirectory(_BaseDirectory)
@@ -736,6 +810,22 @@ namespace NMib
 			o_Namespace.m_AllowedHosts.f_Clear();
 			for (auto &AllowedHost : _JSON["AllowedHosts"].f_Array())
 				o_Namespace.m_AllowedHosts[AllowedHost.f_String()];
+		}
+		
+		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CHostPermissions const &_HostPermissions) const
+		{
+			NEncoding::CEJSON JSON;
+			auto &Permissions = JSON["Permissions"].f_Array();
+			for (auto &Permission : _HostPermissions.m_Permissions)
+				Permissions.f_Insert(Permission);
+			return JSON;
+		}
+
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CHostPermissions &o_HostPermissions, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		{
+			o_HostPermissions.m_Permissions.f_Clear();
+			for (auto &Permission : _JSON["Permissions"].f_Array())
+				o_HostPermissions.m_Permissions[Permission.f_String()];
 		}
 	}
 }

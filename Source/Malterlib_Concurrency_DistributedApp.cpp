@@ -40,7 +40,7 @@ namespace NMib
 		{
 			CStr FriendlyName = m_FriendlyName;
 			if (FriendlyName.f_IsEmpty())
-				FriendlyName = NProcess::NPlatform::fg_Process_GetComputerName(); 
+				FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName()); 
 			return fg_Format("{}/{}", FriendlyName, m_AppName);
 		}
 

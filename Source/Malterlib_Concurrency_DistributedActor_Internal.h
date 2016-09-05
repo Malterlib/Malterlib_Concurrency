@@ -172,7 +172,6 @@ namespace NMib
 				bool m_bOutgoing = false;
 				bool m_bAnonymous = false;
 				bool m_bDeleted = false;
-				
 			};
 			
 			struct CDistributedActorDataInternal : public NPrivate::CDistributedActorData

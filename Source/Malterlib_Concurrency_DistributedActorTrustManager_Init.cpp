@@ -64,6 +64,7 @@ namespace NMib
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumNamespaces, true)
+				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumHostPermissions, true)
 				> [this, Continuation]
 				(
 					TCAsyncResult<CBasicConfig> &&_BasicConfig 
@@ -71,6 +72,8 @@ namespace NMib
 					, TCAsyncResult<NContainer::TCSet<CListenConfig>> &&_ListenConfigs
 					, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> &&_ClientConnections
 					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
+					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CHostPermissions>> &&_HostPermissions
+				 
 				) mutable
 				{
 					if (!_BasicConfig)
@@ -83,8 +86,10 @@ namespace NMib
 						return Continuation.f_SetException(fg_Move(_ClientConnections));
 					if (!_Namespaces)
 						return Continuation.f_SetException(fg_Move(_Namespaces));
+					if (!_HostPermissions)
+						return Continuation.f_SetException(fg_Move(_HostPermissions));
 					
-					f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces);
+					f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces, *_HostPermissions);
 				}
 			;
 			
@@ -113,6 +118,7 @@ namespace NMib
 				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 				, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 				, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
+				, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
 			)
 		{
 			auto pCleanup = fg_OnScopeExitShared
@@ -287,6 +293,7 @@ namespace NMib
 					, _ServerCertificates
 					, _ClientConnections
 					, _Namespaces
+					, _HostPermissions
 					, pCleanup
 				]
 				(TCAsyncResult<void> &&_Result, TCAsyncResult<CActorSubscription> &&_HostInfoChangedSubscription, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_WriteDatabaseResults)
@@ -326,6 +333,14 @@ namespace NMib
 						auto &NamespaceState = m_Namespaces[NamespaceName];
 						NamespaceState.m_Namespace = Namespace;
 						NamespaceState.m_bExistsInDatabase = true;
+					}
+
+					for (auto &HostPermission : _HostPermissions)
+					{
+						auto &HostID = _HostPermissions.fs_GetKey(HostPermission);
+						auto &HostPermissionState = m_HostPermissions[HostID];
+						HostPermissionState.m_HostPermissions = HostPermission;
+						HostPermissionState.m_bExistsInDatabase = true;
 					}
 					
 					for (auto iClientConnection = _ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)

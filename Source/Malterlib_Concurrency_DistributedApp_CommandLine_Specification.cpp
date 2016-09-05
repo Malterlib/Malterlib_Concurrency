@@ -784,6 +784,7 @@ namespace NMib
 						, "Options"
 						, "SectionOptions"
 						, "DisableSectionOptions"
+						, "Category"
 					}
 				)
 			;
@@ -823,8 +824,10 @@ namespace NMib
 				for (auto &Status : pStatus->f_Object())
 					NewCommand.m_StatusDescription[Status.f_Name()] = Status.f_Value().f_String();
 			}
-			if (auto *pReturn = _CommandDescription.f_GetMember("Output"))
-				NewCommand.m_OutputDescription = pReturn->f_String();
+			if (auto *pOutput = _CommandDescription.f_GetMember("Output"))
+				NewCommand.m_OutputDescription = pOutput->f_String();
+			if (auto *pCategory = _CommandDescription.f_GetMember("Category"))
+				NewCommand.m_Category = pCategory->f_String();
 			if (auto *pErrorOnCommandAsParameter = _CommandDescription.f_GetMember("ErrorOnCommandAsParameter"))
 				NewCommand.m_bErrorOnCommandAsParameter = pErrorOnCommandAsParameter->f_Boolean();
 			if (auto *pErrorOnOptionAsParameter = _CommandDescription.f_GetMember("ErrorOnOptionAsParameter"))

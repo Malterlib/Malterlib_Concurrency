@@ -27,7 +27,12 @@ namespace NMib
 		{
 			f_Clear();
 		}
-		
+
+		bool CDistributedActorPublication::f_IsValid() const
+		{
+			return !mp_DistributionManager.f_IsEmpty();
+		}
+
 		void CDistributedActorPublication::f_Clear()
 		{
 			if (mp_DistributionManager)
@@ -38,6 +43,15 @@ namespace NMib
 				mp_DistributionManager.f_Clear();
 				mp_Namespace.f_Clear();
 				mp_ActorID.f_Clear();
+			}
+		}
+		
+		void CDistributedActorPublication::f_Republish(NStr::CStr const &_HostID) const
+		{
+			if (mp_DistributionManager)
+			{
+				if (auto DistributionManager = mp_DistributionManager.f_Lock())
+					DistributionManager(&CActorDistributionManager::fp_RepublishActorPublication, mp_Namespace, mp_ActorID, _HostID) > fg_DiscardResult();
 			}
 		}
 		
@@ -98,6 +112,59 @@ namespace NMib
 			Continuation.f_SetResult(CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID));
 			
 			return Continuation;
+		}
+
+		void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID)
+		{
+			TCContinuation<CDistributedActorPublication> Continuation;
+			auto &Internal = *mp_pInternal;
+			auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_NamespaceID);
+			if (!pLocalNamespace)
+				return;
+			auto &LocalNamespace = *pLocalNamespace;
+			auto *pPublishedActor = LocalNamespace.m_Actors.f_FindEqual(_ActorID);
+			if (!pPublishedActor)
+				return;
+			auto pHost = Internal.m_Hosts.f_FindEqual(_HostID);
+			if (!pHost)
+				return;
+			
+			auto &Host = **pHost;
+			
+			if (!Host.f_CanSendPublish())
+				return;
+			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_NamespaceID))
+				return;
+			if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
+				return;
+			
+			auto &PublishedActor = *pPublishedActor;
+
+			CDistributedActorCommand_Unpublish Unpublish;
+			Unpublish.m_ActorID = _ActorID;
+			Unpublish.m_Namespace = _NamespaceID;
+		
+			CDistributedActorCommand_Publish Publish;
+			Publish.m_ActorID = _ActorID;
+			Publish.m_Namespace = _NamespaceID;
+			Publish.m_Hierarchy = PublishedActor.m_Hierarchy; 
+
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> UnpublishData;
+			{
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+				Stream << Unpublish;
+				UnpublishData = Stream.f_MoveVector();
+			}
+			
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> PublishData;
+			{
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+				Stream << Publish;
+				PublishData = Stream.f_MoveVector();
+			}
+			
+			Internal.fp_QueuePacket(*pHost, fg_Move(UnpublishData));
+			Internal.fp_QueuePacket(*pHost, fg_Move(PublishData));
 		}
 
 		void CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr const &_Namespace, NStr::CStr const &_ActorID)

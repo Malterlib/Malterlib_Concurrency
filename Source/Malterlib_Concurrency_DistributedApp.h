@@ -99,6 +99,10 @@ namespace NMib
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts);
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_TrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
 			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_UntrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
+
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListHostPermissions(bool _bIncludeHosts);
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
+			TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
 			
 			TCContinuation<void> f_Destroy();
 

@@ -446,7 +446,7 @@ namespace NMib
 		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts)
 		{
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeTrustedHosts)
 				> Continuation / [Continuation, _bIncludeTrustedHosts](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
 				{
 					CStr Result;
@@ -508,6 +508,61 @@ namespace NMib
 			;
 			return Continuation;
 		}
+
+
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListHostPermissions(bool _bIncludeHosts)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, _bIncludeHosts)
+				> Continuation / [Continuation, _bIncludeHosts](NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> &&_Permissions)
+				{
+					CStr Result;
+					for (auto &Permission : _Permissions)
+					{
+						auto &PermissionName = _Permissions.fs_GetKey(Permission);
+						Result += fg_Format("{}\n", PermissionName);
+						if (_bIncludeHosts)
+						{
+							for (auto &Host : Permission)
+								Result += fg_Format("    {}\n", Host.f_GetDesc());
+						}
+					}
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported permissions to command line");
+					Continuation.f_SetResult(Result);
+				}
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_AddHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			NContainer::TCSet<NStr::CStr> Permissions;
+			Permissions[_Permission];
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, Permissions)
+				> Continuation / [Continuation, _HostID, _Permission]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permission '{}' to host '{}' from command line", _Permission, _HostID);
+					Continuation.f_SetResult(CStr());
+				}
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_RemoveHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			NContainer::TCSet<NStr::CStr> Permissions;
+			Permissions[_Permission];
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, Permissions)
+				> Continuation / [Continuation, _HostID, _Permission]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' from command line", _Permission, _HostID);
+					Continuation.f_SetResult(CStr());
+				}
+			;
+			return Continuation;
+		}
 		
 		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
@@ -533,7 +588,6 @@ namespace NMib
 			
 			return Continuation;
 		}
-
 		void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)
 		{
 			o_CommandLine.f_RegisterGlobalOptions
@@ -543,7 +597,7 @@ namespace NMib
 						{
 							"Names"_= {"--log-on-thread"}
 							, "Default"_= true
-							, "Description"_= "Do logging on a separate thread to minimally affect application performance and behavior"
+							, "Description"_= "Log on a separate thread to minimally affect application performance and behavior"
 						}
 						, "StdErrLogger?"_=
 						{
@@ -569,7 +623,7 @@ namespace NMib
 			;
 #endif
 			{
-				auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "These commands are used to manage connectability and trust between different hosts.");
+				auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "Use these commands to manage connectability and trust between different hosts.");
 				auto IncludeFriendlyNameOption = "IncludeFriendlyName?"_= 
 					{
 						"Names"_= {"--include-friendly-name"}
@@ -577,11 +631,13 @@ namespace NMib
 						, "Description"_= "Include friendly host name in output"
 					}
 				;
+				CStr Category = "Outgoing connections";
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-list-connections"}
-							, "Description"_= "Lists the outgoing addresses that the application tries to connect to.\n"
+							"Names"_= {"--trust-connection-list"}
+							, "Category"_= Category
+							, "Description"_= "List the outgoing addresses that the application tries to connect to.\n"
 							, "Output"_= "A new line separated list of outgoing connections."
 							, "Options"_=
 							{
@@ -598,7 +654,8 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-connection-status"}
-							, "Description"_= "Lists the status for all outgoing connections.\n"
+							, "Category"_= Category
+							, "Description"_= "List the status for all outgoing connections.\n"
 							, "Output"_= "A table with the status for outgoing connections."
 						}
 						, [this](CEJSON const &_Params)
@@ -610,7 +667,8 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-add-connection"}
+							"Names"_= {"--trust-connection-add"}
+							, "Category"_= Category
 							, "Description"_= "Add a connection to a remote distributed actor host.\n"
 								"The ticket encodes the url of the remote host and can usually be generated by the remote host by running --generate-connection-ticket.\n"
 								"A ticket can only be used once and expires after a set time.\n"
@@ -645,8 +703,9 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-add-additional-connection"}
-							, "Description"_= "Adds a connection to an already known host.\n"
+							"Names"_= {"--trust-connection-add-additional"}
+							, "Category"_= Category
+							, "Description"_= "Add a connection to an already trusted host.\n"
 							, "Output"_= "The host information for the remote server."
 							, "Parameters"_=
 							{
@@ -678,8 +737,9 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-remove-connection"}
-							, "Description"_= "Removes an outgoing connection\n"
+							"Names"_= {"--trust-connection-remove"}
+							, "Category"_= Category
+							, "Description"_= "Remove an outgoing connection\n"
 							, "Parameters"_=
 							{
 								"ConnectionURL"_= 
@@ -703,10 +763,59 @@ namespace NMib
 						}
 					)
 				;
+				Category = "Incoming connections trust";
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-trusted-list"}
+							, "Category"_= Category
+							, "Description"_= "List the incoming hosts that are trusted by this application.\n"
+							, "Output"_= "A line separated list of trusted connections."
+							, "Options"_=
+							{
+								IncludeFriendlyNameOption
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return f_CommandLine_ListTrustedHosts(_Params["IncludeFriendlyName"].f_Boolean());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-trusted-remove"}
+							, "Category"_= Category
+							, "Description"_= "Remove the incoming trust for a host id.\n"
+							, "Parameters"_=
+							{
+								"HostID"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The host ID of the host you want to remove trust for"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Remove trusted host"
+									, [this, _Params]
+									{
+										return f_CommandLine_RemoveTrustedHost(_Params["HostID"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
 				Distributed.f_RegisterCommand
 					(
 						{
 							"Names"_= {"--trust-generate-ticket"}
+							, "Category"_= Category
 							, "Description"_= "Generate a ticket that can be used to connect to this application from remote host.\n"
 								" The ticket encodes the url of this host."
 								" A ticket can only be used once and expires after a set time."
@@ -738,56 +847,13 @@ namespace NMib
 						}
 					)
 				;
+				Category = "Incoming connections listen";
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-list-trusted"}
-							, "Description"_= "Lists the hosts that are trusted by this application.\n"
-							, "Output"_= "A line separated list of trusted connections."
-							, "Options"_=
-							{
-								IncludeFriendlyNameOption
-							}
-						}
-						, [this](CEJSON const &_Params)
-						{
-							return f_CommandLine_ListTrustedHosts(_Params["IncludeFriendlyName"].f_Boolean());
-						}
-					)
-				;
-				Distributed.f_RegisterCommand
-					(
-						{
-							"Names"_= {"--trust-remove-trusted"}
-							, "Description"_= "Removes the trust for a host id.\n"
-							, "Parameters"_=
-							{
-								"HostID"_= 
-								{
-									"Type"_= ""
-									, "Description"_= "The host ID of the host you want to remove trust for"
-								}
-							}
-						}
-						, [this](CEJSON const &_Params)
-						{
-							return fp_RunCommandLineAndLogError
-								(
-									"Remove trusted host"
-									, [this, _Params]
-									{
-										return f_CommandLine_RemoveTrustedHost(_Params["HostID"].f_String());
-									}
-								)
-							;
-						}
-					)
-				;
-				Distributed.f_RegisterCommand
-					(
-						{
-							"Names"_= {"--trust-list-listen"}
-							, "Description"_= "Lists addresses that this application listens for incoming connections on.\n"
+							"Names"_= {"--trust-listen-list"}
+							, "Category"_= Category
+							, "Description"_= "List addresses that this application listens for incoming connections on.\n"
 							, "Output"_= "A new line separated list of listen addresses."
 						}
 						, [this](CEJSON const &_Params)
@@ -802,7 +868,8 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-add-listen"}
+							"Names"_= {"--trust-listen-add"}
+							, "Category"_= Category
 							, "Description"_= "Start listening for connections on address.\n"
 								+ OverwriteWarning
 							, "Parameters"_=
@@ -831,37 +898,8 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-set-primary-listen"}
-							, "Description"_= "Sets the primary listen URL.\n"
-								"This URL is the URL that will be used by default when --trust-generate-ticket is called without specifying the URL.\n"
-								+ OverwriteWarning
-							, "Parameters"_=
-							{
-								"ListenURL"_= 
-								{
-									"Type"_= ""
-									, "Description"_= "The address you want to use as the primary listen address."
-								}
-							}
-						}
-						, [this](CEJSON const &_Params)
-						{
-							return fp_RunCommandLineAndLogError
-								(
-									"Set primary listen address"
-									, [this, _Params]
-									{
-										return f_CommandLine_SetPrimaryListen(_Params["ListenURL"].f_String());
-									}
-								)
-							;
-						}
-					)
-				;
-				Distributed.f_RegisterCommand
-					(
-						{
-							"Names"_= {"--trust-remove-listen"}
+							"Names"_= {"--trust-listen-remove"}
+							, "Category"_= Category
 							, "Description"_= "Stop listening for connections on address.\n"
 								+ OverwriteWarning
 							, "Parameters"_=
@@ -890,8 +928,41 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-list-namespaces"}
-							, "Description"_= "Lists actor publication namespaces that this application publishes as well as the hosts that are trusted for those namespaces.\n"
+							"Names"_= {"--trust-listen-set-primary"}
+							, "Category"_= Category
+							, "Description"_= "Set the primary listen URL.\n"
+								"This URL is the URL that will be used by default when --trust-generate-ticket is called without specifying the URL.\n"
+								+ OverwriteWarning
+							, "Parameters"_=
+							{
+								"ListenURL"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The address you want to use as the primary listen address."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Set primary listen address"
+									, [this, _Params]
+									{
+										return f_CommandLine_SetPrimaryListen(_Params["ListenURL"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
+				Category = "Subscription trust";
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-namespace-list"}
+							, "Category"_= Category
+							, "Description"_= "List actor publication namespaces that this application publishes as well as the hosts that are trusted for those namespaces.\n"
 							, "Output"_= "A new line separated list of namespaces and the hosts that are trusted and untrusted."
 							, "Options"_=
 							{
@@ -913,6 +984,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-namespace-add-trusted-host"}
+							, "Category"_= Category
 							, "Description"_= "Trust a host for the specified namespace.\n"
 							, "Parameters"_=
 							{
@@ -950,6 +1022,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-namespace-remove-trusted-host"}
+							, "Category"_= Category
 							, "Description"_= "Untrust a host for the specified namespace.\n"
 							, "Parameters"_=
 							{
@@ -983,11 +1056,111 @@ namespace NMib
 						}
 					)
 				;
+				Category = "Host permissions";
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-permission-list"}
+							, "Category"_= Category
+							, "Description"_= "List host permissions.\n"
+							, "Output"_= "A new line separated list of permissions and the hosts that have those permissions."
+							, "Options"_=
+							{
+								"IncludeHosts?"_= 
+								{
+									"Names"_= {"--include-hosts"}
+									, "Default"_= true
+									, "Description"_= "Include the hosts that have the permissions in the output"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return f_CommandLine_ListHostPermissions(_Params["IncludeHosts"].f_Boolean());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-permission-add-host"}
+							, "Category"_= Category
+							, "Description"_= "Add a permission to a host.\n"
+							, "Parameters"_=
+							{
+								"PermissionHost"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The host to add a permission to."
+								}
+							}
+							, "Options"_=
+							{
+								"Permission"_= 
+								{
+									"Names"_= {"--permission"}
+									, "Type"_= ""
+									, "Description"_= "The permission to add to the host."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Trusted host for namespace"
+									, [this, _Params]
+									{
+										return f_CommandLine_AddHostPermission(_Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-permission-remove-host"}
+							, "Category"_= Category
+							, "Description"_= "Remove a permission to a host.\n"
+							, "Parameters"_=
+							{
+								"PermissionHost"_= 
+								{
+									"Type"_= ""
+									, "Description"_= "The host to remove a permission from."
+								}
+							}
+							, "Options"_=
+							{
+								"Permission"_= 
+								{
+									"Names"_= {"--permission"}
+									, "Type"_= ""
+									, "Description"_= "The permission to remove from the host."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Trusted host for namespace"
+									, [this, _Params]
+									{
+										return f_CommandLine_RemoveHostPermission(_Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+									}
+								)
+							;
+						}
+					)
+				;
 				Distributed.f_RegisterCommand
 					(
 						{
 							"Names"_= {"--trust-host-id"}
-							, "Description"_= "Gets the host ID for this application.\n"
+							, "Description"_= "Get the host ID for this application.\n"
 							, "Output"_= "The host ID of this application."
 						}
 						, [this](CEJSON const &_Params)

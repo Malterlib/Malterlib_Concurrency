@@ -55,8 +55,8 @@ namespace NMib
 
 			struct CNamespaceTypeState
 			{
-				NContainer::TCSet<NPtr::TCSharedPointer<CTrustedActorSubscriptionState>> m_Subscriptions;
-				NPtr::TCSharedPointer<NContainer::TCSet<TCDistributedActor<CActor>>> m_pAllowedActors = fg_Construct();
+				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
+				NContainer::TCSet<TCDistributedActor<CActor>> m_AllowedActors;
 				NContainer::TCMap<NStr::CStr, NContainer::TCSet<TCDistributedActor<CActor>>> m_HostToActors;
 				NContainer::TCMap<TCDistributedActor<CActor>, NStr::CStr> m_ActorToHost;
 			};
@@ -72,6 +72,22 @@ namespace NMib
 				NContainer::TCVector<NFunction::TCFunction<bool (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
 				
 				inline NStr::CStr const &f_GetNamespaceName() const;
+			};
+
+			struct CHostPermissionState
+			{
+				NDistributedActorTrustManagerDatabase::CHostPermissions m_HostPermissions;
+				bool m_bExistsInDatabase = false;
+				
+				inline NStr::CStr const &f_GetHostID() const;
+			};
+			
+			struct CHostPermissionSubscriptionState
+			{
+				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
+				NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> m_Permissions;
+
+				inline NStr::CStr const &f_GetPermission() const;
 			};
 			
 			struct CTicketInterface : public CActor
@@ -116,6 +132,7 @@ namespace NMib
 					, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 					, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
+					, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
 				)
 			;
 			
@@ -157,6 +174,10 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
 			
 			NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
+			
+			NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
+			NContainer::TCMap<NStr::CStr, CHostPermissionState> m_HostPermissions;
+			NContainer::TCMap<NStr::CStr, CHostPermissionSubscriptionState> m_HostPermissionsSubscriptions;
 			
 			NTime::CTimer m_TicketTimer;
 			

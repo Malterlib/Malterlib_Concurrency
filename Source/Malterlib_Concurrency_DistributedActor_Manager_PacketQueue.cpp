@@ -21,7 +21,7 @@ namespace NMib
 			}	
 		}
 
-		void CActorDistributionManager::CInternal::fp_SendPacket(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_pMessage)
+		void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_pMessage)
 		{
 			if (!_pConnection->m_Connection)
 				return;
@@ -37,7 +37,7 @@ namespace NMib
 			;
 		}
 		
-		uint64 CActorDistributionManager::CInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
+		uint64 CActorDistributionManagerInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
 		{
 			auto PacketID = ++_pHost->m_Outgoing_CurrentPacketID;
 			DMibLog(DebugVerbose2, " ---- {} Queueing packet {}", _pHost->m_bIncoming, PacketID);
@@ -49,14 +49,14 @@ namespace NMib
 				Stream << PacketID;
 			}
 			
-			NPtr::TCUniquePointer<CInternal::CPacket> pPacket = fg_Construct(fg_Construct(_Data));
+			NPtr::TCUniquePointer<CActorDistributionManagerInternal::CPacket> pPacket = fg_Construct(fg_Construct(_Data));
 			_pHost->m_Outgoing_QueuedPackets.f_Insert(pPacket.f_Detach());
 			fp_SendPacketQueue(_pHost);
 			
 			return PacketID;
 		}
 		
-		void CActorDistributionManager::CInternal::fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost)
+		void CActorDistributionManagerInternal::fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost)
 		{
 			if (_pHost->m_ActiveConnections.f_IsEmpty())
 				return; // No connections to send over
@@ -83,7 +83,7 @@ namespace NMib
 			_pHost->m_pLastSendConnection = iConnection; 
 		}
 		
-		void CActorDistributionManager::CInternal::fp_ProcessPacketQueue(CConnection *_pConnection)
+		void CActorDistributionManagerInternal::fp_ProcessPacketQueue(CConnection *_pConnection)
 		{
 			auto &pHost = _pConnection->m_pHost;
 			uint64 AckPacket;
@@ -138,6 +138,15 @@ namespace NMib
 					case EDistributedActorCommand_Unpublish:
 						{
 							if (!fp_HandleUnpublishPacket(_pConnection, Stream))
+							{
+								// TODO: Handle malicious connection
+								return;
+							}
+						}
+						break;
+					case EDistributedActorCommand_DestroySubscription:
+						{
+							if (!fp_HandleDestroySubscription(_pConnection, Stream))
 							{
 								// TODO: Handle malicious connection
 								return;

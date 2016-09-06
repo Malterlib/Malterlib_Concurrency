@@ -29,6 +29,30 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		template <typename ...tfp_CToPublish>
+		CDistributedActorInheritanceHeirarchyPublish CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy()
+		{
+			CDistributedActorInheritanceHeirarchyPublish Ret;
+			
+			TCInitializerList<bool> Dummy = 
+				{
+					[&]
+					{
+						Ret.mp_Hierarchy.f_Insert(fg_GetTypeHash<tfp_CToPublish>());
+						return true;
+					}
+					()...
+				}
+			;
+			(void)Dummy;
+			
+			return Ret;
+		}
+		NContainer::TCVector<uint32> const &CDistributedActorInheritanceHeirarchyPublish::f_GetHierarchy() const
+		{
+			return mp_Hierarchy;
+		}
+		
 		template <typename tf_CActor, typename tf_CActorSource>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_StaticCast(TCActor<TCDistributedActorWrapper<tf_CActorSource>> const &_Actor)
 		{
@@ -37,80 +61,15 @@ namespace NMib
 
 			return reinterpret_cast<TCActor<TCDistributedActorWrapper<tf_CActor>> const &>(_Actor);
 		}
-		
-		
-		namespace NPrivate
+
+		template <typename tf_CFirst>
+		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy()
 		{
+			NContainer::TCVector<uint32> Return;
 			
-			template <typename t_CType>
-			struct TCRemoveContinuation
-			{
-				using CType = t_CType;
-			};
+			NPrivate::fg_GetDistributedActorInheritanceHierarchy<tf_CFirst>(Return);
 			
-			template <typename t_CType>
-			struct TCRemoveContinuation<TCContinuation<t_CType>>
-			{
-				using CType = t_CType;
-			};
-
-			struct CSubSystem_Concurrency_DistributedActor : public CSubSystem
-			{
-				CSubSystem_Concurrency_DistributedActor();
-				~CSubSystem_Concurrency_DistributedActor();
-
-				struct CThreadLocal
-				{
-					CCallingHostInfo m_CallingHostInfo;
-				};
-				
-				NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;
-			};
-			
-			CSubSystem_Concurrency_DistributedActor &fg_DistributedActorSubSystem();
-
-			template <typename tf_CResult>
-			bool fg_CopyReplyToContinuationShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCContinuation<tf_CResult> &_Continuation)
-			{
-				uint8 bException;
-				_Stream >> bException;
-				
-				if (bException)
-				{
-					uint32 TypeHash;
-					_Stream >> TypeHash;
-					
-					auto &TypeRegistry = fg_RuntimeTypeRegistry();
-					auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
-					
-					if (!pEntry)
-					{
-						_Continuation.f_SetException(DMibErrorInstance("Unknown exception type received"));
-						return true;
-					}
-					
-					_Continuation.f_SetException(pEntry->f_Consume(_Stream));
-					
-					return true;
-				}
-				return false;
-			}
-			
-			template <typename tf_CResult>
-			void fg_CopyReplyToContinuation(TCContinuation<tf_CResult> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
-			{
-				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
-				ReplyStream.f_OpenRead(_Data);
-				if (fg_CopyReplyToContinuationShared(ReplyStream, _Continuation))
-					return;
-				tf_CResult Result;
-				ReplyStream >> Result;
-				
-				_Continuation.f_SetResult(fg_Move(Result));
-			}
-
-			template <>
-			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data);
+			return Return;
 		}
 		
 		template <typename t_CActor>
@@ -176,32 +135,6 @@ namespace NMib
 			;
 		}
 		
-		namespace NPrivate
-		{
-			template <typename t_CTypes>
-			struct TCStreamArguments
-			{
-				
-			};
-			template <typename ...tp_CParam>
-			struct TCStreamArguments<NMeta::TCTypeList<tp_CParam...>>
-			{
-				template <typename tf_CStream>
-				static void fs_Stream(tf_CStream &_Stream, typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tp_CParam>::CType>::CType const &...p_Params)
-				{
-					TCInitializerList<bool> Dummy = 
-						{
-							[&]
-							{
-								_Stream << p_Params; return true;
-							}()...
-						}
-					;
-					(void)Dummy;
-				}
-			};
-		}
-		
 		template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
 		auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
 		{
@@ -213,18 +146,20 @@ namespace NMib
 			
 			if (pActorDataRaw && pActorDataRaw->m_bRemote) // Only when remote
 			{
-				DMibConcurrencyRegisterMemberFunction(tf_CMemberFunction, t_pMemberFunction, t_NameHash);
+				DMibConcurrencyRegisterMemberFunctionWithStreamContext(tf_CMemberFunction, t_pMemberFunction, t_NameHash, NPrivate::CDistributedActorStreamContextReceiving);
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 				Stream << uint8(0); // Dummy command
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;				
 				Stream << t_NameHash;
 				
-				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream(Stream, p_Params...);
+				NPrivate::CDistributedActorStreamContextSending Context;
+				
+				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream(Stream, Context, p_Params...);
 				
 				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 				
-				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData)]() mutable
+				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData), Context]() mutable
 					{
 						TCContinuation<CReturn> Continuation;
 						
@@ -235,9 +170,9 @@ namespace NMib
 							Continuation.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
 							return Continuation;
 						}
-						
-						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data))
-							> [Continuation](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+
+						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data), Context)
+							> [Continuation, Context](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
 							{
 								if (!_Result)
 								{
@@ -247,7 +182,7 @@ namespace NMib
 								try
 								{
 									NException::CDisableExceptionTraceScope DisableTrace;
-									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result);
+									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result, Context);
 								}
 								catch (NException::CException const &_Exception)
 								{
@@ -289,6 +224,71 @@ namespace NMib
 				)
 			;
 		}
+		
+		template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
+		void NPrivate::TCStreamFunctionReceive<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Consume(CReadStream &_Stream)
+		{
+			NStr::CStr FunctionID;
+			_Stream >> FunctionID;
+			m_fFunction = [FunctionID](tp_CParams ...p_Params) -> TCContinuation<t_CReturn>
+				{
+					auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
+
+					auto *pActorDataRaw = static_cast<CDistributedActorData *>(ThreadLocal.m_pCurrentRemoteDispatchActorData);
+
+					if (!pActorDataRaw)
+						return DMibErrorInstance("This functions needs to be dispatched on a remote actor");
+					
+					if (!pActorDataRaw->m_bRemote)
+						return DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
+					
+					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+					Stream << uint8(0); // Dummy command
+					Stream << uint64(0); // Dummy packet ID
+					Stream << pActorDataRaw->m_ActorID;				
+					Stream << 0;
+					Stream << FunctionID;
+					
+					CDistributedActorStreamContextSending Context;
+					
+					TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, p_Params...);
+					
+					auto pActorData = NPtr::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
+					
+					TCContinuation<t_CReturn> Continuation;
+					
+					TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
+					
+					if (!DistributionManager)
+					{
+						Continuation.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
+						return Continuation;
+					}
+
+					DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
+						> [Continuation, Context](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+						{
+							if (!_Result)
+							{
+								Continuation.f_SetException(fg_Move(_Result));
+								return;
+							}
+							try
+							{
+								NException::CDisableExceptionTraceScope DisableTrace;
+								fg_CopyReplyToContinuation(Continuation, *_Result, Context);
+							}
+							catch (NException::CException const &_Exception)
+							{
+								Continuation.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+							}								
+						}
+					;
+					return Continuation;
+				}
+			;
+		}
+		
 		
 		template <typename tf_CStream>
 		void CActorDistributionCryptographySettings::f_Feed(tf_CStream &_Stream) const

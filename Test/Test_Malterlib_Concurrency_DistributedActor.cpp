@@ -56,7 +56,20 @@ namespace
 	{
 		zuint32 m_Value;
 		TCMap<CStr, CActorSubscription> m_CallingHostTests;
+		TCActorSubscriptionManager<void (CStr const &_Test), true> m_Callbacks;
+		
+		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_Callback[2]; 
+		TCActor<CActor> m_Actor[2];
+
+		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_CallbackNoSub; 
+		TCActor<CActor> m_ActorNoSub;
+		
 	public:
+		
+		CDistributedActor()
+			: m_Callbacks(this, false)
+		{
+		}
 		void f_AddInt(uint32 _Value)
 		{
 			m_Value += _Value;
@@ -71,6 +84,150 @@ namespace
 		void f_AddIntVirtual(uint32 _Value) override
 		{
 			m_Value += _Value;
+		}
+		
+		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<void> (CStr const &_Test)> const &_Callback)
+		{
+			return m_Callbacks.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
+		}
+
+		CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		{
+			m_Callback[_iCallback] = _Callback;
+			m_Actor[_iCallback] = _Actor;
+			return fg_Construct();
+		}
+
+		CActorSubscription f_RegisterDual
+			(
+				TCActor<CActor> const &_Actor
+				, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback0
+				, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback1
+			)
+		{
+			m_Callback[0] = _Callback0;
+			m_Callback[1] = _Callback1;
+			m_Actor[0] = _Actor;
+			 return fg_Construct();
+		}
+
+		TCContinuation<CStr> f_CallDual(CStr const &_Message)
+		{
+			TCContinuation<CStr> Result;
+			fg_Dispatch
+				(
+					m_Actor[0]
+					, [_Message, Callback = m_Callback[0]]
+					{
+						return Callback(_Message);
+					}
+				)
+				+ fg_Dispatch
+				(
+					m_Actor[0]
+					, [_Message, Callback = m_Callback[1]]
+					{
+						return Callback(_Message);
+					}
+				) 
+				> Result / [Result](CStr &&_Result0, CStr &&_Result1)
+				{
+					Result.f_SetResult(_Result0 + _Result1);
+				}	
+			;
+			return Result;
+		}
+		
+		TCContinuation<CActorSubscription> f_RegisterWithError(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		{
+			return DMibErrorInstance("Register failed");			
+		}
+
+		void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		{
+			m_CallbackNoSub = _Callback;
+			m_ActorNoSub = _Actor;
+		}
+
+		CActorSubscription f_RegisterNoActor(TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		{
+			m_CallbackNoSub = _Callback;
+			return fg_Construct();
+		}
+
+		CActorSubscription f_RegisterNoFunction(TCActor<CActor> const &_Actor)
+		{
+			m_ActorNoSub = _Actor;
+			return fg_Construct();
+		}
+
+		TCContinuation<CStr> f_CallNoSubscription(CStr const &_Message)
+		{
+			TCContinuation<CStr> Result;
+			fg_Dispatch
+				(
+					m_ActorNoSub
+					, [_Message, Callback = m_CallbackNoSub]
+					{
+						return Callback(_Message);
+					}
+				)
+				> Result
+			;
+			return Result;
+		}
+		
+		TCContinuation<CStr> f_CallCallback(uint32 _iCallback, CStr const &_Message)
+		{
+			TCContinuation<CStr> Result;
+			fg_Dispatch
+				(
+					m_Actor[_iCallback]
+					, [_Message, Callback = m_Callback[_iCallback]]
+					{
+						return Callback(_Message);
+					}
+				)
+				> Result
+			;
+			return Result;
+		}
+
+		TCContinuation<CStr> f_CallCallbackWithoutDispatch(uint32 _iCallback, CStr const &_Message)
+		{
+			return m_Callback[_iCallback](_Message);
+		}
+
+		TCContinuation<CStr> f_CallWrong(CStr const &_Message)
+		{
+			TCContinuation<CStr> Result;
+			fg_Dispatch
+				(
+					m_Actor[0]
+					, [_Message, Callback = m_Callback[1]]
+					{
+						return Callback(_Message);
+					}
+				)
+				> Result
+			;
+			return Result;
+		}
+		
+		void f_ClearCallback(mint _iCallback)
+		{
+			m_Callback[_iCallback].f_Clear();
+			m_Actor[_iCallback].f_Clear();
+		}
+		
+		void f_CallRegisteredCallbacks(CStr const &_Message)
+		{
+			m_Callbacks(_Message);
+		}
+		
+		uint8 f_CallbacksEmpty()
+		{
+			return m_Callbacks.f_IsEmpty();
 		}
 		
 		uint32 f_GetResultVirtual() override
@@ -192,7 +349,7 @@ namespace
 	
 	class CDistributedActor_Tests : public NMib::NTest::CTest
 	{
-		void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor)
+		void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor, bool _bRemote)
 		{
 			DMibTestSuite("Direct")
 			{
@@ -272,8 +429,171 @@ namespace
 
 				DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
 				DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
+			}; 
+			DMibTestSuite("Callbacks")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto TestActor = fg_ConcurrentActor();
+				CMutual Lock;
+				CEventAutoReset Event;
+				CStr Message;
+				auto fCallBack = [&](CStr const &_Message) -> TCContinuation<void>
+					{
+						DMibLock(Lock);
+						Message = _Message;
+						Event.f_Signal();
+						
+						return fg_Explicit();
+					}
+				;
+				
+				auto fWaitForMessage = [&]() -> NStr::CStr
+					{
+						CStr ReceivedMessage;
+						bool bTimedOut = false;
+						while (!bTimedOut)
+						{
+							{
+								DMibLock(Lock);
+								if (!Message.f_IsEmpty())
+								{
+									ReceivedMessage = Message;
+									break;
+								}
+							}
+							bTimedOut = Event.f_WaitTimeout(10.0);
+						}
+						
+						return ReceivedMessage;
+					}
+				;
+				
+				auto Subscription = DMibCallActor(Actor, CDistributedActor::f_RegisterCallback, TestActor, fCallBack).f_CallSync(60.0);
+
+				bool bCallbacksEmpty = DMibCallActor(Actor, CDistributedActor::f_CallbacksEmpty).f_CallSync(60.0);
+				
+				DMibExpectFalse(bCallbacksEmpty);
+				
+				DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallbacks, "TestMessage").f_CallSync(60.0);
+
+				DMibExpect(fWaitForMessage(), ==, "TestMessage");
+
+				Subscription.f_Clear();
+				
+				bCallbacksEmpty = DMibCallActor(Actor, CDistributedActor::f_CallbacksEmpty).f_CallSync(60.0);
+				DMibExpectTrue(bCallbacksEmpty);
+				
+				auto fCallback0 = [](CStr const &_Message) -> TCContinuation<CStr>
+					{
+						return fg_Explicit(_Message + "0");
+					}
+				;
+
+				auto fCallback1 = [](CStr const &_Message) -> TCContinuation<CStr>
+					{
+						return fg_Explicit(_Message + "1");
+					}
+				;
+				
+				TCActor<> TestActor0 = fg_ConstructActor<CActor>();
+				TCActor<> TestActor1 = fg_ConstructActor<CActor>();
+
+				auto fRegisterWithError = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_RegisterWithError, TestActor0, fCallback0).f_CallSync(60.0);
+					}
+				;
+				DMibExpectException(fRegisterWithError(), DMibErrorInstance("Register failed"));
+				
+				auto fRegisterWithoutSubscription = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_RegisterNoSubscription, TestActor0, fCallback0).f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fRegisterWithoutSubscription(), DMibErrorInstance("Invalid set of parameter and return types"));
+
+				auto fCallNoSubscription = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_CallNoSubscription, "TestMessage").f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fCallNoSubscription(), DMibErrorInstance("Subscription has been removed"));
+
+				auto fRegisterNoActor = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_RegisterNoActor, fCallback0).f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fRegisterNoActor(), DMibErrorInstance("You must have one and only one actor in the function arguments if you include a functor"));
+
+				auto fRegisterNoFunction = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_RegisterNoFunction, TestActor0).f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fRegisterNoFunction(), DMibErrorInstance("You must have at least one function in arguments if you include an actor"));
+				
+				auto Subscription0 = DMibCallActor(Actor, CDistributedActor::f_RegisterManualCallback, 0, TestActor0, fCallback0).f_CallSync(60.0);
+				auto Subscription1 = DMibCallActor(Actor, CDistributedActor::f_RegisterManualCallback, 1, TestActor1, fCallback1).f_CallSync(60.0);
+				
+				CStr ReturnMessage0 = DMibCallActor(Actor, CDistributedActor::f_CallCallback, 0, "TestMessage").f_CallSync(60.0);
+				DMibExpect(ReturnMessage0, ==, "TestMessage0");
+
+				CStr ReturnMessage1 = DMibCallActor(Actor, CDistributedActor::f_CallCallback, 1, "TestMessage").f_CallSync(60.0);
+				DMibExpect(ReturnMessage1, ==, "TestMessage1");
+
+				auto fCallWrong = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_CallWrong, "TestMessage").f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fCallWrong(), DMibErrorInstance("Trying to call function on wrong dispatch actor"));
+				
+				auto fCallWithoutDispatch = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_CallCallbackWithoutDispatch, 0, "TestMessage").f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fCallWithoutDispatch(), DMibErrorInstance("This functions needs to be dispatched on a remote actor"));
+				
+				Subscription0.f_Clear();
+
+				auto fCallRemoved = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_CallCallback, 0, "TestMessage").f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fCallRemoved(), DMibErrorInstance("Subscription has been removed"));
+
+				TestActor1->f_BlockDestroy();
+				
+				auto fCallDestroyed = [&]
+					{
+						DMibCallActor(Actor, CDistributedActor::f_CallCallback, 1, "TestMessage").f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+					DMibExpectException(fCallDestroyed(), DMibErrorInstance("Actor 'NMib::NConcurrency::CActor' called has been deleted"));
+				
+				TestActor1.f_Clear();
+
+				if (_bRemote)
+					DMibExpectException(fCallDestroyed(), DMibErrorInstance("Remote dispatch actor no longer exists"));
+				
+				Subscription1.f_Clear();
 				
 				
+				auto SubscriptionDual = DMibCallActor(Actor, CDistributedActor::f_RegisterDual, TestActor0, fCallback0, fCallback1).f_CallSync(60.0);
+
+				CStr ReturnMessageDual = DMibCallActor(Actor, CDistributedActor::f_CallDual, "TestMessage").f_CallSync(60.0);
+				DMibExpect(ReturnMessageDual, ==, "TestMessage0TestMessage1");
 			}; 
 		}
 		
@@ -499,6 +819,7 @@ namespace
 						{
 							return fg_ConstructDistributedActor<CDistributedActor>();
 						}
+						, false
 					)
 				;
 			};
@@ -550,6 +871,7 @@ namespace
 							
 							return Actor;
 						}
+						, false
 					)
 				;
 			};

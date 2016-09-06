@@ -131,7 +131,7 @@ namespace NMib
 			;
 		}
 		
-		void CActorDistributionManager::CInternal::fp_ScheduleReconnect
+		void CActorDistributionManagerInternal::fp_ScheduleReconnect
 			(
 				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
 				, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
@@ -161,7 +161,7 @@ namespace NMib
 			;
 		}
 		
-		void CActorDistributionManager::CInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
+		void CActorDistributionManagerInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
 		{
 			_Connection.f_Destroy(_Error);
 			auto &pHost = _Connection.m_pHost; 
@@ -174,7 +174,7 @@ namespace NMib
 			m_ClientConnections.f_Remove(_Connection.m_ConnectionID);
 		}
 
-		void CActorDistributionManager::CInternal::fp_Reconnect
+		void CActorDistributionManagerInternal::fp_Reconnect
 			(
 				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
 				, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
@@ -250,7 +250,7 @@ namespace NMib
 					try
 					{
 						NException::CDisableExceptionTraceScope DisableTrace;
-						HostID = fs_GetCertificateHostID(pSocketInfo->m_PeerCertificate);
+						HostID = CActorDistributionManager::fs_GetCertificateHostID(pSocketInfo->m_PeerCertificate);
 						if (HostID.f_IsEmpty())
 						{
 							NStr::CStr Error = "Missing or incorrect Host ID in server certificate";
@@ -445,7 +445,7 @@ namespace NMib
 		}
 
 		template <typename tf_CReturnType>
-		bool CActorDistributionManager::CInternal::fp_DecodeClientConnectionSettings
+		bool CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings
 			(
 				CActorDistributionConnectionSettings const &_Settings
 				, TCContinuation<tf_CReturnType> &_Continuation
@@ -478,7 +478,7 @@ namespace NMib
 				ClientSettings.m_CACertificateData = _Settings.m_PublicServerCertificate;
 				try
 				{
-					RealHostID = UniqueHostID = fs_GetCertificateHostID(_Settings.m_PublicServerCertificate);
+					RealHostID = UniqueHostID = CActorDistributionManager::fs_GetCertificateHostID(_Settings.m_PublicServerCertificate);
 				}
 				catch (NException::CException const &_Exception)
 				{
@@ -508,7 +508,7 @@ namespace NMib
 			
 			TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
 			
-			CInternal::CDecodedClientConnectionSetting DecodedSettings;
+			CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
 			if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
 				return Continuation;
 
@@ -588,7 +588,7 @@ namespace NMib
 			auto &Host = *Connection.m_pHost;
 		
 			TCContinuation<void> Continuation;
-			CInternal::CDecodedClientConnectionSetting DecodedSettings;
+			CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
 			if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
 				return Continuation;
 			

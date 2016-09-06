@@ -29,11 +29,27 @@ namespace NMib
 		
 		namespace NPrivate
 		{
+			struct CDefaultStreamContext
+			{
+				template <typename tf_CType>
+				static tf_CType const &f_GetValueForFeed(tf_CType const &_Value)
+				{
+					return _Value;
+				}
+				
+				template <typename tf_CType>
+				static tf_CType &f_GetValueForConsume(tf_CType &_Value)
+				{
+					return _Value;
+				}
+			};
+			
 			template 
 			<
 				typename t_CMemberFunction
 				, t_CMemberFunction t_pMemberFunction
 				, uint32 t_NameHash
+				, typename t_CStreamContext 
 				, typename t_CReturn = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CReturn
 			>
 			struct TCRuntimeTypeRegistryEntry_MemberFunction final : public CRuntimeTypeRegistryEntry_MemberFunction
@@ -57,8 +73,9 @@ namespace NMib
 				;
 			};
 
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
-			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, void> final : public CRuntimeTypeRegistryEntry_MemberFunction
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext>
+			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext, void> final 
+				: public CRuntimeTypeRegistryEntry_MemberFunction
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunction();
 				template <mint... tfp_Indices, typename... tfp_CParams>
@@ -80,8 +97,9 @@ namespace NMib
 				;
 			};
 			
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CResult>
-			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, NConcurrency::TCContinuation<t_CResult>> final : public CRuntimeTypeRegistryEntry_MemberFunction
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CResult>
+			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext, NConcurrency::TCContinuation<t_CResult>> final 
+				: public CRuntimeTypeRegistryEntry_MemberFunction
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunction();
 				
@@ -104,20 +122,23 @@ namespace NMib
 				;
 			};
 
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext>
 			struct TCRuntimeTypeRegistryEntry_MemberFunctionInit
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunctionInit();
 			};
 
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash>
+			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext = CDefaultStreamContext>
 			struct TCMemberFunctionRegistry
 			{
-				static TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash> ms_EntryInit;
+				static TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext> ms_EntryInit;
 			};
 		}
 		
 #define DMibConcurrencyRegisterMemberFunction(d_CMemberFunction, d_pMemberFunction, d_NameHash) \
 			(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash>::ms_EntryInit
+
+#define DMibConcurrencyRegisterMemberFunctionWithStreamContext(d_CMemberFunction, d_pMemberFunction, d_NameHash, d_Context) \
+			(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash, d_Context>::ms_EntryInit
 	}
 }

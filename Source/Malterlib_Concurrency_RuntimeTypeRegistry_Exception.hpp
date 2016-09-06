@@ -11,21 +11,22 @@ namespace NMib
 	{
 		namespace NPrivate
 		{
-			template <typename tf_CType>
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result)
+			template <typename tf_CType, typename tf_CStreamContext>
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext)
 			{
 				if (_Result)
 				{
 					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 					Stream << uint8(0); // No exception
-					Stream << *_Result;
+					decltype(auto) ToStream = _StreamContext.f_GetValueForFeed(*_Result);
+					Stream << ToStream;
 					return Stream.f_MoveVector();
 				}
 				return fg_StreamAsyncResultException(_Result);
 			}
 
-			template <>
-			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result)
+			template <typename tf_CStreamContext>
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result, tf_CStreamContext &_StreamContext)
 			{
 				if (_Result)
 				{

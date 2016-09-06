@@ -86,15 +86,19 @@ namespace NMib
 			{
 				return *g_MalterlibSubSystem_Concurrency_DistributedActor;
 			}
-			
+
 			template <>
-			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data)
+			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContextSending &_Context)
 			{
 				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 				ReplyStream.f_OpenRead(_Data);
 				if (fg_CopyReplyToContinuationShared(ReplyStream, _Continuation))
 					return;
-				
+				if (!_Context.f_ValueReceived())
+				{
+					_Continuation.f_SetException(DMibErrorInstance("Invalid set of parameter and return types"));
+					return;
+				}
 				_Continuation.f_SetResult();
 			}
 		}
@@ -390,6 +394,10 @@ namespace NMib
 		NContainer::TCVector<uint32> const &CAbstractDistributedActor::f_GetTypeHashes() const
 		{
 			return mp_InheritanceHierarchy;
+		}
+		
+		CDistributedActorInheritanceHeirarchyPublish::CDistributedActorInheritanceHeirarchyPublish()
+		{
 		}
 	}
 }

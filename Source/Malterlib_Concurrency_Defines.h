@@ -28,7 +28,7 @@ namespace NMib
 		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 		struct TCActorCall;
 
-		template <typename t_CActor>
+		template <typename t_CActor = CActor>
 		class TCActor;
 
 		template <typename t_CReturnValue>

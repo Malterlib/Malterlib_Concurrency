@@ -82,7 +82,7 @@ namespace NMib
 			;
 		}		
 		
-		void CActorDistributionManager::CInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
+		void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
 		{
 			auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
 			if (pConnection)
@@ -99,7 +99,7 @@ namespace NMib
 			}
 		}
 
-		void CActorDistributionManager::CInternal::fp_Listen
+		void CActorDistributionManagerInternal::fp_Listen
 			(
 				NStr::CStr const &_ListenID
 				, CActorDistributionListenSettings const &_Settings
@@ -244,7 +244,7 @@ namespace NMib
 									try
 									{
 										NException::CDisableExceptionTraceScope DisableTrace;
-										HostID = fs_GetCertificateHostID(pSocketInfo->m_PeerCertificate);
+										HostID = CActorDistributionManager::fs_GetCertificateHostID(pSocketInfo->m_PeerCertificate);
 										if (HostID.f_IsEmpty())
 										{
 											fReject("Missing or incorrect Host ID in peer certificate");

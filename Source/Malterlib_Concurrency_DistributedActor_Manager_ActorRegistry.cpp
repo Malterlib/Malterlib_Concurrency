@@ -55,7 +55,7 @@ namespace NMib
 			}
 		}
 		
-		bool CActorDistributionManager::CInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
+		bool CActorDistributionManagerInternal::fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const
 		{
 			return _Namespace.f_StartsWith("Anonymous/");
 		}
@@ -218,7 +218,7 @@ namespace NMib
 		{
 		}
 
-		void CActorDistributionManager::CInternal::fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor)
+		void CActorDistributionManagerInternal::fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor)
 		{
 			{
 				auto &ConcurrencyManager = fg_ConcurrencyManager();
@@ -251,7 +251,7 @@ namespace NMib
 				pSpecific->m_fOnNewActor(fg_TempCopy(AbstractActor));
 		}
 		
-		void CActorDistributionManager::CInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
+		void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
 		{
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
@@ -262,7 +262,7 @@ namespace NMib
 				pSpecific->m_fOnRemovedActorActor(_RemoteActor.m_Actor.f_Weak());
 		}
 		
-		bool CActorDistributionManager::CInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+		bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
 			auto &pHost = _pConnection->m_pHost;
 			
@@ -294,8 +294,8 @@ namespace NMib
 			
 			return true;
 		}
-		
-		bool CActorDistributionManager::CInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+
+		bool CActorDistributionManagerInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 		{
 			auto &pHost = _pConnection->m_pHost;
 			if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted)

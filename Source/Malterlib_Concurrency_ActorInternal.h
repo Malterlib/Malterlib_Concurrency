@@ -27,6 +27,9 @@ namespace NMib
 				)
 			;
 		}
+		
+		struct CActorDistributionManagerInternal;
+		
 		template <typename t_CActor>
 		class TCActorInternal : public t_CActor::CActorHolder
 		{
@@ -44,6 +47,8 @@ namespace NMib
 			friend class NPtr::TCSharedPointer;
 			
 			friend struct NPrivate::CThisActor;
+			
+			friend struct CActorDistributionManagerInternal;
 			
 			template 
 			<

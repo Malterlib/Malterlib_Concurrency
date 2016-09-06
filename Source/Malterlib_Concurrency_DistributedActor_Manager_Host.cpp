@@ -95,7 +95,7 @@ namespace NMib
 			return Continuation;
 		}
 
-		void CActorDistributionManager::CInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
+		void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
 		{
 			auto &Host = _Host;
 			
@@ -172,10 +172,15 @@ namespace NMib
 				Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
 			Host.m_OutstandingCalls.f_Clear();
 			
+			Host.m_ImplicitlyPublishedActors.f_Clear();
+			Host.m_ImplicitlyPublishedFunctions.f_Clear();
+			Host.m_ImplicitlyPublishedSubscriptions.f_Clear();
+			Host.m_SubscriptionReferences.f_Clear();
+			
 			Host.f_DeletePackets();
 		}
 		
-		void CActorDistributionManager::CInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection)
+		void CActorDistributionManagerInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection)
 		{
 			fp_ResetHostState(_Host, _pSaveConnection, false);
 

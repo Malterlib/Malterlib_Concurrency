@@ -28,7 +28,7 @@ namespace NMib
 			Internal.m_ResolveActor = fg_ConstructActor<NNet::CResolveActor>();
 		}
 
-		void CActorDistributionManager::CInternal::CConnection::fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result)
+		void CActorDistributionManagerInternal::CConnection::fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result)
 		{
 			if (_Result)
 			{
@@ -39,7 +39,7 @@ namespace NMib
 				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
 		}
 
-		CHostInfo CActorDistributionManager::CInternal::CConnection::f_GetHostInfo() const
+		CHostInfo CActorDistributionManagerInternal::CConnection::f_GetHostInfo() const
 		{
 			CHostInfo Info;
 			
@@ -54,7 +54,7 @@ namespace NMib
 			return Info;
 		}
 
-		TCDispatchedActorCall<void> CActorDistributionManager::CInternal::CConnection::f_Disconnect()
+		TCDispatchedActorCall<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
 		{
 			return fg_ConcurrentDispatch
 				(
@@ -82,7 +82,7 @@ namespace NMib
 			;
 		}
 
-		void CActorDistributionManager::CInternal::CConnection::f_Reset(bool _bResetHost)
+		void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost)
 		{
 			m_Link.f_Unlink();
 			if (_bResetHost)
@@ -105,14 +105,14 @@ namespace NMib
 				m_pHost.f_Clear();
 		}
 		
-		void CActorDistributionManager::CInternal::CConnection::f_Destroy(NStr::CStr const &_Error)
+		void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Error)
 		{
 			f_Reset(true);
 			m_pSSLContext.f_Clear();
 			m_LastError = _Error;
 		}
 
-		void CActorDistributionManager::CInternal::CClientConnection::f_Reset(bool _bResetHost)
+		void CActorDistributionManagerInternal::CClientConnection::f_Reset(bool _bResetHost)
 		{
 			CConnection::f_Reset(_bResetHost);
 			m_bConnected = false;
@@ -120,7 +120,7 @@ namespace NMib
 				m_IdentifyContinuation.f_SetException(DMibErrorInstance("Connection reset"));
 		}
 
-		void CActorDistributionManager::CInternal::CClientConnection::f_Destroy(NStr::CStr const &_Error)
+		void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Error)
 		{
 			CConnection::f_Destroy(_Error);
 			if (!m_IdentifyContinuation.f_IsSet())
@@ -128,23 +128,23 @@ namespace NMib
 			m_bConnected = false;
 		}
 
-		NStr::CStr CActorDistributionManager::CInternal::CClientConnection::f_GetConnectionID() const
+		NStr::CStr CActorDistributionManagerInternal::CClientConnection::f_GetConnectionID() const
 		{
 			return m_ConnectionID;
 		}
 		
-		void CActorDistributionManager::CInternal::CClientConnection::f_SetLastError(NStr::CStr const &_Error)
+		void CActorDistributionManagerInternal::CClientConnection::f_SetLastError(NStr::CStr const &_Error)
 		{
 			m_LastConnectionError = _Error;
 			m_LastConnectionErrorTime = NTime::CTime::fs_NowUTC();
 		}
 
-		CActorDistributionManager::CInternal::CServerConnection::CServerConnection(mint _ConnectionID)
+		CActorDistributionManagerInternal::CServerConnection::CServerConnection(mint _ConnectionID)
 			: m_ConnectionID(_ConnectionID)
 		{
 		}
 		
-		NStr::CStr CActorDistributionManager::CInternal::CServerConnection::f_GetConnectionID() const
+		NStr::CStr CActorDistributionManagerInternal::CServerConnection::f_GetConnectionID() const
 		{
 			return NStr::fg_Format("{}", m_ConnectionID);
 		}
@@ -162,7 +162,7 @@ namespace NMib
 				pConnection->f_Destroy("");
 		}
 		
-		CActorDistributionManager::CInternal::CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+		CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
 			: m_pThis(_pThis)
 			, m_HostID(_HostID) 
 			, m_ExecutionID(NCryptography::fg_RandomID())
@@ -173,7 +173,7 @@ namespace NMib
 				m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
 		}
 		
-		CActorDistributionManager::CInternal::~CInternal()
+		CActorDistributionManagerInternal::~CActorDistributionManagerInternal()
 		{
 			while (auto *pHost = m_Hosts.f_FindAny())
 				fp_DestroyHost(**pHost, nullptr);

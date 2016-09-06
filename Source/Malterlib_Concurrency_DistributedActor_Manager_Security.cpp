@@ -26,7 +26,7 @@ namespace NMib
 			}
 		}
 		
-		NContainer::TCSet<NStr::CStr> const &CActorDistributionManager::CInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll)
+		NContainer::TCSet<NStr::CStr> const &CActorDistributionManagerInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll)
 		{
 			if (_pHost->m_bIncoming && _pHost->m_bOutgoing)
 			{

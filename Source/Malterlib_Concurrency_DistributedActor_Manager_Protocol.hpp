@@ -119,5 +119,20 @@ namespace NMib
 			_Stream >> m_ActorID;
 			_Stream >> m_Namespace;
 		}
+		
+		template <typename tf_CStream>
+		void CDistributedActorCommand_DestroySubscription::f_Feed(tf_CStream &_Stream) const
+		{
+			_Stream << uint8(EDistributedActorCommand_DestroySubscription);
+			_Stream << m_PacketID;
+			_Stream << m_SubscriptionID;
+		}
+		
+		template <typename tf_CStream>
+		void CDistributedActorCommand_DestroySubscription::f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_PacketID;
+			_Stream >> m_SubscriptionID;
+		}
 	}
 }

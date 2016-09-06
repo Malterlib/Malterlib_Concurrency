@@ -11,7 +11,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		bool CActorDistributionManager::CInternal::fp_HandleProtocolIncoming
+		bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming
 			(
 				CConnection *_pConnection
 				, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage
@@ -162,6 +162,7 @@ namespace NMib
 				case EDistributedActorCommand_RemoteCallResult:
 				case EDistributedActorCommand_Publish:
 				case EDistributedActorCommand_Unpublish:
+				case EDistributedActorCommand_DestroySubscription: 
 					{
 						auto &pHost = _pConnection->m_pHost;
 						
@@ -219,7 +220,7 @@ namespace NMib
 			return true;
 		}
 		
-		void CActorDistributionManager::CInternal::fp_Identify(CConnection *_pConnection)
+		void CActorDistributionManagerInternal::fp_Identify(CConnection *_pConnection)
 		{
 			auto &pHost = _pConnection->m_pHost;
 			CDistributedActorCommand_Identify Identify;

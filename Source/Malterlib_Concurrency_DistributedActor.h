@@ -20,13 +20,11 @@ namespace NMib
 		struct CActorDistributionManager;
 		namespace NPrivate
 		{
-			struct CDistributedActorData : public ICDistributedActorData
-			{
-				NStr::CStr m_ActorID;
-				bool m_bWasDestroyed = false;
-				bool m_bRemote = false;
-				TCWeakActor<CActorDistributionManager> m_DistributionManager;
-			};
+			struct CDistributedActorData;
+			struct CDistributedActorStreamContextSending;
+			struct CDistributedActorStreamContextReceiving;
+			struct CDistributedActorStreamContextSendState;
+			struct CStreamSubscriptionSend;
 		}
 
 		struct CHostInfo
@@ -50,12 +48,6 @@ namespace NMib
 		template <typename t_CActor>
 		struct TCDistributedActorWrapper : public t_CActor
 		{
-			//static_assert(NTraits::TCIsBaseOf<t_CActor, CDistributedActor>::mc_Value, "Need to be base of CDistributedActor");
-			enum
-			{
-				mc_bAllowInternalAccess = true
-			};
-			
 			template <typename... tf_CActor>
 			TCDistributedActorWrapper(tf_CActor &&...p_Params);
 		};
@@ -177,61 +169,17 @@ namespace NMib
 			CHostInfo mp_HostInfo;
 		};
 		
-		namespace NPrivate
-		{
-			template <typename tf_CFirst>
-			void fg_GetDistributedActorInheritanceHierarchy(NContainer::TCVector<uint32> &_Settings)
-			{
-				_Settings.f_Insert(fg_GetTypeHash<tf_CFirst>());
-				fg_GetDistributedActorInheritanceHierarchy<typename NTraits::TCGetBase<tf_CFirst>::CType>(_Settings);
-			}
-			
-			template <>
-			inline_always_debug void fg_GetDistributedActorInheritanceHierarchy<CActor>(NContainer::TCVector<uint32> &_Settings)
-			{
-			}
-		}
-		
 		template <typename tf_CFirst>
-		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy()
-		{
-			NContainer::TCVector<uint32> Return;
-			
-			NPrivate::fg_GetDistributedActorInheritanceHierarchy<tf_CFirst>(Return);
-			
-			return Return;
-		}
+		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy();
 		
 		struct CDistributedActorInheritanceHeirarchyPublish
 		{
 			template <typename ...tfp_CToPublish>
-			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy()
-			{
-				CDistributedActorInheritanceHeirarchyPublish Ret;
-				
-				TCInitializerList<bool> Dummy = 
-					{
-						[&]
-						{
-							Ret.mp_Hierarchy.f_Insert(fg_GetTypeHash<tfp_CToPublish>());
-							return true;
-						}
-						()...
-					}
-				;
-				(void)Dummy;
-				
-				return Ret;
-			}
-			NContainer::TCVector<uint32> const &f_GetHierarchy() const
-			{
-				return mp_Hierarchy;
-			}
+			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy();
+			inline_always NContainer::TCVector<uint32> const &f_GetHierarchy() const;
 			
 		private:
-			CDistributedActorInheritanceHeirarchyPublish()
-			{
-			}
+			CDistributedActorInheritanceHeirarchyPublish();
 			NContainer::TCVector<uint32> mp_Hierarchy;
 		};
 		
@@ -245,6 +193,7 @@ namespace NMib
 		struct CDistributedActorPublication
 		{
 			friend struct CActorDistributionManager;
+			friend struct CActorDistributionManagerInternal;
 			
 			CDistributedActorPublication();
 			~CDistributedActorPublication();
@@ -270,6 +219,7 @@ namespace NMib
 		struct CDistributedActorListenReference
 		{
 			friend struct CActorDistributionManager;
+			friend struct CActorDistributionManagerInternal;
 			
 			CDistributedActorListenReference();
 			~CDistributedActorListenReference();
@@ -309,6 +259,7 @@ namespace NMib
 		struct CDistributedActorConnectionReference
 		{
 			friend struct CActorDistributionManager;
+			friend struct CActorDistributionManagerInternal;
 			
 			CDistributedActorConnectionReference();
 			~CDistributedActorConnectionReference();
@@ -365,10 +316,10 @@ namespace NMib
 			NStr::CStr mp_LastExecutionID;
 		};
 		
+		struct CActorDistributionManagerInternal;
+		
 		struct CActorDistributionManager : public CActor
 		{
-			struct CInternal;
-			
 			struct CConnectionResult
 			{
 				CDistributedActorConnectionReference m_ConnectionReference;
@@ -398,7 +349,8 @@ namespace NMib
 			TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_CallRemote
 				(
 					NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
-					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData 
+					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData
+					, NPrivate::CDistributedActorStreamContextSending const &_Context
 				)
 			;
 			
@@ -431,8 +383,22 @@ namespace NMib
 			static CCallingHostInfo const &fs_GetCallingHostInfo();
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
-			
+
 		private:
+			void fp_RegisterRemoteSubscription
+				(
+					NPrivate::CDistributedActorStreamContextSending const &_Context
+					, NStr::CStr const &_SubscriptionID 
+				)
+			;
+			void fp_DestroyRemoteSubscription
+				(
+					NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
+					, NStr::CStr const &_SubscriptionID
+					, NStr::CStr const &_LastExecutionID
+				)
+			;
+			void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 			void fp_RemoveListen(NStr::CStr const &_ListenID);
 			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
 			TCContinuation<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
@@ -452,36 +418,41 @@ namespace NMib
 			friend struct CDistributedActorListenReference;
 			friend struct CDistributedActorConnectionReference;
 			friend struct CCallingHostInfo;
+			friend struct NPrivate::CDistributedActorStreamContextSendState;
+			friend struct NPrivate::CStreamSubscriptionSend;
 			
-			NPtr::TCUniquePointer<CInternal> mp_pInternal;
+			NPtr::TCUniquePointer<CActorDistributionManagerInternal> mp_pInternal;
 		};
 		
 		CCallingHostInfo const &fg_GetCallingHostInfo();
 		NStr::CStr fg_InitDistributionManager(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName = {});
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();
-		
+	}
+}
+
+#include "Malterlib_Concurrency_DistributedActor_Private.h"
+
 #define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor \
-			< \
-				decltype(&d_Function) \
-				, &d_Function \
-				, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
-			> \
-			(d_Actor, ##d_Args)
+	< \
+		decltype(&d_Function) \
+		, &d_Function \
+		, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+	> \
+	(d_Actor, ##d_Args)
 		
-#define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunction \
-		( \
-			decltype(&d_Function) \
-			, &d_Function \
-			, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
-		)
+#define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreamContext \
+	( \
+		decltype(&d_Function) \
+		, &d_Function \
+		, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+		, NMib::NConcurrency::NPrivate::CDistributedActorStreamContextReceiving \
+	)
 		
 #ifndef DMibPNoShortCuts
 #	define DCallActor DMibCallActor
 #	define DPublishActorFunction DMibPublishActorFunction
 #endif
-	}
-}
 
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;

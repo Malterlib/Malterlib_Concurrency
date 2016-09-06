@@ -130,6 +130,24 @@ namespace NMib
 				DMibListLinkDS_List(CRemoteActor, m_Link) m_RemoteActors;
 			};
 			
+			struct CImplicitlyPublishedFunction
+			{
+				NPtr::TCSharedPointer<NPrivate::CStreamingFunction> m_pFunction;
+				NStr::CStr m_AllowedDisptachActorID;
+			};
+			
+			struct CImplicitlyPublishedSubscription
+			{
+				CActorSubscription m_Subscription;
+				NContainer::TCVector<TCActor<>> m_ReferencedActors;
+			};
+			
+			struct CSubscriptionReferences
+			{
+				NContainer::TCSet<NStr::CStr> m_Functions;
+				NContainer::TCSet<NStr::CStr> m_Actors;
+			};
+			
 			struct CHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 			{
 				CHost(CActorDistributionManager &_DistributionManager);
@@ -155,6 +173,11 @@ namespace NMib
 				uint64 m_Outgoing_CurrentPacketID = 0;
 				
 				NContainer::TCMap<uint32, TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>> m_OutstandingCalls;
+				
+				NContainer::TCMap<NStr::CStr, TCWeakActor<CActor>> m_ImplicitlyPublishedActors;
+				NContainer::TCMap<NStr::CStr, CImplicitlyPublishedFunction> m_ImplicitlyPublishedFunctions;
+				NContainer::TCMap<NStr::CStr, CImplicitlyPublishedSubscription> m_ImplicitlyPublishedSubscriptions;
+				NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_SubscriptionReferences;
 				
 				NStr::CStr m_LastExecutionID;
 				NStr::CStr m_UniqueHostID; // Differs from HostID when anonymous 
@@ -239,7 +262,7 @@ namespace NMib
 			};
 		}
 		
-		struct CActorDistributionManager::CInternal
+		struct CActorDistributionManagerInternal
 		{
 			using CConnection = NActorDistributionManagerInternal::CConnection;
 			using CClientConnection = NActorDistributionManagerInternal::CClientConnection; 
@@ -257,8 +280,8 @@ namespace NMib
 			
 			friend struct NActorDistributionManagerInternal::CHost;
 			
-			CInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
-			~CInternal();
+			CActorDistributionManagerInternal(CActorDistributionManager *_pThis, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
+			~CActorDistributionManagerInternal();
 			
 			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CClientConnection>> m_ClientConnections;
 			NContainer::TCMap<mint, NPtr::TCSharedPointer<CServerConnection>> m_ServerConnections;
@@ -342,11 +365,19 @@ namespace NMib
 			
 			void fp_ReplyToRemoteCallWithException(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, NException::CExceptionBase const &_Exception);
 			void fp_ReplyToRemoteCallWithException(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, CAsyncResult const &_Exception);
-			void fp_ReplyToRemoteCall(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, uint64 _PacketID, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data);
+			void fp_ReplyToRemoteCall
+				(
+					NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+					, uint64 _PacketID
+					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+					, NPrivate::CDistributedActorStreamContextReceiving const &_Context
+				)
+			;
 			bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+			bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
 		};
 	}

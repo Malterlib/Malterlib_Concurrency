@@ -14,6 +14,12 @@ namespace NMib
 	{
 		class CDistributedActorTrustManager;
 		
+		struct CTrustedActorInfo
+		{
+			CHostInfo m_HostInfo;
+			NStr::CStr m_UniqueHostID;
+		};
+		
 		template <typename t_CActor>
 		struct TCTrustedActorSubscription
 		{
@@ -24,11 +30,11 @@ namespace NMib
 			TCTrustedActorSubscription() = default;
 			~TCTrustedActorSubscription();
 			
-			NContainer::TCSet<TCDistributedActor<t_CActor>> m_Actors;
+			NContainer::TCMap<TCDistributedActor<t_CActor>, CTrustedActorInfo> m_Actors;
 			
 			void f_Clear();
 
-			void f_OnNewActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor)> &&_fOnNewActor);
+			void f_OnNewActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);
 			void f_OnRemoveActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor);
 			
 		private:
@@ -36,9 +42,9 @@ namespace NMib
 			
 			struct CState : public NPrivate::CTrustedActorSubscriptionState
 			{
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor)> m_fOnNewActor;
+				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
 				NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
-				void f_AddDistributedActors(NContainer::TCSet<TCDistributedActor<CActor>> const &_Actors) override;
+				void f_AddDistributedActors(NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> const &_Actors) override;
 				void f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors) override;
 				
 				TCTrustedActorSubscription *m_pSubscription;
@@ -205,7 +211,7 @@ namespace NMib
 			
 			TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 			
-			TCContinuation<NContainer::TCSet<TCDistributedActor<CActor>>> fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
+			TCContinuation<NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 			void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>>> fp_SubscribeToPermissions
 				(

@@ -7,6 +7,7 @@ namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
 	struct CTrustedPermissionSubscription;
+	struct CTrustedActorInfo;
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -21,7 +22,7 @@ namespace NMib::NConcurrency::NPrivate
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual void f_AddDistributedActors(NContainer::TCSet<TCDistributedActor<CActor>> const &_Actors) = 0;
+		virtual void f_AddDistributedActors(NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> const &_Actors) = 0;
 		virtual void f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors) = 0;
 	};
 	

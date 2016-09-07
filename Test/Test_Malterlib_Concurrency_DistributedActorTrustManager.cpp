@@ -1036,7 +1036,7 @@ namespace
 					
 					TrustedSubscription0.f_OnNewActor
 						(
-							[&](TCDistributedActor<CTestActor> const &_Actor)
+							[&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo)
 							{
 								++nActors;
 							}

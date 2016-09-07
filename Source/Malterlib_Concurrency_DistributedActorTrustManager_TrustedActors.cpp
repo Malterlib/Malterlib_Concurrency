@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 				if (!pActors)
 					continue;
 				for (auto &Actor : *pActors)
-					Type.m_AllowedActors[Actor];
+					Type.m_AllowedActors[pActors->fs_GetKey(Actor)] = Actor;
 				for (auto &pSubscription : Type.m_Subscriptions)
 					pSubscription->f_AddDistributedActors(*pActors);
 			}
@@ -146,7 +146,7 @@ namespace NMib::NConcurrency
 				if (!pActors)
 					continue;
 				for (auto &Actor : *pActors)
-					Type.m_AllowedActors.f_Remove(Actor);
+					Type.m_AllowedActors.f_Remove(pActors->fs_GetKey(Actor));
 				NContainer::TCSet<TCWeakDistributedActor<CActor>> WeakActors = *pActors; 
 				for (auto &pSubscription : Type.m_Subscriptions)
 					pSubscription->f_RemoveDistributedActors(WeakActors);
@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 		return Continuation;			
 	}
 	
-	TCContinuation<NContainer::TCSet<TCDistributedActor<CActor>>> CDistributedActorTrustManager::fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
+	TCContinuation<NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> CDistributedActorTrustManager::fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 	{
 		auto &Internal = *mp_pInternal;
 		auto &Namespace = Internal.m_Namespaces[_pState->m_NamespaceName];
@@ -184,7 +184,7 @@ namespace NMib::NConcurrency
 			return fg_Explicit(Type.m_AllowedActors);
 		}
 	
-		TCContinuation<NContainer::TCSet<TCDistributedActor<CActor>>> Continuation;
+		TCContinuation<NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> Continuation;
 		auto fOnSubscribe = [this, _pState, NamespaceName, Continuation](TCAsyncResult<void> const &_Result, CInternal::CNamespaceState &_Namespace) -> bool
 			{
 				if (!_Result)
@@ -237,21 +237,25 @@ namespace NMib::NConcurrency
 						;
 					}
 					
+					CTrustedActorInfo TrustInfo;
+					TrustInfo.m_HostInfo = _NewActor.f_GetHostInfo();
+					TrustInfo.m_UniqueHostID = _NewActor.f_GetUniqueHostID();
+					
 					for (auto TypeHash : _NewActor.f_GetTypeHashes())
 					{
 						auto &Type = Namespace.m_Types[TypeHash];
 						auto Actor = _NewActor.f_GetActor(TypeHash);
-						Type.m_HostToActors[HostID][Actor];
+						Type.m_HostToActors[HostID][Actor] = TrustInfo;
 						Type.m_ActorToHost[Actor] = HostID;
 
 						if (!bAllowed)
 							continue;
-						Type.m_AllowedActors[Actor];
+						Type.m_AllowedActors[Actor] = TrustInfo;
 
 						if (Type.m_Subscriptions.f_IsEmpty())
 							continue;
-						NContainer::TCSet<TCDistributedActor<CActor>> Added;
-						Added[Actor];
+						NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> Added;
+						Added[Actor] = TrustInfo;
 						for (auto &pSubscription : Type.m_Subscriptions)
 							pSubscription->f_AddDistributedActors(Added);
 					}

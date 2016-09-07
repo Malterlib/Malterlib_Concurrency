@@ -56,8 +56,8 @@ namespace NMib
 			struct CNamespaceTypeState
 			{
 				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
-				NContainer::TCSet<TCDistributedActor<CActor>> m_AllowedActors;
-				NContainer::TCMap<NStr::CStr, NContainer::TCSet<TCDistributedActor<CActor>>> m_HostToActors;
+				NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> m_AllowedActors;
+				NContainer::TCMap<NStr::CStr, NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> m_HostToActors;
 				NContainer::TCMap<TCDistributedActor<CActor>, NStr::CStr> m_ActorToHost;
 			};
 			

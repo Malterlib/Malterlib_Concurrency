@@ -14,8 +14,8 @@ namespace NMib
 		template <typename t_CCallbackSignature, bool t_bSupportMultiple = false, typename t_CExtraData = CEmpty>
 		class TCActorSubscriptionManager;
 		
-		template <typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		class TCActorSubscriptionManager<void (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
+		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+		class TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
 		{
 		public:
 			struct CCallbackHandle : public t_CExtraData
@@ -23,14 +23,15 @@ namespace NMib
 				template <typename ...tfp_CParam>
 				CCallbackHandle(tfp_CParam && ...p_ExtraData);
 				TCWeakActor<CActor> m_Actor;
-				NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> m_fCallback;
+				NFunction::TCFunction<t_CReturn (NFunction::CThisTag &, tp_CCallbackParams...)> m_fCallback;
 			};
+			using CReturn = typename NPrivate::TCRemoveContinuation<t_CReturn>::CType;
 		public:
 			TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks);
 			~TCActorSubscriptionManager();
 
 			template <typename ...tfp_CParam>
-			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunction<void (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunction<t_CReturn (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
 			
 			bool f_IsEmpty();
 			void f_StopDeferring();
@@ -41,6 +42,12 @@ namespace NMib
 			
 			template <bool tf_bSupportMultiple = t_bSupportMultiple>
 			typename TCEnableIf<!tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
+
+			template <bool tf_bSupportMultiple = t_bSupportMultiple>
+			typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);
+			
+			template <bool tf_bSupportMultiple = t_bSupportMultiple>
+			typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
 
 		private:
 			struct CInternal

@@ -87,6 +87,11 @@ namespace NMib
 			
 			NStr::CStr f_GetExceptionStr() const;
 			CExceptionPointer f_GetException() const;
+			
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
 		};
 
 		template <>
@@ -128,6 +133,11 @@ namespace NMib
 
 			NStr::CStr f_GetExceptionStr() const;
 			CExceptionPointer f_GetException() const;
+
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
 		};
 	}
 }

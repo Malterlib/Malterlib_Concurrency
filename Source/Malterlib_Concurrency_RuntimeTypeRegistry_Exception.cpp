@@ -45,6 +45,38 @@ namespace NMib
 				
 				return fg_StreamAsyncResultException(DMibErrorInstance("Non Malterlib exception encountered in remote actor call"));
 			}
+
+			void fg_StreamAsyncResultException(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NException::CExceptionBase const &_Exception)
+			{
+				_Stream << uint8(1); // Exception
+				
+				uint32 TypeHash = _Exception.f_TypeHash();
+				DMibFastCheck(TypeHash);
+				auto &TypeRegistry = fg_RuntimeTypeRegistry();
+				auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
+				
+				DMibFastCheck(pEntry);
+				
+				_Stream << TypeHash;
+				
+				pEntry->f_Feed(_Stream, _Exception);
+			}
+			
+			void fg_StreamAsyncResultException(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NConcurrency::CAsyncResult const &_Result)
+			{
+				try
+				{
+					_Result.f_Access();
+					DMibFastCheck(false); // Should never get here
+				}
+				catch (NException::CExceptionBase const &_Exception)
+				{
+					return fg_StreamAsyncResultException(_Stream, _Exception);
+				}
+				
+				return fg_StreamAsyncResultException(_Stream, DMibErrorInstance("Non Malterlib exception encountered in remote actor call"));
+			}
+			
 		}
 	}
 }

@@ -11,6 +11,56 @@ namespace NMib
 	{
 		namespace NPrivate
 		{
+			template <typename tf_CResult>
+			bool fg_CopyReplyToContinuationOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_ContinuationOrAsyncResult);
+		}
+		
+		template <typename t_CType>
+		template <typename tf_CStream>
+		void TCAsyncResult<t_CType>::f_Feed(tf_CStream &_Stream) const
+		{
+			if (*this)
+			{
+				_Stream << uint8(0); // No exception
+				decltype(auto) ToStream = **this;
+				_Stream << ToStream;
+				return;
+			}
+			NPrivate::fg_StreamAsyncResultException(_Stream, *this);
+		}
+		
+		template <typename t_CType>
+		template <typename tf_CStream>
+		void TCAsyncResult<t_CType>::f_Consume(tf_CStream &_Stream)
+		{
+			if (NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, *this))
+				return;
+			t_CType Result;
+			_Stream >> Result;
+			f_SetResult(fg_Move(Result));
+		}
+
+		template <typename tf_CStream>
+		void TCAsyncResult<void>::f_Feed(tf_CStream &_Stream) const
+		{
+			if (*this)
+			{
+				_Stream << uint8(0); // No exception
+				return;
+			}
+			return NPrivate::fg_StreamAsyncResultException(_Stream, *this);
+		}
+		
+		template <typename tf_CStream>
+		void TCAsyncResult<void>::f_Consume(tf_CStream &_Stream)
+		{
+			if (NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, *this))
+				return;
+			f_SetResult();
+		}
+		
+		namespace NPrivate
+		{
 			template <typename tf_CType, typename tf_CStreamContext>
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext)
 			{

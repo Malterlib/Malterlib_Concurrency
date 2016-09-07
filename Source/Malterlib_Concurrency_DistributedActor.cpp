@@ -92,7 +92,7 @@ namespace NMib
 			{
 				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 				ReplyStream.f_OpenRead(_Data);
-				if (fg_CopyReplyToContinuationShared(ReplyStream, _Continuation))
+				if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
 					return;
 				if (!_Context.f_ValueReceived())
 				{

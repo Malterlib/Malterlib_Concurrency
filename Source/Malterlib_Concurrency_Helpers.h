@@ -57,6 +57,18 @@ namespace NMib
 				CActor *mp_pLastActor;
 				NConcurrency::CConcurrencyManager &mp_ConcurrencyManager;
 			};
+			
+			template <typename t_CType>
+			struct TCRemoveContinuation
+			{
+				using CType = t_CType;
+			};
+			
+			template <typename t_CType>
+			struct TCRemoveContinuation<TCContinuation<t_CType>>
+			{
+				using CType = t_CType;
+			};
 		}
 		
 #if DMibConcurrencyDebugActorCallstacks

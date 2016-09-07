@@ -56,7 +56,8 @@ namespace
 	{
 		zuint32 m_Value;
 		TCMap<CStr, CActorSubscription> m_CallingHostTests;
-		TCActorSubscriptionManager<void (CStr const &_Test), true> m_Callbacks;
+		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), false> m_CallbackManager;
+		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), true> m_CallbacksManager;
 		
 		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_Callback[2]; 
 		TCActor<CActor> m_Actor[2];
@@ -67,7 +68,8 @@ namespace
 	public:
 		
 		CDistributedActor()
-			: m_Callbacks(this, false)
+			: m_CallbackManager(this, false)
+			, m_CallbacksManager(this, false)
 		{
 		}
 		void f_AddInt(uint32 _Value)
@@ -86,9 +88,14 @@ namespace
 			m_Value += _Value;
 		}
 		
-		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<void> (CStr const &_Test)> const &_Callback)
+		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
 		{
-			return m_Callbacks.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
+			return m_CallbackManager.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
+		}
+		
+		CActorSubscription f_RegisterCallbacks(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		{
+			return m_CallbacksManager.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
 		}
 
 		CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
@@ -220,14 +227,24 @@ namespace
 			m_Actor[_iCallback].f_Clear();
 		}
 		
-		void f_CallRegisteredCallbacks(CStr const &_Message)
+		void f_CallRegisteredCallback(CStr const &_Message)
 		{
-			m_Callbacks(_Message);
+			m_CallbackManager(_Message);
+		}
+
+		TCContinuation<CStr> f_CallRegisteredCallbackWithReturn(CStr const &_Message)
+		{
+			return m_CallbackManager.f_Call(_Message);
+		}
+
+		TCContinuation<TCVector<TCAsyncResult<CStr>>> f_CallRegisteredCallbacksWithReturn(CStr const &_Message)
+		{
+			return m_CallbacksManager.f_Call(_Message);
 		}
 		
 		uint8 f_CallbacksEmpty()
 		{
-			return m_Callbacks.f_IsEmpty();
+			return m_CallbackManager.f_IsEmpty();
 		}
 		
 		uint32 f_GetResultVirtual() override
@@ -437,13 +454,13 @@ namespace
 				CMutual Lock;
 				CEventAutoReset Event;
 				CStr Message;
-				auto fCallBack = [&](CStr const &_Message) -> TCContinuation<void>
+				auto fCallBack = [&](CStr const &_Message) -> TCContinuation<CStr>
 					{
 						DMibLock(Lock);
 						Message = _Message;
 						Event.f_Signal();
 						
-						return fg_Explicit();
+						return fg_Explicit(Message);
 					}
 				;
 				
@@ -474,9 +491,13 @@ namespace
 				
 				DMibExpectFalse(bCallbacksEmpty);
 				
-				DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallbacks, "TestMessage").f_CallSync(60.0);
+				DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallback, "TestMessage").f_CallSync(60.0);
 
 				DMibExpect(fWaitForMessage(), ==, "TestMessage");
+				
+				CStr CallbackWithReturn = DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallbackWithReturn, "TestMessage").f_CallSync(60.0);
+				
+				DMibExpect(CallbackWithReturn, ==, "TestMessage");
 
 				Subscription.f_Clear();
 				
@@ -485,18 +506,36 @@ namespace
 				
 				auto fCallback0 = [](CStr const &_Message) -> TCContinuation<CStr>
 					{
+						if (_Message == "TestMessageException")
+							return DMibErrorInstance("Test exception 0");
 						return fg_Explicit(_Message + "0");
 					}
 				;
 
 				auto fCallback1 = [](CStr const &_Message) -> TCContinuation<CStr>
 					{
+						if (_Message == "TestMessageException")
+							return DMibErrorInstance("Test exception 1");
 						return fg_Explicit(_Message + "1");
 					}
 				;
 				
 				TCActor<> TestActor0 = fg_ConstructActor<CActor>();
 				TCActor<> TestActor1 = fg_ConstructActor<CActor>();
+				
+				{
+					auto MultipleSubscription0 = DMibCallActor(Actor, CDistributedActor::f_RegisterCallbacks, TestActor0, fCallback0).f_CallSync(60.0);
+					auto MultipleSubscription1 = DMibCallActor(Actor, CDistributedActor::f_RegisterCallbacks, TestActor1, fCallback1).f_CallSync(60.0);
+
+					TCVector<TCAsyncResult<CStr>> MultipleReturn = DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallbacksWithReturn, "TestMessage").f_CallSync(60.0);
+					DMibExpect(*MultipleReturn[0], ==, "TestMessage0");
+					DMibExpect(*MultipleReturn[1], ==, "TestMessage1");
+
+					MultipleReturn = DMibCallActor(Actor, CDistributedActor::f_CallRegisteredCallbacksWithReturn, "TestMessageException").f_CallSync(60.0);
+					DMibExpectException(*MultipleReturn[0], DMibErrorInstance("Test exception 0"));
+					DMibExpectException(*MultipleReturn[1], DMibErrorInstance("Test exception 1"));
+				}
+
 
 				auto fRegisterWithError = [&]
 					{

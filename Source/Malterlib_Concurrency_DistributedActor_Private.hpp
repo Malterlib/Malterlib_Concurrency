@@ -17,17 +17,6 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 
-	template <typename t_CType>
-	struct TCRemoveContinuation
-	{
-		using CType = t_CType;
-	};
-	
-	template <typename t_CType>
-	struct TCRemoveContinuation<TCContinuation<t_CType>>
-	{
-		using CType = t_CType;
-	};
 	struct CRemoteDispatchActor;
 	
 	struct CSubSystem_Concurrency_DistributedActor : public CSubSystem
@@ -47,7 +36,7 @@ namespace NMib::NConcurrency::NPrivate
 	CSubSystem_Concurrency_DistributedActor &fg_DistributedActorSubSystem();
 
 	template <typename tf_CResult>
-	bool fg_CopyReplyToContinuationShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCContinuation<tf_CResult> &_Continuation)
+	bool fg_CopyReplyToContinuationOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_ContinuationOrAsyncResult)
 	{
 		uint8 bException;
 		_Stream >> bException;
@@ -62,11 +51,11 @@ namespace NMib::NConcurrency::NPrivate
 			
 			if (!pEntry)
 			{
-				_Continuation.f_SetException(DMibErrorInstance("Unknown exception type received"));
+				_ContinuationOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;
 			}
 			
-			_Continuation.f_SetException(pEntry->f_Consume(_Stream));
+			_ContinuationOrAsyncResult.f_SetException(pEntry->f_Consume(_Stream));
 			
 			return true;
 		}
@@ -78,7 +67,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToContinuationShared(ReplyStream, _Continuation))
+		if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
 			return;
 		tf_CResult Result;
 		decltype(auto) ToStream = _Context.f_GetValueForConsume(Result);

@@ -67,6 +67,7 @@ namespace NMib
 				if (_Result)
 				{
 					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+					DMibBinaryStreamContext(Stream, &_StreamContext);
 					Stream << uint8(0); // No exception
 					decltype(auto) ToStream = _StreamContext.f_GetValueForFeed(*_Result);
 					Stream << ToStream;

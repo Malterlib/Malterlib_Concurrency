@@ -63,12 +63,18 @@ namespace NMib::NConcurrency::NPrivate
 	}
 	
 	template <typename tf_CResult>
-	void fg_CopyReplyToContinuation(TCContinuation<tf_CResult> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContextSending &_Context)
+	void fg_CopyReplyToContinuation
+		(
+			TCContinuation<tf_CResult> &_Continuation
+			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+			, CDistributedActorStreamContextSending &_Context
+		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
 		if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
 			return;
+		DMibBinaryStreamContext(ReplyStream, &_Context);
 		tf_CResult Result;
 		decltype(auto) ToStream = _Context.f_GetValueForConsume(Result);
 		ReplyStream >> ToStream;
@@ -82,7 +88,13 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <>
-	void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContextSending &_Context);
+	void fg_CopyReplyToContinuation
+		(
+			TCContinuation<void> &_Continuation
+			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+			, CDistributedActorStreamContextSending &_Context
+		)
+	;
 
 	template <typename t_CTypes>
 	struct TCStreamArguments

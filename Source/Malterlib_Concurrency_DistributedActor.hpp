@@ -29,6 +29,42 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		template <typename tf_CValue>
+		void fg_DistributedActorParamsFeed(CDistributedActorWriteStream &_Stream, tf_CValue const &_Value)
+		{
+			NPrivate::CDistributedActorStreamContextSending *pContext = (NPrivate::CDistributedActorStreamContextSending *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+			decltype(auto) ToStream = pContext->f_GetValueForFeed(_Value);
+			_Stream << ToStream;
+		}
+		
+		template <typename tf_CValue>
+		void fg_DistributedActorParamsConsume(CDistributedActorReadStream &_Stream, tf_CValue &_Value)
+		{
+			NPrivate::CDistributedActorStreamContextReceiving *pContext = (NPrivate::CDistributedActorStreamContextReceiving *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+			decltype(auto) ToStream = pContext->f_GetValueForConsume(_Value); 
+			_Stream >> ToStream;
+		}
+		
+		template <typename tf_CValue>
+		void fg_DistributedActorReturnFeed(CDistributedActorWriteStream &_Stream, tf_CValue const &_Value)
+		{
+			NPrivate::CDistributedActorStreamContextReceiving *pContext = (NPrivate::CDistributedActorStreamContextReceiving *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+			decltype(auto) ToStream = pContext->f_GetValueForFeed(_Value); 
+			_Stream << ToStream;
+		}
+		
+		template <typename tf_CValue>
+		void fg_DistributedActorReturnConsume(CDistributedActorReadStream &_Stream, tf_CValue &_Value)
+		{
+			NPrivate::CDistributedActorStreamContextSending *pContext = (NPrivate::CDistributedActorStreamContextSending *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+			decltype(auto) ToStream = pContext->f_GetValueForConsume(_Value); 
+			_Stream >> ToStream;
+		}
+		
 		template <typename ...tfp_CToPublish>
 		CDistributedActorInheritanceHeirarchyPublish CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy()
 		{
@@ -140,7 +176,7 @@ namespace NMib
 		{
 			using CReturn = typename NPrivate::TCRemoveContinuation<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CReturn>::CType;
 			
-			NFunction::TCFunction<TCContinuation<CReturn> (NFunction::CThisTag &)> ToDispatch;
+			NFunction::TCFunction<TCContinuation<CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> ToDispatch;
 			
 			auto *pActorDataRaw = static_cast<NPrivate::CDistributedActorData *>(_Actor->f_GetDistributedActorData().f_Get());
 			
@@ -201,7 +237,7 @@ namespace NMib
 						TCContinuation<CReturn> Continuation;
 						std::apply
 							(
-								[&](auto ..._Params)
+								[&](auto ..._Params) mutable
 								{
 									_Actor(t_pMemberFunction, fg_Forward<typename NTraits::TCDecayForward<tfp_CParams>::CType>(_Params)...)
 										> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<CReturn> &&_Result)
@@ -220,13 +256,13 @@ namespace NMib
 			return fg_AnyConcurrentActor().f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturn>>
-					, ToDispatch
+					, fg_Move(ToDispatch)
 				)
 			;
 		}
 		
 		template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-		void NPrivate::TCStreamFunctionReceive<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Consume(CReadStream &_Stream)
+		void NPrivate::TCStreamFunctionReceive<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Consume(CDistributedActorReadStream &_Stream)
 		{
 			NStr::CStr FunctionID;
 			_Stream >> FunctionID;

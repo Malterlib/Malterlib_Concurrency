@@ -17,6 +17,9 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		using CDistributedActorWriteStream = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>;
+		using CDistributedActorReadStream = NStream::CBinaryStreamMemoryPtr<>;
+		
 		struct CActorDistributionManager;
 		namespace NPrivate
 		{

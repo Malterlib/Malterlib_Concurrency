@@ -15,8 +15,6 @@ DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::CDistributedActorStrea
 
 namespace NMib::NConcurrency::NPrivate
 {
-	using CWriteStream = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>;
-	using CReadStream = NStream::CBinaryStreamMemoryPtr<>;
 	
 	struct CDistributedActorData : public ICDistributedActorData
 	{
@@ -29,7 +27,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct CStreamingFunction : public NPtr::TCSharedPointerIntrusiveBase<>
 	{
 		virtual ~CStreamingFunction();
-		virtual NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CReadStream &_Stream) = 0;
+		virtual NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CDistributedActorReadStream &_Stream) = 0;
 	};
 	
 	template <typename t_FFunction, typename t_FFunctionSignature = typename NFunction::TCFunctionInfo<t_FFunction>::template TCCallType<0>>
@@ -43,12 +41,12 @@ namespace NMib::NConcurrency::NPrivate
 		template <mint... tfp_Indices>
 		NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> fp_Call
 			(
-				CReadStream &_Stream
+				CDistributedActorReadStream &_Stream
 				, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			)
 		;
 		
-		NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CReadStream &_Stream) override;
+		NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CDistributedActorReadStream &_Stream) override;
 
 		t_FFunction m_fFunction;
 	};
@@ -58,7 +56,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		CStreamActorSend(TCActor<CActor> const &_Actor, CDistributedActorStreamContextSendState &_State);
 
-		void f_Feed(CWriteStream &_Stream) const;
+		void f_Feed(CDistributedActorWriteStream &_Stream) const;
 		
 		TCActor<CActor> const &m_Actor;
 		CDistributedActorStreamContextSendState &m_State;
@@ -68,7 +66,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		CStreamFunctionSend(NPtr::TCSharedPointer<CStreamingFunction> &&_pFunction, CDistributedActorStreamContextSendState &_State);
 		
-		void f_Feed(CWriteStream &_Stream) const;
+		void f_Feed(CDistributedActorWriteStream &_Stream) const;
 		
 		mutable NPtr::TCSharedPointer<CStreamingFunction> m_pFunction;
 		CDistributedActorStreamContextSendState &m_State;
@@ -87,7 +85,7 @@ namespace NMib::NConcurrency::NPrivate
 		};
 
 		CStreamSubscriptionSend(CActorSubscription &_Subscription, CDistributedActorStreamContextSendState &_State);
-		void f_Consume(CReadStream &_Stream);
+		void f_Consume(CDistributedActorReadStream &_Stream);
 
 		CActorSubscription &m_Subscription;
 		CDistributedActorStreamContextSendState &m_State;
@@ -141,13 +139,20 @@ namespace NMib::NConcurrency::NPrivate
 			return CStreamSubscriptionSend(_Subscription, *m_pState);
 		}
 
+#if DMibEnableSafeCheck > 0
+		bool f_CorrectMagic() const
+		{
+			return m_Magic == constant_uint64(0x5541e982e952851c);
+		}
+		uint64 m_Magic = constant_uint64(0x5541e982e952851c);
+#endif
 		NPtr::TCSharedPointer<CDistributedActorStreamContextSendState> m_pState;
 	};
 	
 	struct CStreamActorReceive
 	{
 		CStreamActorReceive(TCActor<CActor> &_Actor, CDistributedActorStreamContextReceiveState &_State);
-		void f_Consume(CReadStream &_Stream);
+		void f_Consume(CDistributedActorReadStream &_Stream);
 		
 		TCActor<CActor> &m_Actor;
 		CDistributedActorStreamContextReceiveState &m_State;
@@ -160,7 +165,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCStreamFunctionReceive<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>
 	{
 		TCStreamFunctionReceive(t_FFunction &_fFunction, CDistributedActorStreamContextReceiveState &_State);
-		void f_Consume(CReadStream &_Stream);
+		void f_Consume(CDistributedActorReadStream &_Stream);
 		
 		t_FFunction &m_fFunction;
 		CDistributedActorStreamContextReceiveState &m_State;
@@ -169,7 +174,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct CStreamSubscriptionReceive
 	{
 		CStreamSubscriptionReceive(CActorSubscription &&_Subscription, CDistributedActorStreamContextReceiveState &_State);
-		void f_Feed(CWriteStream &_Stream) const;
+		void f_Feed(CDistributedActorWriteStream &_Stream) const;
 
 		mutable CActorSubscription m_Subscription;
 		CDistributedActorStreamContextReceiveState &m_State;
@@ -220,7 +225,13 @@ namespace NMib::NConcurrency::NPrivate
 			return TCStreamFunctionReceive<NFunction::TCFunction<tf_CFunctionOptions...>>(_Function, *m_pState);
 		}
 		
-		
+#if DMibEnableSafeCheck > 0
+		bool f_CorrectMagic() const
+		{
+			return m_Magic == constant_uint64(0x3b9f0ef4263f81a5);
+		}
+		uint64 m_Magic = constant_uint64(0x3b9f0ef4263f81a5);
+#endif
 		NPtr::TCSharedPointer<CDistributedActorStreamContextReceiveState> m_pState;
 	};
 }

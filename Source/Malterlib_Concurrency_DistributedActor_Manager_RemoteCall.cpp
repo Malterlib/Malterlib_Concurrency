@@ -520,7 +520,7 @@ namespace NMib::NConcurrency::NPrivate
 		DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, mp_pActorData, mp_SubscriptionID, mp_LastExecutionID) > fg_DiscardResult();
 	}
 
-	void CStreamSubscriptionSend::f_Consume(CReadStream &_Stream)
+	void CStreamSubscriptionSend::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		NStr::CStr SubscriptionID;
 		_Stream >> SubscriptionID;
@@ -555,7 +555,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 	
-	void CStreamActorSend::f_Feed(CWriteStream &_Stream) const
+	void CStreamActorSend::f_Feed(CDistributedActorWriteStream &_Stream) const
 	{
 		DMibCheck(m_State.m_ActorID.f_IsEmpty()); // You can send one and only one actor in the call, otherwise it's impossible to know which actor to dispatch the functions to 
 		NStr::CStr ActorID = NCryptography::fg_RandomID();
@@ -570,7 +570,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 	
-	void CStreamFunctionSend::f_Feed(CWriteStream &_Stream) const
+	void CStreamFunctionSend::f_Feed(CDistributedActorWriteStream &_Stream) const
 	{
 		NStr::CStr FunctionID = NCryptography::fg_RandomID();
 		_Stream << FunctionID;
@@ -626,7 +626,7 @@ namespace NMib::NConcurrency::NPrivate
 		using CActorHolder = CRemoteDispatchActorActorHolder;
 	};
 
-	void CStreamActorReceive::f_Consume(CReadStream &_Stream)
+	void CStreamActorReceive::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		using namespace NActorDistributionManagerInternal;
 		NStr::CStr ActorID;
@@ -662,7 +662,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	}
 	
-	void CStreamSubscriptionReceive::f_Feed(CWriteStream &_Stream) const
+	void CStreamSubscriptionReceive::f_Feed(CDistributedActorWriteStream &_Stream) const
 	{
 		NStr::CStr SubscriptionID = NCryptography::fg_RandomID();
 		_Stream << SubscriptionID;

@@ -101,6 +101,7 @@ namespace NMib::NConcurrency::NPrivate
 				, typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tp_CParam>::CType>::CType const &...p_Params
 			)
 		{
+			DMibBinaryStreamContext(_Stream, &_Context);
 			TCInitializerList<bool> Dummy = 
 				{
 					[&]
@@ -130,12 +131,13 @@ namespace NMib::NConcurrency::NPrivate
 	template <mint... tfp_Indices>
 	NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::fp_Call
 		(
-			CReadStream &_Stream
+			CDistributedActorReadStream &_Stream
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 		)
 	{
 		NContainer::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
 		CDistributedActorStreamContextReceiving *pContext = (CDistributedActorStreamContextReceiving *)_Stream.f_GetContext();
+		DMibFastCheck(pContext && pContext->f_CorrectMagic());
 		
 		try
 		{
@@ -163,7 +165,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 	
 	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	auto TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Call(CReadStream &_Stream)
+	auto TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Call(CDistributedActorReadStream &_Stream)
 		-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 	{
 		return fp_Call(_Stream, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CParams)>::CType());

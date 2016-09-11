@@ -62,12 +62,13 @@ namespace NMib
 		namespace NPrivate
 		{
 			template <typename tf_CType, typename tf_CStreamContext>
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext)
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version)
 			{
 				if (_Result)
 				{
 					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 					DMibBinaryStreamContext(Stream, &_StreamContext);
+					DMibBinaryStreamVersion(Stream, _Version);
 					Stream << uint8(0); // No exception
 					decltype(auto) ToStream = _StreamContext.f_GetValueForFeed(*_Result);
 					Stream << ToStream;
@@ -77,7 +78,7 @@ namespace NMib
 			}
 
 			template <typename tf_CStreamContext>
-			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result, tf_CStreamContext &_StreamContext)
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version)
 			{
 				if (_Result)
 				{

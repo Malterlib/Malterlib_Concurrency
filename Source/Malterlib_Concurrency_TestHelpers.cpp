@@ -184,14 +184,24 @@ namespace NMib
 					, [this, pSubscription = &Subscription](CAbstractDistributedActor &&_NewActor)
 					{
 						DMibLock(mp_RemoteLock);
-						pSubscription->m_RemoteActor = _NewActor.f_GetActorUnsafe<CActor>();
+						pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 						mp_RemoteEvent.f_Signal();
 					}
-					, [this, pSubscription = &Subscription](TCWeakDistributedActor<CActor> const &_RemovedActor)
+					, [this, pSubscription = &Subscription](CDistributedActorIdentifier const &_RemovedActor)
 					{
 						DMibLock(mp_RemoteLock);
-						if (_RemovedActor == pSubscription->m_RemoteActor)
-							pSubscription->m_RemoteActor.f_Clear();
+						mint nActors = pSubscription->m_RemoteActors.f_GetLen();
+						for (mint iActor = 0; iActor < nActors; )
+						{
+							auto &RemoteActor = pSubscription->m_RemoteActors[iActor]; 
+							if (RemoteActor.f_GetIdentifier() == _RemovedActor)
+							{
+								pSubscription->m_RemoteActors.f_Remove(iActor);
+								--nActors;
+								continue;
+							}
+							++iActor;
+						}
 						mp_RemoteEvent.f_Signal();
 					}
 				).f_CallSync(60.0)
@@ -206,7 +216,7 @@ namespace NMib
 			{
 				{
 					DMibLock(mp_RemoteLock);
-					if (!Subscription.m_RemoteActor.f_IsEmpty())
+					if (!Subscription.m_RemoteActors.f_IsEmpty())
 						break;
 				}
 				bTimedOutWatingForActor = mp_RemoteEvent.f_WaitTimeout(WaitTime);
@@ -215,7 +225,7 @@ namespace NMib
 			{
 #if DMibConfig_Tests_Enable
 
-				DMibTest(DMibExpr(bTimedOutWatingForActor) && DMibExpr(Subscription.m_RemoteActor.f_IsEmpty()));
+				DMibTest(DMibExpr(bTimedOutWatingForActor) && DMibExpr(Subscription.m_RemoteActors.f_IsEmpty()));
 #endif
 				Subscription.m_Subscription.f_Clear();
 				return NStr::CStr();

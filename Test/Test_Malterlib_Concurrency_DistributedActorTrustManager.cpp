@@ -307,6 +307,12 @@ namespace
 	public:
 		struct CTestActor : public CActor
 		{
+			enum
+			{
+				EMinProtocolVersion = 0x101
+				, EProtocolVersion = 0x101
+			};
+			
 			uint32 f_Test()
 			{
 				return 5;
@@ -314,6 +320,12 @@ namespace
 		};
 		struct CTestActor2 : public CActor
 		{
+			enum
+			{
+				EMinProtocolVersion = 0x101
+				, EProtocolVersion = 0x101
+			};
+			
 			uint32 f_Test()
 			{
 				return 5;
@@ -321,6 +333,12 @@ namespace
 		};
 		struct CTestActor3 : public CActor
 		{
+			enum
+			{
+				EMinProtocolVersion = 0x101
+				, EProtocolVersion = 0x101
+			};
+			
 			uint32 f_Test()
 			{
 				return 5;
@@ -919,7 +937,7 @@ namespace
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
 						CStr Subscription = ClientHelper.f_Subscribe("Test");
-						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						TrustedSubscription2.f_Clear();
@@ -927,7 +945,7 @@ namespace
 						NTime::CClock Clock{true};
 						while (Clock.f_GetTime() < 10.0)
 						{
-							if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+							if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription))
 								break;
 						}
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
@@ -939,19 +957,19 @@ namespace
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test2", TestActor).f_CallSync(60.0);
 						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test2", TestActor).f_CallSync(60.0);
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test2");
-						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor>(), "Test2");
+						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test2");
 						CStr Subscription = ClientHelper.f_Subscribe("Test2");
-						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) || ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						ServerHelper.f_Unpublish(NewPublish2);
 						ServerHelper.f_Unpublish(NewPublish3);
 						NTime::CClock Clock{true};
 						while (Clock.f_GetTime() < 10.0)
 						{
-							if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+							if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && !ClientHelper.f_GetRemoteActor<CTestActor>(Subscription))
 								break;
 						}
-						DMibExpectFalse(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+						DMibExpectTrue(!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && !ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						ClientHelper.f_Unsubscribe(Subscription);
 					}
@@ -986,20 +1004,20 @@ namespace
 					
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts2).f_CallSync(60.0);
-					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test3", TestActor).f_CallSync(60.0);
+					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test3", TestActor).f_CallSync(60.0);
 					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
 					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
 					CStr Subscription = ClientHelper.f_Subscribe("Test3");
-					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ServerHelper.f_Unpublish(NewPublish2);
 					ServerHelper2.f_Unpublish(NewPublish3);
 					NTime::CClock Clock{true};
 					while (Clock.f_GetTime() < 10.0)
 					{
-						if (!ClientHelper.f_GetRemoteActor<CActor>(Subscription))
+						if (!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription))
 							break;
 					}
-					DMibExpectFalse(ClientHelper.f_GetRemoteActor<CActor>(Subscription));
+					DMibExpectFalse(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
 					ServerTrustManager2->f_BlockDestroy();
 				}

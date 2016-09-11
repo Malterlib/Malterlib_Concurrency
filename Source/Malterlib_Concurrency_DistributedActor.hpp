@@ -70,10 +70,17 @@ namespace NMib
 		{
 			CDistributedActorInheritanceHeirarchyPublish Ret;
 			
+			CDistributedActorProtocolVersions Versions;
+			
 			TCInitializerList<bool> Dummy = 
 				{
 					[&]
 					{
+						CDistributedActorProtocolVersions ThisVersions{tfp_CToPublish::EMinProtocolVersion, tfp_CToPublish::EProtocolVersion};
+						if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
+							Versions = ThisVersions;
+						else 
+							DMibFastCheck(ThisVersions == Versions); // Can only publish one protocol version
 						Ret.mp_Hierarchy.f_Insert(fg_GetTypeHash<tfp_CToPublish>());
 						return true;
 					}
@@ -81,12 +88,19 @@ namespace NMib
 				}
 			;
 			(void)Dummy;
+
+			Ret.mp_ProtocolVersions = Versions;
 			
 			return Ret;
 		}
 		NContainer::TCVector<uint32> const &CDistributedActorInheritanceHeirarchyPublish::f_GetHierarchy() const
 		{
 			return mp_Hierarchy;
+		}
+		
+		CDistributedActorProtocolVersions const & CDistributedActorInheritanceHeirarchyPublish::f_GetProtocolVersions() const
+		{
+			return mp_ProtocolVersions;
 		}
 		
 		template <typename tf_CActor, typename tf_CActorSource>
@@ -188,14 +202,22 @@ namespace NMib
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;				
 				Stream << t_NameHash;
+				Stream << pActorDataRaw->m_ProtocolVersion;
 				
 				NPrivate::CDistributedActorStreamContextSending Context;
 				
-				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream(Stream, Context, p_Params...);
+				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream
+					(
+						Stream
+						, Context
+						, pActorDataRaw->m_ProtocolVersion
+						, p_Params...
+					)
+				;
 				
 				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 				
-				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData), Context]() mutable
+				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData), Context, Version = pActorDataRaw->m_ProtocolVersion]() mutable
 					{
 						TCContinuation<CReturn> Continuation;
 						
@@ -208,7 +230,7 @@ namespace NMib
 						}
 
 						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data), Context)
-							> [Continuation, Context](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+							> [Continuation, Context, Version](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
 							{
 								if (!_Result)
 								{
@@ -218,7 +240,7 @@ namespace NMib
 								try
 								{
 									NException::CDisableExceptionTraceScope DisableTrace;
-									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result, Context);
+									NPrivate::fg_CopyReplyToContinuation(Continuation, *_Result, Context, Version);
 								}
 								catch (NException::CException const &_Exception)
 								{
@@ -283,11 +305,12 @@ namespace NMib
 					Stream << uint64(0); // Dummy packet ID
 					Stream << pActorDataRaw->m_ActorID;				
 					Stream << 0;
+					Stream << pActorDataRaw->m_ProtocolVersion;
 					Stream << FunctionID;
 					
 					CDistributedActorStreamContextSending Context;
 					
-					TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, p_Params...);
+					TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, pActorDataRaw->m_ProtocolVersion, p_Params...);
 					
 					auto pActorData = NPtr::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
 					
@@ -302,7 +325,7 @@ namespace NMib
 					}
 
 					DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
-						> [Continuation, Context](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+						> [Continuation, Context, Version = pActorDataRaw->m_ProtocolVersion](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
 						{
 							if (!_Result)
 							{
@@ -312,7 +335,7 @@ namespace NMib
 							try
 							{
 								NException::CDisableExceptionTraceScope DisableTrace;
-								fg_CopyReplyToContinuation(Continuation, *_Result, Context);
+								fg_CopyReplyToContinuation(Continuation, *_Result, Context, Version);
 							}
 							catch (NException::CException const &_Exception)
 							{
@@ -365,21 +388,10 @@ namespace NMib
 		template <typename tf_CType>
 		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
 		{
-			uint32 Hash = fg_GetTypeHash<tf_CType>();
-			if (mp_InheritanceHierarchy.f_BinarySearch(Hash) < 0)
-			{
-				DMibFastCheck(false);
-				return TCDistributedActor<tf_CType>();
-			}
-			return (TCDistributedActor<tf_CType> &)mp_Actor;
+			auto Actor = f_GetActor(fg_GetTypeHash<tf_CType>(), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
+			return fg_Move(reinterpret_cast<TCDistributedActor<tf_CType> &>(Actor));
 		}
-		
-		template <typename tf_CType>
-		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActorUnsafe() const
-		{
-			return (TCDistributedActor<tf_CType> &)mp_Actor;
-		}
-		
+
 		inline NStr::CStr const &CAbstractDistributedActor::f_GetUniqueHostID() const
 		{
 			return mp_UniqueHostID;
@@ -395,10 +407,38 @@ namespace NMib
 			return mp_HostInfo;
 		}
 		
+		inline bool CAbstractDistributedActor::f_IsEmpty() const
+		{
+			return mp_ActorID.f_IsEmpty();
+		}
+		
+		CDistributedActorProtocolVersions const &CAbstractDistributedActor::f_GetProtocolVersions() const
+		{
+			return mp_ProtocolVersions;
+		}
+		
 		template <typename tf_CString>
 		void CHostInfo::f_Format(tf_CString &o_String) const
 		{
 			o_String += f_GetDesc();
+		}
+		
+		template <typename tf_CType>
+		CDistributedActorProtocolVersions fg_SubscribeVersions()
+		{
+			return CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion};
+		}
+		
+		template <typename t_CActor>
+		bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right)
+		{
+			return _Left == (TCActor<> const &)_Right;
+		}
+		
+		template <typename t_CActor>
+		bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right)
+		{
+			return (TCActor<> const &)_Left == _Right;
 		}
 	}
 }

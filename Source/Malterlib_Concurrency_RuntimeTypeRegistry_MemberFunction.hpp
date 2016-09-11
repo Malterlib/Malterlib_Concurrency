@@ -75,7 +75,7 @@ namespace NMib
 				AsyncResult.f_SetResult(fg_Move(Result));
 				
 				t_CStreamContext *pContext = (t_CStreamContext *)_ParamsStream.f_GetContext();
-				return NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>::fs_Finished(fg_StreamAsyncResult(AsyncResult, *pContext));
+				return NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>::fs_Finished(fg_StreamAsyncResult(AsyncResult, *pContext, _ParamsStream.f_GetVersion()));
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CReturn>
@@ -140,7 +140,7 @@ namespace NMib
 				NConcurrency::TCAsyncResult<void> AsyncResult;
 				AsyncResult.f_SetResult();
 				
-				return NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>::fs_Finished(fg_StreamAsyncResult(AsyncResult, *pContext));
+				return NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>::fs_Finished(fg_StreamAsyncResult(AsyncResult, *pContext, _ParamsStream.f_GetVersion()));
 			}
 
 			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext>
@@ -208,9 +208,9 @@ namespace NMib
 				
 				Continuation.f_OnResultSet
 					(
-						[Return, Context = *pContext](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
+						[Return, Context = *pContext, Version = _ParamsStream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
 						{
-							Return.f_SetResult(fg_StreamAsyncResult(_Result, Context));
+							Return.f_SetResult(fg_StreamAsyncResult(_Result, Context, Version));
 						}
 					)
 				;

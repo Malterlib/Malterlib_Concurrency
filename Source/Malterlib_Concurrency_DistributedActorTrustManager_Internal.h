@@ -52,13 +52,54 @@ namespace NMib
 				
 				inline NStr::CStr const &f_GetHostID() const;
 			};
+			
+			struct CTypedHost;
+			
+			struct CTypedActor
+			{
+				CDistributedActorIdentifier const &f_GetIdentifier() const
+				{
+					return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
+				}
+				CAbstractDistributedActor m_AbstractActor;
+				CTrustedActorInfo m_TrustedInfo;
+				CTypedHost *m_pHost = nullptr;
+				
+				DMibIntrusiveLink(CTypedActor, NIntrusive::TCAVLLink<>, m_LinkAllowed);
+				DMibIntrusiveLink(CTypedActor, NIntrusive::TCAVLLink<>, m_LinkHost);
+				
+				struct CCompareIdentifier
+				{
+					auto &operator()(CTypedActor const &_Actor)
+					{
+						return _Actor.f_GetIdentifier();
+					}
+				};
+			};
 
+			struct CTypedHost
+			{
+				NStr::CStr const &f_GetHostID() const
+				{
+					return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
+				}
+				NIntrusive::TCAVLTree<CTypedActor::CLinkTraits_m_LinkHost, CTypedActor::CCompareIdentifier> m_Actors;
+			};
+			
 			struct CNamespaceTypeState
 			{
+				uint32 f_GetTypeHash() const
+				{
+					return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);					
+				}
+				NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State);
+				
 				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
-				NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> m_AllowedActors;
-				NContainer::TCMap<NStr::CStr, NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> m_HostToActors;
-				NContainer::TCMap<TCDistributedActor<CActor>, NStr::CStr> m_ActorToHost;
+				
+				NContainer::TCMap<CDistributedActorIdentifier, CTypedActor> m_Actors;
+				NContainer::TCMap<NStr::CStr, CTypedHost> m_Hosts;
+				NIntrusive::TCAVLTree<CTypedActor::CLinkTraits_m_LinkAllowed, CTypedActor::CCompareIdentifier> m_AllowedActors;
+				
 			};
 			
 			struct CNamespaceState
@@ -92,6 +133,12 @@ namespace NMib
 			
 			struct CTicketInterface : public CActor
 			{
+				enum
+				{
+					EMinProtocolVersion = 0x101
+					, EProtocolVersion = 0x101
+				};
+				
 				TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate(NStr::CStr const &_Token, NContainer::TCVector<uint8> const &_CertificateRequest);
 				CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
 			private:

@@ -88,7 +88,7 @@ namespace NMib
 			}
 
 			template <>
-			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContextSending &_Context)
+			void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContextSending &_Context, uint32 _Version)
 			{
 				NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 				ReplyStream.f_OpenRead(_Data);
@@ -292,12 +292,19 @@ namespace NMib
 				, NStr::CStr const &_UniqueHostID
 				, CHostInfo const &_HostInfo
 				, NStr::CStr const &_LastExecutionID
+				, uint32 _ProtocolVersion
 			)
 			: mp_DistributionManager(_DistributionManager)
 			, mp_UniqueHostID(_UniqueHostID) 
 			, mp_HostInfo(_HostInfo)
 			, mp_LastExecutionID(_LastExecutionID)
+			, mp_ProtocolVersion(_ProtocolVersion) 
 		{
+		}
+		
+		uint32 CCallingHostInfo::f_GetProtocolVersion() const
+		{
+			return mp_ProtocolVersion;
 		}
 		
 		NStr::CStr const &CCallingHostInfo::f_GetRealHostID() const
@@ -381,22 +388,89 @@ namespace NMib
 			return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) < NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 		}
 		
-		TCDistributedActor<CActor> CAbstractDistributedActor::f_GetActor(uint32 _TypeHash) const
-		{
-			if (mp_InheritanceHierarchy.f_BinarySearch(_TypeHash) < 0)
-			{
-				DMibFastCheck(false);
-				return {};
-			}
-			return mp_Actor;
-		}
-		
-		NContainer::TCVector<uint32> const &CAbstractDistributedActor::f_GetTypeHashes() const
-		{
-			return mp_InheritanceHierarchy;
-		}
-		
 		CDistributedActorInheritanceHeirarchyPublish::CDistributedActorInheritanceHeirarchyPublish()
+		{
+		}
+	
+		CDistributedActorProtocolVersions::CDistributedActorProtocolVersions() = default;
+		CDistributedActorProtocolVersions::CDistributedActorProtocolVersions(uint32 _MinSupported, uint32 _MaxSupported)
+			: m_MinSupported(_MinSupported)
+			, m_MaxSupported(_MaxSupported)
+		{
+		}
+	
+		bool CDistributedActorProtocolVersions::f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const
+		{
+			uint32 Version = fg_Min(m_MaxSupported, _Other.m_MaxSupported);
+			bool bSuccess =
+				Version >= m_MinSupported 
+				&& Version <= m_MaxSupported 
+				&& Version >= _Other.m_MinSupported
+				&& Version <= _Other.m_MaxSupported
+			;
+			if (bSuccess)
+				o_Version = Version;
+			return bSuccess;
+		}
+		
+		bool CDistributedActorProtocolVersions::operator == (CDistributedActorProtocolVersions const &_Other) const
+		{
+			return NContainer::fg_TupleReferences(m_MinSupported, m_MaxSupported) == NContainer::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
+		}
+		
+		bool CDistributedActorProtocolVersions::operator < (CDistributedActorProtocolVersions const &_Other) const
+		{
+			return NContainer::fg_TupleReferences(m_MinSupported, m_MaxSupported) < NContainer::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
+		}
+		
+		CDistributedActorIdentifier::CDistributedActorIdentifier()
+		{
+			
+		}
+		
+		CDistributedActorIdentifier::CDistributedActorIdentifier(NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID)
+			: mp_pHost(_pHost)
+			, mp_ActorID(_ActorID)
+		{
+		}
+		
+		bool CDistributedActorIdentifier::operator == (CDistributedActorIdentifier const &_Other) const
+		{
+			return NContainer::fg_TupleReferences(mp_pHost, mp_ActorID) == NContainer::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
+		}
+		
+		bool CDistributedActorIdentifier::operator < (CDistributedActorIdentifier const &_Other) const
+		{
+			return NContainer::fg_TupleReferences(mp_pHost, mp_ActorID) < NContainer::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
+		}
+		
+		bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right)
+		{
+			if (!_Right)
+				return false;
+			auto const &pRightData = _Right->f_GetDistributedActorData();
+			if (!pRightData)
+				return false;
+			NActorDistributionManagerInternal::CDistributedActorDataInternal const *pRightInternal 
+				= (NActorDistributionManagerInternal::CDistributedActorDataInternal const *)pRightData.f_Get()
+			;
+			return NContainer::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NContainer::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID); 
+		}
+		
+		bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
+		{
+			if (!_Left)
+				return false;
+			auto const &pLeftData = _Left->f_GetDistributedActorData();
+			if (!pLeftData)
+				return false;
+			NActorDistributionManagerInternal::CDistributedActorDataInternal const *pLeftInternal 
+				= (NActorDistributionManagerInternal::CDistributedActorDataInternal const *)pLeftData.f_Get()
+			;
+			return NContainer::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NContainer::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID); 
+		}
+		
+		NPrivate::ICHost::~ICHost()
 		{
 		}
 	}

@@ -36,8 +36,7 @@ namespace NMib
 			_Stream >> m_HighestSeenPacketID;
 			_Stream >> m_AllowedNamespaces;
 			_Stream >> m_bAllowAllNamespaces;
-			if (!_Stream.f_IsAtEndOfStream())
-				_Stream >> m_FriendlyName;
+			_Stream >> m_FriendlyName;
 		}
 		
 		template <typename tf_CStream>
@@ -92,6 +91,8 @@ namespace NMib
 			_Stream << m_ActorID;
 			_Stream << m_Namespace;
 			_Stream << m_Hierarchy;
+			_Stream << m_ProtocolVersions.m_MinSupported;
+			_Stream << m_ProtocolVersions.m_MaxSupported;
 		}
 		
 		template <typename tf_CStream>
@@ -101,6 +102,8 @@ namespace NMib
 			_Stream >> m_ActorID;
 			_Stream >> m_Namespace;
 			_Stream >> m_Hierarchy;
+			_Stream >> m_ProtocolVersions.m_MinSupported;
+			_Stream >> m_ProtocolVersions.m_MaxSupported;
 		}
 		
 		template <typename tf_CStream>

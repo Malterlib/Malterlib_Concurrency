@@ -104,6 +104,12 @@ namespace NMib
 			mp_pState = nullptr;
 			m_Actors.f_Clear();
 		}
+		
+		template <typename t_CActor>
+		inline CDistributedActorIdentifier const &TCTrustedActor<t_CActor>::f_GetIdentifier() const
+		{
+			return NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>>::fs_GetKey(*this);
+		}
 
 		template <typename t_CActor>
 		TCContinuation<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
@@ -117,18 +123,24 @@ namespace NMib
 			State.m_DispatchActor = _Actor;
 			State.m_TrustManager = fg_ThisActor(this);
 			State.m_TypeHash = fg_GetTypeHash<t_CActor>();
+			State.m_ProtocolVersions = fg_SubscribeVersions<t_CActor>();
 			State.m_NamespaceName = _Namespace;
 			
 			TCContinuation<TCTrustedActorSubscription<t_CActor>> Continuation;
 			
 			fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState) 
-				> Continuation / [pState, Continuation](NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> &&_Actors)
+				> Continuation / [pState, Continuation](NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 				{
 					TCTrustedActorSubscription<t_CActor> Result;
 					Result.mp_pState = pState;
 					pState->m_pSubscription = &Result;
 					for (auto &Actor : _Actors)
-						Result.m_Actors[(TCDistributedActor<t_CActor> &)_Actors.fs_GetKey(Actor)] = Actor;
+					{
+						auto &TrustedActor = Result.m_Actors[Actor.f_GetIdentifier()];
+						TrustedActor.m_TrustInfo = Actor.m_TrustInfo;
+						TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
+						TrustedActor.m_Actor = (TCDistributedActor<t_CActor> &)Actor.m_Actor; 
+					}
 					Continuation.f_SetResult(fg_Move(Result));
 				}
 			;
@@ -154,7 +166,7 @@ namespace NMib
 		}
 		
 		template <typename t_CActor>
-		void TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> const &_Actors)
+		void TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
 		{
 			fg_Dispatch
 				(
@@ -166,13 +178,14 @@ namespace NMib
 
 						for (auto &Actor : _Actors)
 						{
-							TCDistributedActor<t_CActor> &TypedActor = (TCDistributedActor<t_CActor> &)_Actors.fs_GetKey(Actor); 
+							auto &Identifier = Actor.f_GetIdentifier(); 
+							TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)Actor; 
 							
 							auto &Subscription = *m_pSubscription;
-							if (Subscription.m_Actors(TypedActor, Actor).f_WasCreated())
+							if (Subscription.m_Actors(Identifier, TypedActor).f_WasCreated())
 							{
 								if (m_fOnNewActor)
-									m_fOnNewActor(TypedActor, Actor);
+									m_fOnNewActor(TypedActor.m_Actor, TypedActor.m_TrustInfo);
 							}
 						}
 					}
@@ -182,7 +195,7 @@ namespace NMib
 		}
 		
 		template <typename t_CActor>
-		void TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors)
+		void TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
 		{
 			fg_Dispatch
 				(
@@ -195,8 +208,10 @@ namespace NMib
 						for (auto &Actor : _Actors)
 						{
 							auto &Subscription = *m_pSubscription;
-							if (Subscription.m_Actors.f_Remove((TCDistributedActor<t_CActor> &)Actor))
+							if (auto pActor = Subscription.m_Actors.f_FindEqual(Actor))
 							{
+								auto Actor = pActor->m_Actor;
+								Subscription.m_Actors.f_Remove(pActor);
 								if (m_fOnRemovedActor)
 									m_fOnRemovedActor(Actor);
 							}

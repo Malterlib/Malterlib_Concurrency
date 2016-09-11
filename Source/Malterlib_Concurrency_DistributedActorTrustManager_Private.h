@@ -8,6 +8,8 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManager;
 	struct CTrustedPermissionSubscription;
 	struct CTrustedActorInfo;
+	template <typename t_CActor>
+	struct TCTrustedActor;
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -18,12 +20,13 @@ namespace NMib::NConcurrency::NPrivate
 		TCWeakActor<CActor> m_DispatchActor;
 		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
 		uint32 m_TypeHash = 0;
+		CDistributedActorProtocolVersions m_ProtocolVersions;
 		NStr::CStr m_NamespaceName;
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual void f_AddDistributedActors(NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> const &_Actors) = 0;
-		virtual void f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors) = 0;
+		virtual void f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
+		virtual void f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
 	};
 	
 	struct CTrustedPermissionSubscriptionState : public NPtr::TCSharedPointerIntrusiveBase<>

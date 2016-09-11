@@ -86,11 +86,13 @@ namespace NMib
 			PublishedActor.m_Actor = _Actor;
 			PublishedActor.m_Hierarchy = _ClassesToPublish.f_GetHierarchy();
 			PublishedActor.m_Hierarchy.f_Sort();
+			PublishedActor.m_ProtocolVersions = _ClassesToPublish.f_GetProtocolVersions();
 			
 			CDistributedActorCommand_Publish Publish;
 			Publish.m_ActorID = pDistributedActorData->m_ActorID;
 			Publish.m_Namespace = _Namespace;
-			Publish.m_Hierarchy = PublishedActor.m_Hierarchy; 
+			Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
+			Publish.m_ProtocolVersions = _ClassesToPublish.f_GetProtocolVersions();
 
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 			Stream << Publish;
@@ -147,7 +149,8 @@ namespace NMib
 			CDistributedActorCommand_Publish Publish;
 			Publish.m_ActorID = _ActorID;
 			Publish.m_Namespace = _NamespaceID;
-			Publish.m_Hierarchy = PublishedActor.m_Hierarchy; 
+			Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
+			Publish.m_ProtocolVersions = PublishedActor.m_ProtocolVersions;
 
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> UnpublishData;
 			{
@@ -202,46 +205,82 @@ namespace NMib
 				Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
 			}
 		}
-		
+
+		CAbstractDistributedActor::CAbstractDistributedActor() = default;
+
 		CAbstractDistributedActor::CAbstractDistributedActor
 			(
-				TCDistributedActor<CActor> const &_Actor
+				NStr::CStr const &_ActorID
+				, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
+				, TCWeakActor<CActorDistributionManager> const &_DistributionManager
 				, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 				, NStr::CStr const &_UniqueHostID
 				, CHostInfo const &_HostInfo
-			 
+				, CDistributedActorProtocolVersions &_ProtocolVersions
 			)
-			: mp_Actor(_Actor)
+			: mp_ActorID(_ActorID)
+			, mp_pHost(_pHost)
+			, mp_DistributionManager(_DistributionManager)
 			, mp_InheritanceHierarchy(_InheritanceHierarchy)
 			, mp_UniqueHostID(_UniqueHostID)
 			, mp_HostInfo(_HostInfo)
+			, mp_ProtocolVersions(_ProtocolVersions) 
 		{
 		}
+		
+		CDistributedActorIdentifier CAbstractDistributedActor::f_GetIdentifier() const
+		{
+			return CDistributedActorIdentifier(mp_pHost, mp_ActorID); 
+		}
 
+		TCDistributedActor<CActor> CAbstractDistributedActor::f_GetActor(uint32 _TypeHash, CDistributedActorProtocolVersions const &_SupportedVersions) const
+		{
+			if (mp_InheritanceHierarchy.f_BinarySearch(_TypeHash) < 0)
+				return {};
+			
+			uint32 Version;
+			if (!mp_ProtocolVersions.f_HighestSupportedVersion(_SupportedVersions, Version)) 
+				return {};
+			
+			auto &ConcurrencyManager = fg_ConcurrencyManager();
+			NPtr::TCSharedPointer<CActorDistributionManagerInternal::CDistributedActorDataInternal> pDistributedActorData = fg_Construct();
+			pDistributedActorData->m_pHost = reinterpret_cast<NPtr::TCWeakPointer<CActorDistributionManagerInternal::CHost> const &>(mp_pHost);
+			pDistributedActorData->m_bRemote = true;
+			pDistributedActorData->m_DistributionManager = mp_DistributionManager;
+			pDistributedActorData->m_ActorID = mp_ActorID;
+			pDistributedActorData->m_ProtocolVersion = Version;
+			DMibFastCheck(Version != TCLimitsInt<uint32>::mc_Max);
+			
+			NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 
+				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+			;
+			
+			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<CActor>>
+				(
+					fg_Move(pActor)
+					, fg_Construct<TCDistributedActorWrapper<CActor>>()
+				)
+			;
+		}
+		
+		NContainer::TCVector<uint32> const &CAbstractDistributedActor::f_GetTypeHashes() const
+		{
+			return mp_InheritanceHierarchy;
+		}
+		
 		void CActorDistributionManagerInternal::fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor)
 		{
-			{
-				auto &ConcurrencyManager = fg_ConcurrencyManager();
-
-				NPtr::TCSharedPointer<CDistributedActorDataInternal> pDistributedActorData = fg_Construct();
-				pDistributedActorData->m_pHost = _pHost;
-				pDistributedActorData->m_bRemote = true;
-				pDistributedActorData->m_DistributionManager = fg_ThisActor(m_pThis);
-				pDistributedActorData->m_ActorID = _RemoteActor.f_GetActorID();
-				
-				NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 
-					= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
-				;
-				
-				_RemoteActor.m_Actor = ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<CActor>>
-					(
-						fg_Move(pActor)
-						, fg_Construct<TCDistributedActorWrapper<CActor>>()
-					)
-				;
-			}
-			
-			CAbstractDistributedActor AbstractActor(_RemoteActor.m_Actor, _RemoteActor.m_Hierarchy, _pHost->m_UniqueHostID, _pHost->f_GetHostInfo());
+			CAbstractDistributedActor AbstractActor
+				{
+					_RemoteActor.f_GetActorID()
+					, _pHost
+					, fg_ThisActor(m_pThis) 
+					, _RemoteActor.m_Hierarchy
+					, _pHost->m_UniqueHostID
+					, _pHost->f_GetHostInfo()
+					, _RemoteActor.m_ProtocolVersions
+				}
+			;
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
 				pAll->m_fOnNewActor(fg_TempCopy(AbstractActor));
@@ -255,11 +294,11 @@ namespace NMib
 		{
 			auto pAll = m_SubscribedActors.f_FindEqual("");
 			if (pAll)
-				pAll->m_fOnRemovedActorActor(_RemoteActor.m_Actor.f_Weak());
+				pAll->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()});
 			
 			auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 			if (pSpecific)
-				pSpecific->m_fOnRemovedActorActor(_RemoteActor.m_Actor.f_Weak());
+				pSpecific->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()});
 		}
 		
 		bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
@@ -285,6 +324,7 @@ namespace NMib
 				auto &RemoteActor = *Mapped;
 				RemoteActor.m_Namespace = Publish.m_Namespace;
 				RemoteActor.m_Hierarchy = Publish.m_Hierarchy;
+				RemoteActor.m_ProtocolVersions = Publish.m_ProtocolVersions;
 				RemoteActor.m_pHost = pHost.f_Get();
 				
 				fp_NotifyNewActor(pHost, RemoteActor);
@@ -344,7 +384,7 @@ namespace NMib
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces
 				, TCActor<CActor> const &_Actor
 				, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-				, NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
+				, NFunction::TCFunction<void (NFunction::CThisTag &, CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 			)
 		{
 			auto &Internal = *mp_pInternal;
@@ -382,7 +422,16 @@ namespace NMib
 					{
 						fReportExistingActor
 							(
-								CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->f_GetHostInfo())
+								CAbstractDistributedActor
+								(
+									RemoteActor.f_GetActorID()
+									, fg_Explicit(RemoteActor.m_pHost)
+									, fg_ThisActor(this)
+									, RemoteActor.m_Hierarchy
+									, RemoteActor.m_pHost->m_UniqueHostID
+									, RemoteActor.m_pHost->f_GetHostInfo()
+									, RemoteActor.m_ProtocolVersions
+								)
 							)
 						;
 					}
@@ -402,7 +451,16 @@ namespace NMib
 						{
 							fReportExistingActor
 								(
-									CAbstractDistributedActor(RemoteActor.m_Actor, RemoteActor.m_Hierarchy, RemoteActor.m_pHost->m_UniqueHostID, RemoteActor.m_pHost->f_GetHostInfo())
+									CAbstractDistributedActor
+									(
+										RemoteActor.f_GetActorID()
+										, fg_Explicit(RemoteActor.m_pHost)
+										, fg_ThisActor(this)
+										, RemoteActor.m_Hierarchy
+										, RemoteActor.m_pHost->m_UniqueHostID
+										, RemoteActor.m_pHost->f_GetHostInfo()
+										, RemoteActor.m_ProtocolVersions
+									)
 								)
 							;
 						}

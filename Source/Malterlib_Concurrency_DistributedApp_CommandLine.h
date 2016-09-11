@@ -56,6 +56,12 @@ namespace NMib
 		
 		struct ICCommandLine : public CActor
 		{
+			enum
+			{
+				EMinProtocolVersion = 0x101
+				, EProtocolVersion = 0x101
+			};
+			
 			virtual TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Parameters) = 0;
 		};
 		

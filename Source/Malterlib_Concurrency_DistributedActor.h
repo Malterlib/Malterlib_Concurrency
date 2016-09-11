@@ -28,7 +28,41 @@ namespace NMib
 			struct CDistributedActorStreamContextReceiving;
 			struct CDistributedActorStreamContextSendState;
 			struct CStreamSubscriptionSend;
+			struct ICHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
+			{
+				virtual ~ICHost();
+			};
 		}
+
+		struct CDistributedActorIdentifier;
+
+		bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
+		bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
+		
+		template <typename t_CActor>
+		bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
+		template <typename t_CActor>
+		bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
+		
+		struct CDistributedActorIdentifier
+		{
+			CDistributedActorIdentifier();
+			CDistributedActorIdentifier(NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID);
+			
+			bool operator == (CDistributedActorIdentifier const &_Other) const;
+			bool operator < (CDistributedActorIdentifier const &_Other) const;
+			
+		private:
+			template <typename t_CActor>
+			friend bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
+			template <typename t_CActor>
+			friend bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
+			friend bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
+			friend bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
+			
+			NPtr::TCWeakPointer<NPrivate::ICHost> mp_pHost;
+			NStr::CStr mp_ActorID;
+		};
 
 		struct CHostInfo
 		{
@@ -60,7 +94,7 @@ namespace NMib
 		
 		template <typename t_CActor>
 		using TCWeakDistributedActor = TCWeakActor<TCDistributedActorWrapper<t_CActor>>;
-
+		
 		template <typename tf_CActor, typename... tfp_CParams>
 		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(tfp_CParams &&...p_Params);
 		
@@ -144,32 +178,57 @@ namespace NMib
 			bool m_bRetryOnListenFailure = true;
 		};
 
+		struct CDistributedActorProtocolVersions
+		{
+			CDistributedActorProtocolVersions();
+			CDistributedActorProtocolVersions(uint32 _MinSupported, uint32 _MaxSupported);
+			
+			bool f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const;
+			bool operator == (CDistributedActorProtocolVersions const &_Other) const;
+			bool operator < (CDistributedActorProtocolVersions const &_Other) const;
+			
+			uint32 m_MinSupported = TCLimitsInt<uint32>::mc_Max;
+			uint32 m_MaxSupported = TCLimitsInt<uint32>::mc_Max;
+		};
+		
+		template <typename tf_CType>
+		CDistributedActorProtocolVersions fg_SubscribeVersions();
+		
 		struct CAbstractDistributedActor
 		{
+			CAbstractDistributedActor();
 			CAbstractDistributedActor
 				(
-					TCDistributedActor<CActor> const &_Actor
+					NStr::CStr const &_ActorID
+					, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
+					, TCWeakActor<CActorDistributionManager> const &_DistributionManager
 					, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 					, NStr::CStr const &_UniqueHostID
 					, CHostInfo const &_HostInfo
+					, CDistributedActorProtocolVersions &_ProtocolVersions
 				)
 			;
 			
-			TCDistributedActor<CActor> f_GetActor(uint32 _TypeHash) const;
+			TCDistributedActor<CActor> f_GetActor(uint32 _TypeHash, CDistributedActorProtocolVersions const &_SupportedVersions) const;
 			template <typename tf_CType>
 			TCDistributedActor<tf_CType> f_GetActor() const;
-			template <typename tf_CType>
-			TCDistributedActor<tf_CType> f_GetActorUnsafe() const;
 			inline NStr::CStr const &f_GetUniqueHostID() const;
 			inline NStr::CStr const &f_GetRealHostID() const;
 			inline CHostInfo const &f_GetHostInfo() const;
-			
+			inline CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
 			NContainer::TCVector<uint32> const &f_GetTypeHashes() const;
+			inline bool f_IsEmpty() const;
+			CDistributedActorIdentifier f_GetIdentifier() const;
+			
 		private:
-			TCDistributedActor<CActor> mp_Actor;
+			NPtr::TCWeakPointer<NPrivate::ICHost> mp_pHost;
+			NStr::CStr mp_ActorID;
+ 			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
+
 			NContainer::TCVector<uint32> mp_InheritanceHierarchy;
 			NStr::CStr mp_UniqueHostID;
 			CHostInfo mp_HostInfo;
+			CDistributedActorProtocolVersions mp_ProtocolVersions;
 		};
 		
 		template <typename tf_CFirst>
@@ -180,10 +239,12 @@ namespace NMib
 			template <typename ...tfp_CToPublish>
 			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy();
 			inline_always NContainer::TCVector<uint32> const &f_GetHierarchy() const;
+			inline_always CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
 			
 		private:
 			CDistributedActorInheritanceHeirarchyPublish();
 			NContainer::TCVector<uint32> mp_Hierarchy;
+			CDistributedActorProtocolVersions mp_ProtocolVersions;
 		};
 		
 		struct CDistributedActorSecurity
@@ -301,13 +362,22 @@ namespace NMib
 		struct CCallingHostInfo
 		{
 			CCallingHostInfo();
-			CCallingHostInfo(TCActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_UniqueHostID, CHostInfo const &_HostInfo, NStr::CStr const &_LastExecutionID);
+			CCallingHostInfo
+				(
+					TCActor<CActorDistributionManager> const &_DistributionManager
+					, NStr::CStr const &_UniqueHostID
+					, CHostInfo const &_HostInfo
+					, NStr::CStr const &_LastExecutionID
+					, uint32 _ProtocolVersion
+				)
+			;
 			
 			NStr::CStr const &f_GetRealHostID() const;
 			NStr::CStr const &f_GetUniqueHostID() const;
 			CHostInfo const &f_GetHostInfo() const;
 			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const;
+			uint32 f_GetProtocolVersion() const;
 			
 			bool operator ==(CCallingHostInfo const &_Right) const;
 			bool operator <(CCallingHostInfo const &_Right) const;
@@ -317,6 +387,7 @@ namespace NMib
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
 			CHostInfo mp_HostInfo;
 			NStr::CStr mp_LastExecutionID;
+			uint32 mp_ProtocolVersion;
 		};
 		
 		struct CActorDistributionManagerInternal;
@@ -372,7 +443,7 @@ namespace NMib
 					NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 					, TCActor<CActor> const &_Actor
 					, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-					, NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
+					, NFunction::TCFunction<void (NFunction::CThisTag &, CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 				)
 			;
 

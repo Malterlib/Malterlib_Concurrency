@@ -91,6 +91,7 @@ namespace NMib
 			NStr::CStr m_ActorID;
 			NStr::CStr m_Namespace;
 			NContainer::TCVector<uint32> m_Hierarchy;
+			CDistributedActorProtocolVersions m_ProtocolVersions;
 		};
 
 		struct CDistributedActorCommand_Unpublish

@@ -46,8 +46,15 @@ namespace NMib
 		{
 			auto pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
 			if (!pSubscription)
-				DMibError("No such subscription");				
-			return fg_StaticCast<tf_CActor>(pSubscription->m_RemoteActor);
+				DMibError("No such subscription");
+			DMibLock(mp_RemoteLock);
+			for (auto &RemoteActor : pSubscription->m_RemoteActors)
+			{
+				auto Actor = RemoteActor.f_GetActor<tf_CActor>();
+				if (Actor)
+					return Actor;
+			}
+			return {};
 		}
 	}
 }

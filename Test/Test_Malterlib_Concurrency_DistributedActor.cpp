@@ -47,6 +47,12 @@ namespace
 	class CDistributedActorBase : public CActor
 	{
 	public:
+		enum
+		{
+			EMinProtocolVersion = 0x101
+			, EProtocolVersion = 0x101
+		};
+		
 		virtual void f_AddIntVirtual(uint32 _Value) = 0;
 		virtual uint32 f_GetResultVirtual() = 0;
 		virtual CStr f_GetCallingHostID() const = 0;
@@ -711,7 +717,7 @@ namespace
 						RemoteEvent.f_Signal();
 						++RemoteEvents;
 					}
-					, [&](TCWeakDistributedActor<CActor> const &_RemovedActor)
+					, [&](CDistributedActorIdentifier const &_RemovedActor)
 					{
 						DMibLock(RemoteLock);
 						if (_RemovedActor == RemoteActor)

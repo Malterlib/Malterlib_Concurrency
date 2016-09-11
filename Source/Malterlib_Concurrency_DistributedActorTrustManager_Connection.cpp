@@ -527,7 +527,7 @@ namespace NMib
 												}
 											;
 										}
-										, [this](TCWeakDistributedActor<CActor> const &_RemovedActor)
+										, [this](CDistributedActorIdentifier const &_RemovedActor)
 										{
 										}
 									)

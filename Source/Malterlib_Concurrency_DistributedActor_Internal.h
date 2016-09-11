@@ -111,6 +111,7 @@ namespace NMib
 				TCDistributedActor<CActor> m_Actor;
 				NContainer::TCVector<uint32> m_Hierarchy;
 				CHost *m_pHost = nullptr;			
+				CDistributedActorProtocolVersions m_ProtocolVersions;
 				
 				NStr::CStr const &f_GetActorID() const
 				{
@@ -148,7 +149,7 @@ namespace NMib
 				NContainer::TCSet<NStr::CStr> m_Actors;
 			};
 			
-			struct CHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
+			struct CHost : public NPrivate::ICHost
 			{
 				CHost(CActorDistributionManager &_DistributionManager);
 				~CHost();
@@ -209,6 +210,7 @@ namespace NMib
 				TCWeakDistributedActor<CActor> m_Actor;
 				NContainer::TCVector<uint32> m_Hierarchy;
 				CLocalNamespace *m_pNamespace = nullptr;
+				CDistributedActorProtocolVersions m_ProtocolVersions;
 
 				NStr::CStr const &f_GetActorID() const
 				{
@@ -240,7 +242,7 @@ namespace NMib
 			{
 				CActorPublicationSubscription(CActorDistributionManager *_pManager);
 				TCActorSubscriptionManager<void (CAbstractDistributedActor &&_NewActor), true> m_fOnNewActor;
-				TCActorSubscriptionManager<void (TCWeakDistributedActor<CActor> const &_RemovedActor), true> m_fOnRemovedActorActor;
+				TCActorSubscriptionManager<void (CDistributedActorIdentifier const &_RemovedActor), true> m_fOnRemovedActorActor;
 			};
 
 			struct CListen

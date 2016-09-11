@@ -36,7 +36,7 @@ namespace NMib
 						mp_DistributedActor.f_SetResult(fg_Move(Actor)); 
 						fp_ResultAvailable();
 					}
-					, [this](const TCWeakDistributedActor<CActor> &_RemovedActor)
+					, [this](const CDistributedActorIdentifier &_RemovedActor)
 					{
 						if (mp_DistributedActor && *mp_DistributedActor == _RemovedActor)
 							mp_DistributedActor = {}; 

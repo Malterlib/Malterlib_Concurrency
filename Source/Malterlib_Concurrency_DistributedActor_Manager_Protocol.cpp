@@ -125,7 +125,8 @@ namespace NMib
 									CDistributedActorCommand_Publish Publish;
 									Publish.m_ActorID = Actor.f_GetActorID();
 									Publish.m_Namespace = Namespace;
-									Publish.m_Hierarchy = Actor.m_Hierarchy; 
+									Publish.m_Hierarchy = Actor.m_Hierarchy;
+									Publish.m_ProtocolVersions = Actor.m_ProtocolVersions;
 
 									NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 									Stream << Publish;

@@ -68,6 +68,7 @@ namespace NMib::NConcurrency::NPrivate
 			TCContinuation<tf_CResult> &_Continuation
 			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
 			, CDistributedActorStreamContextSending &_Context
+			, uint32 _Version 
 		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
@@ -75,6 +76,8 @@ namespace NMib::NConcurrency::NPrivate
 		if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
 			return;
 		DMibBinaryStreamContext(ReplyStream, &_Context);
+		DMibBinaryStreamVersion(ReplyStream, _Version);
+		
 		tf_CResult Result;
 		decltype(auto) ToStream = _Context.f_GetValueForConsume(Result);
 		ReplyStream >> ToStream;
@@ -93,6 +96,7 @@ namespace NMib::NConcurrency::NPrivate
 			TCContinuation<void> &_Continuation
 			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
 			, CDistributedActorStreamContextSending &_Context
+			, uint32 _Version
 		)
 	;
 
@@ -110,10 +114,12 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				tf_CStream &_Stream
 				, CDistributedActorStreamContextSending &_Context
+				, uint32 _Version
 				, typename NTraits::TCRemoveQualifiers<typename NTraits::TCRemoveReference<tp_CParam>::CType>::CType const &...p_Params
 			)
 		{
 			DMibBinaryStreamContext(_Stream, &_Context);
+			DMibBinaryStreamVersion(_Stream, _Version);
 			TCInitializerList<bool> Dummy = 
 				{
 					[&]
@@ -166,9 +172,9 @@ namespace NMib::NConcurrency::NPrivate
 		
 		Continuation.f_OnResultSet
 			(
-				[Return, Context = *pContext](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
+				[Return, Context = *pContext, Version = _Stream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
 				{
-					Return.f_SetResult(fg_StreamAsyncResult(_Result, Context));
+					Return.f_SetResult(fg_StreamAsyncResult(_Result, Context, Version));
 				}
 			)
 		;

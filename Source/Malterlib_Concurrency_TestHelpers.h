@@ -42,7 +42,7 @@ namespace NMib
 			struct CSubscription
 			{
 				CActorSubscription m_Subscription;
-				TCDistributedActor<CActor> m_RemoteActor;
+				NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 			};
 			
 			NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure);

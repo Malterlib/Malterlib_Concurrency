@@ -18,10 +18,11 @@ namespace NMib::NConcurrency::NPrivate
 	
 	struct CDistributedActorData : public ICDistributedActorData
 	{
+		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_ActorID;
+		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
 		bool m_bWasDestroyed = false;
 		bool m_bRemote = false;
-		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 	};
 	
 	struct CStreamingFunction : public NPtr::TCSharedPointerIntrusiveBase<>

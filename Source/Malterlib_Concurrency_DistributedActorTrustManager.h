@@ -19,6 +19,15 @@ namespace NMib
 			CHostInfo m_HostInfo;
 			NStr::CStr m_UniqueHostID;
 		};
+
+		template <typename t_CActor>
+		struct TCTrustedActor
+		{
+			inline CDistributedActorIdentifier const &f_GetIdentifier() const;
+			TCDistributedActor<t_CActor> m_Actor;
+			CTrustedActorInfo m_TrustInfo;
+			uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max; 
+		};
 		
 		template <typename t_CActor>
 		struct TCTrustedActorSubscription
@@ -30,7 +39,7 @@ namespace NMib
 			TCTrustedActorSubscription() = default;
 			~TCTrustedActorSubscription();
 			
-			NContainer::TCMap<TCDistributedActor<t_CActor>, CTrustedActorInfo> m_Actors;
+			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
 			
 			void f_Clear();
 
@@ -44,8 +53,8 @@ namespace NMib
 			{
 				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
 				NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
-				void f_AddDistributedActors(NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo> const &_Actors) override;
-				void f_RemoveDistributedActors(NContainer::TCSet<TCWeakDistributedActor<CActor>> const &_Actors) override;
+				void f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
+				void f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
 				
 				TCTrustedActorSubscription *m_pSubscription;
 			};
@@ -211,7 +220,9 @@ namespace NMib
 			
 			TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 			
-			TCContinuation<NContainer::TCMap<TCDistributedActor<CActor>, CTrustedActorInfo>> fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
+			auto fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
+				-> TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
+			;
 			void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>>> fp_SubscribeToPermissions
 				(

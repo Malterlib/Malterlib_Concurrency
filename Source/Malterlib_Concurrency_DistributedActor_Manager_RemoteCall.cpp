@@ -221,6 +221,8 @@ namespace NMib::NConcurrency
 		
 		uint32 FunctionHash;
 		_Stream >> FunctionHash;
+		uint32 ProtocolVersion;
+		_Stream >> ProtocolVersion;
 
 		auto &pHost = _pConnection->m_pHost;
 		
@@ -328,9 +330,10 @@ namespace NMib::NConcurrency
 					Actor
 					, ParamData = fg_Move(ParamData)
 					, HostID = pHost->m_RealHostID
-					, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), pHost->m_UniqueHostID, pHost->f_GetHostInfo(), pHost->m_LastExecutionID)
+					, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), pHost->m_UniqueHostID, pHost->f_GetHostInfo(), pHost->m_LastExecutionID, ProtocolVersion)
 					, Context
 					, fCall = fg_Move(fCall)
+					, ProtocolVersion
 				] 
 				() mutable
 				{
@@ -346,6 +349,7 @@ namespace NMib::NConcurrency
 					NStream::CBinaryStreamMemoryPtr<> Stream;
 					Stream.f_OpenRead(ParamData);
 					DMibBinaryStreamContext(Stream, &Context);
+					DMibBinaryStreamVersion(Stream, ProtocolVersion);
 					return fCall(Stream);
 				}
 			) 
@@ -639,6 +643,8 @@ namespace NMib::NConcurrency::NPrivate
 		pDistributedActorData->m_bRemote = true;
 		pDistributedActorData->m_DistributionManager = m_State.m_DistributionManager;
 		pDistributedActorData->m_ActorID = ActorID;
+		pDistributedActorData->m_ProtocolVersion = _Stream.f_GetVersion();
+		DMibFastCheck(pDistributedActorData->m_ProtocolVersion != TCLimitsInt<uint32>::mc_Max);
 		
 		auto &ConcurrencyManager = DistributionManager->f_ConcurrencyManager(); 
 		

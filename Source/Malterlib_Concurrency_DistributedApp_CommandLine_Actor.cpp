@@ -179,7 +179,7 @@ namespace NMib
 				(
 					&CActorDistributionManager::f_PublishActor
 					, mp_CommandLine
-					, "Malterlib/Concurrency/Commandline"
+					, "com.malterlib/Concurrency/Commandline"
 					, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<ICCommandLine>()
 				)
 				> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)

@@ -862,7 +862,7 @@ namespace
 					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test")];
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
 					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
 					auto TrustedSubscription1 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
 					{
@@ -896,7 +896,7 @@ namespace
 					DMibTestPath("Concurrent subscribe");
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
 					auto Subscriptions =
 						(
 							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor)
@@ -915,13 +915,14 @@ namespace
 					DMibTestPath("Publish while subscribed");
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test");
+					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
 					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
 					}
 					CStr NewPublish = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+					Published[NewPublish];
 					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 3), ==, 3);
 					
 					{
@@ -936,7 +937,7 @@ namespace
 						DMibTestPath("2 types no sub unpublish");
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
-						CStr Subscription = ClientHelper.f_Subscribe("Test");
+						CStr Subscription = ClientHelper.f_Subscribe("Test", Published.f_GetLen() + 1);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
@@ -958,8 +959,8 @@ namespace
 						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test2", TestActor).f_CallSync(60.0);
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test2");
 						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test2");
-						CStr Subscription = ClientHelper.f_Subscribe("Test2");
-						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) || ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
+						CStr Subscription = ClientHelper.f_Subscribe("Test2", 2);
+						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						ServerHelper.f_Unpublish(NewPublish2);
 						ServerHelper.f_Unpublish(NewPublish3);
@@ -975,6 +976,7 @@ namespace
 					}
 					
 					ServerHelper.f_Unpublish(NewPublish);
+					Published.f_Remove(NewPublish);
 					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 2), ==, 2);
 					auto ToUnpublish = *Published.f_FindSmallest();
 					ServerHelper.f_Unpublish(ToUnpublish);
@@ -1007,7 +1009,7 @@ namespace
 					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test3", TestActor).f_CallSync(60.0);
 					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
 					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
-					CStr Subscription = ClientHelper.f_Subscribe("Test3");
+					CStr Subscription = ClientHelper.f_Subscribe("Test3", 2);
 					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ServerHelper.f_Unpublish(NewPublish2);
 					ServerHelper2.f_Unpublish(NewPublish3);

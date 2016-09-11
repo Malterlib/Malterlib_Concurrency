@@ -448,7 +448,7 @@ namespace NMib
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);
 				Internal.m_CommandLineSubscription = fg_ConstructActor<TCDistributedActorSingleSubscription<ICCommandLine>>
 					(
-						"Malterlib/Concurrency/Commandline"
+						"com.malterlib/Concurrency/Commandline"
 						, Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync()
 					)
 				;

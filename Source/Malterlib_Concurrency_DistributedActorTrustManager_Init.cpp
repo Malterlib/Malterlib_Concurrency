@@ -468,7 +468,7 @@ namespace NMib
 								(
 									&CActorDistributionManager::f_PublishActor
 									, m_TicketInterface
-									, "Anonymous/MalterlibDistributedTrustManagerTicket"
+									, "Anonymous/com.malterlib/Concurrency/TrustManagerTicket"
 									, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CTicketInterface>()
 								)
 								> [this](TCAsyncResult<CDistributedActorPublication> &&_Result)

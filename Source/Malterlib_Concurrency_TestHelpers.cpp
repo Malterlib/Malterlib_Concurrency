@@ -166,7 +166,7 @@ namespace NMib
 		{
 		}
 
-		NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure)
+		NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected)
 		{
 			TCActor<CActorDistributionManager> &ClientManager = mp_Manager;
 			
@@ -216,7 +216,7 @@ namespace NMib
 			{
 				{
 					DMibLock(mp_RemoteLock);
-					if (!Subscription.m_RemoteActors.f_IsEmpty())
+					if (Subscription.m_RemoteActors.f_GetLen() == _nExpected)
 						break;
 				}
 				bTimedOutWatingForActor = mp_RemoteEvent.f_WaitTimeout(WaitTime);
@@ -235,14 +235,14 @@ namespace NMib
 			return SubscriptionID;
 		}
 
-		NStr::CStr CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace)
+		NStr::CStr CDistributedActorTestHelper::f_Subscribe(NStr::CStr const &_Namespace, mint _nExpected)
 		{
-			return fp_Subscribe(_Namespace, false);
+			return fp_Subscribe(_Namespace, false, _nExpected);
 		}
 		
 		void CDistributedActorTestHelper::f_SubscribeExpectFailure(NStr::CStr const &_Namespace)
 		{
-			fp_Subscribe(_Namespace, true);
+			fp_Subscribe(_Namespace, true, 1);
 		}
 		
 		void CDistributedActorTestHelper::f_Unsubscribe(NStr::CStr const &_Subscription)

@@ -315,7 +315,7 @@ namespace NMib
 								Internal.m_ActorDistributionManager
 									(
 										&CActorDistributionManager::f_SubscribeActors
-										, NContainer::fg_CreateVector<NStr::CStr>("Anonymous/MalterlibDistributedTrustManagerTicket")
+										, NContainer::fg_CreateVector<NStr::CStr>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
 										, fg_ThisActor(this)
 										, [this, Continuation, pConnectionState, _TrustTicket, ServerHostID, UniqueHostID](CAbstractDistributedActor &&_NewActor)
 										{

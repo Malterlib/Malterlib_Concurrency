@@ -21,7 +21,7 @@ namespace NMib
 			template <typename ...tfp_CDistributedActors>
 			NStr::CStr f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace);
 			void f_Unpublish(NStr::CStr const &_Publication);
-			NStr::CStr f_Subscribe(NStr::CStr const &_Namespace);
+			NStr::CStr f_Subscribe(NStr::CStr const &_Namespace, mint _nExpected = 1);
 			void f_SubscribeExpectFailure(NStr::CStr const &_Namespace);
 			void f_Unsubscribe(NStr::CStr const &_Subscription);
 			NStr::CStr const &f_GetHostID() const;
@@ -45,7 +45,7 @@ namespace NMib
 				NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 			};
 			
-			NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure);
+			NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
 			
 			NStr::CStr mp_HostID;
 			TCActor<CActorDistributionManager> mp_Manager;

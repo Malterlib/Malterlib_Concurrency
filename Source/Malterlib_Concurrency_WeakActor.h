@@ -7,7 +7,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		template <typename t_CActor>
+		template <typename t_CActor = CActor>
 		class TCWeakActor
 		{
 			friend class CConcurrencyManager;

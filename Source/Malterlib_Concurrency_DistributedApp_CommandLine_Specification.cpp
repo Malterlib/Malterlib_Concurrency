@@ -447,36 +447,44 @@ namespace NMib
 						DMibError(fg_Format("[{}] Object can only be converted from string", _Identifier));
 					
 					auto &TemplateObject = _Template.f_Object();
-					auto &InputObject = RawValue.f_Object();
-					auto &OutputObject = Return.f_Object();
 					
-					TCSet<CStr> TemplateMemberNames;
-					
-					for (auto &TemplateMember : TemplateObject)
+					if (!TemplateObject.f_OrderedIterator())
 					{
-						bool bOptional = false;
-						bool bVector = false;
-						CStr Identifier = fg_ParseIdentifier(TemplateMember.f_Name(), bOptional, bVector);
+						// Allow anything
+						Return = RawValue; 
+					}
+					else
+					{
+						auto &InputObject = RawValue.f_Object();
+						auto &OutputObject = Return.f_Object();
+						TCSet<CStr> TemplateMemberNames;
 						
-						DMibCheck(!bVector);
-
-						TemplateMemberNames[Identifier];
-						
-						auto *pInputMember = InputObject.f_GetMember(Identifier);
-						if (!pInputMember)
+						for (auto &TemplateMember : TemplateObject)
 						{
-							if (!bOptional)
-								DMibError(fg_Format("[{}] Missing reqired member '{}' in object", _Identifier, TemplateMember.f_Name()));
-							continue;
+							bool bOptional = false;
+							bool bVector = false;
+							CStr Identifier = fg_ParseIdentifier(TemplateMember.f_Name(), bOptional, bVector);
+							
+							DMibCheck(!bVector);
+
+							TemplateMemberNames[Identifier];
+							
+							auto *pInputMember = InputObject.f_GetMember(Identifier);
+							if (!pInputMember)
+							{
+								if (!bOptional)
+									DMibError(fg_Format("[{}] Missing reqired member '{}' in object", _Identifier, TemplateMember.f_Name()));
+								continue;
+							}
+							
+							OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier));
 						}
 						
-						OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier));
-					}
-					
-					for (auto &InputMember : InputObject)
-					{
-						if (!TemplateMemberNames.f_FindEqual(InputMember.f_Name()))
-							DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
+						for (auto &InputMember : InputObject)
+						{
+							if (!TemplateMemberNames.f_FindEqual(InputMember.f_Name()))
+								DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
+						}
 					}
 				}
 				break;
@@ -584,12 +592,14 @@ namespace NMib
 		
 		void CDistributedAppCommandLineSpecification::CInternal::COption::f_ParseOption(CEJSON const &_Option)
 		{
-			fs_CheckValidObject(_Option, {"Type", "Default", "Names", "Description", "DefaultEnabled"});
+			fs_CheckValidObject(_Option, {"Type", "Default", "Names", "Description", "DefaultEnabled", "Hidden"});
 			
 			CValue::f_Parse(_Option);
 			
 			if (auto *pDefaultEnabled = _Option.f_GetMember("DefaultEnabled"))
 				m_bDefaultEnabled = pDefaultEnabled->f_Boolean();
+			if (auto *pDefaultEnabled = _Option.f_GetMember("Hidden"))
+				m_bHidden = pDefaultEnabled->f_Boolean();
 		}
 		
 		void CDistributedAppCommandLineSpecification::CInternal::CParameter::f_ParseParameter(CEJSON const &_Parameter)
@@ -655,10 +665,8 @@ namespace NMib
 				
 				if (m_ParametersByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("Parameter with identifier '{}' already exists on command", Identifier));
-
+				
 				auto &NameArray = Option.f_Value()["Names"].f_Array();
-				if (NameArray.f_IsEmpty())
-					DMibError("You need to specify at least one name for option");
 				
 				TCVector<CStr> Names;
 				for (auto &NameJSON : NameArray)
@@ -689,6 +697,12 @@ namespace NMib
 				}
 				
 				NewOption.f_ParseOption(Option.f_Value());
+
+				if (NameArray.f_IsEmpty() && !NewOption.m_bHidden)
+					DMibError("You need to specify at least one name for option");
+				
+				if (!NameArray.f_IsEmpty() && NewOption.m_bHidden)
+					DMibError("Hidden options cannot specify names");
 				
 				if (!NewOption.m_bDefaultEnabled)
 					DMibError("Default enabled can only be disabled on section options");

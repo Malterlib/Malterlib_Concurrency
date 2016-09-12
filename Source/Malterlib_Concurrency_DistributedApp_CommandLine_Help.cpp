@@ -207,6 +207,8 @@ namespace NMib
 								mint LongestName = 0;
 								for (auto &Option : _Options)
 								{
+									if (Option.m_bHidden)
+										continue;
 									CStr Names = fGetNames(Option.m_Names);
 									auto &Entry = OptionEntries.f_Insert();
 									LongestName = fg_Max(LongestName, Names.f_GetLen());
@@ -310,7 +312,11 @@ namespace NMib
 						auto fAddOptionsUsage = [&](CStr &o_Usage, TCLinkedList<CInternal::COption> const &_Options)
 							{
 								for (auto &Option : _Options)
+								{
+									if (Option.m_bHidden)
+										continue;
 									fAddOptionUsage(o_Usage, Option);
+								}
 							}
 						;
 						
@@ -329,6 +335,8 @@ namespace NMib
 									if (Command.m_DisallowedSectionOptions.f_FindEqual(Option.m_Identifier))
 										continue;
 									if (!Option.m_bDefaultEnabled && !Command.m_AllowedSectionOptions.f_FindEqual(Option.m_Identifier))
+										continue;
+									if (Option.m_bHidden)
 										continue;
 									
 									fAddOptionUsage(Usage, Option);

@@ -59,6 +59,7 @@ namespace NMib
 				TCVector<CStr> const m_Names;
 				CCommand * const m_pCommand;
 				bool m_bDefaultEnabled = true;
+				bool m_bHidden = false;
 			};
 			
 			struct CParameter : public CValue

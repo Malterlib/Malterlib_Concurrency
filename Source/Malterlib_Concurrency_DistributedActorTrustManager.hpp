@@ -106,6 +106,34 @@ namespace NMib
 		}
 		
 		template <typename t_CActor>
+		TCTrustedActor<t_CActor> const *TCTrustedActorSubscription<t_CActor>::f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const
+		{
+			TCTrustedActor<t_CActor> const *pMatched = nullptr;
+			for (auto &TrustedActor : m_Actors)
+			{
+				if (!_HostID.f_IsEmpty() && TrustedActor.m_TrustInfo.m_HostInfo.m_HostID != _HostID)
+					continue;
+				if (pMatched)
+				{
+					o_Error = fg_Format
+						(
+							"Found more than one suitable. '{}' and '{}'"
+							, pMatched->m_TrustInfo.m_HostInfo
+							, TrustedActor.m_TrustInfo.m_HostInfo
+						)
+					;
+					return nullptr;
+				}
+				pMatched = &TrustedActor;
+			}
+		
+			if (!pMatched)
+				o_Error = "No suitable found";
+			
+			return pMatched;
+		}
+
+		template <typename t_CActor>
 		inline CDistributedActorIdentifier const &TCTrustedActor<t_CActor>::f_GetIdentifier() const
 		{
 			return NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>>::fs_GetKey(*this);

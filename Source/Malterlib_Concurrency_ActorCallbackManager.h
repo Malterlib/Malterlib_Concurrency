@@ -99,6 +99,8 @@ namespace NMib
 			fg_Swallow(pCombinedReference->m_References.f_Insert(fg_Move(p_Params))...);
 			return fg_Move(pCombinedReference);
 		}		
+		
+		CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fCleanup);
 	}
 }
 

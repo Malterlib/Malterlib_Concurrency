@@ -41,6 +41,8 @@ namespace NMib
 			
 			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
 			
+			TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
+			
 			void f_Clear();
 
 			void f_OnNewActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);

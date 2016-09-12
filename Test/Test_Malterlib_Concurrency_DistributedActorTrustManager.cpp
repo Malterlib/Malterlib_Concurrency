@@ -411,8 +411,8 @@ namespace
 			CDistributedActorTestHelper ServerHelper{_ServerTrustManager};
 			CDistributedActorTestHelper ClientHelper{_ClientTrustManager};
 
-			ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
-			CStr Subscription = ClientHelper.f_Subscribe("Test");
+			ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+			CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
 
@@ -606,8 +606,8 @@ namespace
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
 				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
 
-				ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
-				CStr Subscription = ClientHelper.f_Subscribe("Test");
+				ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
 				
@@ -761,14 +761,64 @@ namespace
 				
 				auto TestActor = fg_ConcurrentActor();
 				{
+					DMibTestPath("Namespace names");
+					
+					auto fPublish = [&](CStr const &_Namespace)
+						{
+							auto Publication = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), _Namespace);
+							ServerHelper.f_Unpublish(Publication);
+						}
+					;
+
+					DMibExpectException(fPublish("Test$55"), DMibErrorInstance("Invalid namespace name"));
+					fPublish("Test/55");
+
+					auto fSubscribe = [&](CStr const &_Namespace)
+						{
+							auto Subscription = ClientHelper.f_Subscribe(_Namespace, 0);
+							ServerHelper.f_Unsubscribe(Subscription);
+						}
+					;
+
+					DMibExpectException(fSubscribe("Test$55"), DMibErrorInstance("Invalid namespace name"));
+					fSubscribe("Test/55");
+
+					auto fSubscribeTrusted = [&](CStr const &_Namespace)
+						{
+							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, _Namespace, TestActor).f_CallSync(60.0);
+						}
+					;
+					
+					DMibExpectException(fSubscribeTrusted("Test$55"), DMibErrorInstance("Invalid namespace name"));
+					fSubscribeTrusted("Test/55");
+
+					auto fAllowNamespace = [&](CStr const &_Namespace)
+						{
+							ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, ServerHosts).f_CallSync(60.0);
+						}
+					;
+					auto fDisallowNamespace = [&](CStr const &_Namespace)
+						{
+							ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, ServerHosts).f_CallSync(60.0);
+						}
+					;
+					
+					DMibExpectException(fAllowNamespace("Test$55"), DMibErrorInstance("Invalid namespace name"));
+					DMibExpectException(fDisallowNamespace("Test$55"), DMibErrorInstance("Invalid namespace name"));
+					fAllowNamespace("Test/55");
+					fDisallowNamespace("Test/55");
+					
+					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+				}
+				{
 					DMibTestPath("General");
-					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("Before publish");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
 					}
-					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test")];
-					CStr Subscription = ClientHelper.f_Subscribe("Test");
+					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test")];
+					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 					// Make sure that queue has been processed on test actor
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
@@ -779,13 +829,13 @@ namespace
 					
 					NContainer::TCMap<CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnum;
 					{
-						auto &Host = ExpectedAllowedEnum["Test"].m_AllowedHosts[ServerHostID];
+						auto &Host = ExpectedAllowedEnum["com.malterlib/Test"].m_AllowedHosts[ServerHostID];
 						Host.m_HostID = ServerHostID;
 						Host.m_FriendlyName = "TestServer";
 					}
 					NContainer::TCMap<CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnumEmpty;
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After allow");
@@ -794,7 +844,7 @@ namespace
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
 					}
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					{
 						DMibTestPath("After allow again");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 1);
@@ -805,11 +855,11 @@ namespace
 					{
 						TCSet<CStr> NonExistantHosts;
 						NonExistantHosts["NonHost"];
-						ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
-						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", NonExistantHosts).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", NonExistantHosts).f_CallSync(60.0);
 					}
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After disallow");
@@ -817,7 +867,7 @@ namespace
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
 						NContainer::TCMap<CStr, CDistributedActorTrustManager::CNamespacePermissions> ExpectedAllowedEnum;
 						{
-							auto &Host = ExpectedAllowedEnum["Test"].m_DisallowedHosts[ServerHostID];
+							auto &Host = ExpectedAllowedEnum["com.malterlib/Test"].m_DisallowedHosts[ServerHostID];
 							Host.m_HostID = ServerHostID;
 							Host.m_FriendlyName = "TestServer";
 						}
@@ -831,7 +881,7 @@ namespace
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnumEmpty);
 					}
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					{
 						DMibTestPath("After allow without subscription");
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
@@ -841,7 +891,7 @@ namespace
 					{
 						TCSet<CStr> NonExistantHosts;
 						NonExistantHosts["NonHost"];
-						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", NonExistantHosts).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", NonExistantHosts).f_CallSync(60.0);
 					}
 					{
 						DMibTestPath("After nonexistant disallow");
@@ -849,8 +899,8 @@ namespace
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
 					}
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0); // Test disallow without namespace
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0); // Test disallow without namespace
 					{
 						DMibTestPath("After double disallow");
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
@@ -859,12 +909,12 @@ namespace
 				}
 				{
 					DMibTestPath("Double");
-					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test")];
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test")];
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
-					auto TrustedSubscription1 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
+					auto TrustedSubscription1 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
@@ -894,13 +944,13 @@ namespace
 				;
 				{
 					DMibTestPath("Concurrent subscribe");
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
+					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
 					auto Subscriptions =
 						(
-							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor)
-							+ ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor)
+							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor)
+							+ ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor)
 						).f_CallSync()
 					;
 					auto &TrustedSubscription0 = fg_Get<0>(Subscriptions);
@@ -913,31 +963,31 @@ namespace
 				}
 				{
 					DMibTestPath("Publish while subscribed");
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test", Published.f_GetLen());
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
 					}
-					CStr NewPublish = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
+					CStr NewPublish = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
 					Published[NewPublish];
 					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 3), ==, 3);
 					
 					{
 						DMibTestPath("2 types");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test");
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						ServerHelper.f_Unpublish(NewPublish2);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
 					}
 					{
 						DMibTestPath("2 types no sub unpublish");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test");
-						CStr Subscription = ClientHelper.f_Subscribe("Test", Published.f_GetLen() + 1);
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test");
+						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen() + 1);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
@@ -955,11 +1005,11 @@ namespace
 					}
 					{
 						DMibTestPath("2 types not allowed");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test2", TestActor).f_CallSync(60.0);
-						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test2", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test2");
-						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test2");
-						CStr Subscription = ClientHelper.f_Subscribe("Test2", 2);
+						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test2", TestActor).f_CallSync(60.0);
+						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test2", TestActor).f_CallSync(60.0);
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test2");
+						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test2");
+						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test2", 2);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						ServerHelper.f_Unpublish(NewPublish2);
@@ -1004,12 +1054,12 @@ namespace
 					TCSet<CStr> ServerHosts2;
 					ServerHosts2[ServerHostID];
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test3", ServerHosts2).f_CallSync(60.0);
-					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "Test3", TestActor).f_CallSync(60.0);
-					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
-					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "Test3");
-					CStr Subscription = ClientHelper.f_Subscribe("Test3", 2);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts2).f_CallSync(60.0);
+					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test3", TestActor).f_CallSync(60.0);
+					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test3");
+					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test3");
+					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test3", 2);
 					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ServerHelper.f_Unpublish(NewPublish2);
 					ServerHelper2.f_Unpublish(NewPublish3);
@@ -1020,7 +1070,7 @@ namespace
 							break;
 					}
 					DMibExpectFalse(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test3", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test3", ServerHosts).f_CallSync(60.0);
 					ServerTrustManager2->f_BlockDestroy();
 				}
 				{
@@ -1032,7 +1082,7 @@ namespace
 							(
 								[&]
 								{
-									ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor) > fg_DiscardResult();
+									ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor) > fg_DiscardResult();
 								}
 							)
 							> Dispatches.f_AddResult(); 
@@ -1040,15 +1090,15 @@ namespace
 					}
 					Dispatches.f_GetResults().f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("Notifications");
 					NAtomic::TCAtomic<mint> nActors{0};
-					CStr Published = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "Test");
-					CStr Subscription0 = ClientHelper.f_Subscribe("Test");
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "Test", TestActor).f_CallSync(60.0);
+					CStr Published = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test");
+					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
@@ -1072,7 +1122,7 @@ namespace
 						)
 					;
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					
 					{
@@ -1081,7 +1131,7 @@ namespace
 						DMibExpect(nActors.f_Load(), ==, 1);
 					}
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "Test", ServerHosts).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					
 					{
@@ -1117,25 +1167,25 @@ namespace
 				NContainer::TCMap<CStr, NContainer::TCSet<CStr>> ExpectedPermissionsEmpty;
 				NContainer::TCMap<CStr, NContainer::TCSet<CStr>> ExpectedPermissions;
 				{
-					ExpectedPermissions[ServerHostID]["Test"];
+					ExpectedPermissions[ServerHostID]["com.malterlib/Test"];
 				}
 
 				NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> ExpectedEnumHostPermissionsEmpty;
 				NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> ExpectedEnumHostPermissions;
 				NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> ExpectedEnumHostPermissionsNoHostInfo;
 				
-				ExpectedEnumHostPermissions["Test"][ServerHostID] = CHostInfo(ServerHostID, "TestServer");
-				ExpectedEnumHostPermissionsNoHostInfo["Test"][ServerHostID];
+				ExpectedEnumHostPermissions["com.malterlib/Test"][ServerHostID] = CHostInfo(ServerHostID, "TestServer");
+				ExpectedEnumHostPermissionsNoHostInfo["com.malterlib/Test"][ServerHostID];
 				
 				auto TestActor = fg_ConcurrentActor();
 				{
 					DMibTestPath("General");
-					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("Test", "Test2"), TestActor).f_CallSync(60.0);
+					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("com.malterlib/Test", "com.malterlib/Test2"), TestActor).f_CallSync(60.0);
 					{
 						DMibTestPath("Before add permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, ExpectedPermissionsEmpty);
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
+						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, ExpectedEnumHostPermissionsEmpty);
 						auto EnumPermissionsNoHostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
@@ -1143,75 +1193,75 @@ namespace
 						
 					}
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, ExpectedPermissions);
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
+						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, ExpectedEnumHostPermissions);
 						auto EnumPermissionsNoHostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
 						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsNoHostInfo);
 					}
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After remove permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, ExpectedPermissionsEmpty);
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
+						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, ExpectedEnumHostPermissionsEmpty);
 						auto EnumPermissionsNoHostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
 						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsEmpty);
 					}
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test", "Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test", "com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add double permissions");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test2"));
+						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
+						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test2"));
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After remove double permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, ExpectedPermissionsEmpty);
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test3")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test3")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add irrelevant permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, ExpectedPermissionsEmpty);
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test3")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test3")).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("Double wildcards");
-					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("*", "*", "Test*"), TestActor).f_CallSync(60.0);
+					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*"), TestActor).f_CallSync(60.0);
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test", "Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test", "com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add double permissions");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test2"));
+						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
+						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test2"));
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After remove double permission");
@@ -1221,7 +1271,7 @@ namespace
 				}
 				{
 					DMibTestPath("Notifications");
-					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("*", "*", "Test*"), TestActor).f_CallSync(60.0);
+					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeToPermissions, fg_CreateVector<CStr>("*", "*", "com.malterlib/Test*"), TestActor).f_CallSync(60.0);
 					
 					NAtomic::TCAtomic<mint> nPermissions{0};
 					TrustedSubscription.f_OnPermissionsAdded
@@ -1241,18 +1291,18 @@ namespace
 						)
 					;
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test", "Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test", "com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add double permissions");
-						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test"));
-						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "Test2"));
+						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
+						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test2"));
 						DMibExpect(nPermissions.f_Load(), ==, 2);
 						
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test2")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test2")).f_CallSync(60.0);
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After remove double permission");
@@ -1263,7 +1313,7 @@ namespace
 				}
 				{
 					DMibTestPath("Registered permissions");
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
 					{
 						DMibTestPath("After add permission");
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
@@ -1272,20 +1322,20 @@ namespace
 						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsNoHostInfo);
 					}
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_RegisterPermissions, fg_CreateSet<CStr>("Test5")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RegisterPermissions, fg_CreateSet<CStr>("com.malterlib/Test5")).f_CallSync(60.0);
 					{
 						DMibTestPath("After register permission");
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						auto ExpectedEnumHostPermissions2 = ExpectedEnumHostPermissions;
-						ExpectedEnumHostPermissions2["Test5"];
+						ExpectedEnumHostPermissions2["com.malterlib/Test5"];
 						DMibAssert(EnumPermissions, ==, ExpectedEnumHostPermissions2);
 						auto EnumPermissionsNoHostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
 						auto ExpectedEnumHostPermissionsNoHostInfo2 = ExpectedEnumHostPermissionsNoHostInfo;
-						ExpectedEnumHostPermissionsNoHostInfo2["Test5"];
+						ExpectedEnumHostPermissionsNoHostInfo2["com.malterlib/Test5"];
 						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsNoHostInfo2);
 					}
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_UnregisterPermissions, fg_CreateSet<CStr>("Test5")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_UnregisterPermissions, fg_CreateSet<CStr>("com.malterlib/Test5")).f_CallSync(60.0);
 					{
 						DMibTestPath("After unregister permission");
 						auto EnumPermissions = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
@@ -1293,7 +1343,7 @@ namespace
 						auto EnumPermissionsNoHostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
 						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsNoHostInfo);
 					}
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("Test")).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, ServerHostID, fg_CreateSet<CStr>("com.malterlib/Test")).f_CallSync(60.0);
 				}
 
 				ClientTrustManager->f_BlockDestroy();

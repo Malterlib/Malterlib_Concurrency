@@ -442,7 +442,8 @@ namespace NMib
 					NContainer::TCMap<NStr::CStr, CNamespace> Namespaces;
 					for (auto &NamespaceName : Internal.f_Find("Namespaces"))
 					{
-						auto &Namespace = Namespaces[NamespaceName];
+						NStr::CStr DecodedNamespaceName = NamespaceName.f_ReplaceChar('_', '/');
+						auto &Namespace = Namespaces[DecodedNamespaceName];
 						if (_bIncludeFullInfo)
 							Internal.f_Read(Namespace, "Namespaces", NamespaceName);
 							
@@ -459,8 +460,12 @@ namespace NMib
 				{
 					auto &Internal = *mp_pInternal;
 					
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					NStr::CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+					
 					CNamespace Namespace;
-					if (!Internal.f_Read(Namespace, "Namespaces", _NamespaceName))
+					if (!Internal.f_Read(Namespace, "Namespaces", NamespaceName))
 						DMibError("No namespace with that name");
 					return Namespace;
 				}
@@ -472,10 +477,14 @@ namespace NMib
 			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					NStr::CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+					
 					auto &Internal = *mp_pInternal;
-					if (Internal.f_Exists("Namespaces", _NamespaceName))
+					if (Internal.f_Exists("Namespaces", NamespaceName))
 						DMibError("Namespace already exists");
-					Internal.f_Write(_Namespace, "Namespaces", _NamespaceName);
+					Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
 				}
 			;
 		}
@@ -485,10 +494,14 @@ namespace NMib
 			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					NStr::CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+					
 					auto &Internal = *mp_pInternal;
-					if (!Internal.f_Exists("Namespaces", _NamespaceName))
+					if (!Internal.f_Exists("Namespaces", NamespaceName))
 						DMibError("No namespace with that name");
-					Internal.f_Write(_Namespace, "Namespaces", _NamespaceName);
+					Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
 				}
 			;
 		}
@@ -498,8 +511,12 @@ namespace NMib
 			return TCContinuation<void>::fs_RunProtected<NException::CException>() > 
 				[&]
 				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					NStr::CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+
 					auto &Internal = *mp_pInternal;
-					if (!Internal.f_Delete("Namespaces", _NamespaceName))
+					if (!Internal.f_Delete("Namespaces", NamespaceName))
 						DMibError("No namespace with that name");
 				}
 			;

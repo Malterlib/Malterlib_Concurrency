@@ -83,6 +83,9 @@ namespace NMib::NConcurrency
 
 	TCContinuation<void> CDistributedActorTrustManager::f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts)
 	{
+		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+			return DMibErrorInstance("Invalid namespace name");			
+		
 		auto &Internal = *mp_pInternal;
 		auto &Namespace = Internal.m_Namespaces[_Namespace];
 
@@ -138,6 +141,9 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CDistributedActorTrustManager::f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts)
 	{
+		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+			return DMibErrorInstance("Invalid namespace name");
+		
 		auto &Internal = *mp_pInternal;
 		auto *pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
 		if (!pNamespace)

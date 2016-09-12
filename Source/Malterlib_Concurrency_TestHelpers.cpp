@@ -176,6 +176,12 @@ namespace NMib
 			
 			auto &Subscription = mp_Subscriptions[SubscriptionID];
 			
+			auto Cleanup = g_OnScopeExit > [&]
+				{
+					mp_Subscriptions.f_Remove(SubscriptionID);
+				}
+			;
+			
 			Subscription.m_Subscription = ClientManager
 				(
 					&CActorDistributionManager::f_SubscribeActors
@@ -232,6 +238,7 @@ namespace NMib
 			}
 			if (bTimedOutWatingForActor)
 				DMibError("Timed out waiting for actor subscription");
+			Cleanup.f_Clear();
 			return SubscriptionID;
 		}
 

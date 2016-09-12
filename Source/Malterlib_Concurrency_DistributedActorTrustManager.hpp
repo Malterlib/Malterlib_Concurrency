@@ -118,6 +118,8 @@ namespace NMib
 				, TCActor<CActor> const &_Actor
 			)
 		{
+			if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+				return DMibErrorInstance("Invalid namespace name");			
 			NPtr::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
 			auto &State = *pState;
 			State.m_DispatchActor = _Actor;

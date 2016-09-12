@@ -67,6 +67,9 @@ namespace NMib
 				, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish
 			)
 		{
+			if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+				return DMibErrorInstance("Invalid namespace name");
+			
 			TCContinuation<CDistributedActorPublication> Continuation;
 			auto &Internal = *mp_pInternal;
 			auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
@@ -379,7 +382,7 @@ namespace NMib
 			return Internal.m_OnHostInfoChanged.f_Register(_Actor, fg_Move(_fHostInfoChanged));
 		}
 		
-		CActorSubscription CActorDistributionManager::f_SubscribeActors
+		TCContinuation<CActorSubscription> CActorDistributionManager::f_SubscribeActors
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces
 				, TCActor<CActor> const &_Actor
@@ -441,6 +444,12 @@ namespace NMib
 			{
 				for (auto &Namespace : _NameSpaces)
 				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(Namespace))
+						return DMibErrorInstance("Invalid namespace name");
+				}
+
+				for (auto &Namespace : _NameSpaces)
+				{
 					auto &Subscribed = *Internal.m_SubscribedActors(Namespace, this);
 					
 					pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, fg_TempCopy(_fOnNewActor)));
@@ -468,7 +477,7 @@ namespace NMib
 				}
 			}
 			
-			return fg_Move(pCallback);
+			return fg_Explicit(fg_Move(pCallback));
 		}
 	}
 }

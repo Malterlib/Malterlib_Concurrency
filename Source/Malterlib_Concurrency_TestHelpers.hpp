@@ -26,10 +26,7 @@ namespace NMib
 		template <typename ...tfp_CDistributedActors>
 		NStr::CStr CDistributedActorTestHelper::f_Publish(TCDistributedActor<CActor> const &_Actor, NStr::CStr const &_Namespace)
 		{
-			NStr::CStr PublicationID = NCryptography::fg_RandomID();
-			auto &Publication = mp_Publications[PublicationID];
-			Publication.m_Actor = _Actor;
-			Publication.m_Publication = mp_Manager
+			 auto PublicationRef = mp_Manager
 				(
 					&CActorDistributionManager::f_PublishActor
 					, fg_TempCopy(_Actor)
@@ -38,6 +35,11 @@ namespace NMib
 				).f_CallSync(60.0)
 			;
 			
+			NStr::CStr PublicationID = NCryptography::fg_RandomID();
+
+			auto &Publication = mp_Publications[PublicationID];
+			Publication.m_Publication = fg_Move(PublicationRef);
+			Publication.m_Actor = _Actor;
 			return PublicationID;
 		}
 		

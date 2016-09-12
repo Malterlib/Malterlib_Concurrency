@@ -438,7 +438,7 @@ namespace NMib
 				)
 			;
 			
-			CActorSubscription f_SubscribeActors
+			TCContinuation<CActorSubscription> f_SubscribeActors
 				(
 					NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 					, TCActor<CActor> const &_Actor
@@ -457,6 +457,7 @@ namespace NMib
 			static CCallingHostInfo const &fs_GetCallingHostInfo();
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
+			static bool fs_IsValidNamespaceName(NStr::CStr const &_String);
 
 		private:
 			void fp_RegisterRemoteSubscription

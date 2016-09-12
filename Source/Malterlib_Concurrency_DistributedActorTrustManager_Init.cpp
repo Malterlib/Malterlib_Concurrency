@@ -330,6 +330,8 @@ namespace NMib
 					for (auto &Namespace : _Namespaces)
 					{
 						auto &NamespaceName = _Namespaces.fs_GetKey(Namespace);
+						if (!CActorDistributionManager::fs_IsValidNamespaceName(NamespaceName))
+							continue;
 						auto &NamespaceState = m_Namespaces[NamespaceName];
 						NamespaceState.m_Namespace = Namespace;
 						NamespaceState.m_bExistsInDatabase = true;

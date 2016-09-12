@@ -473,5 +473,10 @@ namespace NMib
 		NPrivate::ICHost::~ICHost()
 		{
 		}
+		
+		bool CActorDistributionManager::fs_IsValidNamespaceName(NStr::CStr const &_String)
+		{
+			return NNet::fg_IsValidHostname(_String, "/");
+		}
 	}
 }

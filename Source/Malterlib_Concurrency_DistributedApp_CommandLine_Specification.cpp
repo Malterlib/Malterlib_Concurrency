@@ -119,6 +119,11 @@ namespace NMib
 		{
 			return fp_ConvertValue(m_TypeTemplate, _Value, m_Identifier);
 		}
+
+		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value) const
+		{
+			return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier);
+		}
 		
 		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value) const
 		{
@@ -324,6 +329,12 @@ namespace NMib
 							return Return;
 						}
 					;
+					
+					if (_Value.f_String() == "INVALID")
+					{
+						Return = NTime::CTime();
+						break;
+					}
 
 					ch8 const *pParse = _Value.f_String();
 					
@@ -511,6 +522,58 @@ namespace NMib
 					Return = _Value;
 					break;
 				}
+			default:
+				DMibError("Invalid template type");
+				break;
+			}
+			
+			return Return;			
+		}
+
+
+		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const
+		{
+			CStr Return;
+			switch (_Template.f_Type())
+			{
+			case EJSONType_String:
+			case EJSONType_Integer:
+			case EJSONType_Float:
+			case EJSONType_Boolean:
+			case EJSONType_Object:
+			case EJSONType_Array:
+			case EJSONType_Null:
+				{
+					Return = _Value.f_ToString();
+				}
+				break;
+			case EEJSONType_Binary:
+				{
+					if (!_Value.f_IsBinary())
+						Return = _Value.f_ToString();
+					else
+						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
+				}
+				break;
+			case EEJSONType_Date:
+				{
+					if (!_Value.f_IsDate())
+					{
+						Return = _Value.f_ToString();
+						break;
+					}
+					
+					Return = fg_Format("{}", _Value.f_Date()); 
+				}
+				break;
+			case EEJSONType_UserType:
+				{
+					if (_Value.f_IsBinary())
+						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
+					else if (_Value.f_IsDate())
+						Return = fg_Format("{}", _Value.f_Date());
+				}
+				break;
 			default:
 				DMibError("Invalid template type");
 				break;

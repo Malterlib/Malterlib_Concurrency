@@ -224,7 +224,7 @@ namespace NMib
 										fOutputSectionedText(Option.m_LongDescription);
 										if (Option.m_Default.f_IsValid())
 										{
-											CStr DefaultLine = fg_Format("Default:   {}", Option.m_Default.f_ToString().f_ReplaceChar('\n', '\r'));
+											CStr DefaultLine = fg_Format("Default:   {}", Option.f_FormatValue(Option.m_Default).f_ReplaceChar('\n', '\r'));
 											fOutputSectionedText(DefaultLine, 11);
 										}
 									}

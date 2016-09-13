@@ -243,7 +243,7 @@ namespace NMib
 								auto Actor = pActor->m_Actor;
 								Subscription.m_Actors.f_Remove(pActor);
 								if (m_fOnRemovedActor)
-									m_fOnRemovedActor(Actor);
+									m_fOnRemovedActor(Actor.f_Weak());
 							}
 						}
 					}

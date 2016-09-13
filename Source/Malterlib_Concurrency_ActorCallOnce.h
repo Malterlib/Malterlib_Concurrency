@@ -16,7 +16,7 @@ namespace NMib
 		public:
 			TCActorCallOnce
 				(
-					TCWeakActor<CActor> const &_Actor
+					TCActor<CActor> const &_Actor
 					, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
 					, NStr::CStr const &_ErrorOnRunning = NStr::CStr()
 				)

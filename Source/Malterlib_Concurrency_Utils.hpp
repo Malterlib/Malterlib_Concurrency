@@ -532,16 +532,15 @@ namespace NMib
 
 		template
 		<
-			typename tf_CActor
-			, typename tf_FToDispatch
+			typename tf_FToDispatch
 			, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return TCActor<CActor>(_Actor).f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<CReturnType>
 					, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
@@ -551,16 +550,15 @@ namespace NMib
 
 		template
 		<
-			typename tf_CActor
-			, typename tf_FToDispatch
+			typename tf_FToDispatch
 			, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return TCActor<CActor>(_Actor).f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
 					, NFunction::TCFunctionMovable<TCContinuation<CReturnType> ()>

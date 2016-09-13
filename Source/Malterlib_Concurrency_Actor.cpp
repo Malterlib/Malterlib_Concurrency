@@ -8,6 +8,10 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		CActor::CActor()
+		{
+		}
+
 		CActor::~CActor()
 		{
 		}
@@ -30,6 +34,12 @@ namespace NMib
 		{
 			return TCContinuation<void>::fs_Finished();
 		}
+		
+		NPrivate::CThisActor::operator TCActor<> () const
+		{
+			TCActorInternal<CActor> *pActor = (TCActorInternal<CActor> *)m_pThis;
+			DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
+			return TCActor<>{fg_Explicit(pActor)};
+		}
 	}
 }
-

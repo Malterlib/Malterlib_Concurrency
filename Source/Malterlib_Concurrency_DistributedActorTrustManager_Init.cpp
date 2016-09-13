@@ -17,7 +17,7 @@ namespace NMib
 			Internal.m_TicketInterface = fg_ConstructDistributedActor<CInternal::CTicketInterface>(&Internal, fg_ThisActor(this));
 			Internal.m_pInitOnce = fg_Construct
 				(
-					TCActor<CActor>(fg_ThisActor(this)).f_Weak()
+					self
 					, [this]
 					{
 						auto &Internal = *mp_pInternal; 

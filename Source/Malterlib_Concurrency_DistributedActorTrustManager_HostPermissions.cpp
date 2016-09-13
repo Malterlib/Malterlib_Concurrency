@@ -306,6 +306,16 @@ namespace NMib::NConcurrency
 		return pHost->f_FindEqual(_Permission) != nullptr;
 	}
 	
+	bool CTrustedPermissionSubscription::f_HostHasAnyPermission(NStr::CStr const &_Host, NContainer::TCVector<NStr::CStr> const &_Permissions) const
+	{
+		for (auto &Permission : _Permissions)
+		{
+			if (f_HostHasPermission(_Host, Permission))
+				return true;
+		}
+		return false;
+	}
+	
 	NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &CTrustedPermissionSubscription::f_GetPermissions() const
 	{
 		return mp_Permissions;

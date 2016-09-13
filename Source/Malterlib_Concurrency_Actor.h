@@ -7,6 +7,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		class CActor;
 		namespace NPrivate
 		{
 			struct CThisActor
@@ -14,6 +15,15 @@ namespace NMib
 				void *m_pThis = nullptr;
 				template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 				auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+				operator TCActor<> () const;
+			private:
+				friend class NConcurrency::CActor;
+				
+				CThisActor() = default;
+				CThisActor(CThisActor &&) = default;
+				CThisActor(CThisActor const &) = default;
+				CThisActor &operator = (CThisActor &&) = default;
+				CThisActor &operator = (CThisActor const &) = default;
 			};
 		}
 		class CActor
@@ -48,6 +58,12 @@ namespace NMib
 			{
 				return *mp_pConcurrencyManager;
 			}
+			
+			CActor();
+			CActor(CActor &&) = delete;
+			CActor(CActor const &) = delete;
+			CActor &operator = (CActor &&) = delete;
+			CActor &operator = (CActor const &) = delete;
 			
 			virtual ~CActor();
 			void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);

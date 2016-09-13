@@ -234,7 +234,7 @@ namespace NMib
 
 				mp_pInitOnce = fg_Construct
 					(
-						fg_ThisActor(this)
+						self
 						, [this]() -> TCContinuation<void>
 						{
 							return fp_Initialize();

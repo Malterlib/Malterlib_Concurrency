@@ -36,9 +36,12 @@ namespace NMib
 			template <typename tf_CActor>
 			TCWeakActor(TCWeakActor<tf_CActor> &&_Other);
 			template <typename tf_CActor>
-			TCWeakActor(TCActor<tf_CActor> const &_Other);
+			explicit TCWeakActor(TCActor<tf_CActor> const &_Other);
 			template <typename tf_CActor>
-			TCWeakActor(TCActor<tf_CActor> &&_Other);
+			explicit TCWeakActor(TCActor<tf_CActor> &&_Other);
+
+			TCWeakActor(TCActor<t_CActor> const &_Other);
+			TCWeakActor(TCActor<t_CActor> &&_Other);
 			
 			TCWeakActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
 			TCWeakActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pActor);

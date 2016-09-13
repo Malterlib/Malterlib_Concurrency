@@ -10,11 +10,11 @@ namespace NMib
 		template <typename t_CResult, typename ...tp_CParams>
 		TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
 			(
-				TCWeakActor<CActor> const &_Actor
+				TCActor<CActor> const &_Actor
 				, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
 				, NStr::CStr const &_ErrorOnRunning
 			)
-			: m_CallState(fg_ConstructActor<CCallState>(_Actor, fg_Move(_fFunction), _ErrorOnRunning)) 
+			: m_CallState(fg_ConstructActor<CCallState>(_Actor.f_Weak(), fg_Move(_fFunction), _ErrorOnRunning)) 
 		{
 		}
 		

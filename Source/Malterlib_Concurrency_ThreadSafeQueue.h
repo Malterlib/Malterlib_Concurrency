@@ -229,9 +229,9 @@ namespace NMib
 			DMibListLinkDS_Link(TCThreadSafeQueueListEntry, m_Link);
 			t_CType m_Data;
 
-			template <typename tf_Param0>
-			TCThreadSafeQueueListEntry(tf_Param0 &&_Param0)
-				: m_Data(fg_Forward<tf_Param0>(_Param0))
+			template <typename ...tfp_CParams>
+			TCThreadSafeQueueListEntry(tfp_CParams && ...p_Params)
+				: m_Data(fg_Forward<tfp_CParams>(p_Params)...)
 			{
 			}
 		};
@@ -401,10 +401,10 @@ namespace NMib
 				return CReturnEntry(pEntry);
 			}
 
-			template <typename t_CParam0>
-			void f_Push(t_CParam0 &&_Param0)
+			template <typename ...tfp_CParams>
+			void f_Push(tfp_CParams && ...p_Params)
 			{
-				CListEntry *pEntry = fg_ConstructObject<CListEntry>(t_CAllocator(), fg_Forward<t_CParam0>(_Param0));
+				CListEntry *pEntry = fg_ConstructObject<CListEntry>(t_CAllocator(), fg_Forward<tfp_CParams>(p_Params)...);
 				{
 					DMibLock(m_Lock);
 					m_Queue.f_InsertLast(pEntry);

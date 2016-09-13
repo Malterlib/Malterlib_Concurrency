@@ -76,6 +76,18 @@ namespace NMib
 		{
 			static_assert(NPtr::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 		}
+
+		template <typename t_CActor>
+		TCWeakActor<t_CActor>::TCWeakActor(TCActor<t_CActor> const &_Other)
+			: m_pInternalActor(_Other.m_pInternalActor)
+		{
+		}
+		
+		template <typename t_CActor>
+		TCWeakActor<t_CActor>::TCWeakActor(TCActor<t_CActor> &&_Other)
+			: m_pInternalActor(fg_Move(_Other.m_pInternalActor))
+		{
+		}
 		
 		template <typename t_CActor>
 		template <typename tf_CActor>
@@ -292,16 +304,15 @@ namespace NMib
 
 		template
 		<
-			typename tf_CActor
-			, typename tf_FToDispatch
+			typename tf_FToDispatch
 			, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_Dispatch(TCWeakActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return TCWeakActor<CActor>(_Actor).f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
 					, NFunction::TCFunctionMovable<TCContinuation<CReturnType> ()>
@@ -317,16 +328,15 @@ namespace NMib
 
 		template
 		<
-			typename tf_CActor
-			, typename tf_FToDispatch
+			typename tf_FToDispatch
 			, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 			= nullptr
 		>
-		auto fg_Dispatch(TCWeakActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch)
+		auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 		{
 			using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 			
-			return TCWeakActor<CActor>(_Actor).f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<CReturnType>
 					, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))

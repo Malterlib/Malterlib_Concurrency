@@ -26,6 +26,13 @@ namespace
 	{
 		zuint32 m_Value;
 	public:
+		CPerformanceTestActor()
+		{
+		}
+		CPerformanceTestActor(CPerformanceTestActor &&_Other)
+			: m_Value(_Other.m_Value)
+		{
+		}
 		void f_AddInt(uint32 _Value)
 		{
 			m_Value += _Value;
@@ -1231,11 +1238,7 @@ namespace
 							DMibTestScopeMeasure(DispatchMeasure, nIterations);
 							for (mint i = 0; i < nIterations; ++i)
 							{
-								ToDispatch.f_Insert
-									(
-										CPerformanceTestActor()
-									)
-								;
+								ToDispatch.f_Insert();
 							}
 							Checkout.f_CheckMessages(); // Garbage collect memory
 						}
@@ -1262,11 +1265,7 @@ namespace
 							DMibTestScopeMeasure(DispatchMeasure, nIterations);
 							for (mint i = 0; i < nIterations; ++i)
 							{
-								ToDispatch.f_Push
-									(
-										CPerformanceTestActor()
-									)
-								;
+								ToDispatch.f_Push();
 							}
 							Checkout.f_CheckMessages(); // Garbage collect memory
 						}

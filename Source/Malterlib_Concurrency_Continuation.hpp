@@ -142,11 +142,7 @@ namespace NMib
 		}
 
 		template <typename t_CReturnValue>
-		void TCContinuation<t_CReturnValue>::f_OnResultSet
-			(
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
-				, NFunction::CFunctionNoCopyTag> &&_fOnResult
-			)
+		void TCContinuation<t_CReturnValue>::f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
 		{
 			auto pData = m_pData.f_Get();
 			pData->m_OnResult = fg_Move(_fOnResult);

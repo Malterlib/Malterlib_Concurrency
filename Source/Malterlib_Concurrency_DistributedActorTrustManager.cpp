@@ -14,15 +14,15 @@ namespace NMib
 		CDistributedActorTrustManager::CDistributedActorTrustManager
 			(
 				NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-				, NFunction::TCFunction
+				, NFunction::TCFunctionMovable
 				<
-					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
-				> const &_fConstructManager
+					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+				> &&_fConstructManager
 				, uint32 _KeySize
 				, NNet::ENetFlag _ListenFlags
 				, NStr::CStr const &_FriendlyName
 			)
-			: mp_pInternal(fg_Construct(this, _Database, _fConstructManager, _KeySize, _ListenFlags, _FriendlyName))
+			: mp_pInternal(fg_Construct(this, _Database, fg_Move(_fConstructManager), _KeySize, _ListenFlags, _FriendlyName))
 		{
 		}
 			
@@ -34,17 +34,17 @@ namespace NMib
 			(
 				CDistributedActorTrustManager *_pThis
 				, NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-				, NFunction::TCFunction
+				, NFunction::TCFunctionMovable
 				<
-					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
-				> const &_fConstructManager
+					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+				> &&_fConstructManager
 				, uint32 _KeySize
 				, NNet::ENetFlag _ListenFlags
 				, NStr::CStr const &_FriendlyName
 			)
 			: m_pThis(_pThis)
 			, m_Database(_Database)
-			, m_fDistributionManagerFactory(_fConstructManager)
+			, m_fDistributionManagerFactory(fg_Move(_fConstructManager))
 			, m_KeySize(_KeySize)
 			, m_ListenFlags(_ListenFlags)
 			, m_FriendlyName(_FriendlyName)

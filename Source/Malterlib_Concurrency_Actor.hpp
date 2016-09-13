@@ -276,7 +276,7 @@ namespace NMib
 		}
 		
 		template <typename tf_CReturnType>
-		tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunction<tf_CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach)
+		tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
 		{
 			return _fToDisptach();
 		}

@@ -367,7 +367,7 @@ namespace NMib
 				, bool _bImmediateDelete
 				, EPriority _Priority
 				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
-				, NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> &&_Dispatcher
+				, NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> &&_Dispatcher
 			)
 			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 			, m_Dispatcher(fg_Move(_Dispatcher))

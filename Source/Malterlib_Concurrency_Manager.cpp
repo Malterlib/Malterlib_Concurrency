@@ -177,7 +177,7 @@ namespace NMib
 		{
 		}
 		
-		void CConcurrencyManager::f_DispatchFirstOnCurrentThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+		void CConcurrencyManager::f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 		{
 			auto &ThreadLocal = *m_ThreadLocal;
 			if (ThreadLocal.m_pThisQueue)
@@ -191,7 +191,7 @@ namespace NMib
 				Queue.m_Event.f_Signal();
 		}
 		
-		void CConcurrencyManager::f_DispatchOnNextThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+		void CConcurrencyManager::f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 		{
 			auto &ThreadLocal = *m_ThreadLocal;
 			mint iQueue = 0;
@@ -208,7 +208,7 @@ namespace NMib
 				Queue.m_Event.f_Signal();
 		}
 		
-		void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue)
+		void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue)
 		{
 			auto &ThreadLocal = *m_ThreadLocal;
 			mint iJobQueue;
@@ -244,7 +244,7 @@ namespace NMib
 		
 		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 
-		bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor)
+		bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor)
 		{
 			auto &ThreadLocal = *m_ThreadLocal;
 			

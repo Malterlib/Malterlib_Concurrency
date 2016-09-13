@@ -43,7 +43,7 @@ namespace NMib
 		CActorSubscription TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Register
 			(
 				TCActor<CActor> _pActor
-				, NFunction::TCFunction<t_CReturn (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback
+				, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback
 				, tfp_CParam && ...p_ExtraData
 			)
 		{

@@ -45,9 +45,9 @@ namespace NMib
 			-> TCActorCall
 			<
 				TCActor<CConcurrentActor>
-				, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-				, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-				, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+				, TCContinuation<void> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<void> ()> &&)
+				, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
+				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<void> ()>> 
 			>
 		{
 			bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
@@ -56,7 +56,7 @@ namespace NMib
 			return fg_ConcurrentActor().f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<void>>
-					, NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
+					, NFunction::TCFunctionMovable<TCContinuation<void> ()>
 					(
 						[bAlreadyStopped, DistributionManager = fg_Move(DistributionManager), ListenID = fg_Move(mp_ListenID)]
 						{
@@ -440,7 +440,8 @@ namespace NMib
 						{
 							if (!_Result)
 							{
-								fReportListenFailure(_Result.f_GetException(), fg_Format("Failed to start listen: {}", _Result.f_GetExceptionStr()));
+								
+								fReportListenFailure(_Result.f_GetException(), fg_Format("Failed to start listen on ({vs}): {}", _Settings.m_ListenAddresses, _Result.f_GetExceptionStr()));
 								return;
 							}
 							

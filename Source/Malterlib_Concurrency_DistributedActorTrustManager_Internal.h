@@ -159,10 +159,10 @@ namespace NMib
 				(
 					CDistributedActorTrustManager *_pThis
 					, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-					, NFunction::TCFunction
+					, NFunction::TCFunctionMovable
 					<
-						TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
-					> const &_fConstructManager
+						TCActor<CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+					> &&_fConstructManager
 					, uint32 _KeySize
 					, NNet::ENetFlag _ListenFlags
 					, NStr::CStr const &_FriendlyName
@@ -184,7 +184,7 @@ namespace NMib
 			;
 			
 			template <typename tf_CReturn>
-			void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToRun);
+			void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunctionMovable<void ()> &&_fToRun);
 			
 			void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 			
@@ -196,7 +196,7 @@ namespace NMib
 			NPtr::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			CDistributedActorTrustManager *m_pThis;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_Database;
-			NFunction::TCFunction<TCActor<CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> m_fDistributionManagerFactory;
+			NFunction::TCFunctionMovable<TCActor<CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> m_fDistributionManagerFactory;
 			
 			TCActor<CActorDistributionManager> m_ActorDistributionManager;
 			TCActor<CActorDistributionManagerAccessHandler> m_AccessHandler;

@@ -45,16 +45,16 @@ namespace NMib
 			
 			void f_Clear();
 
-			void f_OnNewActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);
-			void f_OnRemoveActor(NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor);
+			void f_OnNewActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);
+			void f_OnRemoveActor(NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor);
 			
 		private:
 			friend class CDistributedActorTrustManager;
 			
 			struct CState : public NPrivate::CTrustedActorSubscriptionState
 			{
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
+				NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
+				NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
 				void f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
 				void f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
 				
@@ -83,12 +83,12 @@ namespace NMib
 
 			void f_OnPermissionsAdded
 				(
-					NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> &&_fOnPermissionsAdded
+					NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> &&_fOnPermissionsAdded
 				)
 			;
 			void f_OnPermissionsRemoved
 				(
-					NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
+					NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
 				)
 			;
 			
@@ -161,10 +161,10 @@ namespace NMib
 			CDistributedActorTrustManager
 				(
 					NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-					, NFunction::TCFunction
+					, NFunction::TCFunctionMovable
 					<
-						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
-					> const &_fConstructManager = nullptr
+						NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)
+					> &&_fConstructManager = nullptr
 					,  uint32 _KeySize = 4096
 					, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None
 					, NStr::CStr const &_FriendlyName = NStr::CStr()

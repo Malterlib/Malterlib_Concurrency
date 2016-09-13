@@ -39,9 +39,9 @@ namespace NMib
 			TCActorCall
 			<
 				TCActor<CActor>
-				, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-				, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-				, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<t_CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+				, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
+				, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>> 
 			>
 		;
 		

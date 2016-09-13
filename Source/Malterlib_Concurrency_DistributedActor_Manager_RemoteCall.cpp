@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
 		(
 			TCActor<CActor> const &_Actor
-			, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect
+			, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect
 			, NStr::CStr const &_UniqueHostID
 			, NStr::CStr const &_LastExecutionID
 		)
@@ -205,7 +205,7 @@ namespace NMib::NConcurrency
 		if (!pHost || (*pHost)->m_LastExecutionID != _LastExecutionID)
 		{
 			// Report disconnect
-			fg_Dispatch(_Actor, _fOnDisconnect) > fg_DiscardResult();
+			fg_Dispatch(_Actor, fg_Move(_fOnDisconnect)) > fg_DiscardResult();
 			return nullptr;
 		}
 		
@@ -226,7 +226,7 @@ namespace NMib::NConcurrency
 
 		auto &pHost = _pConnection->m_pHost;
 		
-		NFunction::TCFunction<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> (NFunction::CThisTag &, NStream::CBinaryStreamMemoryPtr<> &_Stream)> fCall;
+		NFunction::TCFunctionMovable<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> (NStream::CBinaryStreamMemoryPtr<> &_Stream)> fCall;
 		
 		TCActor<> Actor;
 		if (FunctionHash == 0)

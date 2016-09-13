@@ -23,7 +23,7 @@ namespace NMib
 				template <typename ...tfp_CParam>
 				CCallbackHandle(tfp_CParam && ...p_ExtraData);
 				TCWeakActor<CActor> m_Actor;
-				NFunction::TCFunction<t_CReturn (NFunction::CThisTag &, tp_CCallbackParams...)> m_fCallback;
+				NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> m_fCallback;
 			};
 			using CReturn = typename NPrivate::TCRemoveContinuation<t_CReturn>::CType;
 		public:
@@ -31,7 +31,7 @@ namespace NMib
 			~TCActorSubscriptionManager();
 
 			template <typename ...tfp_CParam>
-			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunction<t_CReturn (NFunction::CThisTag &, tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
 			
 			bool f_IsEmpty();
 			void f_StopDeferring();
@@ -55,7 +55,7 @@ namespace NMib
 				CInternal(CActor *_pActor, bool _bDeferrCallbacks);
 
 				NContainer::TCLinkedList<CCallbackHandle> mp_Callbacks;
-				NContainer::TCLinkedList<NFunction::TCFunction<void (NFunction::CThisTag &)>> mp_DeferredCallbacks;
+				NContainer::TCLinkedList<NFunction::TCFunctionMutable<void ()>> mp_DeferredCallbacks;
 				CActor *mp_pActor;
 				bool mp_bDeferrCallbacks;
 				bool mp_bDestroyed = false;
@@ -100,7 +100,7 @@ namespace NMib
 			return fg_Move(pCombinedReference);
 		}		
 		
-		CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fCleanup);
+		CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup);
 	}
 }
 

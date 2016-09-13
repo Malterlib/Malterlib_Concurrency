@@ -313,7 +313,7 @@ namespace NMib::NConcurrency
 	
 	void CTrustedPermissionSubscription::f_OnPermissionsAdded
 		(
-			NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> &&_fOnPermissionsAdded
+			NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> &&_fOnPermissionsAdded
 		)
 	{
 		mp_pState->m_fOnPermissionsAdded = fg_Move(_fOnPermissionsAdded);
@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 	
 	void CTrustedPermissionSubscription::f_OnPermissionsRemoved
 		(
-			NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
+			NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> &&_fOnPermissionsRemoved
 		)
 	{
 		mp_pState->m_fOnPermissionsRemoved = fg_Move(_fOnPermissionsRemoved);

@@ -180,7 +180,7 @@ namespace NMib
 		template <typename t_CActor>
 		void TCTrustedActorSubscription<t_CActor>::f_OnNewActor
 			(
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
+				NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
 			)
 		{
 			mp_pState->m_fOnNewActor = fg_Move(_fOnNewActor);
@@ -189,7 +189,7 @@ namespace NMib
 		template <typename t_CActor>
 		void TCTrustedActorSubscription<t_CActor>::f_OnRemoveActor
 			(
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
+				NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
 			)
 		{
 			mp_pState->m_fOnRemovedActor = fg_Move(_fOnRemovedActor);

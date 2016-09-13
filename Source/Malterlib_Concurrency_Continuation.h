@@ -81,7 +81,7 @@ namespace NMib
 			struct CData
 			{
 				TCAsyncResult<t_CReturnValue> m_Result;
-				NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> m_OnResult;
+				NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> m_OnResult;
 				NAtomic::TCAtomic<mint> m_OnResultSet;
 
 				void fp_ReportNothingSet();
@@ -115,7 +115,7 @@ namespace NMib
 			void f_SetException(tf_CResult &&_Result) const;
 			void f_SetCurrentException() const;
 			
-			void f_OnResultSet(NFunction::TCFunction<void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult), NFunction::CFunctionNoCopyTag> &&_fOnResult);
+			void f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult);
 			
 			template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 			auto operator / (tf_FResultHandler &&_fResultHandler) const;

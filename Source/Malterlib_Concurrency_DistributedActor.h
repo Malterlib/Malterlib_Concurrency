@@ -299,9 +299,9 @@ namespace NMib
 				TCActorCall
 				<
 					TCActor<CConcurrentActor>
-					, TCContinuation<void> (CActor::*)(NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&)
-					, NContainer::TCTuple<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>>
-					, NMeta::TCTypeList<NFunction::TCFunction<TCContinuation<void> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>> 
+					, TCContinuation<void> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<void> ()> &&)
+					, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
+					, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<void> ()>> 
 				>
 			; 
 			
@@ -376,7 +376,7 @@ namespace NMib
 			NStr::CStr const &f_GetUniqueHostID() const;
 			CHostInfo const &f_GetHostInfo() const;
 			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
-			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const;
+			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
 			uint32 f_GetProtocolVersion() const;
 			
 			bool operator ==(CCallingHostInfo const &_Right) const;
@@ -442,15 +442,15 @@ namespace NMib
 				(
 					NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 					, TCActor<CActor> const &_Actor
-					, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-					, NFunction::TCFunction<void (NFunction::CThisTag &, CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+					, NFunction::TCFunctionMutable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+					, NFunction::TCFunctionMutable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 				)
 			;
 
 			CActorSubscription f_SubscribeHostInfoChanged
 				(
 					TCActor<CActor> const &_Actor
-					, NFunction::TCFunction<void (NFunction::CThisTag &, CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+					, NFunction::TCFunctionMutable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
 				)
 			;
 
@@ -483,7 +483,7 @@ namespace NMib
 			CActorSubscription fp_OnRemoteDisconnect
 				(
 					TCActor<CActor> const &_Actor
-					, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect
+					, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect
 					, NStr::CStr const &_UniqueHostID
 					, NStr::CStr const &_LastExecutionID
 				)

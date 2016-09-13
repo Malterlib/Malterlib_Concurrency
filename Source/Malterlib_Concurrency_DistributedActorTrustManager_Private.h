@@ -38,8 +38,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		// Valid on dispatched actor
 		CTrustedPermissionSubscription *m_pSubscription = nullptr;
-		NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> m_fOnPermissionsAdded;
-		NFunction::TCFunction<void (NFunction::CThisTag &, NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> m_fOnPermissionsRemoved;
+		NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> m_fOnPermissionsAdded;
+		NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> m_fOnPermissionsRemoved;
 		
 		// Valid on trust manager
 		TCWeakActor<CActor> m_DispatchActor;

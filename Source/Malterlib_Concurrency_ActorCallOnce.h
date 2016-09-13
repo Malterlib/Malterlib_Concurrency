@@ -17,7 +17,7 @@ namespace NMib
 			TCActorCallOnce
 				(
 					TCWeakActor<CActor> const &_Actor
-					, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fFunction
+					, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
 					, NStr::CStr const &_ErrorOnRunning = NStr::CStr()
 				)
 			;
@@ -31,14 +31,14 @@ namespace NMib
 				CCallState
 					(
 						TCWeakActor<CActor> const &_Actor
-						, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fToPerform
+						, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
 						, NStr::CStr const &_ErrorOnRunning
 					)
 				;
 				TCContinuation<t_CResult> f_Call(tp_CParams const &...p_Params);
 				
 				TCWeakActor<CActor> m_Actor;
-				NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> m_fToPerform;
+				NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> m_fToPerform;
 				NStr::CStr m_ErrorOnRunning;
 				NContainer::TCVector<TCContinuation<t_CResult>> m_Continuations;
 				bool m_bRunning = false;

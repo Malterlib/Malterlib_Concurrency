@@ -341,11 +341,11 @@ namespace NMib
 			return mp_DistributionManager;
 		}
 		
-		TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fOnDisconnect) const
+		TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const
 		{
 			return fg_ConcurrentDispatch
 				(
-					[DistributionManager = mp_DistributionManager, fOnDisconnect = fg_Move(_fOnDisconnect), UniqueHostID = mp_UniqueHostID, LastExecutionID = mp_LastExecutionID, _Actor]
+					[DistributionManager = mp_DistributionManager, fOnDisconnect = fg_Move(_fOnDisconnect), UniqueHostID = mp_UniqueHostID, LastExecutionID = mp_LastExecutionID, _Actor]() mutable
 					{
 						TCContinuation<CActorSubscription> Continuation;
 						DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Continuation;

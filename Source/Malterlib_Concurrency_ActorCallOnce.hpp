@@ -11,7 +11,7 @@ namespace NMib
 		TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
 			(
 				TCWeakActor<CActor> const &_Actor
-				, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fFunction
+				, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
 				, NStr::CStr const &_ErrorOnRunning
 			)
 			: m_CallState(fg_ConstructActor<CCallState>(_Actor, fg_Move(_fFunction), _ErrorOnRunning)) 
@@ -33,7 +33,7 @@ namespace NMib
 		TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
 			(
 				TCWeakActor<CActor> const &_Actor
-				, NFunction::TCFunction<TCContinuation<t_CResult> (NFunction::CThisTag &, tp_CParams...)> &&_fToPerform
+				, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
 				, NStr::CStr const &_ErrorOnRunning
 			)
 			: m_Actor(_Actor)

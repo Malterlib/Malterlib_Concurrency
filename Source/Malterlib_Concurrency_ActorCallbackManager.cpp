@@ -12,17 +12,17 @@ namespace NMib::NConcurrency
 		CActorSubscriptionCleanupFunctor &operator = (CActorSubscriptionCleanupFunctor const &) = delete;
 		CActorSubscriptionCleanupFunctor(CActorSubscriptionCleanupFunctor &&) = delete;
 		CActorSubscriptionCleanupFunctor &operator = (CActorSubscriptionCleanupFunctor &&) = delete;
-		CActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fCleanup);
+		CActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup);
 		~CActorSubscriptionCleanupFunctor();
 	private:
 		TCWeakActor<> mp_DispatchActor;
-		NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> mp_fCleanup;
+		NFunction::TCFunctionMovable<void ()> mp_fCleanup;
 	};
 	
 	CActorSubscriptionCleanupFunctor::CActorSubscriptionCleanupFunctor
 		(
 			TCActor<> const &_DispatchActor
-			, NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fCleanup
+			, NFunction::TCFunctionMovable<void ()> &&_fCleanup
 		)
 		: mp_fCleanup(fg_Move(_fCleanup))
 		, mp_DispatchActor(_DispatchActor)
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 		fg_Dispatch(mp_DispatchActor, fg_Move(mp_fCleanup)) > fg_DiscardResult();
 	}
 	
-	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fCleanup)
+	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)
 	{
 		NPtr::TCUniquePointer<CActorSubscriptionCleanupFunctor> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
 		return fg_Move(pFunctorRef);

@@ -8,7 +8,7 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename tf_CReturn>
-		void CDistributedActorTrustManager::CInternal::f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunction<void (NFunction::CThisTag &)> &&_fToRun)
+		void CDistributedActorTrustManager::CInternal::f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunctionMovable<void ()> &&_fToRun)
 		{
 			if (m_Initialize == EInitialize_Success)
 			{

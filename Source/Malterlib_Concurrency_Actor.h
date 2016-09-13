@@ -34,7 +34,7 @@ namespace NMib
 		private:
 			CConcurrencyManager *mp_pConcurrencyManager = nullptr;
 
-			void fp_DisptachInternal(NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach);
+			void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 
 		protected:
 			virtual void f_Construct();
@@ -50,9 +50,9 @@ namespace NMib
 			}
 			
 			virtual ~CActor();
-			void f_Dispatch(NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach);
+			void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 			template <typename tf_CReturnType>
-			tf_CReturnType f_DispatchWithReturn(NFunction::TCFunction<tf_CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDisptach);
+			tf_CReturnType f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach);
 			
 			enum
 			{

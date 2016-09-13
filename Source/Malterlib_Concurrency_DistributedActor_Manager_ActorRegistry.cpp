@@ -375,7 +375,7 @@ namespace NMib
 		CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged
 			(
 				TCActor<CActor> const &_Actor
-				, NFunction::TCFunction<void (NFunction::CThisTag &, CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+				, NFunction::TCFunctionMutable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
 			)
 		{
 			auto &Internal = *mp_pInternal;
@@ -386,8 +386,8 @@ namespace NMib
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces
 				, TCActor<CActor> const &_Actor
-				, NFunction::TCFunction<void (NFunction::CThisTag &, CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-				, NFunction::TCFunction<void (NFunction::CThisTag &, CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+				, NFunction::TCFunctionMutable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+				, NFunction::TCFunctionMutable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 			)
 		{
 			auto &Internal = *mp_pInternal;

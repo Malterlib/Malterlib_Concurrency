@@ -169,8 +169,7 @@ namespace NMib
 				> Continuation / [this, Continuation]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
-					NFunction::TCFunction<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> 
-						(NFunction::CThisTag &, NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> 
+					NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName)> 
 						fManagerFactor
 					;
 					
@@ -186,7 +185,7 @@ namespace NMib
 					mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 						(
 							mp_TrustManagerDatabase
-							, fManagerFactor
+							, fg_Move(fManagerFactor)
 							, mp_Settings.m_KeySize
 							, mp_Settings.m_ListenFlags
 							, mp_Settings.f_GetCompositeFriendlyName()
@@ -371,7 +370,7 @@ namespace NMib
 					
 					fg_GetSys()->f_GetLogger().f_SetDispatcher
 						(
-							[LoggerActor](NFunction::TCFunction<void (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> &&_fToDispatch)
+							[LoggerActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
 							{
 								fg_Dispatch
 									(

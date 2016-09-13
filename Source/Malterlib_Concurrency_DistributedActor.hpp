@@ -190,7 +190,7 @@ namespace NMib
 		{
 			using CReturn = typename NPrivate::TCRemoveContinuation<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CReturn>::CType;
 			
-			NFunction::TCFunction<TCContinuation<CReturn> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag> ToDispatch;
+			NFunction::TCFunctionMovable<TCContinuation<CReturn> ()> ToDispatch;
 			
 			auto *pActorDataRaw = static_cast<NPrivate::CDistributedActorData *>(_Actor->f_GetDistributedActorData().f_Get());
 			

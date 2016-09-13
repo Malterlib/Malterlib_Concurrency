@@ -803,12 +803,7 @@ namespace NMib
 			mutable t_CFunctor m_ToCall;
 			mutable NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> m_Result;
 			
-			using CResultFunctor = NFunction::TCFunction
-				<
-					void (NFunction::CThisTag &, NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> &&_Result)
-					, NFunction::CFunctionNoCopyTag
-				>
-			;
+			using CResultFunctor = NFunction::TCFunctionMovable<void (NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> &&_Result)>;
 			
 			mutable CResultFunctor m_ResultFunctor;
 			mutable TCActor<t_CResultActor> m_pResultActor;

@@ -60,8 +60,8 @@ namespace NMib
 			TCActor<CTimerActor> m_pTimerActor;
 
 			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
-			bool fp_AddToQueue(CQueue &_Queue, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_Functor);
+			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue);
+			bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
 
 		public:
 			struct CThreadLocal
@@ -120,8 +120,8 @@ namespace NMib
 			TCActor<CTimerActor> const &f_GetTimerActor();
 			TCActor<CActor> f_CurrentActor();
 			
-			void f_DispatchFirstOnCurrentThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
-			void f_DispatchOnNextThread(EPriority _Priority, NFunction::TCFunction<void (), NFunction::CFunctionNoCopyTag> &&_ToQueue);
+			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 		};
 		
 	

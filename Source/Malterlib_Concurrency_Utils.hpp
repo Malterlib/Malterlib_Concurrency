@@ -544,7 +544,7 @@ namespace NMib
 			return TCActor<CActor>(_Actor).f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<CReturnType>
-					, NFunction::TCFunction<CReturnType (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>(fg_Forward<tf_FToDispatch>(_fDispatch))
+					, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
 				)
 			;
 		}
@@ -563,7 +563,7 @@ namespace NMib
 			return TCActor<CActor>(_Actor).f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
-					, NFunction::TCFunction<TCContinuation<CReturnType> (NFunction::CThisTag &), NFunction::CFunctionNoCopyTag>
+					, NFunction::TCFunctionMovable<TCContinuation<CReturnType> ()>
 					(
 						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
 						{

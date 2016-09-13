@@ -153,7 +153,7 @@ namespace NMib
 		class CDispatchingActorHolder : public CDefaultActorHolder
 		{
 		protected:
-			NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> m_Dispatcher;
+			NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
 		public:
 			CDispatchingActorHolder
 				(
@@ -161,7 +161,7 @@ namespace NMib
 					, bool _bImmediateDelete
 					, EPriority _Priority
 					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
-					, NFunction::TCFunction<void (NFunction::CThisTag &, FActorQueueDispatch &&_Dispatch), NFunction::CFunctionNoCopyTag> &&_Dispatcher
+					, NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> &&_Dispatcher
 				)
 			;
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;

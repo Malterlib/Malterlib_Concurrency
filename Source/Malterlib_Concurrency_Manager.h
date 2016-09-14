@@ -132,6 +132,8 @@ namespace NMib
 		TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params);
 		
 		auto fg_DiscardResult() -> decltype(fg_ConcurrentActor() / NPrivate::CDiscardResultFunctor());
+		
+		COnScopeExitShared fg_OnScopeExitActor(TCActor<> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnExitFunctor);
 	}
 }
 

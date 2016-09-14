@@ -12,6 +12,11 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		bool NPrivate::CDistributedActorData::f_IsValidForCall() const
+		{
+			return !m_bRemote;
+		}
+		
 		CActorDistributionManager::CActorDistributionManager(NStr::CStr const &_HostID)
 			: CActorDistributionManager(_HostID, fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName()))
 		{

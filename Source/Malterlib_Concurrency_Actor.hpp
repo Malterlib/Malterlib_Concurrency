@@ -215,18 +215,25 @@ namespace NMib
 		auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
 #ifdef DMibConcurrency_CheckFunctionCalls
+			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
 			static_assert
 				(
 					NTraits::TCIsCallableWith
 					<
-						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
 						, void (tfp_CCallParams...)
 					>::mc_Value 
 					, "Invalid params for function"
 				)
 			;
 #endif
+			// If you get this you are probably calling an empty actor
 			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+
+			// If you get this, use DCallActor instead of calling directly
+			DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+			
+			
 			return TCActorCall
 				<
 					TCActor
@@ -247,18 +254,24 @@ namespace NMib
 		auto TCActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
 #ifdef DMibConcurrency_CheckFunctionCalls
+			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
 			static_assert
 				(
 					NTraits::TCIsCallableWith
 					<
-						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+						typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
 						, void (tfp_CCallParams...)
 					>::mc_Value 
 					, "Invalid params for function"
 				)
 			;
+			
 #endif
+			// If you get this you are probably calling an empty actor
 			DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+
+			// If you get this, use DCallActor instead of calling directly
+			DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall()); 
 			
 			return TCActorCall
 				<

@@ -18,6 +18,8 @@ namespace NMib::NConcurrency::NPrivate
 	
 	struct CDistributedActorData : public ICDistributedActorData
 	{
+		bool f_IsValidForCall() const override;
+		
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_ActorID;
 		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;

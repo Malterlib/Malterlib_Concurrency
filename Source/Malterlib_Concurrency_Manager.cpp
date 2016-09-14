@@ -505,6 +505,27 @@ namespace NMib
 			}
 		}
 #endif
+		
+		COnScopeExitShared fg_OnScopeExitActor(TCActor<> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnExitFunctor)
+		{
+			return fg_OnScopeExitShared
+				(
+					[_Actor, fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
+					{
+						fg_Dispatch
+							(
+								_Actor
+								, fg_Move(fOnExitFunctor)
+							)
+							> fg_DiscardResult()
+						;
+					}
+				)
+			;
+		}
+		
+		constexpr COnScopeExitActorHelper g_OnScopeExitActorInit{};
+		COnScopeExitActorHelper const &g_OnScopeExitActor = g_OnScopeExitActorInit;
 	}
 }
 

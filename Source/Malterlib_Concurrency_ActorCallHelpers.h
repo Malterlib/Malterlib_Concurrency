@@ -383,6 +383,9 @@ namespace NMib
 					, tf_CResultFunctor &&_fResultFunctor
 				)
 			{
+				using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
+				
+				
 				auto Actor = _ActorCall.mp_Actor.f_Lock();
 				if (!Actor)
 				{
@@ -400,6 +403,9 @@ namespace NMib
 					return true;
 				}
 
+				// If you get this, use DCallActor instead of calling directly
+				DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
+				
 				Actor->template f_Call<tf_CFunctor>
 					(
 						NPrivate::fg_BindHelper<tf_CTypeList>

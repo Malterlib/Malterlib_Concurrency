@@ -51,6 +51,7 @@ namespace NMib
 		struct ICDistributedActorData : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 		{
 			virtual ~ICDistributedActorData();
+			virtual bool f_IsValidForCall() const = 0;
 		};
 		
 		class CActorHolder : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>

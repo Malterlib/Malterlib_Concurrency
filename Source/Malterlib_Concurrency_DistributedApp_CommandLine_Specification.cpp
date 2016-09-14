@@ -117,7 +117,7 @@ namespace NMib
 		
 		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value) const
 		{
-			return fp_ConvertValue(m_TypeTemplate, _Value, m_Identifier);
+			return fp_ConvertValue(m_TypeTemplate, _Value, m_Identifier, false);
 		}
 
 		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value) const
@@ -127,7 +127,7 @@ namespace NMib
 		
 		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value) const
 		{
-			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, m_Identifier);
+			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, m_Identifier, false);
 			o_Value.f_Array().f_Insert(NewParams);
 		}
 		
@@ -225,19 +225,21 @@ namespace NMib
 			}
 		}
 
-		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict) const
 		{
 			CEJSON Return;
 			switch (_Template.f_Type())
 			{
 			case EJSONType_String:
 				{
-					Return = _Value.f_AsString();
+					Return = _Value.f_String();
 				}
 				break;
 			case EJSONType_Integer:
 				{
-					if (_Value.f_IsString())
+					if (_bStrict)
+						Return = _Value.f_Integer();
+					else if (_Value.f_IsString())
 					{
 						int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
 						if (Value == TCLimitsInt<int64>::mc_Max)
@@ -254,7 +256,9 @@ namespace NMib
 				break;
 			case EJSONType_Float:
 				{
-					if (_Value.f_IsString())
+					if (_bStrict)
+						Return = _Value.f_Float();
+					else if (_Value.f_IsString())
 					{
 						fp64 Value = _Value.f_String().f_ToFloat(fp64::fs_Inf());
 						if (Value == fp64::fs_Inf())
@@ -267,7 +271,9 @@ namespace NMib
 				break;
 			case EJSONType_Boolean:
 				{
-					if (_Value.f_IsString())
+					if (_bStrict)
+						Return = _Value.f_Boolean();
+					else if (_Value.f_IsString())
 					{
 						if (_Value.f_String() == "true")
 							Return = true;
@@ -401,20 +407,25 @@ namespace NMib
 							FormatIdentifier.f_SetFormatStr("{}.({})");
 
 						mint iSet = 0;
-						FormatIdentifier << iSet;
+						FormatIdentifier << _Identifier << iSet;
 						
-						for (auto &PossibleMatch : Set)
 						{
-							try
+							NException::CDisableExceptionTraceScope DisableExceptionTrace;
+							for (auto &PossibleMatch : Set)
 							{
-								CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier);
-								if (!bIsType || Value == PossibleMatch)
-									return Value;
+								try
+								{
+									CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict);
+									if (bIsType)
+										return Value;
+									else if (Value == PossibleMatch)
+										return Value;
+								}
+								catch (NException::CException const &_Exception)
+								{
+								}
+								++iSet;
 							}
-							catch (NException::CException const &_Exception)
-							{
-							}
-							++iSet;
 						}
 						
 						DMibError(fg_Format("[{}] Could not match '{jp}' to any member in set", _Identifier, _Value));
@@ -435,7 +446,9 @@ namespace NMib
 			case EJSONType_Object:
 				{
 					CEJSON RawValue;
-					if (_Value.f_IsObject())
+					if (_bStrict)
+						RawValue = _Value.f_Object();
+					else if (_Value.f_IsObject())
 						RawValue = _Value;
 					else if (_Value.f_IsString())
 					{
@@ -477,7 +490,7 @@ namespace NMib
 								continue;
 							}
 							
-							OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier));
+							OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true);
 						}
 						
 						for (auto &InputMember : InputObject)
@@ -491,7 +504,9 @@ namespace NMib
 			case EJSONType_Array:
 				{
 					CEJSON RawValue;
-					if (_Value.f_IsArray())
+					if (_bStrict)
+						RawValue = _Value.f_Array();
+					else if (_Value.f_IsArray())
 						RawValue = _Value;
 					else if (_Value.f_IsString())
 					{
@@ -518,7 +533,7 @@ namespace NMib
 						auto &Template = TemplateArray.f_GetFirst();
 						CStr Identifier = fg_Format("{}.[]", _Identifier);
 						for (auto &InputElement : InputArray)
-							OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier);
+							OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true);
 					}
 
 					Return = RawValue;
@@ -558,7 +573,7 @@ namespace NMib
 			case EEJSONType_Binary:
 				{
 					if (!_Value.f_IsBinary())
-						Return = _Value.f_ToString();
+						Return = _Value.f_ToString("    ");
 					else
 						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
 				}
@@ -567,7 +582,7 @@ namespace NMib
 				{
 					if (!_Value.f_IsDate())
 					{
-						Return = _Value.f_ToString();
+						Return = _Value.f_ToString("    ");
 						break;
 					}
 					
@@ -580,6 +595,8 @@ namespace NMib
 						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
 					else if (_Value.f_IsDate())
 						Return = fg_Format("{}", _Value.f_Date());
+					else
+						Return = _Value.f_ToString("    ");
 				}
 				break;
 			default:

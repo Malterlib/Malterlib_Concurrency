@@ -29,7 +29,7 @@ namespace NMib
 				}
 				void f_Parse(CEJSON const &_Option);
 				CEJSON fp_ParseEJSON(CStr const &_Value, CStr const &_Error, CStr const &_Identifier) const;
-				CEJSON fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const;
+				CEJSON fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict) const;
 				CStr fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const;
 				void fp_ValidateTemplate(CEJSON const &_Template, CStr const &_Identifier, bool _bPrevIsSetOf) const;
 				CEJSON f_ConvertValue(CEJSON const &_Value) const;

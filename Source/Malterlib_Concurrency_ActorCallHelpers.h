@@ -389,6 +389,8 @@ namespace NMib
 				auto Actor = _ActorCall.mp_Actor.f_Lock();
 				if (!Actor)
 				{
+					if (NTraits::TCIsSame<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CResultFunctor>::CType, NPrivate::CDiscardResultFunctor>::mc_Value)
+						return true;
 					auto ResultActor = fg_GetResultActor(_ResultActor);
 					ResultActor->f_QueueProcess
 						(

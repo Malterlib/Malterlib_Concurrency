@@ -445,7 +445,7 @@ namespace NMib
 					TCInitializerList<bool> Dummy = 
 						{
 							[&]
-							{
+						 	{
 								if (!bFailed && !p_Results)
 								{
 									Continuation.f_SetException(fg_Move(p_Results));

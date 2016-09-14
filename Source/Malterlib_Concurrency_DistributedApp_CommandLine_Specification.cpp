@@ -473,7 +473,7 @@ namespace NMib
 							if (!pInputMember)
 							{
 								if (!bOptional)
-									DMibError(fg_Format("[{}] Missing reqired member '{}' in object", _Identifier, TemplateMember.f_Name()));
+									DMibError(fg_Format("[{}] Missing required member '{}' in object", _Identifier, TemplateMember.f_Name()));
 								continue;
 							}
 							
@@ -552,7 +552,7 @@ namespace NMib
 			case EJSONType_Array:
 			case EJSONType_Null:
 				{
-					Return = _Value.f_ToString();
+					Return = _Value.f_ToString("    ");
 				}
 				break;
 			case EEJSONType_Binary:

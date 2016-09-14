@@ -96,7 +96,6 @@ namespace NMib
 									CurrentLine.f_AddStr(pStart, pParse - pStart);
 								}
 								
-								CurrentLine = CurrentLine.f_Trim();
 								if (!CurrentLine.f_IsEmpty())
 									Lines.f_Insert(fg_Move(CurrentLine));
 								
@@ -157,20 +156,25 @@ namespace NMib
 							{
 								if (_LongText.f_IsEmpty())
 									return;
-								while (!_LongText.f_IsEmpty())
 								{
-									smint NextSection = _LongText.f_FindChar('\n');
-									smint NextLine = _LongText.f_FindChar('\r');
-									bool bEndSection = (NextLine < 0) || (NextSection >= 0 && NextLine < 0) || (NextLine >= 0 && NextSection >= 0 && NextSection < NextLine);
-									
-									CStr Line = fg_GetStrLineSep(_LongText);
-									if (Line.f_StartsWith("@Indent="))
+									COnScopeExitShared SubsequentIndentScope; 
+									while (!_LongText.f_IsEmpty())
 									{
-										_SubsequentIndent = Line.f_Extract(8).f_ToInt(0);
-										continue;
+										smint NextSection = _LongText.f_FindChar('\n');
+										smint NextLine = _LongText.f_FindChar('\r');
+										bool bEndSection = (NextLine < 0) || (NextSection >= 0 && NextLine < 0) || (NextLine >= 0 && NextSection >= 0 && NextSection < NextLine);
+										
+										CStr Line = fg_GetStrLineSep(_LongText);
+										if (Line.f_StartsWith("@Indent="))
+										{
+											_SubsequentIndent = Line.f_Extract(8).f_ToInt(0);
+											continue;
+										}
+										
+										fOutputLine(Line, bEndSection, _SubsequentIndent);
+										if (!SubsequentIndentScope)
+											SubsequentIndentScope = fAddIndent(_SubsequentIndent);
 									}
-									
-									fOutputLine(Line, bEndSection, _SubsequentIndent);
 								}
 								fOutputEndSection();
 							}

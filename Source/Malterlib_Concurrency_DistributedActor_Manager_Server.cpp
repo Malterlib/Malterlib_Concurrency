@@ -441,7 +441,7 @@ namespace NMib
 							if (!_Result)
 							{
 								
-								fReportListenFailure(_Result.f_GetException(), fg_Format("Failed to start listen on ({vs}): {}", _Settings.m_ListenAddresses, _Result.f_GetExceptionStr()));
+								fReportListenFailure(_Result.f_GetException(), fg_Format("Failed to start listen on ({vs,vb}): {}", _Settings.m_ListenAddresses, _Result.f_GetExceptionStr()));
 								return;
 							}
 							

@@ -60,7 +60,7 @@ namespace NMib
 		template <typename tf_CString>
 		void CDistributedActorTrustManager::CNamespacePermissions::f_Format(tf_CString &o_String) const
 		{
-			o_String += typename tf_CString::CFormat("Allowed {vs} Disallowed {vs}") << m_AllowedHosts << m_DisallowedHosts;
+			o_String += typename tf_CString::CFormat("Allowed {vs,vb} Disallowed {vs,vb}") << m_AllowedHosts << m_DisallowedHosts;
 		}
 
 		template <typename t_CActor>

@@ -25,7 +25,7 @@ namespace NMib
 		{
 			enum 
 			{
-				EProtocolVersion = 0x101
+				EProtocolVersion = 0x102
 			};
 			
 			template <typename tf_CStream>

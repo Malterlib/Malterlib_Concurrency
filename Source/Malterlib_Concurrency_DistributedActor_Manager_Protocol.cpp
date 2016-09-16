@@ -39,7 +39,7 @@ namespace NMib
 						CDistributedActorCommand_Identify Identify;
 						Stream >> Identify;
 						
-						if (Identify.m_ProtocolVersion < 0x101)
+						if (Identify.m_ProtocolVersion < 0x102)
 						{
 							DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 							if (!_pConnection->m_IdentifyContinuation.f_IsSet())

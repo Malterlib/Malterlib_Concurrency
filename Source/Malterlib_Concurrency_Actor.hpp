@@ -214,8 +214,10 @@ namespace NMib
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
-#ifdef DMibConcurrency_CheckFunctionCalls
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
 			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
 			static_assert
 				(
 					NTraits::TCIsCallableWith
@@ -253,8 +255,10 @@ namespace NMib
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto TCActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
 		{
-#ifdef DMibConcurrency_CheckFunctionCalls
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
 			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
 			static_assert
 				(
 					NTraits::TCIsCallableWith

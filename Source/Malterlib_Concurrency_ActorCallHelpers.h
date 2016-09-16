@@ -383,8 +383,9 @@ namespace NMib
 					, tf_CResultFunctor &&_fResultFunctor
 				)
 			{
+#if DMibEnableSafeCheck > 0
 				using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
-				
+#endif
 				
 				auto Actor = _ActorCall.mp_Actor.f_Lock();
 				if (!Actor)

@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 Import "../Core/Lib_Malterlib.MTarget"
+Import "Apps/*/*.MHeader"
 
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
@@ -19,16 +20,26 @@ Import "../Core/Lib_Malterlib.MTarget"
 			}
 			%File "Include/Mib/Concurrency/^*"
 		}
-		%File "Source/*"
-		%File "Source/Malterlib_Concurrency_Distributed*"
+		%File "Source/^*"
+		%Group "DistributedActor"
 		{
-			Compile.Disabled true
+			%File "Source/DistributedActor/Malterlib_Concurrency_Distributed*"
 			{
-				!!PlatformFamily Windows
-			}
+				Compile.Disabled true
+				{
+					!!PlatformFamily Windows
+				}
 
+			}
+			%File "Source/DistributedActor/Malterlib_Concurrency_RuntimeTypeRegistry*"
+			{
+				Compile.Disabled true
+				{
+					!!PlatformFamily Windows
+				}
+			}
 		}
-		%File "Source/Malterlib_Concurrency_RuntimeTypeRegistry*"
+		%Group "DistributedTrust"
 		{
 			Compile.Disabled true
 			{
@@ -75,7 +86,6 @@ Compile
 		!!MalterlibConcurrency_DistributedActors true
 	}
 }
-
 
 Property
 {
@@ -133,3 +143,23 @@ Property
 	MalterlibTestFiles_Malterlib_Concurrency ""
 }
 
+%Workspace "Apps_Malterlib_Concurrency"
+{
+	&
+	{
+		MalterlibEnableInternalWorkspaces true
+		!PlatformFamily Windows
+	}
+	
+	Property.MalterlibPostCopyProject "Malterlib_Concurrency"
+	{
+		!!TargetIsExecutable true
+	}
+	
+	Property.MalterlibLog_Severities "Error;Critical;Warning;Info"
+	{
+		!MalterlibLog_EnableVerboseDebugLog true
+	}
+
+	%Target "@(Malterlib_Concurrency_App_Targets)"
+}

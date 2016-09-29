@@ -3,4 +3,4 @@
 
 #pragma once
 
-#include "../../../Source/Malterlib_Concurrency_DistributedActorSingleSubscription.h"
+#include "../../../Source/DistributedActor/Malterlib_Concurrency_DistributedActorSingleSubscription.h"

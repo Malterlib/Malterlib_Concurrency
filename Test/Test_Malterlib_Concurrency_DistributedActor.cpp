@@ -646,11 +646,11 @@ namespace
 		{
 			CStr ServerHostID = NCryptography::fg_RandomID();
 			CStr ClientHostID = NCryptography::fg_RandomID();
-			TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(ServerHostID);
-			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(ClientHostID);
+			TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{ServerHostID, {}});
+			TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{ClientHostID, {}});
 			
 			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
-			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), 1024);
+			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), NNet::CSSLKeySettings_EC_secp256r1{});
 			
 			NHTTP::CURL ConnectAddress;
 			
@@ -686,7 +686,7 @@ namespace
 			ConnectionSettings.m_ServerURL = ConnectAddress;
 			ConnectionSettings.m_PublicServerCertificate = ListenSettings.m_CACertificate;
 			CActorDistributionCryptographySettings ClientCryptography{ClientHostID};
-			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), 1024);
+			ClientCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), NNet::CSSLKeySettings_EC_secp256r1{});
 			auto CertificateRequest = ClientCryptography.f_GenerateRequest();
 			
 			auto SignedRequest = ServerCryptography.f_SignRequest(CertificateRequest);

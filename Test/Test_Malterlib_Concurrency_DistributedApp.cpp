@@ -19,7 +19,7 @@ namespace
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
 		CTestDistributedApp()
-			: CDistributedAppActor(CDistributedAppActor_Settings("TestDistApp", false, NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp", true, 1024))
+			: CDistributedAppActor(CDistributedAppActor_Settings("TestDistApp", false, NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp", true, NNet::CSSLKeySettings_EC_secp256r1{}))
 		{
 		}
 		

@@ -5,7 +5,7 @@
 
 #include "Malterlib_Concurrency_TestHelpers.h"
 #include <Mib/Cryptography/RandomID>
-#include "Malterlib_Concurrency_DistributedActorTrustManager.h"
+#include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Test/Test>
 
 namespace NMib
@@ -46,7 +46,12 @@ namespace NMib
 		
 		void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 		{
-			mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(mp_ServerCryptography.m_HostID));
+			mp_pServer = fg_Construct
+				(
+					mp_ServerCryptography.m_HostID
+					, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ServerCryptography.m_HostID, {}})
+				)
+			;
 		}
 
 		void CDistributedActorTestHelperCombined::f_Init()
@@ -60,13 +65,13 @@ namespace NMib
 		{
 			if (!mp_pServer)
 			{
-				mp_ServerCryptography.m_HostID = fg_InitDistributionManager(mp_ServerCryptography.m_HostID);
+				mp_ServerCryptography.m_HostID = fg_InitDistributionManager(CActorDistributionManagerInitSettings{mp_ServerCryptography.m_HostID, {}}).m_HostID;
 				mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_GetDistributionManager());
 			}
 			
 			TCActor<CActorDistributionManager> const &ServerManager = mp_pServer->f_GetManager();
 			
-			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
+			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
 			
 			mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 			mp_ListenSettings.m_bRetryOnListenFailure = false;
@@ -88,11 +93,16 @@ namespace NMib
 			ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 			if (!mp_pClient)
 			{
-				mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(mp_ClientCryptography.m_HostID));
+				mp_pClient = fg_Construct
+					(
+						mp_ClientCryptography.m_HostID
+						, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ClientCryptography.m_HostID, {}})
+					)
+				;
 			}
 			if (mp_ClientCryptography.m_RemoteClientCertificates.f_IsEmpty())
 			{
-				mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), 1024);
+				mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
 				auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
 				auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
 				mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
@@ -106,7 +116,12 @@ namespace NMib
 		
 		void CDistributedActorTestHelperCombined::f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server)
 		{
-			mp_pClient = fg_Construct(mp_ClientCryptography.m_HostID, fg_ConstructActor<CActorDistributionManager>(mp_ClientCryptography.m_HostID));
+			mp_pClient = fg_Construct
+				(
+					mp_ClientCryptography.m_HostID
+					, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ClientCryptography.m_HostID, {}})
+				)
+			;
 			
 			TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 			

@@ -1,0 +1,31 @@
+// Copyright © 2015 Hansoft AB
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+%Target "Malterlib_Concurrency_DDPBridgeHelper"
+{
+	Property
+	{
+		MalterlibPostCopyProject "Malterlib_Concurrency_DDPBridgeHelper"
+		{
+			!!MalterlibPostCopyProject ""
+		}
+		MalterlibLinkWithOpenSSL true
+		MalterlibConcurrency_DistributedActors true
+		MalterlibTargetNameType "Normal"
+	}
+	Target
+	{
+		DebuggerCommandArguments "--daemon-run-debug"
+		BaseFileName "TrustDDPBridge"
+	}
+	
+	%Group Source
+	{
+		%File "Source/*"
+	}
+	%Dependency "Lib_Malterlib_Concurrency"
+	%Dependency "Lib_Malterlib_Web"
+	%Dependency "Lib_Malterlib"
+}
+
+Property.Malterlib_Concurrency_App_Targets "Malterlib_Concurrency_DDPBridgeHelper;@(Malterlib_Concurrency_App_Targets)"

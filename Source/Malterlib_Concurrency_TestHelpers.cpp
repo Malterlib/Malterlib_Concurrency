@@ -197,20 +197,25 @@ namespace NMib
 				}
 			;
 			
+			
 			Subscription.m_Subscription = ClientManager
 				(
 					&CActorDistributionManager::f_SubscribeActors
 					, NContainer::fg_CreateVector<NStr::CStr>(_Namespace)
 					, ConcurrentActor 
-					, [this, pSubscription = &Subscription](CAbstractDistributedActor &&_NewActor)
+					, [this, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CAbstractDistributedActor &&_NewActor)
 					{
 						DMibLock(mp_RemoteLock);
+						if (*pDeleted)
+							return;
 						pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 						mp_RemoteEvent.f_Signal();
 					}
-					, [this, pSubscription = &Subscription](CDistributedActorIdentifier const &_RemovedActor)
+					, [this, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CDistributedActorIdentifier const &_RemovedActor)
 					{
 						DMibLock(mp_RemoteLock);
+						if (*pDeleted)
+							return;
 						mint nActors = pSubscription->m_RemoteActors.f_GetLen();
 						for (mint iActor = 0; iActor < nActors; )
 						{

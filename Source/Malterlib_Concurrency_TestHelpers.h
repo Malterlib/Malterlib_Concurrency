@@ -41,6 +41,11 @@ namespace NMib
 			};
 			struct CSubscription
 			{
+				~CSubscription()
+				{
+					*m_pDeleted = true;
+				}
+				NPtr::TCSharedPointer<bool> m_pDeleted = fg_Construct(false);
 				CActorSubscription m_Subscription;
 				NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 			};

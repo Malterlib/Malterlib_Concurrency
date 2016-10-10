@@ -24,8 +24,8 @@ namespace NMib
 			CConcurrentRunQueue();
 			~CConcurrentRunQueue();
 			void f_AddToQueue(FActorQueueDispatch &&_Functor);
-			void f_AddToQueueLocal(FActorQueueDispatch &&_Functor);
-			void f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor);
+			bool f_AddToQueueLocal(FActorQueueDispatch &&_Functor);
+			bool f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor);
 			FActorQueueDispatch *f_FirstQueueEntry();
 			void f_PopQueueEntry(FActorQueueDispatch *_pEntry);
 			bool f_TransferThreadSafeQueue();
@@ -98,10 +98,10 @@ namespace NMib
 			
 		private:
 			template <typename tf_CActor, typename tf_CFunctor>
-			void fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
+			void fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed);
 			
-			void fp_Destroy(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
-			void fp_Terminate(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed);
+			void fp_Destroy(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed);
+			bool fp_Terminate(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed);
 
 			bool fp_DequeueProcess(bool _bRun);
 			

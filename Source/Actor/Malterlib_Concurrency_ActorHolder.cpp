@@ -11,6 +11,8 @@ namespace NMib
 		ICDistributedActorData::~ICDistributedActorData()
 		{
 		}
+		
+		static constexpr mint gc_NoFixedCore = DMibBitRangeTyped(0, sizeof(mint)*8 - 3, mint);
 
 		CActorHolder::CActorHolder
 			(
@@ -22,7 +24,7 @@ namespace NMib
 			: mp_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)
 			, mp_Priority(_Priority)
-			, mp_iFixedCore(DMibBitRangeTyped(0, sizeof(mint)*8 - 3, mint))
+			, mp_iFixedCore(gc_NoFixedCore)
 			, mp_pDistributedActorData(fg_Move(_pDistributedActorData))
 		{
 		}
@@ -71,6 +73,15 @@ namespace NMib
 			if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			{
 				mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Functor));
+				return false;
+			}
+			else if (ThreadLocal.m_pThisQueue && mp_iFixedCore == ThreadLocal.m_pThisQueue->m_iQueue && ThreadLocal.m_pThisQueue->m_Priority == mp_Priority)
+			{
+				if (mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Functor)))
+				{
+					mint Value = mp_Working.f_FetchAdd(1);
+					return Value == 0;
+				}
 				return false;
 			}
 			mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor));
@@ -151,13 +162,15 @@ namespace NMib
 		}
 
 		
-		void CActorHolder::fp_Terminate(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed)
+		bool CActorHolder::fp_Terminate(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 		{
 			smint Expected = 0;
 			if (mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 			{
 				fp_Destroy(fg_Move(_fOnDestroyed));
+				return true;
 			}
+			return false;
 		}
 	
 		void CActorHolder::f_Destroy()
@@ -256,19 +269,17 @@ namespace NMib
 		}
 		
 		
-		void CActorHolder::fp_Destroy(NFunction::TCFunctionNoAlloc<void ()> &&_fOnDestroyed)
+		void CActorHolder::fp_Destroy(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 		{
 			auto OnExit
 				= fg_OnScopeExit
 				(
-					[this, fOnDestroyed = fg_Move(_fOnDestroyed)]()
+					[this, fOnDestroyed = fg_Move(_fOnDestroyed)]() mutable
 					{
 						if (mp_pActor)
 						{
 							mp_pActor.f_Clear();
 							mp_bDestroyed.f_Exchange(2);
-							if (fOnDestroyed)
-								fOnDestroyed();
 							TCActor<CActor> pToDelete 
 								= NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this))
 							;
@@ -278,12 +289,26 @@ namespace NMib
 								mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
 									(
 										mp_Priority
-										, [pToDelete]
+										, 
+										[
+											OnExit = fg_OnScopeExit
+											(
+											   [pToDelete, fOnDestroyed = fg_Move(fOnDestroyed)]() mutable
+											   {
+												   pToDelete.f_Clear();
+												   if (fOnDestroyed)
+													   fOnDestroyed();
+											   }
+											)
+										]
+										() mutable
 										{
 										}
 									)
 								;
 							}
+							else if (fOnDestroyed)
+								fOnDestroyed();
 						}
 					}
 				)
@@ -441,18 +466,22 @@ namespace NMib
 			}
 		}
 		
-		void CConcurrentRunQueue::f_AddToQueueLocal(FActorQueueDispatch &&_Functor)
+		bool CConcurrentRunQueue::f_AddToQueueLocal(FActorQueueDispatch &&_Functor)
 		{
+			bool bWasEmpty = mp_LocalQueue.f_IsEmpty();
 			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 			pNewEntryUnique->m_Link.f_Construct();
 			mp_LocalQueue.f_Insert(pNewEntryUnique.f_Detach());
+			return bWasEmpty;
 		}
 		
-		void CConcurrentRunQueue::f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor)
+		bool CConcurrentRunQueue::f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor)
 		{
+			bool bWasEmpty = mp_LocalQueue.f_IsEmpty();
 			NPtr::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 			pNewEntryUnique->m_Link.f_Construct();
 			mp_LocalQueue.f_InsertFirst(pNewEntryUnique.f_Detach());
+			return bWasEmpty;
 		}
 		
 		FActorQueueDispatch *CConcurrentRunQueue::f_FirstQueueEntry()

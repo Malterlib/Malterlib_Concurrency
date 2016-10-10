@@ -95,6 +95,9 @@ namespace NMib
 				for (mint i = 0; i < nThreads; ++i)
 				{
 					auto *pQueue = &Queues[i];
+					pQueue->m_iQueue = i;
+					pQueue->m_Priority = Priority;
+
 					Queues[i].m_pThread =
 						(
 							NThread::CThreadObjectNonTracked::fs_StartThread
@@ -186,7 +189,7 @@ namespace NMib
 				return;
 			}
 
-			auto &Queue = m_Queues[_Priority][0]; // Otherwise dipsatch on first queue, rely on work stealing to distribute
+			auto &Queue = m_Queues[_Priority].f_GetArray()[0]; // Otherwise dipsatch on first queue, rely on work stealing to distribute
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 				Queue.m_Event.f_Signal();
 		}
@@ -197,13 +200,12 @@ namespace NMib
 			mint iQueue = 0;
 			if (ThreadLocal.m_pThisQueue)
 			{
-				DMibCheck(ThreadLocal.m_pThisQueue >= &m_Queues[_Priority].f_GetFirst() && ThreadLocal.m_pThisQueue <= &m_Queues[_Priority].f_GetLast());
-				iQueue = (ThreadLocal.m_pThisQueue - &m_Queues[_Priority].f_GetFirst()) + 1;
+				iQueue = ThreadLocal.m_pThisQueue->m_iQueue + 1;
 				if (iQueue >= m_nThreads)
 					iQueue = 0;
 			}
 
-			auto &Queue = m_Queues[_Priority][iQueue];
+			auto &Queue = m_Queues[_Priority].f_GetArray()[iQueue];
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 				Queue.m_Event.f_Signal();
 		}
@@ -218,6 +220,9 @@ namespace NMib
 			{
 				do
 				{
+					mint iThisQueue = TCLimitsInt<mint>::mc_Max;
+					if (ThreadLocal.m_pThisQueue)
+						iThisQueue = ThreadLocal.m_pThisQueue->m_iQueue; 
 					if (ThreadLocal.m_pCurrentActor)
 					{
 						mint iCurrentCore = ((TCActorInternal<CActor> *)ThreadLocal.m_pCurrentActor->self.m_pThis)->mp_iFixedCore;
@@ -228,6 +233,8 @@ namespace NMib
 						}
 					}
 					auto &iJobQueueNew = ThreadLocal.m_JobQueueIndex[_Priority];
+					if (iJobQueueNew == iThisQueue) // Don't queue new actors on the same queue
+						++iJobQueueNew;
 					if (iJobQueueNew >= m_nThreads)
 						iJobQueueNew = 0;
 					iJobQueue = iJobQueueNew;
@@ -237,7 +244,7 @@ namespace NMib
 					;
 			}
 			
-			auto &Queue = m_Queues[_Priority][iJobQueue];
+			auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 				Queue.m_Event.f_Signal();
 		}
@@ -261,6 +268,12 @@ namespace NMib
 		
 		void CConcurrencyManager::fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread)
 		{
+#if DMibPPtrBits > 32
+			{
+				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+				Checkout.f_TakeOwnership(); // Make each thread own it's memory manager
+			}
+#endif
 			auto &ThreadLocal = *m_ThreadLocal;
 			ThreadLocal.m_pThisQueue = &_Queue;
 			while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
@@ -421,10 +434,9 @@ namespace NMib
 				nActors = fp_InitConcurrentActors();
 			
 			auto &ThreadLocal = *m_ThreadLocal;
-			if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue >= &m_Queues[_Priority].f_GetFirst() && ThreadLocal.m_pThisQueue < &m_Queues[_Priority].f_GetLast())
+			if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == _Priority)
 			{
-				mint iQueue = ThreadLocal.m_pThisQueue - &m_Queues[_Priority].f_GetFirst();
-				auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[iQueue];
+				auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[ThreadLocal.m_pThisQueue->m_iQueue];
 				return ToReturn;
 			}
 			if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)

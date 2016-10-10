@@ -42,6 +42,8 @@ namespace NMib
 			{
 				align_cacheline NAtomic::TCAtomic<mint> m_Working;
 				CConcurrentRunQueue m_JobQueue;
+				mint m_iQueue;
+				EPriority m_Priority;
 				NThread::CEventAutoReset m_Event;
 				NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap> m_pThread;
 				CQueue(CQueue &&_Other);

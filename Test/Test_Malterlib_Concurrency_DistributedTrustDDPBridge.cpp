@@ -95,9 +95,8 @@ namespace
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
 				}
 
-				NHTTP::CURL DdpListenURL{"wss://localhost:31410/"};
 				TCActor<CDistributedTrustDDPBridge> DdpBridge;
-				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(fg_CreateVector(DdpListenURL), ServerTrustManager);
+				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
 				
 				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(20.0);
 				
@@ -130,7 +129,7 @@ namespace
 					.f_CallSync()
 				;
 				
-				CStr ConnectToURLString = "wss://localhost:31410/Test";
+				CStr ConnectToURLString = "wss://localhost:31409/ActorDDPBrige";
 				
 				auto &ClientDatabase = State.m_ClientDatabase->f_AccessInternal();
 				

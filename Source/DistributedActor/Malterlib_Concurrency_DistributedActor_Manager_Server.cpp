@@ -99,6 +99,39 @@ namespace NMib
 			}
 		}
 
+		TCContinuation<CActorSubscription> CActorDistributionManager::f_RegisterWebsocketHandler
+			(
+				NStr::CStr const &_Path  
+				, TCActor<> const &_Actor
+				, NFunction::TCFunctionMutable
+				<
+					TCContinuation<void> (NPtr::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+				>
+				&&_fNewWebsocketConnection
+			)
+		{
+			auto &Internal = *mp_pInternal;
+			if (Internal.m_WebsocketHandlers.f_FindEqual(_Path))
+				return DMibErrorInstance("Path already registered");
+			auto &Handler = Internal.m_WebsocketHandlers[_Path];
+			Handler.m_Actor = _Actor.f_Weak();
+			Handler.m_fNewWebsocketConnection = fg_Move(_fNewWebsocketConnection);
+			
+			return fg_Explicit
+				(
+					fg_ActorSubscription
+					(
+						self
+						, [this, _Path]
+						{
+							auto &Internal = *mp_pInternal;
+							Internal.m_WebsocketHandlers.f_Remove(_Path);
+						}
+					)
+				)
+			;
+		}
+		
 		void CActorDistributionManagerInternal::fp_Listen
 			(
 				NStr::CStr const &_ListenID
@@ -218,7 +251,7 @@ namespace NMib
 									}
 								;
 								
-								if (NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
+								if (m_WebsocketHandlers.f_IsEmpty() && NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
 								{
 									fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
 									return;
@@ -235,10 +268,13 @@ namespace NMib
 								NStr::CStr RealHostID;
 								
 								NStr::CStr Enclave;
+								NStr::CStr WebPath;
 								if (NewServerConnection.m_Info.m_pRequest)
 								{
+									auto &Request = *NewServerConnection.m_Info.m_pRequest; 
 									if (auto *pValue = NewServerConnection.m_Info.m_pRequest->f_GetEntityFields().f_GetUnknownField("MalterlibDistributedActors_Enclave"))
 										Enclave = *pValue;
+									WebPath = Request.f_GetRequestLine().f_GetURI().f_GetFullPath();
 								}
 								
 								if (!Enclave.f_IsEmpty() && !CActorDistributionManager::fs_IsValidEnclave(Enclave))
@@ -278,9 +314,42 @@ namespace NMib
 									}
 								}
 
-								auto fFinishConnection = [this, UniqueHostID, RealHostID, bAnonymous, fReject, pNewServerConnection]() mutable
+								auto fFinishConnection = [this, UniqueHostID, RealHostID, bAnonymous, fReject, pNewServerConnection, WebPath]() mutable
 									{
 										NWeb::CWebSocketNewServerConnection &NewServerConnection = *pNewServerConnection;
+
+										auto *pHandler = m_WebsocketHandlers.f_FindLargestLessThanEqual(WebPath);
+										
+										if (pHandler && WebPath.f_StartsWith(pHandler->f_GetWebPath()))
+										{
+											auto Actor = pHandler->m_Actor.f_Lock();
+											if (!Actor)
+											{
+												fReject("Web socket handler no longer exists");
+												return;
+											}
+											fg_Dispatch
+												(
+													Actor
+													,[fNewWebsocketConnection = pHandler->m_fNewWebsocketConnection, pNewServerConnection, RealHostID]() mutable
+													{
+														return fNewWebsocketConnection(pNewServerConnection, RealHostID);
+													}
+												)
+												> [fReject](TCAsyncResult<void> &&_Result)
+												{
+													if (!_Result)
+														fReject("Internal error calling web socket handler");
+												}
+											;
+											return;
+										}
+										
+										if (NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
+										{
+											fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
+											return;
+										}
 										
 										mint ConnectionID = m_NextConnectionID++;
 										

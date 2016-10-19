@@ -13,6 +13,7 @@
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
 #include <Mib/Network/SSLKeySetting>
+#include <Mib/Web/WebSocket>
 
 namespace NMib
 {
@@ -464,6 +465,18 @@ namespace NMib
 				(
 					TCActor<CActor> const &_Actor
 					, NFunction::TCFunctionMutable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+				)
+			;
+			
+			TCContinuation<CActorSubscription> f_RegisterWebsocketHandler
+				(
+					NStr::CStr const &_Path  
+					, TCActor<> const &_Actor
+					, NFunction::TCFunctionMutable
+					<
+						TCContinuation<void> (NPtr::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+					>
+					&&_fNewWebsocketConnection
 				)
 			;
 

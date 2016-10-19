@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Cryptography/UUID>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -15,9 +16,15 @@ namespace NMib
 	using namespace NContainer;
 	using namespace NPtr;
 	using namespace NNet;
+	using namespace NDataProcessing;
 	
 	namespace NConcurrency
 	{
+		namespace
+		{
+			CUniversallyUniqueIdentifier g_HostnameRootUUID("8ED61926-AC8A-4793-92C5-DE05547999E7", EUniversallyUniqueIdentifierFormat_Bare);
+		}
+		
 		CDistributedAppActor_Settings::CDistributedAppActor_Settings
 			(
 				NStr::CStr const &_AppName
@@ -36,6 +43,35 @@ namespace NMib
 			, m_FriendlyName(_FriendlyName)
 			, m_Enclave(_Enclave)
 		{
+			// A longer app name and enclave results in a unix socket name becoming too long 
+			DMibRequire(fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true).f_GetLen() <= 103); 
+		}
+
+		NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific) const
+		{
+			CStr SocketName;
+			if (!m_Enclave.f_IsEmpty() && _bEnclaveSpecific)
+				SocketName = fg_Format("{}.{}.socket", m_AppName, m_Enclave);
+			else
+				SocketName = fg_Format("{}.socket", m_AppName);
+			return fg_Format("{}/{}", _Prefix, SocketName);
+		}
+
+		NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
+		{
+			mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
+			if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= MaxLength)
+				return fg_Format("UNIX:{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
+			
+			CStr ConfigHash = fg_GetHashedUuidString(m_ConfigDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
+			CStr TempDir = CFile::fs_GetTemporaryDirectory();
+			CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
+			if (fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength)
+				return fg_Format("UNIX:{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+			
+			Prefix = fg_Format("/tmp/{}", ConfigHash);
+			DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength);
+			return fg_Format("UNIX:{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
 		}
 		
 		CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
@@ -93,13 +129,10 @@ namespace NMib
 		CDistributedAppActor::~CDistributedAppActor()
 		{
 		}
-
+		
 		NStr::CStr CDistributedAppActor::fp_GetLocalHostname(bool _bEnclaveSpecific) const
 		{
-			if (_bEnclaveSpecific && !mp_Settings.m_Enclave.f_IsEmpty())
-				return fg_Format("UNIX:{}/{}.{}.socket", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName, mp_Settings.m_Enclave);
-			else
-				return fg_Format("UNIX:{}/{}.socket", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName);
+			return mp_Settings.f_GetLocalSocketHostname(_bEnclaveSpecific);
 		}
 		
 		NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
@@ -155,6 +188,7 @@ namespace NMib
 
 					if (bFirst)
 						mp_PrimaryListen = Address;
+					bFirst = false;
 					
 					if (Address == LocalListen)
 						return DMibErrorInstance(fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode()));

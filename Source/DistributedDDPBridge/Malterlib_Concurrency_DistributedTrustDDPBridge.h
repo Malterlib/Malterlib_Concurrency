@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedTrustDDPBridge : public CActor
 	{
-		CDistributedTrustDDPBridge(NContainer::TCVector<NHTTP::CURL> const &_ListenAddresses, TCActor<CDistributedActorTrustManager> const &_TrustManager);
+		CDistributedTrustDDPBridge(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedTrustDDPBridge();
 		
 		struct CMethod

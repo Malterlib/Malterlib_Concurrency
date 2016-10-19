@@ -29,6 +29,7 @@ namespace NMib
 				)
 			;
 			NStr::CStr f_GetCompositeFriendlyName() const;
+			NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
 			
 			CDistributedAppActor_Settings &&f_ConfigDirectory(NStr::CStr const &_ConfigDirectory) &&;
 			CDistributedAppActor_Settings &&f_SeparateConcurrencyManager(bool _bSeparateConcurrencyManager) &&;
@@ -44,6 +45,8 @@ namespace NMib
 			NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 			NStr::CStr m_Enclave;
+		private:
+			NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific) const;
 		};
 		
 		struct CDistributedAppActor;

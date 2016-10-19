@@ -259,11 +259,28 @@ namespace NMib
 					return NContainer::TCMap<NStr::CStr, CListen>::fs_GetKey(*this);
 				}
 			};
+			
 			struct CDecodedClientConnectionSetting
 			{
 				bool m_bAnonymous;
 				NNet::CSSLSettings m_ClientSettings;
 				NStr::CStr m_RealHostID;
+			};
+			
+			struct CWebsocketHandler
+			{
+				NStr::CStr const &f_GetWebPath() const
+				{
+					return NContainer::TCMap<NStr::CStr, CWebsocketHandler>::fs_GetKey(*this);
+				}
+				
+				TCWeakActor<> m_Actor;
+				NFunction::TCFunctionMutable
+					<
+						TCContinuation<void> (NPtr::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+					> 
+					m_fNewWebsocketConnection
+				;
 			};
 		}
 		
@@ -282,6 +299,7 @@ namespace NMib
 			using CActorPublicationSubscription = NActorDistributionManagerInternal::CActorPublicationSubscription;
 			using CListen = NActorDistributionManagerInternal::CListen;
 			using CDecodedClientConnectionSetting = NActorDistributionManagerInternal::CDecodedClientConnectionSetting;
+			using CWebsocketHandler = NActorDistributionManagerInternal::CWebsocketHandler;
 			
 			friend struct NActorDistributionManagerInternal::CHost;
 			
@@ -321,6 +339,8 @@ namespace NMib
 			
 			TCActor<ICActorDistributionManagerAccessHandler> m_AccessHandler;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+			
+			NContainer::TCMap<NStr::CStr, CWebsocketHandler> m_WebsocketHandlers;
 			
 			void fp_ScheduleReconnect
 				(

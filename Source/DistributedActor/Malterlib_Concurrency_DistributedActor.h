@@ -2,6 +2,9 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
+#ifdef DCompiler_MSVC
+#error "MSVC not supported for distributed actors"
+#endif
 
 #include "../Actor/Malterlib_Concurrency_AsyncResult.h"
 #include "../Actor/Malterlib_Concurrency_Continuation.h"

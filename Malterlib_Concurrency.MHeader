@@ -23,23 +23,28 @@ Import "Apps/*/*.MHeader"
 		%File "Source/^*"
 		%Group "DistributedActor"
 		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
 			%File "Source/DistributedActor/Malterlib_Concurrency_Distributed*"
-			{
-				Compile.Disabled true
-				{
-					!!PlatformFamily Windows
-				}
-
-			}
 			%File "Source/DistributedActor/Malterlib_Concurrency_RuntimeTypeRegistry*"
-			{
-				Compile.Disabled true
-				{
-					!!PlatformFamily Windows
-				}
-			}
 		}
 		%Group "DistributedTrust"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+		}
+		%Group "DistributedApp"
+		{
+			Compile.Disabled true
+			{
+				!!PlatformFamily Windows
+			}
+		}
+		%Group "DistributedDDPBridge"
 		{
 			Compile.Disabled true
 			{

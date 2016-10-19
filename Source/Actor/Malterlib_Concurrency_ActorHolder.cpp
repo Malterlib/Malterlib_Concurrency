@@ -289,26 +289,20 @@ namespace NMib
 								mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
 									(
 										mp_Priority
-										, 
-										[
-											OnExit = fg_OnScopeExit
-											(
-											   [pToDelete, fOnDestroyed = fg_Move(fOnDestroyed)]() mutable
-											   {
-												   pToDelete.f_Clear();
-												   if (fOnDestroyed)
-													   fOnDestroyed();
-											   }
-											)
-										]
-										() mutable
-										{
-										}
+										, fg_OnScopeExit
+										(
+											[pToDelete, fOnDestroyed = fg_Move(fOnDestroyed)]() mutable
+											{
+												pToDelete.f_Clear();
+												if (fOnDestroyed)
+													(fOnDestroyed)();
+											}
+										)
 									)
 								;
 							}
 							else if (fOnDestroyed)
-								fOnDestroyed();
+								(fOnDestroyed)();
 						}
 					}
 				)

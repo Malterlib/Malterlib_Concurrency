@@ -129,7 +129,7 @@ namespace
 					.f_CallSync()
 				;
 				
-				CStr ConnectToURLString = "wss://localhost:31409/ActorDDPBrige";
+				CStr ConnectToURLString = "wss://localhost:31409/ActorDDPBridge";
 				
 				auto &ClientDatabase = State.m_ClientDatabase->f_AccessInternal();
 				

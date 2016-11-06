@@ -172,7 +172,33 @@ namespace NMib
 			}
 			return false;
 		}
-	
+		
+		TCDispatchedActorCall<void> CActorHolder::f_Destroy2()
+		{
+			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+			
+			return fg_Dispatch
+				(
+					pActor
+					, [pActor]() -> TCContinuation<void>
+					{
+						TCContinuation<void> Continuation;
+						
+						pActor->f_Destroy
+							(
+								NPrivate::fg_DirectResultActor() / [Continuation](TCAsyncResult<void> &&_Result)
+								{
+									Continuation.f_SetResult(fg_Move(_Result));
+								}
+							)
+						;
+						
+						return Continuation;
+					}
+				)
+			;
+		}
+
 		void CActorHolder::f_Destroy()
 		{
 			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));

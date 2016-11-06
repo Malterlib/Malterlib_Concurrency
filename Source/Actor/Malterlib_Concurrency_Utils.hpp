@@ -35,8 +35,12 @@ namespace NMib
 			mint nFinished = mp_nFinished.f_FetchOr(NPrivate::gc_ActorResultResultsGottenMask);
 			
 			if (nFinished & NPrivate::gc_ActorResultResultsGottenMask)
+			{
+				DMibFastCheck(false);
 				DMibError("You have already gotten the results from this result vector once");
-			
+			}
+
+			NAtomic::fg_CompilerFence();
 			mp_bLazyResultsGotten = true;
 
 			if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)
@@ -134,13 +138,13 @@ namespace NMib
 		}
 
 		template <typename t_CType>
-		TCActorResultCall<TCActor<CAnyConcurrentActor>, typename TCActorResultVector<t_CType>::CResultReceived> TCActorResultVector<t_CType>::f_AddResult()
+		TCActorResultCall<TCActor<NPrivate::CDirectResultActor>, typename TCActorResultVector<t_CType>::CResultReceived> TCActorResultVector<t_CType>::f_AddResult()
 		{
 			auto &Internal = *mp_pInternal;
 			DMibRequire(!(Internal.mp_nFinished.f_Load() & NPrivate::gc_ActorResultResultsGottenMask));
 			mint iResult = Internal.mp_nAdded.f_FetchAdd(1);
 			DMibRequire(!Internal.mp_bDefinedSize || iResult < Internal.mp_Results.f_GetLen());
-			return fg_AnyConcurrentActor() / CResultReceived(iResult, mp_pInternal);
+			return NPrivate::fg_DirectResultActor() / CResultReceived(iResult, mp_pInternal);
 		}
 		
 		template <typename t_CType>
@@ -381,6 +385,103 @@ namespace NMib
 			return true;
 		}
 
+		
+		template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(fg_Move(*Result));
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CReturn, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult();
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(fg_Move(*Result));
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult();
+				else
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+			}
+			if (!Errors.f_IsEmpty())
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+		
 	
 	
 		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>

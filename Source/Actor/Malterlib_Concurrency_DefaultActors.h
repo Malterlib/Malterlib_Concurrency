@@ -14,10 +14,8 @@ namespace NMib
 			{
 				mc_bImmediateDelete = true
 			};
-
-			void f_Call();
-			void f_Dispatch(NFunction::TCFunction<void ()> && _ToDispatch);
-		};		
+		};
+		
 		class CConcurrentActorLowPrio : public CConcurrentActor
 		{
 		public:
@@ -26,6 +24,16 @@ namespace NMib
 				mc_Priority = EPriority_Low
 			};
 		};		
+
+		namespace NPrivate
+		{
+			class CDirectResultActor : public CActor
+			{
+			public:
+			};
+			
+			TCActor<CDirectResultActor> const &fg_DirectResultActor();
+		}
 		
 		class CAnyConcurrentActor : public CConcurrentActor
 		{

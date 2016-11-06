@@ -261,12 +261,7 @@ namespace NMib
 							(
 								[&](auto ..._Params) mutable
 								{
-									_Actor(t_pMemberFunction, fg_Forward<typename NTraits::TCDecayForward<tfp_CParams>::CType>(_Params)...)
-										> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<CReturn> &&_Result)
-										{
-											Continuation.f_SetResult(fg_Move(_Result));
-										}
-									;
+									_Actor(t_pMemberFunction, fg_Forward<typename NTraits::TCDecayForward<tfp_CParams>::CType>(_Params)...) > Continuation;
 								}
 								, fg_Move(Params) 
 							)
@@ -275,7 +270,7 @@ namespace NMib
 					}
 				;
 			}
-			return fg_AnyConcurrentActor().f_CallByValue
+			return _Actor.f_CallByValue
 				(
 					&CActor::f_DispatchWithReturn<TCContinuation<CReturn>>
 					, fg_Move(ToDispatch)

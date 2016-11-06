@@ -41,6 +41,8 @@ namespace NMib
 		
 		namespace NPrivate
 		{
+			class CDirectResultActor;
+			
 			struct CDiscardResultFunctor
 			{
 				template <typename tf_CResult>

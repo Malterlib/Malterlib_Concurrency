@@ -293,7 +293,7 @@ namespace NMib
 			{
 				using CReturnType = NContainer::TCTuple<typename tp_CCalls::CReturnType...>;
 				NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-				*this > fg_AnyConcurrentActor() / [&](auto &&...p_Results)
+				*this > NPrivate::fg_DirectResultActor() / [&](auto &&...p_Results)
 					{
 						CReturnType Result;
 						TCInitializerList<bool> Dummy =
@@ -375,6 +375,45 @@ namespace NMib
 				return true;
 			}
 
+			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultFunctor>
+			bool fg_CallActorInternal
+				(
+					TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+					, TCActor<NPrivate::CDirectResultActor> &&_ResultActor
+					, tf_CResultFunctor &&_fResultFunctor
+				)
+			{
+#if DMibEnableSafeCheck > 0
+				using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
+#endif
+				
+				auto Actor = _ActorCall.mp_Actor.f_Lock();
+				if (!Actor)
+				{
+					TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList>::CReturnType> Result;
+					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
+					NPrivate::fg_CallResultFunctorDirect(_fResultFunctor, fg_Move(Result));
+					return true;
+				}
+
+				// If you get this, use DCallActor instead of calling directly
+				DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
+				
+				Actor->template f_Call<tf_CFunctor>
+					(
+						NPrivate::fg_BindHelper<tf_CTypeList>
+						(
+							fg_Move(_ActorCall.mp_Functor)
+							, fg_Move(_ActorCall.mp_Params)
+
+						)
+						, fg_Move(_ResultActor)
+						, fg_Move(_fResultFunctor)
+					)
+				;
+				return true;
+			}
+			
 			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
 			bool fg_CallActorInternal
 				(
@@ -392,6 +431,9 @@ namespace NMib
 				{
 					if (NTraits::TCIsSame<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CResultFunctor>::CType, NPrivate::CDiscardResultFunctor>::mc_Value)
 						return true;
+
+					static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value, "");
+					
 					auto ResultActor = fg_GetResultActor(_ResultActor);
 					ResultActor->f_QueueProcess
 						(
@@ -545,7 +587,7 @@ namespace NMib
 			template <typename tf_CResult>
 			void operator > (TCContinuation<tf_CResult> const &_Continuation)
 			{
-				*this > fg_AnyConcurrentActor() / [_Continuation](TCAsyncResult<tf_CResult> &&_Result)
+				*this > NPrivate::fg_DirectResultActor() / [_Continuation](TCAsyncResult<tf_CResult> &&_Result)
 					{
 						_Continuation.f_SetResult(fg_Move(_Result));
 					}
@@ -555,7 +597,7 @@ namespace NMib
 			template <typename tf_CResult, typename tf_CError>
 			void operator > (TCContinuationWithError<tf_CResult, tf_CError> const &_ContinuationWithError)
 			{
-				*this > fg_AnyConcurrentActor() / 
+				*this > NPrivate::fg_DirectResultActor() / 
 					(
 						_ContinuationWithError / [Continuation = _ContinuationWithError.m_Continuation](tf_CResult &&_Result)
 						{
@@ -568,7 +610,7 @@ namespace NMib
 			template <typename tf_CError>
 			void operator > (TCContinuationWithError<void, tf_CError> const &_ContinuationWithError)
 			{
-				*this > fg_AnyConcurrentActor() / 
+				*this > NPrivate::fg_DirectResultActor() / 
 					(
 						_ContinuationWithError / [Continuation = _ContinuationWithError.m_Continuation]()
 						{
@@ -584,7 +626,7 @@ namespace NMib
 			{
 				TCAsyncResult<CReturnType> Result;
 				NThread::CEvent WaitEvent;
-				*this > fg_AnyConcurrentActor() / [&](TCAsyncResult<CReturnType> &&_Result)
+				*this > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<CReturnType> &&_Result)
 					{
 						Result = fg_Move(_Result);
 						WaitEvent.f_SetSignaled();
@@ -599,7 +641,7 @@ namespace NMib
 			auto f_CallSync(fp64 _Timeout)
 			{
 				NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-				*this > fg_AnyConcurrentActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+				*this > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 					{
 						pResult->m_Result = fg_Move(_Result);
 						pResult->m_WaitEvent.f_SetSignaled();
@@ -659,6 +701,7 @@ namespace NMib
 				
 				void f_ReportResult()
 				{
+					static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value, "");
 					NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 					m_Actor.f_GetActor()->f_QueueProcess
 						(
@@ -673,6 +716,53 @@ namespace NMib
 									)
 								;
 							}
+						)
+					;
+				}
+				void f_Finished()
+				{
+					if (++m_nFinished == mc_nResults)
+						f_ReportResult();
+				}
+			};
+			
+			template 
+				<
+					typename t_CHandler
+					, typename... tp_CResultTypes
+					, mint... tp_ResultIndices
+				>
+			struct TCCallMutipleActorStorage<t_CHandler, TCActor<NPrivate::CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NPtr::TCSharedPointerIntrusiveBase<>
+			{
+				enum
+				{
+					mc_nResults = sizeof...(tp_CResultTypes)
+				};
+				NContainer::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
+				NAtomic::TCAtomic<mint> m_nFinished;
+				TCActor<NPrivate::CDirectResultActor> m_Actor;
+				t_CHandler m_Handler;
+
+				TCCallMutipleActorStorage(TCActor<NPrivate::CDirectResultActor> const &_Actor, t_CHandler &&_Handler)
+					: m_Handler(fg_Move(_Handler))
+					, m_Actor(_Actor)
+				{
+				}
+				
+				~TCCallMutipleActorStorage()
+				{
+					if (m_nFinished.f_Load() != mc_nResults)
+						f_ReportResult();
+				}
+				
+				void f_ReportResult()
+				{
+					auto &This = *this;
+					CCurrentActorScope CurrentActor(fg_ConcurrencyManager(), nullptr);
+					auto Handler = fg_Move(m_Handler);
+					Handler
+						(
+							fg_Move(NContainer::fg_Get<tp_ResultIndices>(This.m_Results))...
 						)
 					;
 				}
@@ -726,46 +816,23 @@ namespace NMib
 
 			NPtr::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 			
-			if (_ResultCall.mp_Actor->f_GetPriority() == EPriority_Normal)
-			{
-				auto &Actor = fg_AnyConcurrentActor();
-				TCInitializerList<bool> Dummy =
-					{
-						NPrivate::fg_CallActorInternal
-						(
-							NContainer::fg_Get<tfp_Indices>(m_Calls)
-							, fg_TempCopy(Actor)
-							, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
-							{
-								auto &Internal = *pStorage;
-								NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
-								Internal.f_Finished();
-							}
-						)...
-					}
-				;
-				(void)Dummy;
-			}
-			else
-			{
-				auto &Actor = fg_AnyConcurrentActorLowPrio();
-				TCInitializerList<bool> Dummy =
-					{
-						NPrivate::fg_CallActorInternal
-						(
-							NContainer::fg_Get<tfp_Indices>(m_Calls)
-							, fg_TempCopy(Actor)
-							, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
-							{
-								auto &Internal = *pStorage;
-								NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
-								Internal.f_Finished();
-							}
-						)...
-					}
-				;
-				(void)Dummy;
-			}
+			auto &Actor = NPrivate::fg_DirectResultActor();
+			TCInitializerList<bool> Dummy =
+				{
+					NPrivate::fg_CallActorInternal
+					(
+						NContainer::fg_Get<tfp_Indices>(m_Calls)
+						, fg_TempCopy(Actor)
+						, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
+						{
+							auto &Internal = *pStorage;
+							NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
+							Internal.f_Finished();
+						}
+					)...
+				}
+			;
+			(void)Dummy;
 #ifdef DMibContractConfigure_CheckEnabled
 			fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
 #endif
@@ -782,6 +849,7 @@ namespace NMib
 		>
 		inline_always TCActor<tf_CResultActor> const &fg_GetResultActor(TCActor<tf_CResultActor> const &_ResultActor)
 		{
+			static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value, "");
 			return _ResultActor;
 		}
 		
@@ -864,12 +932,53 @@ namespace NMib
 #endif				
 			}
 			
+			template <bool t_bCallDirect, TCEnableIfType<t_bCallDirect> * = nullptr>
+			inline_always void fp_CallResult() const
+			{
+				NPrivate::fg_CallResultFunctorDirect(m_ResultFunctor, fg_Move(m_Result));
+			}
+			
+			template <bool t_bCallDirect, TCEnableIfType<!t_bCallDirect> * = nullptr>
+			inline_always void fp_CallResult() const
+			{
+				NPrivate::fg_CallResultFunctor(m_ResultFunctor, fg_GetResultActor(m_pResultActor)->fp_GetActor(), fg_Move(m_Result));
+			}
+
+			constexpr static inline_always bool fs_ShouldCallResultDirect()
+			{
+				return NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
+			}
+			
+			constexpr static inline_always bool fs_ShouldDiscardResult()
+			{
+				return NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
+			}
+			
+			template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<t_bCallDirect> * = nullptr>
+			inline_always void f_ResultAvailable()
+			{
+				m_pActorInternal = nullptr;
+				(*this)();
+			}
+
+			template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<t_bDiscard> * = nullptr>
+			inline_always void f_ResultAvailable()
+			{
+				m_pActorInternal = nullptr;
+			}
+			
+			template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<!t_bCallDirect && !t_bDiscard> * = nullptr>
+			inline_always void f_ResultAvailable()
+			{
+				auto pActor = fg_GetResultActor(m_pResultActor);
+				m_pActorInternal = nullptr;
+				pActor->f_QueueProcess(fg_Move(*this));
+			}
+			
 			void operator ()() const
 			{
 				if (m_Result.f_IsSet())
-				{
-					NPrivate::fg_CallResultFunctor(m_ResultFunctor, fg_GetResultActor(m_pResultActor)->fp_GetActor(), fg_Move(m_Result));
-				}
+					fp_CallResult<fs_ShouldCallResultDirect()>();
 				else
 				{
 					NPrivate::fg_CallWithAsyncResult
@@ -885,25 +994,19 @@ namespace NMib
 			
 			inline_always CConcurrencyManager &f_ConcurrencyManager()
 			{
-				if (fs_UseAnyConcurrentActor())
+				if (NTraits::TCIsSame<t_CActor, CAnyConcurrentActor>::mc_Value || NTraits::TCIsSame<t_CActor, CAnyConcurrentActorLowPrio>::mc_Value)
 					return fg_ConcurrencyManager();
 				return m_pActorInternal->f_ConcurrencyManager();
 			}
 			
-			static inline_always bool fs_ShouldDiscardResult()
+			template <bool tf_bDiscard, TCEnableIfType<tf_bDiscard> * = nullptr>
+			void fp_Destruct()
 			{
-				return NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
 			}
 			
-			static inline_always bool fs_UseAnyConcurrentActor()
+			template <bool tf_bDiscard, TCEnableIfType<!tf_bDiscard> * = nullptr>
+			void fp_Destruct()
 			{
-				return NTraits::TCIsSame<t_CActor, CAnyConcurrentActor>::mc_Value || NTraits::TCIsSame<t_CActor, CAnyConcurrentActorLowPrio>::mc_Value;
-			}
-			
-			~TCReportLocal()
-			{
-				if (fs_ShouldDiscardResult())
-					return;
 				if (m_pActorInternal)
 				{
 #ifdef DMibDebug
@@ -911,10 +1014,13 @@ namespace NMib
 #else
 					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 #endif
-					auto pActor = fg_GetResultActor(m_pResultActor);
-					m_pActorInternal = nullptr;
-					pActor->f_QueueProcess(fg_Move(*this));
+					f_ResultAvailable<>();
 				}
+			}
+			
+			~TCReportLocal()
+			{
+				fp_Destruct<fs_ShouldDiscardResult()>();
 			}
 		private:
 			TCReportLocal(TCReportLocal const &_Other);

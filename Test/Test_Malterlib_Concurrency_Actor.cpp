@@ -868,7 +868,7 @@ namespace
 				
 				[&]() inline_never
 				{
-					DMibTestPath("Actor");
+					DMibTestPath("Actor Discard");
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Discard");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
@@ -879,6 +879,34 @@ namespace
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						for (mint i = 0; i < nIterations; ++i)
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
+						
+						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fp_BlockOnAllThreads(true);
+					}
+					
+					DMibExpect(Result, ==, nIterations*5);
+					
+					PerfTest.f_Add(ActorMeasure);
+				}();
+				
+				[&]() inline_never
+				{
+					DMibTestPath("Actor Direct");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Direct");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					
+					uint32 Result = 0;;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+						for (mint i = 0; i < nIterations; ++i)
+						{
+							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > NConcurrency::NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&)
+								{
+								}
+							;
+						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
 						fp_BlockOnAllThreads(true);
@@ -902,7 +930,7 @@ namespace
 					auto ReplyActor = fg_ConstructActor<CActor>();
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations*2, 2);
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 						for (mint i = 0; i < nIterations; ++i)
 						{
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) 
@@ -933,7 +961,7 @@ namespace
 					uint32 Result = 0;;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasure(ActorMeasure, nIterations*2);
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
 						for (mint i = 0; i < nIterations; ++i)
 						{
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) 
@@ -971,7 +999,7 @@ namespace
 					
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations + nSplits*2, NSys::fg_Thread_GetPhysicalCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCActorResultVector<void> Results{nSplits};
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
@@ -1018,7 +1046,7 @@ namespace
 					
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations*2 + nSplits*2, NSys::fg_Thread_GetPhysicalCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCVector<TCActorResultVector<void>> Results;
 						TCActorResultVector<void> Dispatches{nSplits};
 						Results.f_SetLen(nSplits);
@@ -1067,7 +1095,7 @@ namespace
 					
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, nIterations*2 + nSplits*2, NSys::fg_Thread_GetPhysicalCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						TCActorResultVector<mint> Results{nIterations};
 						TCActorResultVector<void> Dispatches{nSplits};
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
@@ -1110,7 +1138,7 @@ namespace
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
-					mint nIterations = nIterationsFull / 6;
+					mint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched Concurrent Actor");
 					CTestPerformanceMeasure ActorMeasure("Branched Concurrent Actor");
 					TCFunction<TCContinuation<uint32> (uint32 _Start, uint32 _End)> Actor;
@@ -1152,7 +1180,7 @@ namespace
 
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						DMibTestScopeMeasureThreads(ActorMeasure, ((nIterations * 2 - 1) + nIterations - 1) * 2, NSys::fg_Thread_GetPhysicalCores());
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						
 						Result += fg_ConcurrentActor()
 							(

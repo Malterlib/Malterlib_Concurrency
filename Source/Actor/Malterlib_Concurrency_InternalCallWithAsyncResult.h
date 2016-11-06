@@ -87,11 +87,7 @@ namespace NMib
 					else
 						_Local.m_Result.f_SetResult(_Local.m_ToCall(*(pActor)));
 				}
-				auto pResultActor = fg_GetResultActor(_Local.m_pResultActor);
-				_Local.m_pActorInternal = nullptr;
-				if (_Local.fs_ShouldDiscardResult())
-					return;
-				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
+				fg_RemoveQualifiers(_Local).template f_ResultAvailable<>();
 			}
 			
 			// Direct void result
@@ -123,11 +119,7 @@ namespace NMib
 					if (!_Local.fs_ShouldDiscardResult())
 						_Local.m_Result.f_SetResult();
 				}
-				auto pResultActor = fg_GetResultActor(_Local.m_pResultActor);
-				_Local.m_pActorInternal = nullptr;
-				if (_Local.fs_ShouldDiscardResult())
-					return;
-				pResultActor->f_QueueProcess(fg_Move(fg_RemoveQualifiers(_Local)));
+				fg_RemoveQualifiers(_Local).template f_ResultAvailable<>();
 			}
 
 			// Continuation result
@@ -179,9 +171,7 @@ namespace NMib
 							else
 								Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
 
-							auto pActor = fg_GetResultActor(Local.m_pResultActor);
-							Local.m_pActorInternal = nullptr;
-							pActor->f_QueueProcess(fg_Move(Local));
+							fg_RemoveQualifiers(Local).template f_ResultAvailable<>();
 						}
 					)
 				;
@@ -199,6 +189,18 @@ namespace NMib
 				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
 #endif
 				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
+				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
+			}
+
+			template <typename tf_CResultFunctor, typename tf_CResult>
+			void fg_CallResultFunctorDirect(tf_CResultFunctor &_ResultFunctor, tf_CResult &&_Result)
+			{
+				CConcurrencyManager &ConcurrencyManager = fg_ConcurrencyManager();
+#if DMibConcurrencyDebugActorCallstacks
+				auto &Callstack = _Result.m_Callstacks;
+				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+#endif
+				CCurrentActorScope CurrentActor(ConcurrencyManager, nullptr);
 				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 			}
 		}

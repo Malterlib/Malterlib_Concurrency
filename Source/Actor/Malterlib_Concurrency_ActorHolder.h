@@ -76,6 +76,8 @@ namespace NMib
 			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 			aint f_RefCountDecrease();
 
+			TCDispatchedActorCall<void> f_Destroy2();
+			
 			template <typename tf_CActor, typename tf_CFunctor>
 			void f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall);
 

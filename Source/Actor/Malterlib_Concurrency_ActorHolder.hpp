@@ -20,6 +20,11 @@ namespace NMib
 				{
 					if (!pActor->fp_Terminate(fg_Move(fOnDestroyed)))
 						fOnDestroyed();
+					if (NTraits::TCIsSame<tf_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value)
+					{
+						NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
+						return;
+					}
 					auto ResultActor = ResultCall.mp_Actor.f_GetActor();
 					ResultActor->f_QueueProcess
 						(
@@ -45,6 +50,11 @@ namespace NMib
 						{
 							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
 							{
+								if (NTraits::TCIsSame<tf_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value)
+								{
+									NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(Result));
+									return;
+								}
 								auto ResultActor = ResultCall.mp_Actor.f_GetActor();
 								ResultActor->f_QueueProcess
 									(

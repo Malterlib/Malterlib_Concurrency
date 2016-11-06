@@ -63,7 +63,7 @@ namespace NMib
 			TCActorResultVector(mint _DefinedSize);
 			TCActorResultVector();
 			~TCActorResultVector();
-			TCActorResultCall<TCActor<CAnyConcurrentActor>, CResultReceived> f_AddResult();
+			TCActorResultCall<TCActor<NPrivate::CDirectResultActor>, CResultReceived> f_AddResult();
 			auto f_GetResults();
 			void f_SetLen(mint _DefinedSize);
 			bool f_IsEmpty() const;
@@ -121,6 +121,42 @@ namespace NMib
 			)
 		;
 
+		template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CReturn, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult = []{}
+			)
+		;
+
+		template <typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CType const &){}
+			)
+		;
+
+		template <typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCVector<TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult = []{}
+			)
+		;
+		
 		template <typename t_CKey, typename t_CValue>
 		class TCActorResultMap
 		{

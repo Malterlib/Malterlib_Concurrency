@@ -44,6 +44,19 @@ namespace NMib
 			return EPriority_Low;
 		}
 		
+		template <>
+		inline_always CConcurrencyManager &TCActorInternal<NPrivate::CDirectResultActor>::f_ConcurrencyManager() const
+		{
+			DMibFastCheck(false); // Should never get here
+			return fg_ConcurrencyManager();
+		}
+		
+		template <>
+		inline_always EPriority TCActorInternal<NPrivate::CDirectResultActor>::f_GetPriority() const
+		{
+			return EPriority_Normal;
+		}
+		
 		template <typename t_CActor>
 		t_CActor *TCActorInternal<t_CActor>::fp_GetActor() const
 		{
@@ -129,6 +142,7 @@ namespace NMib
 				, tf_CResultFunctor &&_ResultFunctor
 			)
 		{
+			static_assert(!NTraits::TCIsSame<t_CActor, NPrivate::CDirectResultActor>::mc_Value, "Cannot be called");
 			typedef TCReportLocal
 				<
 					t_CActor

@@ -268,6 +268,9 @@ namespace NMib
 				return NContainer::fg_TupleConcatenate(fg_Move(m_Calls), NContainer::fg_Tuple(fg_Move(_OtherCall)));
 			}
 
+			template <typename tf_CType>
+			auto operator + (TCContinuation<tf_CType> const &_Continuation);
+			
 			template <typename tf_CResultActor, typename tf_CResultFunctor>
 			void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
 			{
@@ -540,6 +543,7 @@ namespace NMib
 				mp_Functor = fg_Move(_Other.mp_Functor);
 				mp_Params = fg_Move(_Other.mp_Params);
 			}
+			
 			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
 			auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
 				-> TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>> 
@@ -548,6 +552,9 @@ namespace NMib
 					(NContainer::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
 				;
 			}
+
+			template <typename tf_CType>
+			auto operator + (TCContinuation<tf_CType> const &_Continuation);
 
 			template 
 			<

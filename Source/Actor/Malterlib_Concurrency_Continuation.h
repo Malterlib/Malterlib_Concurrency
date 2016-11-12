@@ -128,6 +128,12 @@ namespace NMib
 
 			template <typename tf_FResultHandler>
 			auto operator > (tf_FResultHandler &&_fResultHandler) const;
+
+			template <typename tf_CType>
+			auto operator + (TCContinuation<tf_CType> const &_Other) const;
+
+			template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
+			auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
 			
 		public:
 			NPtr::TCSharedPointer<CData> m_pData;

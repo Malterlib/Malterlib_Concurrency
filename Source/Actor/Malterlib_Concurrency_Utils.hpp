@@ -706,5 +706,63 @@ namespace NMib
 				> fg_Forward<tf_FResultHandler>(_fResultHandler)
 			;
 		}
+		
+		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
+		template <typename tf_CType>
+		auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::operator + (TCContinuation<tf_CType> const &_Continuation)
+		{
+			return *this + fg_ConcurrentDispatch
+				(
+					[_Continuation]
+					{
+						return _Continuation;
+					}
+				)
+			;
+		}
+		
+		template <typename... tp_CCalls>
+		template <typename tf_CType>
+		auto TCActorCallPack<tp_CCalls...>::operator + (TCContinuation<tf_CType> const &_Continuation)
+		{
+			return *this + fg_ConcurrentDispatch
+				(
+					[_Continuation]
+					{
+						return _Continuation;
+					}
+				)
+			;
+		}
+		
+		template <typename t_CReturnValue>
+		template <typename tf_CType>
+		auto TCContinuation<t_CReturnValue>::operator + (TCContinuation<tf_CType> const &_Other) const
+		{
+			return fg_ConcurrentDispatch
+				(
+					[Continuation = *this]
+					{
+						return Continuation;
+					}
+				)
+				+ _Other;
+			;
+		}
+
+		template <typename t_CReturnValue>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
+		auto TCContinuation<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
+		{
+			return fg_ConcurrentDispatch
+				(
+					[Continuation = *this]
+					{
+						return Continuation;
+					}
+				)
+				+ fg_Move(_ActorCall)
+			;
+		}		
 	}
 }

@@ -12,6 +12,28 @@
 #include <future>
 #endif
 
+//#define DDoCheckMessages
+//#define DDoGarbageCollection
+
+#define DDoTest_Message_DispatchVector 1
+#define DDoTest_Message_Dispatch 1
+#define DDoTest_Message_DispatchThreaded 1
+#define DDoTest_Message_ActorDiscard 1
+#define DDoTest_Message_ActorDirect 1
+#define DDoTest_Message_ActorToOther 1
+#define DDoTest_Message_ActorToSame 1
+#define DDoTest_Message_PCActorToDiscard 1
+#define DDoTest_Message_PCActorToResVector 1
+#define DDoTest_Message_CActorToResVector 1
+#define DDoTest_Message_BranchedConcurrentActor 1
+
+#define DDoTest_Create_Vector 0
+#define DDoTest_Create_LinkedList 0
+#define DDoTest_Create_ThreadSafeQueue 0
+#define DDoTest_Create_ActorConcurrent 0
+#define DDoTest_Create_Actor 0
+#define DDoTest_Create_ActorOutside 0
+
 namespace
 {
 	using namespace NMib;
@@ -22,7 +44,7 @@ namespace
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
 	
-	constexpr mint gc_nRepetitions = 5;
+	constexpr mint gc_nRepetitions = 11;
 	
 	class CPerformanceTestActor : public CActor
 	{
@@ -129,10 +151,16 @@ namespace
 						[_bGarbageCollect]
 						{
 							auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#ifdef DDoGarbageCollection
 							if (_bGarbageCollect)
 								Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 							else
+#endif
+#ifdef DDoCheckMessages
 								Checkout.f_CheckMessages();
+#else
+								;
+#endif
 						}
 					)
 					> _Results.f_AddResult()
@@ -146,10 +174,16 @@ namespace
 			fp_BlockOnAllThreads(Results, _bGarbageCollect);
 			Results.f_GetResults().f_CallSync();
 			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#ifdef DDoGarbageCollection
 			if (_bGarbageCollect)
 				Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 			else
+#endif
+#ifdef DDoCheckMessages
 				Checkout.f_CheckMessages();
+#else
+				;
+#endif
 		}
 	public:
 		
@@ -768,6 +802,7 @@ namespace
 				mint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 
+#if DDoTest_Message_DispatchVector
 				[&]() inline_never
 				{
 					DMibTestPath("Dispatch vector");
@@ -793,13 +828,14 @@ namespace
 						{
 							Dispatch();
 						}
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*gc_nRepetitions);
 					PerfTest.f_AddBaseline(DispatchMeasure);
 				}();
-				
+#endif
+#if DDoTest_Message_Dispatch
 				[&]() inline_never
 				{
 					DMibTestPath("Dispatch");
@@ -828,13 +864,14 @@ namespace
 							First();
 							ToDispatch.f_Remove(First);
 						}
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*gc_nRepetitions);
 					PerfTest.f_AddReference(DispatchMeasure);
 				}();
-				
+#endif
+#if DDoTest_Message_DispatchThreaded			
 				[&]() inline_never
 				{
 					DMibTestPath("Dispatch threaded");
@@ -859,13 +896,14 @@ namespace
 						}
 						while (auto Dispatch = ToDispatch.f_Pop())
 							(*Dispatch)();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*5);
+					DMibExpect(ActorEmul.f_GetResult(), ==, nIterations*gc_nRepetitions);
 					PerfTest.f_AddReference(DispatchMeasure);
 				}();
-				
+#endif			
+#if DDoTest_Message_ActorDiscard
 				[&]() inline_never
 				{
 					DMibTestPath("Actor Discard");
@@ -881,16 +919,19 @@ namespace
 							PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-				
+#endif			
+#if DDoTest_Message_ActorDirect			
 				[&]() inline_never
 				{
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+					
 					DMibTestPath("Actor Direct");
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Direct");
@@ -909,17 +950,18 @@ namespace
 						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-				
+#endif
+#if DDoTest_Message_ActorToOther			
 				[&]() inline_never
 				{
-					DMibTestPath("Actor With Reply To Other Actor");
+					DMibTestPath("Actor->Other");
 					fp_BlockOnAllThreads(true);
 					mint nIterations = nIterationsFull;
 					
@@ -941,17 +983,18 @@ namespace
 						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-				
+#endif				
+#if DDoTest_Message_ActorToSame
 				[&]() inline_never
 				{
-					DMibTestPath("Actor With Reply To Same Actor");
+					DMibTestPath("Actor->Same");
 					fp_BlockOnAllThreads(true);
 					mint nIterations = nIterationsFull;
 					
@@ -972,17 +1015,18 @@ namespace
 						}
 						
 						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-
+#endif
+#if DDoTest_Message_PCActorToDiscard
 				[&]() inline_never
 				{
-					DMibTestPath("Parallell Concurrent Actors");
+					DMibTestPath("PC Actor->Discard");
 					fp_BlockOnAllThreads(true);
 					
 					CTestPerformanceMeasure ActorMeasure("PC Actor->Discard");
@@ -1019,17 +1063,18 @@ namespace
 						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
 						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-
+#endif
+#if DDoTest_Message_PCActorToResVector
 				[&]() inline_never
 				{
-					DMibTestPath("Parallell Concurrent Actors Result Vector");
+					DMibTestPath("PC Actor->ResVector");
 					fp_BlockOnAllThreads(true);
 					
 					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVector");
@@ -1072,17 +1117,18 @@ namespace
 						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
 						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
 							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-
+#endif
+#if DDoTest_Message_CActorToResVector
 				[&]() inline_never
 				{
-					DMibTestPath("Concurrent Result Vector");
+					DMibTestPath("C Actor->ResVector");
 					fp_BlockOnAllThreads(true);
 					
 					CTestPerformanceMeasure ActorMeasure("C Actor->ResVector");
@@ -1127,14 +1173,15 @@ namespace
 						auto ResultsVector = Results.f_GetResults().f_CallSync();
 						for (auto &Results : ResultsVector)
 							Result += *Results;
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
-
+#endif
+#if DDoTest_Message_BranchedConcurrentActor
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1191,13 +1238,14 @@ namespace
 								}
 							).f_CallSync(20.0);
 						;
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
+#endif
 				
 #if 0
 				[&]() inline_never
@@ -1226,10 +1274,10 @@ namespace
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations * 2, NSys::fg_Thread_GetPhysicalCores());
 
 						Result += Actor(0, nIterations);
-						fp_BlockOnAllThreads(true);
+						fp_BlockOnAllThreads(false);
 					}
 					
-					DMibExpect(Result, ==, nIterations*5);
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 					
 					PerfTest.f_Add(ActorMeasure);
 				}();
@@ -1252,6 +1300,7 @@ namespace
 				mint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 				CTestPerformance PerfTestDestroy(0.025);
+#if DDoTest_Create_Vector
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1265,17 +1314,20 @@ namespace
 						{
 							DMibTestScopeMeasure(DispatchMeasure, nIterations);
 							ToDispatch.f_SetLen(nIterations);
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 						{
 							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
 							ToDispatch.f_Clear();
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 					}
+#ifdef DDoGarbageCollection
+					Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
+#endif
 					PerfTest.f_AddBaseline(DispatchMeasure);
 					PerfTestDestroy.f_AddBaseline(DispatchMeasureDestroy);
 				}();
+#endif
+#if DDoTest_Create_LinkedList
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1292,17 +1344,20 @@ namespace
 							{
 								ToDispatch.f_Insert();
 							}
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 						{
 							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
 							ToDispatch.f_Clear();
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 					}
+#ifdef DDoGarbageCollection
+					Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
+#endif
 					PerfTest.f_AddReference(DispatchMeasure);
 					PerfTestDestroy.f_AddReference(DispatchMeasureDestroy);
 				}();
+#endif
+#if DDoTest_Create_ThreadSafeQueue
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1319,17 +1374,20 @@ namespace
 							{
 								ToDispatch.f_Push();
 							}
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 						{
 							DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
 							ToDispatch.f_Clear();
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 					}
+#ifdef DDoGarbageCollection
+					Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
+#endif
 					PerfTest.f_AddReference(DispatchMeasure);
 					PerfTestDestroy.f_AddReference(DispatchMeasureDestroy);
 				}();
+#endif
+#if DDoTest_Create_ActorConcurrent
 				[&, nIterations]() inline_never mutable
 				{
 					fp_BlockOnAllThreads(true);
@@ -1344,6 +1402,7 @@ namespace
 					
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
+						fp_BlockOnAllThreads(true);
 						PerfTestActors.f_SetLen(nIterations);
 						
 						TCVector<NConcurrency::TCActor<NConcurrency::CConcurrentActor>> ConcurrentActors;
@@ -1366,7 +1425,7 @@ namespace
 												*pPerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
 											
 											TCActorResultVector<void> Results;
-											fp_BlockOnAllThreads(Results, true);
+											fp_BlockOnAllThreads(Results, false);
 											TCContinuation<void> Continuation;
 											Results.f_GetResults() > Continuation / [Continuation, iStart](TCVector<TCAsyncResult<void>> &&)
 												{
@@ -1380,7 +1439,7 @@ namespace
 								;
 							}
 							ThreadResults.f_GetResults().f_CallSync();
-							fp_BlockOnAllThreads(true);
+							fp_BlockOnAllThreads(false);
 						}
 						{
 							TCActorResultVector<void> ThreadResults;
@@ -1404,7 +1463,7 @@ namespace
 											Results.f_GetResults() > Continuation / [this, Continuation, nThreads, iStart](TCVector<TCAsyncResult<void>> &&)
 												{
 													TCActorResultVector<void> Results{nThreads};
-													fp_BlockOnAllThreads(Results, true);
+													fp_BlockOnAllThreads(Results, false);
 													Results.f_GetResults() > Continuation / [Continuation, nThreads, iStart](TCVector<TCAsyncResult<void>> &&)
 														{
 															Continuation.f_SetResult();
@@ -1419,13 +1478,15 @@ namespace
 								;
 							}
 							ThreadResults.f_GetResults().f_CallSync();
-							fp_BlockOnAllThreads(true);
+							fp_BlockOnAllThreads(false);
 						}
 					}
 					
 					PerfTest.f_Add(ActorMeasure);
 					PerfTestDestroy.f_Add(ActorMeasureDestroy);
 				}();
+#endif
+#if DDoTest_Create_Actor
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1451,7 +1512,7 @@ namespace
 									}
 								).f_CallSync()
 							;
-							fp_BlockOnAllThreads(true);
+							fp_BlockOnAllThreads(false);
 						}
 						{
 							DMibTestScopeMeasure(ActorMeasureDestroy, nIterations);
@@ -1477,13 +1538,15 @@ namespace
 									}
 								).f_CallSync()
 							;
-							fp_BlockOnAllThreads(true);
+							fp_BlockOnAllThreads(false);
 						}
 					}
 					
 					PerfTest.f_Add(ActorMeasure);
 					PerfTestDestroy.f_Add(ActorMeasureDestroy);
 				}();
+#endif
+#if DDoTest_Create_ActorOutside
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);
@@ -1499,7 +1562,6 @@ namespace
 							DMibTestScopeMeasure(ActorMeasure, nIterations);
 							for (auto &PerfTestActor : PerfTestActors)
 								PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
-							Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
 						}
 						{
 							DMibTestScopeMeasureThreads(ActorMeasureDestroy, nIterations, NSys::fg_Thread_GetPhysicalCores());
@@ -1510,13 +1572,17 @@ namespace
 								PerfTestActor.f_Clear();
 							}
 							Results.f_GetResults().f_CallSync();
-							fp_BlockOnAllThreads(true);
+							fp_BlockOnAllThreads(false);
 						}
 					}
+#ifdef DDoGarbageCollection
+					Checkout.f_GarbageCollectLocalArena(false); // Garbage collect memory
+#endif
 					
 					PerfTest.f_Add(ActorMeasure);
 					PerfTestDestroy.f_Add(ActorMeasureDestroy);
 				}();
+#endif
 				DMibExpectTrue(PerfTest);
 				DMibExpectTrue(PerfTestDestroy);
 			};

@@ -95,22 +95,36 @@ namespace NMib
 			for (auto &Parameter : _Command.m_Parameters)
 				fCheckValue(Parameter);
 			
+			bool bFoundCommand = false;
 			for (auto &Param : _Params.f_Object())
 			{
 				CValue *pValue = nullptr;
 				CStr const &ParamName = Param.f_Name();
-				if (auto pParameter = _Command.m_ParametersByIdentifier.f_FindEqual(ParamName))
-					pValue = *pParameter;
-				else if (auto pOption = _Command.m_OptionsByIdentifier.f_FindEqual(ParamName))
-					pValue = *pOption;
-				else if (auto pOption = _Command.m_pSection->m_SectionOptionsByIdentifier.f_FindEqual(ParamName))
-					pValue = *pOption;
-				else if (auto pOption = m_GlobalOptionsByIdentifier.f_FindEqual(ParamName))
-					pValue = *pOption;
-				if (!pValue)
-					DMibError(fg_Format("Unexpected parameter '{}' in command params", ParamName));
-				Params[ParamName] = pValue->f_ConvertValue(Param.f_Value());
+				if (ParamName == "Command")
+				{
+					if (!Param.f_Value().f_IsString())
+						DMibError("'Command' needs to be string");
+					Params[ParamName] = Param.f_Value().f_String();
+					bFoundCommand = true;
+				}
+				else
+				{
+					if (auto pParameter = _Command.m_ParametersByIdentifier.f_FindEqual(ParamName))
+						pValue = *pParameter;
+					else if (auto pOption = _Command.m_OptionsByIdentifier.f_FindEqual(ParamName))
+						pValue = *pOption;
+					else if (auto pOption = _Command.m_pSection->m_SectionOptionsByIdentifier.f_FindEqual(ParamName))
+						pValue = *pOption;
+					else if (auto pOption = m_GlobalOptionsByIdentifier.f_FindEqual(ParamName))
+						pValue = *pOption;
+					if (!pValue)
+						DMibError(fg_Format("Unexpected parameter '{}' in command params", ParamName));
+					Params[ParamName] = pValue->f_ConvertValue(Param.f_Value());
+				}
 			}
+			
+			if (!bFoundCommand)
+				DMibError("'Command' missing in params");
 
 			return Params;
 		}
@@ -669,17 +683,15 @@ namespace NMib
 				CStr Identifier = fg_ParseIdentifier(Option.f_Name(), bOptional, bVector);
 				
 				if (bVector)
-					DMibError("... vector form is not supported supported for options");
- 
+					DMibError("... vector form is not supported for options");
+				if (Identifier == "Command")
+					DMibError("Option cannot by identified as 'Command'. This is reserved for name of command in params");
 				if (Internal.m_GlobalOptionsByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("Option with same identifier '{}' already exists in global options", Identifier));
-				
 				if (m_pSection->m_SectionOptionsByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("Option with same identifier '{}' already exists in section options", Identifier));
-				
 				if (m_OptionsByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("Option with identifier '{}' already exists on command", Identifier));
-				
 				if (m_ParametersByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("Parameter with identifier '{}' already exists on command", Identifier));
 				
@@ -762,6 +774,8 @@ namespace NMib
 				
 				if (bVector)
 					DMibError("... vector form is not supported supported for options");
+				if (Identifier == "Command")
+					DMibError("Option cannot by identified as 'Command'. This is reserved for name of command in params");
 				if (Internal.m_GlobalOptionsByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("A global option with identifier '{}' already exists", Identifier));
 				if (Section.m_SectionOptionsByIdentifier.f_FindEqual(Identifier))
@@ -818,6 +832,8 @@ namespace NMib
 				
 				if (bVector)
 					DMibError("... vector form is not supported supported for options");
+				if (Identifier == "Command")
+					DMibError("Option cannot by identified as 'Command'. This is reserved for name of command in params");
 				if (Internal.m_GlobalOptionsByIdentifier.f_FindEqual(Identifier))
 					DMibError(fg_Format("A global option with identifier '{}' already exists", Identifier));
 				if (auto pIdentifiers = Internal.m_SectionOptionsIdentifiers.f_FindEqual(Identifier))
@@ -953,6 +969,8 @@ namespace NMib
 						DMibError("Previous parameter was a vector so no further parameters can be specified.");
 					if (bWasOptional && !bOptional)
 						DMibError("Previous parameter was optional, but this one is not. This does not make sense.");
+					if (Identifier == "Command")
+						DMibError("Parameter cannot by identified as 'Command'. This is reserved for name of command in params");
 					
 					bWasVector = bVector;
 					bWasOptional = bOptional;
@@ -983,6 +1001,7 @@ namespace NMib
 			(
 				NEncoding::CEJSON const &_CommandDescription
 				, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> (NEncoding::CEJSON const &_Parameters)> const &_fRunCommand
+				, bool _bRunLocalApp
 			)
 			-> CCommand
 		{
@@ -991,6 +1010,7 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
 			pCommand->m_fActorRunCommand = _fRunCommand;
+			pCommand->m_bRunLocalApp = _bRunLocalApp;
 			return CCommand(mp_pInternal, pCommand);
 		}
 		

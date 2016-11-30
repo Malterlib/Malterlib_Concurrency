@@ -120,6 +120,7 @@ namespace NMib
 					(
 						NEncoding::CEJSON const &_CommandDescription
 						, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> (NEncoding::CEJSON const &_Params)> const &_fRunCommand
+						, bool _bRunLocalApp = false
 					)
 				;
 				

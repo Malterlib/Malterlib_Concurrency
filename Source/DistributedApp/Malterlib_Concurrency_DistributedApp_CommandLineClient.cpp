@@ -25,7 +25,7 @@ namespace NMib
 			bool m_bInitialized = false;
 		};
 		
-		void CDistributedAppCommandLineClient::f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyStartApp)
+		void CDistributedAppCommandLineClient::f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> const &_fLazyStartApp)
 		{
 			mp_fLazyStartApp = _fLazyStartApp;
 		}
@@ -358,6 +358,8 @@ namespace NMib
 				if (iCommandParameter->m_Default.f_IsValid())
 					CommandParams[iCommandParameter->m_Identifier] = iCommandParameter->m_Default;
 			}
+			
+			CommandParams["Command"] = pFoundCommand->m_Names.f_GetFirst(); 
 				
 			return f_RunCommand(pFoundCommand->m_Names.f_GetFirst(), CommandParams);
 		}
@@ -378,7 +380,7 @@ namespace NMib
 			else if (Command.m_fActorRunCommand)
 			{
 				if (mp_fLazyStartApp)
-					mp_fLazyStartApp(_Params);
+					mp_fLazyStartApp(_Params, Command.m_bRunLocalApp);
 				fp_Init();
 				auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor).f_CallSync(10.0);
 				CDistributedAppCommandLineResults Results = DMibCallActor(CommandLineActor, ICCommandLine::f_RunCommandLine, Command.m_Names.f_GetFirst(), _Params).f_CallSync();

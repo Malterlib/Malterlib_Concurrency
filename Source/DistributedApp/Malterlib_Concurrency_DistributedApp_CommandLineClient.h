@@ -26,7 +26,7 @@ namespace NMib
 				)
 			;
 			
-			void f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyStartApp);
+			void f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> const &_fLazyStartApp);
 			
 			CDistributedAppCommandLineClient
 				(
@@ -48,7 +48,7 @@ namespace NMib
 			struct CInternal;
 			
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
-			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> mp_fLazyStartApp;
+			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> mp_fLazyStartApp;
 		};
 	}
 }

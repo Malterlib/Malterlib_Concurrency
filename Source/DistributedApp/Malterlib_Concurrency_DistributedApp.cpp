@@ -498,10 +498,10 @@ namespace NMib
 				
 				CommandLineClient.f_SetLazyStartApp
 					(
-						[&](NEncoding::CEJSON const &_Params)
+						[&](NEncoding::CEJSON const &_Params, bool _bForceStart)
 						{
 							fg_ApplyLoggingOption(_Params);
-							if (_bStartApp)
+							if (_bStartApp || _bForceStart)
 								AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
 						}
 					)

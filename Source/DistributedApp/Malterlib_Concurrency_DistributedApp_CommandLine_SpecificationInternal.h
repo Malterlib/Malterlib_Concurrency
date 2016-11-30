@@ -109,6 +109,7 @@ namespace NMib
 				bool m_bErrorOnCommandAsParameter = true;
 				bool m_bErrorOnOptionAsParameter = true;
 				bool m_bAlwaysVerbose = false;
+				bool m_bRunLocalApp = false;
 			};
 			
 			struct CSection

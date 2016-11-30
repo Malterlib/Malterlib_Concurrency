@@ -216,6 +216,7 @@ namespace
 												, "ArrayChoice"_= {"Test1", "Test2"}
 												, "ComplexObject"_= {"Key2"_= {"Test2"}}
 												, "ArgString"_= ""
+												, "Command"_= "--test"
 											}
 										)
 									)

@@ -151,6 +151,10 @@ namespace NMib
 				Extension.m_bCritical = false; 
 				Extension.m_Value = m_BasicConfig.m_HostID;
 				
+				NNet::CSignOptions SignOptions;
+				SignOptions.m_Serial = 1;
+				SignOptions.m_Days = 100*365;
+				
 				try
 				{
 					NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey
@@ -158,8 +162,7 @@ namespace NMib
 							Options
 							, m_BasicConfig.m_CACertificate
 							, m_BasicConfig.m_CAPrivateKey
-							, 1
-							, 100*365
+							, SignOptions
 						)
 					;
 				}

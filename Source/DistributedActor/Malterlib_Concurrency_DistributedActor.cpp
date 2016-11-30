@@ -172,13 +172,16 @@ namespace NMib
 			Extension.m_bCritical = false; 
 			Extension.m_Value = m_HostID;
 			
+			NNet::CSignOptions SignOptions;
+			SignOptions.m_Serial = 1;
+			SignOptions.m_Days = 10*365;
+			
 			NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey
 				(
 					Options
 					, m_PublicCertificate
 					, m_PrivateKey
-					, 1
-					, 10*365
+					, SignOptions
 				)
 			;
 			
@@ -212,6 +215,10 @@ namespace NMib
 		
 		NContainer::TCVector<uint8> CActorDistributionCryptographySettings::f_SignRequest(NContainer::TCVector<uint8> const &_Request)
 		{
+			NNet::CSignOptions SignOptions;
+			SignOptions.m_Serial = ++m_Serial;
+			SignOptions.m_Days = 10*365;
+			
 			NContainer::TCVector<uint8> Return;
 			NNet::CSSLContext::fs_SignClientCertificate
 				(
@@ -219,8 +226,7 @@ namespace NMib
 					, m_PrivateKey
 					, _Request
 					, Return
-					, ++m_Serial
-					, 10*365
+					, SignOptions
 				)
 			;
 			return Return;

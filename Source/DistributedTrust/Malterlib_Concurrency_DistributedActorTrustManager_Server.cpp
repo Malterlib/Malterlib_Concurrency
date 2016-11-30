@@ -95,14 +95,17 @@ namespace NMib
 											
 											try
 											{
+												NNet::CSignOptions SignOptions;
+												SignOptions.m_Serial = Serial;
+												SignOptions.m_Days = 10*365;
+												
 												NNet::CSSLContext::fs_SignClientCertificate
 													(
 														CaCertificate
 														, CaPrivateKey
 														, CertificateRequest
 														, ServerCert.m_PublicCertificate
-														, Serial
-														, 10*365 
+														, SignOptions 
 													)
 												;
 											}

@@ -422,7 +422,10 @@ namespace
 					Extension.m_bCritical = false; 
 					Extension.m_Value = BasicConfig.m_HostID;
 					
-					NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, 1, 100*365);
+					NNet::CSignOptions SignOptions;
+					SignOptions.m_Days = 100*365;
+					
+					NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
 						
 					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(60.0);
 				}

@@ -87,6 +87,10 @@ namespace NMib
 										CResults Results;
 										try
 										{
+											NNet::CSignOptions SignOptions;
+											SignOptions.m_Serial = Serial;
+											SignOptions.m_Days = 10*365;
+											
 											NException::CDisableExceptionTraceScope DisableTrace;
 											NNet::CSSLContext::fs_SignClientCertificate
 												(
@@ -94,8 +98,7 @@ namespace NMib
 													, CaPrivateKey
 													, _CertificateRequest
 													, Results.m_SignedCertificate
-													, Serial
-													, 10*365
+													, SignOptions
 												)
 											;
 											

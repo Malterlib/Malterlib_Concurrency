@@ -43,15 +43,16 @@ namespace NMib
 			{
 				~CSubscription()
 				{
-					*m_pDeleted = true;
+					m_pDeleted->f_Exchange(true);
 				}
-				NPtr::TCSharedPointer<bool> m_pDeleted = fg_Construct(false);
+				NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pDeleted = fg_Construct(false);
 				CActorSubscription m_Subscription;
 				NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 			};
 			
 			NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
 			
+			NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 			NStr::CStr mp_HostID;
 			TCActor<CActorDistributionManager> mp_Manager;
 			NThread::CMutual mp_RemoteLock;

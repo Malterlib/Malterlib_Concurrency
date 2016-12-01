@@ -179,6 +179,7 @@ namespace NMib
 		
 		CDistributedActorTestHelper::~CDistributedActorTestHelper()
 		{
+			mp_pDeleted->f_Exchange(true);
 		}
 
 		NStr::CStr CDistributedActorTestHelper::fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected)
@@ -197,24 +198,27 @@ namespace NMib
 				}
 			;
 			
-			
 			Subscription.m_Subscription = ClientManager
 				(
 					&CActorDistributionManager::f_SubscribeActors
 					, NContainer::fg_CreateVector<NStr::CStr>(_Namespace)
 					, ConcurrentActor 
-					, [this, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CAbstractDistributedActor &&_NewActor)
+					, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CAbstractDistributedActor &&_NewActor)
 					{
+						if (pDeletedHelper->f_Load())
+							return;
 						DMibLock(mp_RemoteLock);
-						if (*pDeleted)
+						if (pDeleted->f_Load())
 							return;
 						pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 						mp_RemoteEvent.f_Signal();
 					}
-					, [this, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CDistributedActorIdentifier const &_RemovedActor)
+					, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CDistributedActorIdentifier const &_RemovedActor)
 					{
+						if (pDeletedHelper->f_Load())
+							return;
 						DMibLock(mp_RemoteLock);
-						if (*pDeleted)
+						if (pDeleted->f_Load())
 							return;
 						mint nActors = pSubscription->m_RemoteActors.f_GetLen();
 						for (mint iActor = 0; iActor < nActors; )

@@ -365,12 +365,12 @@ namespace NMib
 				auto &ListenArray = Listen.f_Array();
 				if (_bPrimary)
 				{
-					ListenArray.f_InsertFirst({"Address"_= _Address});
+					ListenArray.f_InsertFirst(CEJSON{"Address"_= _Address});
 					return true;
 				}
 				else
 				{
-					ListenArray.f_Insert({"Address"_= _Address});
+					ListenArray.f_Insert(CEJSON{"Address"_= _Address});
 					return ListenArray.f_GetLen() == 1;
 				}
 			}

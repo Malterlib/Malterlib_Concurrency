@@ -26,6 +26,16 @@ namespace NMib
 		{
 			CStr fg_ParseIdentifier(CStr const &_Name, bool &o_bIsOptional, bool &o_bIsVector)
 			{
+				if (_Name.f_IsEmpty())
+					DMibError("You cannot specify an empty identifier. If you want to match any key use '*' as identifier.");
+				
+				if (_Name == "*")
+				{
+					o_bIsOptional = false;
+					o_bIsVector = false;
+					return _Name;
+				}
+				
 				CStr Identifier = _Name;
 				o_bIsOptional = false;
 				if (Identifier[Identifier.f_GetLen() - 1] == '?')
@@ -134,6 +144,11 @@ namespace NMib
 			return fp_ConvertValue(m_TypeTemplate, _Value, m_Identifier, false);
 		}
 
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier) const
+		{
+			return fp_ConvertValue(m_TypeTemplate, _Value, _Identifier, false);
+		}
+
 		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value) const
 		{
 			return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier);
@@ -142,6 +157,12 @@ namespace NMib
 		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value) const
 		{
 			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, m_Identifier, false);
+			o_Value.f_Array().f_Insert(NewParams);
+		}
+		
+		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier) const
+		{
+			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, _Identifier, false);
 			o_Value.f_Array().f_Insert(NewParams);
 		}
 		
@@ -238,331 +259,404 @@ namespace NMib
 				break;
 			}
 		}
+		
+		DMibImpErrorClass(CCommandLineConvertException, NMib::NException::CException);
+		
+#		define DMibCommandLineConvertException(_Description) DMibImpError(CCommandLineConvertException, _Description)
+		
+		namespace
+		{
+			CStr fg_GetEJSONTypeName(EJSONType _Type)
+			{
+				switch (_Type)
+				{
+				case EJSONType_Null: return "null";
+				case EJSONType_String: return "string";
+				case EJSONType_Integer: return "integer";
+				case EJSONType_Float: return "float";
+				case EJSONType_Boolean: return "boolean";
+				case EJSONType_Object: return "object";
+				case EJSONType_Array: return "array";
+				case EEJSONType_Date: return "date";
+				case EEJSONType_Binary: return "binary";
+				case EEJSONType_UserType: return "user type";
+				default: DMibNeverGetHere; return "unknown";
+				}
+			}
+			
+			void fg_CheckType(CEJSON const &_Value, EJSONType _Type)
+			{
+				if (_Value.f_Type() != _Type)
+					DMibError(fg_Format("Expected '{}' but got '{}': {}", fg_GetEJSONTypeName(_Type), fg_GetEJSONTypeName(_Value.f_Type()), _Value).f_TrimRight());
+			}
+		}
 
 		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict) const
 		{
 			CEJSON Return;
-			switch (_Template.f_Type())
+			try
 			{
-			case EJSONType_String:
+				switch (_Template.f_Type())
 				{
-					Return = _Value.f_String();
-				}
-				break;
-			case EJSONType_Integer:
-				{
-					if (_bStrict)
-						Return = _Value.f_Integer();
-					else if (_Value.f_IsString())
+				case EJSONType_String:
 					{
-						int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
-						if (Value == TCLimitsInt<int64>::mc_Max)
+						fg_CheckType(_Value, _Template.f_Type());
+						Return = _Value.f_String();
+					}
+					break;
+				case EJSONType_Integer:
+					{
+						if (_bStrict)
 						{
-							Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Min);
-							if (Value == TCLimitsInt<int64>::mc_Min)
-								DMibError(fg_Format("[{}] Failed to parse '{}' as a integer value", _Identifier, _Value.f_String()));
+							fg_CheckType(_Value, _Template.f_Type());
+							Return = _Value.f_Integer();
 						}
-						Return = Value;
-					}
-					else
-						Return = _Value.f_AsInteger();
-				}
-				break;
-			case EJSONType_Float:
-				{
-					if (_bStrict)
-						Return = _Value.f_Float();
-					else if (_Value.f_IsString())
-					{
-						fp64 Value = _Value.f_String().f_ToFloat(fp64::fs_Inf());
-						if (Value == fp64::fs_Inf())
-							DMibError(fg_Format("[{}] Failed to parse '{}' as a float value", _Identifier, _Value.f_String()));
-						Return = Value;
-					}
-					else
-						Return = _Value.f_AsFloat();
-				}
-				break;
-			case EJSONType_Boolean:
-				{
-					if (_bStrict)
-						Return = _Value.f_Boolean();
-					else if (_Value.f_IsString())
-					{
-						if (_Value.f_String() == "true")
-							Return = true;
-						else if (_Value.f_String() == "false")
-							Return = false;
-						else
+						else if (_Value.f_IsString())
 						{
 							int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
-							if (Value == 1)
+							if (Value == TCLimitsInt<int64>::mc_Max)
+							{
+								Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Min);
+								if (Value == TCLimitsInt<int64>::mc_Min)
+									DMibError(fg_Format("Failed to parse '{}' as a integer value", _Value.f_String()));
+							}
+							Return = Value;
+						}
+						else
+							Return = _Value.f_AsInteger();
+					}
+					break;
+				case EJSONType_Float:
+					{
+						if (_bStrict)
+						{
+							fg_CheckType(_Value, _Template.f_Type());
+							Return = _Value.f_Float();
+						}
+						else if (_Value.f_IsString())
+						{
+							fp64 Value = _Value.f_String().f_ToFloat(fp64::fs_Inf());
+							if (Value == fp64::fs_Inf())
+								DMibError(fg_Format("Failed to parse '{}' as a float value", _Value.f_String()));
+							Return = Value;
+						}
+						else
+							Return = _Value.f_AsFloat();
+					}
+					break;
+				case EJSONType_Boolean:
+					{
+						if (_bStrict)
+						{
+							fg_CheckType(_Value, _Template.f_Type());
+							Return = _Value.f_Boolean();
+						}
+						else if (_Value.f_IsString())
+						{
+							if (_Value.f_String() == "true")
 								Return = true;
-							else if (Value == 0)
+							else if (_Value.f_String() == "false")
 								Return = false;
 							else
-								DMibError(fg_Format("[{}] Failed to parse '{}' as a boolean value", _Identifier, _Value.f_String()));
-						}
-					}
-					else
-						Return = _Value.f_AsBoolean();
-				}
-				break;
-			case EEJSONType_Binary:
-				{
-					if (_Value.f_IsBinary())
-						Return = _Value;
-					else if (_Value.f_IsString())
-					{
-						NContainer::TCVector<uint8> Data;
-						NDataProcessing::fg_Base64Decode(_Value.f_String(), Data);
-						Return = Data;
-					}
-					else
-						DMibError(fg_Format("[{}] Binary can only be converted from string", _Identifier));
-				}
-				break;
-			case EEJSONType_Date:
-				{
-					if (_Value.f_IsDate())
-					{
-						Return = _Value;
-						break;
-					}
-					if (!_Value.f_IsString())
-						DMibError(fg_Format("[{}] Date can only be converted from string", _Identifier));
-					
-					auto fReportError = [&](CStr const &_Error)
-						{
-							DMibError(fg_Format("[{}] Failed to parse date: {}. Date format is: Year-Month-Day [Hour[:Minute[:Second[.Fraction]]]]", _Identifier, _Error));
-						}
-					;
-					
-					auto fParseInt = [&](ch8 const *&_pParse, auto _Type, ch8 const *_pTerminators)
-						{
-							bool bFailed = false;
-							auto Return = fg_StrToIntParse(_pParse, _Type, _pTerminators, false, EStrToIntParseMode_Base10, &bFailed);
-							if (bFailed)
-								fReportError(fg_Format("Failed to parse '{}' as a integer", _pParse));
-							if (*_pParse == _pTerminators[0])
-								++_pParse;
-							return Return;
-						}
-					;
-					
-					if (_Value.f_String() == "INVALID")
-					{
-						Return = NTime::CTime();
-						break;
-					}
-
-					ch8 const *pParse = _Value.f_String();
-					
-					fg_ParseWhiteSpace(pParse);
-					if (!*pParse)
-						fReportError("Missing year");
-					int64 Year = fParseInt(pParse, int64(), "-");
-					++pParse;
-					if (!*pParse)
-						fReportError("Missing month");
-					uint32 Month = fParseInt(pParse, uint32(), "-");
-					if (!*pParse)
-						fReportError("Missing day");
-					uint32 Day = fParseInt(pParse, uint32(), " ");
-					uint32 Hour = 0;
-					uint32 Minute = 0;
-					uint32 Second = 0;
-					fp64 Fraction = 0;
-					if (*pParse)
-						Hour = fParseInt(pParse, uint32(), ":");
-					if (*pParse)
-						Minute = fParseInt(pParse, uint32(), ":");
-					if (*pParse)
-						Second = fParseInt(pParse, uint32(), ".");
-					if (*pParse)
-					{
-						--pParse;
-						Fraction = fg_StrToFloatParse(pParse, fp64::fs_Inf(), (ch8 const *)nullptr, false, (ch8 const *)nullptr);
-						if (Fraction == fp64::fs_Inf())
-							fReportError(fg_Format("Failed to parse '{}' as a float", pParse));
-					}
-					
-					if (*pParse)
-						fReportError(fg_Format("Unexpected: {}", pParse));
-
-					if (fg_Clamp(Month, 1, 12) != Month)
-						fReportError("Invalid month");
-					if (fg_Clamp(Day, 1, NTime::CTimeConvert::fs_GetDaysInMonth(Year, Month - 1)) != Day)
-						fReportError("Invalid day");
-					if (fg_Clamp(Hour, 0, 23) != Hour)
-						fReportError("Invalid hour");
-					if (fg_Clamp(Minute, 0, 59) != Minute)
-						fReportError("Invalid minute");
-					if (fg_Clamp(Second, 0, 59) != Second)
-						fReportError("Invalid second");
-					if (fg_Clamp(Fraction, 0.0, 1.0) != Fraction)
-						fReportError("Invalid fraction");
-					
-					Return = NTime::CTimeConvert::fs_CreateTime(Year, Month, Day, Hour, Minute, Second, Fraction);
-				}
-				break;
-			case EEJSONType_UserType:
-				{
-					auto &TemplateUserType = _Template.f_UserType();
-					if (TemplateUserType.m_Type == "$OneOf" || TemplateUserType.m_Type == "$OneOfType")
-					{
-						bool bIsType = TemplateUserType.m_Type == "$OneOfType";
-						CEJSON TemplateSet = CEJSON::fs_FromJSON(TemplateUserType.m_Value);
-						
-						auto &Set = TemplateSet.f_Array();  
-						
-						CStr::CFormat FormatIdentifier("{}.{{{}}");
-						if (bIsType)
-							FormatIdentifier.f_SetFormatStr("{}.({})");
-
-						mint iSet = 0;
-						FormatIdentifier << _Identifier << iSet;
-						
-						{
-							NException::CDisableExceptionTraceScope DisableExceptionTrace;
-							for (auto &PossibleMatch : Set)
 							{
-								try
-								{
-									CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict);
-									if (bIsType)
-										return Value;
-									else if (Value == PossibleMatch)
-										return Value;
-								}
-								catch (NException::CException const &_Exception)
-								{
-								}
-								++iSet;
+								int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
+								if (Value == 1)
+									Return = true;
+								else if (Value == 0)
+									Return = false;
+								else
+									DMibError(fg_Format("Failed to parse '{}' as a boolean value", _Value.f_String()));
 							}
 						}
-						
-						DMibError(fg_Format("[{}] Could not match '{jp}' to any member in set", _Identifier, _Value));
-						
-						break;
+						else
+							Return = _Value.f_AsBoolean();
 					}
-					if (_Value.f_IsUserType())
+					break;
+				case EEJSONType_Binary:
 					{
-						auto &UserType = _Value.f_UserType();
-						if (UserType.m_Type != TemplateUserType.m_Type)
-							DMibError(fg_Format("[{}] Incorrect user type: '{}' != '{}'", _Identifier, UserType.m_Type, TemplateUserType.m_Type));
-						Return = _Value;
-						break;
-					}
-					DMibError("Converting to user type is not supported");
-				}
-				break;
-			case EJSONType_Object:
-				{
-					CEJSON RawValue;
-					if (_bStrict)
-						RawValue = _Value.f_Object();
-					else if (_Value.f_IsObject())
-						RawValue = _Value;
-					else if (_Value.f_IsString())
-					{
-						RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing object parameter", _Identifier);
-						if (!RawValue.f_IsObject())
-							DMibError(fg_Format("[{}] Expected object", _Identifier));
-					}
-					else
-						DMibError(fg_Format("[{}] Object can only be converted from string", _Identifier));
-					
-					auto &TemplateObject = _Template.f_Object();
-					
-					if (!TemplateObject.f_OrderedIterator())
-					{
-						// Allow anything
-						Return = RawValue; 
-					}
-					else
-					{
-						auto &InputObject = RawValue.f_Object();
-						auto &OutputObject = Return.f_Object();
-						TCSet<CStr> TemplateMemberNames;
-						
-						for (auto &TemplateMember : TemplateObject)
+						if (_Value.f_IsBinary())
+							Return = _Value;
+						else if (_Value.f_IsString())
 						{
-							bool bOptional = false;
-							bool bVector = false;
-							CStr Identifier = fg_ParseIdentifier(TemplateMember.f_Name(), bOptional, bVector);
-							
-							DMibCheck(!bVector);
-
-							TemplateMemberNames[Identifier];
-							
-							auto *pInputMember = InputObject.f_GetMember(Identifier);
-							if (!pInputMember)
+							NContainer::TCVector<uint8> Data;
+							NDataProcessing::fg_Base64Decode(_Value.f_String(), Data);
+							Return = Data;
+						}
+						else
+							DMibError("Binary can only be converted from string");
+					}
+					break;
+				case EEJSONType_Date:
+					{
+						if (_Value.f_IsDate())
+						{
+							Return = _Value;
+							break;
+						}
+						if (!_Value.f_IsString())
+							DMibError("Date can only be converted from string");
+						
+						auto fReportError = [&](CStr const &_Error)
 							{
-								if (!bOptional)
-									DMibError(fg_Format("[{}] Missing required member '{}' in object", _Identifier, TemplateMember.f_Name()));
-								continue;
+								DMibError(fg_Format("Failed to parse date: {}. Date format is: Year-Month-Day [Hour[:Minute[:Second[.Fraction]]]]", _Error));
+							}
+						;
+						
+						auto fParseInt = [&](ch8 const *&_pParse, auto _Type, ch8 const *_pTerminators)
+							{
+								bool bFailed = false;
+								auto Return = fg_StrToIntParse(_pParse, _Type, _pTerminators, false, EStrToIntParseMode_Base10, &bFailed);
+								if (bFailed)
+									fReportError(fg_Format("Failed to parse '{}' as a integer", _pParse));
+								if (*_pParse == _pTerminators[0])
+									++_pParse;
+								return Return;
+							}
+						;
+						
+						if (_Value.f_String() == "INVALID")
+						{
+							Return = NTime::CTime();
+							break;
+						}
+
+						ch8 const *pParse = _Value.f_String();
+						
+						fg_ParseWhiteSpace(pParse);
+						if (!*pParse)
+							fReportError("Missing year");
+						int64 Year = fParseInt(pParse, int64(), "-");
+						++pParse;
+						if (!*pParse)
+							fReportError("Missing month");
+						uint32 Month = fParseInt(pParse, uint32(), "-");
+						if (!*pParse)
+							fReportError("Missing day");
+						uint32 Day = fParseInt(pParse, uint32(), " ");
+						uint32 Hour = 0;
+						uint32 Minute = 0;
+						uint32 Second = 0;
+						fp64 Fraction = 0;
+						if (*pParse)
+							Hour = fParseInt(pParse, uint32(), ":");
+						if (*pParse)
+							Minute = fParseInt(pParse, uint32(), ":");
+						if (*pParse)
+							Second = fParseInt(pParse, uint32(), ".");
+						if (*pParse)
+						{
+							--pParse;
+							Fraction = fg_StrToFloatParse(pParse, fp64::fs_Inf(), (ch8 const *)nullptr, false, (ch8 const *)nullptr);
+							if (Fraction == fp64::fs_Inf())
+								fReportError(fg_Format("Failed to parse '{}' as a float", pParse));
+						}
+						
+						if (*pParse)
+							fReportError(fg_Format("Unexpected: {}", pParse));
+
+						if (fg_Clamp(Month, 1, 12) != Month)
+							fReportError("Invalid month");
+						if (fg_Clamp(Day, 1, NTime::CTimeConvert::fs_GetDaysInMonth(Year, Month - 1)) != Day)
+							fReportError("Invalid day");
+						if (fg_Clamp(Hour, 0, 23) != Hour)
+							fReportError("Invalid hour");
+						if (fg_Clamp(Minute, 0, 59) != Minute)
+							fReportError("Invalid minute");
+						if (fg_Clamp(Second, 0, 59) != Second)
+							fReportError("Invalid second");
+						if (fg_Clamp(Fraction, 0.0, 1.0) != Fraction)
+							fReportError("Invalid fraction");
+						
+						Return = NTime::CTimeConvert::fs_CreateTime(Year, Month, Day, Hour, Minute, Second, Fraction);
+					}
+					break;
+				case EEJSONType_UserType:
+					{
+						auto &TemplateUserType = _Template.f_UserType();
+						if (TemplateUserType.m_Type == "$OneOf" || TemplateUserType.m_Type == "$OneOfType")
+						{
+							bool bIsType = TemplateUserType.m_Type == "$OneOfType";
+							CEJSON TemplateSet = CEJSON::fs_FromJSON(TemplateUserType.m_Value);
+							
+							auto &Set = TemplateSet.f_Array();  
+							
+							CStr::CFormat FormatIdentifier("{}.{{{}}");
+							if (bIsType)
+								FormatIdentifier.f_SetFormatStr("{}.({})");
+
+							mint iSet = 0;
+							FormatIdentifier << _Identifier << iSet;
+							
+							{
+								NException::CDisableExceptionTraceScope DisableExceptionTrace;
+								for (auto &PossibleMatch : Set)
+								{
+									try
+									{
+										CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict);
+										if (bIsType)
+											return Value;
+										else if (Value == PossibleMatch)
+											return Value;
+									}
+									catch (NException::CException const &_Exception)
+									{
+									}
+									++iSet;
+								}
 							}
 							
-							OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true);
+							DMibError(fg_Format("Could not match '{jp}' to any member in set", _Value));
+							
+							break;
 						}
-						
-						for (auto &InputMember : InputObject)
+						if (_Value.f_IsUserType())
 						{
-							if (!TemplateMemberNames.f_FindEqual(InputMember.f_Name()))
-								DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
+							auto &UserType = _Value.f_UserType();
+							if (UserType.m_Type != TemplateUserType.m_Type)
+								DMibError(fg_Format("Incorrect user type: '{}' != '{}'", UserType.m_Type, TemplateUserType.m_Type));
+							Return = _Value;
+							break;
+						}
+						DMibError("Converting to user type is not supported");
+					}
+					break;
+				case EJSONType_Object:
+					{
+						CEJSON RawValue;
+						if (_bStrict)
+						{
+							fg_CheckType(_Value, _Template.f_Type());
+							RawValue = _Value.f_Object();
+						}
+						else if (_Value.f_IsObject())
+							RawValue = _Value;
+						else if (_Value.f_IsString())
+						{
+							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing object parameter", _Identifier);
+							if (!RawValue.f_IsObject())
+								DMibError("Expected object");
+						}
+						else
+							DMibError("Object can only be converted from string");
+						
+						auto &TemplateObject = _Template.f_Object();
+						
+						if (!TemplateObject.f_OrderedIterator())
+						{
+							// Allow anything
+							Return = RawValue; 
+						}
+						else
+						{
+							auto &InputObject = RawValue.f_Object();
+							auto &OutputObject = Return.f_Object();
+							TCSet<CStr> TemplateMemberNames;
+							
+							CEJSON const *pWildcard = nullptr;
+							
+							for (auto &TemplateMember : TemplateObject)
+							{
+								bool bOptional = false;
+								bool bVector = false;
+								CStr Identifier = fg_ParseIdentifier(TemplateMember.f_Name(), bOptional, bVector);
+								
+								DMibCheck(!bVector);
+
+								if (Identifier == "*")
+								{
+									DMibCheck(!pWildcard);
+									pWildcard = &TemplateMember.f_Value();
+									continue;
+								}
+								
+								TemplateMemberNames[Identifier];
+								
+								auto *pInputMember = InputObject.f_GetMember(Identifier);
+								if (!pInputMember)
+								{
+									if (!bOptional)
+										DMibError(fg_Format("Missing required member '{}' in object", TemplateMember.f_Name()));
+									continue;
+								}
+								
+								OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true);
+							}
+							
+							for (auto &InputMember : InputObject)
+							{
+								if (!TemplateMemberNames.f_FindEqual(InputMember.f_Name()))
+								{
+									if (!pWildcard)
+										DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
+									OutputObject.f_CreateMember(InputMember.f_Name()) 
+										= fp_ConvertValue(*pWildcard, InputMember.f_Value(), fg_Format("{}.{}", _Identifier, InputMember.f_Name()), true)
+									;
+								}
+							}
 						}
 					}
-				}
-				break;
-			case EJSONType_Array:
-				{
-					CEJSON RawValue;
-					if (_bStrict)
-						RawValue = _Value.f_Array();
-					else if (_Value.f_IsArray())
-						RawValue = _Value;
-					else if (_Value.f_IsString())
+					break;
+				case EJSONType_Array:
 					{
-						RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing array parameter", _Identifier);
-						if (!RawValue.f_IsArray())
-							DMibError("Expected array");
-					}
-					else
-						DMibError("Array can only be converted from string");
+						CEJSON RawValue;
+						if (_bStrict)
+						{
+							fg_CheckType(_Value, _Template.f_Type());
+							RawValue = _Value.f_Array();
+						}
+						else if (_Value.f_IsArray())
+							RawValue = _Value;
+						else if (_Value.f_IsString())
+						{
+							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing array parameter", _Identifier);
+							if (!RawValue.f_IsArray())
+								DMibError("Expected array");
+						}
+						else
+							DMibError("Array can only be converted from string");
 
-					auto &TemplateArray = _Template.f_Array();
-					if (TemplateArray.f_IsEmpty())
-					{
+						auto &TemplateArray = _Template.f_Array();
+						if (TemplateArray.f_IsEmpty())
+						{
+							Return = RawValue;
+							break;
+						}
+
+						DMibCheck(TemplateArray.f_GetLen() == 1);
+
+						auto &OutputArray = Return.f_Array();
+						auto &InputArray = RawValue.f_Array();
+						if (TemplateArray.f_GetLen() == 1)
+						{
+							auto &Template = TemplateArray.f_GetFirst();
+							CStr Identifier = fg_Format("{}.[]", _Identifier);
+							for (auto &InputElement : InputArray)
+								OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true);
+						}
+
 						Return = RawValue;
+					}
+					break;
+				case EJSONType_Null:
+					if (_Value.f_IsNull())
+					{
+						Return = _Value;
 						break;
 					}
-
-					DMibCheck(TemplateArray.f_GetLen() == 1);
-
-					auto &OutputArray = Return.f_Array();
-					auto &InputArray = RawValue.f_Array();
-					if (TemplateArray.f_GetLen() == 1)
-					{
-						auto &Template = TemplateArray.f_GetFirst();
-						CStr Identifier = fg_Format("{}.[]", _Identifier);
-						for (auto &InputElement : InputArray)
-							OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true);
-					}
-
-					Return = RawValue;
-				}
-				break;
-			case EJSONType_Null:
-				if (_Value.f_IsNull())
-				{
-					Return = _Value;
+				default:
+					DMibError("Invalid template type");
 					break;
 				}
-			default:
-				DMibError("Invalid template type");
-				break;
 			}
+			catch (CCommandLineConvertException const &)
+			{
+				throw;
+			}
+			catch (NException::CException const &_Exception)
+			{
+				DMibCommandLineConvertException(fg_Format("[{}] {}", _Identifier, _Exception.f_GetErrorStr()));
+			}			
 			
 			return Return;			
 		}

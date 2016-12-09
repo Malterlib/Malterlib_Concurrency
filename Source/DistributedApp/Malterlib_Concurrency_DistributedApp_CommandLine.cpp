@@ -1299,7 +1299,6 @@ namespace NMib
 									, "Default"_= false
 									, "Description"_= "Confirm that you really want to remove all trust."
 								}
-								
 							}
 						}
 						, [this](NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)

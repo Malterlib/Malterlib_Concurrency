@@ -42,12 +42,12 @@ namespace NMib
 		
 
 		COneOf::COneOf(NEncoding::CEJSON const &_Config)
-			: m_Config(_Config)
+			: m_Config({_Config})
 		{
 		}
 		template <typename ...tfp_CParams>
 		COneOf::COneOf(tfp_CParams const &...p_Config)
-			: m_Config({p_Config...})
+			: m_Config({NEncoding::CEJSON(p_Config)...})
 		{
 		}
 		
@@ -62,12 +62,12 @@ namespace NMib
 		}
 	
 		COneOfType::COneOfType(NEncoding::CEJSON const &_Config)
-			: m_Config(_Config)
+			: m_Config({_Config})
 		{
 		}
 		template <typename ...tfp_CParams>
 		COneOfType::COneOfType(tfp_CParams const &...p_Config)
-			: m_Config({p_Config...})
+			: m_Config({NEncoding::CEJSON(p_Config)...})
 		{
 		}
 		

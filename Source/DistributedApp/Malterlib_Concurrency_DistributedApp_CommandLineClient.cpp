@@ -89,10 +89,14 @@ namespace NMib
 				iCommandParameter = pCurrentCommand->m_Parameters.f_GetIterator();
 			
 			CDistributedAppCommandLineSpecification::CInternal::COption *pCurrentOption = nullptr;
+			CStr CurrentOptionName;
 			
-			auto fParseValue = [&](CDistributedAppCommandLineSpecification::CInternal::CValue const &_Value, CStr const &_StringData)
+			auto fParseValue = [&](CDistributedAppCommandLineSpecification::CInternal::CValue const &_Value, CStr const &_StringData, CStr const &_OptionName = {})
 				{
-					CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData);
+					if (_OptionName.f_IsEmpty())
+						CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData);
+					else
+						CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData, _OptionName);
 				}
 			;
 			
@@ -116,8 +120,9 @@ namespace NMib
 				{
 					if (pCurrentOption)
 					{
-						fParseValue(*pCurrentOption, Parameter);
+						fParseValue(*pCurrentOption, Parameter, CurrentOptionName);
 						pCurrentOption = nullptr;
+						CurrentOptionName.f_Clear();
 						continue;
 					}
 					
@@ -179,7 +184,7 @@ namespace NMib
 						}
 					}
 					
-					auto fParseOption = [&](CDistributedAppCommandLineSpecification::CInternal::COption const &_Value)
+					auto fParseOption = [&](CDistributedAppCommandLineSpecification::CInternal::COption const &_Value, CStr const &_OptionName)
 						{
 							if (_Value.m_TypeTemplate.f_IsBoolean())								
 							{
@@ -193,7 +198,7 @@ namespace NMib
 								DMibError(fg_Format("You cannot negate a non-boolean option ({}) with --no-", _Value.m_Names.f_GetFirst()));
 							if (bOptionValueSet)
 							{
-								fParseValue(_Value, OptionValue);
+								fParseValue(_Value, OptionValue, _OptionName);
 								return true;
 							}
 							return false;
@@ -205,9 +210,10 @@ namespace NMib
 						if (auto *pOption = pCurrentCommand->m_OptionsByName.f_FindEqual(ParsedParameter))
 						{
 							fUseDefaultCommand();
-							if (fParseOption(**pOption))
+							if (fParseOption(**pOption, ParsedParameter))
 								continue;
 							pCurrentOption = *pOption;
+							CurrentOptionName = ParsedParameter;
 							continue;
 						}
 						if (auto *pOption = pCurrentCommand->m_pSection->m_SectionOptionsByName.f_FindEqual(ParsedParameter))
@@ -225,18 +231,20 @@ namespace NMib
 								DMibError(fg_Format("Option '{}' is not allowed for command '{}'", (*pOption)->m_Names.f_GetFirst(), pCurrentCommand->m_Names.f_GetFirst()));
 							
 							fUseDefaultCommand();
-							if (fParseOption(**pOption))
+							if (fParseOption(**pOption, ParsedParameter))
 								continue;
 							pCurrentOption = *pOption;
+							CurrentOptionName = ParsedParameter;
 							continue;
 						}
 					}
 					
 					if (auto *pOption = CommandLineSpec.m_GlobalOptionsByName.f_FindEqual(ParsedParameter))
 					{
-						if (fParseOption(**pOption))
+						if (fParseOption(**pOption, ParsedParameter))
 							continue;
 						pCurrentOption = *pOption;
+						CurrentOptionName = ParsedParameter;
 						continue;
 					}
 
@@ -325,7 +333,7 @@ namespace NMib
 			fUseDefaultCommand();
 			
 			if (pCurrentOption)
-				DMibError(fg_Format("Missing parameter for option: {}", pCurrentOption->m_Names.f_GetFirst()));
+				DMibError(fg_Format("Missing parameter for option: {}", CurrentOptionName));
 			
 			if (!pFoundCommand)
 				pFoundCommand = CommandLineSpec.m_pDefaultCommand;

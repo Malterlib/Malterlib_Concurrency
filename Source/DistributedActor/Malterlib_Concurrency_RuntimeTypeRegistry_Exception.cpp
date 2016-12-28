@@ -3,6 +3,7 @@
 
 #define DMibRuntimeTypeRegistry
 
+#include <Mib/Core/Core>
 #include "Malterlib_Concurrency_RuntimeTypeRegistry.h"
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_Exception.h"
 

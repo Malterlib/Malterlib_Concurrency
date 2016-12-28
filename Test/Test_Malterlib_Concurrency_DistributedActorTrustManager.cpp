@@ -73,7 +73,7 @@ namespace
 						{
 							return fg_ConstructActor<CActorDistributionManager>(_Settings);
 						}
-						, NNet::CSSLKeySettings_EC_secp256r1{}
+						, CDistributedActorTestKeySettings{}
 						, NNet::ENetFlag_None
 						, "TestServer" 
 						, _SessionID	
@@ -90,7 +90,7 @@ namespace
 						{
 							return fg_ConstructActor<CActorDistributionManager>(_Settings);
 						}
-						, NNet::CSSLKeySettings_EC_secp256r1{}
+						, CDistributedActorTestKeySettings{}
 						, NNet::ENetFlag_None
 						, "TestClient"
 						, _SessionID 
@@ -226,7 +226,7 @@ namespace
 					OldServerAddress.m_URL = "wss://localhost:31394/";
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(60.0);;
-
+					
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 					
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, ServerAddress).f_CallSync(60.0);
@@ -416,7 +416,7 @@ namespace
 					BasicConfig.m_HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
 					NNet::CSSLContext::CCertificateOptions Options;
-					Options.m_KeySetting = NNet::CSSLKeySettings_EC_secp256r1{};
+					Options.m_KeySetting = CDistributedActorTestKeySettings{};
 					Options.m_Subject = fg_Format("Malterlib Distributed Actors Root - {}", BasicConfig.m_HostID).f_Left(64); 
 					auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 					Extension.m_bCritical = false; 
@@ -437,7 +437,7 @@ namespace
 						{
 							return fg_ConstructActor<CActorDistributionManager>(_Settings);
 						}
-						, NNet::CSSLKeySettings_EC_secp256r1{} 
+						, CDistributedActorTestKeySettings{} 
 						, NNet::ENetFlag_None
 						, "ClientTrustManager2" 
 					)

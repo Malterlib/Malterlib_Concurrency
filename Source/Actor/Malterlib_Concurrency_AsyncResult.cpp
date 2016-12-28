@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <exception>
+#include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_AsyncResult.h"
 
 namespace NMib

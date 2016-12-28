@@ -35,7 +35,7 @@ namespace
 						{
 							return fg_ConstructActor<CActorDistributionManager>(_Settings);
 						}
-						, NNet::CSSLKeySettings_EC_secp256r1{}
+						, CDistributedActorTestKeySettings{}
 						, NNet::ENetFlag_None
 						, "TestServer" 
 						, _SessionID	
@@ -52,7 +52,7 @@ namespace
 						{
 							return fg_ConstructActor<CActorDistributionManager>(_Settings);
 						}
-						, NNet::CSSLKeySettings_EC_secp256r1{}
+						, CDistributedActorTestKeySettings{}
 						, NNet::ENetFlag_None
 						, "TestClient"
 						, _SessionID 

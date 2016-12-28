@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <Mib/Core/Core>
 #include <Mib/Concurrency/ThreadSafeQueue>
 #include <Mib/Concurrency/AsyncResult>
 

@@ -3,6 +3,7 @@
 
 #define DMibRuntimeTypeRegistry
 
+#include <Mib/Core/Core>
 #include <Mib/Process/Platform>
 #include <Mib/Cryptography/RandomID>
 

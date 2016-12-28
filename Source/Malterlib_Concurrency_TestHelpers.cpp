@@ -71,7 +71,7 @@ namespace NMib
 			
 			TCActor<CActorDistributionManager> const &ServerManager = mp_pServer->f_GetManager();
 			
-			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
+			mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
 			
 			mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 			mp_ListenSettings.m_bRetryOnListenFailure = false;
@@ -102,7 +102,7 @@ namespace NMib
 			}
 			if (mp_ClientCryptography.m_RemoteClientCertificates.f_IsEmpty())
 			{
-				mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
+				mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
 				auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
 				auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
 				mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);

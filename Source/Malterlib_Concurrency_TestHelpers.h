@@ -12,6 +12,8 @@ namespace NMib
 	{
 		class CDistributedActorTrustManager;
 		
+		using CDistributedActorTestKeySettings = NNet::CSSLKeySettings_EC_secp256r1;
+		
 		struct CDistributedActorTestHelper
 		{
 			CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager);

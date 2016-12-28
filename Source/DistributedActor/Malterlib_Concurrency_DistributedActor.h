@@ -6,9 +6,9 @@
 #error "MSVC not supported for distributed actors"
 #endif
 
+#include "../Actor/Malterlib_Concurrency_Defines.h"
 #include "../Actor/Malterlib_Concurrency_AsyncResult.h"
 #include "../Actor/Malterlib_Concurrency_Continuation.h"
-#include "../Actor/Malterlib_Concurrency_Defines.h"
 #include "../Actor/Malterlib_Concurrency_Actor.h"
 #include "../Actor/Malterlib_Concurrency_ActorHolder.h"
 

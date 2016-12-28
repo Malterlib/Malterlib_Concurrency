@@ -6,6 +6,7 @@
 #include <Mib/Test/Exception>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Concurrency/DistributedApp>
+#include <Mib/Concurrency/TestHelpers>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -19,7 +20,17 @@ namespace
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
 		CTestDistributedApp()
-			: CDistributedAppActor(CDistributedAppActor_Settings("TestDistApp", false, NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp", true, NNet::CSSLKeySettings_EC_secp256r1{}))
+			: CDistributedAppActor
+			(
+				CDistributedAppActor_Settings
+				(
+					"TestDistApp"
+					, false
+					, NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp"
+					, true
+					, NConcurrency::CDistributedActorTestKeySettings{}
+				)
+			)
 		{
 		}
 		

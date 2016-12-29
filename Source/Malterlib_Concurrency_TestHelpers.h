@@ -55,7 +55,7 @@ namespace NMib
 			NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 			NStr::CStr mp_HostID;
 			TCActor<CActorDistributionManager> mp_Manager;
-			NThread::CMutual mp_RemoteLock;
+			NPtr::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
 			NThread::CEventAutoReset mp_RemoteEvent;
 			
 			NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;

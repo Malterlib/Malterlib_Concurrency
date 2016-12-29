@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _HostID, _PermissionsAdded, pThis = fg_Explicit(this)]
+					, [this, _HostID, _PermissionsAdded, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;
@@ -233,7 +233,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _HostID, _PermissionsRemoved, pThis = fg_Explicit(this)]
+					, [this, _HostID, _PermissionsRemoved, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;

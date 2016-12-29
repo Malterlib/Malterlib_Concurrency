@@ -212,7 +212,7 @@ namespace NMib
 			fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Actors, pThis = fg_Explicit(this)]
+					, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;
@@ -241,7 +241,7 @@ namespace NMib
 			fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Actors, pThis = fg_Explicit(this)]
+					, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;

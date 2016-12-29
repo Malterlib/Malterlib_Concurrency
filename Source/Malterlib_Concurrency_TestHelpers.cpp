@@ -155,13 +155,15 @@ namespace NMib
 
 		CDistributedActorTestHelper::CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager)
 			: mp_HostID(_HostID)
-			, mp_Manager(_Manager) 
+			, mp_Manager(_Manager)
+			, mp_pRemoteLock(fg_Construct())
 		{
 		}
 		
 		CDistributedActorTestHelper::CDistributedActorTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, bool _bAllowUnconnected)
 			: mp_HostID(_TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0))
 			, mp_Manager(_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(60.0)) 
+			, mp_pRemoteLock(fg_Construct())
 		{
 			if (!_bAllowUnconnected)
 			{
@@ -179,6 +181,7 @@ namespace NMib
 		
 		CDistributedActorTestHelper::~CDistributedActorTestHelper()
 		{
+			DMibLock(*mp_pRemoteLock);
 			mp_pDeleted->f_Exchange(true);
 		}
 
@@ -203,21 +206,35 @@ namespace NMib
 					&CActorDistributionManager::f_SubscribeActors
 					, NContainer::fg_CreateVector<NStr::CStr>(_Namespace)
 					, ConcurrentActor 
-					, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CAbstractDistributedActor &&_NewActor)
+					, 
+					[
+						this
+						, pRemoteLock = mp_pRemoteLock
+						, pDeletedHelper = mp_pDeleted
+						, pSubscription = &Subscription
+						, pDeleted = Subscription.m_pDeleted
+					](CAbstractDistributedActor &&_NewActor)
 					{
+						DMibLock(*pRemoteLock);
 						if (pDeletedHelper->f_Load())
 							return;
-						DMibLock(mp_RemoteLock);
 						if (pDeleted->f_Load())
 							return;
 						pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 						mp_RemoteEvent.f_Signal();
 					}
-					, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CDistributedActorIdentifier const &_RemovedActor)
+					, 
+					[
+						this
+						, pRemoteLock = mp_pRemoteLock
+						, pDeletedHelper = mp_pDeleted
+						, pSubscription = &Subscription
+						, pDeleted = Subscription.m_pDeleted
+					](CDistributedActorIdentifier const &_RemovedActor)
 					{
+						DMibLock(*pRemoteLock);
 						if (pDeletedHelper->f_Load())
 							return;
-						DMibLock(mp_RemoteLock);
 						if (pDeleted->f_Load())
 							return;
 						mint nActors = pSubscription->m_RemoteActors.f_GetLen();
@@ -245,7 +262,7 @@ namespace NMib
 			while (!bTimedOutWatingForActor)
 			{
 				{
-					DMibLock(mp_RemoteLock);
+					DMibLock(*mp_pRemoteLock);
 					if (Subscription.m_RemoteActors.f_GetLen() == _nExpected)
 						break;
 				}

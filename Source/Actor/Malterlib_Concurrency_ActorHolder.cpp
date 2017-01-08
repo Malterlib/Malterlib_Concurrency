@@ -175,7 +175,7 @@ namespace NMib
 		
 		TCDispatchedActorCall<void> CActorHolder::f_Destroy2()
 		{
-			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 			
 			return fg_Dispatch
 				(
@@ -201,7 +201,7 @@ namespace NMib
 
 		void CActorHolder::f_Destroy()
 		{
-			TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
 			pActor(&CActor::f_Destroy)
 				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result) mutable
@@ -219,7 +219,7 @@ namespace NMib
 			TCAsyncResult<void> Result;
 			
 			{
-				TCActor<CActor> pActor = NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this));
+				TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
 				if (_EventLoop.m_fProcess && _EventLoop.m_fWake)
 				{
@@ -306,9 +306,8 @@ namespace NMib
 						{
 							mp_pActor.f_Clear();
 							mp_bDestroyed.f_Exchange(2);
-							TCActor<CActor> pToDelete 
-								= NPtr::TCSharedPointer<TCActorInternal<CActor>, NPtr::CSupportWeakTag, CInternalActorAllocator>(fg_Explicit((TCActorInternal<CActor> *)this))
-							;
+							TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
+							
 							if (CSuper::f_RefCountDecrease() == 1)
 							{
 								// Dispatch to our queue again, otherwise we ourselves could be in callstack
@@ -423,7 +422,7 @@ namespace NMib
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
-				NPtr::TCSharedPointer<CDispatchingActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
+				TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 				m_Dispatcher
 					(
 						[pThis]()
@@ -565,7 +564,7 @@ namespace NMib
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
-				NPtr::TCSharedPointer<CDefaultActorHolder, NPtr::CSupportWeakTag, CInternalActorAllocator> pThis = fg_Explicit(this);
+				TCActorHolderSharedPointer<CDefaultActorHolder> pThis = fg_Explicit(this);
 				
 				if (_bSame)
 				{

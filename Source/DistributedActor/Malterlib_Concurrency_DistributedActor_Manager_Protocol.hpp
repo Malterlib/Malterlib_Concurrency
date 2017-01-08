@@ -70,11 +70,35 @@ namespace NMib
 		}
 
 		template <typename tf_CStream>
+		void CResultSubscriptionData::f_Feed(tf_CStream &_Stream) const
+		{
+			if (m_ClaimedSubscriptionIDs.f_IsEmpty())
+			{
+				_Stream << uint8(0);
+				return;
+			}
+			_Stream << uint8(1);
+			_Stream << m_ClaimedSubscriptionIDs;
+		}
+		
+		template <typename tf_CStream>
+		void CResultSubscriptionData::f_Consume(tf_CStream &_Stream)
+		{
+			uint8 bEnabled;
+			_Stream >> bEnabled;
+			if (!bEnabled)
+				return;
+			_Stream >> m_ClaimedSubscriptionIDs;
+		}
+		
+		template <typename tf_CStream>
 		void CDistributedActorCommand_RemoteCallResult::f_Feed(tf_CStream &_Stream) const
 		{
 			_Stream << uint8(EDistributedActorCommand_RemoteCallResult);
 			_Stream << m_PacketID;
 			_Stream << m_ReplyToPacketID;
+			if (_Stream.f_GetVersion() >= 0x104)
+				_Stream << m_SubscriptionData;
 		}
 		
 		template <typename tf_CStream>
@@ -82,8 +106,9 @@ namespace NMib
 		{
 			_Stream >> m_PacketID;
 			_Stream >> m_ReplyToPacketID;
+			if (_Stream.f_GetVersion() >= 0x104)
+				_Stream >> m_SubscriptionData;
 		}
-		
 		
 		template <typename tf_CStream>
 		void CDistributedActorCommand_Publish::f_Feed(tf_CStream &_Stream) const

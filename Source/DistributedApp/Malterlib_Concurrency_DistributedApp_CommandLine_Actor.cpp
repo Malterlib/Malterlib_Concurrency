@@ -174,16 +174,10 @@ namespace NMib
 		TCContinuation<void> CDistributedAppActor::fp_PublishCommandLine()
 		{
 			TCContinuation<void> Continuation;
-			mp_CommandLine = fg_ConstructDistributedActor<CCommandLine>(fg_ThisActor(this));
+			mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
 			
-			mp_State.m_DistributionManager
-				(
-					&CActorDistributionManager::f_PublishActor
-					, mp_CommandLine
-					, "com.malterlib/Concurrency/Commandline"
-					, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<ICCommandLine>()
-				)
+			mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline")
 				> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Command line published");

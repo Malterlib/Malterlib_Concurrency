@@ -60,11 +60,11 @@ namespace NMib
 			return _Namespace.f_StartsWith("Anonymous/");
 		}
 		
-		TCContinuation<CDistributedActorPublication> CActorDistributionManager::f_PublishActor
+		TCContinuation<CDistributedActorPublication> CActorDistributionManager::fp_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, NStr::CStr const &_Namespace
-				, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish
+				, NPrivate::CDistributedActorInterfaceInfo const &_ClassesToPublish
 			)
 		{
 			if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
@@ -87,7 +87,7 @@ namespace NMib
 			PublishedActor.m_pNamespace = &LocalNamespace; 
 			Internal.m_PublishedActors.f_Insert(PublishedActor);
 			PublishedActor.m_Actor = _Actor;
-			PublishedActor.m_Hierarchy = _ClassesToPublish.f_GetHierarchy();
+			PublishedActor.m_Hierarchy = _ClassesToPublish.f_GetInterfaceHashes();
 			PublishedActor.m_Hierarchy.f_Sort();
 			PublishedActor.m_ProtocolVersions = _ClassesToPublish.f_GetProtocolVersions();
 			
@@ -249,23 +249,16 @@ namespace NMib
 			if (!mp_ProtocolVersions.f_HighestSupportedVersion(_SupportedVersions, Version)) 
 				return {};
 			
-			auto &ConcurrencyManager = fg_ConcurrencyManager();
-			NPtr::TCSharedPointer<CActorDistributionManagerInternal::CDistributedActorDataInternal> pDistributedActorData = fg_Construct();
-			pDistributedActorData->m_pHost = reinterpret_cast<NPtr::TCWeakPointer<CActorDistributionManagerInternal::CHost> const &>(mp_pHost);
-			pDistributedActorData->m_bRemote = true;
-			pDistributedActorData->m_DistributionManager = mp_DistributionManager;
-			pDistributedActorData->m_ActorID = mp_ActorID;
-			pDistributedActorData->m_ProtocolVersion = Version;
-			DMibFastCheck(Version != TCLimitsInt<uint32>::mc_Max);
-			
-			NPtr::TCSharedPointer<TCActorInternal<TCDistributedActorWrapper<CActor>>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor 
-				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
-			;
-			
-			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<CActor>>
+			auto DistributionManager = mp_DistributionManager.f_Lock();
+			if (!DistributionManager)
+				return {};
+
+			return fg_ConstructRemoteDistributedActor<CActor>
 				(
-					fg_Move(pActor)
-					, fg_Construct<TCDistributedActorWrapper<CActor>>()
+					DistributionManager
+					, mp_ActorID
+					, mp_pHost
+					, Version
 				)
 			;
 		}

@@ -28,6 +28,20 @@ namespace NMib
 			}
 			NPrivate::fg_StreamAsyncResultException(_Stream, *this);
 		}
+
+		template <typename t_CType>
+		template <typename tf_CStream>
+		void TCAsyncResult<t_CType>::f_Feed(tf_CStream &_Stream)
+		{
+			if (*this)
+			{
+				_Stream << uint8(0); // No exception
+				decltype(auto) ToStream = **this;
+				_Stream << fg_Move(ToStream);
+				return;
+			}
+			NPrivate::fg_StreamAsyncResultException(_Stream, *this);
+		}
 		
 		template <typename t_CType>
 		template <typename tf_CStream>
@@ -61,32 +75,42 @@ namespace NMib
 		
 		namespace NPrivate
 		{
-			template <typename tf_CType, typename tf_CStreamContext>
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version)
+			template <typename tf_CStream, typename tf_CType>
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
 			{
 				if (_Result)
 				{
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-					DMibBinaryStreamContext(Stream, &_StreamContext);
+					tf_CStream Stream;
+					DMibBinaryStreamContext(Stream, _pStreamContext);
 					DMibBinaryStreamVersion(Stream, _Version);
 					Stream << uint8(0); // No exception
-					decltype(auto) ToStream = _StreamContext.f_GetValueForFeed(*_Result);
-					Stream << ToStream;
+					Stream << fg_Move(*_Result);
+					return Stream.f_MoveVector();
+				}
+				return fg_StreamAsyncResultException(_Result);
+			}
+			
+			template <typename tf_CType>
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
+			{
+				return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>(fg_Move(_Result), _pStreamContext, _Version);
+			}
+
+			template <typename tf_CStream>
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
+			{
+				if (_Result)
+				{
+					tf_CStream Stream;
+					Stream << uint8(0); // No exception
 					return Stream.f_MoveVector();
 				}
 				return fg_StreamAsyncResultException(_Result);
 			}
 
-			template <typename tf_CStreamContext>
-			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version)
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
 			{
-				if (_Result)
-				{
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-					Stream << uint8(0); // No exception
-					return Stream.f_MoveVector();
-				}
-				return fg_StreamAsyncResultException(_Result);
+				return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>(fg_Move(_Result), _pStreamContext, _Version);
 			}
 
 			template <typename t_CException, uint32 t_NameHash>

@@ -26,6 +26,7 @@ namespace NMib
 				CThisActor &operator = (CThisActor const &) = default;
 			};
 		}
+		
 		class CActor
 		{
 			template <typename tf_CActor>

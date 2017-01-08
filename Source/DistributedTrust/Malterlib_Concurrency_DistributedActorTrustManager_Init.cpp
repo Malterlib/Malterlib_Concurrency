@@ -14,7 +14,6 @@ namespace NMib
 		{
 			fg_InitDistributedActorSystem();
 			auto &Internal = *mp_pInternal;
-			Internal.m_TicketInterface = fg_ConstructDistributedActor<CInternal::CTicketInterface>(&Internal, fg_ThisActor(this));
 			Internal.m_pInitOnce = fg_Construct
 				(
 					self
@@ -488,13 +487,9 @@ namespace NMib
 							
 							pCleanup->f_Clear();
 							
-							m_ActorDistributionManager
-								(
-									&CActorDistributionManager::f_PublishActor
-									, m_TicketInterface
-									, "Anonymous/com.malterlib/Concurrency/TrustManagerTicket"
-									, CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CTicketInterface>()
-								)
+							m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
+							
+							m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
 								> [this](TCAsyncResult<CDistributedActorPublication> &&_Result)
 								{
 									if (!_Result)

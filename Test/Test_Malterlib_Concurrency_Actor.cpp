@@ -139,6 +139,7 @@ namespace
 			m_CallbackManager(_Value);
 		}
 	};
+	
 	class CActor_Tests : public NMib::NTest::CTest
 	{
 		void fp_BlockOnAllThreads(TCActorResultVector<void> &_Results, bool _bGarbageCollect)

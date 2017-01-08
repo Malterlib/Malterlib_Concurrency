@@ -52,11 +52,14 @@ namespace NMib
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception);
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result);
 			
-			template <typename tf_CType, typename tf_CStreamContext>
-			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version);
-			
-			template <typename tf_CStreamContext>
-			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> const &_Result, tf_CStreamContext &_StreamContext, uint32 _Version);
+			template <typename tf_CStream, typename tf_CType>
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version);
+			template <typename tf_CType>
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version);
+			template <typename tf_CStream>
+			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version);
+			inline_always_debug NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version);
+
 		}
 		
 #define DMibConcurrencyRegisterException(d_Exception) (void)::NMib::NConcurrency::NPrivate::TCExceptionRegistry<d_Exception>::ms_EntryInit

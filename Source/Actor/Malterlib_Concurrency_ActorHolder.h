@@ -62,8 +62,11 @@ namespace NMib
 		protected:
 			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
 			virtual void fp_Construct();
-		public:
 			
+			template <typename tf_CActor>
+			TCActor<tf_CActor> fp_GetAsActor();
+			
+		public:
 			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 			virtual ~CActorHolder();
 

@@ -49,14 +49,16 @@ namespace NMib
 						
 						auto &pHost = _pConnection->m_pHost;
 						DMibFastCheck(pHost);
+						
+						auto &Host = *pHost;
 
 						// Remove packets that remote already knows about
-						for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_AckedPacketID; ++iPacket)
-							iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
+						for (auto iPacket = Host.m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_AckedPacketID; ++iPacket)
+							iPacket.f_Delete(Host.m_Outgoing_SentPackets);
 						 
 						bool bShouldReset = false;
 						
-						if (pHost->m_LastExecutionID != Identify.m_ExecutionID)
+						if (Host.m_LastExecutionID != Identify.m_ExecutionID)
 							bShouldReset = true;
 						
 #if 0
@@ -66,35 +68,55 @@ namespace NMib
 							bShouldReset = true;
 						}
 #endif
-
-						if (bShouldReset && !pHost->m_LastExecutionID.f_IsEmpty())
+						
+						if (bShouldReset && !Host.m_LastExecutionID.f_IsEmpty())
 							fp_ResetHostState(*pHost, _pConnection, true);
 						
-						pHost->m_LastExecutionID = Identify.m_ExecutionID;
+						Host.m_LastExecutionID = Identify.m_ExecutionID;
 						
-						pHost->m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
-						pHost->m_AllowedNamespaces = Identify.m_AllowedNamespaces;
-						
-						if (!Identify.m_FriendlyName.f_IsEmpty() && Identify.m_FriendlyName != pHost->m_FriendlyName)
+						Host.m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
+						Host.m_AllowedNamespaces = Identify.m_AllowedNamespaces;
+						if (Host.m_ActorProtocolVersion)
 						{
-							pHost->m_FriendlyName = Identify.m_FriendlyName;
+							if (Identify.m_ProtocolVersion != Host.m_ActorProtocolVersion)
+							{
+								DMibLog
+									(
+										DebugVerbose2
+										, " ---- {} {} Inconsistent protocol version {} != {}"
+										, _pConnection->m_pHost->m_bIncoming
+										, _pConnection->f_GetConnectionID()
+										, Identify.m_ProtocolVersion
+										, Host.m_ActorProtocolVersion
+									);
+								if (!_pConnection->m_IdentifyContinuation.f_IsSet())
+									_pConnection->m_IdentifyContinuation.f_SetException(DMibErrorInstance("Inconsistent protocol version"));
+								return false;
+							}
+						}
+						else
+							Host.m_ActorProtocolVersion = Identify.m_ProtocolVersion;
+						
+						if (!Identify.m_FriendlyName.f_IsEmpty() && Identify.m_FriendlyName != Host.m_FriendlyName)
+						{
+							Host.m_FriendlyName = Identify.m_FriendlyName;
 							CHostInfo HostInfo;
-							HostInfo.m_HostID = pHost->m_RealHostID;
-							HostInfo.m_FriendlyName = pHost->m_FriendlyName; 
+							HostInfo.m_HostID = Host.m_RealHostID;
+							HostInfo.m_FriendlyName = Host.m_FriendlyName; 
 							m_OnHostInfoChanged(HostInfo);
 						}
 						
 						// Resend packets that remote think are missing
 						for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
 						{
-							auto pPacket = pHost->m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
+							auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
 							if (pPacket)
 								fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData));
 						}
 						
 						{
-							decltype(pHost->m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
-							iSentPackets.f_InitForSearch(pHost->m_Outgoing_SentPackets);
+							decltype(Host.m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
+							iSentPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
 							iSentPackets.f_FindSmallestGreaterThanEqualForward(Identify.m_HighestSeenPacketID);
 							
 							while (iSentPackets)
@@ -104,20 +126,21 @@ namespace NMib
 							}
 						}
 						
-						DMibLog(DebugVerbose2, " ---- {} {} Identify", pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+						DMibLog(DebugVerbose2, " ---- {} {} Identify", Host.m_bIncoming, _pConnection->f_GetConnectionID());
 
-						pHost->m_ActiveConnections.f_Insert(*_pConnection);
+						_pConnection->m_bIdentified = true;
+						Host.m_ActiveConnections.f_Insert(*_pConnection);
 						fp_SendPacketQueue(pHost);
 						fp_ProcessPacketQueue(_pConnection);
 						
-						if (pHost->f_CanSendPublish())
+						if (Host.f_CanSendPublish())
 						{
 							for (auto &NamespaceActors : m_LocalNamespaces)
 							{
 								auto &Namespace = NamespaceActors.f_GetNamespace();
-								if (!pHost->m_bAllowAllNamespaces && !pHost->m_AllowedNamespaces.f_FindEqual(Namespace))
+								if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(Namespace))
 									continue;
-								if (pHost->m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
+								if (Host.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
 									continue;
 								
 								for (auto &Actor : NamespaceActors.m_Actors)
@@ -136,7 +159,6 @@ namespace NMib
 								}
 							}
 						}
-						
 						if (Identify.m_ProtocolVersion >= 0x103)
 						{
 							CDistributedActorCommand_InitialPublishFinished Identify;
@@ -154,6 +176,15 @@ namespace NMib
 					break;
 				case EDistributedActorCommand_InitialPublishFinished:
 					{
+#if 0
+						// Enable after all old versions have been updated
+						if (!_pConnection->m_bIdentified)
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+							DMibCheck(false);
+							return false;
+						}
+#endif
 						CDistributedActorCommand_InitialPublishFinished InitialPublishFinished;
 						Stream >> InitialPublishFinished;
 						
@@ -166,6 +197,12 @@ namespace NMib
 						if (!_pConnection->m_Link.f_IsInList()) // Not an active connection
 						{
 							DMibLog(DebugVerbose2, " ---- {} {} Not active ack", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+							return false;
+						}
+						if (!_pConnection->m_bIdentified)
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+							DMibCheck(false);
 							return false;
 						}
 						
@@ -185,6 +222,12 @@ namespace NMib
 				case EDistributedActorCommand_Unpublish:
 				case EDistributedActorCommand_DestroySubscription: 
 					{
+						if (!_pConnection->m_bIdentified)
+						{
+							DMibLog(DebugVerbose2, " ---- {} {} Not identified", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+							DMibCheck(false);
+							return false;
+						}
 						auto &pHost = _pConnection->m_pHost;
 						
 						uint64 PacketID;

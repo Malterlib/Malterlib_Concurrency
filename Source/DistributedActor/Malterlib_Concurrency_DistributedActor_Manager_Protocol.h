@@ -26,7 +26,7 @@ namespace NMib
 		{
 			enum 
 			{
-				EProtocolVersion = 0x103
+				EProtocolVersion = 0x104
 			};
 			
 			template <typename tf_CStream>
@@ -68,6 +68,16 @@ namespace NMib
 			NStr::CStr m_ActorID;
 			// Packet data
 		};
+		
+		struct CResultSubscriptionData
+		{
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
+			
+			NContainer::TCVector<NStr::CStr> m_ClaimedSubscriptionIDs;
+		};
 
 		struct CDistributedActorCommand_RemoteCallResult
 		{
@@ -78,6 +88,7 @@ namespace NMib
 
 			uint64 m_PacketID;
 			uint64 m_ReplyToPacketID;
+			CResultSubscriptionData m_SubscriptionData;
 			// Result data
 		};
 		

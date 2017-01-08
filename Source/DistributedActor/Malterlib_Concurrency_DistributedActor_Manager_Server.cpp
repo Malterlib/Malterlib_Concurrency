@@ -119,15 +119,11 @@ namespace NMib
 			
 			return fg_Explicit
 				(
-					fg_ActorSubscription
-					(
-						self
-						, [this, _Path]
-						{
-							auto &Internal = *mp_pInternal;
-							Internal.m_WebsocketHandlers.f_Remove(_Path);
-						}
-					)
+					g_ActorSubscription > [this, _Path]
+					{
+						auto &Internal = *mp_pInternal;
+						Internal.m_WebsocketHandlers.f_Remove(_Path);
+					}
 				)
 			;
 		}

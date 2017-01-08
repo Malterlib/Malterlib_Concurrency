@@ -47,7 +47,7 @@ namespace NMib
 			struct TCAllAsyncResultsAreVoid;
 		}
 		
-		template <typename t_CReturnValue>
+		template <typename t_CReturnValue = void>
 		struct TCContinuation
 		{
 		public:

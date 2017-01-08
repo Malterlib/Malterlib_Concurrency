@@ -29,6 +29,8 @@ namespace
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
 	using namespace NMib::NStr;
+	using namespace NMib::NThread;
+	using namespace NMib::NAtomic;
 	
 	namespace NTest1
 	{
@@ -58,9 +60,89 @@ namespace
 		virtual CStr f_GetCallingHostID() const = 0;
 	};
 
-	class CDistributedActor : public CDistributedActorBase
+	class CDistributedActorNonPublished : public CDistributedActorBase
 	{
-		zuint32 m_Value;
+	public:
+		
+		TCContinuation<> f_SetSubscriptionNonPublished(CActorSubscription &&_Subscription, bool _bError)
+		{
+			if (_bError)
+				return DMibErrorInstance("Error");
+			return fg_Explicit();
+		}
+	};
+	
+	class CDistributedActorInterface : public CActor
+	{
+	public:
+		enum
+		{
+			EMinProtocolVersion = 0x101
+			, EProtocolVersion = 0x101
+		};
+		
+		uint32 f_Test()
+		{
+			return 5;
+		}
+	};
+	
+	TCAtomicAggregate<mint> g_TestValueGetSubscription = {DAggregateInit};
+	
+	struct CMultipleSubscriptions
+	{
+		TCActorSubscriptionWithID<0> m_Subscription0;
+		TCActorSubscriptionWithID<1> m_Subscription1;
+		
+		TCActorSubscriptionWithID<> &f_Subscription(uint32 _SequenceID)
+		{
+			if (_SequenceID == 0)
+				return m_Subscription0;
+			else
+				return (TCActorSubscriptionWithID<0> &)m_Subscription1;
+		}
+		
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) &&
+		{
+			_Stream << fg_Move(m_Subscription0);
+			_Stream << fg_Move(m_Subscription1);
+		}
+
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_Subscription0;
+			_Stream >> m_Subscription1;
+		}
+	};
+
+	struct CMultipleSubscriptionsVector
+	{
+		TCVector<TCActorSubscriptionWithID<>> m_Subscriptions;
+		
+		TCActorSubscriptionWithID<> &f_Subscription(uint32 _SequenceID)
+		{
+			return m_Subscriptions[_SequenceID];
+		}
+		
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) &&
+		{
+			_Stream << fg_Move(m_Subscriptions);
+		}
+
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_Subscriptions;
+		}
+	};
+	
+	class CDistributedActor : public CDistributedActorNonPublished
+	{
+	public:
+		uint32 m_Value = 0;
 		TCMap<CStr, CActorSubscription> m_CallingHostTests;
 		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), false> m_CallbackManager;
 		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), true> m_CallbacksManager;
@@ -71,17 +153,36 @@ namespace
 		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_CallbackNoSub; 
 		TCActor<CActor> m_ActorNoSub;
 		
-	public:
+		TCDistributedActor<CDistributedActorInterface> m_Interface;
 		
+		CActorSubscription m_Subscription;
+		
+		struct CActorFunctor
+		{
+			TCActorFunctor<TCContinuation<CStr> (CStr const &_Test)> m_ActorFunctor;
+			bool m_bCleared = false;
+		};
+		
+		TCVector<CActorFunctor> m_ActorFunctors;
+		
+		bool m_bReturnedFunctionActorSubscriptionCalled = false;
+		bool m_bGetInterfaceSubscriptionCalled = false;
+		bool m_bSetInterfaceSubscriptionCalled = false;
+		
+		TCDistributedActorInterface<CDistributedActorInterface> m_SetDistributedActorInterface;
+		
+	public:
 		CDistributedActor()
 			: m_CallbackManager(this, false)
 			, m_CallbacksManager(this, false)
 		{
 		}
+		
 		void f_AddInt(uint32 _Value)
 		{
 			m_Value += _Value;
 		}
+		
 		uint32 f_GetResult()
 		{
 			auto Ret = m_Value;
@@ -92,6 +193,184 @@ namespace
 		void f_AddIntVirtual(uint32 _Value) override
 		{
 			m_Value += _Value;
+		}
+		
+		TCDistributedActorInterfaceWithID<CDistributedActorInterface> f_GetInterface()
+		{
+			m_Interface = fg_ConstructDistributedActor<CDistributedActorInterface>(fg_GetDistributionManager());
+			return 
+				{
+					m_Interface->f_ShareInterface<CDistributedActorInterface>()
+					, g_ActorSubscription > [this]
+					{
+						m_bGetInterfaceSubscriptionCalled = true;
+					}
+				}
+			;
+		}
+
+		bool f_GetInterfaceSubscriptionCalled()
+		{
+			bool bRet = m_bGetInterfaceSubscriptionCalled;
+			m_bGetInterfaceSubscriptionCalled = false;
+			return bRet;
+		}
+
+		TCActorSubscriptionWithID<> f_SetInterface(TCDistributedActorInterfaceWithID<CDistributedActorInterface> &&_Interface)
+		{
+			m_SetDistributedActorInterface = fg_Move(_Interface);
+			return g_ActorSubscription > [this]
+				{
+					m_bSetInterfaceSubscriptionCalled = true;
+				}
+			;
+		}
+
+		void f_ClearSetInterface()
+		{
+			m_SetDistributedActorInterface.f_Clear();
+		}
+		
+		bool f_SetInterfaceSubscriptionCalled()
+		{
+			bool bRet = m_bSetInterfaceSubscriptionCalled;
+			m_bSetInterfaceSubscriptionCalled = false;
+			return bRet;
+		}
+		
+		TCContinuation<uint32> f_CallSetInterface()
+		{
+			return DMibCallActor(m_SetDistributedActorInterface, CDistributedActorInterface::f_Test);
+		}
+		
+		TCContinuation<CActorSubscription> f_GetSubscription()
+		{
+			return fg_Explicit
+				(
+					g_ActorSubscription > []
+					{
+						g_TestValueGetSubscription.f_Exchange(1);
+					}
+				)
+			;
+		}
+		
+		TCContinuation<> f_SetSubscription(CActorSubscription &&_Subscription, bool _bError)
+		{
+			if (_bError)
+				return DMibErrorInstance("Error");
+			m_Subscription = fg_Move(_Subscription);
+			return fg_Explicit();
+		}
+
+		CMultipleSubscriptions f_RegisterActorFunctors
+			(
+				TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 0> &&_Callback0
+				, TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 1> &&_Callback1
+			)
+		{
+			CMultipleSubscriptions Subscriptions;
+			m_ActorFunctors.f_SetLen(2);
+			m_ActorFunctors[0].m_ActorFunctor = fg_Move(_Callback0);
+			m_ActorFunctors[1].m_ActorFunctor = fg_Move(_Callback1);
+			
+			Subscriptions.m_Subscription0 = g_ActorSubscription > [this]
+				{
+					m_ActorFunctors[0].m_bCleared = true;
+				}
+			;
+			Subscriptions.m_Subscription1 = g_ActorSubscription > [this]
+				{
+					m_ActorFunctors[1].m_bCleared = true;
+				}
+			;
+			return Subscriptions;
+		}
+
+		CMultipleSubscriptionsVector f_RegisterActorFunctorsVector
+			(
+				TCVector<TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 0>> &&_Callbacks
+			)
+		{
+			CMultipleSubscriptionsVector Subscriptions;
+			
+			m_ActorFunctors.f_Clear();
+			mint iFunctor = 0;
+			for (auto &Callback : _Callbacks)
+			{
+				Subscriptions.m_Subscriptions.f_Insert
+					(
+						fg_Construct
+						(
+							g_ActorSubscription > [this, iFunctor]
+							{
+								m_ActorFunctors[iFunctor].m_bCleared = true;
+							}
+							, Callback.f_GetID() 
+						)
+					)
+				;
+				m_ActorFunctors.f_Insert().m_ActorFunctor = fg_Move(Callback);
+				++iFunctor;
+			}
+			return Subscriptions;
+		}
+		
+		bool f_GetClearedActorFunctors(uint32 _iCallback) const
+		{
+			return m_ActorFunctors[_iCallback].m_bCleared;
+		}
+		
+		void f_ClearActorFunctor(uint32 _iCallback)
+		{
+			return m_ActorFunctors[_iCallback].m_ActorFunctor.f_Clear();
+		}
+		
+		void f_ResetClearedActorFunctors()
+		{
+			m_ActorFunctors.f_Clear();
+		}
+		
+		TCContinuation<CStr> f_CallActorFunctor(uint32 _iCallback, CStr const &_Message)
+		{
+			return m_ActorFunctors[_iCallback].m_ActorFunctor(_Message);
+		}
+		
+		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctorWithoutSubscription()
+		{
+			return g_ActorFunctor > [] (CStr const &_Test) -> TCContinuation<CStr>
+				{
+					return fg_Explicit(_Test + "WithoutSubscription");
+				}
+			;
+		}
+		
+		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctor()
+		{
+			return g_ActorFunctor 
+				(
+					g_ActorSubscription > [this]
+					{
+						m_bReturnedFunctionActorSubscriptionCalled = true;
+					}
+				) 
+				> [] (CStr const &_Test) -> TCContinuation<CStr>
+				{
+					return fg_Explicit(_Test + "WithSubscription");
+				}
+			;
+		}
+		
+		bool f_GetActorFunctorSubscriptionCalled()
+		{
+			bool bRet = m_bReturnedFunctionActorSubscriptionCalled;
+			m_bReturnedFunctionActorSubscriptionCalled = false;
+			return bRet;
+		}
+		
+		void f_ClearSubscription()
+		{
+			m_Subscription.f_Clear(); 
 		}
 		
 		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
@@ -121,7 +400,7 @@ namespace
 			m_Callback[0] = _Callback0;
 			m_Callback[1] = _Callback1;
 			m_Actor[0] = _Actor;
-			 return fg_Construct();
+			return fg_Construct();
 		}
 
 		TCContinuation<CStr> f_CallDual(CStr const &_Message)
@@ -453,6 +732,382 @@ namespace
 				DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
 				DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
 			}; 
+			DMibTestSuite("SetSubscription")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto TestActor = fg_ConcurrentActor();
+				TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
+				auto &TestValue = *pTestValue;
+
+				auto fSubscription = [&]() -> CActorSubscription
+					{
+						return g_ActorSubscription(TestActor) >
+							[pTestValue]
+							{
+								pTestValue->f_Exchange(1);
+							}
+						;
+					}
+				;
+				auto fSetSubscription = [&](bool _bException)
+					{
+						DMibCallActor(Actor, CDistributedActor::f_SetSubscription, fSubscription(), _bException).f_CallSync(60.0);
+					}
+				;
+				auto fSetSubscriptionNonPublished = [&](bool _bException)
+					{
+						DMibCallActor(Actor, CDistributedActor::f_SetSubscriptionNonPublished, fSubscription(), _bException).f_CallSync(60.0);
+					}
+				;
+				{
+					DMibTestPath("Normal");
+					fSetSubscription(false);
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 0);
+					
+					DMibCallActor(Actor, CDistributedActor::f_ClearSubscription).f_CallSync(60.0);
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 1);
+
+					TestValue.f_Exchange(0);
+				}
+				{
+					DMibTestPath("Exception");
+					DMibExpectException(fSetSubscription(true), DMibErrorInstance("Error"));
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 1);
+
+					TestValue.f_Exchange(0);
+				}
+				if (_bRemote)
+				{
+					DMibTestPath("ExceptionBeforeCall");
+					DMibExpectException(fSetSubscriptionNonPublished(true), DMibErrorInstance("Function does not exist on remote actor"));
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 1);
+
+					TestValue.f_Exchange(0);
+				}
+			};
+			DMibTestSuite("GetSubscription")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto TestActor = fg_ConcurrentActor();
+				auto &TestValue = g_TestValueGetSubscription;
+				auto fGetSubscription = [&]()
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_GetSubscription).f_CallSync(60.0);
+					}
+				;
+				{
+					DMibTestPath("Normal");
+					auto Subscription = fGetSubscription();
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 0);
+					
+					Subscription.f_Clear();
+					NSys::fg_Thread_Sleep(0.1);
+					DMibExpect(TestValue.f_Load(), ==, 1);
+
+					TestValue.f_Exchange(0);
+				}
+			};
+			
+			auto fGetRegisterActorFunctors = [&]
+				(
+					TCDistributedActor<CDistributedActor> const &_Actor
+					, TCActor<> const &_TestActor
+					, TCSharedPointer<TCAtomic<mint>> const &_pSubscription0Called
+					, TCSharedPointer<TCAtomic<mint>> const &_pSubscription1Called
+				)
+				{
+					return DMibCallActor
+						(
+							_Actor
+							, CDistributedActor::f_RegisterActorFunctors
+							, g_ActorFunctor(_TestActor) 
+							(
+								g_ActorSubscription(_TestActor) > [_pSubscription0Called]
+								{
+									_pSubscription0Called->f_Exchange(1);
+								}
+							) 
+							> [](CStr const &_Message) -> TCContinuation<CStr>
+							{
+								if (_Message == "TestMessageException")
+									return DMibErrorInstance("Test exception 0");
+								return fg_Explicit(_Message + "0");
+							}
+							, g_ActorFunctor(_TestActor) 
+							(
+								g_ActorSubscription(_TestActor) > [_pSubscription1Called]
+								{
+									_pSubscription1Called->f_Exchange(1);
+								}
+							) 
+							> [](CStr const &_Message) -> TCContinuation<CStr>
+							{
+								if (_Message == "TestMessageException")
+									return DMibErrorInstance("Test exception 1");
+								return fg_Explicit(_Message + "1");
+							}
+						).f_CallSync(60.0)
+					;
+				}
+			;
+			auto fGetRegisterActorFunctorsVector = [&]
+				(
+					TCDistributedActor<CDistributedActor> const &_Actor
+					, TCActor<> const &_TestActor
+					, TCSharedPointer<TCAtomic<mint>> const &_pSubscription0Called
+					, TCSharedPointer<TCAtomic<mint>> const &_pSubscription1Called
+				)
+				{
+					TCVector<TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)>> Functors;
+					Functors.f_Insert() = g_ActorFunctor(_TestActor)
+						(
+							g_ActorSubscription(_TestActor) > [_pSubscription0Called]
+							{
+								_pSubscription0Called->f_Exchange(1);
+							}
+						) 
+						> [](CStr const &_Message) -> TCContinuation<CStr>
+						{
+							if (_Message == "TestMessageException")
+								return DMibErrorInstance("Test exception 0");
+							return fg_Explicit(_Message + "0");
+						}
+					;
+					Functors.f_Insert() = g_ActorFunctor(_TestActor)
+						(
+							g_ActorSubscription(_TestActor) > [_pSubscription1Called]
+							{
+								_pSubscription1Called->f_Exchange(1);
+							}
+						) 
+						> [](CStr const &_Message) -> TCContinuation<CStr>
+						{
+							if (_Message == "TestMessageException")
+								return DMibErrorInstance("Test exception 1");
+							return fg_Explicit(_Message + "1");
+						}
+					;
+					Functors[0].f_SetID(0);
+					Functors[1].f_SetID(1);
+					return DMibCallActor
+						(
+							_Actor
+							, CDistributedActor::f_RegisterActorFunctorsVector
+							, fg_Move(Functors) 
+						).f_CallSync(60.0)
+					;
+				}
+			;
+			
+			auto fTestMultipleActorFunctors = [&](auto _fRegister)
+				{
+					TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+					auto TestActor = fg_ConcurrentActor();
+					
+					TCSharedPointer<TCAtomic<mint>> pSubscription0Called = fg_Construct();
+					TCSharedPointer<TCAtomic<mint>> pSubscription1Called = fg_Construct();
+					
+					auto Subscriptions = _fRegister(Actor, TestActor, pSubscription0Called, pSubscription1Called);
+
+					auto fCallFunctor = [&](mint _iFunctor)
+						{
+							return DMibCallActor(Actor, CDistributedActor::f_CallActorFunctor, _iFunctor, "Test").f_CallSync(60.0);
+						}
+					;
+					auto fGetCleared = [&](mint _iFunctor)
+						{
+							return DMibCallActor(Actor, CDistributedActor::f_GetClearedActorFunctors, _iFunctor).f_CallSync(60.0);
+						}
+					;
+					auto fClearActorFunctor = [&](mint _iFunctor)
+						{
+							return DMibCallActor(Actor, CDistributedActor::f_ClearActorFunctor, _iFunctor).f_CallSync(60.0);
+						}
+					;
+					
+					DMibExpect(fCallFunctor(0), ==, "Test0");
+					DMibExpect(fCallFunctor(1), ==, "Test1");
+					
+					{
+						DMibTestPath("Clear0");
+						Subscriptions.f_Subscription(0).f_Clear();
+						if (_bRemote)
+							DMibExpectException(fCallFunctor(0), DMibErrorInstance("Subscription has been removed"));
+						DMibExpect(fCallFunctor(1), ==, "Test1");
+						
+						DMibExpectTrue(fGetCleared(0));
+						DMibExpectFalse(fGetCleared(1));
+					}
+					{
+						DMibTestPath("Clear1");
+						Subscriptions.f_Subscription(1).f_Clear();
+						if (_bRemote)
+						{
+							DMibExpectException(fCallFunctor(0), DMibErrorInstance("Subscription has been removed"));
+							DMibExpectException(fCallFunctor(1), DMibErrorInstance("Subscription has been removed"));
+						}
+						
+						DMibExpectTrue(fGetCleared(0));
+						DMibExpectTrue(fGetCleared(1));
+					}
+					{
+						DMibTestPath("ClearFunctor0");
+						
+						DMibExpectFalse(pSubscription0Called->f_Load());
+						DMibExpectFalse(pSubscription1Called->f_Load());
+						
+						fClearActorFunctor(0);
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+
+						DMibExpectTrue(pSubscription0Called->f_Load());
+					}
+					{
+						DMibTestPath("ClearFunctor1");
+						
+						DMibExpectTrue(pSubscription0Called->f_Load());
+						DMibExpectFalse(pSubscription1Called->f_Load());
+						
+						fClearActorFunctor(1);
+						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+
+						DMibExpectTrue(pSubscription1Called->f_Load());
+					}
+					
+					DMibCallActor(Actor, CDistributedActor::f_ResetClearedActorFunctors).f_CallSync(60.0);
+				}
+			;
+			DMibTestSuite("MultipleActorFunctors")
+			{
+				fTestMultipleActorFunctors(fGetRegisterActorFunctors);
+			};
+			DMibTestSuite("MultipleActorFunctorsVector")
+			{
+				fTestMultipleActorFunctors(fGetRegisterActorFunctorsVector);
+			};
+			DMibTestSuite("GetActorFunctor")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto TestActor = fg_ConcurrentActor();
+				TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
+				auto &TestValue = *pTestValue;
+				
+				auto fSubscription = [&]() -> CActorSubscription
+					{
+						return g_ActorSubscription(TestActor) >
+							[pTestValue]
+							{
+								pTestValue->f_Exchange(1);
+							}
+						;
+					}
+				;
+				auto fGetActorSubscriptionWithoutSubscription = [&]()
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_GetActorFunctorWithoutSubscription).f_CallSync(60.0);
+					}
+				;
+				auto fGetActorSubscription = [&]()
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_GetActorFunctor).f_CallSync(60.0);
+					}
+				;
+				if (_bRemote)
+				{
+					DMibTestPath("WithoutSubscription");
+					DMibExpectException
+						(
+							fGetActorSubscriptionWithoutSubscription()
+							, DMibErrorInstance("Invalid set of parameter and return types: No matching subscription for actor functors or interfaces")
+						)
+					;
+				}
+				{
+					DMibTestPath("WithSubscription");
+					auto ActorFunctor = fGetActorSubscription();
+					CStr ReturnValue = ActorFunctor("Test").f_CallSync(60.0);
+					DMibExpect(ReturnValue, ==, "TestWithSubscription");
+
+					ActorFunctor.f_GetSubscription().f_Clear();
+					bool bSubscriptionCalled = DMibCallActor(Actor, CDistributedActor::f_GetActorFunctorSubscriptionCalled).f_CallSync(60.0);
+					DMibExpectTrue(bSubscriptionCalled);
+					
+					if (_bRemote)
+						DMibExpectException(ActorFunctor("Test").f_CallSync(60.0), DMibErrorInstance("Subscription has been removed"));
+					
+					ActorFunctor.f_Clear();
+				}
+			};
+			DMibTestSuite("GetInterface")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto Interface = DMibCallActor(Actor, CDistributedActor::f_GetInterface).f_CallSync(60.0);
+				
+				auto fCallInterface = [&]
+					{
+						return DMibCallActor(Interface, CDistributedActorInterface::f_Test).f_CallSync(60.0);
+					}
+				;
+				
+				DMibExpect(fCallInterface(), ==, 5);
+
+				Interface.f_GetSubscription().f_Clear();
+				bool bSubscriptionCalled = DMibCallActor(Actor, CDistributedActor::f_GetInterfaceSubscriptionCalled).f_CallSync(60.0);
+				DMibExpectTrue(bSubscriptionCalled);
+				
+				if (_bRemote)
+					DMibExpectException(fCallInterface(), DMibErrorInstance("Remote actor no longer exists"));
+				
+				Interface.f_Clear();
+			};
+			DMibTestSuite("SetInterface")
+			{
+				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+				auto TestActor = fg_ConcurrentActor();
+				
+				auto InterfaceActor = fg_ConstructDistributedActor<CDistributedActorInterface>(fg_GetDistributionManager());
+				
+				TCSharedPointer<TCAtomic<mint>> pSubscriptionCalled = fg_Construct();
+				TCDistributedActorInterfaceWithID<CDistributedActorInterface> Interface 
+					{
+						InterfaceActor->f_ShareInterface<CDistributedActorInterface>()
+						, g_ActorSubscription(TestActor) > [pSubscriptionCalled]
+						{
+							pSubscriptionCalled->f_Exchange(1);
+						}
+					}
+				;
+				
+				auto Subscription = DMibCallActor(Actor, CDistributedActor::f_SetInterface, fg_Move(Interface)).f_CallSync(60.0);
+				
+				auto fCallInterface = [&]
+					{
+						return DMibCallActor(Actor, CDistributedActor::f_CallSetInterface).f_CallSync(60.0);
+					}
+				;
+				
+				DMibExpect(fCallInterface(), ==, 5);
+
+				Subscription.f_Clear();
+				bool bSubscriptionCalled = DMibCallActor(Actor, CDistributedActor::f_SetInterfaceSubscriptionCalled).f_CallSync(60.0);
+				DMibExpectTrue(bSubscriptionCalled);
+
+				DMibExpectFalse(pSubscriptionCalled->f_Load());
+
+				if (_bRemote)
+					DMibExpectException(fCallInterface(), DMibErrorInstance("Remote actor no longer exists"));
+				
+				DMibCallActor(Actor, CDistributedActor::f_ClearSetInterface).f_CallSync(60.0);
+				fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+
+				DMibExpectTrue(pSubscriptionCalled->f_Load());
+				
+				Interface.f_Clear();
+			};
 			DMibTestSuite("Callbacks")
 			{
 				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
@@ -671,16 +1326,9 @@ namespace
 			ListenSettings.m_ListenFlags = NNet::ENetFlag_None;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
-			TCDistributedActor<CDistributedActor> PublishedActor = fg_ConstructDistributedActor<CDistributedActor>();
+			TCDistributedActor<CDistributedActor> PublishedActor = ServerManager->f_ConstructActor<CDistributedActor>();
 			
-			auto ActorPublication = ServerManager
-				(
-					&CActorDistributionManager::f_PublishActor
-					, PublishedActor
-					, "Test"
-					, NMib::NConcurrency::CDistributedActorInheritanceHeirarchyPublish::fs_GetHierarchy<CDistributedActorBase>()
-				).f_CallSync(60.0)
-			;
+			auto ActorPublication = PublishedActor->f_Publish<CDistributedActorBase>("Test").f_CallSync(60.0);
 			
 			CActorDistributionConnectionSettings ConnectionSettings;
 			ConnectionSettings.m_ServerURL = ConnectAddress;
@@ -807,8 +1455,8 @@ namespace
 			Security.m_AllowedIncomingConnectionNamespaces.f_Insert("Test");
 			TestHelper.f_GetServer().f_SetSecurity(Security);
 			TestHelper.f_InitAnonymousClient(TestHelper);
-			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Anonymous/Test");
-			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Test");
+			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(TestHelper.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>(), "Anonymous/Test");
+			TestHelper.f_Publish<CDistributedActor, CDistributedActorBase>(TestHelper.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>(), "Test");
 			CStr Subscription = TestHelper.f_Subscribe("Anonymous/Test");
 			auto Actor = TestHelper.f_GetRemoteActor<CDistributedActor>(Subscription);
 			if (!Actor)
@@ -822,7 +1470,7 @@ namespace
 				TestHelper.f_GetClient().f_SubscribeExpectFailure("Test");
 			}
 
-			TestHelper.f_GetClient().f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Anonymous/Test2");
+			TestHelper.f_GetClient().f_Publish<CDistributedActor, CDistributedActorBase>(TestHelper.f_GetClient().f_GetManager()->f_ConstructActor<CDistributedActor>(), "Anonymous/Test2");
 			{
 				DMibTestPath("Anonymous cannot publish");
 				TestHelper.f_GetServer().f_SubscribeExpectFailure("Anonymous/Test2");
@@ -835,7 +1483,7 @@ namespace
 			CDistributedActorTestHelperCombined TestState(Port);
 			TestState.f_SeparateServerManager();
 			TestState.f_Init();
-			auto LocalActor = fg_ConstructDistributedActor<CDistributedActor>();
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
 			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
 			CStr SubscriptionID = TestState.f_Subscribe("Test");
 			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
@@ -858,11 +1506,14 @@ namespace
 		{
 			DMibTestCategory("Local")
 			{
+				CDistributedActorTestHelperCombined TestState(31410);
+				TestState.f_Init();
+				
 				fp_RunTests
 					(
-						[]
+						[&]
 						{
-							return fg_ConstructDistributedActor<CDistributedActor>();
+							return TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
 						}
 						, false
 					)
@@ -905,7 +1556,12 @@ namespace
 								
 								pTestState->f_SeparateServerManager();
 								pTestState->f_Init();
-								pTestState->f_Publish<CDistributedActor, CDistributedActorBase>(fg_ConstructDistributedActor<CDistributedActor>(), "Test");
+								pTestState->f_Publish<CDistributedActor, CDistributedActorBase>
+									(
+										pTestState->f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>()
+										, "Test"
+									)
+								;
 								SubscriptionID = pTestState->f_Subscribe("Test");
 							}
 							

@@ -130,7 +130,7 @@ namespace
 			CDistributedActorTestHelper ServerHelper{_ServerTrustManager};
 			CDistributedActorTestHelper ClientHelper{_ClientTrustManager};
 
-			ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+			ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 			CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
@@ -325,7 +325,7 @@ namespace
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
 				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
 
-				ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+				ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
@@ -476,7 +476,7 @@ namespace
 				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
 
 
-				ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+				ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
 
@@ -545,7 +545,7 @@ namespace
 					
 					auto fPublish = [&](CStr const &_Namespace)
 						{
-							auto Publication = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), _Namespace);
+							auto Publication = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), _Namespace);
 							ServerHelper.f_Unpublish(Publication);
 						}
 					;
@@ -597,7 +597,7 @@ namespace
 						DMibTestPath("Before publish");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
 					}
-					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test")];
+					Published[ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test")];
 					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 					// Make sure that queue has been processed on test actor
@@ -689,7 +689,7 @@ namespace
 				}
 				{
 					DMibTestPath("Double");
-					Published[ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test")];
+					Published[ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test")];
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts).f_CallSync(60.0);
 					
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
@@ -751,14 +751,14 @@ namespace
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
 					}
-					CStr NewPublish = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+					CStr NewPublish = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 					Published[NewPublish];
 					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 3), ==, 3);
 					
 					{
 						DMibTestPath("2 types");
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test");
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test");
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						ServerHelper.f_Unpublish(NewPublish2);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
@@ -766,7 +766,7 @@ namespace
 					{
 						DMibTestPath("2 types no sub unpublish");
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test");
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen() + 1);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
@@ -787,8 +787,8 @@ namespace
 						DMibTestPath("2 types not allowed");
 						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test2", TestActor).f_CallSync(60.0);
 						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test2", TestActor).f_CallSync(60.0);
-						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test2");
-						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test2");
+						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test2");
+						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test2");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test2", 2);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
@@ -837,8 +837,8 @@ namespace
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts2).f_CallSync(60.0);
 					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test3", TestActor).f_CallSync(60.0);
-					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test3");
-					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(fg_ConstructDistributedActor<CTestActor2>(), "com.malterlib/Test3");
+					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test3");
+					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(ServerHelper2.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test3");
 					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test3", 2);
 					DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ServerHelper.f_Unpublish(NewPublish2);
@@ -876,7 +876,7 @@ namespace
 				{
 					DMibTestPath("Notifications");
 					NAtomic::TCAtomic<mint> nActors{0};
-					CStr Published = ServerHelper.f_Publish<CTestActor>(fg_ConstructDistributedActor<CTestActor>(), "com.malterlib/Test");
+					CStr Published = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test");
 					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", TestActor).f_CallSync(60.0);
 					{

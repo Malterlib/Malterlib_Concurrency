@@ -48,6 +48,12 @@ namespace NMib
 		struct CInternalActorAllocator : public NMem::CAllocator_Heap
 		{
 		};
+
+		template <typename t_CHolder>
+		using TCActorHolderSharedPointer = NPtr::TCSharedPointer<t_CHolder, NPtr::CSupportWeakTag, CInternalActorAllocator>;
+
+		template <typename t_CHolder>
+		using TCActorHolderWeakPointer = NPtr::TCWeakPointer<t_CHolder, CInternalActorAllocator>;
 		
 		enum EPriority : mint
 		{
@@ -75,12 +81,12 @@ namespace NMib
 			using CContainedActor = t_CActor;
 			
 		private:
-			NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> m_pInternalActor;
+			TCActorHolderSharedPointer<CActorInternal> m_pInternalActor;
 			
 		public:
 			TCActor();
-			TCActor(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
-			TCActor(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pActor);
+			TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
+			TCActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
 			TCActor(CNullPtr);
 			TCActor(TCActor const &_Other);
 			TCActor(TCActor &&_Other);
@@ -88,8 +94,8 @@ namespace NMib
 			TCActor(TCActor<tf_CActor> const &_Other);
 			template <typename tf_CActor>
 			TCActor(TCActor<tf_CActor> &&_Other);
-			TCActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
-			TCActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pActor);
+			TCActor &operator =(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
+			TCActor &operator =(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
 			TCActor &operator =(TCActor const &_Other);
 			TCActor &operator =(TCActor &&_Other);
 			TCActor &operator =(CNullPtr);

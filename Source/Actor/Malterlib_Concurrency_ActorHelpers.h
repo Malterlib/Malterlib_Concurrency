@@ -7,7 +7,6 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-
 		template <typename tf_CActor>
 		TCActor<tf_CActor> fg_ThisActor(tf_CActor *_pActor)
 		{
@@ -15,6 +14,5 @@ namespace NMib
 			DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
 			return TCActor<tf_CActor>(fg_Explicit(pActor));
 		}
-		
 	}
 }

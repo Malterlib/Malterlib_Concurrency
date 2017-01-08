@@ -523,5 +523,29 @@ namespace NMib
 		{
 			return m_pHandle;
 		}
+		
+		inline CActorSubscriptionHelperWithActor::CActorSubscriptionHelperWithActor(TCActor<> const &_Actor)
+			: mp_Actor(_Actor)
+		{
+		}
+
+		inline CActorSubscriptionHelperWithActor CActorSubscriptionHelper::operator ()(TCActor<> const &_Actor) const
+		{
+			return CActorSubscriptionHelperWithActor(_Actor); 
+		}
+		
+		template <typename tf_FCleanup>
+		inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const 
+		{ 
+			return fg_ActorSubscription(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup)); 
+		}
+			
+		template <typename tf_FCleanup>
+		inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const 
+		{ 
+			auto CurrentActor = fg_CurrentActor();
+			DMibFastCheck(CurrentActor);
+			return fg_ActorSubscription(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup)); 
+		}
 	}
 }

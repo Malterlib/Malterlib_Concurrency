@@ -6,6 +6,9 @@
 
 namespace NMib::NConcurrency
 {
+	constexpr CActorSubscriptionHelper g_ActorSubscriptionInit{};
+	CActorSubscriptionHelper const &g_ActorSubscription = g_ActorSubscriptionInit;
+	
 	struct CActorSubscriptionCleanupFunctor : public CActorSubscriptionReference
 	{
 		CActorSubscriptionCleanupFunctor(CActorSubscriptionCleanupFunctor const &) = delete;

@@ -110,7 +110,7 @@ namespace NMib
 			template <typename tf_CType, typename... tfp_CParams>
 			TCActor<tf_CType> f_ConstructFromInternalActor
 				(
-					NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pInternalActor
+					TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
 					, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
 				)
 			;

@@ -21,13 +21,13 @@ namespace NMib
 			using CActorInternal = TCActorInternal<t_CActor>;
 			using CContainedActor = t_CActor;
 		private:
-			NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> m_pInternalActor;
+			TCActorHolderWeakPointer<CActorInternal> m_pInternalActor;
 		public:
 			TCWeakActor();
-			TCWeakActor(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
-			TCWeakActor(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pActor);
-			TCWeakActor(NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> const &_pActor);
-			TCWeakActor(NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> &&_pActor);
+			TCWeakActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
+			TCWeakActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
+			TCWeakActor(TCActorHolderWeakPointer<CActorInternal> const &_pActor);
+			TCWeakActor(TCActorHolderWeakPointer<CActorInternal> &&_pActor);
 			TCWeakActor(TCWeakActor const &_Other);
 			TCWeakActor(TCWeakActor &&_Other);
 			
@@ -43,10 +43,10 @@ namespace NMib
 			TCWeakActor(TCActor<t_CActor> const &_Other);
 			TCWeakActor(TCActor<t_CActor> &&_Other);
 			
-			TCWeakActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> const &_pActor);
-			TCWeakActor &operator =(NPtr::TCSharedPointer<CActorInternal, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pActor);
-			TCWeakActor &operator =(NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> const &_pActor);
-			TCWeakActor &operator =(NPtr::TCWeakPointer<CActorInternal, CInternalActorAllocator> &&_pActor);
+			TCWeakActor &operator =(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
+			TCWeakActor &operator =(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
+			TCWeakActor &operator =(TCActorHolderWeakPointer<CActorInternal> const &_pActor);
+			TCWeakActor &operator =(TCActorHolderWeakPointer<CActorInternal> &&_pActor);
 			TCWeakActor &operator =(TCWeakActor const &_Other);
 			TCWeakActor &operator =(TCWeakActor &&_Other);
 

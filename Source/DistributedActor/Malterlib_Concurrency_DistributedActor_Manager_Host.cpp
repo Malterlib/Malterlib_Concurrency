@@ -5,6 +5,7 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
+#include "Malterlib_Concurrency_DistributedActor_Stream_Internal.h"
 
 #include <Mib/Network/Sockets/SSL>
 #include <Mib/Concurrency/Actor/Timer>
@@ -170,13 +171,15 @@ namespace NMib
 			Host.m_Outgoing_CurrentPacketID = 0;
 			
 			for (auto &Call : Host.m_OutstandingCalls)
-				Call.f_SetException(DMibErrorInstance("Remote host no longer running"));
+				Call.m_Continuation.f_SetException(DMibErrorInstance("Remote host no longer running"));
 			Host.m_OutstandingCalls.f_Clear();
 			
-			Host.m_ImplicitlyPublishedActors.f_Clear();
+ 			Host.m_ImplicitlyPublishedActors.f_Clear();
+			Host.m_ImplicitlyPublishedInterfaces.f_Clear();
 			Host.m_ImplicitlyPublishedFunctions.f_Clear();
 			Host.m_ImplicitlyPublishedSubscriptions.f_Clear();
-			Host.m_SubscriptionReferences.f_Clear();
+			Host.m_RemoteSubscriptionReferences.f_Clear();
+			Host.m_LocalSubscriptionReferences.f_Clear();
 			
 			Host.f_DeletePackets();
 		}

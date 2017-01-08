@@ -199,16 +199,12 @@ namespace NMib::NConcurrency
 			NewHandler.m_Actor = _Actor;
 		}
 		
-		auto Subscription = fg_ActorSubscription
-			(
-				self
-				, [this, MethodNames]
-				{
-					auto &Internal = *mp_pInternal;
-					for (auto &MethodName : MethodNames)
-						Internal.m_MethodHandlers.f_Remove(MethodName);
-				}
-			)
+		auto Subscription = g_ActorSubscription > [this, MethodNames]
+			{
+				auto &Internal = *mp_pInternal;
+				for (auto &MethodName : MethodNames)
+					Internal.m_MethodHandlers.f_Remove(MethodName);
+			}
 		;
 		
 		return fg_Explicit(fg_Move(Subscription));

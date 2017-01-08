@@ -22,21 +22,44 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		using CDistributedActorWriteStream = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>;
-		using CDistributedActorReadStream = NStream::CBinaryStreamMemoryPtr<>;
+		struct CDistributedActorWriteStream;
+		struct CDistributedActorReadStream;
 		
 		struct CActorDistributionManager;
+		struct CDistributedActorPublication;
+		struct CDistributedActorProtocolVersions;
+		
+		template <typename t_CActor>
+		struct TCDistributedActorWrapper;
+		
+		template <typename t_CActor = CActor>
+		using TCDistributedActor = TCActor<TCDistributedActorWrapper<t_CActor>>;
+		
 		namespace NPrivate
 		{
 			struct CDistributedActorData;
-			struct CDistributedActorStreamContextSending;
-			struct CDistributedActorStreamContextReceiving;
-			struct CDistributedActorStreamContextSendState;
-			struct CStreamSubscriptionSend;
+			struct CDistributedActorStreamContext;
+
+			struct CDistributedActorStreamContextState;
+			struct CDistributedActorSubscriptionReferenceState;
+			
+			struct CDistributedActorInterfaceInfo;
+			
 			struct ICHost : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 			{
 				virtual ~ICHost();
+
+				uint32 m_ActorProtocolVersion = 0;
+				bool m_bDeleted = false;
 			};
+			
+			TCDispatchedActorCall<CDistributedActorPublication> fg_PublishActor
+				(
+					TCDistributedActor<CActor> &&_Actor
+					, CDistributedActorInterfaceInfo &&_InterfaceInfo
+					, NStr::CStr const &_Namespace
+				)
+			;
 		}
 
 		struct CDistributedActorIdentifier;
@@ -95,13 +118,21 @@ namespace NMib
 		};
 		
 		template <typename t_CActor>
-		using TCDistributedActor = TCActor<TCDistributedActorWrapper<t_CActor>>;
-		
-		template <typename t_CActor>
 		using TCWeakDistributedActor = TCWeakActor<TCDistributedActorWrapper<t_CActor>>;
 		
 		template <typename tf_CActor, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(tfp_CParams &&...p_Params);
+		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams &&...p_Params);
+		
+		template <typename tf_CActor, typename... tfp_CParams>
+		TCDistributedActor<tf_CActor> fg_ConstructRemoteDistributedActor
+			(
+				TCActor<CActorDistributionManager> const &_DistributionManager
+				, NStr::CStr const &_ActorID
+				, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
+				, uint32 _ProtocolVersion
+				, tfp_CParams &&...p_Params
+			)
+		;
 		
 		template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
 		auto fg_CallActor(tf_CActor const &_Actor, tfp_CParams && ...p_Params)
@@ -191,11 +222,36 @@ namespace NMib
 			CDistributedActorProtocolVersions(uint32 _MinSupported, uint32 _MaxSupported);
 			
 			bool f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const;
+			bool f_ValidVersion(uint32 _Version);
 			bool operator == (CDistributedActorProtocolVersions const &_Other) const;
 			bool operator < (CDistributedActorProtocolVersions const &_Other) const;
 			
+			template <typename tf_CStream>
+ 			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
+			
 			uint32 m_MinSupported = TCLimitsInt<uint32>::mc_Max;
 			uint32 m_MaxSupported = TCLimitsInt<uint32>::mc_Max;
+		};
+
+		struct CDistributedActorInterfaceShare
+		{
+			CDistributedActorInterfaceShare();
+			~CDistributedActorInterfaceShare();
+			CDistributedActorInterfaceShare(NContainer::TCVector<uint32> const &_Hierarchy, CDistributedActorProtocolVersions const &_ProtocolVersions, TCDistributedActor<CActor> &&_Actor);
+			
+			NContainer::TCVector<uint32> m_Hierarchy;
+			CDistributedActorProtocolVersions m_ProtocolVersions;
+			TCDistributedActor<CActor> m_Actor;
+		};
+		
+		template <typename t_CType>
+		struct TCDistributedActorInterfaceShare : public CDistributedActorInterfaceShare
+		{
+			TCDistributedActorInterfaceShare(NContainer::TCVector<uint32> const &_Hierarchy, CDistributedActorProtocolVersions const &_ProtocolVersions, TCDistributedActor<CActor> &&_Actor);
+			
+			TCDistributedActor<t_CType> f_GetActor() const;
 		};
 		
 		template <typename tf_CType>
@@ -240,19 +296,6 @@ namespace NMib
 		
 		template <typename tf_CFirst>
 		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy();
-		
-		struct CDistributedActorInheritanceHeirarchyPublish
-		{
-			template <typename ...tfp_CToPublish>
-			static CDistributedActorInheritanceHeirarchyPublish fs_GetHierarchy();
-			inline_always NContainer::TCVector<uint32> const &f_GetHierarchy() const;
-			inline_always CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
-			
-		private:
-			CDistributedActorInheritanceHeirarchyPublish();
-			NContainer::TCVector<uint32> mp_Hierarchy;
-			CDistributedActorProtocolVersions mp_ProtocolVersions;
-		};
 		
 		struct CDistributedActorSecurity
 		{
@@ -409,8 +452,25 @@ namespace NMib
 			NStr::CStr m_Enclave; // Hosts with the same enclave are assumed to be from the same distribution manager instance. If two use the same enclave they will disconnect each other.
 		};
 		
+		struct CActorDistributionManagerHolder : public CDefaultActorHolder
+		{
+			CActorDistributionManagerHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				)
+			;
+
+			template <typename tf_CActor, typename... tfp_CParams>
+			TCActor<TCDistributedActorWrapper<tf_CActor>> f_ConstructActor(tfp_CParams &&...p_Params);
+		};
+ 
 		struct CActorDistributionManager : public CActor
 		{
+			using CActorHolder = CActorDistributionManagerHolder;
+			
 			struct CConnectionResult
 			{
 				CDistributedActorConnectionReference m_ConnectionReference;
@@ -441,19 +501,11 @@ namespace NMib
 				(
 					NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
 					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData
-					, NPrivate::CDistributedActorStreamContextSending const &_Context
+					, NPrivate::CDistributedActorStreamContext const &_Context
 				)
 			;
 			
 			TCContinuation<void> f_KickHost(NStr::CStr const &_HostID); 
-			
-			TCContinuation<CDistributedActorPublication> f_PublishActor
-				(
-					TCDistributedActor<CActor> &&_Actor
-					, NStr::CStr const &_Namespace
-					, CDistributedActorInheritanceHeirarchyPublish const &_ClassesToPublish
-				)
-			;
 			
 			TCContinuation<CActorSubscription> f_SubscribeActors
 				(
@@ -490,15 +542,24 @@ namespace NMib
 			static bool fs_IsValidEnclave(NStr::CStr const &_String);
 
 		private:
+			TCContinuation<CDistributedActorPublication> fp_PublishActor
+				(
+					TCDistributedActor<CActor> &&_Actor
+					, NStr::CStr const &_Namespace
+					, NPrivate::CDistributedActorInterfaceInfo const &_InterfaceInfo
+				)
+			;
+			
 			void fp_RegisterRemoteSubscription
 				(
-					NPrivate::CDistributedActorStreamContextSending const &_Context
-					, NStr::CStr const &_SubscriptionID 
+					NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &_pContextState
+					, NStr::CStr const &_SubscriptionID
+					, uint32 _SubscriptionSequenceID 
 				)
 			;
 			void fp_DestroyRemoteSubscription
 				(
-					NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
+					NPtr::TCSharedPointer<NPrivate::ICHost> const &_pHost
 					, NStr::CStr const &_SubscriptionID
 					, NStr::CStr const &_LastExecutionID
 				)
@@ -518,13 +579,22 @@ namespace NMib
 					, NStr::CStr const &_LastExecutionID
 				)
 			;
-			
+
+			friend TCDispatchedActorCall<CDistributedActorPublication> NPrivate::fg_PublishActor
+				(
+					TCDistributedActor<CActor> &&_Actor
+					, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
+					, NStr::CStr const &_Namespace
+				)
+			;
+			friend struct CDistributedActorPublication;
 			friend struct CDistributedActorPublication;
 			friend struct CDistributedActorListenReference;
 			friend struct CDistributedActorConnectionReference;
+			friend struct CDistributedActorReadStream;
 			friend struct CCallingHostInfo;
-			friend struct NPrivate::CDistributedActorStreamContextSendState;
-			friend struct NPrivate::CStreamSubscriptionSend;
+			friend struct NPrivate::CDistributedActorStreamContextState;
+			friend struct NPrivate::CDistributedActorSubscriptionReferenceState;
 			
 			NPtr::TCUniquePointer<CActorDistributionManagerInternal> mp_pInternal;
 		};
@@ -537,8 +607,6 @@ namespace NMib
 	}
 }
 
-#include "Malterlib_Concurrency_DistributedActor_Private.h"
-
 #define DMibCallActor(d_Actor, d_Function, d_Args...) ::NMib::NConcurrency::fg_CallActor \
 	< \
 		decltype(&d_Function) \
@@ -547,14 +615,16 @@ namespace NMib
 	> \
 	(d_Actor, ##d_Args)
 		
-#define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreamContext \
+#define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreams \
 	( \
 		decltype(&d_Function) \
 		, &d_Function \
 		, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
-		, NMib::NConcurrency::NPrivate::CDistributedActorStreamContextReceiving \
+		, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext \
+		, NMib::NConcurrency::CDistributedActorReadStream \
+		, NMib::NConcurrency::CDistributedActorWriteStream \
 	)
-		
+
 #ifndef DMibPNoShortCuts
 #	define DCallActor DMibCallActor
 #	define DPublishActorFunction DMibPublishActorFunction
@@ -564,4 +634,7 @@ namespace NMib
 	using namespace NMib::NConcurrency;
 #endif
 
+#include "Malterlib_Concurrency_DistributedActor_Private.h"
+#include "Malterlib_Concurrency_DistributedActor_Stream.h"
 #include "Malterlib_Concurrency_DistributedActor.hpp"
+

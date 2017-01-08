@@ -10,7 +10,7 @@ namespace NMib
 		template <typename tf_CType, typename... tfp_CParams>
 		TCActor<tf_CType> CConcurrencyManager::f_ConstructFromInternalActor
 			(
-				NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> &&_pInternalActor
+				TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
 				, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
 			)
 		{
@@ -47,7 +47,7 @@ namespace NMib
 		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
 		TCActor<tf_CType> CConcurrencyManager::f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params)
 		{
-			NPtr::TCSharedPointer<TCActorInternal<tf_CType>, NPtr::CSupportWeakTag, CInternalActorAllocator> pActor = fg_Construct(this, nullptr, fg_Forward<tfp_CHolderParams>(p_Params)...);
+			TCActorHolderSharedPointer<TCActorInternal<tf_CType>> pActor = fg_Construct(this, nullptr, fg_Forward<tfp_CHolderParams>(p_Params)...);
 			
 			return f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
 		}

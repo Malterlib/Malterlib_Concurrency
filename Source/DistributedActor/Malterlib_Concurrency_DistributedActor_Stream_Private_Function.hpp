@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 						Stream << uint8(0); // Dummy command
 						Stream << uint64(0); // Dummy packet ID
 						Stream << pActorDataRaw->m_ActorID;				
-						Stream << 0;
+						Stream << uint32(0);
 						Stream << pActorDataRaw->m_ProtocolVersion;
 						Stream << _FunctionID;
 						

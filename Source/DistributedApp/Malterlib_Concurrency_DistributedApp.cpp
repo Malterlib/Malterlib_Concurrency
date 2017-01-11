@@ -44,7 +44,12 @@ namespace NMib
 			, m_Enclave(_Enclave)
 		{
 			// A longer app name and enclave results in a unix socket name becoming too long 
-			DMibRequire(fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true).f_GetLen() <= 103); 
+			DMibRequire
+				(
+					fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true).f_GetLen() 
+					<= NSys::NNet::fg_GetMaxUnixSocketNameLength()
+				)
+			; 
 		}
 
 		NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific) const
@@ -61,17 +66,17 @@ namespace NMib
 		{
 			mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
 			if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= MaxLength)
-				return fg_Format("UNIX:{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
+				return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
 			
 			CStr ConfigHash = fg_GetHashedUuidString(m_ConfigDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 			CStr TempDir = CFile::fs_GetTemporaryDirectory();
 			CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
 			if (fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength)
-				return fg_Format("UNIX:{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+				return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
 			
 			Prefix = fg_Format("/tmp/{}", ConfigHash);
 			DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength);
-			return fg_Format("UNIX:{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
 		}
 		
 		CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
@@ -122,6 +127,7 @@ namespace NMib
 			: mp_State(_Settings)
 			, mp_Settings(_Settings)
 		{
+			mp_State.m_LocalAddress = fp_GetLocalAddress();
 			fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
 			fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_ConfigDirectory + "/Log");
 		}

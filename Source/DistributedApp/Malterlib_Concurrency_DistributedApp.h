@@ -57,6 +57,7 @@ namespace NMib
 			NEncoding::CSimpleJSONDatabase m_ConfigDatabase;
 			TCActor<CDistributedActorTrustManager> m_TrustManager;
 			TCActor<CActorDistributionManager> m_DistributionManager;
+			NHTTP::CURL m_LocalAddress;
 
 		private:
 			friend struct CDistributedAppActor;

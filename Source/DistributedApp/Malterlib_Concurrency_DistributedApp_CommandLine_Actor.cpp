@@ -32,19 +32,50 @@ namespace NMib
 			
 			TCContinuation<void> Continuation;
 			
+			auto ExpectedAddress = fp_GetLocalAddress();
+			
 			fg_Dispatch
 				(
 					mp_FileOperationsActor
-					, [this, Continuation, CommandLineTrustPath]
+					, [this, Continuation, CommandLineTrustPath, ExpectedAddress]()
 					{
 						if (!CFile::fs_FileExists(CommandLineTrustPath))
 							return false;
-						return true;
+						
+						auto ClientConnections = CFile::fs_FindFiles(CommandLineTrustPath + "/ClientConnections/*.json");
+						if (ClientConnections.f_IsEmpty())
+							return false;
+						
+						if (ClientConnections.f_GetLen() > 1)
+						{
+							for (auto &File : ClientConnections)
+								CFile::fs_DeleteFile(File);
+							return false;							
+						}
+						
+						CStr ClientConnectionPath = ClientConnections.f_GetFirst();
+						
+						try
+						{						
+							CEJSON const ClientConnectionData = CEJSON::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
+							
+							CStr CurrentAddress = ClientConnectionData["Address"].f_String();
+							
+							if (CurrentAddress == ExpectedAddress.f_Encode())
+								return true;
+						}
+						catch (NException::CException const &)
+						{
+						}
+						
+						CFile::fs_DeleteFile(ClientConnectionPath);
+						
+						return false;
 					}
 				)
-				> Continuation / [this, Continuation, CommandLineTrustPath](bool _bAlreadySetUp)
+				> Continuation / [this, Continuation, CommandLineTrustPath](bool _bAlreadySetup)
 				{
-					if (_bAlreadySetUp && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+					if (_bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 					{
 						// Already setup
 						Continuation.f_SetResult();

@@ -6,7 +6,7 @@
 #include <Mib/Test/Exception>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Concurrency/DistributedApp>
-#include <Mib/Concurrency/TestHelpers>
+#include <Mib/Concurrency/DistributedActorTestHelpers>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;

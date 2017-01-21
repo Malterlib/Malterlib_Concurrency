@@ -11,6 +11,8 @@ namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
 	
+	using CDistributedActorTestKeySettings = NNet::CSSLKeySettings_EC_secp256r1;
+		
 	struct CDistributedActorTestHelper
 	{
 		CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager);
@@ -54,7 +56,7 @@ namespace NMib::NConcurrency
 		NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 		NStr::CStr mp_HostID;
 		TCActor<CActorDistributionManager> mp_Manager;
-		NThread::CMutual mp_RemoteLock;
+		NPtr::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
 		NThread::CEventAutoReset mp_RemoteEvent;
 		
 		NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;

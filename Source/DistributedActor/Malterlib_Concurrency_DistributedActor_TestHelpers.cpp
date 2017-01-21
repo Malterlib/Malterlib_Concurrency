@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 		
 		TCActor<CActorDistributionManager> const &ServerManager = mp_pServer->f_GetManager();
 		
-		mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
+		mp_ServerCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
 		
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 		}
 		if (mp_ClientCryptography.m_RemoteClientCertificates.f_IsEmpty())
 		{
-			mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), NNet::CSSLKeySettings_EC_secp256r1{});
+			mp_ClientCryptography.f_GenerateNewCert(NContainer::fg_CreateVector<NStr::CStr>("localhost"), CDistributedActorTestKeySettings{});
 			auto CertificateRequest = mp_ClientCryptography.f_GenerateRequest();
 			auto SignedRequest = _Server.mp_ServerCryptography.f_SignRequest(CertificateRequest);
 			mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
@@ -153,13 +153,15 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTestHelper::CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager)
 		: mp_HostID(_HostID)
-		, mp_Manager(_Manager) 
+		, mp_Manager(_Manager)
+		, mp_pRemoteLock(fg_Construct())
 	{
 	}
 	
 	CDistributedActorTestHelper::CDistributedActorTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, bool _bAllowUnconnected)
 		: mp_HostID(_TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0))
-		, mp_Manager(_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(60.0)) 
+		, mp_Manager(_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(60.0))
+		, mp_pRemoteLock(fg_Construct())
 	{
 		if (!_bAllowUnconnected)
 		{
@@ -177,6 +179,7 @@ namespace NMib::NConcurrency
 	
 	CDistributedActorTestHelper::~CDistributedActorTestHelper()
 	{
+		DMibLock(*mp_pRemoteLock);
 		mp_pDeleted->f_Exchange(true);
 	}
 
@@ -201,21 +204,37 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, NContainer::fg_CreateVector<NStr::CStr>(_Namespace)
 				, ConcurrentActor 
-				, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CAbstractDistributedActor &&_NewActor)
+				, 	
+				[
+					this
+					, pRemoteLock = mp_pRemoteLock
+					, pDeletedHelper = mp_pDeleted
+					, pSubscription = &Subscription
+					, pDeleted = Subscription.m_pDeleted
+				]
+				(CAbstractDistributedActor &&_NewActor)
 				{
+					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
 						return;
-					DMibLock(mp_RemoteLock);
 					if (pDeleted->f_Load())
 						return;
 					pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 					mp_RemoteEvent.f_Signal();
 				}
-				, [this, pDeletedHelper = mp_pDeleted, pSubscription = &Subscription, pDeleted = Subscription.m_pDeleted](CDistributedActorIdentifier const &_RemovedActor)
+				, 
+				[
+					this
+					, pRemoteLock = mp_pRemoteLock
+					, pDeletedHelper = mp_pDeleted
+					, pSubscription = &Subscription
+					, pDeleted = Subscription.m_pDeleted
+				]
+				(CDistributedActorIdentifier const &_RemovedActor)
 				{
+					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
 						return;
-					DMibLock(mp_RemoteLock);
 					if (pDeleted->f_Load())
 						return;
 					mint nActors = pSubscription->m_RemoteActors.f_GetLen();
@@ -243,7 +262,7 @@ namespace NMib::NConcurrency
 		while (!bTimedOutWatingForActor)
 		{
 			{
-				DMibLock(mp_RemoteLock);
+				DMibLock(*mp_pRemoteLock);
 				if (Subscription.m_RemoteActors.f_GetLen() == _nExpected)
 					break;
 			}

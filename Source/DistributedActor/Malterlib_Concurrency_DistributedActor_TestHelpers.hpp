@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 		auto pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
 		if (!pSubscription)
 			DMibError("No such subscription");
-		DMibLock(mp_RemoteLock);
+		DMibLock(*mp_pRemoteLock);
 		for (auto &RemoteActor : pSubscription->m_RemoteActors)
 		{
 			auto Actor = RemoteActor.f_GetActor<tf_CActor>();

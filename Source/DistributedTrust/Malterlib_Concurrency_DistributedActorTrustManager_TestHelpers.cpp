@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_TestHelpers.h"
+#include "../DistributedActor/Malterlib_Concurrency_DistributedActor_TestHelpers.h"
 
 namespace NMib::NConcurrency
 {
@@ -285,7 +286,7 @@ namespace NMib::NConcurrency
 				{
 					return fg_ConstructActor<CActorDistributionManager>(_Settings);
 				}
-				, NNet::CSSLKeySettings_EC_secp256r1{}
+				, CDistributedActorTestKeySettings{}
 				, NNet::ENetFlag_None
 				, _FriendlyName
 				, _SessionID	

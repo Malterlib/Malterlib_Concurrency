@@ -14,8 +14,25 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
+	TCActorFunctor<t_CFunction>::TCActorFunctor(CNullPtr)
+	{
+	}
+
+	template <typename t_CFunction>
+	bool TCActorFunctor<t_CFunction>::f_IsEmpty() const
+	{
+		return mp_fFunctor.f_IsEmpty();
+	}
+	
+	template <typename t_CFunction>
+	TCActorFunctor<t_CFunction>::operator bool () const
+	{
+		return !mp_fFunctor.f_IsEmpty();
+	}
+	
+	template <typename t_CFunction>
 	template <typename ...tfp_CParams>
-	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params)
+	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const
 	{
 		if (!mp_Actor || !mp_fFunctor)
 		{

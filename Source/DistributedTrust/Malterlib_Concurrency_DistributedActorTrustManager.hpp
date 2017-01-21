@@ -189,12 +189,14 @@ namespace NMib
 		}
 
 		template <typename t_CActor>
-		void TCTrustedActorSubscription<t_CActor>::f_OnNewActor
+		void TCTrustedActorSubscription<t_CActor>::f_OnActor
 			(
 				NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
 			)
 		{
 			mp_pState->m_fOnNewActor = fg_Move(_fOnNewActor);
+			for (auto &Actor : m_Actors)
+				mp_pState->m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo);
 		}
 		
 		template <typename t_CActor>

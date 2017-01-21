@@ -55,7 +55,7 @@ namespace NMib
 				CInternal(CActor *_pActor, bool _bDeferrCallbacks);
 
 				NContainer::TCLinkedList<CCallbackHandle> mp_Callbacks;
-				NContainer::TCLinkedList<NFunction::TCFunctionMutable<void ()>> mp_DeferredCallbacks;
+				NContainer::TCLinkedList<NFunction::TCFunctionMovable<void ()>> mp_DeferredCallbacks;
 				CActor *mp_pActor;
 				bool mp_bDeferrCallbacks;
 				bool mp_bDestroyed = false;

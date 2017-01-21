@@ -20,6 +20,11 @@ namespace NMib
 			
 			NHTTP::CURL m_URL;
 			
+			CDistributedActorTrustManager_Address();
+			~CDistributedActorTrustManager_Address();
+			CDistributedActorTrustManager_Address(NHTTP::CURL const &_URL);
+			CDistributedActorTrustManager_Address(NHTTP::CURL &&_URL);
+			
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_IntoStr) const;
 		};

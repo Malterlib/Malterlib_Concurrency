@@ -70,6 +70,9 @@ namespace NMib
 		auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+#ifndef DCompiler_MSVC
+			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+#endif
 			
 			return NPrivate::fg_PublishActor
 				(
@@ -85,6 +88,9 @@ namespace NMib
 		auto TCActorInternal<t_CActor>::f_ShareInterface()
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+#ifndef DCompiler_MSVC
+			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+#endif
 			
 			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
 			
@@ -118,6 +124,81 @@ namespace NMib
 		TCActor<TCDistributedActorWrapper<tf_CActor>> CActorDistributionManagerHolder::f_ConstructActor(tfp_CParams &&...p_Params)
 		{
 			return fg_ConstructDistributedActor<tf_CActor>(fp_GetAsActor<CActorDistributionManager>(), fg_Forward<tfp_CParams>(p_Params)...);
+		}
+		
+		template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
+		TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> CActorDistributionManagerHolder::f_ConstructInterface
+			(
+				tf_CDelegateTo *_pDelegateTo
+				, tfp_CParams &&...p_Params
+			)
+		{
+			return fg_ConstructDistributedActor<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>
+				(
+					fp_GetAsActor<CActorDistributionManager>()
+					, fg_Construct(fg_ThisActor(_pDelegateTo))
+					, _pDelegateTo
+					, fg_Forward<tfp_CParams>(p_Params)...
+				)
+			;
+		}
+		
+		template <typename t_CInterface, typename t_CDelegateTo>
+		template <typename ...tfp_CParams>
+		TCDistributedInterfaceDelegator<t_CInterface, t_CDelegateTo>::TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params)
+			: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
+		{
+			t_CInterface::m_pThis = _pDelegateTo;
+		}		
+		
+		template <typename tf_CImplementation>
+		void TCDelegatedActorInterface<tf_CImplementation>::f_Clear()
+		{
+			m_Publication.f_Clear();
+			m_Actor.f_Clear();
+			m_pActor = nullptr;
+		}
+		
+		template <typename tf_CImplementation>
+		TCDispatchedActorCall<void> TCDelegatedActorInterface<tf_CImplementation>::f_Destroy()
+		{
+			m_pActor = nullptr;
+			return fg_Dispatch
+				(
+					[this]() -> TCContinuation<void>
+					{
+						m_Publication.f_Clear();
+						if (m_Actor.f_IsEmpty())
+							return fg_Explicit();
+						auto Return = m_Actor->f_Destroy2();
+						m_Actor.f_Clear();
+						return Return;
+					}
+				)
+			;
+		}
+		
+		template <typename tf_CImplementation>
+		template <typename ...tfp_CInterfaces, typename tf_CThis>
+		TCContinuation<void> TCDelegatedActorInterface<tf_CImplementation>::f_Publish
+			(
+				TCActor<CActorDistributionManager> const &_DistributionManager
+				, tf_CThis *_pThis
+				, NStr::CStr const &_Namespace
+			)
+		{
+			TCContinuation<void> Continuation;
+			auto Interface = _DistributionManager->f_ConstructInterface<tf_CImplementation>(_pThis);
+			m_pActor = &Interface->f_AccessInternal();
+			m_Actor = fg_Move(Interface);
+			m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
+				> Continuation / [this, Continuation] (CDistributedActorPublication &&_Publication)
+				{
+					m_Publication = fg_Move(_Publication);
+					Continuation.f_SetResult();
+				}
+			;
+			return Continuation;
 		}
 		
 		template <typename ...tfp_CInterface>
@@ -244,7 +325,8 @@ namespace NMib
 				(
 					TCActor<CActorDistributionManager> const &_DistributionManager
 					, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
-					, NMeta::TCIndices<tfp_Indidies...> const&, tfp_CParams &&...p_Params
+					, NMeta::TCIndices<tfp_Indidies...> const &
+					, tfp_CParams &&...p_Params
 				)
 			{
 				auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
@@ -254,14 +336,13 @@ namespace NMib
 				pDistributedActorData->m_DistributionManager = _DistributionManager; 
 				
 				TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor 
-					= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+					= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData), fg_Forward<tfp_CHolderParams>(NContainer::fg_Get<tfp_Indidies>(_HolderParams.m_Params))...)
 				;
 				
 				return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
 					(
 						fg_Move(pActor)
 						, fg_Construct<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...)
-						, fg_Forward<tfp_CHolderParams>(NContainer::fg_Get<tfp_Indidies>(_HolderParams.m_Params))...
 					)
 				;
 			}
@@ -275,7 +356,7 @@ namespace NMib
 				, tfp_CParams &&...p_Params
 			)
 		{
-			return NPrivate::fg_ConstructActorHelper<tf_CActor>
+			return NPrivate::fg_ConstructDistributedActorHelper<tf_CActor>
 				(
 					_DistributionManager
 					, fg_Move(_HolderParams)

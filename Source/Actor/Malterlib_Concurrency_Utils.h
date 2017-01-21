@@ -7,14 +7,25 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		struct CCanDestroyTracker
+		struct CCanDestroyTracker : public NPtr::TCSharedPointerIntrusiveBase<>
 		{
 			TCContinuation<void> m_Continuation;
-			~CCanDestroyTracker()
+
+			CCanDestroyTracker();
+			~CCanDestroyTracker();
+			
+			struct CCanDestroyResultFunctor
 			{
-				if (!m_Continuation.f_IsSet())
-					m_Continuation.f_SetResult();
-			}
+				CCanDestroyResultFunctor(CCanDestroyResultFunctor &&);
+				CCanDestroyResultFunctor(CCanDestroyResultFunctor const &);
+				CCanDestroyResultFunctor(NPtr::TCSharedPointer<CCanDestroyTracker> &&_pThis);
+				
+				void operator () (TCAsyncResult<void> &&);
+				
+				NPtr::TCSharedPointer<CCanDestroyTracker> m_pThis;
+			};
+			
+			CCanDestroyResultFunctor f_Track();
 		};
 		
 		template <typename t_CType>

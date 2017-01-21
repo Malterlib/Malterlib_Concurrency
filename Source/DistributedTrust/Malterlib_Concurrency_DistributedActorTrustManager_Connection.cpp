@@ -26,6 +26,7 @@ namespace NMib
 			(
 				NStr::CStr const &_Token
 				, NContainer::TCVector<uint8> const &_CertificateRequest
+				, CCallingHostInfo const &_HostInfo
 			)
 		{
 			auto *pTicket = m_Tickets.f_FindEqual(_Token);
@@ -34,6 +35,8 @@ namespace NMib
 				return DMibErrorInstance("Invalid token");
 			
 			auto Age = m_TicketTimer.f_Elapsed() - pTicket->m_CreationTime;
+			
+			auto fOnUseTicket = fg_Move(pTicket->m_fOnUseTicket);
 			
 			m_Tickets.f_Remove(_Token);
 			
@@ -48,7 +51,8 @@ namespace NMib
 			TCContinuation<NContainer::TCVector<uint8>> Continuation;
 			
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
-				> Continuation % "Failed to check for existing client" / [this, Continuation, _CertificateRequest](NPtr::TCUniquePointer<CClient> &&_ExistingClient)
+				> Continuation % "Failed to check for existing client" / [=, fOnUseTicket = fg_Move(fOnUseTicket)]
+				(NPtr::TCUniquePointer<CClient> &&_ExistingClient) mutable
 				{
 					bool bExistingClient = !_ExistingClient.f_IsEmpty();
 					if (bExistingClient)
@@ -64,69 +68,86 @@ namespace NMib
 							return;
 						}
 					}
-					NContainer::TCVector<uint8> SignedCertificate;
-
-					m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
-						> Continuation % "Failed to get new certificate serial" / [this, Continuation, _CertificateRequest, bExistingClient](int32 _Serial)
-						{
-							struct CResults
-							{
-								NContainer::TCVector<uint8> m_SignedCertificate;
-								NStr::CStr m_HostID;
-							};
 					
-							fg_ConcurrentDispatch
-								(
-									[
-										CaCertificate = m_BasicConfig.m_CACertificate
-										, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
-										, _CertificateRequest
-										, Serial = _Serial
-									]
-									{
-										CResults Results;
-										try
-										{
-											NNet::CSignOptions SignOptions;
-											SignOptions.m_Serial = Serial;
-											SignOptions.m_Days = 10*365;
-											
-											NException::CDisableExceptionTraceScope DisableTrace;
-											NNet::CSSLContext::fs_SignClientCertificate
-												(
-													CaCertificate
-													, CaPrivateKey
-													, _CertificateRequest
-													, Results.m_SignedCertificate
-													, SignOptions
-												)
-											;
-											
-											Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
-											if (Results.m_HostID.f_IsEmpty())
-												DMibError("Missing host ID in certificate request");
-										}
-										catch (NException::CException const &_Exception)
-										{
-											DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
-										}
-										
-										return Results;
-									}
-								) 
-								> Continuation / [this, Continuation, bExistingClient](CResults &&_Results)
+					TCActorResultVector<void> ValidateSignRequestResults;
+					
+					if (fOnUseTicket)
+						fOnUseTicket(HostID, _HostInfo, _CertificateRequest) > ValidateSignRequestResults.f_AddResult(); 
+					
+					ValidateSignRequestResults.f_GetResults() > Continuation % "Failed to validate request results" / [=](NContainer::TCVector<TCAsyncResult<void>> &&_ValidationResults)
+						{
+							for (auto &Result : _ValidationResults)
+							{
+								if (!Result)
 								{
-									ICDistributedActorTrustManagerDatabase::CClient Client;
-									Client.m_PublicCertificate = _Results.m_SignedCertificate;
-									m_Database
+									Continuation.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", Result.f_GetExceptionStr())));
+									return;
+								}
+							}
+							
+							m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
+								> Continuation % "Failed to get new certificate serial" / [=](int32 _Serial)
+								{
+									struct CResults
+									{
+										NContainer::TCVector<uint8> m_SignedCertificate;
+										NStr::CStr m_HostID;
+									};
+							
+									fg_ConcurrentDispatch
 										(
-											bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
-											, _Results.m_HostID
-											, Client
-										)
-										> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+											[
+												CaCertificate = m_BasicConfig.m_CACertificate
+												, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
+												, _CertificateRequest
+												, Serial = _Serial
+											]
+											{
+												CResults Results;
+												try
+												{
+													NNet::CSignOptions SignOptions;
+													SignOptions.m_Serial = Serial;
+													SignOptions.m_Days = 10*365;
+													
+													NException::CDisableExceptionTraceScope DisableTrace;
+													NNet::CSSLContext::fs_SignClientCertificate
+														(
+															CaCertificate
+															, CaPrivateKey
+															, _CertificateRequest
+															, Results.m_SignedCertificate
+															, SignOptions
+														)
+													;
+													
+													Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
+													if (Results.m_HostID.f_IsEmpty())
+														DMibError("Missing host ID in certificate request");
+												}
+												catch (NException::CException const &_Exception)
+												{
+													DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
+												}
+												
+												return Results;
+											}
+										) 
+										> Continuation / [=](CResults &&_Results)
 										{
-											Continuation.f_SetResult(fg_Move(Certificate));
+											ICDistributedActorTrustManagerDatabase::CClient Client;
+											Client.m_PublicCertificate = _Results.m_SignedCertificate;
+											m_Database
+												(
+													bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
+													, _Results.m_HostID
+													, Client
+												)
+												> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+												{
+													Continuation.f_SetResult(fg_Move(Certificate));
+												}
+											;
 										}
 									;
 								}
@@ -148,9 +169,9 @@ namespace NMib
 			return fg_Dispatch
 				(
 					mp_ThisActor
-					, [pInternal = mp_pInternal, _Token, _CertificateRequest]
+					, [pInternal = mp_pInternal, _Token, _CertificateRequest, CallingHostInfo = fg_GetCallingHostInfo()]
 					{
-						return pInternal->f_SignCertificate(_Token, _CertificateRequest);
+						return pInternal->f_SignCertificate(_Token, _CertificateRequest, CallingHostInfo);
 					}
 				)
 			;
@@ -183,14 +204,18 @@ namespace NMib
 			;
 		}		
 		
-		TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedActorTrustManager::f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address)
+		TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedActorTrustManager::f_GenerateConnectionTicket
+			(
+				CDistributedActorTrustManager_Address const &_Address
+				, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> &&_fOnUseTicket
+			)
 		{
 			auto &Internal = *mp_pInternal;
 			TCContinuation<CDistributedActorTrustManager::CTrustTicket> Continuation;
 			Internal.f_RunAfterInit
 				(
 					Continuation
-					, [this, Continuation, _Address]
+					, [this, Continuation, _Address, fOnUseTicket = fg_Move(_fOnUseTicket)]() mutable
 					{
 						auto &Internal = *mp_pInternal;
 
@@ -218,6 +243,7 @@ namespace NMib
 
 						auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];
 						TicketState.m_CreationTime = Internal.m_TicketTimer.f_Elapsed();
+						TicketState.m_fOnUseTicket = fg_Move(fOnUseTicket);
 			
 						Continuation.f_SetResult(fg_Move(TrustTicket));
 					}

@@ -18,10 +18,11 @@ namespace NMib::NConcurrency
 		TCActorFunctor(TCActorFunctor const &) = delete;
 		TCActorFunctor & operator = (TCActorFunctor const &) = delete;
 		
+		TCActorFunctor(CNullPtr);
 		TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMutable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
 		
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params);
+		auto operator ()(tfp_CParams &&...p_Params) const;
 		
 		TCActor<CActor> const &f_GetActor() const;
 		NFunction::TCFunctionMutable<t_CFunction> const &f_GetFunctor() const;
@@ -32,6 +33,9 @@ namespace NMib::NConcurrency
 		CActorSubscription &f_GetSubscription();
 		
 		void f_Clear();
+		
+		bool f_IsEmpty() const;
+		explicit operator bool () const;
 
 	protected:
 		TCActor<CActor> mp_Actor;

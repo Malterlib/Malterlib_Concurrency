@@ -135,7 +135,7 @@ namespace NMib
 												CDistributedActorTrustManager_Address LocalListenAddress;
 												LocalListenAddress.m_URL = fp_GetLocalAddress();
 										
-												mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress) 
+												mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr) 
 													> Continuation / [this, Continuation, pState, _HostID, pCleanup](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 													{
 														auto &State = *pState;

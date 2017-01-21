@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 			CSubSystem_Concurrency_DistributedActorDefaultManager();
 			CSubSystem_Concurrency_DistributedActorDefaultManager(CActorDistributionManagerInitSettings const &_Settings);
 			~CSubSystem_Concurrency_DistributedActorDefaultManager();
-			void f_DestroyThreadSpecific() override;
+			void f_PreDestroyThreadSpecific() override;
 
 			CActorDistributionManagerInitSettings m_DistributionManagerSettings;
 			TCActor<CActorDistributionManager> m_DistributionManager;
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		
-		void CSubSystem_Concurrency_DistributedActorDefaultManager::f_DestroyThreadSpecific()
+		void CSubSystem_Concurrency_DistributedActorDefaultManager::f_PreDestroyThreadSpecific()
 		{
 			if (m_DistributionManager)
 			{

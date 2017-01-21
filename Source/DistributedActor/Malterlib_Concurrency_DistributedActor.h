@@ -330,6 +330,20 @@ namespace NMib
 			NStr::CStr mp_ActorID;
 		};
 
+		template <typename tf_CImplementation>
+		struct TCDelegatedActorInterface
+		{
+			void f_Clear();
+			TCDispatchedActorCall<void> f_Destroy();
+			
+			template <typename ...tfp_CInterfaces, typename tf_CThis>
+			TCContinuation<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
+			
+			TCDistributedActor<tf_CImplementation> m_Actor;
+			CDistributedActorPublication m_Publication;
+			tf_CImplementation *m_pActor;
+		};
+		
 		struct CDistributedActorListenReference
 		{
 			friend struct CActorDistributionManager;
@@ -452,6 +466,16 @@ namespace NMib
 			NStr::CStr m_Enclave; // Hosts with the same enclave are assumed to be from the same distribution manager instance. If two use the same enclave they will disconnect each other.
 		};
 		
+		template <typename t_CInterface, typename t_CDelegateTo>
+		struct TCDistributedInterfaceDelegator : public t_CInterface
+		{
+			using CActorHolder = CDelegatedActorHolder;
+			static constexpr bool mc_bAllowInternalAccess = true;
+			
+			template <typename ...tfp_CParams>
+			TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params);
+		};
+		
 		struct CActorDistributionManagerHolder : public CDefaultActorHolder
 		{
 			CActorDistributionManagerHolder
@@ -465,6 +489,9 @@ namespace NMib
 
 			template <typename tf_CActor, typename... tfp_CParams>
 			TCActor<TCDistributedActorWrapper<tf_CActor>> f_ConstructActor(tfp_CParams &&...p_Params);
+
+			template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
+			TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams &&...p_Params);
 		};
  
 		struct CActorDistributionManager : public CActor

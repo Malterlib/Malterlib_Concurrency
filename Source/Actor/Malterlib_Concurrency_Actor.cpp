@@ -41,5 +41,36 @@ namespace NMib
 			DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
 			return TCActor<>{fg_Explicit(pActor)};
 		}
+		
+		CCanDestroyTracker::CCanDestroyTracker() = default;
+			
+		CCanDestroyTracker::~CCanDestroyTracker()
+		{
+			if (!m_Continuation.f_IsSet())
+				m_Continuation.f_SetResult();
+		}
+		
+		CCanDestroyTracker::CCanDestroyResultFunctor CCanDestroyTracker::f_Track()
+		{
+			return CCanDestroyResultFunctor{fg_Explicit(this)};
+		}
+			
+		CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&) = default;
+		CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &) = default;
+		
+		CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NPtr::TCSharedPointer<CCanDestroyTracker> &&_pThis)
+			: m_pThis(fg_Move(_pThis))
+		{
+		}
+		
+		void CCanDestroyTracker::CCanDestroyResultFunctor::operator () (TCAsyncResult<void> &&)
+		{
+		}
+		
+		template <>
+		auto TCContinuation<void>::f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<void>>
+		{
+			return NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<void>>{*this};
+		}
 	}
 }

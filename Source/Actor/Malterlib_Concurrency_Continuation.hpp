@@ -278,7 +278,60 @@ namespace NMib
 
 		namespace NPrivate
 		{
+			template <typename t_CContinuation>
+			struct TCContinuationReceiveAnyFunctor
+			{
+				TCContinuationReceiveAnyFunctor(t_CContinuation const &_Continuation)
+					: m_Continuation(_Continuation)
+				{
+				}
+				
+				template <typename tf_CResult>
+				void operator () (tf_CResult &&_Result);
+				
+				t_CContinuation m_Continuation;
+			};
 			
+			template <typename t_CContinuation>
+			template <typename tf_CResult>
+			void TCContinuationReceiveAnyFunctor<t_CContinuation>::operator () (tf_CResult &&_Result)
+			{
+				if (m_Continuation.f_IsSet())
+					return;
+				if (!_Result)
+				{
+					m_Continuation.f_SetException(fg_Move(_Result));
+					return;
+				}
+				m_Continuation.f_SetResult(fg_Move(*_Result));
+			}
+
+			template <>
+			template <typename tf_CResult>
+			void TCContinuationReceiveAnyFunctor<TCContinuation<void>>::operator () (tf_CResult &&_Result)
+			{
+				if (m_Continuation.f_IsSet())
+					return;
+				if (!_Result)
+				{
+					m_Continuation.f_SetException(fg_Move(_Result));
+					return;
+				}
+				m_Continuation.f_SetResult();
+			}
+		}
+		
+		template <typename t_CReturnValue>
+		auto TCContinuation<t_CReturnValue>::f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<t_CReturnValue>>
+		{
+			return NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<t_CReturnValue>>{*this};
+		}
+
+		template <>
+		auto TCContinuation<void>::f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<void>>;
+
+		namespace NPrivate
+		{
 			template <typename t_CReturnValue, typename t_CException>
 			template <typename tf_FToRun>
 			TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, t_CException>::operator > (tf_FToRun &&_ToRun) const
@@ -381,7 +434,7 @@ namespace NMib
 				};
 			};
 			
-			template <typename tf_FFunctor>
+			template <typename t_FFunctor>
 			struct TCAllAsyncResultsAreVoid
 			{
 				enum
@@ -392,14 +445,14 @@ namespace NMib
 						<
 							typename NTraits::NPrivate::TCFunctionObjectType_Helper
 							<
-								typename NTraits::TCRemoveReference<tf_FFunctor>::CType
+								typename NTraits::TCRemoveReference<t_FFunctor>::CType
 							>::CType
 						>::CParams
 					>::mc_Value
 				};
 			};
 		}
-
+		
 		template <typename t_CReturnValue>
 		template 
 		<

@@ -123,32 +123,26 @@ namespace NMib
 			if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
 			{
 				auto Params = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
-				auto LambdaParams = fg_LambdaMove(Params);
 				
 				Internal.mp_DeferredCallbacks.f_Insert
 					(
-						[this, LambdaParams]
+						[this, Params = fg_Move(Params)]() mutable
 						{
 							auto &Internal = *mp_pInternal;
-							auto OriginalParams = fg_Move(*LambdaParams);
 							for (auto &Callback : Internal.mp_Callbacks)
 							{
 								auto Actor = Callback.m_Actor.f_Lock();
 								if (!Actor)
 									continue;
-								auto fCallback = Callback.m_fCallback;
-								auto Params = OriginalParams;
-								auto LambdaParams = fg_LambdaMove(Params);
-								auto CallbackMove = fg_LambdaMove(fCallback);
 								Actor
 									(
 										&CActor::fp_DisptachInternal
-										, [CallbackMove, LambdaParams]()
+										, [fCallback = Callback.m_fCallback, Params]() mutable
 										{
 											 NPrivate::fg_CallCallback
 												(
-													fg_Move(*CallbackMove)
-													, fg_Move(*LambdaParams)
+													fg_Move(fCallback)
+													, fg_Move(Params)
 													, 
 				#ifndef DCompiler_MSVC
 													typename 
@@ -167,25 +161,21 @@ namespace NMib
 				;
 				return;
 			}
-			auto OriginalParams = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
+			auto Params = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 			for (auto &Callback : Internal.mp_Callbacks)
 			{
 				auto Actor = Callback.m_Actor.f_Lock();
 				if (!Actor)
 					continue;
-				auto fCallback = Callback.m_fCallback;
-				auto Params = OriginalParams;
-				auto LambdaParams = fg_LambdaMove(Params);
-				auto CallbackMove = fg_LambdaMove(fCallback);
 				Actor
 					(
 						&CActor::fp_DisptachInternal
-						, [CallbackMove, LambdaParams]()
+						, [fCallback = Callback.m_fCallback, Params]() mutable
 						{
 							 NPrivate::fg_CallCallback
 								(
-									fg_Move(*CallbackMove)
-									, fg_Move(*LambdaParams)
+									fg_Move(fCallback)
+									, fg_Move(Params)
 									, 
 #ifndef DCompiler_MSVC
 									typename 
@@ -209,11 +199,10 @@ namespace NMib
 			if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
 			{
 				auto Params = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
-				auto LambdaParams = fg_LambdaMove(Params);
 				
 				Internal.mp_DeferredCallbacks.f_Insert
 					(
-						[this, LambdaParams]
+						[this, LambdaParams = fg_Move(Params)]() mutable
 						{
 							auto &Internal = *mp_pInternal;
 							for (auto &Callback : Internal.mp_Callbacks)
@@ -221,18 +210,15 @@ namespace NMib
 								auto Actor = Callback.m_Actor.f_Lock();
 								if (!Actor)
 									continue;
-								auto fCallback = Callback.m_fCallback;
-								auto CallbackMove = fg_LambdaMove(fCallback);
-								
 								Actor
 									(
 										&CActor::fp_DisptachInternal
-										, [CallbackMove, LambdaParams]()
+										, [fCallback = Callback.m_fCallback, LambdaParams = fg_Move(LambdaParams)]() mutable
 										{
 											 NPrivate::fg_CallCallback
 												(
-													fg_Move(*CallbackMove)
-													, fg_Move(*LambdaParams)
+													fg_Move(fCallback)
+													, fg_Move(LambdaParams)
 													, 
 				#ifndef DCompiler_MSVC
 													typename 
@@ -256,19 +242,16 @@ namespace NMib
 				auto Actor = Callback.m_Actor.f_Lock();
 				if (!Actor)
 					continue;
-				auto fCallback = Callback.m_fCallback;
 				auto Params = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);;
-				auto LambdaParams = fg_LambdaMove(Params);
-				auto CallbackMove = fg_LambdaMove(fCallback);
 				Actor
 					(
 						&CActor::fp_DisptachInternal
-						, [CallbackMove, LambdaParams]()
+						, [fCallback = Callback.m_fCallback, Params = fg_Move(Params)]() mutable
 						{
 							 NPrivate::fg_CallCallback
 								(
-									fg_Move(*CallbackMove)
-									, fg_Move(*LambdaParams)
+									fg_Move(fCallback)
+									, fg_Move(Params)
 									, 
 #ifndef DCompiler_MSVC
 									typename 

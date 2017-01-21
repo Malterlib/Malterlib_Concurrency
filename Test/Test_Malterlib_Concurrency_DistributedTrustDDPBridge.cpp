@@ -8,8 +8,7 @@
 #include <Mib/Concurrency/DistributedTrustDDPBridge>
 #include <Mib/Web/DDPClient>
 #include <Mib/Network/Sockets/SSL>
-
-#include "Test_Malterlib_Concurrency_DistributedActorTrustManager.h"
+#include <Mib/Concurrency/DistributedTrustTestHelpers>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -24,74 +23,24 @@ namespace
 {
 	class CDistributedDDPBridge_Tests : public NMib::NTest::CTest
 	{
-		struct CState
-		{
-			auto f_CreateServerTrustManager(CStr const &_SessionID = {}) const
-			{
-				return fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						m_ServerDatabase
-						, [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-						, CDistributedActorTestKeySettings{}
-						, NNet::ENetFlag_None
-						, "TestServer" 
-						, _SessionID	
-					)
-				;
-			}
-			
-			auto f_CreateClientTrustManager(CStr const &_SessionID = {}) const 
-			{
-				return fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						m_ClientDatabase
-						, [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-						, CDistributedActorTestKeySettings{}
-						, NNet::ENetFlag_None
-						, "TestClient"
-						, _SessionID 
-					)
-				;
-			}
-			
-			CState()
-			{
-				m_ServerDatabase = fg_ConstructActor<NTestHelpers::CTrustManagerDatabase>();
-				m_ClientDatabase = fg_ConstructActor<NTestHelpers::CTrustManagerDatabase>();
-			}
-			~CState()
-			{
-				m_ServerDatabase->f_BlockDestroy();
-				m_ClientDatabase->f_BlockDestroy();
-			}
-			
-			TCActor<NTestHelpers::CTrustManagerDatabase> m_ServerDatabase;
-			TCActor<NTestHelpers::CTrustManagerDatabase> m_ClientDatabase;
-		};
-		
 	public:
 		
 		void f_DoTests()
 		{
 			DMibTestSuite("DDP")
 			{
-				CState State;
+				CTrustManagerTestHelper ServerState;
+				CTrustManagerTestHelper ClientState;
 
-				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
-				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = ServerState.f_TrustManager("Server");
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
 				
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = "wss://localhost:31409/";
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 				{
-					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress).f_CallSync(60.0);
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
 				}
 
@@ -131,7 +80,7 @@ namespace
 				
 				CStr ConnectToURLString = "wss://localhost:31409/ActorDDPBridge";
 				
-				auto &ClientDatabase = State.m_ClientDatabase->f_AccessInternal();
+				auto &ClientDatabase = ClientState.m_Database->f_AccessInternal();
 				
 				auto pClientConnection = ClientDatabase.m_ClientConnections.f_FindAny();
 			

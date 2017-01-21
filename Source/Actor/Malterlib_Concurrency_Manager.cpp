@@ -17,7 +17,7 @@ namespace NMib
 				NThread::CMutual m_ConcurrencyManagerLock;
 				NPtr::TCUniquePointer<NConcurrency::CConcurrencyManager, NMem::CAllocator_NonTrackedHeap> m_pConcurrencyManager;
 
-				void f_DestroyThreadSpecific() override
+				void f_PreDestroyThreadSpecific() override
 				{
 					DMibLock(m_ConcurrencyManagerLock);
 					if (m_pConcurrencyManager)

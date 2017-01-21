@@ -5,6 +5,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Cryptography/UUID>
+#include <Mib/Concurrency/DistributedAppInterface>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -24,7 +25,7 @@ namespace NMib
 		{
 			CUniversallyUniqueIdentifier g_HostnameRootUUID("8ED61926-AC8A-4793-92C5-DE05547999E7", EUniversallyUniqueIdentifierFormat_Bare);
 		}
-		
+
 		CDistributedAppActor_Settings::CDistributedAppActor_Settings
 			(
 				NStr::CStr const &_AppName
@@ -34,6 +35,7 @@ namespace NMib
 				, NNet::CSSLKeySetting _KeySetting
 				, NStr::CStr const &_FriendlyName
 				, NStr::CStr const &_Enclave
+				, EDistributedAppUpdateType _UpdateType
 			)
 			: m_AppName(_AppName)
 			, m_bRequireListen(_bRequireListen)
@@ -42,6 +44,7 @@ namespace NMib
 			, m_KeySetting(_KeySetting)
 			, m_FriendlyName(_FriendlyName)
 			, m_Enclave(_Enclave)
+			, m_UpdateType(_UpdateType)
 		{
 			// A longer app name and enclave results in a unix socket name becoming too long 
 			DMibRequire
@@ -109,6 +112,12 @@ namespace NMib
 			return fg_Move(*this);
 		}
 		
+		CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_UpdateType(EDistributedAppUpdateType _UpdateType) &&
+		{
+			m_UpdateType = _UpdateType;
+			return fg_Move(*this);
+		}
+		
 		NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName() const
 		{
 			CStr FriendlyName = m_FriendlyName;
@@ -117,11 +126,19 @@ namespace NMib
 			return fg_Format("{}/{}", FriendlyName, m_AppName);
 		}
 
+		CDistributedAppState::~CDistributedAppState() = default;
+		
 		CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
 			: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
 			, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
 		{
 		}
+		
+		CDistributedAppState::CDistributedAppState(CDistributedAppState const &) = default;
+		CDistributedAppState::CDistributedAppState(CDistributedAppState &&) = default;
+		
+		CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState const &) = default;
+		CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&) = default;
 		
 		CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
 			: mp_State(_Settings)
@@ -290,10 +307,11 @@ namespace NMib
 								/ [this, Continuation](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager)
 								{
 									mp_State.m_DistributionManager = fg_Move(_DistributionManager);
-									fg_ThisActor(this)(&CDistributedAppActor::fp_SetupListen) 
-										> Continuation % "Failed to setup listen config" / [this, Continuation]()
+									fp_SetupListen()
+										+ fp_SetupAppServerInterface()
+										> Continuation % "Failed to setup listen config or app server interface" / [this, Continuation]()
 										{
-											fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineTrust) 
+											fp_SetupCommandLineTrust()
 												> Continuation % "Failed to setup commmand line trust" / [this, Continuation]()
 												{
 													Continuation.f_SetResult();
@@ -402,6 +420,7 @@ namespace NMib
 							mp_CommandLine = nullptr;
 							return Continuation;
 						}
+						mp_pStdInCleanup.f_Clear();
 						return fg_Explicit();
 					}
 				)
@@ -438,8 +457,9 @@ namespace NMib
 			return pCanDestroy->m_Continuation;
 		}
 		
-		void fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
+		bool fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 		{
+			bool bInstalledLogDispatcher = false;
 #if DMibEnableTrace > 0
 			if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 			{
@@ -457,7 +477,7 @@ namespace NMib
 				if (pParam->f_Boolean())
 				{
 					auto LoggerActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
-					
+					bInstalledLogDispatcher = true;		
 					fg_GetSys()->f_GetLogger().f_SetDispatcher
 						(
 							[LoggerActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
@@ -474,6 +494,8 @@ namespace NMib
 					;
 				}
 			}
+			
+			return bInstalledLogDispatcher;
 		}
 
 		aint fg_RunApp
@@ -497,6 +519,13 @@ namespace NMib
 					;
 					AppActor = _fActorFactory();
 				}
+				bool bInstalledLogDispatcher = false;
+				auto CleanupLogDispatcher = g_OnScopeExit > [&]
+					{
+						if (bInstalledLogDispatcher)
+							fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+					}
+				;
 				CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
 				
 				if (_fMutateCommandLine)
@@ -506,7 +535,8 @@ namespace NMib
 					(
 						[&](NEncoding::CEJSON const &_Params, bool _bForceStart)
 						{
-							fg_ApplyLoggingOption(_Params);
+							if (fg_ApplyLoggingOption(_Params))
+								bInstalledLogDispatcher = true;
 							if (_bStartApp || _bForceStart)
 								AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
 						}

@@ -51,13 +51,6 @@ Import "Apps/*/*.MHeader"
 				!!PlatformFamily Windows
 			}
 		}
-		%File "Source/Malterlib_Concurrency_TestHelpers*"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-		}
 		%Group Documentation
 		{
 			%File "Documentation/*"

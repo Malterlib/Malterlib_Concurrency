@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -59,13 +59,14 @@ namespace NMib
 			typedef NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer> CSuper;
 			friend class CConcurrencyManager;
 			friend class CActor;
+			friend class CDelegatedActorHolder;
 		protected:
 			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
 			virtual void fp_Construct();
 			
 			template <typename tf_CActor>
 			TCActor<tf_CActor> fp_GetAsActor();
-			
+
 		public:
 			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 			virtual ~CActorHolder();
@@ -118,10 +119,25 @@ namespace NMib
 #endif
 			
 		protected:
+			struct COnTerminate
+			{
+				COnTerminate() = default;
+				COnTerminate(COnTerminate const &) = delete;
+				COnTerminate(COnTerminate &&) = default;
+				
+				NFunction::TCFunctionMutable<void ()> m_fOnTerminate;
+				
+				bool operator < (COnTerminate const &_Other) const
+				{
+					return this < &_Other;
+				}
+			};
+		
 			// Alignment zone 1: 
 			// vptr
 			// refcount
-			NPtr::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData; 
+			NPtr::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
+			NContainer::TCSet<COnTerminate> mp_OnTerminate;
 			
 			// Alignment zone 2
 			CConcurrentRunQueue mp_ConcurrentRunQueue;
@@ -171,6 +187,27 @@ namespace NMib
 				)
 			;
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
+		};
+
+		class CDelegatedActorHolder : public CDefaultActorHolder
+		{
+		public:
+			CDelegatedActorHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+					, TCActor<> const &_DelegateToActor
+				)
+			;
+			~CDelegatedActorHolder();
+			
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
+
+		protected:
+			TCActorHolderWeakPointer<CActorHolder> mp_pDelegateTo;
+			COnTerminate *mp_pOnTerminateEntry = nullptr;
 		};
 
 		class CSeparateThreadActorHolder : public CDefaultActorHolder

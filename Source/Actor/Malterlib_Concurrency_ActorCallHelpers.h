@@ -627,7 +627,7 @@ namespace NMib
 				;
 			}
 			
-			TCDispatchedActorCall<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage); // Include <Mib/Concurency/Actor/Timer> to use
+			TCDispatchedActorCall<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage); // #include <Mib/Concurrency/Actor/Timer> to use
 			
 			auto f_CallSync()
 			{

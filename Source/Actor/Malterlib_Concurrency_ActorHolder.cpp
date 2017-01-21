@@ -297,6 +297,10 @@ namespace NMib
 		
 		void CActorHolder::fp_Destroy(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 		{
+			for (auto &OnTerminate : mp_OnTerminate)
+				OnTerminate.m_fOnTerminate();
+			mp_OnTerminate.f_Clear();
+			
 			auto OnExit
 				= fg_OnScopeExit
 				(
@@ -342,10 +346,10 @@ namespace NMib
 			;
 		}
 		
-
 		///
 		/// CSeparateThreadActorHolder
 		///
+		
 		CSeparateThreadActorHolder::CSeparateThreadActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager
@@ -364,6 +368,7 @@ namespace NMib
 		{
 			DMibRequire(m_pThread.f_IsEmpty());
 		}
+		
 		void CSeparateThreadActorHolder::fp_Construct()
 		{
 			m_pThread = NThread::CThreadObject::fs_StartThread
@@ -389,6 +394,7 @@ namespace NMib
 			;
 			CDefaultActorHolder::fp_Construct();
 		}
+		
 		void CSeparateThreadActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
@@ -432,6 +438,68 @@ namespace NMib
 					)
 				;
 			}
+		}
+		
+		///
+		/// CDelegatedActorHolder
+		///
+		
+		CDelegatedActorHolder::CDelegatedActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				, TCActor<> const &_DelegateToActor
+			) 
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
+			, mp_pDelegateTo(_DelegateToActor.m_pInternalActor)
+		{
+			_DelegateToActor.m_pInternalActor->f_QueueProcess
+				(
+					[pDelegateTo = _DelegateToActor.m_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}]
+					{
+						DMibFastCheck(!pDelegateTo->f_IsDestroyed());
+						COnTerminate OnTerminate;
+						OnTerminate.m_fOnTerminate = [pThisWeak = pThis.f_Weak()]
+							{
+								auto pThis = pThisWeak.f_Lock();
+								if (!pThis)
+									return;
+								pThis->mp_pOnTerminateEntry = nullptr;
+								pThis->fp_Terminate(nullptr);									
+							}
+						;
+						pThis->mp_pOnTerminateEntry = &pDelegateTo->mp_OnTerminate[fg_Move(OnTerminate)];
+					}
+				)
+			;
+		}
+		
+		CDelegatedActorHolder::~CDelegatedActorHolder()
+		{
+			if (!mp_pOnTerminateEntry)
+				return;
+			auto pDelegateTo = mp_pDelegateTo.f_Lock();
+			if (!pDelegateTo)
+				return;
+			pDelegateTo->f_QueueProcess
+				(
+					[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo]
+					{
+						pDelegateTo->mp_OnTerminate.f_Remove(*pOnTerminateEntry);
+					}
+				)
+			;
+		}
+		
+		void CDelegatedActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		{
+			auto pDelegateTo = mp_pDelegateTo.f_Lock();
+			if (pDelegateTo)
+				pDelegateTo->f_QueueProcess(fg_Move(_Functor), _bSame);
+			else
+				CDefaultActorHolder::f_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 
 		///

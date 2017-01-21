@@ -11,7 +11,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/DistributedActor>
-#include <Mib/Concurrency/TestHelpers>
+#include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>

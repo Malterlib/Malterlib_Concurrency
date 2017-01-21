@@ -21,6 +21,7 @@ namespace NMib
 		class CConcurrencyManager;
 		class CSeparateThreadActorHolder;
 		struct CSeparateThreadActor;
+		class CDelegatedActorHolder;
 
 		template <typename t_CActor, typename t_CFunctor>
 		struct TCActorResultCall;
@@ -75,6 +76,8 @@ namespace NMib
 			friend class TCWeakActor;
 			template <typename t_CActor2>
 			friend class TCActorInternal;
+			
+			friend class CDelegatedActorHolder;
 
 		public:
 			using CActorInternal = TCActorInternal<t_CActor>;
@@ -177,7 +180,7 @@ namespace NMib
 }
 
 template <>
-struct NMib::NPtr::TCHasIntrusiveRefcount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, false>
+struct NMib::NPtr::TCHasIntrusiveRefcount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 {
 };
 

@@ -204,7 +204,7 @@ namespace NMib
 							FormatIdentifier.f_SetFormatStr("{}.({})");
 
 						mint iSet = 0;
-						FormatIdentifier << iSet; 
+						FormatIdentifier << _Identifier << iSet; 
 						
 						for (auto &PossibleMatch : Set)
 						{
@@ -243,7 +243,7 @@ namespace NMib
 						break;
 
 					if (TemplateArray.f_GetLen() > 1)
-						DMibError(fg_Format("[{}] Template array can only contain one value. Use COneOf or COneOfType to specify different options.", _Identifier));
+						DMibError(fg_Format("[{}] Template array can only contain one value. Use COneOf or COneOfType to specify different options. Array: {}", _Identifier, TemplateArray));
 
 					auto &Template = TemplateArray.f_GetFirst();
 					fp_ValidateTemplate(Template, fg_Format("{}.[]", _Identifier), false); 

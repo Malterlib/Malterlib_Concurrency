@@ -14,6 +14,13 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		enum EDistributedAppUpdateType
+		{
+			EDistributedAppUpdateType_Independent
+			, EDistributedAppUpdateType_OneAtATime
+			, EDistributedAppUpdateType_AllAtOnce
+		};
+		
 		struct CDistributedAppActor_Settings
 		{
 			CDistributedAppActor_Settings() = default;
@@ -26,6 +33,7 @@ namespace NMib
 					, NNet::CSSLKeySetting _KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting()
 					, NStr::CStr const &_FriendlyName = NStr::CStr()
 					, NStr::CStr const &_Enclave = fg_DistributedActorSuggestedEnclave()
+					, EDistributedAppUpdateType _UpdateType = EDistributedAppUpdateType_Independent 
 				)
 			;
 			NStr::CStr f_GetCompositeFriendlyName() const;
@@ -36,6 +44,7 @@ namespace NMib
 			CDistributedAppActor_Settings &&f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&;
 			CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
 			CDistributedAppActor_Settings &&f_Enclave(NStr::CStr const &_Enclave) &&;
+			CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
 			
 			NStr::CStr m_AppName;
 			NStr::CStr m_ConfigDirectory;
@@ -45,11 +54,16 @@ namespace NMib
 			NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 			NStr::CStr m_Enclave;
+			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		private:
 			NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific) const;
 		};
 		
 		struct CDistributedAppActor;
+		struct CDistributedAppInterfaceClient;
+		struct CDistributedAppInterfaceServer;
+		struct CDistributedAppInterfaceClientDistributedAppActor;
+		
 		
 		struct CDistributedAppState
 		{
@@ -57,8 +71,18 @@ namespace NMib
 			NEncoding::CSimpleJSONDatabase m_ConfigDatabase;
 			TCActor<CDistributedActorTrustManager> m_TrustManager;
 			TCActor<CActorDistributionManager> m_DistributionManager;
+			TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer; 
 			NHTTP::CURL m_LocalAddress;
 
+			CDistributedAppState() = delete;
+			~CDistributedAppState();
+			
+			CDistributedAppState(CDistributedAppState const &);
+			CDistributedAppState(CDistributedAppState &&);
+			
+			CDistributedAppState &operator = (CDistributedAppState const &);
+			CDistributedAppState &operator = (CDistributedAppState &&);
+			
 		private:
 			friend struct CDistributedAppActor;
 			
@@ -124,12 +148,19 @@ namespace NMib
 			virtual TCContinuation<void> fp_StopApp() = 0;
 			virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
 			virtual TCContinuation<CDistributedAppCommandLineResults> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+
+			virtual TCContinuation<void> fp_PreUpdate();
 			
 			CDistributedAppState mp_State;
 			
 		private:
+			struct CDistributedAppInterfaceClientImplementation;
+			
 			TCContinuation<void> fp_Initialize();
 			TCContinuation<void> fp_SetupListen();
+			TCContinuation<void> fp_SetupAppServerInterface();
+			TCContinuation<void> fp_SubscribeAppServerInterface();
+			TCContinuation<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr const &_RequestMagic);
 			
 			TCContinuation<void> fp_CreateCommandLineTrust();
 			TCContinuation<void> fp_SetupCommandLineListen();
@@ -158,9 +189,14 @@ namespace NMib
 			NPtr::TCSharedPointer<CDistributedAppCommandLineSpecification> mp_pCommandLineSpec;
 			NPtr::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce; 
 			CDistributedAppActor_Settings mp_Settings;
+			COnScopeExitShared mp_pStdInCleanup;
+			
+			TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;
+			TCDistributedActor<CDistributedAppInterfaceClient> mp_AppInterfaceClientImplementation;
+			CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
 		};
 
-		void fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
+		bool fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
 		aint fg_RunApp
 			(
 				NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory

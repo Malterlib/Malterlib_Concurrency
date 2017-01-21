@@ -43,8 +43,11 @@ namespace NMib
 				TCContinuation<void> operator > (tf_FToRun &&_ToRun) const;
 			};
 
-			template <typename tf_FFunctor>
+			template <typename t_FFunctor>
 			struct TCAllAsyncResultsAreVoid;
+			
+			template <typename t_CContinuation>
+			struct TCContinuationReceiveAnyFunctor;
 		}
 		
 		template <typename t_CReturnValue = void>
@@ -114,6 +117,7 @@ namespace NMib
 			template <typename tf_CResult>
 			void f_SetException(tf_CResult &&_Result) const;
 			void f_SetCurrentException() const;
+			auto f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation>;
 			
 			void f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult);
 			

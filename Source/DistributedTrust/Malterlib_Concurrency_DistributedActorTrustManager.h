@@ -7,6 +7,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Database.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Private.h"
+#include <Mib/Concurrency/ActorFunctor>
 
 namespace NMib
 {
@@ -46,7 +47,7 @@ namespace NMib
 			void f_Clear();
 			bool f_IsEmpty() const;
 
-			void f_OnNewActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);
+			void f_OnActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor);
 			void f_OnRemoveActor(NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor);
 			
 		private:
@@ -188,7 +189,21 @@ namespace NMib
 			TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
 
 			TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
-			TCContinuation<CTrustTicket> f_GenerateConnectionTicket(CDistributedActorTrustManager_Address const &_Address);
+			TCContinuation<CTrustTicket> f_GenerateConnectionTicket
+				(
+					CDistributedActorTrustManager_Address const &_Address
+					, TCActorFunctor
+					<
+						TCContinuation<void> 
+						(
+							NStr::CStr const &_HostID
+							, CCallingHostInfo const &_HostInfo
+							, NContainer::TCVector<uint8> const &_CertificateRequest
+						)
+					> 
+					&&_fOnUseTicket
+				)
+			;
 			TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
 			TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
 			

@@ -43,6 +43,7 @@ namespace NMib
 			struct CTicketState
 			{
 				NTime::CTimer m_CreationTime;
+				TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> m_fOnUseTicket;
 			};
 			
 			struct CHostState
@@ -190,7 +191,13 @@ namespace NMib
 			
 			void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 			
-			TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate(NStr::CStr const &_Token, NContainer::TCVector<uint8> const &_CertificateRequest);
+			TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate
+				(
+					NStr::CStr const &_Token
+					, NContainer::TCVector<uint8> const &_CertificateRequest
+					, CCallingHostInfo const &_HostInfo
+				)
+			;
 			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain);
 			
 			NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);

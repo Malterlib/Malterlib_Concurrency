@@ -15,7 +15,8 @@ namespace NMib
 		{
 			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
 			{
-				fg_ApplyLoggingOption(_Params);
+				if (fg_ApplyLoggingOption(_Params))
+					m_bInstalledLogDispatcher = true;
 				
 				m_Actor = _Actor;
 				m_Actor(&CDistributedAppActor::f_StartApp, _Params) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
@@ -34,9 +35,13 @@ namespace NMib
 					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync();
 					m_Actor = nullptr;
 				}
+				
+				if (m_bInstalledLogDispatcher)
+					fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 			}
 		
 			TCActor<CDistributedAppActor> m_Actor;
+			bool m_bInstalledLogDispatcher = false;
 		};
 
 		CDistributedDaemon::CDistributedDaemon

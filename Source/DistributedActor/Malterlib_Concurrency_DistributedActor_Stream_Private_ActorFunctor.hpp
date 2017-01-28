@@ -44,6 +44,7 @@ namespace NMib::NConcurrency
 		NStr::CStr FunctionID;
 		*this >> FunctionID;
 		
-		_ActorFunctor = {fg_Move(Actor), NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID), fg_Move(Subscription), SequenceID};
+		if (!FunctionID.f_IsEmpty())
+			_ActorFunctor = {fg_Move(Actor), NPrivate::TCStreamingFunctionHelper<FFunctionSignature>::fs_Functor(FunctionID), fg_Move(Subscription), SequenceID};
 	}
 }

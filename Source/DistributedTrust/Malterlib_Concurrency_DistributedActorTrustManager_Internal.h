@@ -127,7 +127,7 @@ namespace NMib
 			struct CHostPermissionSubscriptionState
 			{
 				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
-				NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> m_Permissions;
+				NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> m_PermissionsPerHost;
 
 				inline NStr::CStr const &f_GetPermission() const;
 			};

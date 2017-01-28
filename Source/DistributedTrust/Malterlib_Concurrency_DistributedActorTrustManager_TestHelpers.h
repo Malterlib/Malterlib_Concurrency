@@ -65,4 +65,35 @@ namespace NMib::NConcurrency
 		
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;
 	};
+	
+	struct CTrustedSubscriptionTestHelper
+	{
+		CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager);
+		~CTrustedSubscriptionTestHelper();
+		
+		template <typename tf_CActor>
+		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
+		
+	private:
+		struct CSubscription
+		{
+			virtual ~CSubscription() = default; 
+		};
+
+		struct CInternal : public CActor
+		{
+			CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager);
+
+			template <typename tf_CActor>
+			TCContinuation<TCDistributedActor<tf_CActor>> f_Subscribe(NStr::CStr const &_Namespace);
+			
+		private:
+			TCActor<CDistributedActorTrustManager> mp_TrustManager;
+			NContainer::TCVector<NPtr::TCUniquePointer<CSubscription>> mp_Subscriptions;
+		};
+		
+		TCActor<CInternal> mp_Internal;		
+	};
 }
+
+#include "Malterlib_Concurrency_DistributedActorTrustManager_TestHelpers.hpp"

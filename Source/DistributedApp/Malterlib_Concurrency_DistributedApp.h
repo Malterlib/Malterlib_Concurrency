@@ -193,7 +193,10 @@ namespace NMib
 			
 			TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;
 			TCDistributedActor<CDistributedAppInterfaceClient> mp_AppInterfaceClientImplementation;
+			TCDistributedActor<CDistributedActorTrustManagerInterface> mp_AppInterfaceClientTrustProxy;
 			CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
+			
+			bool mp_bDelegateTrustToAppInterface = false;
 		};
 
 		bool fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);

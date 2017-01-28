@@ -75,6 +75,9 @@ namespace NMib::NConcurrency
 		NStr::CStr ActorID;
 		*this >> ActorID;
 		
+		if (ActorID.f_IsEmpty())
+			return;
+		
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		if (!DistributionManager)
 			DMibError("Distribution manager unexpectedly gone");

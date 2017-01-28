@@ -28,15 +28,22 @@ namespace NMib::NConcurrency
 		if (bHasSubscription)
 			f_Feed(fg_Move(_Subscription), _SequenceID);
 		
-		auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
-		auto &ActorFunctor = ActorFunctors.m_ActorFunctors.f_Insert();
-		NStr::CStr ActorID = NCryptography::fg_RandomID();
-		*this << ActorID;
-		ActorFunctor.m_ActorID = ActorID;
-		ActorFunctor.m_Actor = fg_Move(_Actor);
+		NStr::CStr ActorID;
+		NStr::CStr FunctionID;
 		
-		NStr::CStr FunctionID = NCryptography::fg_RandomID();
+		if (_Actor && !_pFunction->f_IsEmpty())
+		{
+			auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
+			auto &ActorFunctor = ActorFunctors.m_ActorFunctors.f_Insert();
+			ActorID = NCryptography::fg_RandomID();
+			ActorFunctor.m_ActorID = ActorID;
+			ActorFunctor.m_Actor = fg_Move(_Actor);
+			
+			FunctionID = NCryptography::fg_RandomID();
+			ActorFunctor.m_Functions[FunctionID] = fg_Move(_pFunction);
+		}
+
+		*this << ActorID;
 		*this << FunctionID;
-		ActorFunctor.m_Functions[FunctionID] = fg_Move(_pFunction);
 	}
 }

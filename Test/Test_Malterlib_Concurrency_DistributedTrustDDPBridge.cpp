@@ -41,7 +41,7 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				TCActor<CDistributedTrustDDPBridge> DdpBridge;

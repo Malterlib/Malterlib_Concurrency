@@ -303,4 +303,19 @@ namespace NMib::NConcurrency
 	{
 		m_Database->f_BlockDestroy();
 	}
+	
+	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+		: mp_Internal(fg_ConstructActor<CInternal>(_TrustManager))
+	{
+	}
+
+	CTrustedSubscriptionTestHelper::~CTrustedSubscriptionTestHelper()
+	{
+		mp_Internal->f_BlockDestroy();
+	}
+
+	CTrustedSubscriptionTestHelper::CInternal::CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+		: mp_TrustManager(fg_Move(_TrustManager))
+	{
+	}
 }

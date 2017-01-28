@@ -29,15 +29,22 @@ namespace NMib::NConcurrency
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
 				, NStr::CStr const &_Description
+				, bool _bDelegateTrust 
 			)
 		;
 		~CDistributedAppInterfaceLaunchActor();
 
 	private:
-		void f_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output) override;
-		void f_ModifyLaunch(CLaunch &o_Launch) override;
+		bool fp_WillFilterOutput() override;
+		void fp_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output) override;
+		void fp_ModifyLaunch(CLaunch &o_Launch) override;
 
 		void fp_HandleTicketRequest();
+
+		struct CHandleRequest
+		{
+			CActorSubscription m_OnUseTicketSubscription;
+		};
 		
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		NHTTP::CURL mp_Address;
@@ -45,5 +52,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_RequestTicketMagicLine;
 		NStr::CStr mp_Description;
 		FOnUseTicket mp_fOnUseTicket;
+		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;
+		bool mp_bDelegateTrust = false;
 	};
 }

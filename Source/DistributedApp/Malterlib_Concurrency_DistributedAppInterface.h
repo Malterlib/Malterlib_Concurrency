@@ -6,6 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedApp>
+#include <Mib/Concurrency/DistributedActorTrustManager>
 
 namespace NMib::NConcurrency
 {
@@ -30,13 +31,14 @@ namespace NMib::NConcurrency
 		
 		enum 
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EMinProtocolVersion = 0x102
+			, EProtocolVersion = 0x102
 		};
 		
 		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 			(
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
+				, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
 				, EDistributedAppUpdateType _UpdateType
 			) = 0
 		;

@@ -9,6 +9,7 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
+#include "Malterlib_Concurrency_DistributedActor_Stream_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -360,6 +361,23 @@ namespace NMib::NConcurrency
 		, mp_ProtocolVersion(_ProtocolVersion) 
 	{
 	}
+
+	void CCallingHostInfo::f_Feed(CDistributedActorWriteStream &_Stream) const
+	{
+		_Stream << mp_UniqueHostID;
+		_Stream << mp_HostInfo;
+		_Stream << mp_LastExecutionID;
+		_Stream << mp_ProtocolVersion;
+	}
+	
+	void CCallingHostInfo::f_Consume(CDistributedActorReadStream &_Stream)
+	{
+		_Stream >> mp_UniqueHostID;
+		_Stream >> mp_HostInfo;
+		_Stream >> mp_LastExecutionID;
+		_Stream >> mp_ProtocolVersion;
+		mp_DistributionManager = _Stream.f_GetState().m_DistributionManager.f_Lock();
+	}
 	
 	uint32 CCallingHostInfo::f_GetProtocolVersion() const
 	{
@@ -426,6 +444,18 @@ namespace NMib::NConcurrency
 		: m_HostID(_HostID)
 		, m_FriendlyName(_FriendlyName)
 	{
+	}
+	
+	void CHostInfo::f_Feed(CDistributedActorWriteStream &_Stream) const
+	{
+		_Stream << m_HostID;
+		_Stream << m_FriendlyName;
+	}
+	
+	void CHostInfo::f_Consume(CDistributedActorReadStream &_Stream)
+	{
+		_Stream >> m_HostID;
+		_Stream >> m_FriendlyName;
 	}
 	
 	NStr::CStr CHostInfo::f_GetDesc() const
@@ -539,6 +569,11 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManager::fs_IsValidNamespaceName(NStr::CStr const &_String)
 	{
 		return NNet::fg_IsValidHostname(_String, "/");
+	}
+	
+	bool CActorDistributionManager::fs_IsValidHostID(NStr::CStr const &_String)
+	{
+		return NNet::fg_IsValidHostname(_String);
 	}
 	
 	CDistributedActorInterfaceShare::CDistributedActorInterfaceShare()

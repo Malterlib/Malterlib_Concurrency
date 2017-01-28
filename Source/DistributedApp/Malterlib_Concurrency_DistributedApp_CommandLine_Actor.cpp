@@ -136,10 +136,11 @@ namespace NMib
 												LocalListenAddress.m_URL = fp_GetLocalAddress();
 										
 												mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr) 
-													> Continuation / [this, Continuation, pState, _HostID, pCleanup](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
+													> Continuation / [this, Continuation, pState, _HostID, pCleanup]
+													(CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_TrustTicket)
 													{
 														auto &State = *pState;
-														State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket, 60.0) 
+														State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket.m_Ticket, 60.0) 
 															> Continuation / [this, Continuation, _HostID, pCleanup, pState]
 															{
 																pCleanup->f_Clear();

@@ -13,6 +13,11 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CInterface>
+	TCActorInterface<t_CInterface>::TCActorInterface(CNullPtr)
+	{
+	}
+	
+	template <typename t_CInterface>
 	CActorSubscription const &TCActorInterface<t_CInterface>::f_GetSubscription() const
 	{
 		return mp_Subscription;

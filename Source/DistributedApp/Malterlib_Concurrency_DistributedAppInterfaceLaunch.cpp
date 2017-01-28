@@ -2,6 +2,8 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/Cryptography/RandomID>
+#include <Mib/Concurrency/ActorCallbackManager>
 
 #include "Malterlib_Concurrency_DistributedAppInterfaceLaunch.h"
 
@@ -13,12 +15,14 @@ namespace NMib::NConcurrency
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
 			, NStr::CStr const &_Description
+			, bool _bDelegateTrust
 		)
 		: mp_Address(_Address)
 		, mp_TrustManager(_TrustManager)
 		, mp_fOnUseTicket(fg_Move(_fOnUseTicket))
 		, mp_RequestTicketMagic(NCryptography::fg_RandomID())
 		, mp_Description(_Description)
+		, mp_bDelegateTrust(_bDelegateTrust)
 	{
 		mp_RequestTicketMagicLine = mp_RequestTicketMagic + "\n";
 	}
@@ -27,7 +31,12 @@ namespace NMib::NConcurrency
 	{
 	}
 	
-	void CDistributedAppInterfaceLaunchActor::f_ModifyLaunch(CLaunch &o_Launch)
+	bool CDistributedAppInterfaceLaunchActor::fp_WillFilterOutput()
+	{
+		return true;
+	}
+	
+	void CDistributedAppInterfaceLaunchActor::fp_ModifyLaunch(CLaunch &o_Launch)
 	{
 		o_Launch.m_bWholeLineOutput = true;
 		auto &LaunchParams = o_Launch.m_Params;
@@ -35,10 +44,15 @@ namespace NMib::NConcurrency
 			LaunchParams.m_bMergeEnvironment = true;
 		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerAddress"] = mp_Address.f_Encode();
 		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerRequestTicket"] = mp_RequestTicketMagic;
-		LaunchParams.m_Environment["MalterlibProtectedEnvironment"] = "MalterlibDistributedAppInterfaceServerAddress;MalterlibDistributedAppInterfaceServerRequestTicket";
+		if (mp_bDelegateTrust)
+			LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerOptions"] = "DelegateTrust";
+		
+		LaunchParams.m_Environment["MalterlibProtectedEnvironment"] 
+			= "MalterlibDistributedAppInterfaceServerAddress;MalterlibDistributedAppInterfaceServerRequestTicket;MalterlibDistributedAppInterfaceServerOptions"
+		;
 	}
 	
-	void CDistributedAppInterfaceLaunchActor::f_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output)
+	void CDistributedAppInterfaceLaunchActor::fp_FilterOutput(NProcess::EProcessLaunchOutputType _OutputType, NStr::CStr &o_Output)
 	{
 		if (o_Output.f_IsEmpty())
 			return;
@@ -53,13 +67,32 @@ namespace NMib::NConcurrency
 	{
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 		
+		NStr::CStr HandleRequestID = NCryptography::fg_RandomID();
+		
 		mp_TrustManager
 			(
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				, mp_Address
-				, fg_Move(mp_fOnUseTicket)
+				, g_ActorFunctor
+				(
+					g_ActorSubscription > [this, HandleRequestID]
+					{
+						mp_HandleRequests.f_Remove(HandleRequestID);
+					}
+				)
+				> [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>
+				{
+					TCContinuation<void> Continuation;
+					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Continuation](TCAsyncResult<void> &&_Result)
+						{
+							mp_HandleRequests.f_Remove(HandleRequestID);
+							Continuation.f_SetResult(fg_Move(_Result));
+						}
+					;
+					return Continuation;
+				}
 			)
-			> [this](TCAsyncResult<CDistributedActorTrustManager::CTrustTicket> &&_Ticket)
+			> [this, HandleRequestID](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
 			{
 				if (!_Ticket)
 				{
@@ -74,8 +107,10 @@ namespace NMib::NConcurrency
 					;
 					return;
 				}
+				auto &Request = mp_HandleRequests[HandleRequestID];
+				Request.m_OnUseTicketSubscription = fg_Move(_Ticket->m_OnUseTicketSubscription);
 				DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
-				CProcessLaunchActor::f_SendStdIn(mp_RequestTicketMagic + ":" + _Ticket->f_ToStringTicket() + "\n") > [this](TCAsyncResult<void> &&_Result)
+				CProcessLaunchActor::f_SendStdIn(mp_RequestTicketMagic + ":" + _Ticket->m_Ticket.f_ToStringTicket() + "\n") > [this](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to send ticket to '{}'", mp_Description);

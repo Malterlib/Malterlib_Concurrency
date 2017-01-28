@@ -159,10 +159,10 @@ namespace NMib
 				
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ForListen, nullptr) 
-				> Continuation / [Continuation](CDistributedActorTrustManager::CTrustTicket &&_Ticket)
+				> Continuation / [Continuation](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", _Ticket.m_ServerAddress.m_URL.f_Encode());
-					Continuation.f_SetResult(fg_Format("{}\n", _Ticket.f_ToStringTicket()));
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", _Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
+					Continuation.f_SetResult(fg_Format("{}\n", _Ticket.m_Ticket.f_ToStringTicket()));
 				}
 			;
 			return Continuation;

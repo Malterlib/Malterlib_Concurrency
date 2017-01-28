@@ -30,15 +30,21 @@ namespace NMib::NConcurrency
 		
 		*this << _Hierarchy;
 		*this << _ProtocolVersions;
+		
+		NStr::CStr ActorID;
 
-		auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
-		auto &Interface = ActorFunctors.m_Interfaces.f_Insert();
-		NStr::CStr ActorID = NCryptography::fg_RandomID();
+		if (_Actor)
+		{
+			auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
+			auto &Interface = ActorFunctors.m_Interfaces.f_Insert();
+			ActorID = NCryptography::fg_RandomID();
+			Interface.m_ActorID = ActorID;
+			Interface.m_Actor = _Actor;
+			Interface.m_Hierarchy = fg_Move(_Hierarchy);
+			Interface.m_ProtocolVersions = fg_Move(_ProtocolVersions);
+		}
+
 		*this << ActorID;
-		Interface.m_ActorID = ActorID;
-		Interface.m_Actor = _Actor;
-		Interface.m_Hierarchy = fg_Move(_Hierarchy);
-		Interface.m_ProtocolVersions = fg_Move(_ProtocolVersions);
 	}
 	
 	TCDistributedActor<> CDistributedActorReadStream::f_ConsumeInterface
@@ -68,6 +74,9 @@ namespace NMib::NConcurrency
 		
 		NStr::CStr ActorID;
 		*this >> ActorID;
+		
+		if (ActorID.f_IsEmpty())
+			return {};
 		
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		

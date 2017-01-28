@@ -18,6 +18,7 @@ namespace NMib::NConcurrency
 		TCActorSubscriptionWithID(TCActorSubscriptionWithID const &) = delete;
 		TCActorSubscriptionWithID & operator = (TCActorSubscriptionWithID const &) = delete;
 		
+		TCActorSubscriptionWithID(CNullPtr);
 		TCActorSubscriptionWithID(uint32 _SubscriptionID = t_SubscriptionID);
 		TCActorSubscriptionWithID(CActorSubscription &&_Subscription, uint32 _SubscriptionID = t_SubscriptionID);
 		
@@ -39,6 +40,7 @@ namespace NMib::NConcurrency
 		TCActorFunctorWithID(TCActorFunctorWithID const &) = delete;
 		TCActorFunctorWithID & operator = (TCActorFunctorWithID const &) = delete;
 		
+		TCActorFunctorWithID(CNullPtr);
 		TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor);
 		TCActorFunctorWithID
 			(
@@ -68,6 +70,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorInterfaceWithID(TCDistributedActorInterfaceWithID const &) = delete;
 		TCDistributedActorInterfaceWithID & operator = (TCDistributedActorInterfaceWithID const &) = delete;
 		
+		TCDistributedActorInterfaceWithID(CNullPtr);
 		TCDistributedActorInterfaceWithID
 			(
 				TCDistributedActorInterfaceShare<t_CInterface> &&_Share

@@ -59,9 +59,12 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CDistributedActorTrustManager::f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions)
 	{
+		if (!CActorDistributionManager::fs_IsValidHostID(_HostID))
+			return DMibErrorInstance("Invalid host id");
+
 		auto &Internal = *mp_pInternal;
 		auto &HostPermissions = Internal.m_HostPermissions[_HostID];
-
+		
 		NContainer::TCSet<NStr::CStr> PermissionsAdded;
 		for (auto &Permission : _Permissions)
 		{
@@ -79,7 +82,7 @@ namespace NMib::NConcurrency
 			{
 				if (NStr::fg_StrMatchWildcard(Permission.f_GetStr(), Wildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 					continue;
-				if (!Subscription.m_Permissions(Permission).f_WasCreated())
+				if (!Subscription.m_PermissionsPerHost[_HostID](Permission).f_WasCreated())
 					continue;
 				FilteredPermissions[Permission];
 			}
@@ -105,6 +108,9 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CDistributedActorTrustManager::f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions)
 	{
+		if (!CActorDistributionManager::fs_IsValidHostID(_HostID))
+			return DMibErrorInstance("Invalid host id");
+		
 		auto &Internal = *mp_pInternal;
 		auto *pHostPermissions = Internal.m_HostPermissions.f_FindEqual(_HostID);
 		if (!pHostPermissions)
@@ -128,7 +134,7 @@ namespace NMib::NConcurrency
 			{
 				if (NStr::fg_StrMatchWildcard(Permission.f_GetStr(), Wildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 					continue;
-				if (!Subscription.m_Permissions.f_Remove(Permission))
+				if (!Subscription.m_PermissionsPerHost[_HostID].f_Remove(Permission))
 					continue;
 				FilteredPermissions[Permission];
 			}
@@ -349,7 +355,7 @@ namespace NMib::NConcurrency
 			auto SubscriptionMapped = Internal.m_HostPermissionsSubscriptions(Wildcard);
 			if (SubscriptionMapped.f_WasCreated())
 			{
-				auto &OutPermissions = (*SubscriptionMapped).m_Permissions; 
+				auto &OutPermissions = (*SubscriptionMapped).m_PermissionsPerHost; 
 				for (auto &Permissions : Internal.m_HostPermissions)
 				{
 					auto &HostID = Permissions.f_GetHostID();
@@ -363,9 +369,9 @@ namespace NMib::NConcurrency
 			}
 			auto &Subscription = *SubscriptionMapped;
 			Subscription.m_Subscriptions[_pState];
-			for (auto &Host : Subscription.m_Permissions)
+			for (auto &Host : Subscription.m_PermissionsPerHost)
 			{
-				auto &HostID = Subscription.m_Permissions.fs_GetKey(Host);
+				auto &HostID = Subscription.m_PermissionsPerHost.fs_GetKey(Host);
 				Permissions[HostID] += Host;
 			}
 		}

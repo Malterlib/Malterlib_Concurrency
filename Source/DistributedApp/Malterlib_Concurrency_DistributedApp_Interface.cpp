@@ -5,6 +5,7 @@
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Process/StdInActor>
 #include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -41,6 +42,13 @@ namespace NMib::NConcurrency
 	{
 		mp_AppInterfaceClientImplementation = mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppInterfaceClientImplementation>(fg_ThisActor(this));
 		
+		if (mp_bDelegateTrustToAppInterface)
+		{
+			CDistributedActorTrustManagerProxy::CPermissions Permissions;
+			Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
+			mp_AppInterfaceClientTrustProxy = mp_State.m_DistributionManager->f_ConstructActor<CDistributedActorTrustManagerProxy>(mp_State.m_TrustManager, Permissions);
+		}
+		
 		TCContinuation<void> Continuation;
 		mp_State.m_TrustManager
 			(
@@ -63,7 +71,12 @@ namespace NMib::NConcurrency
 								}
 							;
 							
-							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), mp_Settings.m_UpdateType) 
+							TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> TrustInterface;
+							
+							if (mp_AppInterfaceClientTrustProxy)
+								TrustInterface = mp_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
+							
+							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), fg_Move(TrustInterface), mp_Settings.m_UpdateType) 
 								> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<NConcurrency::TCActorSubscriptionWithID<>> &&_Subscription)
 								{
 									if (!_Subscription)
@@ -173,6 +186,14 @@ namespace NMib::NConcurrency
 	{
 		CStr ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
 		CStr RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
+		CStr Options = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerOptions");
+		
+		while (!Options.f_IsEmpty())
+		{
+			CStr Option = fg_GetStrSep(Options, ";");
+			if (Option == "DelegateTrust")
+				mp_bDelegateTrustToAppInterface = true;
+		}
 		
 		if (ServerAddress.f_IsEmpty() || RequestTicketMagic.f_IsEmpty())
 			return fp_SubscribeAppServerInterface();

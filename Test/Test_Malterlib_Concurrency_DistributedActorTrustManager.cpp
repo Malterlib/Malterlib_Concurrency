@@ -168,13 +168,13 @@ namespace
 					
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 					
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
-					DMibExpectTrue(ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, TrustTicket.m_ServerAddress).f_CallSync(60.0));
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
+					DMibExpectTrue(ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, TrustTicket.m_Ticket.m_ServerAddress).f_CallSync(60.0));
 					
 					auto AllClientConnections = ClientTrustManager(&CDistributedActorTrustManager::f_EnumClientConnections).f_CallSync(60.0);
 					NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo> ExpectedClientConnections;
 					{
-						auto &ExpectedHostInfo = ExpectedClientConnections[TrustTicket.m_ServerAddress];
+						auto &ExpectedHostInfo = ExpectedClientConnections[TrustTicket.m_Ticket.m_ServerAddress];
 						ExpectedHostInfo.m_FriendlyName = "TestServer";
 						ExpectedHostInfo.m_HostID = ServerHostID;
 					}
@@ -282,7 +282,7 @@ namespace
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 				
-				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+				ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				
 				fp_DoTests(ServerTrustManager, ClientTrustManager);
 				
@@ -318,7 +318,7 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
@@ -364,7 +364,7 @@ namespace
 				{
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 					NSys::fg_Thread_Sleep(0.05);
 				}
 
@@ -391,16 +391,16 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
 					
 					// Check that you cannot reuse old ticket
-					DMibExpectExceptionType(ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0), NException::CException);
+					DMibExpectExceptionType(ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0), NException::CException);
 					
 					// Check that you can add trust to server, even with old client in database
 					TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				{
@@ -444,7 +444,7 @@ namespace
 				
 				auto TrustTicket2 = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 				// Test fraudulent client add
-				DMibExpectExceptionType(Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2, 30.0).f_CallSync(60.0), NException::CException);
+				DMibExpectExceptionType(Client2TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket2.m_Ticket, 30.0).f_CallSync(60.0), NException::CException);
 				
 				{
 					DMibTestPath("After fraudulent try");
@@ -468,7 +468,7 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
@@ -527,7 +527,7 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
@@ -827,7 +827,7 @@ namespace
 						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
 						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 					}
 					CStr ServerHostID2 = ServerTrustManager2(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					TCSet<CStr> ServerHosts2;
@@ -937,7 +937,7 @@ namespace
 
 				{
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket, 30.0).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0).f_CallSync(60.0);
 				}
 
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};

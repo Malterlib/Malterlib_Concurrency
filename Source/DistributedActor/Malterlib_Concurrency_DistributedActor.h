@@ -98,6 +98,9 @@ namespace NMib
 			~CHostInfo();
 			CHostInfo(NStr::CStr const &_HostID, NStr::CStr const &_FriendlyName);
 			
+ 			void f_Feed(CDistributedActorWriteStream &_Stream) const;
+			void f_Consume(CDistributedActorReadStream &_Stream);
+			
 			NStr::CStr f_GetDesc() const;
 			
 			bool operator ==(CHostInfo const &_Right) const;
@@ -446,6 +449,9 @@ namespace NMib
 			bool operator ==(CCallingHostInfo const &_Right) const;
 			bool operator <(CCallingHostInfo const &_Right) const;
 			
+ 			void f_Feed(CDistributedActorWriteStream &_Stream) const;
+			void f_Consume(CDistributedActorReadStream &_Stream);
+			
 		private:
 			TCActor<CActorDistributionManager> mp_DistributionManager;
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
@@ -566,6 +572,7 @@ namespace NMib
 			static NStr::CStr fs_GetCertificateHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static NStr::CStr fs_GetCertificateRequestHostID(NContainer::TCVector<uint8> const &_Certificate);
 			static bool fs_IsValidNamespaceName(NStr::CStr const &_String);
+			static bool fs_IsValidHostID(NStr::CStr const &_String);
 			static bool fs_IsValidEnclave(NStr::CStr const &_String);
 
 		private:

@@ -51,8 +51,7 @@ namespace NMib
 			TCContinuation<NContainer::TCVector<uint8>> Continuation;
 			
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
-				> Continuation % "Failed to check for existing client" / [=, fOnUseTicket = fg_Move(fOnUseTicket)]
-				(NPtr::TCUniquePointer<CClient> &&_ExistingClient) mutable
+				> Continuation % "Failed to check for existing client" / [=, fOnUseTicket = fg_Move(fOnUseTicket)](NPtr::TCUniquePointer<CClient> &&_ExistingClient) mutable
 				{
 					bool bExistingClient = !_ExistingClient.f_IsEmpty();
 					if (bExistingClient)
@@ -74,7 +73,8 @@ namespace NMib
 					if (fOnUseTicket)
 						fOnUseTicket(HostID, _HostInfo, _CertificateRequest) > ValidateSignRequestResults.f_AddResult(); 
 					
-					ValidateSignRequestResults.f_GetResults() > Continuation % "Failed to validate request results" / [=](NContainer::TCVector<TCAsyncResult<void>> &&_ValidationResults)
+					ValidateSignRequestResults.f_GetResults() 
+						> Continuation % "Failed to validate request results" / [=, fOnUseTicket = fg_Move(fOnUseTicket)](NContainer::TCVector<TCAsyncResult<void>> &&_ValidationResults)
 						{
 							for (auto &Result : _ValidationResults)
 							{
@@ -204,14 +204,14 @@ namespace NMib
 			;
 		}		
 		
-		TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedActorTrustManager::f_GenerateConnectionTicket
+		TCContinuation<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> CDistributedActorTrustManager::f_GenerateConnectionTicket
 			(
 				CDistributedActorTrustManager_Address const &_Address
 				, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> &&_fOnUseTicket
 			)
 		{
 			auto &Internal = *mp_pInternal;
-			TCContinuation<CDistributedActorTrustManager::CTrustTicket> Continuation;
+			TCContinuation<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> Continuation;
 			Internal.f_RunAfterInit
 				(
 					Continuation
@@ -244,8 +244,20 @@ namespace NMib
 						auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];
 						TicketState.m_CreationTime = Internal.m_TicketTimer.f_Elapsed();
 						TicketState.m_fOnUseTicket = fg_Move(fOnUseTicket);
+						
+						CTrustGenerateConnectionTicketResult Result;
+						Result.m_Ticket = fg_Move(TrustTicket);
+						if (TicketState.m_fOnUseTicket)
+						{
+							Result.m_OnUseTicketSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]
+								{
+									auto &Internal = *mp_pInternal;
+									Internal.m_Tickets.f_Remove(Token);
+								}
+							;
+						}
 			
-						Continuation.f_SetResult(fg_Move(TrustTicket));
+						Continuation.f_SetResult(fg_Move(Result));
 					}
 				)
 			;

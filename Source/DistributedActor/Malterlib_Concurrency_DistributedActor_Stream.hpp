@@ -6,6 +6,11 @@
 namespace NMib::NConcurrency
 {
 	template <uint32 t_SubscriptionID>
+	TCActorSubscriptionWithID<t_SubscriptionID>::TCActorSubscriptionWithID(CNullPtr)
+	{
+	}
+
+	template <uint32 t_SubscriptionID>
 	TCActorSubscriptionWithID<t_SubscriptionID>::TCActorSubscriptionWithID(uint32 _SubscriptionID)
 		: mp_ID(_SubscriptionID)
 	{
@@ -51,6 +56,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction, uint32 t_SubscriptionID>
+	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(CNullPtr)
+		: TCActorFunctor<t_CFunction>()
+	{
+	}
+	
+	template <typename t_CFunction, uint32 t_SubscriptionID>
 	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID(TCActorFunctor<t_CFunction> &&_ActorFunctor)
 		: TCActorFunctor<t_CFunction>(fg_Move(_ActorFunctor))
 	{
@@ -66,6 +77,11 @@ namespace NMib::NConcurrency
 	void TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::f_SetID(uint32 _SubscriptionID)
 	{
 		mp_SubscriptionID = _SubscriptionID;
+	}
+	
+	template <typename t_CInterface, uint32 t_SubscriptionID>
+	TCDistributedActorInterfaceWithID<t_CInterface, t_SubscriptionID>::TCDistributedActorInterfaceWithID(CNullPtr)
+	{
 	}
 	
 	template <typename t_CInterface, uint32 t_SubscriptionID>

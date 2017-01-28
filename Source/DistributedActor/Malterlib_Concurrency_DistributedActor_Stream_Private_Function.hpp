@@ -179,4 +179,10 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		return fp_Call(_Stream, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CParams)>::CType());
 	}
+
+	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
+	bool TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_IsEmpty() const
+	{
+		return m_fFunction.f_IsEmpty();
+	}
 }

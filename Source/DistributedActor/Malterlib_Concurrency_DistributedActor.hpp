@@ -163,18 +163,15 @@ namespace NMib
 		TCDispatchedActorCall<void> TCDelegatedActorInterface<tf_CImplementation>::f_Destroy()
 		{
 			m_pActor = nullptr;
-			return fg_Dispatch
-				(
-					[this]() -> TCContinuation<void>
-					{
-						m_Publication.f_Clear();
-						if (m_Actor.f_IsEmpty())
-							return fg_Explicit();
-						auto Return = m_Actor->f_Destroy2();
-						m_Actor.f_Clear();
-						return Return;
-					}
-				)
+			return g_Dispatch > [this]() -> TCContinuation<void>
+				{
+					m_Publication.f_Clear();
+					if (m_Actor.f_IsEmpty())
+						return fg_Explicit();
+					auto Return = m_Actor->f_Destroy2();
+					m_Actor.f_Clear();
+					return Return;
+				}
 			;
 		}
 		

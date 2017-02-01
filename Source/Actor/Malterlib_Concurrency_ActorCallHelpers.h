@@ -601,8 +601,8 @@ namespace NMib
 				;
 			}
 			
-			template <typename tf_CResult, typename tf_CError>
-			void operator > (TCContinuationWithError<tf_CResult, tf_CError> const &_ContinuationWithError)
+			template <typename tf_CResult>
+			void operator > (TCContinuationWithError<tf_CResult> const &_ContinuationWithError)
 			{
 				*this > NPrivate::fg_DirectResultActor() / 
 					(
@@ -614,8 +614,7 @@ namespace NMib
 				;
 			}
 
-			template <typename tf_CError>
-			void operator > (TCContinuationWithError<void, tf_CError> const &_ContinuationWithError)
+			void operator > (TCContinuationWithError<void> const &_ContinuationWithError)
 			{
 				*this > NPrivate::fg_DirectResultActor() / 
 					(

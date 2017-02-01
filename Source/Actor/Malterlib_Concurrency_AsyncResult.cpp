@@ -5,119 +5,150 @@
 #include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_AsyncResult.h"
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	CAsyncResult::CAsyncResult(CAsyncResult const &_Other) = default;
+	CAsyncResult::CAsyncResult(CAsyncResult &&_Other) = default;
+	CAsyncResult::CAsyncResult() = default;
+	CAsyncResult &CAsyncResult::operator =(CAsyncResult const &_Other) = default;
+	CAsyncResult &CAsyncResult::operator =(CAsyncResult &&_Other) = default;
+	
+	void CAsyncResult::f_Access() const
 	{
-		CAsyncResult::CAsyncResult(CAsyncResult const &_Other) = default;
-		CAsyncResult::CAsyncResult(CAsyncResult &&_Other) = default;
-		
-		void CAsyncResult::f_Access() const
-		{
-			if (m_pException != nullptr)
-				std::rethrow_exception(m_pException);
-		}
+		if (m_pException != nullptr)
+			std::rethrow_exception(m_pException);
+		else if (!m_bHasBeenSet)
+			DMibError("No result specified");
+	}
 
-		CAsyncResult::CAsyncResult() = default;
-		CAsyncResult &CAsyncResult::operator =(CAsyncResult const &_Other) = default;
-		CAsyncResult &CAsyncResult::operator =(CAsyncResult &&_Other) = default;
-		
-		TCAsyncResult<void>::TCAsyncResult() = default;
-		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other) = default;
-		TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
-		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
-		TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
-		
-		CVoidTag TCAsyncResult<void>::f_Get() const
-		{
-			if (m_pException != nullptr)
-				std::rethrow_exception(m_pException);
-			else if (!m_bHasBeenSet)
-				DMibError("No result specified");
-			return CVoidTag();
-		}
-		
-		CVoidTag TCAsyncResult<void>::f_Get()
-		{
-			if (m_pException != nullptr)
-				std::rethrow_exception(m_pException);
-			else if (!m_bHasBeenSet)
-				DMibError("No result specified");
-			return CVoidTag();
-		}
-		
-		CVoidTag TCAsyncResult<void>::f_Move()
-		{
-			if (m_pException != nullptr)
-				std::rethrow_exception(m_pException);
-			else if (!m_bHasBeenSet)
-				DMibError("No result specified");
-			return CVoidTag();
-		}
+	CExceptionPointer CAsyncResult::f_GetException() const
+	{
+		if (m_pException != nullptr)
+			return m_pException;
+		return nullptr;
+	}
 
-		CVoidTag TCAsyncResult<void>::operator *() const
+	NStr::CStr CAsyncResult::f_GetExceptionStr() const
+	{
+		try
 		{
-			return f_Get();
+			f_Access();
 		}
-		
-		CVoidTag TCAsyncResult<void>::operator *()
+		catch (NException::CException const& _Exception)
 		{
-			return f_Get();
+			return _Exception.f_GetErrorStr();
 		}
+		return NStr::CStr();
+	}
+	
+	TCAsyncResult<void>::TCAsyncResult() = default;
+	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult &&_Other) = default;
+	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
+	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
+	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
+	
+	CVoidTag TCAsyncResult<void>::f_Get() const
+	{
+		if (m_pException != nullptr)
+			std::rethrow_exception(m_pException);
+		else if (!m_bHasBeenSet)
+			DMibError("No result specified");
+		return CVoidTag();
+	}
+	
+	CVoidTag TCAsyncResult<void>::f_Get()
+	{
+		if (m_pException != nullptr)
+			std::rethrow_exception(m_pException);
+		else if (!m_bHasBeenSet)
+			DMibError("No result specified");
+		return CVoidTag();
+	}
+	
+	CVoidTag TCAsyncResult<void>::f_Move()
+	{
+		if (m_pException != nullptr)
+			std::rethrow_exception(m_pException);
+		else if (!m_bHasBeenSet)
+			DMibError("No result specified");
+		return CVoidTag();
+	}
 
-		void TCAsyncResult<void>::f_SetException(CExceptionPointer const &_pException)
-		{
-			m_pException = _pException;
-		}
-		
-		void TCAsyncResult<void>::f_SetException(CExceptionPointer &&_pException)
-		{
-			m_pException = fg_Move(_pException);
-		}
-		
-		void TCAsyncResult<void>::f_SetCurrentException()
-		{
-			DMibRequire(!m_bHasBeenSet);
-			DMibRequire(!m_pException);
-			m_pException = fg_CurrentException();
-		}
+	CVoidTag TCAsyncResult<void>::operator *() const
+	{
+		return f_Get();
+	}
+	
+	CVoidTag TCAsyncResult<void>::operator *()
+	{
+		return f_Get();
+	}
 
-		void TCAsyncResult<void>::f_SetResult()
-		{
-			DMibRequire(!m_bHasBeenSet);
-			DMibRequire(!m_pException);
-			m_bHasBeenSet = true;
-		}
+	void CAsyncResult::f_SetException(CExceptionPointer const &_pException)
+	{
+		m_pException = _pException;
+	}
+	
+	void CAsyncResult::f_SetException(CExceptionPointer &&_pException)
+	{
+		m_pException = fg_Move(_pException);
+	}
 
-		TCAsyncResult<void>::operator bool () const
-		{
-			return m_bHasBeenSet;
-		}
+	void CAsyncResult::f_SetException(NException::CException const &_Exception)
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_pException = fg_ExceptionPointer(_Exception);
+	}
 
-		bool TCAsyncResult<void>::f_IsSet() const
-		{
-			return m_bHasBeenSet || m_pException != nullptr;
-		}
-		
-		CExceptionPointer TCAsyncResult<void>::f_GetException() const
-		{
-			if (m_pException != nullptr)
-				return m_pException;
-			return nullptr;
-		}
+	void CAsyncResult::f_SetException(NException::CException &&_Exception)
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_pException = fg_ExceptionPointer(fg_Move(_Exception));
+	}
 
-		NStr::CStr TCAsyncResult<void>::f_GetExceptionStr() const
-		{
-			try
-			{
-				f_Get();
-			}
-			catch (NException::CException const& _Exception)
-			{
-				return _Exception.f_GetErrorStr();
-			}
-			return NStr::CStr();
-		}
+	void CAsyncResult::f_SetException(CAsyncResult &&_AsyncResult)
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_pException = fg_Move(_AsyncResult.m_pException);
+#if DMibConcurrencyDebugActorCallstacks
+		m_Callstacks = fg_Move(_AsyncResult.m_Callstacks);
+#endif
+	}
 
+	void CAsyncResult::f_SetException(CAsyncResult const &_AsyncResult)
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_pException = _AsyncResult.m_pException;
+#if DMibConcurrencyDebugActorCallstacks
+		m_Callstacks = _AsyncResult.m_Callstacks;
+#endif
+	}
+	
+	void CAsyncResult::f_SetCurrentException()
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_pException = fg_CurrentException();
+	}
+
+	void TCAsyncResult<void>::f_SetResult()
+	{
+		DMibRequire(!m_bHasBeenSet);
+		DMibRequire(!m_pException);
+		m_bHasBeenSet = true;
+	}
+
+	CAsyncResult::operator bool () const
+	{
+		return m_bHasBeenSet;
+	}
+
+	bool CAsyncResult::f_IsSet() const
+	{
+		return m_bHasBeenSet || m_pException != nullptr;
 	}
 }

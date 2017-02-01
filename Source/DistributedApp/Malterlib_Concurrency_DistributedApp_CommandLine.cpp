@@ -26,12 +26,26 @@ namespace NMib
 		}
 
 		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults() = default;
+
+		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults(CAsyncResult const &_Result)
+		{
+			f_AddAsyncResult(_Result);
+		}
 		
 		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults(NStr::CStr const &_Output, EOutputType _OutputType)
 		{
 			m_Output.f_Insert(fg_Construct(_Output, _OutputType));
 		}																			 
 
+		void CDistributedAppCommandLineResults::f_AddAsyncResult(CAsyncResult const &_Result)
+		{
+			if (!_Result)
+			{
+				f_AddStdErr(fg_Format("{}\n", _Result.f_GetExceptionStr()));
+				m_Status = 1;
+			}
+		}
+		
 		void CDistributedAppCommandLineResults::f_AddStdOut(CStr const &_Output)
 		{
 			m_Output.f_Insert(fg_Construct(_Output, EOutputType_StdOut));
@@ -77,9 +91,11 @@ namespace NMib
 			{
 				return _Exception;
 			}
+			
+			CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 		
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			fp_PreRunCommandLine(_Command, ValidatedParams) > Continuation / [this, Continuation, ValidatedParams, _Command](CDistributedAppCommandLineResults &&_PreResults)
+			fp_PreRunCommandLine(_Command, ValidatedParams) > Continuation / [this, Continuation, ValidatedParams, _Command, _CallingHost](CDistributedAppCommandLineResults &&_PreResults)
 				{
 					auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
 					
@@ -99,6 +115,7 @@ namespace NMib
 
 					try
 					{
+						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 						Command.m_fActorRunCommand(ValidatedParams) > Continuation / [this, _PreResults, Continuation](CDistributedAppCommandLineResults &&_Results)
 							{
 								auto FinalResults = _PreResults;

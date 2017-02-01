@@ -139,8 +139,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
-		template <typename tf_CErrorString>
-		auto operator % (tf_CErrorString &&_ErrorString) const;
+		auto operator % (NStr::CStr const &_ErrorString) const;
 
 		template <typename tf_FResultHandler>
 		auto operator > (tf_FResultHandler &&_fResultHandler) const;
@@ -155,10 +154,10 @@ namespace NMib::NConcurrency
 		NPtr::TCSharedPointer<NPrivate::TCContinuationData<t_CReturnValue>> m_pData;
 	};
 	
-	template <typename t_CReturnValue, typename t_CError>
+	template <typename t_CReturnValue>
 	struct TCContinuationWithError
 	{
-		TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, t_CError const &_Error);
+		TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, NStr::CStr const &_Error);
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
@@ -167,7 +166,7 @@ namespace NMib::NConcurrency
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
 		TCContinuation<t_CReturnValue> m_Continuation;
-		t_CError m_Error;
+		NStr::CStr m_Error;
 	};
 }
 

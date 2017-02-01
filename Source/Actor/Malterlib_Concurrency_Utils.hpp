@@ -691,6 +691,49 @@ namespace NMib
 		{
 			return fg_Dispatch(fg_ConcurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 		}
+
+		struct CDispatchHelperWithActor
+		{
+			CDispatchHelperWithActor(TCActor<> const &_Actor)
+				: m_Actor(_Actor)
+			{
+			}
+			
+			template <typename tf_FFunction>
+			inline auto operator > (tf_FFunction &&_fFunction) const
+			{
+				return fg_Dispatch(m_Actor, fg_Forward<tf_FFunction>(_fFunction));
+			}
+
+			TCActor<> m_Actor;
+		};
+		
+		struct CDispatchHelper
+		{
+			template <typename tf_FFunction>
+			inline auto operator > (tf_FFunction &&_fFunction) const
+			{
+				return fg_Dispatch(fg_Forward<tf_FFunction>(_fFunction));
+			}
+			
+			inline CDispatchHelperWithActor operator () (TCActor<> const &_Actor) const
+			{
+				return CDispatchHelperWithActor(_Actor); 
+			}
+		};
+		
+		extern CDispatchHelper const &g_Dispatch;
+
+		struct CConcurrentDispatchHelper
+		{
+			template <typename tf_FFunction>
+			inline auto operator > (tf_FFunction &&_fFunction) const
+			{
+				return fg_ConcurrentDispatch(fg_Forward<tf_FFunction>(_fFunction));
+			}
+		};
+		
+		extern CConcurrentDispatchHelper const &g_ConcurrentDispatch;
 		
 		template <typename t_CReturnValue>
 		template <typename tf_FResultHandler>

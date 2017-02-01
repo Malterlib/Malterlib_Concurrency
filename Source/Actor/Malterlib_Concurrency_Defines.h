@@ -143,7 +143,7 @@ namespace NMib
 
 		
 		template <typename tf_CActor>
-		TCActor<tf_CActor> fg_ThisActor(tf_CActor *_pActor);
+		TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
 
 		class CConcurrentActor;
 		class CConcurrentActorLowPrio;

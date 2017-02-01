@@ -38,9 +38,11 @@ namespace NMib
 				EVersion = 0x101
 			};
 
+			CDistributedAppCommandLineResults(CAsyncResult const &_Result);
 			CDistributedAppCommandLineResults();
 			CDistributedAppCommandLineResults(NStr::CStr const &_Output, EOutputType _OutputType = EOutputType_StdOut);
 			
+			void f_AddAsyncResult(CAsyncResult const &_Result);
 			void f_AddStdOut(NStr::CStr const &_Output);
 			void f_AddStdErr(NStr::CStr const &_Output);
 			void f_SetExitStatus(uint32 _Status);

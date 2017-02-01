@@ -488,14 +488,7 @@ namespace NMib::NConcurrency
 				] 
 				() mutable
 				{
-					auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
-					auto PreviousHostInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
-					ThreadLocal.m_CallingHostInfo = fg_Move(CallingHostInfo);
-					auto Cleanup = g_OnScopeExit > [&]
-						{
-							ThreadLocal.m_CallingHostInfo = fg_Move(PreviousHostInfo);
-						}
-					;
+					CCallingHostInfoScope CallingHostInfoScope{fg_Move(CallingHostInfo)};
 
 					CDistributedActorReadStream Stream;
 					Stream.f_OpenRead(ParamData);

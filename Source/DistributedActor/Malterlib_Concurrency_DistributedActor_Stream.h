@@ -104,6 +104,12 @@ namespace NMib::NConcurrency
 	{
 		return fg_CallActor<tf_CMemberFunction, t_pMemberFunction, t_NameHash>(_Actor.f_GetActor(), fg_Forward<tfp_CParams>(p_Params)...); 
 	}
+	
+#define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \
+	DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorReadStream, Consume);
+
+#define DMibDistributedStreamImplement(d_Class) DMibStreamImplement(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \
+	DMibStreamImplement(d_Class, NConcurrency::CDistributedActorReadStream, Consume);
 }
 
 #ifndef DMibPNoShortCuts

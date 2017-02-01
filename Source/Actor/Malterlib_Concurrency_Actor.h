@@ -30,7 +30,7 @@ namespace NMib
 		class CActor
 		{
 			template <typename tf_CActor>
-			friend TCActor<tf_CActor> fg_ThisActor(tf_CActor *_pActor);
+			friend TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
 			friend class CConcurrencyManager;
 			template <typename t_CActor>
 			friend class TCActorInternal;

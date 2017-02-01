@@ -499,6 +499,14 @@ namespace NMib
 			template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
 			TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams &&...p_Params);
 		};
+		
+		struct CCallingHostInfoScope
+		{
+			CCallingHostInfoScope(CCallingHostInfo &&_NewInfo);
+			~CCallingHostInfoScope();
+		private:
+			CCallingHostInfo mp_PrevInfo;
+		};
  
 		struct CActorDistributionManager : public CActor
 		{
@@ -634,6 +642,7 @@ namespace NMib
 		};
 		
 		CCallingHostInfo const &fg_GetCallingHostInfo();
+		NStr::CStr const &fg_GetCallingHostID();
 		CActorDistributionManagerInitSettings fg_InitDistributionManager(CActorDistributionManagerInitSettings const &_Settings);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();

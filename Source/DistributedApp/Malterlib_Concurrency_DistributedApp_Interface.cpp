@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 		mp_State.m_TrustManager
 			(
 				&CDistributedActorTrustManager::f_SubscribeTrustedActors<CDistributedAppInterfaceServer>
-				, "com.malterlib/Concurrency/DistributedAppInterfaceServer"
+				, CDistributedAppInterfaceServer::mc_pDefaultNamespace
 				, fg_ThisActor(this)
 			)
 			> Continuation / [=](TCTrustedActorSubscription<CDistributedAppInterfaceServer> &&_Subscription)
@@ -259,7 +259,7 @@ namespace NMib::NConcurrency
 										mp_State.m_TrustManager
 											(
 												&CDistributedActorTrustManager::f_AllowHostsForNamespace
-												, "com.malterlib/Concurrency/DistributedAppInterfaceServer"
+												, CDistributedAppInterfaceServer::mc_pDefaultNamespace
 												, fg_CreateSet(_HostInfo.m_HostID)
 											)
 											> Continuation % "Failed to allow host for namespace" / fSaveAndSubscribe

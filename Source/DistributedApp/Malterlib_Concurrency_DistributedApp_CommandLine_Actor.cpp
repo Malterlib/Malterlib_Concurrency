@@ -228,8 +228,11 @@ namespace NMib
 			
 			fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Continuation / [this, Continuation]()
 				{
-					fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Continuation / [Continuation]
+					fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Continuation / [this, Continuation]
 						{
+							if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+								mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
+							
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished setting up command line trust");
 							Continuation.f_SetResult();
 						}
@@ -242,9 +245,7 @@ namespace NMib
 
 		bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)
 		{
-			if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
-				return pCommandLineHost->f_String() == _HostID;
-			return false;
+			return _HostID == mp_State.m_CommandLineHostID;
 		}
 	}		
 }

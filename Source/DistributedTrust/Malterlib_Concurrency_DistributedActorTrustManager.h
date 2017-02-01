@@ -77,6 +77,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CPermission>
 		bool f_HostHasAnyPermission(NStr::CStr const &_Host, tfp_CPermission const &...p_Permission) const;
 		
+		bool f_HostHasPermission(NStr::CStr const &_Host, ch8 const *_pPermission) const;
 		bool f_HostHasPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const;
 		bool f_HostHasAnyPermission(NStr::CStr const &_Host, NContainer::TCVector<NStr::CStr> const &_Permissions) const;
 		NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &f_GetPermissions() const;

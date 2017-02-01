@@ -304,6 +304,14 @@ namespace NMib::NConcurrency
 		mp_Permissions.f_Clear();
 	}
 
+	bool CTrustedPermissionSubscription::f_HostHasPermission(NStr::CStr const &_Host, ch8 const *_pPermission) const
+	{
+		auto pHost = mp_Permissions.f_FindEqual(_Host);
+		if (!pHost)
+			return false;
+		return pHost->f_FindEqual(_pPermission) != nullptr;
+	}
+	
 	bool CTrustedPermissionSubscription::f_HostHasPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const
 	{
 		auto pHost = mp_Permissions.f_FindEqual(_Host);

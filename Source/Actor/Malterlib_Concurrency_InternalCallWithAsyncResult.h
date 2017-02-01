@@ -48,8 +48,8 @@ namespace NMib
 				};
 			};
 
-			template <typename t_CReturnValue, typename t_CError>
-			struct TCIsContinuationWithError<TCContinuationWithError<t_CReturnValue, t_CError>>
+			template <typename t_CReturnValue>
+			struct TCIsContinuationWithError<TCContinuationWithError<t_CReturnValue>>
 			{
 				enum
 				{

@@ -147,37 +147,74 @@ namespace NMib::NConcurrency
 			{
 			}
 			
-			template <typename tf_CResult>
-			void operator () (tf_CResult &&_Result);
+			template <typename ...tfp_CResult>
+			void operator () (tfp_CResult && ...p_Result);
 			
 			t_CContinuation m_Continuation;
 		};
 		
 		template <typename t_CContinuation>
-		template <typename tf_CResult>
-		void TCContinuationReceiveAnyFunctor<t_CContinuation>::operator () (tf_CResult &&_Result)
+		template <typename ...tfp_CResult>
+		void TCContinuationReceiveAnyFunctor<t_CContinuation>::operator () (tfp_CResult && ...p_Result)
 		{
 			if (m_Continuation.f_IsSet())
 				return;
-			if (!_Result)
-			{
-				m_Continuation.f_SetException(fg_Move(_Result));
+			
+			TCInitializerList<bool> Dummy = 
+				{
+					[&]
+					{
+						if (m_Continuation.f_IsSet())
+							return true;
+						if (!p_Result)
+							m_Continuation.f_SetException(fg_Move(p_Result));
+						return true;
+					}
+					()...
+				}
+			;
+			(void)Dummy;
+			if (m_Continuation.f_IsSet())
 				return;
-			}
-			m_Continuation.f_SetResult(fg_Move(*_Result));
+			
+			TCInitializerList<bool> Dummy2 = 
+				{
+					[&]
+					{
+						if (m_Continuation.f_IsSet())
+							return true;
+						if (p_Result)
+							m_Continuation.f_SetResult(fg_Move(*p_Result));
+						return true;
+					}
+					()...
+				}
+			;
+			(void)Dummy2;
 		}
 
 		template <>
-		template <typename tf_CResult>
-		void TCContinuationReceiveAnyFunctor<TCContinuation<void>>::operator () (tf_CResult &&_Result)
+		template <typename ...tfp_CResult>
+		void TCContinuationReceiveAnyFunctor<TCContinuation<void>>::operator () (tfp_CResult && ...p_Result)
 		{
 			if (m_Continuation.f_IsSet())
 				return;
-			if (!_Result)
-			{
-				m_Continuation.f_SetException(fg_Move(_Result));
+			TCInitializerList<bool> Dummy = 
+				{
+					[&]
+					{
+						if (m_Continuation.f_IsSet())
+							return true;
+						if (!p_Result)
+							m_Continuation.f_SetException(fg_Move(p_Result));
+						return true;
+					}
+					()...
+				}
+			;
+			(void)Dummy;
+			if (m_Continuation.f_IsSet())
 				return;
-			}
 			m_Continuation.f_SetResult();
 		}
 	}
@@ -379,22 +416,21 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnValue>
-	template <typename tf_CErrorString>
-	auto TCContinuation<t_CReturnValue>::operator % (tf_CErrorString &&_ErrorString) const
+	auto TCContinuation<t_CReturnValue>::operator % (NStr::CStr const &_ErrorString) const
 	{
-		return TCContinuationWithError<t_CReturnValue, typename NTraits::TCDecay<tf_CErrorString>::CType>(*this, _ErrorString);
+		return TCContinuationWithError<t_CReturnValue>(*this, _ErrorString);
 	}
 	
-	template <typename t_CReturnValue, typename t_CError>
-	TCContinuationWithError<t_CReturnValue, t_CError>::TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, t_CError const &_Error)
+	template <typename t_CReturnValue>
+	TCContinuationWithError<t_CReturnValue>::TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, NStr::CStr const &_Error)
 		: m_Continuation(_Continuation)
 		, m_Error(_Error)
 	{
 	}
 
-	template <typename t_CReturnValue, typename t_CError>
+	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCContinuationWithError<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
 		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
 			(auto &&...p_Results) mutable
@@ -422,9 +458,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename t_CReturnValue, typename t_CError>
+	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithError<t_CReturnValue, t_CError>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCContinuationWithError<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
 		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
 			(auto &&...p_Results) mutable

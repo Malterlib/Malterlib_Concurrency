@@ -38,7 +38,11 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SubscribeAppServerInterface()
+	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
+	{
+	}
+	
+	TCContinuation<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
 		mp_AppInterfaceClientImplementation = mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppInterfaceClientImplementation>(fg_ThisActor(this));
 		
@@ -48,6 +52,10 @@ namespace NMib::NConcurrency
 			Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
 			mp_AppInterfaceClientTrustProxy = mp_State.m_DistributionManager->f_ConstructActor<CDistributedActorTrustManagerProxy>(mp_State.m_TrustManager, Permissions);
 		}
+		
+		CDistributedAppInterfaceServer::CRegisterInfo RegisterInfo;
+		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
+		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
 		
 		TCContinuation<void> Continuation;
 		mp_State.m_TrustManager
@@ -76,7 +84,7 @@ namespace NMib::NConcurrency
 							if (mp_AppInterfaceClientTrustProxy)
 								TrustInterface = mp_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 							
-							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), fg_Move(TrustInterface), mp_Settings.m_UpdateType) 
+							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
 								> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<NConcurrency::TCActorSubscriptionWithID<>> &&_Subscription)
 								{
 									if (!_Subscription)
@@ -182,7 +190,7 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SetupAppServerInterface()
+	TCContinuation<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
 		CStr ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
 		CStr RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
@@ -196,7 +204,7 @@ namespace NMib::NConcurrency
 		}
 		
 		if (ServerAddress.f_IsEmpty() || RequestTicketMagic.f_IsEmpty())
-			return fp_SubscribeAppServerInterface();
+			return fp_SubscribeAppServerInterface(_Params);
 
 		TCContinuation<void> Continuation;
 		
@@ -233,12 +241,12 @@ namespace NMib::NConcurrency
 									mp_State.m_StateDatabase.m_Data["DistributedAppInterfaceServerAddress"] = ServerAddress;
 									mp_State.m_StateDatabase.f_Save() > Continuation / [=]
 										{
-											fp_SubscribeAppServerInterface() > Continuation;
+											fp_SubscribeAppServerInterface(_Params) > Continuation;
 										}
 									;
 								}
 								else
-									fp_SubscribeAppServerInterface() > Continuation;
+									fp_SubscribeAppServerInterface(_Params) > Continuation;
 							}
 						;
 

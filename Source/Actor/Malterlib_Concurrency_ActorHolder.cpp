@@ -59,7 +59,7 @@ namespace NMib
 		{
 			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
-			NPrivate::CCurrentActorScope CurrentActor(*mp_pConcurrencyManager, mp_pActor.f_Get());
+			CCurrentActorScope CurrentActor(*mp_pConcurrencyManager, mp_pActor.f_Get());
 			mp_pActor->f_Construct();
 			mint NewWorking = mp_Working.f_Exchange(0);
 			if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)

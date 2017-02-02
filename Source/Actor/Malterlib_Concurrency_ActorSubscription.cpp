@@ -2,7 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
-#include "Malterlib_Concurrency_ActorCallbackManager.h"
+#include "Malterlib_Concurrency_ActorSubscription.h"
 
 namespace NMib::NConcurrency
 {

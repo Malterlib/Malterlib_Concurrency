@@ -73,6 +73,8 @@ namespace NMib::NConcurrency
 		
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
+		template <typename tf_CActor>
+		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
 		
 	private:
 		struct CSubscription
@@ -85,7 +87,7 @@ namespace NMib::NConcurrency
 			CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 			template <typename tf_CActor>
-			TCContinuation<TCDistributedActor<tf_CActor>> f_Subscribe(NStr::CStr const &_Namespace);
+			TCContinuation<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(mint _nActors, NStr::CStr const &_Namespace);
 			
 		private:
 			TCActor<CDistributedActorTrustManager> mp_TrustManager;

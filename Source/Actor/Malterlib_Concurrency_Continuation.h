@@ -133,6 +133,9 @@ namespace NMib::NConcurrency
 		
 		void f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult);
 		
+		auto f_Dispatch() const;
+		auto f_CallSync(fp64 _Timeout) const;
+		
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 

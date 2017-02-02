@@ -29,6 +29,7 @@ namespace NMib
 		}
 		
 		struct CActorDistributionManagerInternal;
+		struct CCurrentActorScope;
 		
 		template <typename t_CActor>
 		class TCActorInternal : public t_CActor::CActorHolder
@@ -131,7 +132,7 @@ namespace NMib
 			
 			
 			friend class CActorHolder;
-			
+			friend struct CCurrentActorScope;			
 			t_CActor *fp_GetActor() const;
 			
 		public:

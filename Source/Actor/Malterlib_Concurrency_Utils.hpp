@@ -692,6 +692,25 @@ namespace NMib
 			return fg_Dispatch(fg_ConcurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 		}
 
+		template <typename t_CReturnValue>
+		auto TCContinuation<t_CReturnValue>::f_Dispatch() const
+		{
+			return fg_ConcurrentDispatch
+				(
+					[Continuation = *this]
+					{
+						return Continuation; 
+					}
+				)
+			;
+		}
+
+		template <typename t_CReturnValue>
+		auto TCContinuation<t_CReturnValue>::f_CallSync(fp64 _Timeout) const
+		{
+			return f_Dispatch().f_CallSync(_Timeout);
+		}
+		
 		struct CDispatchHelperWithActor
 		{
 			CDispatchHelperWithActor(TCActor<> const &_Actor)

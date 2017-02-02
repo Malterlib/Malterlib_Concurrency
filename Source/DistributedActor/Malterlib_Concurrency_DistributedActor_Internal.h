@@ -12,6 +12,7 @@
 #include <Mib/Intrusive/AVLTree>
 #include <Mib/Concurrency/WeakActor>
 #include <Mib/Concurrency/ActorCallbackManager>
+#include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Network/ResolveActor>
 
 #include "Malterlib_Concurrency_DistributedActor.h"

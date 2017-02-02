@@ -20,4 +20,11 @@ namespace NMib::NConcurrency
 	}
 	
 	CDistributedAppInterfaceServer::~CDistributedAppInterfaceServer() = default;
+	
+	template <typename tf_CStream>
+	void CDistributedAppInterfaceServer::CRegisterInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_UpdateType;
+	}
+	DMibDistributedStreamImplement(CDistributedAppInterfaceServer::CRegisterInfo);
 }

@@ -388,14 +388,14 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_Initialize()
+	TCContinuation<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
 		TCContinuation<void> Continuation;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
 		
 		mp_State.m_StateDatabase.f_Load()
 			+ mp_State.m_ConfigDatabase.f_Load()
-			> Continuation / [this, Continuation]()
+			> Continuation / [this, Continuation, _Params]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
 				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> 
@@ -424,15 +424,15 @@ namespace NMib::NConcurrency
 				;
 				
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
-					> Continuation % "Failed to initialize trust manager" / [this, Continuation]()
+					> Continuation % "Failed to initialize trust manager" / [this, Continuation, _Params]()
 					{
 						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
 							> Continuation % "Failed to initialize trust manager"
-							/ [this, Continuation](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager)
+							/ [this, Continuation, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager)
 							{
 								mp_State.m_DistributionManager = fg_Move(_DistributionManager);
 								fp_SetupListen()
-									+ fp_SetupAppServerInterface()
+									+ fp_SetupAppServerInterface(_Params)
 									> Continuation % "Failed to setup listen config or app server interface" / [this, Continuation]()
 									{
 										fp_SetupCommandLineTrust()
@@ -467,9 +467,9 @@ namespace NMib::NConcurrency
 			mp_pInitOnce = fg_Construct
 				(
 					self
-					, [this]() -> TCContinuation<void>
+					, [this, _Params]() -> TCContinuation<void>
 					{
-						return fp_Initialize();
+						return fp_Initialize(_Params);
 					}
 				)
 			;

@@ -99,27 +99,6 @@ namespace NMib
 			fg_Swallow(pCombinedReference->m_References.f_Insert(fg_Move(p_Params))...);
 			return fg_Move(pCombinedReference);
 		}		
-		
-		CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup);
-
-		struct CActorSubscriptionHelperWithActor
-		{
-			inline CActorSubscriptionHelperWithActor(TCActor<> const &_Actor);
-			template <typename tf_FCleanup>
-			inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
-			
-		private:
-			TCActor<> const &mp_Actor;
-		};
-		
-		struct CActorSubscriptionHelper
-		{
-			template <typename tf_FCleanup>
-			inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
-			inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
-		};
-		
-		extern CActorSubscriptionHelper const &g_ActorSubscription;
 	}
 }
 

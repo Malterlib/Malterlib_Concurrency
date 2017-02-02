@@ -6,122 +6,17 @@
 #include <Mib/Core/Core>
 #include <Mib/Encoding/SimpleJSONDatabase>
 #include <Mib/Concurrency/ActorCallOnce>
+#include <Mib/Concurrency/DistributedAppInterface>
 
 #include "Malterlib_Concurrency_DistributedApp_CommandLine.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLineClient.h"
+#include "Malterlib_Concurrency_DistributedApp_Settings.h"
+#include "Malterlib_Concurrency_DistributedApp_Auditor.h"
 
 namespace NMib::NConcurrency
 {
-	enum EDistributedAppUpdateType
-	{
-		EDistributedAppUpdateType_Independent
-		, EDistributedAppUpdateType_OneAtATime
-		, EDistributedAppUpdateType_AllAtOnce
-	};
-	
-	struct CDistributedAppActor_Settings
-	{
-		CDistributedAppActor_Settings() = default;
-		CDistributedAppActor_Settings
-			(
-				NStr::CStr const &_AppName
-				, bool _bRequireListen
-				, NStr::CStr const &_ConfigDirectory = NFile::CFile::fs_GetProgramDirectory()
-				, bool _bSeparateConcurrencyManager = false
-				, NNet::CSSLKeySetting _KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting()
-				, NStr::CStr const &_FriendlyName = NStr::CStr()
-				, NStr::CStr const &_Enclave = fg_DistributedActorSuggestedEnclave()
-				, EDistributedAppUpdateType _UpdateType = EDistributedAppUpdateType_Independent 
-				, NStr::CStr const &_AuditCategory = {}
-			)
-		;
-		NStr::CStr f_GetCompositeFriendlyName() const;
-		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
-		
-		CDistributedAppActor_Settings &&f_ConfigDirectory(NStr::CStr const &_ConfigDirectory) &&;
-		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
-		CDistributedAppActor_Settings &&f_Enclave(NStr::CStr const &_Enclave) &&;
-		CDistributedAppActor_Settings &&f_AuditCategory(NStr::CStr const &_Category) &&;
-		CDistributedAppActor_Settings &&f_SeparateConcurrencyManager(bool _bSeparateConcurrencyManager) &&;
-		CDistributedAppActor_Settings &&f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&;
-		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
-		
-		NStr::CStr m_AppName;
-		NStr::CStr m_ConfigDirectory;
-		NStr::CStr m_FriendlyName;
-		NStr::CStr m_AuditCategory;
-		NStr::CStr m_Enclave;
-		NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
-		NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
-		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
-		bool m_bRequireListen = false;
-		bool m_bSeparateConcurrencyManager = false;
-	private:
-		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific) const;
-	};
-	
 	struct CDistributedAppActor;
 	struct CDistributedAppInterfaceClient;
-	struct CDistributedAppInterfaceServer;
-	struct CDistributedAppInterfaceClientDistributedAppActor;
-	
-	struct CDistributedAppAuditor
-	{
-		CDistributedAppAuditor();
-		~CDistributedAppAuditor();
-		CDistributedAppAuditor(TCWeakActor<CDistributedAppActor> const &_AppActor, CCallingHostInfo const &_CallingHostInfo);
-		NStr::CStr f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Audit(NLog::ESeverity _Severity, NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Critical(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Critical(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Error(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Error(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		NException::CException f_Exception(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NException::CException f_Exception(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		NException::CException f_AccessDenied(NStr::CStr const &_Message = {}, NStr::CStr const &_Category = {}) const;
-		NException::CException f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		
-		NStr::CStr f_Warning(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Warning(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Info(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
-		NStr::CStr f_Info(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
-		
-		CCallingHostInfo const &f_HostInfo() const;
-		
-	private:
-		CCallingHostInfo mp_CallingHostInfo;
-		TCWeakActor<CDistributedAppActor> mp_AppActor;
-	};
-
-	template <typename t_CReturnValue>
-	struct TCContinuationWithAppAuditor
-	{
-		TCContinuationWithAppAuditor(TCContinuation<t_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor);
-
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCContinuation<t_CReturnValue> m_Continuation;
-		CDistributedAppAuditor m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct TCContinuationWithErrorWithAppAuditor
-	{
-		TCContinuationWithErrorWithAppAuditor(TCContinuationWithError<t_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor);
-
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCContinuationWithError<t_CReturnValue> m_Continuation;
-		CDistributedAppAuditor m_Auditor;
-	};
 	
 	struct CDistributedAppState
 	{
@@ -215,6 +110,7 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<void> fp_StopApp() = 0;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
 		virtual TCContinuation<CDistributedAppCommandLineResults> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
 		virtual TCContinuation<void> fp_PreUpdate();
 		
@@ -223,10 +119,10 @@ namespace NMib::NConcurrency
 	private:
 		struct CDistributedAppInterfaceClientImplementation;
 		
-		TCContinuation<void> fp_Initialize();
+		TCContinuation<void> fp_Initialize(NEncoding::CEJSON const &_Params);
 		TCContinuation<void> fp_SetupListen();
-		TCContinuation<void> fp_SetupAppServerInterface();
-		TCContinuation<void> fp_SubscribeAppServerInterface();
+		TCContinuation<void> fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params);
+		TCContinuation<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params);
 		TCContinuation<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr const &_RequestMagic);
 		
 		TCContinuation<void> fp_CreateCommandLineTrust();

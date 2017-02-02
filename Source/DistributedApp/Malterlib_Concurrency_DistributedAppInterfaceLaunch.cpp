@@ -3,7 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Cryptography/RandomID>
-#include <Mib/Concurrency/ActorCallbackManager>
+#include <Mib/Concurrency/ActorSubscription>
 
 #include "Malterlib_Concurrency_DistributedAppInterfaceLaunch.h"
 

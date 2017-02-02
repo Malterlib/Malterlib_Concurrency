@@ -5,8 +5,9 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActorTrustManager>
+
+#include "Malterlib_Concurrency_DistributedApp_Settings.h"
 
 namespace NMib::NConcurrency
 {
@@ -33,6 +34,14 @@ namespace NMib::NConcurrency
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x102
 		};
+		
+		struct CRegisterInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			
+			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
+		};
 
 		CDistributedAppInterfaceServer();
 		~CDistributedAppInterfaceServer();
@@ -41,7 +50,7 @@ namespace NMib::NConcurrency
 			(
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
 				, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
-				, EDistributedAppUpdateType _UpdateType
+				, CRegisterInfo const &_RegisterInfo
 			) = 0
 		;
 	};

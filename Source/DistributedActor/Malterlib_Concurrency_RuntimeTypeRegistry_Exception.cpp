@@ -34,6 +34,7 @@ namespace NMib
 		
 			NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result)
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				try
 				{
 					_Result.f_Access();
@@ -42,6 +43,9 @@ namespace NMib
 				catch (NException::CExceptionBase const &_Exception)
 				{
 					return fg_StreamAsyncResultException(_Exception);
+				}
+				catch (...)
+				{
 				}
 				
 				return fg_StreamAsyncResultException(DMibErrorInstance("Non Malterlib exception encountered in remote actor call"));
@@ -65,6 +69,7 @@ namespace NMib
 			
 			void fg_StreamAsyncResultException(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &_Stream, NConcurrency::CAsyncResult const &_Result)
 			{
+				NException::CDisableExceptionTraceScope DisableTrace;
 				try
 				{
 					_Result.f_Access();
@@ -73,6 +78,9 @@ namespace NMib
 				catch (NException::CExceptionBase const &_Exception)
 				{
 					return fg_StreamAsyncResultException(_Stream, _Exception);
+				}
+				catch (...)
+				{
 				}
 				
 				return fg_StreamAsyncResultException(_Stream, DMibErrorInstance("Non Malterlib exception encountered in remote actor call"));

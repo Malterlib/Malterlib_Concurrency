@@ -22,6 +22,7 @@ namespace NMib
 		class CSeparateThreadActorHolder;
 		struct CSeparateThreadActor;
 		class CDelegatedActorHolder;
+		struct CCurrentActorScope;
 
 		template <typename t_CActor, typename t_CFunctor>
 		struct TCActorResultCall;

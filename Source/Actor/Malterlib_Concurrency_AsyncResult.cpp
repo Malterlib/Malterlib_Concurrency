@@ -94,20 +94,6 @@ namespace NMib::NConcurrency
 		m_pException = fg_Move(_pException);
 	}
 
-	void CAsyncResult::f_SetException(NException::CException const &_Exception)
-	{
-		DMibRequire(!m_bHasBeenSet);
-		DMibRequire(!m_pException);
-		m_pException = fg_ExceptionPointer(_Exception);
-	}
-
-	void CAsyncResult::f_SetException(NException::CException &&_Exception)
-	{
-		DMibRequire(!m_bHasBeenSet);
-		DMibRequire(!m_pException);
-		m_pException = fg_ExceptionPointer(fg_Move(_Exception));
-	}
-
 	void CAsyncResult::f_SetException(CAsyncResult &&_AsyncResult)
 	{
 		DMibRequire(!m_bHasBeenSet);

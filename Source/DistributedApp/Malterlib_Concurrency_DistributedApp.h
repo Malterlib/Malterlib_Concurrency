@@ -114,6 +114,9 @@ namespace NMib::NConcurrency
 
 		virtual TCContinuation<void> fp_PreUpdate();
 		
+		TCContinuation<void> fp_SaveStateDatabase();
+		TCContinuation<void> fp_SaveConfigDatabase();
+		
 		CDistributedAppState mp_State;
 		
 	private:
@@ -155,9 +158,11 @@ namespace NMib::NConcurrency
 		COnScopeExitShared mp_pStdInCleanup;
 		
 		TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;
-		TCDistributedActor<CDistributedAppInterfaceClient> mp_AppInterfaceClientImplementation;
+		TCDelegatedActorInterface<CDistributedAppInterfaceClientImplementation> mp_AppInterfaceClientImplementation;
 		TCDistributedActor<CDistributedActorTrustManagerInterface> mp_AppInterfaceClientTrustProxy;
 		CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
+		TCAsyncResult<void> mp_AppStartupResult;
+		NContainer::TCVector<TCContinuation<void>> mp_DeferredAppStartupResults;
 		
 		bool mp_bDelegateTrustToAppInterface = false;
 	};

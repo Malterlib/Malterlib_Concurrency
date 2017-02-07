@@ -10,6 +10,7 @@ namespace NMib::NConcurrency
 	CDistributedAppInterfaceClient::CDistributedAppInterfaceClient()
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_PreUpdate);
+		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_GetAppStartResult);
 	}
 	
 	CDistributedAppInterfaceClient::~CDistributedAppInterfaceClient() = default;

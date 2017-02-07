@@ -37,7 +37,7 @@ namespace NMib
 		struct CResultSubscriptionData;
 		namespace NActorDistributionManagerInternal
 		{
-			struct CConnection
+			struct CConnection : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 			{
 				virtual ~CConnection()
 				{
@@ -319,8 +319,8 @@ namespace NMib
 			CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings);
 			~CActorDistributionManagerInternal();
 			
-			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CClientConnection>> m_ClientConnections;
-			NContainer::TCMap<mint, NPtr::TCSharedPointer<CServerConnection>> m_ServerConnections;
+			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CClientConnection, NPtr::CSupportWeakTag>> m_ClientConnections;
+			NContainer::TCMap<mint, NPtr::TCSharedPointer<CServerConnection, NPtr::CSupportWeakTag>> m_ServerConnections;
 			mint m_NextConnectionID = 0;
 			
 			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag>> m_Hosts;
@@ -357,7 +357,7 @@ namespace NMib
 			
 			void fp_ScheduleReconnect
 				(
-					NPtr::TCSharedPointer<CClientConnection> const &_pConnection
+					NPtr::TCSharedPointer<CClientConnection, NPtr::CSupportWeakTag> const &_pConnection
 					, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
 					, bool _bRetry
 					, mint _Sequence
@@ -366,7 +366,7 @@ namespace NMib
 			;
 			void fp_Reconnect
 				(
-					NPtr::TCSharedPointer<CClientConnection> const &_pConnection
+					NPtr::TCSharedPointer<CClientConnection, NPtr::CSupportWeakTag> const &_pConnection
 					, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
 					, bool _bRetry
 				)

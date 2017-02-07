@@ -149,11 +149,13 @@ namespace NMib
 			
 			struct CActorDistributionManagerAccessHandler : public ICActorDistributionManagerAccessHandler
 			{
+				using CActorHolder = CDelegatedActorHolder;
+				
 				TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) override;
-				CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
-			private:
-				CDistributedActorTrustManager::CInternal *mp_pInternal;
-				TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;
+
+				CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
+
+				CDistributedActorTrustManager::CInternal *m_pThis;
 			};
 			
 			CInternal

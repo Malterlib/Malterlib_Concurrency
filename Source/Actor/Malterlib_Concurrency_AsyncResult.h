@@ -45,8 +45,8 @@ namespace NMib::NConcurrency
 		CExceptionPointer f_GetException() const;
 		
 		void f_SetCurrentException();
-		void f_SetException(NException::CException const &_Exception);
-		void f_SetException(NException::CException &&_Exception);
+		template <typename tf_CException, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CException>::mc_Value> * = nullptr>
+		void f_SetException(tf_CException &&_Exception);
 		void f_SetException(CAsyncResult && _AsyncResult);
 		void f_SetException(CAsyncResult const &_AsyncResult);
 		void f_SetException(CExceptionPointer const &_pException);

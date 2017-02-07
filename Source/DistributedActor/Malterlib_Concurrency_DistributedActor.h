@@ -333,7 +333,7 @@ namespace NMib
 			NStr::CStr mp_ActorID;
 		};
 
-		template <typename tf_CImplementation>
+		template <typename t_CImplementation>
 		struct TCDelegatedActorInterface
 		{
 			void f_Clear();
@@ -341,10 +341,12 @@ namespace NMib
 			
 			template <typename ...tfp_CInterfaces, typename tf_CThis>
 			TCContinuation<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
+			template <typename tf_CThis>
+			void f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis);
 			
-			TCDistributedActor<tf_CImplementation> m_Actor;
+			TCDistributedActor<t_CImplementation> m_Actor;
 			CDistributedActorPublication m_Publication;
-			tf_CImplementation *m_pActor;
+			t_CImplementation *m_pActor;
 		};
 		
 		struct CDistributedActorListenReference
@@ -442,7 +444,7 @@ namespace NMib
 			NStr::CStr const &f_GetRealHostID() const;
 			NStr::CStr const &f_GetUniqueHostID() const;
 			CHostInfo const &f_GetHostInfo() const;
-			TCActor<CActorDistributionManager> const &f_GetDistributionManager() const;
+			TCActor<CActorDistributionManager> f_GetDistributionManager() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
 			uint32 f_GetProtocolVersion() const;
 			
@@ -453,7 +455,7 @@ namespace NMib
 			void f_Consume(CDistributedActorReadStream &_Stream);
 			
 		private:
-			TCActor<CActorDistributionManager> mp_DistributionManager;
+			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
 			CHostInfo mp_HostInfo;
 			NStr::CStr mp_LastExecutionID;
@@ -529,7 +531,8 @@ namespace NMib
 			CActorDistributionManager(CActorDistributionManagerInitSettings const &_InitSettings);
 			~CActorDistributionManager();
 			
-			void f_Construct();
+			void f_Construct() override;
+			TCContinuation<void> f_Destroy() override;
 			
 			void f_SetSecurity(CDistributedActorSecurity const &_Security);
 			void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);

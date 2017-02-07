@@ -206,7 +206,19 @@ namespace NMib
 			pActor(&CActor::f_Destroy)
 				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result) mutable
 				{
-					_Result.f_Get();
+					try
+					{
+						_Result.f_Get();
+					}
+					catch (CExceptionActorDeleted const &)
+					{
+						return; // Already destroyed
+					}
+					catch (NException::CException const &)
+					{
+						DMibConErrOut("Failed to destroy actor: {}\n", _Result.f_GetExceptionStr());
+						DMibPDebugBreak;
+					}
 					pActor->fp_Terminate(nullptr);
 				}
 			;
@@ -497,7 +509,19 @@ namespace NMib
 		{
 			auto pDelegateTo = mp_pDelegateTo.f_Lock();
 			if (pDelegateTo)
-				pDelegateTo->f_QueueProcess(fg_Move(_Functor), _bSame);
+			{
+				pDelegateTo->f_QueueProcess
+					(
+						[pThisWeak = TCActorHolderWeakPointer<CDelegatedActorHolder>{this}, Functor = fg_Move(_Functor)]() mutable
+						{
+							auto pThis = pThisWeak.f_Lock();
+							if (pThis && pThis->mp_pActor)
+								Functor();
+						}
+						, _bSame
+					)
+				;
+			}
 			else
 				CDefaultActorHolder::f_QueueProcess(fg_Move(_Functor), _bSame);
 		}
@@ -528,16 +552,10 @@ namespace NMib
 		
 		CConcurrentRunQueue::~CConcurrentRunQueue()
 		{
-			CQueueEntry *pEntry = mp_pFirstQueued.f_Exchange(nullptr);
+			f_TransferThreadSafeQueue();
 			
-			while (pEntry)
-			{
-				auto *pNextEntry = pEntry->m_pNextQueued.f_Load();
-				
+			while (CQueueEntry *pEntry = mp_LocalQueue.f_Pop())
 				delete pEntry;
-				
-				pEntry = pNextEntry;
-			}
 		}
 		
 		void CConcurrentRunQueue::f_AddToQueue(FActorQueueDispatch &&_Functor)

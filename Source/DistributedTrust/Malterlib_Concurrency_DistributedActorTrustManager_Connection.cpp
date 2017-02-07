@@ -181,10 +181,8 @@ namespace NMib
 		CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::CActorDistributionManagerAccessHandler
 			(
 				CDistributedActorTrustManager::CInternal *_pInternal
-				, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor
 			)
-			: mp_pInternal(_pInternal)
-			, mp_ThisActor(_ThisActor)
+			: m_pThis(_pInternal)
 		{
 		}
 
@@ -194,15 +192,7 @@ namespace NMib
 				, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain
 			)
 		{
-			return fg_Dispatch
-				(
-					mp_ThisActor
-					, [pInternal = mp_pInternal, _HostID, _CertificateChain]
-					{
-						return pInternal->f_ValidateClientAccess(_HostID, _CertificateChain);
-					}
-				)
-			;
+			return m_pThis->f_ValidateClientAccess(_HostID, _CertificateChain);
 		}		
 		
 		TCContinuation<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> CDistributedActorTrustManager::f_GenerateConnectionTicket

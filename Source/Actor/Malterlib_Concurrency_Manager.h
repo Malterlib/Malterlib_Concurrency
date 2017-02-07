@@ -25,19 +25,41 @@ namespace NMib
 	{
 		class CConcurrencyManager
 		{
+		public:
+			CConcurrencyManager();
+			~CConcurrencyManager();
+			void f_Stop();
+
+			template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
+			TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
+
+			template <typename tf_CType, typename... tfp_CParams>
+			TCActor<tf_CType> f_ConstructFromInternalActor
+				(
+					TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
+					, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
+				)
+			;
+
+			void f_BlockOnDestroy();
+			TCActor<CConcurrentActor> const &f_GetConcurrentActor();
+			TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
+			TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
+			TCActor<CTimerActor> const &f_GetTimerActor();
+			TCActor<CActor> f_CurrentActor();
+			
+			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+
+		private:
 			template <typename t_CActor>
 			friend class TCActorInternal;
 
 			friend class CActorHolder;
 			friend class CActor;
 			friend class CDefaultActorHolder;
+			friend struct CCurrentActorScope;
 
-			NAtomic::TCAtomic<mint> m_nActors;
-#ifdef DMibDebug
-			NThread::CMutual m_ActorListLock;
-			DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
-#endif
-			
 			struct CQueue
 			{
 				align_cacheline NAtomic::TCAtomic<mint> m_Working;
@@ -50,22 +72,6 @@ namespace NMib
 				CQueue();
 			};
 			
-			mint m_nThreads = 0;
-			NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
-			
-			bool m_bDestroyed = false;
-
-			align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
-			NThread::CMutual m_pConcurrentActorLock;
-			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors[EPriority_Max];
-			NThread::CMutual m_pTimerActorLock;
-			TCActor<CTimerActor> m_pTimerActor;
-
-			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue);
-			bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
-
-		public:
 			struct CThreadLocal
 			{
 				CThreadLocal()
@@ -94,36 +100,30 @@ namespace NMib
 				mint m_iConcurrentActor[EPriority_Max];
 				mint m_JobQueueIndex[EPriority_Max];
 			};
-			
-			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 
+			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
+			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue);
+			bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
 			inline_never mint fp_InitConcurrentActors();
+
+			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
 			
-		public:
-			CConcurrencyManager();
-			~CConcurrencyManager();
-			void f_Stop();
-
-			template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>
-			TCActor<tf_CType> f_ConstructActor(TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams, tfp_CHolderParams&&... p_Params);
-
-			template <typename tf_CType, typename... tfp_CParams>
-			TCActor<tf_CType> f_ConstructFromInternalActor
-				(
-					TCActorHolderSharedPointer<TCActorInternal<tf_CType>> &&_pInternalActor
-					, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
-				)
-			;
-
-			void f_BlockOnDestroy();
-			TCActor<CConcurrentActor> const &f_GetConcurrentActor();
-			TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
-			TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
-			TCActor<CTimerActor> const &f_GetTimerActor();
-			TCActor<CActor> f_CurrentActor();
+			NAtomic::TCAtomic<mint> m_nActors;
+#ifdef DMibDebug
+			NThread::CMutual m_ActorListLock;
+			DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
+#endif
 			
-			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
-			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+			mint m_nThreads = 0;
+			NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
+			
+			bool m_bDestroyed = false;
+
+			align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
+			NThread::CMutual m_pConcurrentActorLock;
+			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors[EPriority_Max];
+			NThread::CMutual m_pTimerActorLock;
+			TCActor<CTimerActor> m_pTimerActor;
 		};
 		
 	

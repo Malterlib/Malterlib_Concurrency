@@ -151,16 +151,16 @@ namespace NMib
 			t_CInterface::m_pThis = _pDelegateTo;
 		}		
 		
-		template <typename tf_CImplementation>
-		void TCDelegatedActorInterface<tf_CImplementation>::f_Clear()
+		template <typename t_CImplementation>
+		void TCDelegatedActorInterface<t_CImplementation>::f_Clear()
 		{
 			m_Publication.f_Clear();
 			m_Actor.f_Clear();
 			m_pActor = nullptr;
 		}
 		
-		template <typename tf_CImplementation>
-		TCDispatchedActorCall<void> TCDelegatedActorInterface<tf_CImplementation>::f_Destroy()
+		template <typename t_CImplementation>
+		TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
 		{
 			m_pActor = nullptr;
 			return g_Dispatch > [this]() -> TCContinuation<void>
@@ -175,19 +175,18 @@ namespace NMib
 			;
 		}
 		
-		template <typename tf_CImplementation>
+		template <typename t_CImplementation>
 		template <typename ...tfp_CInterfaces, typename tf_CThis>
-		TCContinuation<void> TCDelegatedActorInterface<tf_CImplementation>::f_Publish
+		TCContinuation<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
 			(
 				TCActor<CActorDistributionManager> const &_DistributionManager
 				, tf_CThis *_pThis
 				, NStr::CStr const &_Namespace
 			)
 		{
+			f_Construct(_DistributionManager, _pThis);
+			
 			TCContinuation<void> Continuation;
-			auto Interface = _DistributionManager->f_ConstructInterface<tf_CImplementation>(_pThis);
-			m_pActor = &Interface->f_AccessInternal();
-			m_Actor = fg_Move(Interface);
 			m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
 				> Continuation / [this, Continuation] (CDistributedActorPublication &&_Publication)
 				{
@@ -196,6 +195,15 @@ namespace NMib
 				}
 			;
 			return Continuation;
+		}
+		
+		template <typename t_CImplementation>
+		template <typename tf_CThis>
+		void TCDelegatedActorInterface<t_CImplementation>::f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis)
+		{
+			auto Interface = _DistributionManager->f_ConstructInterface<t_CImplementation>(_pThis);
+			m_pActor = &Interface->f_AccessInternal();
+			m_Actor = fg_Move(Interface);
 		}
 		
 		template <typename ...tfp_CInterface>

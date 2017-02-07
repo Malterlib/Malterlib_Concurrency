@@ -22,6 +22,7 @@ namespace NMib
 						auto &Internal = *mp_pInternal; 
 						return Internal.f_InitAttempt();
 					}
+					, false
 				)
 			;
 			
@@ -199,7 +200,7 @@ namespace NMib
 				}
 				m_ActorDistributionManager = fg_GetDistributionManager();
 			}
-			m_AccessHandler = fg_ConstructActor<CActorDistributionManagerAccessHandler>(this, fg_ThisActor(m_pThis));
+			m_AccessHandler = fg_ConstructActor<CActorDistributionManagerAccessHandler>(fg_Construct(fg_ThisActor(m_pThis)), this);
 			m_ActorDistributionManager(&CActorDistributionManager::f_SetAccessHandler, m_AccessHandler)
 				+ m_ActorDistributionManager(&CActorDistributionManager::f_SetHostnameTraslate, m_TranslateHostnames)
 				+ m_ActorDistributionManager

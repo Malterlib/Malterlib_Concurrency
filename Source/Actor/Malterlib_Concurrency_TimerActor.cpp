@@ -173,6 +173,30 @@ namespace NMib
 				*m_pDestroyed = true;
 		}
 
+		void CTimerActor::f_FireAllTimeouts()
+		{
+			for (auto iTimer = m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
+			{
+				auto &Timer = *iTimer;
+				++iTimer;
+
+				auto TimerType = Timer.m_TimerType;
+
+				Timer.m_Callbacks();
+
+				switch (TimerType)
+				{
+				case ETimerType_Oneshot:
+					m_TimerQueue.f_Remove(&Timer);
+					m_OneshotTimers.f_Remove(Timer);
+					break;
+				case ETimerType_Exact:
+				case ETimerType_Normal:
+					break;
+				}
+			}
+		}
+
 		void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 		{
 			DMibRequire(_Period > 0.0);

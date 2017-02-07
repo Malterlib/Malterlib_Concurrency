@@ -59,7 +59,6 @@ namespace NMib::NConcurrency
 			}
 		}
 		
-		
 		CSubSystem_Concurrency_DistributedActor::CSubSystem_Concurrency_DistributedActor()
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
@@ -394,7 +393,7 @@ namespace NMib::NConcurrency
 		_Stream >> mp_HostInfo;
 		_Stream >> mp_LastExecutionID;
 		_Stream >> mp_ProtocolVersion;
-		mp_DistributionManager = _Stream.f_GetState().m_DistributionManager.f_Lock();
+		mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
 	}
 	
 	uint32 CCallingHostInfo::f_GetProtocolVersion() const
@@ -431,17 +430,28 @@ namespace NMib::NConcurrency
 		; 
 	}		
 	
-	TCActor<CActorDistributionManager> const &CCallingHostInfo::f_GetDistributionManager() const
+	TCActor<CActorDistributionManager> CCallingHostInfo::f_GetDistributionManager() const
 	{
-		return mp_DistributionManager;
+		return mp_DistributionManager.f_Lock();
 	}
 	
 	TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const
 	{
 		return fg_ConcurrentDispatch
 			(
-				[DistributionManager = mp_DistributionManager, fOnDisconnect = fg_Move(_fOnDisconnect), UniqueHostID = mp_UniqueHostID, LastExecutionID = mp_LastExecutionID, _Actor]() mutable
+				[
+					WeakDistributionManager = mp_DistributionManager
+					, fOnDisconnect = fg_Move(_fOnDisconnect)
+					, UniqueHostID = mp_UniqueHostID
+					, LastExecutionID = mp_LastExecutionID
+					, _Actor
+				]
+				() mutable -> TCContinuation<CActorSubscription>
 				{
+					auto DistributionManager = WeakDistributionManager.f_Lock();
+					if (!DistributionManager)
+						return DMibErrorInstance("Distribution manager was deleted");
+					
 					TCContinuation<CActorSubscription> Continuation;
 					DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Continuation;
 					return Continuation;

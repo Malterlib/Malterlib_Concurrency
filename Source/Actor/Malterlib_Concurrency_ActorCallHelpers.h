@@ -286,9 +286,9 @@ namespace NMib::NConcurrency
 		template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
 		void operator > (tf_CFunctor &&_Functor)
 		{
-			auto pActor = NContainer::fg_Get<0>(m_Calls).mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+			auto pActor = NContainer::fg_Get<0>(m_Calls).mp_Actor->f_ConcurrencyManager().f_CurrentActor();
 			DMibFastCheck(pActor);
-			fp_ActorCall(fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
+			fp_ActorCall(pActor / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
 		}
 		
 		auto f_CallSync(fp64 _Timeout = -1.0)
@@ -574,9 +574,9 @@ namespace NMib::NConcurrency
 		>
 		void operator > (tf_CFunctor &&_Functor)
 		{
-			auto pActor = mp_Actor->f_ConcurrencyManager().m_ThreadLocal->m_pCurrentActor;
+			auto pActor = mp_Actor->f_ConcurrencyManager().f_CurrentActor();
 			DMibFastCheck(pActor);
-			*this > fg_ThisActor(pActor) / fg_Forward<tf_CFunctor>(_Functor);
+			*this > pActor / fg_Forward<tf_CFunctor>(_Functor);
 		}
 		
 		template <typename tf_CResultActor, typename tf_CResultFunctor>

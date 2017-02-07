@@ -15,13 +15,14 @@ namespace NMib::NConcurrency
 	{
 		enum 
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EMinProtocolVersion = 0x102
+			, EProtocolVersion = 0x102
 		};
 		
 		CDistributedAppInterfaceClient();
 		~CDistributedAppInterfaceClient();
-		
+
+		virtual NConcurrency::TCContinuation<void> f_GetAppStartResult() = 0;
 		virtual NConcurrency::TCContinuation<void> f_PreUpdate() = 0;
 	};
 	
@@ -39,6 +40,11 @@ namespace NMib::NConcurrency
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
+			
+			bool operator == (CRegisterInfo const &_Right) const
+			{
+				return m_UpdateType == _Right.m_UpdateType;
+			}
 			
 			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		};

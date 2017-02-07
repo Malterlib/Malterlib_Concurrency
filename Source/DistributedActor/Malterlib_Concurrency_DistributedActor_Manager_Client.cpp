@@ -133,7 +133,7 @@ namespace NMib
 		
 		void CActorDistributionManagerInternal::fp_ScheduleReconnect
 			(
-				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
+				NPtr::TCSharedPointer<CClientConnection, NPtr::CSupportWeakTag> const &_pConnection
 				, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
 				, bool _bRetry
 				, mint _Sequence
@@ -193,7 +193,7 @@ namespace NMib
 
 		void CActorDistributionManagerInternal::fp_Reconnect
 			(
-				NPtr::TCSharedPointer<CClientConnection> const &_pConnection
+				NPtr::TCSharedPointer<CClientConnection, NPtr::CSupportWeakTag> const &_pConnection
 				, NPtr::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
 				, bool _bRetry
 			)
@@ -221,10 +221,26 @@ namespace NMib
 					, fg_Move(Request)
 					, NNet::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
 				)
-				> [this, _pConnection, _pContinuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
+				> [this, pConnectionWeak = _pConnection.f_Weak(), _pContinuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 				{
-					auto fReportError = [this, _bRetry, _pContinuation, _pConnection, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
+					auto pConnection = pConnectionWeak.f_Lock();
+					if (!pConnection)
+					{
+						if (_pContinuation)
+							_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+						return;
+					}
+					
+					auto fReportError = [this, _bRetry, _pContinuation, pConnectionWeak, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
 						{
+							auto pConnection = pConnectionWeak.f_Lock();
+							if (!pConnection)
+							{
+								if (_pContinuation)
+									_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+								return;
+							}
+							
 							if (!_bRetry)
 							{
 								if (_pContinuation)
@@ -232,12 +248,12 @@ namespace NMib
 								return;
 							}
 							if (_pContinuation)
-								_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), _pConnection->m_ConnectionID));
-							fp_ScheduleReconnect(_pConnection, nullptr, _bRetry, Sequence, _Error);
+								_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), pConnection->m_ConnectionID));
+							fp_ScheduleReconnect(pConnection, nullptr, _bRetry, Sequence, _Error);
 						}
 					;
 					
-					auto &Connection = *_pConnection;
+					auto &Connection = *pConnection;
 					
 					if (!_Result)
 					{
@@ -349,67 +365,70 @@ namespace NMib
 					
 					Host.m_bOutgoing = true;
 					
-					Result.m_fOnClose = [this, _pConnection, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+					Result.m_fOnClose = [this, pConnectionWeak, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
 						{
-							if (Sequence != _pConnection->m_ConnectionSequence)
+							auto pConnection = pConnectionWeak.f_Lock();
+							if (!pConnection)
 								return;
-							if (!_pConnection->m_pHost)
+							
+							if (Sequence != pConnection->m_ConnectionSequence)
+								return;
+							if (!pConnection->m_pHost)
 								return;
 							
 							NStr::CStr Error = fg_Format
 								(
 									"Lost outgoing connection to '{}' <{}>: {} {} {}"
-									, _pConnection->m_ServerURL.f_Encode()
-									, _pConnection->f_GetHostInfo().f_GetDesc()
+									, pConnection->m_ServerURL.f_Encode()
+									, pConnection->f_GetHostInfo().f_GetDesc()
 									, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 									, _Reason	
 									, _Message
 								)
 							;
-							
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/Actors
-									, Error
-									, "{}"
-									, Error
-								)
-							;
-							auto &pHost = _pConnection->m_pHost; 
-							if (pHost && pHost->m_bAnonymous)
-								fp_DestroyClientConnection(*_pConnection, false, Error);
+							if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
+								DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", Error);
 							else
-								fp_ScheduleReconnect(_pConnection, nullptr, true, Sequence, Error);
+								DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+							auto &pHost = pConnection->m_pHost; 
+							if (pHost && pHost->m_bAnonymous)
+								fp_DestroyClientConnection(*pConnection, false, Error);
+							else
+								fp_ScheduleReconnect(pConnection, nullptr, true, Sequence, Error);
 						}
 					;
 					
-					Result.m_fOnReceiveBinaryMessage = [this, _pConnection, Sequence](NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
+					Result.m_fOnReceiveBinaryMessage = [this, pConnectionWeak, Sequence](NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
 						{
-							if (Sequence != _pConnection->m_ConnectionSequence)
+							auto pConnection = pConnectionWeak.f_Lock();
+							if (!pConnection)
+								return;
+							
+							if (Sequence != pConnection->m_ConnectionSequence)
 							{
-								DMibLog(DebugVerbose2, " ---- {} {} Invalid connection secuence", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+								DMibLog(DebugVerbose2, " ---- {} {} Invalid connection secuence", pConnection->m_pHost->m_bIncoming, pConnection->f_GetConnectionID());
 								return;
 							}
-							if (!_pConnection->m_pHost)
+							if (!pConnection->m_pHost)
 							{
-								DMibLog(DebugVerbose2, " ---- {} No host", _pConnection->f_GetConnectionID());
+								DMibLog(DebugVerbose2, " ---- {} No host", pConnection->f_GetConnectionID());
 								return;
 							}
-							if (!fp_HandleProtocolIncoming(_pConnection.f_Get(), _pMessage))
+							if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
 							{
 								// TODO: Assume malicious client
 							}
 						}
 					;
 
-					_pConnection->m_IdentifyContinuation = TCContinuation<void>();
-					_pConnection->m_Connection = Result.f_Accept
+					pConnection->m_IdentifyContinuation = TCContinuation<void>();
+					pConnection->m_Connection = Result.f_Accept
 						(
 							fg_ThisActor(m_pThis) 
 							/ 
 							[
 								this
-								, _pConnection
+								, pConnectionWeak
 								, _pContinuation
 								, Sequence
 								, RealHostID
@@ -419,19 +438,27 @@ namespace NMib
 							]
 							(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Callback) mutable
 							{
-								if (Sequence != _pConnection->m_ConnectionSequence)
+								auto pConnection = pConnectionWeak.f_Lock();
+								if (!pConnection)
+								{
+									if (_pContinuation)
+										_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+									return;
+								}
+								
+								if (Sequence != pConnection->m_ConnectionSequence)
 								{
 									if (_pContinuation)
 										_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 									return;
 								}
 								
-								if (!_pConnection->m_Connection)
+								if (!pConnection->m_Connection)
 								{
 									NStr::CStr Error = fg_Format
 										(
 											"Disconnected: {}"
-											, _pConnection->m_LastConnectionError
+											, pConnection->m_LastConnectionError
 										)
 									;
 									fReportError(Error, _Callback.f_GetException());
@@ -443,7 +470,7 @@ namespace NMib
 									NStr::CStr Error = fg_Format
 										(
 											"Error accepting connection to '{}': {}"
-											, _pConnection->m_ServerURL.f_Encode()
+											, pConnection->m_ServerURL.f_Encode()
 											, _Callback.f_GetExceptionStr()
 										)
 									;
@@ -451,19 +478,20 @@ namespace NMib
 									return;
 								}
 
-								_pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
+								pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
-								fg_Dispatch
-									(
-										[this, _pConnection]
-										{
-											return _pConnection->m_IdentifyContinuation;
-										}
-									)
-									> [this, RealHostID, UniqueHostID, Sequence, _pConnection, _pContinuation, CertificateChain = fg_Move(CertificateChain)]
+								pConnection->m_IdentifyContinuation.f_Dispatch() 
+									> [this, RealHostID, UniqueHostID, Sequence, pConnectionWeak, _pContinuation, CertificateChain = fg_Move(CertificateChain)]
 									(TCAsyncResult<void> &&_Result) mutable
 									{
-										if (Sequence != _pConnection->m_ConnectionSequence)
+										auto pConnection = pConnectionWeak.f_Lock();
+										if (!pConnection)
+										{
+											if (_pContinuation)
+												_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+											return;
+										}
+										if (Sequence != pConnection->m_ConnectionSequence)
 										{
 											if (_pContinuation)
 												_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
@@ -475,15 +503,17 @@ namespace NMib
 												_pContinuation->f_SetException(fg_Move(_Result));
 											return;
 										}
+										if (!pConnection->m_pHost)
+											return;
 										
 										DMibLogWithCategory
 											(
 												Mib/Concurrency/Actors
 												, Info
 												, "Connection({}) to '{}' <{}> was successful. Host ID: {}   Unique host ID: {}"
-												, _pConnection->f_GetConnectionID()
-												, _pConnection->m_ServerURL.f_Encode()
-												, _pConnection->f_GetHostInfo().f_GetDesc()
+												, pConnection->f_GetConnectionID()
+												, pConnection->m_ServerURL.f_Encode()
+												, pConnection->f_GetHostInfo().f_GetDesc()
 												, RealHostID
 												, UniqueHostID
 											)
@@ -491,19 +521,19 @@ namespace NMib
 
 										if (_pContinuation)
 										{
-											CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), _pConnection->m_ConnectionID};
+											CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), pConnection->m_ConnectionID};
 											ConnectionResult.m_CertificateChain = fg_Move(CertificateChain);
 											ConnectionResult.m_RealHostID = RealHostID;
 											ConnectionResult.m_UniqueHostID = UniqueHostID;
 											ConnectionResult.m_HostInfo.m_HostID = RealHostID;
-											ConnectionResult.m_HostInfo.m_FriendlyName = _pConnection->m_pHost->m_FriendlyName;
+											ConnectionResult.m_HostInfo.m_FriendlyName = pConnection->m_pHost->m_FriendlyName;
 											_pContinuation->f_SetResult(fg_Move(ConnectionResult));
 										}
-										_pConnection->m_bConnected = true;
+										pConnection->m_bConnected = true;
 									}
 								;
 								
-								fp_Identify(_pConnection.f_Get());
+								fp_Identify(pConnection.f_Get());
 							}
 						)
 					; 

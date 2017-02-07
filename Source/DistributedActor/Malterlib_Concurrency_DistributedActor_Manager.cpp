@@ -39,6 +39,41 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			Internal.m_ResolveActor = fg_ConstructActor<NNet::CResolveActor>();
 		}
+		
+		TCContinuation<void> CActorDistributionManager::f_Destroy()
+		{
+			TCActorResultVector<void> Results;
+			auto &Internal = *mp_pInternal;
+			
+			if (Internal.m_ResolveActor)
+				Internal.m_ResolveActor->f_Destroy2() > Results.f_AddResult();
+			
+			if (Internal.m_WebsocketClientConnector)
+				Internal.m_WebsocketClientConnector->f_Destroy2() > Results.f_AddResult();
+			
+			for (auto &Listen : Internal.m_Listens)
+			{
+				Listen.m_ListenCallbackSubscription.f_Clear();
+				if (Listen.m_WebsocketServer)
+					Listen.m_WebsocketServer->f_Destroy2() > Results.f_AddResult();
+			}
+			
+			for (auto &pConnection : Internal.m_ClientConnections)
+			{
+				if (pConnection->m_Connection)
+					pConnection->m_Connection->f_Destroy2() > Results.f_AddResult();
+			}
+			
+			for (auto &pConnection : Internal.m_ServerConnections)
+			{
+				if (pConnection->m_Connection)
+					pConnection->m_Connection->f_Destroy2() > Results.f_AddResult();
+			}
+				
+			TCContinuation<void> Continuation;
+			Results.f_GetResults() > Continuation.f_ReceiveAny();
+			return Continuation;
+		}
 
 		void CActorDistributionManagerInternal::CConnection::fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result)
 		{

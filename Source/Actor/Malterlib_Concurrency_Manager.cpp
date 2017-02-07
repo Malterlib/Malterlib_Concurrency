@@ -131,27 +131,74 @@ namespace NMib
 						Queue.m_Event.f_Signal();
 					}
 				}
+			}
 
-				for (auto &Queue : Queue)
-					Queue.m_pThread.f_Clear();
-
+			for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
+			{
+				auto &Queue = m_Queues[Prio];
 				for (auto &Queue : Queue)
 				{
-					while (true)
+					if (Queue.m_pThread)
 					{
-						Queue.m_JobQueue.f_TransferThreadSafeQueue();
-						if (!Queue.m_JobQueue.f_FirstQueueEntry())
-							break;
-						
-						while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry())
-						{
-							(*pEntry)();
-							
-							Queue.m_JobQueue.f_PopQueueEntry(pEntry);
-						}
+						Queue.m_pThread->f_Stop(true);
+						Queue.m_pThread.f_Clear();
 					}
 				}
 			}
+
+			// Delete the timer actor
+			{
+				DMibLock(m_pTimerActorLock);
+				if (m_pTimerActor)
+				{
+					m_pTimerActor->f_Destroy();
+					m_pTimerActor = nullptr;
+				}
+			}
+			
+			auto fProcessQueues = [&]()
+				{
+					bool bDoneSomething = true;
+					while (bDoneSomething)
+					{
+						bDoneSomething = false;
+						for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
+						{
+							auto &Queue = m_Queues[Prio];
+							for (auto &Queue : Queue)
+							{
+								Queue.m_JobQueue.f_TransferThreadSafeQueue();
+								if (!Queue.m_JobQueue.f_FirstQueueEntry())
+									continue;
+								bDoneSomething = true;
+								while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry())
+								{
+									(*pEntry)();
+									Queue.m_JobQueue.f_PopQueueEntry(pEntry);
+								}
+							}
+						}
+					}
+				}
+			;
+			
+			fProcessQueues();
+			
+			// Finally delete the concurrent actor
+			{
+				DMibLock(m_pConcurrentActorLock);
+				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+				{
+					for (auto &Actor : m_ConcurrentActors[Prio])
+						Actor->fp_Terminate(nullptr);
+				}
+				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+					m_ConcurrentActors[Prio].f_Clear();
+				
+				m_nThreads = 0;
+			}
+
+			fProcessQueues();
 		}
 
 		CConcurrencyManager::~CConcurrencyManager()
@@ -166,9 +213,6 @@ namespace NMib
 					DMibCheck(Queue.m_JobQueue.f_IsEmpty());
 				}
 			}
-#ifdef DMibDebug
-			DMibCheck(m_Actors.f_IsEmpty());
-#endif
 		}
 
 		CConcurrencyManager::CQueue::CQueue(CQueue &&_Other)
@@ -327,25 +371,29 @@ namespace NMib
 			}
 		}
 
-
 		void CConcurrencyManager::f_BlockOnDestroy()
 		{
 			if (m_bDestroyed)
 				return;
 			m_bDestroyed = true;
 			fp_InitConcurrentActors(); // Make sure concurrent actors are created
-			f_GetTimerActor(); // Make sure timer actor is created
+			auto &TimerActor = f_GetTimerActor();
+			TimerActor(&CTimerActor::f_FireAllTimeouts) > fg_DiscardResult(); // Make sure timer actor is created
+#ifdef DMibDebug
+			bool bAborted = false;
+#endif
 			{
 #ifdef DMibDebug
-				NTime::CCyclesClock Clock;
-				Clock.f_Start();
+				NTime::CCyclesClock Clock{true};
 #endif
 				// Disregard concurrent actor from destroy
 				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
+#ifdef DMibDebug
+				volatile static bool s_AbortLoop = false;
+#endif
 				while (m_nActors.f_Load() > nExpectedActors)
 				{
-					NSys::fg_Thread_SmallestSleep();
-					
+					TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
 #ifdef DMibDebug
 					if (Clock.f_GetTime() > 10.0)
 					{
@@ -355,13 +403,23 @@ namespace NMib
 						{
 							if (Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0 || Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0)
 								continue;
-							DMibConOut("\t{}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibDTrace("\t{}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
 						}
 						Clock.f_Start();
+					}
+					if (s_AbortLoop)
+					{
+						bAborted = true;
+						break;
 					}
 #endif
 				}
 			}
+			
+#ifdef DMibDebug
+			if (bAborted)
+				return;
+#endif
 
 			// Delete the timer actor
 			{

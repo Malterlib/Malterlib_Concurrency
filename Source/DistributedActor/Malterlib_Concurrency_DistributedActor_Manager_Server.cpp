@@ -349,7 +349,7 @@ namespace NMib
 										
 										mint ConnectionID = m_NextConnectionID++;
 										
-										NPtr::TCSharedPointer<CServerConnection> pConnection = fg_Construct(ConnectionID);
+										NPtr::TCSharedPointer<CServerConnection, NPtr::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
 										
 										auto MappedHost = m_Hosts(UniqueHostID);
 										if (MappedHost.f_WasCreated())
@@ -381,9 +381,12 @@ namespace NMib
 										Host.m_bIncoming = true;
 										pConnection->m_bIncoming = true;
 										
-										NewServerConnection.m_fOnClose = [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress]
+										NewServerConnection.m_fOnClose = [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
 											(NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
 											{
+												auto pConnection = pConnectionWeak.f_Lock();
+												if (!pConnection)
+													return;
 												if (!pConnection->m_pHost)
 													return;
 												NStr::CStr CloseMessage = fg_Format
@@ -406,8 +409,12 @@ namespace NMib
 											}
 										;
 										
-										NewServerConnection.m_fOnReceiveBinaryMessage = [this, pConnection](NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
+										NewServerConnection.m_fOnReceiveBinaryMessage = [this, pConnectionWeak = pConnection.f_Weak()]
+											(NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage)
 											{
+												auto pConnection = pConnectionWeak.f_Lock();
+												if (!pConnection)
+													return;
 												if (!pConnection->m_pHost)
 													return;
 												
@@ -427,24 +434,24 @@ namespace NMib
 										pConnection->m_Connection = NewServerConnection.f_Accept
 											(
 												"MalterlibDistributedActors"
-												, fg_ThisActor(m_pThis) / [this, pConnection, Address = NewServerConnection.m_Info.m_PeerAddress]
+												, fg_ThisActor(m_pThis) / [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
 												(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
 												{
 													if (_Subscription)
 													{
+														auto pConnection = pConnectionWeak.f_Lock();
+														if (!pConnection)
+															return;
 														if (!pConnection->m_pHost)
 															return;
 														if (!pConnection->m_Connection)
 															return;
-														fg_Dispatch
-															(
-																[pConnection]
-																{
-																	return pConnection->m_IdentifyContinuation;
-																}
-															) 
-															> [Address, pConnection](TCAsyncResult<void> &&_Result) mutable
+														pConnection->m_IdentifyContinuation.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<void> &&_Result) mutable
 															{
+																auto pConnection = pConnectionWeak.f_Lock();
+																if (!pConnection)
+																	return;
+																
 																if (!_Result)
 																{
 																	DMibLogWithCategory

@@ -8,6 +8,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -17,25 +18,56 @@ namespace NMib::NConcurrency
 	using namespace NProcess;
 	using namespace NContainer;
 	
-	struct CDistributedAppActor::CDistributedAppInterfaceClientImplementation : public CDistributedAppInterfaceClient 
+	NConcurrency::TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
-		CDistributedAppInterfaceClientImplementation(TCActor<CDistributedAppActor> const &_AppActor)
-			: mp_AppActor(_AppActor)
-		{
-		}
+		auto pThis = m_pThis;
 		
-		NConcurrency::TCContinuation<void> f_PreUpdate() override
-		{
-			return mp_AppActor(&CDistributedAppActor::fp_PreUpdate);
-		}
+		if (pThis->mp_AppStartupResult.f_IsSet())
+			return pThis->mp_AppStartupResult;
 		
-	private:
-		TCActor<CDistributedAppActor> mp_AppActor;
-	};
+		return pThis->mp_DeferredAppStartupResults.f_Insert();
+	}
+	
+	NConcurrency::TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
+	{
+		return m_pThis->fp_PreUpdate();
+	}
 	
 	TCContinuation<void> CDistributedAppActor::fp_PreUpdate()
 	{
 		return fg_Explicit();
+	}
+
+	TCContinuation<void> CDistributedAppActor::fp_SaveStateDatabase()
+	{
+		TCContinuation<void> Continuation;
+		mp_State.m_StateDatabase.f_Save() > [this, Continuation](TCAsyncResult<void> &&_Result)
+			{
+				if (!_Result)
+				{
+					NLog::CSysLogCatScope Scope(fg_GetSys()->f_GetLogger(), mp_Settings.m_AuditCategory);
+					DMibLog(Error, "Failed to save state database: {}", _Result.f_GetExceptionStr());
+				}
+				Continuation.f_SetResult(fg_Move(_Result));
+			}
+		;
+		return Continuation;
+	}
+	
+	TCContinuation<void> CDistributedAppActor::fp_SaveConfigDatabase()
+	{
+		TCContinuation<void> Continuation;
+		mp_State.m_ConfigDatabase.f_Save() > [this, Continuation](TCAsyncResult<void> &&_Result)
+			{
+				if (!_Result)
+				{
+					NLog::CSysLogCatScope Scope(fg_GetSys()->f_GetLogger(), mp_Settings.m_AuditCategory);
+					DMibLog(Error, "Failed to save config database: {}", _Result.f_GetExceptionStr());
+				}
+				Continuation.f_SetResult(fg_Move(_Result));
+			}
+		;
+		return Continuation;
 	}
 	
 	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
@@ -44,7 +76,7 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
-		mp_AppInterfaceClientImplementation = mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppInterfaceClientImplementation>(fg_ThisActor(this));
+		mp_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
 		
 		if (mp_bDelegateTrustToAppInterface)
 		{
@@ -75,7 +107,7 @@ namespace NMib::NConcurrency
 							
 							TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> ClientInterface
 								{
-									mp_AppInterfaceClientImplementation->f_ShareInterface<CDistributedAppInterfaceClient>()
+									mp_AppInterfaceClientImplementation.m_Actor->f_ShareInterface<CDistributedAppInterfaceClient>()
 								}
 							;
 							
@@ -239,7 +271,7 @@ namespace NMib::NConcurrency
 								if (ServerAddress != CurrentServerAddress)
 								{
 									mp_State.m_StateDatabase.m_Data["DistributedAppInterfaceServerAddress"] = ServerAddress;
-									mp_State.m_StateDatabase.f_Save() > Continuation / [=]
+									fp_SaveStateDatabase() > Continuation / [=]
 										{
 											fp_SubscribeAppServerInterface(_Params) > Continuation;
 										}

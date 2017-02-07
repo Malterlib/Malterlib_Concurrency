@@ -253,6 +253,11 @@ namespace NMib
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 				Queue.m_Event.f_Signal();
 		}
+
+		CConcurrencyManager::CThreadLocal &CConcurrencyManager::f_ThreadLocal()
+		{
+			return *m_ThreadLocal;
+		}
 		
 		void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue)
 		{
@@ -568,7 +573,7 @@ namespace NMib
 		{
 			CAsyncCallstacks *fg_SetConcurrentCallstacks(CConcurrencyManager &_ConcurrencyManager, CAsyncCallstacks *_pCallstacks)
 			{
-				auto &ThreadLocal = *_ConcurrencyManager.m_ThreadLocal;
+				auto &ThreadLocal = _ConcurrencyManager.f_ThreadLocal();
 				auto pOld = ThreadLocal.m_pCallstacks;
 				ThreadLocal.m_pCallstacks = _pCallstacks;
 				return pOld;

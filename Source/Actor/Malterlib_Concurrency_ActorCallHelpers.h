@@ -922,7 +922,7 @@ namespace NMib::NConcurrency
 		{
 #if DMibConcurrencyDebugActorCallstacks
 			auto &ConcurrencyManager = f_ConcurrencyManager();
-			auto &ThreadLocal = *ConcurrencyManager.m_ThreadLocal;
+			auto &ThreadLocal = ConcurrencyManager.f_ThreadLocal();
 			if (ThreadLocal.m_pCallstacks)
 				m_Result.m_Callstacks = *ThreadLocal.m_pCallstacks;
 			

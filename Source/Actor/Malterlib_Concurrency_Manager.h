@@ -25,6 +25,7 @@ namespace NMib
 	{
 		class CConcurrencyManager
 		{
+			struct CThreadLocal;
 		public:
 			CConcurrencyManager();
 			~CConcurrencyManager();
@@ -50,6 +51,8 @@ namespace NMib
 			
 			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+			
+			CThreadLocal &f_ThreadLocal();
 
 		private:
 			template <typename t_CActor>

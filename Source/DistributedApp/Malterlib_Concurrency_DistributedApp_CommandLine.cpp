@@ -727,7 +727,7 @@ namespace NMib
 			o_CommandLine.f_RegisterGlobalOptions
 				(
 					{
-						"ConcurrentLoging?"_=
+						"ConcurrentLogging?"_=
 						{
 							"Names"_= {"--log-on-thread"}
 							, "Default"_= true

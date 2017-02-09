@@ -27,6 +27,7 @@ namespace NMib::NConcurrency
 		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer; 
 		NHTTP::CURL m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
+		NStr::CStr m_HostID;
 		NStr::CStr m_CommandLineHostID;
 		bool m_bStoppingApp = false;
 

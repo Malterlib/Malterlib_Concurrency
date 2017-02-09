@@ -431,9 +431,11 @@ namespace NMib::NConcurrency
 					{
 						if (mp_State.m_bStoppingApp)
 							return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+						
 						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
+							+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
 							> Continuation % "Failed to initialize trust manager"
-							/ [this, Continuation, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager)
+							/ [this, Continuation, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager, CStr &&_HostID)
 							{
 								if (mp_State.m_bStoppingApp)
 								{
@@ -449,6 +451,7 @@ namespace NMib::NConcurrency
 									return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
 								}
 								mp_State.m_DistributionManager = fg_Move(_DistributionManager);
+								mp_State.m_HostID = fg_Move(_HostID);
 								fp_SetupListen()
 									+ fp_SetupAppServerInterface(_Params)
 									> Continuation % "Failed to setup listen config or app server interface" / [this, Continuation]()
@@ -623,7 +626,7 @@ namespace NMib::NConcurrency
 			if (pParam->f_Boolean())
 				fg_GetSys()->f_AddStdErrLogger();
 		}
-		if (auto *pParam = _Params.f_GetMember("ConcurrentLoging", EJSONType_Boolean))
+		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())
 			{

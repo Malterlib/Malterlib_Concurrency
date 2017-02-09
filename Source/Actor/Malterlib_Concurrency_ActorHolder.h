@@ -63,6 +63,7 @@ namespace NMib
 		protected:
 			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
 			virtual void fp_Construct();
+			virtual void fp_StartQueueProcessing();
 			
 			template <typename tf_CActor>
 			TCActor<tf_CActor> fp_GetAsActor();
@@ -217,6 +218,7 @@ namespace NMib
 			NStr::CStr mp_ThreadName;
 
 			void fp_Construct() override;
+			void fp_StartQueueProcessing() override;
 		public:
 			CSeparateThreadActorHolder
 				(

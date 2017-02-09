@@ -55,10 +55,15 @@ namespace NMib
 
 		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 		
+		void CActorHolder::fp_StartQueueProcessing()
+		{
+		}
+		
 		void CActorHolder::fp_Construct()
 		{
 			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
+			fp_StartQueueProcessing();
 			CCurrentActorScope CurrentActor(*mp_pConcurrencyManager, mp_pActor.f_Get());
 			mp_pActor->f_Construct();
 			mint NewWorking = mp_Working.f_Exchange(0);
@@ -381,7 +386,7 @@ namespace NMib
 			DMibRequire(m_pThread.f_IsEmpty());
 		}
 		
-		void CSeparateThreadActorHolder::fp_Construct()
+		void CSeparateThreadActorHolder::fp_StartQueueProcessing()
 		{
 			m_pThread = NThread::CThreadObject::fs_StartThread
 				(
@@ -404,11 +409,18 @@ namespace NMib
 					, mp_ThreadName
 				)
 			;
+		}
+		
+		void CSeparateThreadActorHolder::fp_Construct()
+		{
 			CDefaultActorHolder::fp_Construct();
 		}
 		
 		void CSeparateThreadActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
+			// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
+			TCActorHolderSharedPointer<CSeparateThreadActorHolder> pThis = fg_Explicit(this);
+			
 			if (fp_AddToQueue(fg_Move(_Functor)))
 				m_pThread->m_EventWantQuit.f_Signal();
 		}
@@ -438,9 +450,9 @@ namespace NMib
 
 		void CDispatchingActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
+			TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
-				TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 				m_Dispatcher
 					(
 						[pThis]()

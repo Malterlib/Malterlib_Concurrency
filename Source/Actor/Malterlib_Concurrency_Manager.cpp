@@ -383,14 +383,11 @@ namespace NMib
 			m_bDestroyed = true;
 			fp_InitConcurrentActors(); // Make sure concurrent actors are created
 			auto &TimerActor = f_GetTimerActor();
-			TimerActor(&CTimerActor::f_FireAllTimeouts) > fg_DiscardResult(); // Make sure timer actor is created
+			NTime::CClock Clock{true};
 #ifdef DMibDebug
 			bool bAborted = false;
 #endif
 			{
-#ifdef DMibDebug
-				NTime::CCyclesClock Clock{true};
-#endif
 				// Disregard concurrent actor from destroy
 				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
 #ifdef DMibDebug
@@ -398,7 +395,10 @@ namespace NMib
 #endif
 				while (m_nActors.f_Load() > nExpectedActors)
 				{
-					TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+					if (Clock.f_GetTime() > 10.0)
+						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+					else
+						NSys::fg_Thread_SmallestSleep();
 #ifdef DMibDebug
 					if (Clock.f_GetTime() > 10.0)
 					{

@@ -85,7 +85,7 @@ namespace NMib
 			{
 				enum 
 				{
-					EVersion = 0x102
+					EVersion = 0x103
 				};
 				
 				template <typename tf_CStream>
@@ -93,10 +93,12 @@ namespace NMib
 				template <typename tf_CStream>
 				void f_Consume(tf_CStream &_Stream);
 				CHostInfo f_GetHostInfo() const; 
+				int32 f_GetEffectiveConnectionConcurrency(int32 _DefaultConcurrency) const;
 
 				NContainer::TCVector<uint8> m_PublicServerCertificate;
 				NContainer::TCVector<uint8> m_PublicClientCertificate;
 				NStr::CStr m_LastFriendlyName;
+				int32 m_ConnectionConcurrency = -1;
 			};
 
 			struct CNamespace

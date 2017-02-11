@@ -291,7 +291,7 @@ namespace NMib::NConcurrency
 							> Continuation % "Failed to get ticket through stdin" / [=](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 							{
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Got trust ticket, adding client connection");
-								mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, fg_Move(_TrustTicket), 60.0)
+								mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, fg_Move(_TrustTicket), 60.0, -1)
 									> Continuation % "Failed to add client connection" / [=](CHostInfo &&_HostInfo)
 									{
 										DMibLogWithCategory(Mib/Concurrency/App, Info, "Added client connection, trusting host '{}' for app interface namespace", _HostInfo.f_GetDesc());

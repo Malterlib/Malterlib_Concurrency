@@ -784,6 +784,7 @@ namespace NMib
 			JSON["PublicServerCertificate"] = _ClientConnection.m_ClientConnection.m_PublicServerCertificate;
 			JSON["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
 			JSON["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
+			JSON["ConnectionConcurrency"] = _ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
 			return JSON;
 		}
 
@@ -795,6 +796,10 @@ namespace NMib
 				o_ClientConnection.m_LastFriendlyName = pName->f_String();
 			else
 				o_ClientConnection.m_LastFriendlyName.f_Clear();			
+			if (auto *pName = _JSON.f_GetMember("ConnectionConcurrency"))
+				o_ClientConnection.m_ConnectionConcurrency = pName->f_Integer();
+			else
+				o_ClientConnection.m_ConnectionConcurrency = -1;			
 		}
 	
 		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CInternalClientConnection &o_ClientConnection, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const

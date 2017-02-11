@@ -18,6 +18,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumClientConnections);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddAdditionalClientConnection);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetClientConnectionConcurrency);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasClientConnection);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetHostID);
@@ -53,5 +54,23 @@ namespace NMib::NConcurrency
 	{
 		_Stream >> m_Ticket;
 		_Stream >> m_OnUseTicketSubscription;
+	}
+		
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_HostInfo;
+		_Stream % m_ConnectionConcurrency;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CClientConnectionInfo);
+		
+	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator == (CClientConnectionInfo const &_Right) const
+	{
+		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) == NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
+	}
+		
+	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator < (CClientConnectionInfo const &_Right) const
+	{
+		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) < NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
 	}
 }

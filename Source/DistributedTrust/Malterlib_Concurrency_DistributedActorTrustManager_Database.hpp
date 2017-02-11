@@ -103,6 +103,7 @@ namespace NMib
 				_Stream << m_PublicServerCertificate;
 				_Stream << m_PublicClientCertificate;
 				_Stream << m_LastFriendlyName;
+				_Stream << m_ConnectionConcurrency;
 			}
 			
 			template <typename tf_CStream>
@@ -116,6 +117,8 @@ namespace NMib
 				_Stream >> m_PublicClientCertificate;
 				if (Version >= 0x102) 
 					_Stream >> m_LastFriendlyName;
+				if (Version >= 0x103) 
+					_Stream >> m_ConnectionConcurrency;
 			}
 			
 			template <typename tf_CStream>

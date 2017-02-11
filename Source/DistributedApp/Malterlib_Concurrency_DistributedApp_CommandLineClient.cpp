@@ -462,7 +462,8 @@ namespace NMib
 						, Internal.m_Settings.m_ListenFlags
 						, Internal.m_Settings.f_GetCompositeFriendlyName() + "_CommandLine"
 						, NCryptography::fg_RandomID() // Allow several command line clients at the same time
-						, Internal.m_TranslateHostnames 
+						, Internal.m_TranslateHostnames
+						, -1
 					)
 				;
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);

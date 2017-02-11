@@ -413,6 +413,11 @@ namespace NMib::NConcurrency
 						}
 					;
 				}
+
+				int32 DefaultConcurrency = 1;
+				
+				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
+					DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
 				
 				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
 					(
@@ -423,6 +428,7 @@ namespace NMib::NConcurrency
 						, mp_Settings.f_GetCompositeFriendlyName()
 						, mp_Settings.m_Enclave
 						, fp_GetTranslateHostnames()
+						, DefaultConcurrency
 					)
 				;
 				

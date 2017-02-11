@@ -123,7 +123,8 @@ namespace NMib
 								, mp_Settings.m_ListenFlags
 								, mp_Settings.f_GetCompositeFriendlyName()
 								, CStr() 
-								, fp_GetTranslateHostnames() 
+								, fp_GetTranslateHostnames()
+								, 1
 							)
 						;
 						State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)
@@ -140,7 +141,7 @@ namespace NMib
 													(CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_TrustTicket)
 													{
 														auto &State = *pState;
-														State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket.m_Ticket, 60.0) 
+														State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket.m_Ticket, 60.0, -1)
 															> Continuation / [this, Continuation, _HostID, pCleanup, pState]
 															{
 																pCleanup->f_Clear();

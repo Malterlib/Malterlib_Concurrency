@@ -21,8 +21,9 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_FriendlyName
 			, NStr::CStr const &_Enclave
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
+			, int32 _DefaultConnectionConcurrency
 		)
-		: mp_pInternal(fg_Construct(this, _Database, fg_Move(_fConstructManager), _KeySetting, _ListenFlags, _FriendlyName, _Enclave, _TranslateHostnames))
+		: mp_pInternal(fg_Construct(this, _Database, fg_Move(_fConstructManager), _KeySetting, _ListenFlags, _FriendlyName, _Enclave, _TranslateHostnames, _DefaultConnectionConcurrency))
 	{
 	}
 		
@@ -43,6 +44,7 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_FriendlyName
 			, NStr::CStr const &_Enclave
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
+			, int32 _DefaultConnectionConcurrency
 		)
 		: m_pThis(_pThis)
 		, m_Database(_Database)
@@ -52,6 +54,7 @@ namespace NMib::NConcurrency
 		, m_FriendlyName(_FriendlyName)
 		, m_Enclave(_Enclave)
 		, m_TranslateHostnames(_TranslateHostnames)
+		, m_DefaultConnectionConcurrency(_DefaultConnectionConcurrency)
 	{
 	}
 	
@@ -65,7 +68,10 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		TCActorResultVector<void> Stops;
 		for (auto &Connection : Internal.m_ClientConnections)
-			Connection.m_ConnectionReference.f_Disconnect() > Stops.f_AddResult();
+		{
+			for (auto &ConnectionReference : Connection.m_ConnectionReferences)
+				ConnectionReference.f_Disconnect() > Stops.f_AddResult();
+		}
 		
 		for (auto &Listen : Internal.m_Listen)
 			Listen.m_ListenReference.f_Stop() > Stops.f_AddResult();
@@ -233,6 +239,14 @@ namespace NMib::NConcurrency
 		}
 		Info.m_FriendlyName = m_LastFriendlyName;
 		return Info;
+	}
+	
+	int32 NDistributedActorTrustManagerDatabase::CClientConnection::f_GetEffectiveConnectionConcurrency(int32 _DefaultConcurrency) const
+	{
+		int32 ConnectionConcurrency = m_ConnectionConcurrency;
+		if (ConnectionConcurrency == -1)
+			ConnectionConcurrency = _DefaultConcurrency;
+		return fg_Clamp(ConnectionConcurrency, 1, 128);
 	}
 	
 	TCContinuation<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)

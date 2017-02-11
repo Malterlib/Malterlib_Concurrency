@@ -27,9 +27,9 @@ namespace NMib::NConcurrency
 			, EPermission_Client = EPermission_Client_Read | EPermission_Client_Add | EPermission_Client_Remove 
 
 			, EPermission_ClientConnection_Read = DMibBit(7)
-			, EPermission_ClientConnection_Add = DMibBit(8)
+			, EPermission_ClientConnection_Write = DMibBit(8)
 			, EPermission_ClientConnection_Remove = DMibBit(9)
-			, EPermission_ClientConnection = EPermission_ClientConnection_Read | EPermission_ClientConnection_Add | EPermission_ClientConnection_Remove 
+			, EPermission_ClientConnection = EPermission_ClientConnection_Read | EPermission_ClientConnection_Write | EPermission_ClientConnection_Remove 
 
 			, EPermission_NamespacePermissions_Read = DMibBit(10)
 			, EPermission_NamespacePermissions_Add = DMibBit(11)
@@ -90,9 +90,10 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
 		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
 
-		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo>> f_EnumClientConnections() override;
-		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout) override;
-		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() override;
+		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) override;
+		TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
+		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
 		TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 		TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 

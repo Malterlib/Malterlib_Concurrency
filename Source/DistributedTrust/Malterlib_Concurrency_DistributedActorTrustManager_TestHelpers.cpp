@@ -289,7 +289,9 @@ namespace NMib::NConcurrency
 				, CDistributedActorTestKeySettings{}
 				, NNet::ENetFlag_None
 				, _FriendlyName
-				, _SessionID	
+				, _SessionID
+				, NContainer::TCMap<NStr::CStr, NStr::CStr>{}
+				, 1
 			)
 		;
 	}

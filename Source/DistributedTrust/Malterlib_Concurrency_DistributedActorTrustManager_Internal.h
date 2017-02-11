@@ -32,8 +32,9 @@ namespace NMib
 			struct CConnectionState
 			{
 				CClientConnection m_ClientConnection;
-				CDistributedActorConnectionReference m_ConnectionReference;
+				NContainer::TCVector<CDistributedActorConnectionReference> m_ConnectionReferences;
 				CHostState *m_pHost = nullptr;
+				bool m_bRemoving = false;
 				
 				DMibListLinkDS_Link(CConnectionState, m_Link);
 				
@@ -171,6 +172,7 @@ namespace NMib
 					, NStr::CStr const &_FriendlyName
 					, NStr::CStr const &_Enclave
 					, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
+					, int32 _DefaultConnectionConcurrency 
 				)
 			;
 			~CInternal();
@@ -203,6 +205,8 @@ namespace NMib
 			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain);
 			
 			NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
+			
+			void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
 
 			NPtr::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			CDistributedActorTrustManager *m_pThis;
@@ -246,6 +250,8 @@ namespace NMib
 			
 			EInitialize m_Initialize = EInitialize_None;
 			NStr::CStr m_InitializeError;
+			
+			int32 m_DefaultConnectionConcurrency = 1;
 		};
 	}
 }

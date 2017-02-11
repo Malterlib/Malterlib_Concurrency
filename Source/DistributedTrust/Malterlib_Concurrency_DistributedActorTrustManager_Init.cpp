@@ -478,7 +478,8 @@ namespace NMib
 											DMibFastCheck(!ConnectionMapped.f_WasCreated());
 											auto &ClientConnection = *ConnectionMapped;
 											
-											ClientConnection.m_ConnectionReference = fg_Move(_ConnectionResult.m_ConnectionReference);
+											ClientConnection.m_ConnectionReferences.f_Insert(fg_Move(_ConnectionResult.m_ConnectionReference));
+											f_ApplyConnectionConcurrency(ClientConnection);
 										}
 									)
 								)

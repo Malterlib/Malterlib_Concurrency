@@ -46,4 +46,10 @@ namespace NMib::NConcurrency
 	{
 		o_String += typename tf_CString::CFormat("Allowed {vs,vb} Disallowed {vs,vb}") << m_AllowedHosts << m_DisallowedHosts;
 	}
+	
+	template <typename tf_CString>
+	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Format(tf_CString &o_String) const
+	{
+		o_String += typename tf_CString::CFormat("{} ({} concurrency)") << m_HostInfo << m_ConnectionConcurrency;
+	}
 }

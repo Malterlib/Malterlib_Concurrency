@@ -110,14 +110,20 @@ namespace NMib::NConcurrency
 		using CNamespacePermissions = CDistributedActorTrustManagerInterface::CNamespacePermissions;
 		using CTrustTicket = CDistributedActorTrustManagerInterface::CTrustTicket;
 		using CTrustGenerateConnectionTicketResult = CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult;
+		using CClientConnectionInfo = CDistributedActorTrustManagerInterface::CClientConnectionInfo;
+
+		struct CConcurrentConnectionState
+		{
+			NStr::CStr m_Error;
+			NTime::CTime m_ErrorTime;
+ 			bool m_bConnected = false;
+		};
 		
 		struct CAddressConnectionState
 		{
 			inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
 
-			bool m_bConnected = false;
-			NStr::CStr m_Error;
-			NTime::CTime m_ErrorTime;
+			NContainer::TCVector<CConcurrentConnectionState> m_States;
 			CHostInfo m_HostInfo;
 		};
 		
@@ -145,7 +151,8 @@ namespace NMib::NConcurrency
 				, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None
 				, NStr::CStr const &_FriendlyName = {}
 				, NStr::CStr const &_Enclave  = {}
-				, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames = {} 
+				, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames = {}
+				, int32 _DefaultConnectionConcurrency = 1
 			)
 		;
 		
@@ -180,9 +187,10 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
 		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
 		
-		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo>> f_EnumClientConnections();
-		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout);
-		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address);
+		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections();
+		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
+		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
+		TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
 		TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
 		TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 

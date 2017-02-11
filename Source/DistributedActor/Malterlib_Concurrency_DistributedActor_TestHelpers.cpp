@@ -168,10 +168,14 @@ namespace NMib::NConcurrency
 			auto State = _TrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
 			for (auto &Host : State.m_Hosts)
 			{
-				for (auto &Address : Host.m_Addresses)
+				for (auto &ConnectionStates : Host.m_Addresses)
 				{
-					if (!Address.m_bConnected)
-						DMibError(fg_Format("Found unconnected address: {}", Address.m_Error));
+					auto &Address = ConnectionStates.f_GetAddress();
+					for (auto &State : ConnectionStates.m_States)
+					{
+						if (!State.m_bConnected)
+							DMibError(fg_Format("Found unconnected address: {} - {}", Address, State.m_Error));
+					}
 				}			
 			}
 		}

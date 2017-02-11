@@ -13,8 +13,8 @@ namespace NMib::NConcurrency
 	public:
 		enum
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EMinProtocolVersion = 0x102
+			, EProtocolVersion = 0x102
 		};
 	  
 		struct CTrustTicket
@@ -60,6 +60,20 @@ namespace NMib::NConcurrency
 			CTrustTicket m_Ticket;
 			TCActorSubscriptionWithID<0> m_OnUseTicketSubscription;
 		};
+		
+		struct CClientConnectionInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
+			
+			bool operator == (CClientConnectionInfo const &_Right) const;
+			bool operator < (CClientConnectionInfo const &_Right) const;
+			
+			CHostInfo m_HostInfo;
+			int32 m_ConnectionConcurrency = -1;
+		};
 
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
@@ -91,9 +105,10 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
 		virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo>> f_EnumClientConnections() = 0;
-		virtual TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout) = 0;
-		virtual TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() = 0;
+		virtual TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
 		virtual TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 		virtual TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 

@@ -122,25 +122,32 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID);
 	}
 
-	TCContinuation<TCMap<CDistributedActorTrustManager_Address, CHostInfo>> CDistributedActorTrustManagerProxy::f_EnumClientConnections()
+	auto CDistributedActorTrustManagerProxy::f_EnumClientConnections() -> TCContinuation<TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>>
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Read))
 			return fp_AccessDenied();
 		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
 	}
 	
-	TCContinuation<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout)
+	TCContinuation<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
 	{
-		if (!fp_CheckPermissions(EPermission_ClientConnection_Add))
+		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket, _Timeout);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket, _Timeout, _ConnectionConcurrency);
 	}
 	
-	TCContinuation<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
-		if (!fp_CheckPermissions(EPermission_ClientConnection_Add))
+		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, _Address);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, _Address, _ConnectionConcurrency);
+	}
+	
+	TCContinuation<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	{
+		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, _Address, _ConnectionConcurrency);
 	}
 	
 	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)

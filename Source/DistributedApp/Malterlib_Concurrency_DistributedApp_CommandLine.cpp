@@ -136,7 +136,17 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_AddConnection(NStr::CStr const &_Ticket, bool _bIncludeFriendlyHostName)
+		static bool fg_ValidateConnectionConcurrency(int32 _Concurrency, TCContinuation<CDistributedAppCommandLineResults> &o_Continuation)
+		{
+			if (_Concurrency == -1 || (_Concurrency >= 1 && _Concurrency <= 128))
+				return true;
+			
+			o_Continuation.f_SetException(DMibErrorInstance("Connection concurrency must be between 1 and 128 or -1"));
+			return false;
+		}
+		
+		auto CDistributedAppActor::f_CommandLine_AddConnection(NStr::CStr const &_Ticket, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency)
+			-> TCContinuation<CDistributedAppCommandLineResults> 
 		{
 			CDistributedActorTrustManager::CTrustTicket Ticket;
 			try
@@ -149,7 +159,11 @@ namespace NMib
 			}
 			
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0) 
+			
+			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
+				return Continuation;
+			
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency)
 				> Continuation / [Continuation, _bIncludeFriendlyHostName](CHostInfo &&_HostInfo)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", _HostInfo.f_GetDesc());
@@ -251,24 +265,61 @@ namespace NMib
 						}
 					}
 					CStr Result;
-					auto fOutputLine = [&](CStr const &_URL, CStr const &_Connected, CStr const &_HostInfo, auto const &_ErrorTime, CStr const &_Error)
+					auto fOutputLine = [&](CStr const &_URL, CStr const &_Connected, CStr const &_HostInfo, CStr const &_Concurrency, auto const &_ErrorTime, CStr const &_Error)
 						{
-							Result += fg_Format("{sj*,a-}     {sj9,a-}     {sj*,a-}     {sj23,a-}     {a-}\n", _URL, LongestAddress, _Connected, _HostInfo, LongestHostInfo, _ErrorTime, _Error);
+							Result += fg_Format
+								(
+									"{sj*,a-}     {sj*,a-}     {sj9,a-}     {sj11,a-}     {sj23,a-}     {a-}\n"
+									, _URL
+									, LongestAddress
+									, _HostInfo
+									, LongestHostInfo
+									, _Connected
+									, _Concurrency
+									, _ErrorTime
+									, _Error
+								)
+							;
 						}
 					;
-					fOutputLine("URL", "Connected", "Host", "Last error time", "Last error");
+					fOutputLine("URL", "Connected", "Host", "Concurrency", "Last error time", "Last error");
 					for (auto &State : AddressState)
 					{
-						auto &Address = AddressState.fs_GetKey(State); 
+						auto &Address = AddressState.fs_GetKey(State);
+						
+						CDistributedActorTrustManager::CConcurrentConnectionState *pFirstState = nullptr;
+						if (!State.m_States.f_IsEmpty())
+							pFirstState = &State.m_States.f_GetFirst(); 
+							
 						fOutputLine
 							(
 								Address.m_URL.f_Encode()
-								, State.m_bConnected ? "Yes" : "NO"
+								, pFirstState ? (pFirstState->m_bConnected ? "Yes" : "NO") : "NO"
 								, State.m_HostInfo.f_GetDesc()
-								, State.m_ErrorTime.f_IsValid() ? fg_Format("{}", State.m_ErrorTime) : "Never"
-								, !State.m_Error.f_IsEmpty() ? State.m_Error : "None"
+								, CStr::fs_ToStr(State.m_States.f_GetLen()) 
+								, pFirstState ? (pFirstState->m_ErrorTime.f_IsValid() ? fg_Format("{}", pFirstState->m_ErrorTime) : "Never") : ""
+								, pFirstState ? (!pFirstState->m_Error.f_IsEmpty() ? pFirstState->m_Error : "None") : ""
 							)
 						;
+						
+						auto iConcurentState = State.m_States.f_GetIterator();
+						if (iConcurentState)
+							++iConcurentState;
+							
+						for (; iConcurentState; ++iConcurentState)
+						{
+							auto &ConcurrentState = *iConcurentState;
+							fOutputLine
+								(
+									""
+									, ConcurrentState.m_bConnected ? "Yes" : "NO"
+									, ""
+									, "" 
+									, ConcurrentState.m_ErrorTime.f_IsValid() ? fg_Format("{}", ConcurrentState.m_ErrorTime) : "Never"
+									, !ConcurrentState.m_Error.f_IsEmpty() ? ConcurrentState.m_Error : "None"
+								)
+							;
+						}
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connection status to command line");
 					Continuation.f_SetResult(Result);
@@ -281,16 +332,21 @@ namespace NMib
 		{
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections)
-				> Continuation / [Continuation, _bIncludeFriendlyHostName](NContainer::TCMap<CDistributedActorTrustManager_Address, CHostInfo> &&_ClientConnections)
+				> Continuation / [Continuation, _bIncludeFriendlyHostName]
+				(NContainer::TCMap<CDistributedActorTrustManager_Address, CDistributedActorTrustManager::CClientConnectionInfo> &&_ClientConnections)
 				{
 					CStr Result;
-					for (auto &Host : _ClientConnections)
+					for (auto &ConnectionInfo : _ClientConnections)
 					{
-						auto &Address = _ClientConnections.fs_GetKey(Host); 
+						auto &Address = _ClientConnections.fs_GetKey(ConnectionInfo);
+						
+						CStr HostInfo;
 						if (_bIncludeFriendlyHostName)
-							Result += fg_Format("{}     {}\n", Address.m_URL.f_Encode(), Host.f_GetDesc());
+							HostInfo = ConnectionInfo.m_HostInfo.f_GetDesc();
 						else
-							Result += fg_Format("{}     {}\n", Address.m_URL.f_Encode(), Host.m_HostID);
+							HostInfo = ConnectionInfo.m_HostInfo.m_HostID;
+
+						Result += fg_Format("{}     {}     {}\n", Address.m_URL.f_Encode(), HostInfo, ConnectionInfo.m_ConnectionConcurrency);
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connections to command line");
 					Continuation.f_SetResult(Result);
@@ -314,12 +370,17 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL, bool _bIncludeFriendlyHostName)
+		auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency)
+			-> TCContinuation<CDistributedAppCommandLineResults> 
 		{
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			
+			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
+				return Continuation;
+			
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, Address) 
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, Address, _ConnectionConcurrency)
 				> Continuation / [Continuation, _bIncludeFriendlyHostName](CHostInfo &&_HostInfo)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add additional connection to host '{}' from command line", _HostInfo.f_GetDesc());
@@ -327,6 +388,33 @@ namespace NMib
 						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.f_GetDesc()));
 					else
 						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.m_HostID));
+				}
+			;
+			return Continuation;
+		}
+		
+		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency(NStr::CStr const &_URL, int32 _ConnectionConcurrency)
+		{
+			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			
+			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
+				return Continuation;
+			
+			CDistributedActorTrustManager_Address Address;
+			Address.m_URL = _URL;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, Address, _ConnectionConcurrency)
+				> Continuation / [Continuation, Address, _ConnectionConcurrency]()
+				{
+					DMibLogWithCategory
+						(
+							Mib/Concurrency/App
+							, Info
+							, "Change connection concurrency to {} for address '{}' from command line"
+							, _ConnectionConcurrency
+							, Address.m_URL.f_Encode()
+						)
+					;
+					Continuation.f_SetResult(CDistributedAppCommandLineResults());
 				}
 			;
 			return Continuation;
@@ -765,6 +853,14 @@ namespace NMib
 						, "Description"_= "Include friendly host name in output"
 					}
 				;
+				auto ConnectionConcurrencyOption = "ConnectionConcurrency?"_= 
+					{
+						"Names"_= {"--connection-concurrency"}
+						, "Default"_= -1
+						, "Description"_= "The number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default."
+					}
+				;
+				
 				CStr Category = "Outgoing connections";
 				Distributed.f_RegisterCommand
 					(
@@ -817,7 +913,8 @@ namespace NMib
 							}
 							, "Options"_=
 							{
-								IncludeFriendlyNameOption
+								ConnectionConcurrencyOption
+								, IncludeFriendlyNameOption
 							}
 						}
 						, [this](CEJSON const &_Params)
@@ -827,7 +924,56 @@ namespace NMib
 									"Add trust connection"
 									, [this, _Params]
 									{
-										return f_CommandLine_AddConnection(_Params["Ticket"].f_String(), _Params["IncludeFriendlyName"].f_Boolean());
+										return f_CommandLine_AddConnection
+											(
+												_Params["Ticket"].f_String()
+												, _Params["IncludeFriendlyName"].f_Boolean()
+												, _Params["ConnectionConcurrency"].f_Integer()
+											)
+										;
+									}
+								)
+							;
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-connection-set-concurrency"}
+							, "Category"_= Category
+							, "Description"_= "Sets the number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default.\n"
+							, "Parameters"_=
+							{
+								"ConnectionConcurrency"_= 
+								{
+									"Type"_= -1
+									, "Description"_= "Specify ticket to use for adding the connection"
+								}
+							}
+							, "Options"_=
+							{
+								"Address"_= 
+								{
+									"Names"_= {"--address"}
+									, "Type"_= ""
+									, "Description"_= "The client connection address to set connection concurrency for."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params)
+						{
+							return fp_RunCommandLineAndLogError
+								(
+									"Set connection concurrency"
+									, [this, _Params]
+									{
+										return f_CommandLine_SetConnectionConcurrency
+											(
+												_Params["Address"].f_String()
+												, _Params["ConnectionConcurrency"].f_Integer()
+											)
+										;
 									}
 								)
 							;
@@ -851,7 +997,8 @@ namespace NMib
 							}
 							, "Options"_=
 							{
-								IncludeFriendlyNameOption
+								ConnectionConcurrencyOption
+								, IncludeFriendlyNameOption
 							}
 						}
 						, [this](CEJSON const &_Params)
@@ -861,7 +1008,13 @@ namespace NMib
 									"Add additional trust connection"
 									, [this, _Params]
 									{
-										return f_CommandLine_AddAdditionalConnection(_Params["ConnectionURL"].f_String(), _Params["IncludeFriendlyName"].f_Boolean());
+										return f_CommandLine_AddAdditionalConnection
+											(
+												_Params["ConnectionURL"].f_String()
+												, _Params["IncludeFriendlyName"].f_Boolean()
+												, _Params["ConnectionConcurrency"].f_Integer()
+											)
+										;
 									}
 								)
 							;

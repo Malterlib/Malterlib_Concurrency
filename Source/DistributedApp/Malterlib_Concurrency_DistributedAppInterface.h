@@ -6,6 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManager>
+#include <Mib/Storage/Optional>
 
 #include "Malterlib_Concurrency_DistributedApp_Settings.h"
 
@@ -33,7 +34,7 @@ namespace NMib::NConcurrency
 		enum 
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x102
+			, EProtocolVersion = 0x103
 		};
 		
 		struct CRegisterInfo
@@ -41,12 +42,13 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			
-			bool operator == (CRegisterInfo const &_Right) const
-			{
-				return m_UpdateType == _Right.m_UpdateType;
-			}
+			bool operator == (CRegisterInfo const &_Right) const;
 			
 			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
+			NStorage::TCOptional<uint32> m_Resources_Files;
+			NStorage::TCOptional<uint32> m_Resources_FilesPerProcess;
+			NStorage::TCOptional<uint32> m_Resources_Threads;
+			NStorage::TCOptional<uint32> m_Resources_Processes;
 		};
 
 		CDistributedAppInterfaceServer();

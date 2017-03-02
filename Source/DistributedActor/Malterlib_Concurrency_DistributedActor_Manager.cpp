@@ -83,7 +83,20 @@ namespace NMib
 					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection: {} - {}", _Result->m_Status, _Result->m_Reason);
 			}
 			else
-				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
+			{
+				try
+				{
+					_Result.f_Access();
+				}
+				catch (CExceptionActorDeleted const &)
+				{
+					// Ignore already deleted close
+				}
+				catch (NException::CException const &)
+				{
+					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
+				}
+			}
 		}
 
 		CHostInfo CActorDistributionManagerInternal::CConnection::f_GetHostInfo() const

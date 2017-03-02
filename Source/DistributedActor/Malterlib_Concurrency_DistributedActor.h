@@ -444,6 +444,7 @@ namespace NMib
 			NStr::CStr const &f_GetRealHostID() const;
 			NStr::CStr const &f_GetUniqueHostID() const;
 			CHostInfo const &f_GetHostInfo() const;
+			NStr::CStr const &f_LastExecutionID() const;
 			TCActor<CActorDistributionManager> f_GetDistributionManager() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
 			uint32 f_GetProtocolVersion() const;

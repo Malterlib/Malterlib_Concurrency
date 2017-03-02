@@ -119,7 +119,10 @@ namespace NMib::NConcurrency
 		TCContinuation<void> fp_SaveStateDatabase();
 		TCContinuation<void> fp_SaveConfigDatabase();
 		
+		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr const &_Description);
+		
 		CDistributedAppState mp_State;
+		CDistributedAppActor_Settings mp_Settings;
 		
 	private:
 		struct CDistributedAppInterfaceClientImplementation;
@@ -156,7 +159,6 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManager_Address mp_PrimaryListen;
 		NPtr::TCSharedPointer<CDistributedAppCommandLineSpecification> mp_pCommandLineSpec;
 		NPtr::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce; 
-		CDistributedAppActor_Settings mp_Settings;
 		COnScopeExitShared mp_pStdInCleanup;
 		
 		TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;

@@ -179,6 +179,43 @@ namespace NMib::NConcurrency
 		, mp_CallingHostInfo(_CallingHostInfo)
 	{
 	}
+
+	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr const &_Description)
+	{
+		auto CurrentCallingHostInfo = fg_GetCallingHostInfo();
+		CStr FriendlyName;
+
+		if (CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty())
+		{
+			CStr LocalName = fg_Format("{}@{}/{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName(), mp_Settings.m_AppName);
+			if (_Description.f_IsEmpty())
+				FriendlyName = fg_Format("{} (Local)", LocalName);
+			else
+				FriendlyName = fg_Format("{} (Local {})", LocalName, _Description);
+		}
+		else
+		{
+			if (!_Description.f_IsEmpty())
+				FriendlyName = fg_Format("{} ({})", CurrentCallingHostInfo.f_GetHostInfo().m_FriendlyName, _Description);
+			else
+				FriendlyName = CurrentCallingHostInfo.f_GetHostInfo().m_FriendlyName;
+		}
+		
+		return CCallingHostInfoScope
+			{
+				CCallingHostInfo
+				{
+					CurrentCallingHostInfo.f_GetDistributionManager() ? CurrentCallingHostInfo.f_GetDistributionManager() : mp_State.m_DistributionManager 
+					, CurrentCallingHostInfo.f_GetUniqueHostID()
+					, CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty()
+					? CHostInfo(mp_State.m_HostID, FriendlyName) 
+					: CHostInfo(CurrentCallingHostInfo.f_GetHostInfo().m_HostID, FriendlyName)
+					, CurrentCallingHostInfo.f_LastExecutionID()
+					, CurrentCallingHostInfo.f_GetProtocolVersion()
+				}
+			}
+		;
+	}
 	
 	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
@@ -715,5 +752,5 @@ namespace NMib::NConcurrency
 		}
 		
 		return 0;
-	}		
+	}
 }

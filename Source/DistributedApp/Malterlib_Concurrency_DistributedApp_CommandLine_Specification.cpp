@@ -639,11 +639,30 @@ namespace NMib
 					}
 					break;
 				case EJSONType_Null:
-					if (_Value.f_IsNull())
+					if (_bStrict)
+					{
+						fg_CheckType(_Value, _Template.f_Type());
+						Return = nullptr;
+						break;
+					}
+					else if (_Value.f_IsNull())
 					{
 						Return = _Value;
 						break;
 					}
+					else if (_Value.f_IsString())
+					{
+						if (_Value.f_String() == "null")
+						{
+							Return = nullptr;
+							break;
+						}
+						else
+							DMibError(fg_Format("Failed to parse '{}' as a null value", _Value.f_String()));
+					}
+					else
+						DMibError("Null can only be converted from string");
+					break;
 				default:
 					DMibError("Invalid template type");
 					break;

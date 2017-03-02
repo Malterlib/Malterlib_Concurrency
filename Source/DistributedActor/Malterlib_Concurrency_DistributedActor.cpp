@@ -416,6 +416,11 @@ namespace NMib::NConcurrency
 		return mp_HostInfo;
 	}
 
+	NStr::CStr const &CCallingHostInfo::f_LastExecutionID() const
+	{
+		return mp_LastExecutionID;
+	}
+	
 	bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
 	{
 		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID) 

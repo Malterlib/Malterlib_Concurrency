@@ -308,9 +308,9 @@ namespace NMib
 						
 						auto &ConnectionResult = *_ConnectionResult;
 						
-						if (pConnectionState->m_pHost)
+						if (pConnectionState->m_pHost && !ConnectionResult.m_RealHostID.f_IsEmpty())
 						{
-							DMibCheck(ConnectionResult.m_RealHostID == pConnectionState->m_pHost->f_GetHostID());
+							DMibCheck(ConnectionResult.m_RealHostID == pConnectionState->m_pHost->f_GetHostID())(ConnectionResult.m_RealHostID)(pConnectionState->m_pHost->f_GetHostID());
 						}
 						
 						pConnectionState->m_ConnectionReferences.f_Insert(fg_Move(ConnectionResult.m_ConnectionReference));

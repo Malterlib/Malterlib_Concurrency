@@ -697,7 +697,7 @@ namespace
 					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(100.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
-					pActor->f_Destroy();
+					pActor->f_DestroyNoResult(DMibPFile, DMibPLine);
 					
 					DMibLock(TimersLock);
 				}

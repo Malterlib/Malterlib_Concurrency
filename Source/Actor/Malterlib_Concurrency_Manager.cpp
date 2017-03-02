@@ -151,7 +151,7 @@ namespace NMib
 				DMibLock(m_pTimerActorLock);
 				if (m_pTimerActor)
 				{
-					m_pTimerActor->f_Destroy();
+					m_pTimerActor->f_DestroyNoResult(DMibPFile, DMibPLine);
 					m_pTimerActor = nullptr;
 				}
 			}
@@ -432,7 +432,7 @@ namespace NMib
 					DMibLock(m_pTimerActorLock);
 					if (m_pTimerActor)
 					{
-						m_pTimerActor->f_Destroy();
+						m_pTimerActor->f_DestroyNoResult(DMibPFile, DMibPLine);
 						m_pTimerActor = nullptr;
 					}
 				}

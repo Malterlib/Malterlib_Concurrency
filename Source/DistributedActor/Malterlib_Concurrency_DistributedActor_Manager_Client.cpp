@@ -198,7 +198,7 @@ namespace NMib
 				, bool _bRetry
 			)
 		{
-			if (!_pConnection->m_pSSLContext)
+			if (!_pConnection->m_pSSLContext || !m_WebsocketClientConnector)
 				return;
 			
 			mint Sequence = ++_pConnection->m_ConnectionSequence;

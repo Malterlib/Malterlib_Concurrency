@@ -580,7 +580,10 @@ namespace NMib
 			{
 				pListen->m_ListenCallbackSubscription.f_Clear();
 				if (pListen->m_WebsocketServer)
-					pListen->m_WebsocketServer->f_Destroy();
+				{
+					pListen->m_WebsocketServer->f_DestroyNoResult(DMibPFile, DMibPLine);
+					pListen->m_WebsocketServer.f_Clear();
+				}
 				Internal.m_Listens.f_Remove(pListen);
 			}
 		}

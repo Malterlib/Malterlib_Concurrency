@@ -204,12 +204,12 @@ namespace NMib
 			;
 		}
 
-		void CActorHolder::f_Destroy()
+		void CActorHolder::f_DestroyNoResult(ch8 const *_pFile, uint32 _Line)
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
 			pActor(&CActor::f_Destroy)
-				> fg_AnyConcurrentActor() / [pActor](TCAsyncResult<void> &&_Result) mutable
+				> fg_AnyConcurrentActor() / [pActor, _pFile, _Line](TCAsyncResult<void> &&_Result) mutable
 				{
 					try
 					{
@@ -221,7 +221,7 @@ namespace NMib
 					}
 					catch (NException::CException const &)
 					{
-						DMibConErrOut("Failed to destroy actor: {}\n", _Result.f_GetExceptionStr());
+						DMibConErrOut2(DMibPFileLineFormat " Failed to destroy actor: {}\n", _pFile, _Line, _Result.f_GetExceptionStr());
 						DMibPDebugBreak;
 					}
 					pActor->fp_Terminate(nullptr);
@@ -323,33 +323,38 @@ namespace NMib
 				(
 					[this, fOnDestroyed = fg_Move(_fOnDestroyed)]() mutable
 					{
-						if (mp_pActor)
+						if (!mp_pActor)
 						{
-							mp_pActor.f_Clear();
-							mp_bDestroyed.f_Exchange(2);
-							TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
-							
-							if (CSuper::f_RefCountDecrease() == 1)
-							{
-								// Dispatch to our queue again, otherwise we ourselves could be in callstack
-								mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
-									(
-										mp_Priority
-										, fg_OnScopeExit
-										(
-											[pToDelete, fOnDestroyed = fg_Move(fOnDestroyed)]() mutable
-											{
-												pToDelete.f_Clear();
-												if (fOnDestroyed)
-													(fOnDestroyed)();
-											}
-										)
-									)
-								;
-							}
-							else if (fOnDestroyed)
-								(fOnDestroyed)();
+							if (fOnDestroyed)
+								fOnDestroyed();
+							return;
 						}
+						
+						mp_pActor.f_Clear();
+						mp_bDestroyed.f_Exchange(2);
+						TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
+						
+						if (CSuper::f_RefCountDecrease() != 1)
+						{
+							if (fOnDestroyed)
+								fOnDestroyed();
+							return;
+						}
+						// Dispatch to our queue again, otherwise we ourselves could be in callstack
+						mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
+							(
+								mp_Priority
+								, fg_OnScopeExit
+								(
+									[pToDelete, fOnDestroyed = fg_Move(fOnDestroyed)]() mutable
+									{
+										pToDelete.f_Clear();
+										if (fOnDestroyed)
+											fOnDestroyed();
+									}
+								)
+							)
+						;
 					}
 				)
 			;

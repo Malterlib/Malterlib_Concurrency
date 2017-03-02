@@ -77,7 +77,7 @@ namespace NMib
 			bool f_ImmediateDelete() const;
 			virtual void f_DestroyThreaded();
 			bool f_IsDestroyed() const;
-			void f_Destroy();
+			void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);
 			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 			aint f_RefCountDecrease();
 

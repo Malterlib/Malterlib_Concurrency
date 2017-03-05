@@ -37,7 +37,7 @@ namespace NMib
 				union
 				{
 					NAtomic::TCAtomic<CQueueEntry *> m_pNextQueued;
-					DMibListLinkDSA_Member(m_Link);
+					DMibListLinkDSA_LinkType m_Link;
 				};
 				FActorQueueDispatch m_fToCall;
 				CQueueEntry(FActorQueueDispatch &&_fToCall);

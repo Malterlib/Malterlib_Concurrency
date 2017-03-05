@@ -98,6 +98,43 @@ namespace NMib::NConcurrency
 					}
 				;
 			}
+			
+			template <typename tf_FFunction, mint... tfp_Indices>
+			static NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> fs_Call
+				(
+					CDistributedActorReadStream &_Stream
+					, tf_FFunction &_fFunction
+					, NMeta::TCIndices<tfp_Indices...> const &_Indices
+				)
+			{
+				NContainer::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
+				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
+				DMibFastCheck(pContext && pContext->f_CorrectMagic());
+				
+				try
+				{
+					ParamList = fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>());
+				}
+				catch (NException::CException const &_Exception)
+				{
+					return _Exception;
+				}
+				
+				auto Continuation = _fFunction(fg_Forward<tp_CParams>(NContainer::fg_Get<tfp_Indices>(ParamList))...);
+			
+				NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Return;
+				
+				Continuation.f_OnResultSet
+					(
+						[Return, Context = *pContext, Version = _Stream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
+						{
+							Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &Context, Version));
+						}
+					)
+				;
+				
+				return Return;
+			}
 		};
 	}
 
@@ -124,64 +161,33 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::TCStreamingFunction(t_FFunction const &_fFunction)
+	template <typename t_FFunction, typename t_FFunctionSignature>
+	TCStreamingFunction<t_FFunction, t_FFunctionSignature>::TCStreamingFunction(t_FFunction const &_fFunction)
 		: m_fFunction(_fFunction)
 	{
 	}
 
-	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::TCStreamingFunction(t_FFunction &&_fFunction)
+	template <typename t_FFunction, typename t_FFunctionSignature>
+	TCStreamingFunction<t_FFunction, t_FFunctionSignature>::TCStreamingFunction(t_FFunction &&_fFunction)
 		: m_fFunction(fg_Move(_fFunction))
 	{
 	}
 	
-	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	template <mint... tfp_Indices>
-	NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::fp_Call
-		(
-			CDistributedActorReadStream &_Stream
-			, NMeta::TCIndices<tfp_Indices...> const &_Indices
-		)
-	{
-		NContainer::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
-		CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
-		DMibFastCheck(pContext && pContext->f_CorrectMagic());
-		
-		try
-		{
-			ParamList = fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>());
-		}
-		catch (NException::CException const &_Exception)
-		{
-			return _Exception;
-		}
-		
-		auto Continuation = m_fFunction(fg_Forward<tp_CParams>(NContainer::fg_Get<tfp_Indices>(ParamList))...);
-	
-		NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Return;
-		
-		Continuation.f_OnResultSet
-			(
-				[Return, Context = *pContext, Version = _Stream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
-				{
-					Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &Context, Version));
-				}
-			)
-		;
-		
-		return Return;
-	}
-	
-	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	auto TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_Call(CDistributedActorReadStream &_Stream)
+	template <typename t_FFunction, typename t_FFunctionSignature>
+	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream)
 		-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
 	{
-		return fp_Call(_Stream, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CParams)>::CType());
+		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
+			(
+				_Stream
+				, m_fFunction
+				, typename NMeta::TCMakeConsecutiveIndices<NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::mc_nParams>::CType()
+			)
+		;
 	}
 
-	template <typename t_FFunction, typename t_CReturn, typename ...tp_CParams>
-	bool TCStreamingFunction<t_FFunction, TCContinuation<t_CReturn> (tp_CParams...)>::f_IsEmpty() const
+	template <typename t_FFunction, typename t_FFunctionSignature>
+	bool TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_IsEmpty() const
 	{
 		return m_fFunction.f_IsEmpty();
 	}

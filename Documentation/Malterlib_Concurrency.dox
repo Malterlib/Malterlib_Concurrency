@@ -8,11 +8,15 @@
  */
 
 /**
-	\page p_Malterlib_Concurrency Concurrency
-	
-	- \subpage p_Malterlib_Concurrency_Actor
-	- \subpage p_Malterlib_Concurrency_DistributedActor
-	- \subpage p_Malterlib_Concurrency_DistributedTrust
-	- \subpage p_Malterlib_Concurrency_DisrtibutedApp
-*/
 
+\page p_Malterlib Modules
+- \subpage p_Malterlib_Concurrency
+
+\page p_Malterlib_Concurrency Concurrency
+
+- \subpage p_Malterlib_Concurrency_Actor
+- \subpage p_Malterlib_Concurrency_DistributedActor
+- \subpage p_Malterlib_Concurrency_DistributedTrust
+- \subpage p_Malterlib_Concurrency_DisrtibutedApp
+
+*/

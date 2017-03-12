@@ -30,6 +30,8 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn, typename ...tp_CParams>
 		struct TCStreamingFunctionHelper<TCContinuation<t_CReturn> (tp_CParams...)>
 		{
+			static constexpr mint mc_nParams = sizeof...(tp_CParams);
+			
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
 			{
 				return [_FunctionID](tp_CParams ...p_Params) -> TCContinuation<t_CReturn>

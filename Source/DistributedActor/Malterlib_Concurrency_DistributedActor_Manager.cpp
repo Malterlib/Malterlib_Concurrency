@@ -32,15 +32,11 @@ namespace NMib
 		CActorDistributionManager::CActorDistributionManager(CActorDistributionManagerInitSettings const &_InitSettings)
 			: mp_pInternal(fg_Construct(this, _InitSettings))
 		{
-		}
-
-		void CActorDistributionManager::f_Construct()
-		{
 			auto &Internal = *mp_pInternal;
 			Internal.m_ResolveActor = fg_ConstructActor<NNet::CResolveActor>();
 		}
-		
-		TCContinuation<void> CActorDistributionManager::f_Destroy()
+
+		TCContinuation<void> CActorDistributionManager::fp_Destroy()
 		{
 			TCActorResultVector<void> Results;
 			auto &Internal = *mp_pInternal;

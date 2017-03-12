@@ -66,9 +66,9 @@ namespace NMib
 		
 		template <typename t_CActor>
 		class TCWeakActor;
-		
+
 		template <typename t_CActor>
-		class TCActor
+		class TCActor /// \brief Contain an instance of a CActor
 		{
 			friend class CConcurrencyManager;
 			template <typename t_CActor2>
@@ -86,9 +86,14 @@ namespace NMib
 			
 		private:
 			TCActorHolderSharedPointer<CActorInternal> m_pInternalActor;
+
+			template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, mint... tfp_Indidies>
+			void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const&);
 			
 		public:
 			TCActor();
+			template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+			TCActor(TCConstruct<tf_CType, tfp_CParams...> &&_Construct, tfp_CHolderParams && ...p_HolderParams);
 			TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
 			TCActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
 			TCActor(CNullPtr);
@@ -103,6 +108,10 @@ namespace NMib
 			TCActor &operator =(TCActor const &_Other);
 			TCActor &operator =(TCActor &&_Other);
 			TCActor &operator =(CNullPtr);
+			template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+			TCActor &operator =(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct);
+			template <typename tf_CType, typename ...tfp_CParams>
+			TCActor &operator =(TCConstruct<tf_CType, tfp_CParams...> &&_Construct);
 
 			template <typename tf_CActor>
 			TCActor &operator =(TCActor<tf_CActor> const &_Other);
@@ -171,6 +180,7 @@ namespace NMib
 		
 		typedef NPtr::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;
 		
+		CConcurrencyManager &fg_CurrentConcurrencyManager();
 		CConcurrencyManager &fg_ConcurrencyManager();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 		TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();

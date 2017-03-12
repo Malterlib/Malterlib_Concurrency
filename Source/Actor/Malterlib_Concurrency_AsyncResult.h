@@ -22,6 +22,7 @@ namespace NMib::NConcurrency
 		return std::current_exception();
 	}
 	
+	/// Common functionality for TCAsyncResult
 	class CAsyncResult
 	{
 		template <typename t_CType2>
@@ -40,22 +41,31 @@ namespace NMib::NConcurrency
 		CAsyncResult &operator =(CAsyncResult const &_Other);
 		CAsyncResult &operator =(CAsyncResult &&_Other);
 		
-		void f_Access() const;
-		NStr::CStr f_GetExceptionStr() const;
-		CExceptionPointer f_GetException() const;
+		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
+		NStr::CStr f_GetExceptionStr() const; ///< Returns a string for the contained exception.
+		CExceptionPointer f_GetException() const; ///< Returns the contained exception as a exception pointer
 		
-		void f_SetCurrentException();
-		template <typename tf_CException, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CException>::mc_Value> * = nullptr>
-		void f_SetException(tf_CException &&_Exception);
-		void f_SetException(CAsyncResult && _AsyncResult);
-		void f_SetException(CAsyncResult const &_AsyncResult);
-		void f_SetException(CExceptionPointer const &_pException);
-		void f_SetException(CExceptionPointer &&_pException);
+		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCContinuation implementation
+		template 
+		<
+			typename tf_CException
+			, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CException>::mc_Value> * = nullptr
+		>
+		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent. 
+														 ///< Usually only used from TCContinuation implementation
+		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCContinuation implementation
+		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCContinuation implementation
+		void f_SetException(CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCContinuation implementation
+		void f_SetException(CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCContinuation implementation
 
-		explicit operator bool () const;
-		bool f_IsSet() const;
+		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
+		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`
 	};
 	
+	/** \brief Used to represent a result of an async operation
+
+	 Either contains an exception or the result value. If the result is an exception the exception will be thrown if you try to access the value.
+	*/
 	template <typename t_CType = void>
 	class TCAsyncResult : public CAsyncResult
 	{

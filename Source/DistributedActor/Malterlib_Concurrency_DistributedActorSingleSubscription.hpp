@@ -12,11 +12,6 @@ namespace NMib
 			: mp_Namespace(_Namespace)
 			, mp_DistributionManager(_DistributionManager)
 		{
-		}
-
-		template <typename t_CActor>
-		void TCDistributedActorSingleSubscription<t_CActor>::f_Construct()
-		{
 			DMibCheck(fg_CurrentActor() == fg_ThisActor(this));
 			mp_DistributionManager
 				(

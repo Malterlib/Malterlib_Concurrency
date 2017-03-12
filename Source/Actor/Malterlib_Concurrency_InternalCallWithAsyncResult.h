@@ -74,13 +74,12 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
-				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
-				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
+				CCurrentActorScope CurrentActor(pActor);
 				{
 #if DMibConcurrencyDebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
-					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 					if (_Local.fs_ShouldDiscardResult())
 						_Local.m_ToCall(*(pActor));
@@ -107,13 +106,12 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
-				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
-				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
+				CCurrentActorScope CurrentActor(pActor);
 				{
 #if DMibConcurrencyDebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
-					CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 					_Local.m_ToCall(*pActor);
 					if (!_Local.fs_ShouldDiscardResult())
@@ -139,14 +137,13 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
-				auto &ConcurrencyManager = *_Local.m_pActorInternal->mp_pConcurrencyManager;
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Local.m_Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 				
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
-				CCurrentActorScope CurrentActor(ConcurrencyManager, pActor);
+				CCurrentActorScope CurrentActor(pActor);
 				if (_Local.fs_ShouldDiscardResult())
 				{
 					_Local.m_ToCall(*pActor);
@@ -169,7 +166,7 @@ namespace NMib
 		#endif
 							}
 							else
-								Local.m_Result.f_SetException(DMibImpExceptionInstance(NMib::NException::CException, "Result was not set"));
+								Local.m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set"));
 
 							fg_RemoveQualifiers(Local).template f_ResultAvailable<>();
 						}
@@ -183,24 +180,22 @@ namespace NMib
 			template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>
 			void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor _pResultActor, tf_CResult &&_Result)
 			{
-				auto &ConcurrencyManager =_pResultActor->f_ConcurrencyManager();
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
-				CCurrentActorScope CurrentActor(ConcurrencyManager, _pResultActor);
+				CCurrentActorScope CurrentActor(_pResultActor);
 				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 			}
 
 			template <typename tf_CResultFunctor, typename tf_CResult>
 			void fg_CallResultFunctorDirect(tf_CResultFunctor &_ResultFunctor, tf_CResult &&_Result)
 			{
-				CConcurrencyManager &ConcurrencyManager = fg_ConcurrencyManager();
 #if DMibConcurrencyDebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
-				CAsyncCallstacksScope CallstacksScope(ConcurrencyManager, Callstack);
+				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
-				CCurrentActorScope CurrentActor(ConcurrencyManager, nullptr);
+				CCurrentActorScope CurrentActor(nullptr);
 				_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 			}
 		}

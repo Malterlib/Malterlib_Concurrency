@@ -86,10 +86,6 @@ namespace NMib::NConcurrency
 	{
 	}
 	
-	void CDistributedTrustDDPBridge::f_Construct()
-	{
-	}
-
 	void CDistributedTrustDDPBridge::CInternal::fp_StartupFailed(CException const &_Exception)
 	{
 		m_pStartupFailedException = fg_Construct(_Exception);

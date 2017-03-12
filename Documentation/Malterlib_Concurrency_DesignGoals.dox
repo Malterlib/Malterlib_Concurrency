@@ -1,0 +1,258 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+/**
+ 
+\page p_Malterlib_Concurrency_DesignGoals Design goals
+
+ Consider the following naive implementation of an async workflow. It includes race conditions and other bugs.
+
+~~~
+struct CMyActor
+{
+	void f_DisptachOnOurThread(TCFunction<void ()> &&_fToDispatch);
+	
+	void f_MyFunction(TCFunction<void (int _Error, int32 _Value)> &&_fHandler)
+	{
+		// You could easily forget to dispatch to you own thread, in which case you have a race condition
+ 
+		f_DisptachOnOurThread
+			(
+				[this, _fHandler]() // _fHandler will never be called if CMyActor goes out of scope before processing this
+				{
+					fg_DoSomethingElseAsync
+						(
+							[this, _HandlerFunctor](int _Error) 
+							{
+								// _fHandler will never be called if fg_DisptachOnSomethingElse does not call this function
+ 
+								// this pointer might be invalid if CMyActor has gone out of scope
+ 
+								if (_Error)
+								{
+									_fHandler(_Error, 0); // Here we have to supply a default value even if it has no meaning
+									return;
+								}
+								
+								_HandlerFunctor(m_Value + 5);	// Here we call directly into a lambda without regard for which  
+																// thread it's running under potentially causing a race condition
+							}
+						)
+					;
+				}
+			)
+		;
+	}
+ 
+	int32 m_Value = 6;
+};
+
+struct CMyOtherActor
+{
+	void f_AskForValue()
+	{
+		m_pMyActor->f_MyFunction
+			(
+				[this](int _Error, int32 _Value)
+				{
+					// Here the this pointer could be invalid because the CMyOtherActor instance have been deleted
+					if (_Error)
+					{
+						DConErrOut("Error {}\n", _Value);
+						return;
+					}
+					DConOut("Value: {}\n", _Value);
+				}
+			)
+		;
+	}
+	
+	TCSharedPointer<CMyActor> m_pMyActor = fg_Construct();
+};
+~~~
+
+ This is the way we would write the same thing in Malterlib concurrency framework while solving all problems brought up above.
+~~~
+struct CMyActor : public CActor
+{
+	TCContinuation<int32> f_MyFunction()
+	{
+		TCContinuation<int32> Continuation; // When this variable goes out of scope it will automatically reply 
+											// with an CExceptionActorResultWasNotSet exception if no other result was set
+		
+		fg_DoSomethingElseAsync() > [this, Continuation](TCAsyncResult<void> &&_Result)
+			{
+				// If this CMyActor has been deleted this function will not be called at all and Continuation
+				// will go out of scope, returning an exception to the caller of f_MyFunction.
+ 
+				// TCAsyncResult wraps the result so either you get an exception or a result. No dummy value
+				// needed in case of error.
+ 
+				if (!_Result)
+				{
+					// This catches all the error conditions, such as the actor in fg_DoSomethingElseAsync being 
+					// deleted. 
+					Continuation.f_SetException(_Result); // Forward exception
+					return;
+				}
+				
+				Continuation.f_SetResult(m_Value + 5);	// When the result is set we schedule the result functor
+														// to run on the calling actors queue automatically. 
+			}
+		;
+		return Continuation;
+	}
+
+	int32 m_Value = 6;
+};
+
+struct CMyOtherActor
+{
+	void f_AskForValue()
+	{
+		// You can never call directly into an actors function, instead you call through the member function pointer
+		// allowing the function call do be dispatch to run on the correct queue on the destination actor. No way
+		// to accidentally create a race condition.
+
+		// The result functor after > is automatically associated with the current running actor so the result 
+		// functor is called from the right thread/queue.
+ 
+ 		m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Value) 
+			{
+				if (!_Value)
+				{
+					// This catches all the error conditions, such as m_MyActor being deleted before returning a result. 
+					DConErrOut("Error {}", _Value.f_GetExceptionStr());
+					return;
+				}
+				DConOut("Value: {}\n", *_Value);
+			}
+		;
+	}
+	
+	TCActor<CMyActor> m_MyActor = fg_Construct();
+};
+~~~
+ 
+\section s_Malterlib_Concurrency_DesignGoals_Goals Goals
+ 
+ The above example was used to illustrate how easy it is to get things wrong when working with concurrent async code.
+ 
+ The design goals for the Malterlib concurrency framework try to make it as easy as possible to get concurrent 
+ async code right, and as hard as possible to shoot yourself in the foot.
+ 
+- \ref s_Malterlib_Concurrency_DesignGoals_SafeConcurrency
+- \ref s_Malterlib_Concurrency_DesignGoals_SafeAsync
+- \ref s_Malterlib_Concurrency_DesignGoals_AlwaysGetResult
+- \ref s_Malterlib_Concurrency_DesignGoals_SafeDestruct
+- \ref s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate
+- \ref s_Malterlib_Concurrency_DesignGoals_TransparantDistributedCalls
+- \ref s_Malterlib_Concurrency_DesignGoals_ScaleLinearly
+- \ref s_Malterlib_Concurrency_DesignGoals_LowOverhead
+- \ref s_Malterlib_Concurrency_DesignGoals_AvaidDanglingRefs
+- \ref s_Malterlib_Concurrency_DesignGoals_AllowMigration
+- \ref s_Malterlib_Concurrency_DesignGoals_AllowRedundancy
+
+\subsection s_Malterlib_Concurrency_DesignGoals_SafeConcurrency Safe concurrency
+ 
+ An actor executes a sequenced stream of functions. The \ref NMib::NConcurrency::CConcurrencyManager "concurrency manager" in concert with an 
+ \ref NMib::NConcurrency::CActorHolder "actor holder" is responsible for making sure that an actor is only executing functions on one thread at a time.
+ 
+ This makes it safe to write code without locks inside the context of one actor.
+ 
+ Great care has been taken to make it as hard as possible to break out of this execution model, although it is possible when manually dispatching to another actor.
+
+\subsection s_Malterlib_Concurrency_DesignGoals_SafeAsync Safe asynchronous calls
+ 
+ All actors are wrapped inside a \ref NMib::NConcurrency::TCActor "TCActor" template class to stop internal data from being accessed outside of the actor dispatch queue.
+
+ If you try to construct an actor directly you will get a runtime contract violation:
+~~~+incorrect
+CMyActor MyActor;
+MyActor.f_MyFunction();
+~~~
+
+ By default there is no way to access internal actor state state. If you do the following you will get a compile error:
+~~~+incorrect
+TCActor<CMyActor> MyActor;
+MyActor->f_MyFunction(); 
+~~~
+ 
+ It's only possible to call an actor through a member function pointer. This ensures that actors are only called from their own sequenced actor stream:
+ 
+~~~
+m_MyActor(&CMyActor::f_MyFunction) > fg_DiscardResult();
+~~~
+ 
+ Calls are guaranteed to be processed in the same order they were called in the same process. Cross process, all calls made from the same process are 
+ guaranteed ordered with regards to each other.
+ 
+ For all actor calls there is a chance that the call will fail for some reason or other. That is why the result is always returned in an \ref 
+ NMib::NConcurrency::TCAsyncResult "TCAsyncResult" which contain either an exception, or the result of the call.
+ 
+ The result of an actor call always needs to be directed to an actor that receives the result:
+ 
+~~~
+m_MyActor(&CMyActor::f_MyFunction) > fg_ThisActor(this) / [this](TCAsyncResult<int32> &&_Result)
+	{
+		
+	}
+;
+~~~
+
+ By default the result will be directed to the actor that is currently processing a call. So the code below is equivalent to above when run from within 
+ an actor context. If the code is not running within an actor context you will get a runtime contract violation. 
+ 
+~~~
+m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Result)
+	{
+		
+	}
+;
+~~~
+ 
+\subsection s_Malterlib_Concurrency_DesignGoals_AlwaysGetResult Always get a result
+
+ To maximize the changes that all calls you do get a result back all interfaces and default concepts are designed with RAII principles. The only
+ way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCContinuation "TCContinuation" in persistent
+ state.
+
+ The following code will return a \ref NMib::NConcurrency::CExceptionActorResultWasNotSet "CExceptionActorResultWasNotSet" exception since the code forgot to 
+ return a result:
+~~~
+TCContinuation<void> f_MyBrokenFunction()
+{
+	TCContinuation<void> Continuation; 
+	m_MyActor(&CMyActor::f_MyFunction) > [this, Continuation](TCAsyncResult<int32> &&_Result)
+		{
+			if (!_Result)
+			{
+				Continuation.f_SetException(_Result);
+				return;
+			}
+			// Continuation goes out of scope when this functor returns, 
+			// and a CExceptionActorResultWasNotSet exception will be returned 
+		}
+	;
+	return Continuation;
+}
+;
+~~~
+
+\subsection s_Malterlib_Concurrency_DesignGoals_SafeDestruct Safe destruction
+ 
+ If you call an actor that has been deleted you will get back a \ref NMib::NConcurrency::CExceptionActorDeleted "CExceptionActorDeleted" exception.
+ 
+\subsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate Minimize boilerplate
+\subsection s_Malterlib_Concurrency_DesignGoals_TransparantDistributedCalls Transparent calls across processes and hosts
+\subsection s_Malterlib_Concurrency_DesignGoals_ScaleLinearly Scale linearly
+\subsection s_Malterlib_Concurrency_DesignGoals_LowOverhead Low overhead
+ Require no blocking
+\subsection s_Malterlib_Concurrency_DesignGoals_AvaidDanglingRefs Avoid dangling references
+\subsection s_Malterlib_Concurrency_DesignGoals_AllowMigration Allow migration between processes and hosts
+\subsection s_Malterlib_Concurrency_DesignGoals_AllowRedundancy Allow transparent redundancy
+
+ 
+*/
+
+

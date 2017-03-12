@@ -30,7 +30,6 @@ namespace NMib::NConcurrency
 
 		TCContinuation<void> f_Startup();
 		
-		void f_Construct() override;
 	private:
 		struct CInternal;
 		

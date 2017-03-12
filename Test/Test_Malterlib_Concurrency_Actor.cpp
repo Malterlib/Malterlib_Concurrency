@@ -45,6 +45,24 @@ namespace
 	using namespace NMib::NFunction;
 	
 	constexpr mint gc_nRepetitions = 11;
+
+	class CConstructorExceptionActor : public CActor
+	{
+	public:
+		CConstructorExceptionActor()
+		{
+			DMibError("Test error");
+		}
+	};
+
+	class CConstructExceptionActor : public CActor
+	{
+	public:
+		void fp_Construct() override
+		{
+			DMibError("Test error");
+		}
+	};
 	
 	class CPerformanceTestActor : public CActor
 	{
@@ -113,7 +131,7 @@ namespace
 			return _Value;
 		}
 		
-		virtual TCContinuation<void> f_Destroy() override
+		virtual TCContinuation<void> fp_Destroy() override
 		{
 			return TCContinuation<void>::fs_Finished(); 
 		}
@@ -187,6 +205,28 @@ namespace
 #endif
 		}
 	public:
+
+		void f_ConstructionTests()
+		{
+			DMibTestSuite("Construction")
+			{
+				auto fConstructActorConstructorException = []
+					{
+						TCActor<CConstructorExceptionActor> pActor;
+						pActor = fg_Construct();
+					}
+				;
+
+				auto fConstructActorConstructException = []
+					{
+						TCActor<CConstructExceptionActor> pActor = fg_Construct();
+					}
+				;
+				
+				DMibExpectException(fConstructActorConstructorException(), DMibErrorInstance("Test error"));
+				DMibExpectException(fConstructActorConstructException(), DMibErrorInstance("Test error"));
+			};
+		}
 		
 		void f_FunctionalTests()
 		{
@@ -1597,6 +1637,7 @@ namespace
 		
 		void f_DoTests()
 		{
+			f_ConstructionTests();
 			f_FunctionalTests();
 			f_PerformanceTests();		
 		}

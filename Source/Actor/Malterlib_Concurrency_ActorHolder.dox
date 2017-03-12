@@ -1,0 +1,10 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+/**
+\class NMib::NConcurrency::CActorHolder
+
+- Sequences execution of functions on an actor
+- Manages construction and destruction of contained actor
+
+*/

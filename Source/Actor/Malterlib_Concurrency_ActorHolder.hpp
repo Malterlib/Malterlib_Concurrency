@@ -24,7 +24,7 @@ namespace NMib
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
-			pActor(&CActor::f_Destroy)
+			pActor(&CActor::fp_Destroy)
 				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall), fOnDestroyed = fg_Move(_fOnDestroyed)](TCAsyncResult<void> &&_Result) mutable
 				{
 					if (!pActor->fp_Terminate(fg_Move(fOnDestroyed)))
@@ -52,7 +52,7 @@ namespace NMib
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
-			pActor(&CActor::f_Destroy)
+			pActor(&CActor::fp_Destroy)
 				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall)](TCAsyncResult<void> &&_Result) mutable
 				{
 					NFunction::TCFunctionNoAllocMutable<void ()> fOnDestroyed = NFunction::TCFunctionSmallMutable<void ()>
@@ -97,7 +97,7 @@ namespace NMib
 		template <typename tf_CFunctor>
 		void CActorHolder::f_Destroy(tf_CFunctor &&_Functor)
 		{
-			auto pActor = mp_pConcurrencyManager->f_CurrentActor();
+			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
 			f_Destroy(pActor / fg_Forward<tf_CFunctor>(_Functor));
 		}

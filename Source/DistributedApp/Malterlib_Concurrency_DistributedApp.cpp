@@ -593,7 +593,7 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	void CDistributedAppActor::f_Construct()
+	void CDistributedAppActor::fp_Construct()
 	{
 		mp_State.m_AppActor = fg_ThisActor(this);
 		mp_pCommandLineSpec = fg_Construct();
@@ -641,7 +641,7 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 	
-	TCContinuation<void> CDistributedAppActor::f_Destroy()
+	TCContinuation<void> CDistributedAppActor::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateConcurrencyManager && mp_State.m_DistributionManager)

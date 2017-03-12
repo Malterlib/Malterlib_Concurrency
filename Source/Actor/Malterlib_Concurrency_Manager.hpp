@@ -14,33 +14,32 @@ namespace NMib
 				, TCConstruct<tf_CType, tfp_CParams...> &&_ConstructParams
 			)
 		{
-			NMem::TCAllocator_Placement<sizeof(tf_CType)> Allocator(_pInternalActor->m_ActorMemory.m_Aligned);
-			NPtr::TCUniquePointer<tf_CType, NMem::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
-			NPtr::TCUniquePointer<tf_CType, NMem::CAllocator_Placement> pRealActor{fg_Explicit(pActorPlacement.f_Detach())};
+			TCActorInternal<tf_CType> &InternalActor = *_pInternalActor.f_Get();
 			
 			++m_nActors;
 #ifdef DMibDebug
-			_pInternalActor->m_ActorTypeName = fg_GetTypeName<tf_CType>();
+			InternalActor.m_ActorTypeName = fg_GetTypeName<tf_CType>();
 			{
 				DMibLock(m_ActorListLock);
-				m_Actors.f_Insert(*_pInternalActor);
+				m_Actors.f_Insert(InternalActor);
 			}
 #endif
-			pRealActor->self.m_pThis = _pInternalActor.f_Get();
-			pRealActor->mp_pConcurrencyManager = this;
-			_pInternalActor->mp_pActor = fg_Move(pRealActor);
-			_pInternalActor->mp_pConcurrencyManager = this;
-			_pInternalActor->f_RefCountIncrease();
+			InternalActor.mp_pConcurrencyManager = this;
 			
-			// Handle exception in construct
-			auto Cleanup = g_OnScopeExit > [&]
-				{
-					_pInternalActor->f_RefCountDecrease();
-				}
+			InternalActor.fp_ConstructActor
+				(
+					[&]
+					{
+						NMem::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.m_ActorMemory.m_Aligned);
+						NPtr::TCUniquePointer<tf_CType, NMem::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
+						
+						// Construction was successful
+						pActorPlacement.f_Detach(); 
+					}
+					, InternalActor.m_ActorMemory.m_Aligned
+				)
 			;
-			_pInternalActor->fp_Construct();
-			Cleanup.f_Clear(); // Disable refcount decrease
-			
+
 			return fg_Move(_pInternalActor);
 		}
 

@@ -107,7 +107,7 @@ namespace NMib
 		}
 
 		template <typename t_CType, typename t_CLock>
-		TCContinuation<void> TCLockActor<t_CType, t_CLock>::f_Destroy()
+		TCContinuation<void> TCLockActor<t_CType, t_CLock>::fp_Destroy()
 		{
 			DMibCheck(!m_Locked.f_Load())("Someone still owns this lock");
 			return TCContinuation<void>::fs_Finished();

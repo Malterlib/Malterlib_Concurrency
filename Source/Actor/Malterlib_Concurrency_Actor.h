@@ -27,7 +27,7 @@ namespace NMib
 			};
 		}
 		
-		class CActor
+		class CActor /// \brief Base class for all types used with \ref TCActor
 		{
 			template <typename tf_CActor>
 			friend TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
@@ -48,8 +48,8 @@ namespace NMib
 			void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 
 		protected:
-			virtual void f_Construct();
-			virtual TCContinuation<void> f_Destroy();
+			virtual void fp_Construct();
+			virtual TCContinuation<void> fp_Destroy();
 			
 		public:
 			
@@ -86,6 +86,5 @@ namespace NMib
 		{
 			using CActorHolder = CSeparateThreadActorHolder;
 		};
-
 	}
 }

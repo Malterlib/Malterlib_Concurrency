@@ -8,6 +8,14 @@ namespace NMib::NConcurrency
 {
 	CActor::CActor()
 	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+		DMibCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
+		
+		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActor = fg_Explicit(this); 
+		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+		mp_pConcurrencyManager = &ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager();
+		ThreadLocal.m_pCurrentActor = this;
 	}
 
 	CActor::~CActor()
@@ -24,11 +32,11 @@ namespace NMib::NConcurrency
 		_fToDisptach();
 	}
 
-	void CActor::f_Construct()
+	void CActor::fp_Construct()
 	{
 	}
 	
-	TCContinuation<void> CActor::f_Destroy()
+	TCContinuation<void> CActor::fp_Destroy()
 	{
 		return TCContinuation<void>::fs_Finished();
 	}

@@ -25,6 +25,7 @@ namespace NMib::NConcurrency
 		)
 		: mp_pInternal(fg_Construct(this, _Database, fg_Move(_fConstructManager), _KeySetting, _ListenFlags, _FriendlyName, _Enclave, _TranslateHostnames, _DefaultConnectionConcurrency))
 	{
+		fp_Init();
 	}
 		
 	CDistributedActorTrustManager::~CDistributedActorTrustManager()
@@ -63,7 +64,7 @@ namespace NMib::NConcurrency
 		*m_pDestroyed = true;
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::f_Destroy()
+	TCContinuation<void> CDistributedActorTrustManager::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
 		TCActorResultVector<void> Stops;

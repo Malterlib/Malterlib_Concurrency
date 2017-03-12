@@ -70,7 +70,7 @@ namespace NMib
 			void fp_ProcessTimers();
 			void fp_StartThread();
 
-			TCContinuation<void> f_Destroy();
+			TCContinuation<void> fp_Destroy();
 
 		public:
 

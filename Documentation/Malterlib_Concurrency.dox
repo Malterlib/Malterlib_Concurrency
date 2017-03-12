@@ -14,6 +14,7 @@
 
 \page p_Malterlib_Concurrency Concurrency
 
+- \subpage p_Malterlib_Concurrency_DesignGoals
 - \subpage p_Malterlib_Concurrency_Actor
 - \subpage p_Malterlib_Concurrency_DistributedActor
 - \subpage p_Malterlib_Concurrency_DistributedTrust

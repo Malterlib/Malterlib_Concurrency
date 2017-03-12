@@ -58,22 +58,67 @@ namespace NMib
 		void CActorHolder::fp_StartQueueProcessing()
 		{
 		}
-		
-		void CActorHolder::fp_Construct()
+
+		void CActorHolder::fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory)
 		{
+			f_RefCountIncrease();
+			
+			// Handle exception in construct
+			auto CleanupRefCount = g_OnScopeExit > [&]
+				{
+					f_RefCountDecrease();
+				}
+			;
+			
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			
 			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
 			fp_StartQueueProcessing();
-			CCurrentActorScope CurrentActor(*mp_pConcurrencyManager, mp_pActor.f_Get());
-			mp_pActor->f_Construct();
-			mint NewWorking = mp_Working.f_Exchange(0);
-			if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
-				f_QueueProcess([]{}, false); // Reschedule
+			
+			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+#if defined DMibContractConfigure_CheckEnabled
+			auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
+#endif
+			auto pOldActor = ThreadLocal.m_pCurrentActor;
+			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
+#if defined DMibContractConfigure_CheckEnabled
+			ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
+#endif
+			
+			auto CleanupWorking = g_OnScopeExit > [&]
+				{
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+#if defined DMibContractConfigure_CheckEnabled
+					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
+#endif
+					ThreadLocal.m_pCurrentActor = pOldActor;
+					
+					mint NewWorking = mp_Working.f_Exchange(0);
+					if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
+						f_QueueProcess([]{}, false); // Reschedule
+				}
+			;
+			
+			auto CleanupConstruction = g_OnScopeExit > [&]
+				{
+					mp_pActor.f_Detach();
+				}
+			;
+
+			_fConstruct();
+
+			// Construction was successful
+			CleanupConstruction.f_Clear();
+			
+			mp_pActor->fp_Construct();
+			
+			CleanupRefCount.f_Clear(); // Disable refcount decrease
 		}
 		
 		bool CActorHolder::fp_AddToQueue(FActorQueueDispatch &&_Functor)
 		{
-			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			
 			if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			{
@@ -109,7 +154,7 @@ namespace NMib
 		
 		void CActorHolder::f_RunProcess()
 		{
-			auto &ThreadLocal = *mp_pConcurrencyManager->m_ThreadLocal;
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOldHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
 			
@@ -208,7 +253,7 @@ namespace NMib
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
-			pActor(&CActor::f_Destroy)
+			pActor(&CActor::fp_Destroy)
 				> fg_AnyConcurrentActor() / [pActor, _pFile, _Line](TCAsyncResult<void> &&_Result) mutable
 				{
 					try
@@ -416,11 +461,6 @@ namespace NMib
 			;
 		}
 		
-		void CSeparateThreadActorHolder::fp_Construct()
-		{
-			CDefaultActorHolder::fp_Construct();
-		}
-		
 		void CSeparateThreadActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
@@ -547,10 +587,6 @@ namespace NMib
 		/// CDefaultActorHolder
 		///
 
-		void CDefaultActorHolder::fp_Construct()
-		{
-			CActorHolder::fp_Construct();
-		}			
 		CDefaultActorHolder::CDefaultActorHolder
 			(
 				CConcurrencyManager *_pConcurrencyManager

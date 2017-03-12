@@ -10,7 +10,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		void CDistributedActorTrustManager::f_Construct()
+		void CDistributedActorTrustManager::fp_Init()
 		{
 			fg_InitDistributedActorSystem();
 			auto &Internal = *mp_pInternal;

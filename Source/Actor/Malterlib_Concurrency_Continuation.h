@@ -90,6 +90,7 @@ struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::NPrivate::TCCon
 
 namespace NMib::NConcurrency
 {
+	/// \brief Used to defer the return of a value to allow async programming
 	template <typename t_CReturnValue = void>
 	struct TCContinuation
 	{

@@ -23,9 +23,11 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
+		struct CConcurrencyThreadLocal;
+		
+		/// \brief Manages scheduling of running actors in a thread pool
 		class CConcurrencyManager
 		{
-			struct CThreadLocal;
 		public:
 			CConcurrencyManager();
 			~CConcurrencyManager();
@@ -47,13 +49,10 @@ namespace NMib
 			TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
 			TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 			TCActor<CTimerActor> const &f_GetTimerActor();
-			TCActor<CActor> f_CurrentActor();
 			
 			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 			
-			CThreadLocal &f_ThreadLocal();
-
 		private:
 			template <typename t_CActor>
 			friend class TCActorInternal;
@@ -62,6 +61,7 @@ namespace NMib
 			friend class CActor;
 			friend class CDefaultActorHolder;
 			friend struct CCurrentActorScope;
+			friend struct CConcurrencyThreadLocal;
 
 			struct CQueue
 			{
@@ -75,42 +75,11 @@ namespace NMib
 				CQueue();
 			};
 			
-			struct CThreadLocal
-			{
-				CThreadLocal()
-				{
-					for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
-					{
-						NMisc::CRandomShiftRNG RandomGenerator
-							{
-								uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
-								, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
-								, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
-							}
-						;
-						mint nCores = NSys::fg_Thread_GetVirtualCores();
-						m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
-						m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
-					}
-				}
-				
-				CActor *m_pCurrentActor = nullptr;
-				CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
-#if DMibConcurrencyDebugActorCallstacks
-				CAsyncCallstacks *m_pCallstacks = nullptr;
-#endif
-				CQueue *m_pThisQueue = nullptr;
-				mint m_iConcurrentActor[EPriority_Max];
-				mint m_JobQueueIndex[EPriority_Max];
-			};
-
 			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
 			void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue);
 			bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
 			inline_never mint fp_InitConcurrentActors();
 
-			mutable NThread::TCThreadLocal<CThreadLocal, NMem::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
-			
 			NAtomic::TCAtomic<mint> m_nActors;
 #ifdef DMibDebug
 			NThread::CMutual m_ActorListLock;
@@ -129,6 +98,25 @@ namespace NMib
 			TCActor<CTimerActor> m_pTimerActor;
 		};
 		
+		struct CConcurrencyThreadLocal
+		{
+			CConcurrencyThreadLocal();
+			~CConcurrencyThreadLocal();
+			
+			CActor *m_pCurrentActor = nullptr;
+			CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
+	#if DMibConcurrencyDebugActorCallstacks
+			CAsyncCallstacks *m_pCallstacks = nullptr;
+	#endif
+			CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
+			mint m_iConcurrentActor[EPriority_Max];
+			mint m_JobQueueIndex[EPriority_Max];
+#if defined DMibContractConfigure_CheckEnabled
+			CActor *m_pCurrentlyConstructingActor = nullptr;
+#endif
+		};
+		
+		CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 	
 		template <typename tf_CActor, typename... tfp_CParams>
 		TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);
@@ -140,6 +128,7 @@ namespace NMib
 		
 		COnScopeExitShared fg_OnScopeExitActor(TCActor<> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnExitFunctor);
 	}
+	
 }
 
 #include "Malterlib_Concurrency_ActorHelpers.h"

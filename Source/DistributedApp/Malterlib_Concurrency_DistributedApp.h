@@ -62,8 +62,6 @@ namespace NMib::NConcurrency
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 		
-		void f_Construct();
-
 		TCContinuation<void> f_StartApp(NEncoding::CEJSON const &_Params); 
 		TCContinuation<void> f_StopApp(); 
 		
@@ -101,7 +99,6 @@ namespace NMib::NConcurrency
 		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
 		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
 		
-		TCContinuation<void> f_Destroy();
 		
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 		
@@ -115,6 +112,9 @@ namespace NMib::NConcurrency
 		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
 		virtual TCContinuation<void> fp_PreUpdate();
+
+		void fp_Construct() override;
+		TCContinuation<void> fp_Destroy() override;
 		
 		TCContinuation<void> fp_SaveStateDatabase();
 		TCContinuation<void> fp_SaveConfigDatabase();

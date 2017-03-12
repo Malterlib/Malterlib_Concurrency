@@ -53,7 +53,8 @@ namespace NMib
 			virtual ~ICDistributedActorData();
 			virtual bool f_IsValidForCall() const = 0;
 		};
-		
+
+		/// \brief Manages actor execution and lifetime
 		class CActorHolder : public NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer>
 		{
 			typedef NPtr::TCSharedPointerIntrusiveBase<NPtr::ESharedPointerOption_SupportWeakPointer> CSuper;
@@ -62,7 +63,6 @@ namespace NMib
 			friend class CDelegatedActorHolder;
 		protected:
 			bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
-			virtual void fp_Construct();
 			virtual void fp_StartQueueProcessing();
 			
 			template <typename tf_CActor>
@@ -104,6 +104,8 @@ namespace NMib
 			NPtr::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
 			
 		private:
+			void fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory);
+			
 			template <typename tf_CActor, typename tf_CFunctor>
 			void fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed);
 			
@@ -157,8 +159,6 @@ namespace NMib
 
 		class CDefaultActorHolder : public CActorHolder
 		{
-		protected:
-			void fp_Construct()	override;
 		public:
 			CDefaultActorHolder
 				(
@@ -217,7 +217,6 @@ namespace NMib
 			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
 			NStr::CStr mp_ThreadName;
 
-			void fp_Construct() override;
 			void fp_StartQueueProcessing() override;
 		public:
 			CSeparateThreadActorHolder

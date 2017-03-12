@@ -16,6 +16,13 @@ namespace NMib::NConcurrency
 #			define DErrorActorDeleted(_Description) DMibErrorActorDeleted(_Description)
 #		endif
 
+	DMibImpErrorClass(CExceptionActorResultWasNotSet, NMib::NException::CException);
+#		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description)
+
+#		ifndef DMibPNoShortCuts
+#			define DErrorActorResultWasNotSet(_Description) DMibErrorActorResultWasNotSet(_Description)
+#		endif
+
 	template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
 	class TCActorSubscriptionManager;
 
@@ -39,12 +46,11 @@ namespace NMib::NConcurrency
 
 	struct CCurrentActorScope
 	{
-		inline_always CCurrentActorScope(NConcurrency::CConcurrencyManager &_ConcurrencyManager, CActor const *_pActor);
+		inline_always CCurrentActorScope(CActor const *_pActor);
 		inline_always CCurrentActorScope(TCActor<CActor> const &_Actor);
 		inline_always ~CCurrentActorScope();
 	private:
 		CActor *mp_pLastActor;
-		NConcurrency::CConcurrencyManager &mp_ConcurrencyManager;
 	};
 	
 	namespace NPrivate
@@ -72,21 +78,19 @@ namespace NMib::NConcurrency
 		};
 		
 #if DMibConcurrencyDebugActorCallstacks
-		CAsyncCallstacks *fg_SetConcurrentCallstacks(CConcurrencyManager &_ConcurrencyManager, CAsyncCallstacks *_pCallstacks);
+		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks);
 		
 		struct CAsyncCallstacksScope
 		{
 			CAsyncCallstacks *m_pOld;
-			CConcurrencyManager &m_ConcurrencyManager;
-			CAsyncCallstacksScope(CConcurrencyManager &_ConcurrencyManager, CAsyncCallstacks &_New)
-				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(_ConcurrencyManager, &_New))
-				, m_ConcurrencyManager(_ConcurrencyManager)
+			CAsyncCallstacksScope(CAsyncCallstacks &_New)
+				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New))
 			{
 				
 			}
 			~CAsyncCallstacksScope()
 			{
-				NPrivate::fg_SetConcurrentCallstacks(m_ConcurrencyManager, m_pOld);
+				NPrivate::fg_SetConcurrentCallstacks(m_pOld);
 			}
 		};
 #endif

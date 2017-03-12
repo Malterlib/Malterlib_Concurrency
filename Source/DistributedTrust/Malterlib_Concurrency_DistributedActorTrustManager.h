@@ -158,8 +158,6 @@ namespace NMib::NConcurrency
 		
 		~CDistributedActorTrustManager();
 		
-		void f_Construct() override;
-		TCContinuation<void> f_Destroy() override;
 		
 		TCContinuation<NStr::CStr> f_Initialize(); 
 		
@@ -223,6 +221,10 @@ namespace NMib::NConcurrency
 		template <typename t_CActor>
 		friend struct TCTrustedActorSubscription;
 		friend struct CTrustedPermissionSubscription;
+
+		TCContinuation<void> fp_Destroy() override;
+		
+		void fp_Init();
 		
 		TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 		

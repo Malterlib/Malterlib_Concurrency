@@ -19,6 +19,7 @@ namespace NMib
 
 			void fp_Unlock(aint _LockSequence);
 			void f_Unlock(aint _LockSequence);
+			TCContinuation<void> fp_Destroy() override;
 		public:
 			typedef CSeparateThreadActorHolder CActorHolder;
 
@@ -42,7 +43,6 @@ namespace NMib
 			};
 
 			CLockReference f_Lock();
-			TCContinuation<void> f_Destroy();
 		};
 	}
 }

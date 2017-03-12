@@ -120,7 +120,7 @@ namespace NMib
 			m_Clock.f_Start();
 		}
 
-		TCContinuation<void> CTimerActor::f_Destroy()
+		TCContinuation<void> CTimerActor::fp_Destroy()
 		{
 			m_pTimerThread.f_Clear();
 #if DMibEnableSafeCheck > 0
@@ -364,7 +364,7 @@ namespace NMib
 		{
 			TCActor<CActor> pActor = _pActor;
 			if (!pActor)
-				pActor = fg_ConcurrencyManager().f_CurrentActor();
+				pActor = fg_CurrentActor();
 			fg_TimerActor()
 				(
 					&CTimerActor::f_OneshotTimer

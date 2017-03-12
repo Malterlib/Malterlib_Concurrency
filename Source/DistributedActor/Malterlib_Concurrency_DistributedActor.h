@@ -532,8 +532,6 @@ namespace NMib
 			CActorDistributionManager(CActorDistributionManagerInitSettings const &_InitSettings);
 			~CActorDistributionManager();
 			
-			void f_Construct() override;
-			TCContinuation<void> f_Destroy() override;
 			
 			void f_SetSecurity(CDistributedActorSecurity const &_Security);
 			void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
@@ -588,6 +586,8 @@ namespace NMib
 			static bool fs_IsValidEnclave(NStr::CStr const &_String);
 
 		private:
+			TCContinuation<void> fp_Destroy() override;
+			
 			TCContinuation<CDistributedActorPublication> fp_PublishActor
 				(
 					TCDistributedActor<CActor> &&_Actor

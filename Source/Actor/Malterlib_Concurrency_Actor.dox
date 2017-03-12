@@ -1,0 +1,13 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+/**
+\class NMib::NConcurrency::CExceptionActorDeleted
+\brief Exception returned when calling an actor thas has been deleted
+
+\class NMib::NConcurrency::CExceptionActorResultWasNotSet
+\brief Exception returned when a function forgets to set the result in an continuation.
+
+Usually this is the result of a coding error.
+ 
+*/

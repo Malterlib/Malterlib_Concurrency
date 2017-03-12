@@ -14,6 +14,41 @@ namespace NMib
 		}
 
 		template <typename t_CActor>
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+		TCActor<t_CActor>::TCActor(TCConstruct<tf_CType, tfp_CParams...> &&_Construct, tfp_CHolderParams && ...p_HolderParams)
+			: TCActor(fg_CurrentConcurrencyManager().f_ConstructActor(fg_MakeConcreteConstruct<t_CActor>(fg_Move(_Construct)), fg_Forward<tfp_CHolderParams>(p_HolderParams)...))
+		{
+		}
+
+		template <typename t_CActor>
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, mint... tfp_Indidies>
+		void TCActor<t_CActor>::fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const&)
+		{
+			*this = fg_CurrentConcurrencyManager().f_ConstructActor
+				(
+					fg_MakeConcreteConstruct<t_CActor>(fg_Move(NContainer::fg_Get<0>(_Construct.m_Params)))
+					, fg_Forward<tfp_CHolderParams>(NContainer::fg_Get<tfp_Indidies>(_Construct.m_Params))...
+				)
+			;
+		}
+		
+		template <typename t_CActor>
+		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
+		TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct)
+		{
+			fp_Construct(fg_Move(_Construct), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams) + 1, 1>::CType());
+			return *this;
+		}
+		
+		template <typename t_CActor>
+		template <typename tf_CType, typename ...tfp_CParams>
+		TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCConstruct<tf_CType, tfp_CParams...> &&_Construct)
+		{
+			*this = fg_CurrentConcurrencyManager().f_ConstructActor(fg_MakeConcreteConstruct<t_CActor>(fg_Move(_Construct)));
+			return *this;
+		}
+		
+		template <typename t_CActor>
 		TCActor<t_CActor>::TCActor(CNullPtr)
 			: m_pInternalActor(nullptr)
 		{

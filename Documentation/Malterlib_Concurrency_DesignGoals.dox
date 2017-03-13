@@ -172,7 +172,7 @@ CMyActor MyActor;
 MyActor.f_MyFunction();
 ~~~
 
- By default there is no way to access internal actor state state. If you do the following you will get a compile error:
+ By default there is no way to access internal actor state. If you do the following you will get a compile error:
 ~~~+incorrect
 TCActor<CMyActor> MyActor;
 MyActor->f_MyFunction(); 
@@ -201,7 +201,7 @@ m_MyActor(&CMyActor::f_MyFunction) > fg_ThisActor(this) / [this](TCAsyncResult<i
 ~~~
 
  By default the result will be directed to the actor that is currently processing a call. So the code below is equivalent to above when run from within 
- an actor context. If the code is not running within an actor context you will get a runtime contract violation. 
+ an actor context. If the code below is not running within an actor context you will get a runtime contract violation. 
  
 ~~~
 m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Result)
@@ -213,12 +213,12 @@ m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Result)
  
 \subsection s_Malterlib_Concurrency_DesignGoals_AlwaysGetResult Always get a result
 
- To maximize the changes that all calls you do get a result back all interfaces and default concepts are designed with RAII principles. The only
+ To maximize the chance that all calls get a result back all interfaces and default concepts are designed with RAII principles. The only
  way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCContinuation "TCContinuation" in persistent
  state.
 
- The following code will return a \ref NMib::NConcurrency::CExceptionActorResultWasNotSet "CExceptionActorResultWasNotSet" exception since the code forgot to 
- return a result:
+ The following code will return a \ref NMib::NConcurrency::CExceptionActorResultWasNotSet "CExceptionActorResultWasNotSet" exception since setting a 
+ result on the continuation was forgotten: 
 ~~~
 TCContinuation<void> f_MyBrokenFunction()
 {
@@ -236,23 +236,268 @@ TCContinuation<void> f_MyBrokenFunction()
 	;
 	return Continuation;
 }
-;
 ~~~
 
 \subsection s_Malterlib_Concurrency_DesignGoals_SafeDestruct Safe destruction
  
- If you call an actor that has been deleted you will get back a \ref NMib::NConcurrency::CExceptionActorDeleted "CExceptionActorDeleted" exception.
+ When a TCActor goes out of scope the actor is automatically destroyed with the destructor being called on it's dispatch queue.
+ 
+ When you need to manually destroy an actor you can call the `f_Destroy` function on it. This gives the actor a chance to asynchronously and gracefully
+ shut down by overriding the \ref NMib::NConcurrency::CActor::fp_Destroy "fp_Destroy" function inherited from `CActor`:
+ 
+~~~
+struct CMyActor : public CActor
+{
+protected:
+	TCContinuation<void> fp_Destroy() override
+	{
+		TCContinuation<void> Continuation;
+ 
+		fg_DoGlobalThing() > Continuation / [Continuation]
+			{
+				Continuation.f_SetResult();
+			}
+		;
+ 
+		return Continuation;
+	}
+};
+ 
+TCContinuation<void> f_DestroyActor()
+{
+	TCContinuation<void> Continuation; 
+	m_MyActor->f_Destroy2() > [this, Continuation](TCAsyncResult<> &&_Result)
+		{
+			if (!_Result)
+			{
+				DMibLog(Error, "Failed to destroy actor: {}", _Result.f_GetExceptionStr());
+				Continuation.f_SetException(_Result);
+				return;
+			}
+			Continuation.f_SetResult();
+		}
+	;
+	return Continuation;
+}
+~~~
+ 
+ If you try to call an actor that has been deleted you will get back a \ref NMib::NConcurrency::CExceptionActorDeleted "CExceptionActorDeleted" exception.
  
 \subsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate Minimize boilerplate
+ 
+ Even though it might be harder to understand initially, operator overloading is used to decrease boiler plate and indentation level.
+ 
+ \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_ReceiveResult Receiving result and error handling
+~~~
+TCContinuation<void> Continuation;
+
+fg_DoGlobalThing() > [Continuation](TCAsyncResult<int32> &&_Result)
+	{
+		if (!_Result)
+		{
+			Continuation.f_SetException(fg_Move(_Result));
+			return ;
+		}
+		Continuation.f_SetResult();
+	}
+;
+
+return Continuation;
+~~~
+ Is equivalent to
+~~~
+TCContinuation<void> Continuation;
+
+fg_DoGlobalThing() > Continuation / [Continuation](TCAsyncResult<int32> &&_Result)
+	{
+		Continuation.f_SetResult();
+	}
+;
+
+return Continuation;
+~~~
+ Is equivalent to
+~~~
+TCContinuation<void> Continuation;
+fg_DoGlobalThing() > Continuation.f_ReceiveAny();
+return Continuation;
+~~~
+ 
+ \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_OnScopeExit On scope exit
+~~~
+auto Cleanup = fg_OnScopeExitActor
+	(
+		[this]
+		{
+			fp_CleanupThing();
+		}
+	)
+;
+~~~
+ Is equivalent to
+~~~
+auto Cleanup = g_OnScopeExitActor > [this]
+	{
+		fp_CleanupThing();
+	}
+;
+~~~
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_TransparantDistributedCalls Transparent calls across processes and hosts
+ 
+ Calling an actor running on another process or thread follows the same semantics as normal actor calls. Instead of calling
+ the actor directly we call through DActorCall.
+~~~
+TCDistributedActor<CMyActor> MyDistributedActor = x;
+
+DActorCall(MyDistributedActor, CMyActor::f_MyFunction) > [](TCAsyncResult<int32> &&_Result)
+	{
+	}
+;
+~~~
+ 
+ `DActorCall` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that the macro
+ needs to capture the name of the function you are calling so a hash can be generated at compile time.
+ 
+ To be able to call a function on an actor remotely you need to publish the function and supply the version
+ information for the interface.
+~~~
+struct CMyActorInterface : public CActor
+{
+	enum 
+	{
+		EMinProtocolVersion = 0x101
+		, EProtocolVersion = 0x101
+	};
+
+	CMyActorInterface()
+	{
+		DPublishActorFunction(CMyActorInterface::f_MyFunction);
+	}
+ 
+	virtual TCContinuation<int32> f_MyFunction() = 0;
+};
+~~~
+
+ You then need to publish an implementation of the interface so remote processes can see your actor. The easiest way to do this
+ is to use a `TCDelegatedActorInterface`. The delegated actor interface will run on the sequenced processing queue of the containing
+ actor and it's lifetime is also tied to it. This allows you to publish several actor interfaces without the overhead of dispatching 
+ across actors. Another option would be using multiple inheritance, but that is not supported for actors.
+~~~
+struct CMyActor : public CActor
+{
+	struct CMyActorInterfaceImplementation : public CMyActorInterface
+	{
+		CMyActor *m_pThis;
+		
+		TCContinuation<int32> f_MyFunction() override
+		{
+			return fg_Explicit(m_pThis->f_CalcResult());
+		}
+	};
+ 
+	int32 f_CalcResult()
+	{
+		return 5;
+	}
+ 
+	void f_Publish();
+
+	TCDelegatedActorInterface<CMyActorInterfaceImplementation> m_MyDelegatedInterface;
+};
+~~~
+
+ When you publish the interface you supply the class you want to publish as well as the namespace you want to publish it under.
+ Actors published are not automatically trusted by remote processes. They need to be explicitly trusted for your unique host ID 
+ before the remote process allows the subscribing code to receive your actor. This is usually done through the command line.  
+~~~
+void CMyActor::f_Publish()
+{
+	m_MyDelegatedInterface.f_Publish<CMyActorInterface>(fg_GetDistributionManager(), this, "MyActorNamespace");
+}
+~~~
+ 
+ In the remote process we can then subscribe to the actor we just published.
+~~~
+void f_SubscribeToInterface()
+{
+	m_TrustManager
+		(
+			&CDistributedActorTrustManager::f_SubscribeTrustedActors<CMyActorInterface>
+			, "MyActorNamespace"
+			, fg_ThisActor(this)
+		)
+		> Continuation / [this, Continuation](TCTrustedActorSubscription<CMyActorInterface> &&_Subscription)
+		{
+			mp_RemoteAppManagers = fg_Move(_VersionSubscrption);
+			mp_RemoteAppManagers.f_OnActor
+				(
+					[this](TCDistributedActor<CMyActorInterface> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
+					{
+						// This functor will be called for any actor of type CMyActorInterface published in the 
+						// "MyActorNamespace" namspace in any of the processes we are connected to, provided that a  
+						// trust has been setup for the namespace in the trust manager. 
+ 
+						DActorCall(_NewActor, CMyActorInterface::f_MyFunction) > [](TCAsyncResult<int32> &&_Result)
+							{
+							}
+						;
+					}
+				)
+			;
+		}
+	;
+}
+~~~
+ 
+ Any type that is streamable can be used as function parameters and return value for functions that are called remotely. In
+ addition to the types that implement general streaming support, special support has been implemented for functor and interface
+ types.
+ 
+ Type | Usage
+ -----|------
+ `CActorSubscription` | Send or receive a subscription to keep track of lifetime of actor and function
+ `TCActor` | Send or receive actor to use to dispatch function sent in same function call
+ `TCFunction` | Send or receive function. Must be together with TCActor to use for dispatching the function
+ `TCActorSubscriptionWithID` | Send or receive subscription, mapped to specific ID matched against other function arguments with same ID.  
+ `TCActorFunctorWithID` | Send or receive actor functor, mapped to specific ID matched against other function arguments with same ID
+ `TCDistributedActorInterfaceWithID` | Send or receive actor interface, mapped to specific ID matched against other function arguments with same ID.  
+ 
+\subsection s_Malterlib_Concurrency_DesignGoals_AvaidDanglingRefs Avoid dangling references
+ 
+ Designing an interface like this causes leavs a dangling weak reference to the actor in the actor functor sent in to the callback.
+ You could also provide a `f_UnregisterCallback` function, but this error-prone as you can easly forget to call such a function.
+~~~+incorrect
+void f_RegisterCallback(TCActorFunctor<void ()> &&_fCallback)
+{
+	m_Callbacks.f_Insert(fg_Move(_fCallback));
+}
+~~~
+ 
+ Instead all interfaces taking a callback uses a `CActorSubscription` to keep track of the lifetime of the callback. If the subscription goes
+ out of scope the creator of the subscription gets notified and can take appropriate action:
+~~~
+CActorSubscription f_RegisterCallback(TCActorFunctor<void ()> &&_fCallback)
+{
+	auto *pCallback = &m_Callbacks.f_Insert(fg_Move(_fCallback));
+	return g_ActorSubscription > [this, pCallback]
+		{
+			m_Callbacks.f_Remove(pCallback);
+		}
+	;
+}
+~~~
+ 
+ This also works for remote calls. In this case the distribution manager keeps track of actors, functors and subscriptions and forwards
+ the calls and lifetime events over the network. For remote calls this pattern is enforced, if you try to send a actor functor over in a
+ remote call without returning actor subscription you will get a runtime exception, or simply an exception when trying to call the callback
+ as no mapping will have been setup.
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_ScaleLinearly Scale linearly
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_LowOverhead Low overhead
  Require no blocking
-\subsection s_Malterlib_Concurrency_DesignGoals_AvaidDanglingRefs Avoid dangling references
 \subsection s_Malterlib_Concurrency_DesignGoals_AllowMigration Allow migration between processes and hosts
 \subsection s_Malterlib_Concurrency_DesignGoals_AllowRedundancy Allow transparent redundancy
 
- 
 */
-
-

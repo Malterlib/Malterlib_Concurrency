@@ -465,8 +465,8 @@ void f_SubscribeToInterface()
  
 \subsection s_Malterlib_Concurrency_DesignGoals_AvaidDanglingRefs Avoid dangling references
  
- Designing an interface like this causes leavs a dangling weak reference to the actor in the actor functor sent in to the callback.
- You could also provide a `f_UnregisterCallback` function, but this error-prone as you can easly forget to call such a function.
+ Designing an interface like this leaves a dangling weak reference to the actor in the actor functor sent in to the callback.
+ You could also provide a `f_UnregisterCallback` function, but this error-prone as you can easily forget to call such a function.
 ~~~+incorrect
 void f_RegisterCallback(TCActorFunctor<void ()> &&_fCallback)
 {
@@ -489,15 +489,35 @@ CActorSubscription f_RegisterCallback(TCActorFunctor<void ()> &&_fCallback)
 ~~~
  
  This also works for remote calls. In this case the distribution manager keeps track of actors, functors and subscriptions and forwards
- the calls and lifetime events over the network. For remote calls this pattern is enforced, if you try to send a actor functor over in a
- remote call without returning actor subscription you will get a runtime exception, or simply an exception when trying to call the callback
+ the calls and lifetime events over the network. For remote calls this pattern is enforced, if you try to send an actor functor over in a
+ remote call without returning an actor subscription you will get a runtime exception, or simply an exception when trying to call the callback
  as no mapping will have been setup.
  
 \subsection s_Malterlib_Concurrency_DesignGoals_ScaleLinearly Scale linearly
  
+ The default actor holder schedules work on a thread pool in the concurrency manager. The thread pool uses one thread per virtual core, and there are
+ two thread pools, one for normal priority and one for low priority work.
+ 
+ The framework heavily relies on a concurrent memory manager. By default the \ref p_Malterlib_Memory_MemoryManager "Malterlib built in memory manager" will be used.
+ If you use another memory manager you could run into scaling issues for some usage patterns.
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_LowOverhead Low overhead
- Require no blocking
+ 
+ The overhead for an actor call is usually on the order of 500 to 1000 cycles with a saturated queue. All actor creation, deletion and calls only perform lockless
+ synchronization.
+
+ To limit the number threads needed, no blocking is allowed from actor code. Blocking in actor code can lead deadlocks. Currently no runtime checks are performed
+ to make sure no blocking is happening, so be careful. Performing file IO is usually a blocking operation, so make sure to do this on an actor
+ which uses the `CSeparateThreadActorHolder` holder, or simply create a `CSeparateThreadActor` and dispatch to this actor.
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_AllowMigration Allow migration between processes and hosts
+ 
+ Actor migration should be possible between processes. Currently this is not feasible because it's not possible to stream function pointer generally without
+ new features in C++.
+ 
 \subsection s_Malterlib_Concurrency_DesignGoals_AllowRedundancy Allow transparent redundancy
+ 
+ The design should support redundant logic with the same actor running on different hosts and voting taking place to detect various errors. This is currently
+ not implemented.
 
 */

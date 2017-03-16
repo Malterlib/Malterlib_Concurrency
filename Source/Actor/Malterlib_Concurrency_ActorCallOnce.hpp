@@ -25,7 +25,7 @@ namespace NMib
 		}
 		
 		template <typename t_CResult, typename ...tp_CParams>
-		auto TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
+		TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
 		{
 			return m_CallState.f_CallByValue(&CCallState::f_Call, p_Params...);
 		}

@@ -24,7 +24,7 @@ namespace NMib
 		
 		struct CDistributedActorCommand_Identify
 		{
-			enum 
+			enum : uint32 
 			{
 				EProtocolVersion = 0x104
 			};

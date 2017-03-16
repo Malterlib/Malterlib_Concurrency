@@ -160,7 +160,7 @@ namespace NMib
 						break;
 					}
 				}
-				catch (NException::CException const &_Exception)
+				catch (NException::CException const &)
 				{
 					// TODO: Handle malicious connection
 					return;

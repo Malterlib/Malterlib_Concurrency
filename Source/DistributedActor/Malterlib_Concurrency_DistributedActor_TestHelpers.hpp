@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 	TCDistributedActor<tf_CActor> CDistributedActorTestHelperCombined::f_GetRemoteActor(NStr::CStr const &_SubscriptionID)
 	{
 		if (!mp_pClient)
-			DMibError("Client not corrected");
+			DMibError("Client not connected");
 		return mp_pClient->f_GetRemoteActor<tf_CActor>(_SubscriptionID);
 	}
 

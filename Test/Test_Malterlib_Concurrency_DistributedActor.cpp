@@ -50,12 +50,19 @@ namespace
 	class CDistributedActorBase : public CActor
 	{
 	public:
-		enum
+		enum : uint32
 		{
 			EMinProtocolVersion = 0x101
 			, EProtocolVersion = 0x101
 		};
 		
+		CDistributedActorBase()
+		{
+			DMibPublishActorFunction(CDistributedActorBase::f_AddIntVirtual);
+			DMibPublishActorFunction(CDistributedActorBase::f_GetResultVirtual);
+			DMibPublishActorFunction(CDistributedActorBase::f_GetCallingHostID);
+		}
+
 		virtual void f_AddIntVirtual(uint32 _Value) = 0;
 		virtual uint32 f_GetResultVirtual() = 0;
 		virtual CStr f_GetCallingHostID() const = 0;
@@ -64,6 +71,10 @@ namespace
 	class CDistributedActorNonPublished : public CDistributedActorBase
 	{
 	public:
+		CDistributedActorNonPublished()
+		{
+			DMibPublishActorFunction(CDistributedActorNonPublished::f_SetSubscriptionNonPublished);
+		}
 		
 		TCContinuation<> f_SetSubscriptionNonPublished(CActorSubscription &&_Subscription, bool _bError)
 		{
@@ -76,11 +87,16 @@ namespace
 	class CDistributedActorInterface : public CActor
 	{
 	public:
-		enum
+		enum : uint32
 		{
 			EMinProtocolVersion = 0x101
 			, EProtocolVersion = 0x101
 		};
+
+		CDistributedActorInterface()
+		{
+			DMibPublishActorFunction(CDistributedActorInterface::f_Test);
+		}
 		
 		uint32 f_Test()
 		{
@@ -177,6 +193,57 @@ namespace
 			: m_CallbackManager(this, false)
 			, m_CallbacksManager(this, false)
 		{
+			DMibPublishActorFunction(CDistributedActor::f_AddInt);
+			DMibPublishActorFunction(CDistributedActor::f_GetResult);
+			DMibPublishActorFunction(CDistributedActor::f_AddIntVirtual);
+			DMibPublishActorFunction(CDistributedActor::f_GetInterface);
+			DMibPublishActorFunction(CDistributedActor::f_GetInterfaceSubscriptionCalled);
+			DMibPublishActorFunction(CDistributedActor::f_SetInterface);
+			DMibPublishActorFunction(CDistributedActor::f_ClearSetInterface);
+			DMibPublishActorFunction(CDistributedActor::f_SetInterfaceSubscriptionCalled);
+			DMibPublishActorFunction(CDistributedActor::f_CallSetInterface);
+			DMibPublishActorFunction(CDistributedActor::f_GetSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_SetSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterActorFunctors);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterActorFunctorsVector);
+			DMibPublishActorFunction(CDistributedActor::f_GetClearedActorFunctors);
+			DMibPublishActorFunction(CDistributedActor::f_ClearActorFunctor);
+			DMibPublishActorFunction(CDistributedActor::f_ResetClearedActorFunctors);
+			DMibPublishActorFunction(CDistributedActor::f_CallActorFunctor);
+			DMibPublishActorFunction(CDistributedActor::f_GetActorFunctorWithoutSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_GetActorFunctor);
+			DMibPublishActorFunction(CDistributedActor::f_GetActorFunctorSubscriptionCalled);
+			DMibPublishActorFunction(CDistributedActor::f_ClearSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterCallback);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterCallbacks);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterManualCallback);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterDual);
+			DMibPublishActorFunction(CDistributedActor::f_CallDual);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterWithError);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterNoSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterNoActor);
+			DMibPublishActorFunction(CDistributedActor::f_RegisterNoFunction);
+			DMibPublishActorFunction(CDistributedActor::f_CallNoSubscription);
+			DMibPublishActorFunction(CDistributedActor::f_CallCallback);
+			DMibPublishActorFunction(CDistributedActor::f_CallCallbackWithoutDispatch);
+			DMibPublishActorFunction(CDistributedActor::f_CallWrong);
+			DMibPublishActorFunction(CDistributedActor::f_ClearCallback);
+			DMibPublishActorFunction(CDistributedActor::f_CallRegisteredCallback);
+			DMibPublishActorFunction(CDistributedActor::f_CallRegisteredCallbackWithReturn);
+			DMibPublishActorFunction(CDistributedActor::f_CallRegisteredCallbacksWithReturn);
+			DMibPublishActorFunction(CDistributedActor::f_CallbacksEmpty);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultVirtual);
+			DMibPublishActorFunction(CDistributedActor::f_GetCallingHostID);
+			DMibPublishActorFunction(CDistributedActor::f_TestOnDisconnect);
+			DMibPublishActorFunction(CDistributedActor::f_HasOnDisconnect);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultTemplated<NTest1::CTest>);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultTemplated<NTest2::CTest>);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultDeferred);
+			DMibPublishActorFunction(CDistributedActor::f_AddIntDeferred);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultException);
+			DMibPublishActorFunction(CDistributedActor::f_AddIntException);
+			DMibPublishActorFunction(CDistributedActor::f_GetResultDeferredException);
+			DMibPublishActorFunction(CDistributedActor::f_AddIntDeferredException);
 		}
 		
 		void f_AddInt(uint32 _Value)
@@ -507,7 +574,7 @@ namespace
 			return Result;
 		}
 		
-		void f_ClearCallback(mint _iCallback)
+		void f_ClearCallback(uint32 _iCallback)
 		{
 			m_Callback[_iCallback].f_Clear();
 			m_Actor[_iCallback].f_Clear();
@@ -763,11 +830,11 @@ namespace
 				{
 					DMibTestPath("Normal");
 					fSetSubscription(false);
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 0);
 					
 					DMibCallActor(Actor, CDistributedActor::f_ClearSubscription).f_CallSync(60.0);
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 1);
 
 					TestValue.f_Exchange(0);
@@ -775,7 +842,7 @@ namespace
 				{
 					DMibTestPath("Exception");
 					DMibExpectException(fSetSubscription(true), DMibErrorInstance("Error"));
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 1);
 
 					TestValue.f_Exchange(0);
@@ -784,7 +851,7 @@ namespace
 				{
 					DMibTestPath("ExceptionBeforeCall");
 					DMibExpectException(fSetSubscriptionNonPublished(true), DMibErrorInstance("Function does not exist on remote actor"));
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 1);
 
 					TestValue.f_Exchange(0);
@@ -803,11 +870,11 @@ namespace
 				{
 					DMibTestPath("Normal");
 					auto Subscription = fGetSubscription();
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 0);
 					
 					Subscription.f_Clear();
-					NSys::fg_Thread_Sleep(0.1);
+					NSys::fg_Thread_Sleep(0.1f);
 					DMibExpect(TestValue.f_Load(), ==, 1);
 
 					TestValue.f_Exchange(0);
@@ -1488,7 +1555,7 @@ namespace
 			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
 			CStr SubscriptionID = TestState.f_Subscribe("Test");
 			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
-			
+
 			CStr HostID = DMibCallActor(Actor, CDistributedActor::f_TestOnDisconnect).f_CallSync(60.0);
 			
 			DMibExpect(HostID, != , "");

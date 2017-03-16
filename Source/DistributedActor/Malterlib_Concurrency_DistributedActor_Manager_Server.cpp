@@ -303,7 +303,7 @@ namespace NMib
 											UniqueHostID += Enclave;
 										}
 									}
-									catch (NException::CException const &_Exception)
+									catch (NException::CException const &)
 									{
 										fReject("Incorrect peer certificate");
 										return;

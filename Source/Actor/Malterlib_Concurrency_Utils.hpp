@@ -693,7 +693,7 @@ namespace NMib
 		}
 
 		template <typename t_CReturnValue>
-		auto TCContinuation<t_CReturnValue>::f_Dispatch() const
+		TCDispatchedActorCall<t_CReturnValue> TCContinuation<t_CReturnValue>::f_Dispatch() const
 		{
 			return fg_ConcurrentDispatch
 				(
@@ -756,9 +756,9 @@ namespace NMib
 		
 		template <typename t_CReturnValue>
 		template <typename tf_FResultHandler>
-		auto TCContinuation<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
+		void TCContinuation<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
 		{
-			return fg_Dispatch
+			fg_Dispatch
 				(
 					[Continuation = *this]() mutable
 					{
@@ -766,6 +766,21 @@ namespace NMib
 					}
 				)
 				> fg_Forward<tf_FResultHandler>(_fResultHandler)
+			;
+		}
+
+		template <typename t_CReturnValue>
+		template <typename tf_CReturnValue>
+		void TCContinuation<t_CReturnValue>::operator > (TCContinuation<tf_CReturnValue> const &_Continuation) const
+		{
+			fg_Dispatch
+				(
+					[Continuation = *this]() mutable
+					{
+						return Continuation;
+					}
+				)
+				> _Continuation
 			;
 		}
 		

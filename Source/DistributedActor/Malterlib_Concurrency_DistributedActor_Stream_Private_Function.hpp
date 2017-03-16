@@ -21,6 +21,12 @@ namespace NMib::NConcurrency
 		
 		f_FeedFunction(fg_Construct<NPrivate::TCStreamingFunction<NFunction::TCFunction<tf_CFunctionOptions...>>>(_Function));
 	}
+
+	template <typename ...tf_CFunctionOptions>
+	void CDistributedActorWriteStream::f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> &&_Function)
+	{
+		return f_Feed(fg_Const(_Function));
+	}
 	
 	namespace NPrivate
 	{

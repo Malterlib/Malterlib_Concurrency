@@ -9,7 +9,12 @@ namespace NMib
 	{
 		struct CRuntimeTypeRegistryEntry_MemberFunction
 		{
-			CRuntimeTypeRegistryEntry_MemberFunction(uint32 _Hash, uint32 _TypeHash);
+			CRuntimeTypeRegistryEntry_MemberFunction
+				(
+					uint32 _Hash
+					, uint32 _TypeHash
+				)
+			;
 			~CRuntimeTypeRegistryEntry_MemberFunction();
 			
 			virtual NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call
@@ -60,8 +65,25 @@ namespace NMib
 				;
 			};
 
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
-			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, void> final 
+			template 
+			<
+				typename t_CMemberFunction
+				, t_CMemberFunction t_pMemberFunction
+				, uint32 t_NameHash
+				, typename t_CStreamContext
+				, typename t_CStreamParams
+				, typename t_CStreamResult
+			>
+			struct TCRuntimeTypeRegistryEntry_MemberFunction
+				<
+					t_CMemberFunction
+					, t_pMemberFunction
+					, t_NameHash
+					, t_CStreamContext
+					, t_CStreamParams
+					, t_CStreamResult
+					, void
+				> final 
 				: public CRuntimeTypeRegistryEntry_MemberFunction
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunction();
@@ -84,8 +106,26 @@ namespace NMib
 				;
 			};
 			
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult, typename t_CResult>
-			struct TCRuntimeTypeRegistryEntry_MemberFunction<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult, NConcurrency::TCContinuation<t_CResult>> final 
+			template 
+			<
+				typename t_CMemberFunction
+				, t_CMemberFunction t_pMemberFunction
+				, uint32 t_NameHash
+				, typename t_CStreamContext
+				, typename t_CStreamParams
+				, typename t_CStreamResult
+				, typename t_CResult
+			>
+			struct TCRuntimeTypeRegistryEntry_MemberFunction
+				<
+					t_CMemberFunction
+					, t_pMemberFunction
+					, t_NameHash
+					, t_CStreamContext
+					, t_CStreamParams
+					, t_CStreamResult
+					, NConcurrency::TCContinuation<t_CResult>
+				> final 
 				: public CRuntimeTypeRegistryEntry_MemberFunction
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunction();
@@ -109,7 +149,15 @@ namespace NMib
 				;
 			};
 
-			template <typename t_CMemberFunction, t_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename t_CStreamContext, typename t_CStreamParams, typename t_CStreamResult>
+			template 
+			<
+				typename t_CMemberFunction
+				, t_CMemberFunction t_pMemberFunction
+				, uint32 t_NameHash
+				, typename t_CStreamContext
+				, typename t_CStreamParams
+				, typename t_CStreamResult
+			>
 			struct TCRuntimeTypeRegistryEntry_MemberFunctionInit
 			{
 				TCRuntimeTypeRegistryEntry_MemberFunctionInit();
@@ -126,7 +174,17 @@ namespace NMib
 			>
 			struct TCMemberFunctionRegistry
 			{
-				static TCRuntimeTypeRegistryEntry_MemberFunctionInit<t_CMemberFunction, t_pMemberFunction, t_NameHash, t_CStreamContext, t_CStreamParams, t_CStreamResult> ms_EntryInit;
+				static TCRuntimeTypeRegistryEntry_MemberFunctionInit
+					<
+						t_CMemberFunction
+						, t_pMemberFunction
+						, t_NameHash
+						, t_CStreamContext
+						, t_CStreamParams
+						, t_CStreamResult
+					>
+					ms_EntryInit
+				;
 			};
 		}
 		

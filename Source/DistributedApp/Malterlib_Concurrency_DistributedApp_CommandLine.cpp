@@ -17,6 +17,11 @@ namespace NMib
 	
 	namespace NConcurrency
 	{
+		ICCommandLine::ICCommandLine()
+		{
+			DMibPublishActorFunction(ICCommandLine::f_RunCommandLine);
+		}
+
 		CDistributedAppCommandLineResults::COutput::COutput() = default;
 		
 		CDistributedAppCommandLineResults::COutput::COutput(NStr::CStr const &_Output, EOutputType _OutputType)
@@ -259,8 +264,8 @@ namespace NMib
 					{
 						for (auto &State : Host.m_Addresses)
 						{
-							LongestAddress = fg_Max(State.f_GetAddress().m_URL.f_Encode().f_GetLen(), LongestAddress);
-							LongestHostInfo = fg_Max(State.m_HostInfo.f_GetDesc().f_GetLen(), LongestHostInfo);
+							LongestAddress = fg_Max(State.f_GetAddress().m_URL.f_Encode().f_GetLen(), aint(LongestAddress));
+							LongestHostInfo = fg_Max(State.m_HostInfo.f_GetDesc().f_GetLen(), aint(LongestHostInfo));
 							AddressState[State.f_GetAddress()] = State;
 						}
 					}

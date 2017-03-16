@@ -264,7 +264,7 @@ namespace NMib::NConcurrency
 					;
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "{}", Message);
 				}
-				, [this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) // On method call
+				, [pThis = m_pThis, this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) // On method call
 				{
 					auto *pMethodHandler = m_MethodHandlers.f_FindEqual(_MethodInfo.m_Name);
 					if (!pMethodHandler)
@@ -306,7 +306,7 @@ namespace NMib::NConcurrency
 								this
 								, pHandlerFunction = pMethodHandler->m_pHandlerFunction
 								, _MethodInfo
-								, ThisActor = fg_ThisActor(m_pThis)
+								, ThisActor = fg_ThisActor(pThis)
 								, ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)
 							]
 							() -> TCContinuation<void>

@@ -252,6 +252,35 @@ namespace NMib::NConcurrency
 		{
 			NThread::CEvent m_WaitEvent;
 			TCAsyncResult<t_CReturnType> m_Result;
+
+			template <mint ...tfp_Indices, typename ...tfp_CResults>
+			void f_TransferResults(NMeta::TCIndices<tfp_Indices...> const &_Indicies, tfp_CResults && ...p_Results)
+			{
+				t_CReturnType Result;
+				
+				TCInitializerList<bool> Dummy = 
+					{
+						[&]
+						{
+							if (!p_Results)
+							{
+								if (!m_Result.f_IsSet())
+									m_Result.f_SetException(p_Results);
+							}
+							else
+								NContainer::fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
+							return false;
+						}
+						()...
+					}
+				;
+				(void)Dummy;
+					
+				if (!m_Result.f_IsSet())
+					m_Result.f_SetResult(fg_Move(Result));
+						
+				m_WaitEvent.f_SetSignaled();
+			}
 		};
 	}
 	
@@ -291,40 +320,17 @@ namespace NMib::NConcurrency
 		
 		auto f_CallSync(fp64 _Timeout = -1.0)
 		{
-			return fp_CallSync(_Timeout, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
+			return fp_CallSync(_Timeout);
 		}
 		
 	private:
-		template <mint... tfp_Indices>
-		auto fp_CallSync(fp64 _Timeout, NMeta::TCIndices<tfp_Indices...>)
+		NContainer::TCTuple<typename tp_CCalls::CReturnType...> fp_CallSync(fp64 _Timeout)
 		{
 			using CReturnType = NContainer::TCTuple<typename tp_CCalls::CReturnType...>;
 			NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-			*this > NPrivate::fg_DirectResultActor() / [&](auto &&...p_Results)
+			*this > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{
-					CReturnType Result;
-					TCInitializerList<bool> Dummy =
-						{
-							[&]
-							{
-								if (!p_Results)
-								{
-									if (!pResult->m_Result.f_IsSet())
-										pResult->m_Result.f_SetException(p_Results);
-								}
-								else
-									NContainer::fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
-								return false;
-							}
-							()...
-						}
-					;
-					(void)Dummy;
-					
-					if (!pResult->m_Result.f_IsSet())
-						pResult->m_Result.f_SetResult(fg_Move(Result));
-						
-					pResult->m_WaitEvent.f_SetSignaled();
+					pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(p_Results)>::CType(), fg_Forward<decltype(p_Results)>(p_Results)...);
 				}
 			;
 

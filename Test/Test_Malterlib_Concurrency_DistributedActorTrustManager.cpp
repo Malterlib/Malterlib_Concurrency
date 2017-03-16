@@ -23,11 +23,16 @@ namespace
 	public:
 		struct CTestActor : public CActor
 		{
-			enum
+			enum : uint32
 			{
 				EMinProtocolVersion = 0x101
 				, EProtocolVersion = 0x101
 			};
+
+			CTestActor()
+			{
+				DMibPublishActorFunction(CTestActor::f_Test);
+			}
 			
 			uint32 f_Test()
 			{
@@ -36,11 +41,16 @@ namespace
 		};
 		struct CTestActor2 : public CActor
 		{
-			enum
+			enum : uint32
 			{
 				EMinProtocolVersion = 0x101
 				, EProtocolVersion = 0x101
 			};
+			
+			CTestActor2()
+			{
+				DMibPublishActorFunction(CTestActor2::f_Test);
+			}
 			
 			uint32 f_Test()
 			{
@@ -49,11 +59,16 @@ namespace
 		};
 		struct CTestActor3 : public CActor
 		{
-			enum
+			enum : uint32
 			{
 				EMinProtocolVersion = 0x101
 				, EProtocolVersion = 0x101
 			};
+			
+			CTestActor3()
+			{
+				DMibPublishActorFunction(CTestActor3::f_Test);
+			}
 			
 			uint32 f_Test()
 			{
@@ -374,7 +389,7 @@ namespace
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
-					NSys::fg_Thread_Sleep(0.05);
+					NSys::fg_Thread_Sleep(0.05f);
 				}
 
 				DispatchActor->f_BlockDestroy();

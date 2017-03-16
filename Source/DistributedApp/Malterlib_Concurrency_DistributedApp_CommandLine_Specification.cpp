@@ -454,15 +454,15 @@ namespace NMib
 						if (*pParse)
 							fReportError(fg_Format("Unexpected: {}", pParse));
 
-						if (fg_Clamp(Month, 1, 12) != Month)
+						if (fg_Clamp(Month, 1u, 12u) != Month)
 							fReportError("Invalid month");
-						if (fg_Clamp(Day, 1, NTime::CTimeConvert::fs_GetDaysInMonth(Year, Month - 1)) != Day)
+						if (fg_Clamp(Day, 1u, mint(NTime::CTimeConvert::fs_GetDaysInMonth(Year, Month - 1))) != Day)
 							fReportError("Invalid day");
-						if (fg_Clamp(Hour, 0, 23) != Hour)
+						if (fg_Clamp(Hour, 0u, 23u) != Hour)
 							fReportError("Invalid hour");
-						if (fg_Clamp(Minute, 0, 59) != Minute)
+						if (fg_Clamp(Minute, 0u, 59u) != Minute)
 							fReportError("Invalid minute");
-						if (fg_Clamp(Second, 0, 59) != Second)
+						if (fg_Clamp(Second, 0u, 59u) != Second)
 							fReportError("Invalid second");
 						if (fg_Clamp(Fraction, 0.0, 1.0) != Fraction)
 							fReportError("Invalid fraction");
@@ -499,7 +499,7 @@ namespace NMib
 										else if (Value == PossibleMatch)
 											return Value;
 									}
-									catch (NException::CException const &_Exception)
+									catch (NException::CException const &)
 									{
 									}
 									++iSet;

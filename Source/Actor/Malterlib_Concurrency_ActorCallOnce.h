@@ -24,7 +24,7 @@ namespace NMib
 			;
 			~TCActorCallOnce();
 			
-			auto operator()(tp_CParams const &...p_Params);
+			TCContinuation<t_CResult> operator()(tp_CParams const &...p_Params);
 			
 		private:
 			struct CCallState : public CActor

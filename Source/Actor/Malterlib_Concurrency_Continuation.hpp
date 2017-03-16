@@ -416,7 +416,7 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnValue>
-	auto TCContinuation<t_CReturnValue>::operator % (NStr::CStr const &_ErrorString) const
+	auto TCContinuation<t_CReturnValue>::operator % (NStr::CStr const &_ErrorString) const -> TCContinuationWithError<t_CReturnValue>
 	{
 		return TCContinuationWithError<t_CReturnValue>(*this, _ErrorString);
 	}

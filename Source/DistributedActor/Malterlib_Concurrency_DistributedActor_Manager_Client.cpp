@@ -299,7 +299,7 @@ namespace NMib
 							return;
 						}
 					}
-					catch (NException::CException const &_Exception)
+					catch (NException::CException const &)
 					{
 						NStr::CStr Error = "Incorrect peer certificate";
 						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						

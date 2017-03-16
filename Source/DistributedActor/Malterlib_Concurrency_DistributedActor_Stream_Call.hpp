@@ -5,7 +5,14 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction, uint32 t_NameHash, typename tf_CActor, typename... tfp_CParams>
+	template 
+	<
+		typename tf_CMemberFunction
+		, tf_CMemberFunction t_pMemberFunction
+		, uint32 t_NameHash
+		, typename tf_CActor
+		, typename... tfp_CParams
+	>
 	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
 	{
 		using CReturn = typename NPrivate::TCRemoveContinuation<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CReturn>::CType;
@@ -18,16 +25,6 @@ namespace NMib::NConcurrency
 		{
 			if (pActorDataRaw && pActorDataRaw->m_bRemote) // Only when remote
 			{
-				DMibConcurrencyRegisterMemberFunctionWithStreams
-					(
-						tf_CMemberFunction
-						, t_pMemberFunction
-						, t_NameHash
-						, NPrivate::CDistributedActorStreamContext
-						, CDistributedActorReadStream
-						, CDistributedActorWriteStream
-					)
-				;
 				CDistributedActorWriteStream Stream;
 				Stream << uint8(0); // Dummy command
 				Stream << uint64(0); // Dummy packet ID
@@ -100,17 +97,15 @@ namespace NMib::NConcurrency
 			{
 				ToDispatch = [_Actor, Params = NContainer::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
-						TCContinuation<CReturn> Continuation;
-						std::apply
+						return NContainer::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
 							(
-								[&](auto ..._Params) mutable
+								[&](auto &&..._Params) mutable
 								{
-									_Actor(t_pMemberFunction, fg_Forward<typename NTraits::TCDecayForward<tfp_CParams>::CType>(_Params)...) > Continuation;
+									return _Actor(t_pMemberFunction, fg_Forward<decltype(_Params)>(_Params)...);
 								}
 								, fg_Move(Params) 
 							)
 						;
-						return Continuation;
 					}
 				;
 			}

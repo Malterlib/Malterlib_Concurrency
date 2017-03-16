@@ -70,9 +70,15 @@ namespace NMib::NConcurrency
 		
 		template <typename tf_CActor>
 		void f_Feed(TCActor<tf_CActor> const &_Actor);
+		
+		template <typename tf_CActor>
+		void f_Feed(TCActor<tf_CActor> &&_Actor);
 
 		template <typename ...tf_CFunctionOptions>
 		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> const &_Function);
+
+		template <typename ...tf_CFunctionOptions>
+		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> &&_Function);
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &&_ActorFunctor);

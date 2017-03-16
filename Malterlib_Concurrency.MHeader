@@ -7,9 +7,6 @@ Import "Apps/*/*.MHeader"
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
-	{
-		!PlatformFamily Windows
-	}
 	%Group Concurrency
 	{
 		%Group Include
@@ -21,36 +18,6 @@ Import "Apps/*/*.MHeader"
 			%File "Include/Mib/Concurrency/^*"
 		}
 		%File "Source/^*"
-		%Group "DistributedActor"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-			%File "Source/DistributedActor/Malterlib_Concurrency_Distributed*"
-			%File "Source/DistributedActor/Malterlib_Concurrency_RuntimeTypeRegistry*"
-		}
-		%Group "DistributedTrust"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-		}
-		%Group "DistributedApp"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-		}
-		%Group "DistributedDDPBridge"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-		}
 		%Group Documentation
 		{
 			%File "Documentation/*"
@@ -110,22 +77,11 @@ Property
 %Group "{Test}/{Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
-	{
-		!PlatformFamily Windows
-	}
 
 	Property.MalterlibLinkWithOpenSSL true
 	%Group "Tests"
 	{
 		%File "Test/*"
-		%File "Test/Test_Malterlib_Concurrency_Distributed*"
-		{
-			Compile.Disabled true
-			{
-				!!PlatformFamily Windows
-			}
-
-		}
 	}
 	%Dependency Lib_Malterlib_Network
 	%Dependency Lib_Malterlib_Concurrency
@@ -146,7 +102,6 @@ Property
 	&
 	{
 		MalterlibEnableInternalWorkspaces true
-		!PlatformFamily Windows
 	}
 	
 	Property.MalterlibPostCopyProject "Malterlib_Concurrency"

@@ -276,6 +276,7 @@ namespace NMib
 			}
 			catch (NException::CException const &_Exception)
 			{
+				(void)_Exception;
 				DMibLog(DebugVerbose2, " ---- {} {} Exception processing data {}", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID(), _Exception.f_GetErrorStr());
 				// Malicious client
 				return false;

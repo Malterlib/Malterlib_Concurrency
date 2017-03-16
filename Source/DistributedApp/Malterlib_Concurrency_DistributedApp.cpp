@@ -5,6 +5,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Cryptography/UUID>
+#include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Concurrency/DistributedAppInterface>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
@@ -49,13 +50,15 @@ namespace NMib::NConcurrency
 	{
 		if (m_AuditCategory.f_IsEmpty())
 			m_AuditCategory = _AppName;
+#ifndef DPlatformFamily_Windows
 		// A longer app name and enclave results in a unix socket name becoming too long 
 		DMibRequire
 			(
 				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true).f_GetLen() 
-				<= NSys::NNet::fg_GetMaxUnixSocketNameLength()
+				<= aint(NSys::NNet::fg_GetMaxUnixSocketNameLength())
 			)
-		; 
+		;
+#endif
 	}
 
 	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific) const
@@ -70,19 +73,31 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
 	{
+#ifdef DPlatformFamily_Windows
+		NDataProcessing::CHash_SHA256 Hash;
+		CStr Path = fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific);
+		Hash.f_AddData(Path.f_GetStr(), Path.f_GetLen());
+		uint16 Port = 0;
+		NMem::fg_MemCopy(&Port, Hash.f_GetDigest().f_GetData(), sizeof(Port));
+		if (Port == 0)
+			++Port;
+
+		return fg_Format("localhost:{}", Port);
+#else
 		mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
-		if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= MaxLength)
+		if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= aint(MaxLength))
 			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
 		
 		CStr ConfigHash = fg_GetHashedUuidString(m_ConfigDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 		CStr TempDir = CFile::fs_GetTemporaryDirectory();
 		CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
-		if (fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength)
+		if (fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= aint(MaxLength))
 			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
 		
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
-		DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= MaxLength);
+		DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= aint(MaxLength));
 		return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+#endif
 	}
 	
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
@@ -323,7 +338,7 @@ namespace NMib::NConcurrency
 	NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
 	{
 #ifdef DPlatformFamily_Windows
-#error "Implement unix socket emulation support on Windows before attempting this"
+		return NHTTP::CURL{fg_Format("wss://{}/", fp_GetLocalHostname(false))};
 #else
 		return NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
 #endif

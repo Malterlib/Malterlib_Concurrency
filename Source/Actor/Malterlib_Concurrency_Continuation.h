@@ -10,6 +10,25 @@ namespace NMib::NConcurrency
 	
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 	struct TCActorCall;
+	
+	class CActor;
+
+	template <typename t_CActor>
+	class TCActor;
+
+	template <typename t_CReturnValue>
+	struct TCContinuation;
+		
+	template <typename t_CReturn>
+	using TCDispatchedActorCall = 
+		TCActorCall
+		<
+			TCActor<CActor>
+			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
+			, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>> 
+		>
+	;
 }
 		
 namespace NMib::NConcurrency::NPrivate
@@ -90,6 +109,9 @@ struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::NPrivate::TCCon
 
 namespace NMib::NConcurrency
 {
+	template <typename t_CReturnValue>
+	struct TCContinuationWithError;
+
 	/// \brief Used to defer the return of a value to allow async programming
 	template <typename t_CReturnValue = void>
 	struct TCContinuation
@@ -134,7 +156,7 @@ namespace NMib::NConcurrency
 		
 		void f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult);
 		
-		auto f_Dispatch() const;
+		TCDispatchedActorCall<t_CReturnValue> f_Dispatch() const;
 		auto f_CallSync(fp64 _Timeout) const;
 		
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
@@ -143,10 +165,13 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
-		auto operator % (NStr::CStr const &_ErrorString) const;
+		auto operator % (NStr::CStr const &_ErrorString) const -> TCContinuationWithError<t_CReturnValue>;
 
 		template <typename tf_FResultHandler>
-		auto operator > (tf_FResultHandler &&_fResultHandler) const;
+		void operator > (tf_FResultHandler &&_fResultHandler) const;
+
+		template <typename tf_CReturnValue>
+		void operator > (TCContinuation<tf_CReturnValue> const &_Continuation) const;
 
 		template <typename tf_CType>
 		auto operator + (TCContinuation<tf_CType> const &_Other) const;

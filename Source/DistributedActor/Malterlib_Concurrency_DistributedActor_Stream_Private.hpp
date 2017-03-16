@@ -106,17 +106,50 @@ namespace NMib::NConcurrency::NPrivate
 	{
 	};
 
-	template <typename t_CType> 
-	constexpr inline_always_debug t_CType&& fg_ForwardToFunctionCall(typename NTraits::TCRemoveReference<t_CType>::CType &_ToForward) 
+	template 
+	<
+		typename t_CType
+		, typename t_CTypeFrom
+		, bool t_bIsSameType = NTraits::TCIsSame<typename NTraits::TCRemoveReference<t_CType>::CType, typename NTraits::TCRemoveReference<t_CTypeFrom>::CType>::mc_Value
+	>
+	struct TCStreamForwardHelper
 	{
-    	return static_cast<t_CType&&>(_ToForward);
-	}
+		template <typename tf_CType> 
+		static constexpr inline_always_debug typename NTraits::TCRemoveReferenceAndQualifiers<t_CType>::CType fs_Forward(tf_CType &&_Value) noexcept
+		{
+    		return fg_Forward<tf_CType>(_Value);
+		}
+	};
 
-	template <typename t_CType> 
-	constexpr inline_always_debug t_CType&& fg_ForwardToFunctionCall(typename NTraits::TCRemoveReference<t_CType>::CType &&_ToForward) noexcept
+	template <typename t_CType, typename t_CTypeFrom>
+	struct TCStreamForwardHelper<t_CType &&, t_CTypeFrom, true>
 	{
-    	return fg_Move(_ToForward);
-	}
+		template <typename tf_CType> 
+		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
+		{
+    		return fg_Move(fg_Forward<tf_CType>(_Value));
+		}
+	};
+
+	template <typename t_CType, typename t_CTypeFrom>
+	struct TCStreamForwardHelper<t_CType &, t_CTypeFrom, true>
+	{
+		template <typename tf_CType> 
+		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
+		{
+    		return fg_Move(fg_Forward<tf_CType>(_Value));
+		}
+	};
+
+	template <typename t_CType, typename t_CTypeFrom>
+	struct TCStreamForwardHelper<t_CType const &, t_CTypeFrom, true>
+	{
+		template <typename tf_CType> 
+		static constexpr inline_always_debug t_CType const &fs_Forward(tf_CType &&_Value) noexcept
+		{
+    		return fg_Forward<tf_CType>(_Value);
+		}
+	};
 	
 	template <typename ...tp_CParam>
 	struct TCStreamArguments<NMeta::TCTypeList<tp_CParam...>>
@@ -136,7 +169,8 @@ namespace NMib::NConcurrency::NPrivate
 				{
 					[&]
 					{
-						_Stream << fg_ForwardToFunctionCall<tp_CParam>(fg_Forward<tfp_CParam>(p_Params)); return true;
+						_Stream << TCStreamForwardHelper<tp_CParam, tfp_CParam>::fs_Forward(fg_Forward<tfp_CParam>(p_Params));
+						return true;
 					}()...
 				}
 			;

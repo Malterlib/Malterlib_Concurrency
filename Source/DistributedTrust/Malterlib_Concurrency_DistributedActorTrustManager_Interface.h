@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManagerInterface : public NConcurrency::CActor
 	{
 	public:
-		enum
+		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x102

@@ -21,6 +21,7 @@ namespace NMib
 			: mp_pInternal(_pInternal)
 			, mp_ThisActor(_ThisActor)
 		{
+			DMibPublishActorFunction(CTicketInterface::f_SignCertificate);
 		}
 		
 		TCContinuation<NContainer::TCVector<uint8>> CDistributedActorTrustManager::CInternal::f_SignCertificate

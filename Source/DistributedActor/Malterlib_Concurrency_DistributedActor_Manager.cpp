@@ -198,12 +198,12 @@ namespace NMib
 			m_LastConnectionErrorTime = NTime::CTime::fs_NowUTC();
 		}
 
-		CActorDistributionManagerInternal::CServerConnection::CServerConnection(mint _ConnectionID)
+		NActorDistributionManagerInternal::CServerConnection::CServerConnection(mint _ConnectionID)
 			: m_ConnectionID(_ConnectionID)
 		{
 		}
 		
-		NStr::CStr CActorDistributionManagerInternal::CServerConnection::f_GetConnectionID() const
+		NStr::CStr NActorDistributionManagerInternal::CServerConnection::f_GetConnectionID() const
 		{
 			return NStr::fg_Format("{}", m_ConnectionID);
 		}

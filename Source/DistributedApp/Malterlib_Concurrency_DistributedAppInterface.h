@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppInterfaceClient : public NConcurrency::CActor
 	{
-		enum 
+		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x102
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppInterfaceServer";
 		
-		enum 
+		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x103

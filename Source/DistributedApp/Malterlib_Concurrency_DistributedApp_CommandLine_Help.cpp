@@ -66,7 +66,7 @@ namespace NMib
 						auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 						mint MaxWidth = 120;
 						if (ConsoleProperties.m_Width)
-							MaxWidth = fg_Max(fg_Min(ConsoleProperties.m_Width, 200), 80); // Never wider than 200 chars, never less than 80
+							MaxWidth = fg_Max(fg_Min(ConsoleProperties.m_Width, 200u), 80u); // Never wider than 200 chars, never less than 80
 						
 						auto fLineBreak = [&](CUStr _String, smint _SubsequentIndent) -> TCVector<CStr>
 							{
@@ -215,7 +215,7 @@ namespace NMib
 										continue;
 									CStr Names = fGetNames(Option.m_Names);
 									auto &Entry = OptionEntries.f_Insert();
-									LongestName = fg_Max(LongestName, Names.f_GetLen());
+									LongestName = fg_Max(LongestName, mint(Names.f_GetLen()));
 									Entry.m_Names = Names;
 									Entry.m_pOption = &Option;
 								}
@@ -412,7 +412,7 @@ namespace NMib
 								for (auto &Command : Section.m_Commands)
 								{
 									auto &Entry = CommandEntries.f_Insert(fGetCommandEntry(Command));
-									LongestName = fg_Max(LongestName, Entry.m_Names.f_GetLen());
+									LongestName = fg_Max(aint(LongestName), Entry.m_Names.f_GetLen());
 								}
 							}
 							for (auto &CommandEntry : CommandEntries)
@@ -525,7 +525,7 @@ namespace NMib
 							for (auto &Command : Section.m_Commands)
 							{
 								auto &Entry = CommandEntries[Command.m_Category].f_Insert(fGetCommandEntry(Command));
-								LongestName = fg_Max(LongestName, Entry.m_Names.f_GetLen());
+								LongestName = fg_Max(aint(LongestName), Entry.m_Names.f_GetLen());
 							}
 							
 							COnScopeExitShared IndentScope;

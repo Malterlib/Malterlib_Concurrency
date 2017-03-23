@@ -88,6 +88,15 @@ namespace NMib
 			return *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
 		}
 		
+		CAllowWrongThreadDestroy::~CAllowWrongThreadDestroy()
+		{
+#if defined DMibContractConfigure_CheckEnabled
+			++fg_ConcurrencyThreadLocal().m_AllowWrongThreadDestroySequence;
+#endif
+		}
+		
+		CAllowWrongThreadDestroy g_AllowWrongThreadDestroy;
+		
 		///
 		/// CConcurrencyManager
 		/// ===================

@@ -1233,7 +1233,7 @@ namespace
 				bCallbacksEmpty = DMibCallActor(Actor, CDistributedActor::f_CallbacksEmpty).f_CallSync(60.0);
 				DMibExpectTrue(bCallbacksEmpty);
 				
-				auto fCallback0 = [](CStr const &_Message) -> TCContinuation<CStr>
+				auto fCallback0 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCContinuation<CStr>
 					{
 						if (_Message == "TestMessageException")
 							return DMibErrorInstance("Test exception 0");
@@ -1241,7 +1241,7 @@ namespace
 					}
 				;
 
-				auto fCallback1 = [](CStr const &_Message) -> TCContinuation<CStr>
+				auto fCallback1 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCContinuation<CStr>
 					{
 						if (_Message == "TestMessageException")
 							return DMibErrorInstance("Test exception 1");
@@ -1356,7 +1356,6 @@ namespace
 					DMibExpectException(fCallDestroyed(), DMibErrorInstance("Remote dispatch actor no longer exists"));
 				
 				Subscription1.f_Clear();
-				
 				
 				auto SubscriptionDual = DMibCallActor(Actor, CDistributedActor::f_RegisterDual, TestActor0, fCallback0, fCallback1).f_CallSync(60.0);
 

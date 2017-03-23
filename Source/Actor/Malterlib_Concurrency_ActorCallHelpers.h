@@ -282,6 +282,18 @@ namespace NMib::NConcurrency
 				m_WaitEvent.f_SetSignaled();
 			}
 		};
+		
+		template <typename t_CType>
+		struct TCConvertResultTypeVoid
+		{
+			using CType = t_CType;
+		};
+
+		template <>
+		struct TCConvertResultTypeVoid<void>
+		{
+			using CType = CVoidTag;
+		};
 	}
 	
 	template <typename... tp_CCalls>
@@ -324,9 +336,9 @@ namespace NMib::NConcurrency
 		}
 		
 	private:
-		NContainer::TCTuple<typename tp_CCalls::CReturnType...> fp_CallSync(fp64 _Timeout)
+		NContainer::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout)
 		{
-			using CReturnType = NContainer::TCTuple<typename tp_CCalls::CReturnType...>;
+			using CReturnType = NContainer::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
 			NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 			*this > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{

@@ -129,6 +129,8 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
 		TCContinuation(tf_CType &&_Exception);
+
+		TCContinuation(CExceptionPointer const &_pException);
 		
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
 		TCContinuation(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);

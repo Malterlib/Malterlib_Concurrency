@@ -199,4 +199,10 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		return m_fFunction.f_IsEmpty();
 	}
+	
+	template <typename t_FFunction, typename t_FFunctionSignature>
+	void const *TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_GetFunctionPointer() const
+	{
+		return m_fFunction.f_GetFirstFunctionPointer();
+	}
 }

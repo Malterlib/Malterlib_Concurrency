@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 	struct TCActorFunctor
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
-		using CFunction = NFunction::TCFunctionMutable<t_CFunction>;
+		using CFunction = NFunction::TCFunctionMovable<t_CFunction>;
 		static_assert(NPrivate::TCIsContinuation<CReturn>::mc_Value, "You need to return a continuation");
 		
 		TCActorFunctor() = default;
@@ -17,19 +17,20 @@ namespace NMib::NConcurrency
 		TCActorFunctor & operator = (TCActorFunctor &&) = default;
 		TCActorFunctor(TCActorFunctor const &) = delete;
 		TCActorFunctor & operator = (TCActorFunctor const &) = delete;
+		~TCActorFunctor();
 		
 		TCActorFunctor(CNullPtr);
-		TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMutable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
+		TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
 		
 		template <typename ...tfp_CParams>
 		auto operator ()(tfp_CParams &&...p_Params) const;
 		
 		TCActor<CActor> const &f_GetActor() const;
-		NFunction::TCFunctionMutable<t_CFunction> const &f_GetFunctor() const;
+		NFunction::TCFunctionMovable<t_CFunction> const &f_GetFunctor() const;
 		CActorSubscription const &f_GetSubscription() const;
 
 		TCActor<CActor> &f_GetActor();
-		NFunction::TCFunctionMutable<t_CFunction> &f_GetFunctor();
+		NFunction::TCFunctionMovable<t_CFunction> &f_GetFunctor();
 		CActorSubscription &f_GetSubscription();
 		
 		void f_Clear();
@@ -39,7 +40,7 @@ namespace NMib::NConcurrency
 
 	protected:
 		TCActor<CActor> mp_Actor;
-		NFunction::TCFunctionMutable<t_CFunction> mp_fFunctor;
+		NPtr::TCSharedPointer<NFunction::TCFunctionMovable<t_CFunction>> mp_pFunctor = fg_Construct();
 		CActorSubscription mp_Subscription;
 	};
 	

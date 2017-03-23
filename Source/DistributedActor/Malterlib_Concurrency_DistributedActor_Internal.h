@@ -179,6 +179,8 @@ namespace NMib
 				bool f_CanSendPublish() const;
 				CHostInfo f_GetHostInfo() const;
 				
+				void f_DestroyImplicitFunction(NStr::CStr const &_FunctionID);
+				
 				DMibListLinkDS_List(CClientConnection, m_HostLink) m_ClientConnections;
 				DMibListLinkDS_List(CServerConnection, m_HostLink) m_ServerConnections;
 				

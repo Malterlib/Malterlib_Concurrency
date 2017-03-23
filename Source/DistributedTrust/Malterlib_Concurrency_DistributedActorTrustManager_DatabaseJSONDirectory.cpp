@@ -695,7 +695,12 @@ namespace NMib
 			NFile::CFile::fs_CreateDirectory(NFile::CFile::fs_GetPath(Path));
 			// Only allow the user to read and write these files as they contain private keys
 			NFile::EFileAttrib Attributes = NFile::EFileAttrib_UnixAttributesValid | NFile::EFileAttrib_UserRead | NFile::EFileAttrib_UserWrite;
-			NFile::CFile::fs_WriteStringToFile(Path, f_ToJSON(_Object).f_ToString(), true, Attributes);
+			NStr::CStr TempFile = Path + ".tmp";
+			NFile::CFile::fs_WriteStringToFile(TempFile, f_ToJSON(_Object).f_ToString(), true, Attributes);
+			if (NFile::CFile::fs_FileExists(Path))
+				NFile::CFile::fs_AtomicReplaceFile(TempFile, Path);
+			else
+				NFile::CFile::fs_RenameFile(TempFile, Path);
 		}
 		
 		CDistributedActorTrustManager_Address CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_DecodeAddress(NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const

@@ -56,6 +56,14 @@ namespace NMib::NConcurrency
 		f_SetException(fg_Forward<tf_CType>(_Exception));
 	}
 	
+	
+	template <typename t_CReturnValue>
+	TCContinuation<t_CReturnValue>::TCContinuation(CExceptionPointer const &_pException)
+		: m_pData(fg_Construct())
+	{
+		f_SetException(_pException);
+	}
+	
 	template <typename t_CReturnValue>
 	TCContinuation<t_CReturnValue>::TCContinuation(TCAsyncResult<t_CReturnValue> const &_Result)
 		: m_pData(fg_Construct())

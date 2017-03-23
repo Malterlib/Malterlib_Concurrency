@@ -36,6 +36,16 @@ namespace NMib::NConcurrency
 	{
 	}
 	
+	TCContinuation<void> CActor::fp_DestroyInternal()
+	{
+		if (mp_bDestroyed)
+			return DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
+
+		mp_bDestroyed = true;
+		
+		return fp_Destroy();
+	}
+	
 	TCContinuation<void> CActor::fp_Destroy()
 	{
 		return TCContinuation<void>::fs_Finished();

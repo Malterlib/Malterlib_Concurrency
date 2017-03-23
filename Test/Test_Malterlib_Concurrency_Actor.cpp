@@ -228,6 +228,22 @@ namespace
 			};
 		}
 		
+		void f_DestructTests()
+		{
+			DMibTestSuite("Destruct")
+			{
+				TCActor<CActor> Actor = fg_Construct();
+				
+				auto fDoubleDestroy = [&]
+					{
+						(Actor->f_Destroy2() + Actor->f_Destroy2()).f_CallSync(30.0);
+					}
+				;
+				
+				DMibExpectException(fDoubleDestroy(), DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed"));
+			};
+		}
+		
 		void f_FunctionalTests()
 		{
 			DMibTestSuite("Interface")
@@ -1638,6 +1654,7 @@ namespace
 		void f_DoTests()
 		{
 			f_ConstructionTests();
+			f_DestructTests();
 			f_FunctionalTests();
 			f_PerformanceTests();		
 		}

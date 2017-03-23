@@ -13,9 +13,8 @@ namespace NMib::NConcurrency
 {
 	namespace NPrivate
 	{
-		CStreamingFunction::~CStreamingFunction()
-		{
-		}
+		CStreamingFunction::CStreamingFunction() = default;
+		CStreamingFunction::~CStreamingFunction() = default;
 	}
 	
 	void CDistributedActorWriteStream::f_FeedFunction(NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction)

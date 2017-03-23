@@ -20,7 +20,76 @@ namespace NMib::NConcurrency
 		, m_bCallInitiator(_bCallInitiator)
 	{
 	}
+
+	static void fg_DestroyStreamedFunction(TCWeakActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	{
+		auto Actor = _Actor.f_Lock();
+		if (Actor)
+		{
+			g_Dispatch(Actor) > [pFunction = fg_Move(o_pFunction)]
+				{
+				}
+				> fg_DiscardResult()
+			;
+			return;
+		}
 	
+#if defined DMibContractConfigure_CheckEnabled
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		mint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
+		
+		void const *pFunctionPointer = o_pFunction->f_GetFunctionPointer();
+		(void)pFunctionPointer;
+			
+		o_pFunction.f_Clear();
+		
+		if (DestroySequence == ThreadLocal.m_AllowWrongThreadDestroySequence)
+			DMibPDebugBreak; 
+		/*
+		 Destroying actor functor on wrong thread
+		 To allow destroy on wrong thread, capture allow destroy in the lambda: 
+		 
+			> [AllowDestroy = g_AllowWrongThreadDestroy]
+			{
+			}
+		 ;
+		 */
+#else
+		o_pFunction.f_Clear();
+#endif
+	}
+	
+	NPrivate::CDistributedActorStreamContextState::CActorFunctorInfo::CActorFunctors::CActorFunctors() = default;
+
+	NPrivate::CDistributedActorStreamContextState::CActorFunctorInfo::CActorFunctors::~CActorFunctors()
+	{
+		for (auto &pFunction : m_Functions)
+		{
+			if (!pFunction || pFunction->f_IsEmpty())
+				continue;
+			
+			fg_DestroyStreamedFunction(m_Actor, pFunction);
+		}
+	}
+	
+	void NActorDistributionManagerInternal::CHost::f_DestroyImplicitFunction(NStr::CStr const &_FunctionID)
+	{
+		auto *pFunction = m_ImplicitlyPublishedFunctions.f_FindEqual(_FunctionID);
+		if (!pFunction)
+			return;
+		
+		if (pFunction->m_pFunction && !pFunction->m_pFunction->f_IsEmpty())
+		{
+			auto *pActor = m_ImplicitlyPublishedActors.f_FindEqual(pFunction->m_AllowedDisptachActorID);
+			if (pActor)
+				fg_DestroyStreamedFunction(*pActor, pFunction->m_pFunction);
+			else
+				fg_DestroyStreamedFunction({}, pFunction->m_pFunction);
+		}
+
+		m_ImplicitlyPublishedFunctions.f_Remove(pFunction);
+	}
+
 	NPrivate::CDistributedActorStreamContextState::~CDistributedActorStreamContextState()
 	{
 		NContainer::TCSet<NStr::CStr> ImplicitlyPublishedFunctions;
@@ -58,7 +127,7 @@ namespace NMib::NConcurrency
 						return;
 					
 					for (auto &FunctionID : ImplicitlyPublishedFunctions)
-						pHost->m_ImplicitlyPublishedFunctions.f_Remove(FunctionID);
+						pHost->f_DestroyImplicitFunction(FunctionID);
 					for (auto &ActorID : ImplicitlyPublishedActors)
 						pHost->m_ImplicitlyPublishedActors.f_Remove(ActorID);
 					for (auto &ActorID : ImplicitlyPublishedInterfaces)
@@ -220,20 +289,7 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
-		auto &Host = *_pHost;
-		auto Data = NPrivate::fg_StreamAsyncResultException(_Exception);
-		
-		CDistributedActorCommand_RemoteCallResult Result;
-		Result.m_ReplyToPacketID = _PacketID;
-		fg_TransferSubscriptionData(Result.m_SubscriptionData, *_Context.m_pState);
-		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-		DMibFastCheck(Host.m_ActorProtocolVersion != 0);
-		DMibBinaryStreamVersion(Stream, Host.m_ActorProtocolVersion);
-		Stream << Result;
-		Stream.f_FeedBytes(Data.f_GetArray(), Data.f_GetLen());
-		
-		fp_QueuePacket(_pHost, Stream.f_MoveVector());
+		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception), _Context);
 	}
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
@@ -244,20 +300,7 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
-		auto &Host = *_pHost;
-		auto Data = NPrivate::fg_StreamAsyncResultException(_Exception);
-		
-		CDistributedActorCommand_RemoteCallResult Result;
-		Result.m_ReplyToPacketID = _PacketID;
-		fg_TransferSubscriptionData(Result.m_SubscriptionData, *_Context.m_pState);
-		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-		DMibFastCheck(Host.m_ActorProtocolVersion != 0);
-		DMibBinaryStreamVersion(Stream, Host.m_ActorProtocolVersion);
-		Stream << Result;
-		Stream.f_FeedBytes(Data.f_GetArray(), Data.f_GetLen());
-		
-		fp_QueuePacket(_pHost, Stream.f_MoveVector());
+		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception), _Context);
 	}
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCall
@@ -277,15 +320,18 @@ namespace NMib::NConcurrency
  		Result.m_ReplyToPacketID = _PacketID;
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
 		
-		fp_RegisterLocalSubscriptions(State);
+		bool bIsException = _Data[0] != 0;
+		if (!bIsException)
+		{
+			fp_RegisterLocalSubscriptions(State);
+			fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
+		}
 		
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 		DMibFastCheck(Host.m_ActorProtocolVersion != 0);
 		DMibBinaryStreamVersion(Stream, Host.m_ActorProtocolVersion);
 		Stream << Result;
 		Stream.f_FeedBytes(_Data.f_GetArray(), _Data.f_GetLen());
-		
-		fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
 		
 		fp_QueuePacket(_pHost, Stream.f_MoveVector());
 	}
@@ -516,19 +562,24 @@ namespace NMib::NConcurrency
 					return;
 				}
 				
-				TCContinuation<> Continuation;
-				NStr::CStr Error;
-				if (!Context.f_ValidateContext(Error))
-				{
-					Continuation.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
-					fp_ReplyToRemoteCallWithException(pHost, PacketID, Continuation.m_pData->m_Result, Context);
-					return;
-				}
+				bool bException = (*_Result)[0] != 0;
 				
-				if (!fp_RegisterActorFunctorsForCall(*Context.m_pState, *pHost, Continuation))
+				if (!bException)
 				{
-					fp_ReplyToRemoteCallWithException(pHost, PacketID, Continuation.m_pData->m_Result, Context);
-					return;
+					TCContinuation<> Continuation;
+					NStr::CStr Error;
+					if (!Context.f_ValidateContext(Error))
+					{
+						Continuation.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, Continuation.m_pData->m_Result, Context);
+						return;
+					}
+					
+					if (!fp_RegisterActorFunctorsForCall(*Context.m_pState, *pHost, Continuation))
+					{
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, Continuation.m_pData->m_Result, Context);
+						return;
+					}
 				}
 				
 				fp_ReplyToRemoteCall(pHost, PacketID, *_Result, Context);
@@ -626,12 +677,12 @@ namespace NMib::NConcurrency
 		if (!pSubscription)
 			return;
 		
+		for (auto &FunctionID : pSubscription->m_Functions)
+			Host.f_DestroyImplicitFunction(FunctionID);
 		for (auto &ActorID : pSubscription->m_Actors)
 			Host.m_ImplicitlyPublishedActors.f_Remove(ActorID);
 		for (auto &ActorID : pSubscription->m_Interfaces)
 			Host.m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
-		for (auto &FunctionID : pSubscription->m_Functions)
-			Host.m_ImplicitlyPublishedFunctions.f_Remove(FunctionID);
 
 		CDistributedActorCommand_DestroySubscription Result;
 		Result.m_SubscriptionID = _SubscriptionID;
@@ -649,12 +700,12 @@ namespace NMib::NConcurrency
 		if (!pSubscription)
 			return;
 		
+		for (auto &FunctionID : pSubscription->m_Functions)
+			_Host.f_DestroyImplicitFunction(FunctionID);
 		for (auto &ActorID : pSubscription->m_Actors)
 			_Host.m_ImplicitlyPublishedActors.f_Remove(ActorID);
 		for (auto &ActorID : pSubscription->m_Interfaces)
 			_Host.m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
-		for (auto &FunctionID : pSubscription->m_Functions)
-			_Host.m_ImplicitlyPublishedFunctions.f_Remove(FunctionID);
 		
 		_Host.m_LocalSubscriptionReferences.f_Remove(pSubscription);
 	}

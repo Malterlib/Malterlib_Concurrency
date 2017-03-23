@@ -113,8 +113,16 @@ namespace NMib
 			mint m_JobQueueIndex[EPriority_Max];
 #if defined DMibContractConfigure_CheckEnabled
 			CActor *m_pCurrentlyConstructingActor = nullptr;
+			mint m_AllowWrongThreadDestroySequence = 0;
 #endif
 		};
+		
+		struct CAllowWrongThreadDestroy
+		{
+			~CAllowWrongThreadDestroy();
+		};
+		
+		extern CAllowWrongThreadDestroy g_AllowWrongThreadDestroy;
 		
 		CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 	

@@ -42,10 +42,14 @@ namespace NMib
 
 		protected:
 			NPrivate::CThisActor self;
-		private:
 			CConcurrencyManager *mp_pConcurrencyManager = nullptr;
+			bool mp_bDestroyed = false;
+			
+		private:
 
 			void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
+
+			TCContinuation<void> fp_DestroyInternal();
 
 		protected:
 			virtual void fp_Construct();

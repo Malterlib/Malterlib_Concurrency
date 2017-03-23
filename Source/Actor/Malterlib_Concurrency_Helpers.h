@@ -16,6 +16,14 @@ namespace NMib::NConcurrency
 #			define DErrorActorDeleted(_Description) DMibErrorActorDeleted(_Description)
 #		endif
 
+
+	DMibImpErrorClass(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
+#		define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorAlreadyDestroyed, _Description)
+
+#		ifndef DMibPNoShortCuts
+#			define DErrorActorAlreadyDestroyed(_Description) DMibErrorActorAlreadyDestroyed(_Description)
+#		endif
+
 	DMibImpErrorClass(CExceptionActorResultWasNotSet, NMib::NException::CException);
 #		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description)
 

@@ -253,7 +253,7 @@ namespace NMib
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 
-			pActor(&CActor::fp_Destroy)
+			pActor(&CActor::fp_DestroyInternal)
 				> fg_AnyConcurrentActor() / [pActor, _pFile, _Line](TCAsyncResult<void> &&_Result) mutable
 				{
 					try
@@ -270,6 +270,34 @@ namespace NMib
 						DMibPDebugBreak;
 					}
 					pActor->fp_Terminate(nullptr);
+				}
+			;
+		}
+		
+		template <typename tf_CActor, typename tf_CFunctor>
+		void CActorHolder::fp_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall, NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
+		{
+			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
+
+			pActor(&CActor::fp_DestroyInternal)
+				> fg_AnyConcurrentActor() / [pActor, ResultCall = fg_Move(_ResultCall), fOnDestroyed = fg_Move(_fOnDestroyed)](TCAsyncResult<void> &&_Result) mutable
+				{
+					if (!pActor->fp_Terminate(fg_Move(fOnDestroyed)))
+						fOnDestroyed();
+					if (NTraits::TCIsSame<tf_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value)
+					{
+						NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
+						return;
+					}
+					auto ResultActor = ResultCall.mp_Actor.f_GetActor();
+					ResultActor->f_QueueProcess
+						(
+							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
+							{
+								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor.f_GetActor()->fp_GetActor(), fg_Move(Result));
+							}
+						)
+					;
 				}
 			;
 		}

@@ -433,31 +433,28 @@ namespace NMib
 		}
 		
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		void TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
+		TCContinuation<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
 		{
-			if (m_pHandle)
-			{
-				auto Actor = m_Actor.f_Lock();
-				if (Actor)
-				{
-					auto pHandle = m_pHandle;
-					auto pCallbackManager = m_pCallbackManager;
-					Actor
-						(
-							&CActor::fp_DisptachInternal
-							, [pHandle, pCallbackManager]()
-							{
-								if (!pCallbackManager->mp_bDestroyed)
-									pCallbackManager->mp_Callbacks.f_Remove(*pHandle);
-							}
-						)
-						> Actor / [](TCAsyncResult<void> &&_Result)
-						{
-							_Result.f_Get();
-						}
-					;
-				}
-			}
+			if (!m_pHandle)
+				return fg_Explicit();
+
+			auto Actor = m_Actor.f_Lock();
+			if (!Actor)
+				return fg_Explicit();
+			
+			auto pHandle = m_pHandle;
+			m_pHandle = nullptr;
+			
+			return Actor
+				(
+					&CActor::fp_DisptachInternal
+					, [pHandle, pCallbackManager = m_pCallbackManager]
+					{
+						if (!pCallbackManager->mp_bDestroyed)
+							pCallbackManager->mp_Callbacks.f_Remove(*pHandle);
+					}
+				)
+			;
 		}
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::CCallbackReference
@@ -486,19 +483,65 @@ namespace NMib
 		}
 
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+		void TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCurrent()
+		{
+			if (!m_pHandle)
+				return;
+			fg_AnyConcurrentActor().f_CallByValue
+				(
+					&CActor::f_DispatchWithReturn<TCContinuation<void>>
+					, [Continuation = fp_RemoveCallback()]
+					{
+						return Continuation;
+					}
+				)
+				> NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&_Result)
+				{
+					if (!_Result)
+					{
+						try
+						{
+							_Result.f_Access();
+						}
+						catch (CExceptionActorDeleted const &)
+						{
+						}
+						catch (...)
+						{
+							DMibDTrace2("Callback reference failed to destroy: {}\n", _Result.f_GetExceptionStr());
+							DMibFastCheck(false);
+						}
+					}
+				}
+			;
+			m_pHandle = nullptr;
+		}
+		
+		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		typename TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference &
 		TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::operator =(CCallbackReference &&_Other)
-		{ 
-			fp_RemoveCallback();
+		{
+			fp_RemoveCurrent();
+			
 			m_pHandle = _Other.m_pHandle;
 			_Other.m_pHandle = nullptr;
+			
 			return *this;
 		}
 
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::~CCallbackReference()
 		{
-			fp_RemoveCallback();
+			if (!m_pHandle)
+				return;
+
+			fp_RemoveCurrent();
+		}
+
+		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+		TCContinuation<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::f_Destroy()
+		{
+			return fp_RemoveCallback();
 		}
 		
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>

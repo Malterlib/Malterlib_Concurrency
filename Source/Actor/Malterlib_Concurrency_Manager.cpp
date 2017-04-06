@@ -633,6 +633,13 @@ namespace NMib
 		
 		constexpr COnScopeExitActorHelper g_OnScopeExitActorInit{};
 		COnScopeExitActorHelper const &g_OnScopeExitActor = g_OnScopeExitActorInit;
+		
+		CActorSubscriptionReference::~CActorSubscriptionReference() = default;
+		
+		TCContinuation<void> CActorSubscriptionReference::f_Destroy()
+		{
+			return fg_Explicit();
+		}
 	}
 }
 

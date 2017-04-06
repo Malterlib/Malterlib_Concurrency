@@ -28,7 +28,18 @@ namespace NMib::NConcurrency
 	{
 		return mp_Subscription;
 	}
-
+	
+	template <typename t_CInterface>
+	TCContinuation<void> TCActorInterface<t_CInterface>::f_Destroy()
+	{
+		TCContinuation<void> Continuation;
+		if (f_GetSubscription())
+			Continuation = f_GetSubscription()->f_Destroy();
+		else
+			Continuation.f_SetResult();
+		return Continuation;
+	}
+		
 	template <typename t_CInterface>
 	void TCActorInterface<t_CInterface>::f_Clear()
 	{

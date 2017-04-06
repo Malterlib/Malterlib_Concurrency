@@ -20,13 +20,14 @@ namespace NMib
 			, EDistributedActorCommand_Unpublish
 			, EDistributedActorCommand_DestroySubscription
 			, EDistributedActorCommand_InitialPublishFinished
+			, EDistributedActorCommand_SubscriptionDestroyed
 		};
 		
 		struct CDistributedActorCommand_Identify
 		{
 			enum : uint32 
 			{
-				EProtocolVersion = 0x104
+				EProtocolVersion = 0x105
 			};
 			
 			template <typename tf_CStream>
@@ -135,6 +136,18 @@ namespace NMib
 			void f_Feed(tf_CStream &_Stream) const;
 			template <typename tf_CStream>
 			void f_Consume(tf_CStream &_Stream);
+		};
+
+		struct CDistributedActorCommand_SubscriptionDestroyed
+		{
+			template <typename tf_CStream>
+			void f_Feed(tf_CStream &_Stream) const;
+			template <typename tf_CStream>
+			void f_Consume(tf_CStream &_Stream);
+			
+			uint64 m_PacketID;
+			NStr::CStr m_SubscriptionID;
+			TCAsyncResult<void> m_Result;
 		};
 	}
 }

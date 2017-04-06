@@ -15,14 +15,76 @@ namespace NMib::NConcurrency
 		return CActorSubscriptionHelperWithActor(_Actor); 
 	}
 	
-	template <typename tf_FCleanup>
-	inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const 
+	template
+	<
+		typename tf_FCleanup
+		, TCEnableIfType
+		<
+			NTraits::TCIsSame
+			<
+				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+				, TCContinuation<void>
+			>::mc_Value
+		>
+		*
+	>
+	inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const
+	{ 
+		return fg_ActorSubscriptionAsync(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup));
+	}
+	
+	template
+	<
+		typename tf_FCleanup
+		, TCEnableIfType
+		<
+			!NTraits::TCIsSame
+			<
+				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+				, TCContinuation<void>
+			>::mc_Value
+		>
+		*
+	>
+	inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const
 	{ 
 		return fg_ActorSubscription(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup)); 
 	}
-		
-	template <typename tf_FCleanup>
-	inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const 
+	
+	template
+	<
+		typename tf_FCleanup
+		, TCEnableIfType
+		<
+			NTraits::TCIsSame
+			<
+				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+				, TCContinuation<void>
+			>::mc_Value
+		>
+		*
+	>
+	inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const
+	{ 
+		auto CurrentActor = fg_CurrentActor();
+		DMibFastCheck(CurrentActor);
+		return fg_ActorSubscriptionAsync(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup));
+	}
+
+	template
+	<
+		typename tf_FCleanup
+		, TCEnableIfType
+		<
+			!NTraits::TCIsSame
+			<
+				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+				, TCContinuation<void>
+			>::mc_Value
+		>
+		*
+	>
+	inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const
 	{ 
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);

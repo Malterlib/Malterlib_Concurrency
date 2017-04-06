@@ -3,6 +3,8 @@
 
 #define DMibRuntimeTypeRegistry
 
+#include <Mib/Concurrency/RuntimeTypeRegistry>
+
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 #include "Malterlib_Concurrency_DistributedActor_Stream_Internal.h"
@@ -21,24 +23,22 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	static void fg_DestroyStreamedFunction(TCWeakActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	inline_never static void fg_DestroyStreamedFunctionOnActor(TCActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
-		auto Actor = _Actor.f_Lock();
-		if (Actor)
-		{
-			g_Dispatch(Actor) > [pFunction = fg_Move(o_pFunction)]
-				{
-				}
-				> fg_DiscardResult()
-			;
-			return;
-		}
-	
+		g_Dispatch(_Actor) > [pFunction = fg_Move(o_pFunction)]
+			{
+			}
+			> fg_DiscardResult()
+		;
+	}
+
+	inline_never static void fg_DestroyStreamedFunctionWithoutActor(NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	{
 #if defined DMibContractConfigure_CheckEnabled
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
 		
-		void const *pFunctionPointer = o_pFunction->f_GetFunctionPointer();
+		void const * volatile pFunctionPointer = o_pFunction->f_GetFunctionPointer();
 		(void)pFunctionPointer;
 			
 		o_pFunction.f_Clear();
@@ -57,6 +57,15 @@ namespace NMib::NConcurrency
 #else
 		o_pFunction.f_Clear();
 #endif
+	}
+
+	static void fg_DestroyStreamedFunction(TCWeakActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	{
+		auto Actor = _Actor.f_Lock();
+		if (Actor)
+			return fg_DestroyStreamedFunctionOnActor(Actor, o_pFunction);
+
+		fg_DestroyStreamedFunctionWithoutActor(o_pFunction);
 	}
 	
 	NPrivate::CDistributedActorStreamContextState::CActorFunctorInfo::CActorFunctors::CActorFunctors() = default;
@@ -662,7 +671,7 @@ namespace NMib::NConcurrency
 		References.m_Functions = fg_Move(pActorFunctors->m_ImplicitlyPublishedFunctions);
 	}
 	
-	void CActorDistributionManager::fp_DestroyRemoteSubscription
+	TCContinuation<void> CActorDistributionManager::fp_DestroyRemoteSubscription
 		(
 			NPtr::TCSharedPointer<NPrivate::ICHost> const &_pHost
 			, NStr::CStr const &_SubscriptionID
@@ -671,11 +680,18 @@ namespace NMib::NConcurrency
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
-			return;
+			return fg_Explicit();
 		auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
 		DMibCheck(pSubscription);
 		if (!pSubscription)
-			return;
+			return fg_Explicit();
+		
+		if (Host.m_ActorProtocolVersion >= 0x105)
+		{
+			auto pPendingDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(_SubscriptionID);
+			if (pPendingDestroy)
+				return DMibErrorInstance("This subscription has already been destroyed");
+		}
 		
 		for (auto &FunctionID : pSubscription->m_Functions)
 			Host.f_DestroyImplicitFunction(FunctionID);
@@ -692,6 +708,11 @@ namespace NMib::NConcurrency
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
 		Stream << Result;
 		Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
+
+		if (Host.m_ActorProtocolVersion < 0x105)
+			return fg_Explicit();
+		
+		return Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID];
 	}
 
 	void CActorDistributionManagerInternal::fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID)
@@ -715,11 +736,67 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		if (pHost->m_bDeleted)
 			return true;
+		
+		auto &Host = *pHost;
 
 		CDistributedActorCommand_DestroySubscription DestroySubscription;
 		_Stream >> DestroySubscription;
-		pHost->m_ImplicitlyPublishedSubscriptions.f_Remove(DestroySubscription.m_SubscriptionID);
-		fp_DestroyLocalSubscription(*pHost, DestroySubscription.m_SubscriptionID);
+		if (Host.m_ActorProtocolVersion >= 0x105)
+		{
+			auto *pSubscription = Host.m_ImplicitlyPublishedSubscriptions.f_FindEqual(DestroySubscription.m_SubscriptionID);
+			
+			if (pSubscription && pSubscription->m_Subscription)
+			{
+				pSubscription->m_Subscription->f_Destroy()
+					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID]
+					(TCAsyncResult<void> &&_Result)
+					{
+						if (pHost->m_bDeleted || pHost->m_LastExecutionID != LastExecutionID)
+							return;
+						
+						CDistributedActorCommand_SubscriptionDestroyed Result;
+						Result.m_SubscriptionID = SubscriptionID;
+						Result.m_Result = fg_Move(_Result);
+						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+						Stream << Result;
+						fp_QueuePacket(pHost, Stream.f_MoveVector());
+					}
+				;
+			}
+			else
+			{
+				CDistributedActorCommand_SubscriptionDestroyed Result;
+				Result.m_SubscriptionID = DestroySubscription.m_SubscriptionID;
+				Result.m_Result.f_SetResult();
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				Stream << Result;
+				fp_QueuePacket(pHost, Stream.f_MoveVector());
+			}
+		}
+
+		Host.m_ImplicitlyPublishedSubscriptions.f_Remove(DestroySubscription.m_SubscriptionID);
+		fp_DestroyLocalSubscription(Host, DestroySubscription.m_SubscriptionID);
+		
+		return true;
+	}
+
+	bool CActorDistributionManagerInternal::fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	{
+		auto &pHost = _pConnection->m_pHost;
+		if (pHost->m_bDeleted)
+			return true;
+
+		auto &Host = *pHost;
+		
+		CDistributedActorCommand_SubscriptionDestroyed DestroySubscription;
+		_Stream >> DestroySubscription;
+		
+		auto *pDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(DestroySubscription.m_SubscriptionID);
+		if (pDestroy)
+		{
+			pDestroy->f_SetResult(fg_Move(DestroySubscription.m_Result));
+			Host.m_PendingRemoteSubscriptionDestroys.f_Remove(pDestroy);
+		}
 		
 		return true;
 	}

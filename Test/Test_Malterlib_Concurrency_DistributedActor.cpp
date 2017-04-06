@@ -47,6 +47,15 @@ namespace
 		};
 	}
 
+	class CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
+	{
+	public:
+		TCContinuation<void> f_Destroy() override
+		{
+			return fg_Explicit();
+		}
+	};
+	
 	class CDistributedActorBase : public CActor
 	{
 	public:
@@ -455,7 +464,7 @@ namespace
 		{
 			m_Callback[_iCallback] = _Callback;
 			m_Actor[_iCallback] = _Actor;
-			return fg_Construct();
+			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
 		CActorSubscription f_RegisterDual
@@ -468,7 +477,7 @@ namespace
 			m_Callback[0] = _Callback0;
 			m_Callback[1] = _Callback1;
 			m_Actor[0] = _Actor;
-			return fg_Construct();
+			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
 		TCContinuation<CStr> f_CallDual(CStr const &_Message)
@@ -512,13 +521,13 @@ namespace
 		CActorSubscription f_RegisterNoActor(TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			m_CallbackNoSub = _Callback;
-			return fg_Construct();
+			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
 		CActorSubscription f_RegisterNoFunction(TCActor<CActor> const &_Actor)
 		{
 			m_ActorNoSub = _Actor;
-			return fg_Construct();
+			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
 		TCContinuation<CStr> f_CallNoSubscription(CStr const &_Message)

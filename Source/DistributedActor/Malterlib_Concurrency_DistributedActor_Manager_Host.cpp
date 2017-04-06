@@ -181,6 +181,10 @@ namespace NMib
 			Host.m_RemoteSubscriptionReferences.f_Clear();
 			Host.m_LocalSubscriptionReferences.f_Clear();
 			
+			for (auto &Destroy : Host.m_PendingRemoteSubscriptionDestroys)
+				Destroy.f_SetResult();
+			Host.m_PendingRemoteSubscriptionDestroys.f_Clear();
+			
 			Host.f_DeletePackets();
 		}
 		

@@ -614,7 +614,7 @@ namespace NMib
 					, uint32 _SubscriptionSequenceID 
 				)
 			;
-			void fp_DestroyRemoteSubscription
+			TCContinuation<void> fp_DestroyRemoteSubscription
 				(
 					NPtr::TCSharedPointer<NPrivate::ICHost> const &_pHost
 					, NStr::CStr const &_SubscriptionID

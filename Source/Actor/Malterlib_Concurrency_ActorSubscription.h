@@ -10,11 +10,40 @@
 namespace NMib::NConcurrency
 {
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup);
+	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCContinuation<void> ()> &&_fCleanup);
 
 	struct CActorSubscriptionHelperWithActor
 	{
 		inline CActorSubscriptionHelperWithActor(TCActor<> const &_Actor);
-		template <typename tf_FCleanup>
+		
+		template
+		<
+			typename tf_FCleanup
+			, TCEnableIfType
+			<
+				NTraits::TCIsSame
+				<
+					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+					, TCContinuation<void>
+				>::mc_Value
+			>
+			* = nullptr
+		>
+		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		
+		template
+		<
+			typename tf_FCleanup
+			, TCEnableIfType
+			<
+				!NTraits::TCIsSame
+				<
+					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+					, TCContinuation<void>
+				>::mc_Value
+			>
+			* = nullptr
+		>
 		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
 		
 	private:
@@ -23,8 +52,36 @@ namespace NMib::NConcurrency
 	
 	struct CActorSubscriptionHelper
 	{
-		template <typename tf_FCleanup>
+		template
+		<
+			typename tf_FCleanup
+			, TCEnableIfType
+			<
+				NTraits::TCIsSame
+				<
+					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+					, TCContinuation<void>
+				>::mc_Value
+			>
+			* = nullptr
+		>
+		
 		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		template
+		<
+			typename tf_FCleanup
+			, TCEnableIfType
+			<
+				!NTraits::TCIsSame
+				<
+					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
+					, TCContinuation<void>
+				>::mc_Value
+			>
+			* = nullptr
+		>
+		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		
 		inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
 	};
 	

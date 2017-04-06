@@ -205,6 +205,8 @@ namespace NMib
 				NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_RemoteSubscriptionReferences;
 				NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_LocalSubscriptionReferences;
 				
+				NContainer::TCMap<NStr::CStr, TCContinuation<void>> m_PendingRemoteSubscriptionDestroys;
+				
 				NStr::CStr m_LastExecutionID;
 				NStr::CStr m_UniqueHostID; // Differs from HostID when anonymous 
 				NStr::CStr m_RealHostID; 
@@ -445,6 +447,7 @@ namespace NMib
 			bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+			bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 			bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
 			bool fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, TCContinuation<> &_Continuation);
 			void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);

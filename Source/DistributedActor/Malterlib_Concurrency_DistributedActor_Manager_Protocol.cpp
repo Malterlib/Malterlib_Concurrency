@@ -221,6 +221,7 @@ namespace NMib
 				case EDistributedActorCommand_Publish:
 				case EDistributedActorCommand_Unpublish:
 				case EDistributedActorCommand_DestroySubscription: 
+				case EDistributedActorCommand_SubscriptionDestroyed:
 					{
 						if (!_pConnection->m_bIdentified)
 						{

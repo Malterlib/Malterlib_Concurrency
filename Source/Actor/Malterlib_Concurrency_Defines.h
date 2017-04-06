@@ -173,9 +173,8 @@ namespace NMib
 		class CActorSubscriptionReference
 		{
 		public:
-			virtual ~CActorSubscriptionReference()
-			{
-			}
+			virtual ~CActorSubscriptionReference();
+			virtual TCContinuation<void> f_Destroy() = 0;
 		};
 		
 		typedef NPtr::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;

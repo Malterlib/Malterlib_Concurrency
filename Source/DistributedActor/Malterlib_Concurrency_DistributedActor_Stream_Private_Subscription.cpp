@@ -71,4 +71,23 @@ namespace NMib::NConcurrency::NPrivate
 			return;
 		DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID) > fg_DiscardResult();
 	}
+
+	TCContinuation<void> CDistributedActorSubscriptionReferenceState::f_Destroy()
+	{
+		auto DistributionManager = m_DistributionManager.f_Lock();
+		if (!DistributionManager)
+			return fg_Explicit();
+		
+		m_DistributionManager.f_Clear();
+		
+		return DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
+	}
+	
+	TCContinuation<void> CDistributedActorSubscriptionReference::f_Destroy()
+	{
+		if (!m_pState)
+			return fg_Explicit();
+		
+		return m_pState->f_Destroy();
+	}
 }

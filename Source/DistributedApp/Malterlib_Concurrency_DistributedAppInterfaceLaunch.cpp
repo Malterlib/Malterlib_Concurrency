@@ -75,9 +75,21 @@ namespace NMib::NConcurrency
 				, mp_Address
 				, g_ActorFunctor
 				(
-					g_ActorSubscription > [this, HandleRequestID]
+					g_ActorSubscription > [this, HandleRequestID]() -> TCContinuation<void>
 					{
+						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
+						if (!pHandleRequest)
+							return fg_Explicit();
+						
+						TCContinuation<void> Continuation;
+						if (pHandleRequest->m_OnUseTicketSubscription)
+							Continuation = pHandleRequest->m_OnUseTicketSubscription->f_Destroy();
+						else
+							Continuation.f_SetResult();
+						
 						mp_HandleRequests.f_Remove(HandleRequestID);
+						
+						return Continuation;
 					}
 				)
 				> [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>

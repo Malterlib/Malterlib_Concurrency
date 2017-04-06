@@ -5,6 +5,7 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
+#include <Mib/Concurrency/RuntimeTypeRegistry>
 
 namespace NMib
 {
@@ -174,6 +175,27 @@ namespace NMib
 		template <typename tf_CStream>
 		void CDistributedActorCommand_InitialPublishFinished::f_Consume(tf_CStream &_Stream)
 		{
+		}
+		
+		template <typename tf_CStream>
+		void CDistributedActorCommand_SubscriptionDestroyed::f_Feed(tf_CStream &_Stream) const
+		{
+			_Stream << uint8(EDistributedActorCommand_SubscriptionDestroyed);
+			_Stream << m_PacketID;
+			_Stream << m_SubscriptionID;
+			if (m_Result)
+				_Stream << uint8(0);
+			else
+				NPrivate::fg_StreamAsyncResultException(_Stream, m_Result);
+		}
+		
+		template <typename tf_CStream>
+		void CDistributedActorCommand_SubscriptionDestroyed::f_Consume(tf_CStream &_Stream)
+		{
+			_Stream >> m_PacketID;
+			_Stream >> m_SubscriptionID;
+			if (!NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, m_Result))
+				m_Result.f_SetResult();
 		}
 	}
 }

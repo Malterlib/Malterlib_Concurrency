@@ -102,6 +102,17 @@ namespace NMib::NConcurrency
 	{
 		return mp_Subscription;
 	}
+
+	template <typename t_CFunction>
+	TCContinuation<void> TCActorFunctor<t_CFunction>::f_Destroy()
+	{
+		TCContinuation<void> Continuation;
+		if (f_GetSubscription())
+			Continuation = f_GetSubscription()->f_Destroy();
+		else
+			Continuation.f_SetResult();
+		return Continuation;
+	}
 	
 	template <typename t_CFunction>
 	void TCActorFunctor<t_CFunction>::f_Clear()

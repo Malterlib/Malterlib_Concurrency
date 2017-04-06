@@ -241,10 +241,19 @@ namespace NMib
 						Result.m_Ticket = fg_Move(TrustTicket);
 						if (TicketState.m_fOnUseTicket)
 						{
-							Result.m_OnUseTicketSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]
+							Result.m_OnUseTicketSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
 								{
 									auto &Internal = *mp_pInternal;
+
+									auto *pTicket = Internal.m_Tickets.f_FindEqual(Token);
+									if (!pTicket)
+										return fg_Explicit();
+									
+									TCContinuation<void> Continuation = pTicket->m_fOnUseTicket.f_Destroy();
+									
 									Internal.m_Tickets.f_Remove(Token);
+									
+									return Continuation;
 								}
 							;
 						}

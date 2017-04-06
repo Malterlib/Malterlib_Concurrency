@@ -70,13 +70,15 @@ namespace NMib
 				CCallbackReference(CCallbackReference const &_Other);
 				CCallbackReference &operator =(CCallbackReference const &_Other);
 				
-				void fp_RemoveCallback();
+				TCContinuation<void> fp_RemoveCallback();
+				void fp_RemoveCurrent();
 			public:
 				CCallbackReference(CCallbackHandle *_pHandle, NPtr::TCSharedPointer<CInternal> const &_pManager, TCWeakActor<CActor> const &_Actor);
 				CCallbackReference();
 				CCallbackReference(CCallbackReference &&_Other);
 				CCallbackReference &operator =(CCallbackReference &&_Other);
 				~CCallbackReference();
+				TCContinuation<void> f_Destroy() override;
 				bool f_IsValid();
 			};
 		private:
@@ -89,6 +91,10 @@ namespace NMib
 		class CCombinedCallbackReference : public CActorSubscriptionReference
 		{
 		public:
+			CCombinedCallbackReference();
+			~CCombinedCallbackReference();
+			TCContinuation<void> f_Destroy() override;
+
 			NContainer::TCVector<CActorSubscription> m_References;
 		};
 		

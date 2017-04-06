@@ -153,6 +153,15 @@ namespace NMib
 							}
 						}
 						break;
+					case EDistributedActorCommand_SubscriptionDestroyed:
+						{
+							if (!fp_HandleSubscriptionDestroyed(_pConnection, Stream))
+							{
+								// TODO: Handle malicious connection
+								return;
+							}
+						}
+						break;
 					default:
 						{
 							DMibNeverGetHere;

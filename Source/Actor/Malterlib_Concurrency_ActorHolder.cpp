@@ -241,10 +241,17 @@ namespace NMib
 									(
 										!pActor->fp_Terminate
 										(
-											[Continuation, Result = _Result]() mutable
-											{
-												Continuation.f_SetResult(fg_Move(Result));
-											}
+#ifdef DCompiler_MSVC
+											NFunction::TCFunctionSmallMutable<void ()>
+											(
+#endif
+												[Continuation, Result = _Result]() mutable
+												{
+													Continuation.f_SetResult(fg_Move(Result));
+												}
+#ifdef DCompiler_MSVC
+											)
+#endif
 										)
 									)
 								{

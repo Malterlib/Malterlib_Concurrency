@@ -627,14 +627,7 @@ namespace NMib::NConcurrency
 				if (mp_CommandLine)
 				{
 					TCContinuation<void> Continuation;
-					mp_CommandLine->f_Destroy
-						(
-							[this, Continuation](TCAsyncResult<void> &&_Result)
-							{
-								Continuation.f_SetResult(fg_Move(_Result));
-							}
-						)
-					;
+					mp_CommandLine->f_Destroy2() > Continuation;
 					mp_CommandLine = nullptr;
 					return Continuation;
 				}

@@ -19,6 +19,7 @@ namespace NMib
 			;
 		}
 
+#if 0
 		template <typename tf_CActor, typename tf_CFunctor>
 		void CActorHolder::f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall)
 		{
@@ -73,6 +74,7 @@ namespace NMib
 			DMibFastCheck(pActor);
 			f_Destroy(pActor / fg_Forward<tf_CFunctor>(_Functor));
 		}
+#endif
 		
 		CConcurrencyManager &CActorHolder::f_ConcurrencyManager() const
 		{

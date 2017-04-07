@@ -38,14 +38,15 @@ namespace NMib::NConcurrency
 			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		{
 		}
-		
-		void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override
+
+	protected:
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
-			CDefaultActorHolder::f_QueueProcess
+			CDefaultActorHolder::fp_QueueProcess
 				(
 					[this, Functor = fg_Move(_Functor)]() mutable
 					{
-						// this is referenced by shared pointer in CDefaultActorHolder::f_QueueProcess
+						// this is referenced by shared pointer in CDefaultActorHolder::fp_QueueProcess
 						
 						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 						auto pOldDispatchData = ThreadLocal.m_pCurrentRemoteDispatchActorData;

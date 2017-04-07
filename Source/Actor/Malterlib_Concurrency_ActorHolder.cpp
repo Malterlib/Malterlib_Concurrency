@@ -96,7 +96,7 @@ namespace NMib
 					
 					mint NewWorking = mp_Working.f_Exchange(0);
 					if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
-						f_QueueProcess([]{}, false); // Reschedule
+						fp_QueueProcess([]{}, false); // Reschedule
 				}
 			;
 			
@@ -152,7 +152,7 @@ namespace NMib
 			return false;
 		}
 		
-		void CActorHolder::f_RunProcess()
+		void CActorHolder::fp_RunProcess()
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOldHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
@@ -201,7 +201,7 @@ namespace NMib
 			return mp_bImmediateDelete;
 		}
 
-		void CActorHolder::f_DestroyThreaded()
+		void CActorHolder::fp_DestroyThreaded()
 		{
 		}
 
@@ -230,17 +230,27 @@ namespace NMib
 			return fg_Dispatch
 				(
 					pActor
-					, [pActor]() -> TCContinuation<void>
+					, [this, pActor]() -> TCContinuation<void>
 					{
 						TCContinuation<void> Continuation;
 						
-						pActor->f_Destroy
-							(
-								NPrivate::fg_DirectResultActor() / [Continuation](TCAsyncResult<void> &&_Result)
+						mp_pActor->fp_DestroyInternal()
+							> fg_AnyConcurrentActor() / [pActor, Continuation](TCAsyncResult<void> &&_Result) mutable
+							{
+								if
+									(
+										!pActor->fp_Terminate
+										(
+											[Continuation, Result = _Result]() mutable
+											{
+												Continuation.f_SetResult(fg_Move(Result));
+											}
+										)
+									)
 								{
 									Continuation.f_SetResult(fg_Move(_Result));
 								}
-							)
+							}
 						;
 						
 						return Continuation;
@@ -431,7 +441,7 @@ namespace NMib
 					}
 				)
 			;
-			f_QueueProcess
+			fp_QueueProcess
 				(
 					[OnExit = fg_Move(OnExit)]() mutable
 					{
@@ -476,7 +486,7 @@ namespace NMib
 							Clock.f_Start();
 							while (true)
 							{
-								f_RunProcess();
+								fp_RunProcess();
 								if (Clock.f_GetTime() > 0.000035) // Run for at least 35 µs
 									break;
 							}
@@ -489,7 +499,7 @@ namespace NMib
 			;
 		}
 		
-		void CSeparateThreadActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
 			TCActorHolderSharedPointer<CSeparateThreadActorHolder> pThis = fg_Explicit(this);
@@ -498,10 +508,10 @@ namespace NMib
 				m_pThread->m_EventWantQuit.f_Signal();
 		}
 		
-		void CSeparateThreadActorHolder::f_DestroyThreaded()
+		void CSeparateThreadActorHolder::fp_DestroyThreaded()
 		{
 			m_pThread.f_Clear();
-			CDefaultActorHolder::f_DestroyThreaded();
+			CDefaultActorHolder::fp_DestroyThreaded();
 		}
 
 		///
@@ -521,7 +531,7 @@ namespace NMib
 		{
 		}
 
-		void CDispatchingActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 			if (fp_AddToQueue(fg_Move(_Functor)))
@@ -530,7 +540,7 @@ namespace NMib
 					(
 						[pThis]()
 						{
-							pThis->f_RunProcess();
+							pThis->fp_RunProcess();
 						}						
 					)
 				;
@@ -590,7 +600,7 @@ namespace NMib
 			;
 		}
 		
-		void CDelegatedActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		void CDelegatedActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			auto pDelegateTo = mp_pDelegateTo.f_Lock();
 			if (pDelegateTo)
@@ -608,7 +618,7 @@ namespace NMib
 				;
 			}
 			else
-				CDefaultActorHolder::f_QueueProcess(fg_Move(_Functor), _bSame);
+				CDefaultActorHolder::fp_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 
 		///
@@ -727,7 +737,7 @@ namespace NMib
 		{
 		}
 
-		void CDefaultActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		void CDefaultActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 		{
 			if (fp_AddToQueue(fg_Move(_Functor)))
 			{
@@ -740,7 +750,7 @@ namespace NMib
 							this->mp_Priority
 							, [pThis = fg_Move(pThis)]()
 							{
-								pThis->f_RunProcess();
+								pThis->fp_RunProcess();
 							}		
 						)
 					;
@@ -753,12 +763,17 @@ namespace NMib
 							, this->mp_iFixedCore
 							, [pThis = fg_Move(pThis)]()
 							{
-								pThis->f_RunProcess();
+								pThis->fp_RunProcess();
 							}		
 						)
 					;
 				}
 			}
+		}
+		
+		void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		{
+			fp_QueueProcess(fg_Move(_Functor), _bSame);
 		}
 	}
 }

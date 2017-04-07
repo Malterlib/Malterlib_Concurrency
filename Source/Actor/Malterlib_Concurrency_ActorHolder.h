@@ -68,34 +68,24 @@ namespace NMib
 			template <typename tf_CActor>
 			TCActor<tf_CActor> fp_GetAsActor();
 
+			virtual void fp_DestroyThreaded();
+			virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) = 0;
+			void fp_RunProcess();
+
 		public:
 			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 			virtual ~CActorHolder();
 
-			void f_RunProcess();
-			virtual void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) = 0;
-			bool f_ImmediateDelete() const;
-			virtual void f_DestroyThreaded();
-			bool f_IsDestroyed() const;
-			void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);
-			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 			aint f_RefCountDecrease();
-
-			TCDispatchedActorCall<void> f_Destroy2();
-			
-			template <typename tf_CActor, typename tf_CFunctor>
-			void f_Destroy(TCActorResultCall<tf_CActor, tf_CFunctor> &&_ResultCall);
-
-			template <typename tf_CActor, typename tf_CFunctor>
-			void f_Destroy(tf_CActor &&_Actor, tf_CFunctor &&_Functor);
-			
-			template <typename tf_CActor, typename tf_CFunctor>
-			void f_Destroy(tf_CActor *_pActor, tf_CFunctor &&_Functor);
-			
-			template <typename tf_CFunctor>
-			void f_Destroy(tf_CFunctor &&_Functor);
 			
 			void f_SetFixedCore(mint _iFixedCore);
+			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
+			bool f_ImmediateDelete() const;
+			bool f_IsDestroyed() const;
+			
+			TCDispatchedActorCall<void> f_Destroy2();
+			void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);
+			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 			
 			inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 			inline_always EPriority f_GetPriority() const;
@@ -169,14 +159,13 @@ namespace NMib
 				)
 			;
 			~CDefaultActorHolder();
-
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
+			
+		protected:
+			void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
 		};
 
 		class CDispatchingActorHolder : public CDefaultActorHolder
 		{
-		protected:
-			NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
 		public:
 			CDispatchingActorHolder
 				(
@@ -187,7 +176,11 @@ namespace NMib
 					, NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> &&_Dispatcher
 				)
 			;
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
+			
+		protected:
+			void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
+
+			NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
 		};
 
 		class CDelegatedActorHolder : public CDefaultActorHolder
@@ -204,20 +197,15 @@ namespace NMib
 			;
 			~CDelegatedActorHolder();
 			
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
-
 		protected:
+			void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
+			
 			TCActorHolderWeakPointer<CActorHolder> mp_pDelegateTo;
 			COnTerminate *mp_pOnTerminateEntry = nullptr;
 		};
 
 		class CSeparateThreadActorHolder : public CDefaultActorHolder
 		{
-		protected:
-			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
-			NStr::CStr mp_ThreadName;
-
-			void fp_StartQueueProcessing() override;
 		public:
 			CSeparateThreadActorHolder
 				(
@@ -229,8 +217,14 @@ namespace NMib
 				)
 			;
 			~CSeparateThreadActorHolder();
-			void f_DestroyThreaded() override;
-			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false) override;
+
+		protected:
+			void fp_StartQueueProcessing() override;
+			void fp_DestroyThreaded() override;
+			void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
+			
+			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
+			NStr::CStr mp_ThreadName;
 		};
 	}
 }

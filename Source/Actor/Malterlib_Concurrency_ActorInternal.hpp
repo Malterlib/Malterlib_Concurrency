@@ -79,7 +79,7 @@ namespace NMib
 		template <typename t_CActor>
 		TCActorInternal<t_CActor>::~TCActorInternal()
 		{
-			this->f_DestroyThreaded();
+			this->fp_DestroyThreaded();
 		}
 
 
@@ -163,7 +163,7 @@ namespace NMib
 					DMibTraceSafe("{}\n", ToLog);
 			}
 #endif
-			this->f_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this});
+			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}, false);
 			
 			return true; // Dummy return to allow for fg_Swallow on arguments
 		}		

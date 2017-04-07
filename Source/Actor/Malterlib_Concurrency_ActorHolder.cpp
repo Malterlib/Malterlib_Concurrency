@@ -223,7 +223,7 @@ namespace NMib
 			return false;
 		}
 		
-		TCDispatchedActorCall<void> CActorHolder::f_Destroy2()
+		TCDispatchedActorCall<void> CActorHolder::f_Destroy()
 		{
 			TCActor<CActor> pActor = fp_GetAsActor<CActor>();
 			

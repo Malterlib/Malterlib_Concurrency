@@ -83,7 +83,7 @@ namespace NMib
 			bool f_ImmediateDelete() const;
 			bool f_IsDestroyed() const;
 			
-			TCDispatchedActorCall<void> f_Destroy2();
+			TCDispatchedActorCall<void> f_Destroy();
 			void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);
 			void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 			

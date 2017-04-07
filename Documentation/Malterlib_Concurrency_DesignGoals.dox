@@ -266,7 +266,7 @@ protected:
 TCContinuation<void> f_DestroyActor()
 {
 	TCContinuation<void> Continuation; 
-	m_MyActor->f_Destroy2() > [this, Continuation](TCAsyncResult<> &&_Result)
+	m_MyActor->f_Destroy() > [this, Continuation](TCAsyncResult<> &&_Result)
 		{
 			if (!_Result)
 			{

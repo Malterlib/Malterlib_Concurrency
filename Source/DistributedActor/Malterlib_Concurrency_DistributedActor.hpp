@@ -168,7 +168,7 @@ namespace NMib
 					m_Publication.f_Clear();
 					if (m_Actor.f_IsEmpty())
 						return fg_Explicit();
-					auto Return = m_Actor->f_Destroy2();
+					auto Return = m_Actor->f_Destroy();
 					m_Actor.f_Clear();
 					return Return;
 				}

@@ -130,7 +130,7 @@ namespace
 				
 				CEvent Event;
 				
-				pActor->f_Destroy2() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
+				pActor->f_Destroy() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
 					{
 						Event.f_SetSignaled();
 					}

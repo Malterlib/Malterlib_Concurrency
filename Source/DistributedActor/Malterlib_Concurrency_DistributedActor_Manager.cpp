@@ -43,13 +43,13 @@ namespace NMib
 			
 			if (Internal.m_ResolveActor)
 			{
-				Internal.m_ResolveActor->f_Destroy2() > Results.f_AddResult();
+				Internal.m_ResolveActor->f_Destroy() > Results.f_AddResult();
 				Internal.m_ResolveActor.f_Clear();
 			}
 			
 			if (Internal.m_WebsocketClientConnector)
 			{
-				Internal.m_WebsocketClientConnector->f_Destroy2() > Results.f_AddResult();
+				Internal.m_WebsocketClientConnector->f_Destroy() > Results.f_AddResult();
 				Internal.m_WebsocketClientConnector.f_Clear();
 			}
 			
@@ -58,7 +58,7 @@ namespace NMib
 				Listen.m_ListenCallbackSubscription.f_Clear();
 				if (Listen.m_WebsocketServer)
 				{
-					Listen.m_WebsocketServer->f_Destroy2() > Results.f_AddResult();
+					Listen.m_WebsocketServer->f_Destroy() > Results.f_AddResult();
 					Listen.m_WebsocketServer.f_Clear();
 				}
 			}

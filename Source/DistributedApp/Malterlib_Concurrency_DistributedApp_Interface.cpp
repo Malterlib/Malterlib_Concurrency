@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 			void f_Clear()
 			{
 				m_StdInSubscription.f_Clear();
-				m_StdInActor->f_Destroy2() > fg_DiscardResult();
+				m_StdInActor->f_Destroy() > fg_DiscardResult();
 				m_StdInActor.f_Clear();
 			}
 		};

@@ -499,7 +499,7 @@ namespace NMib::NConcurrency
 								{
 									if (mp_Settings.m_bSeparateConcurrencyManager)
 									{
-										_DistributionManager->f_Destroy2() > [Continuation](TCAsyncResult<void> &&)
+										_DistributionManager->f_Destroy() > [Continuation](TCAsyncResult<void> &&)
 											{
 												Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
 											}
@@ -627,7 +627,7 @@ namespace NMib::NConcurrency
 				if (mp_CommandLine)
 				{
 					TCContinuation<void> Continuation;
-					mp_CommandLine->f_Destroy2() > Continuation;
+					mp_CommandLine->f_Destroy() > Continuation;
 					mp_CommandLine = nullptr;
 					return Continuation;
 				}
@@ -653,9 +653,9 @@ namespace NMib::NConcurrency
 	{
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateConcurrencyManager && mp_State.m_DistributionManager)
-			mp_State.m_DistributionManager->f_Destroy2() > Destroys.f_AddResult();
+			mp_State.m_DistributionManager->f_Destroy() > Destroys.f_AddResult();
 		if (mp_State.m_TrustManager)
-			mp_State.m_TrustManager->f_Destroy2() > Destroys.f_AddResult();
+			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
 	
 		TCContinuation<void> Continuation;
 		Destroys.f_GetResults() > Continuation.f_ReceiveAny(); 

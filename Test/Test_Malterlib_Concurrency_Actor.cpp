@@ -236,7 +236,7 @@ namespace
 				
 				auto fDoubleDestroy = [&]
 					{
-						(Actor->f_Destroy2() + Actor->f_Destroy2()).f_CallSync(30.0);
+						(Actor->f_Destroy() + Actor->f_Destroy()).f_CallSync(30.0);
 					}
 				;
 				

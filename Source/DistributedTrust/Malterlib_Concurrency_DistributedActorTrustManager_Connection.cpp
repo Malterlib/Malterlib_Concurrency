@@ -145,7 +145,7 @@ namespace NMib
 													, _Results.m_HostID
 													, Client
 												)
-												> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]()
+												> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]() mutable
 												{
 													Continuation.f_SetResult(fg_Move(Certificate));
 												}

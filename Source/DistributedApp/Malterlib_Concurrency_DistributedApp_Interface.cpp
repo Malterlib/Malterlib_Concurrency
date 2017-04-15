@@ -96,12 +96,12 @@ namespace NMib::NConcurrency
 				, CDistributedAppInterfaceServer::mc_pDefaultNamespace
 				, fg_ThisActor(this)
 			)
-			> Continuation / [=](TCTrustedActorSubscription<CDistributedAppInterfaceServer> &&_Subscription)
+			> Continuation / [=, RegisterInfo = fg_Move(RegisterInfo)](TCTrustedActorSubscription<CDistributedAppInterfaceServer> &&_Subscription) mutable
 			{
 				mp_AppInteraceServerSubscription = fg_Move(_Subscription);
 				mp_AppInteraceServerSubscription.f_OnActor
 					(
-						[=](TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
+						[=, RegisterInfo = fg_Move(RegisterInfo)](TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
 						{
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Registering with app interface server {}", _ActorInfo.m_HostInfo.f_GetDesc());
 							

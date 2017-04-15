@@ -380,7 +380,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{
 						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()
@@ -402,7 +402,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{
 						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()
@@ -424,7 +424,7 @@ namespace NMib
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period, _pActor, fCallback = fg_Move(_fCallback)]()
+					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{
 						TCContinuation<CActorSubscription> Continuation;
 						fg_TimerActor()

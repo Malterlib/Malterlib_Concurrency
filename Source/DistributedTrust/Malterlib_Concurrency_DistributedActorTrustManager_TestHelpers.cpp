@@ -317,7 +317,7 @@ namespace NMib::NConcurrency
 	}
 
 	CTrustedSubscriptionTestHelper::CInternal::CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager)
-		: mp_TrustManager(fg_Move(_TrustManager))
+		: mp_TrustManager(_TrustManager)
 	{
 	}
 }

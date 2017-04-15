@@ -710,9 +710,11 @@ namespace NMib::NConcurrency
 			, bool _bStartApp
 		)
 	{
+		bool bStartedApp = false;
+		TCActor<CDistributedAppActor> AppActor;
+		aint Ret = 1;
 		try
 		{
-			TCActor<CDistributedAppActor> AppActor;
 			{
 				auto &SuggestedEnclave = fg_DistributedActorSuggestedEnclave();
 				auto OldEnclave = SuggestedEnclave;
@@ -743,22 +745,35 @@ namespace NMib::NConcurrency
 						if (fg_ApplyLoggingOption(_Params))
 							bInstalledLogDispatcher = true;
 						if (_bStartApp || _bForceStart)
+						{
 							AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
+							bStartedApp = true;
+						}
 					}
 				)
 			;
-			aint Ret = CommandLineClient.f_RunCommandLine(fg_GetSys()->f_GetCommandLineArgs());
-			
-			AppActor->f_BlockDestroy();
-			
-			return Ret;
+			Ret = CommandLineClient.f_RunCommandLine(fg_GetSys()->f_GetCommandLineArgs());
 		}
 		catch (NException::CException const &_Exception)
 		{
 			DMibConErrOut("{}{\n}", _Exception.f_GetErrorStr());
-			return 1;
+			
+			Ret = 1;
 		}
 		
-		return 0;
+		try
+		{
+			if (bStartedApp)
+				AppActor(&CDistributedAppActor::f_StopApp).f_CallSync();
+
+			if (AppActor)
+				AppActor->f_BlockDestroy();
+		}
+		catch (NException::CException const &_Exception)
+		{
+			DMibConErrOut("Error stopping app: {}{\n}", _Exception.f_GetErrorStr());
+		}
+		
+		return Ret;
 	}
 }

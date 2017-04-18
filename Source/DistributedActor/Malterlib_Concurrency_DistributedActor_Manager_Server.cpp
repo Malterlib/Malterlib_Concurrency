@@ -389,9 +389,11 @@ namespace NMib
 													return;
 												if (!pConnection->m_pHost)
 													return;
+												
 												NStr::CStr CloseMessage = fg_Format
 													(
-														"Lost incoming connection({}) from '{}' <{}>: {} {} {}"
+														"Lost {} incoming connection({}) from '{}' <{}>: {} {} {}"
+														, pConnection->m_Link.f_IsAloneInList() ? "last" : "additional"
 														, pConnection->f_GetConnectionID()
 														, Address.f_GetString()
 														, pConnection->f_GetHostInfo().f_GetDesc()
@@ -402,9 +404,21 @@ namespace NMib
 												;
 												
 												if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
-													DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
+												{
+													if (pConnection->m_HostLink.f_IsAloneInList())
+													{
+														pConnection->m_pHost->m_bLoggedConnection = false;
+														DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
+													}
+													else
+														DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", CloseMessage);
+												}
 												else
+												{
+													pConnection->m_pHost->m_bLoggedConnection = false;
 													DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
+												}
+												
 												fp_DestroyServerConnection(*pConnection, false, CloseMessage);
 											}
 										;
@@ -468,16 +482,23 @@ namespace NMib
 																}
 																if (!pConnection->m_pHost)
 																	return;
-																DMibLogWithCategory
+																
+																NStr::CStr ToLog = NStr::fg_Format
 																	(
-																		Mib/Concurrency/Actors
-																		, Info
-																		, "Accepted connection({}) from '{}' <{}>"
+																		"Accepted connection({}) from '{}' <{}>"
 																		, pConnection->f_GetConnectionID()
 																		, Address.f_GetString()
 																		, pConnection->f_GetHostInfo().f_GetDesc()
 																	)
 																;
+																
+																if (!pConnection->m_pHost->m_bLoggedConnection)
+																{
+																	pConnection->m_pHost->m_bLoggedConnection = true;
+																	DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
+																}
+																else
+																	DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
 															}
 														;
 														pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);

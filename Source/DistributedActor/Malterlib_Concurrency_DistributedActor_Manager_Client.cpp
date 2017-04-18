@@ -362,6 +362,7 @@ namespace NMib
 					
 					Connection.m_pHost = pHost;
 					Host.m_ClientConnections.f_Insert(Connection);
+					bool bFirstConnection = Connection.m_HostLink.f_IsAloneInList();
 					
 					Host.m_bOutgoing = true;
 					
@@ -435,6 +436,7 @@ namespace NMib
 								, UniqueHostID
 								, CertificateChain = pSocketInfo->m_CertificateChain
 								, fReportError
+								, bFirstConnection
 							]
 							(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Callback) mutable
 							{
@@ -481,7 +483,7 @@ namespace NMib
 								pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
 								pConnection->m_IdentifyContinuation.f_Dispatch() 
-									> [this, RealHostID, UniqueHostID, Sequence, pConnectionWeak, _pContinuation, CertificateChain = fg_Move(CertificateChain)]
+									> [this, RealHostID, UniqueHostID, Sequence, pConnectionWeak, _pContinuation, CertificateChain = fg_Move(CertificateChain), bFirstConnection]
 									(TCAsyncResult<void> &&_Result) mutable
 									{
 										auto pConnection = pConnectionWeak.f_Lock();
@@ -506,11 +508,9 @@ namespace NMib
 										if (!pConnection->m_pHost)
 											return;
 										
-										DMibLogWithCategory
+										NStr::CStr ToLog = NStr::fg_Format
 											(
-												Mib/Concurrency/Actors
-												, Info
-												, "Connection({}) to '{}' <{}> was successful. Host ID: {}   Unique host ID: {}"
+												"Connection({}) to '{}' <{}> was successful. Host ID: {}   Unique host ID: {}"
 												, pConnection->f_GetConnectionID()
 												, pConnection->m_ServerURL.f_Encode()
 												, pConnection->f_GetHostInfo().f_GetDesc()
@@ -518,6 +518,11 @@ namespace NMib
 												, UniqueHostID
 											)
 										;
+										
+										if (bFirstConnection)
+											DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
+										else
+											DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
 
 										if (_pContinuation)
 										{

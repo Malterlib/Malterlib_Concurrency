@@ -74,12 +74,24 @@ namespace NMib
 			return Continuation;
 		}
 
-		void CActorDistributionManagerInternal::CConnection::fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result)
+		void CActorDistributionManagerInternal::CConnection::fs_LogClose
+			(
+				TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result
+				, bool _bIsLastConnection
+				, NStr::CStr const &_ConnectionID
+				, NStr::CStr const &_ServerURL
+				, NStr::CStr const &_Desc
+			)
 		{
 			if (_Result)
 			{
 				if (_Result->m_Status != NWeb::EWebSocketStatus_AlreadyClosed)
-					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection: {} - {}", _Result->m_Status, _Result->m_Reason);
+				{
+					if (_Result->m_Status != NWeb::EWebSocketStatus_NormalClosure || _bIsLastConnection)
+						DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Connection({}) to '{}' <{}> closed: {} - {}", _ConnectionID, _ServerURL, _Desc, _Result->m_Status, _Result->m_Reason);
+					else
+						DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "Connection({}) to '{}' <{}> closed: {} - {}", _ConnectionID, _ServerURL, _Desc, _Result->m_Status, _Result->m_Reason);
+				}
 			}
 			else
 			{
@@ -93,7 +105,7 @@ namespace NMib
 				}
 				catch (NException::CException const &)
 				{
-					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Closed connection with error: {}", _Result.f_GetExceptionStr());
+					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Connection({}) to '{}' <{}> closed with error: {}", _ConnectionID, _ServerURL, _Desc, _Result.f_GetExceptionStr());
 				}
 			}
 		}
@@ -115,9 +127,15 @@ namespace NMib
 
 		TCDispatchedActorCall<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
 		{
+			bool bIsLastConnection = m_HostLink.f_IsAloneInList();
+			
+			auto ConnectionID = f_GetConnectionID();
+			auto ServerURL = f_GetServerURL();
+			auto Desc = f_GetHostInfo().f_GetDesc();
+			
 			return fg_ConcurrentDispatch
 				(
-					[Connection = fg_Move(m_Connection)]
+					[=, Connection = fg_Move(m_Connection)]
 					{
 						TCContinuation<void> Continuation;
 						if (!Connection)
@@ -126,9 +144,9 @@ namespace NMib
 							return Continuation;
 						}
 						Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0)
-							> fg_ConcurrentActor() / [Connection, Continuation](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
+							> fg_ConcurrentActor() / [=, Connection = Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 							{
-								fs_LogClose(_Result);
+								fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
 								if (_Result)
 									Continuation.f_SetResult();
 								else
@@ -144,15 +162,21 @@ namespace NMib
 		void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost)
 		{
 			m_Link.f_Unlink();
+			bool bIsLastConnection = m_HostLink.f_IsAloneInList();
+			
 			if (_bResetHost)
 				m_HostLink.f_Unlink();
 			m_ConnectionSubscription.f_Clear();
 			if (m_Connection)
 			{
+				auto ConnectionID = f_GetConnectionID();
+				auto ServerURL = f_GetServerURL();
+				auto Desc = f_GetHostInfo().f_GetDesc();
+			
 				m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal reset", 5.0)
-					> fg_ConcurrentActor() / [Connection = m_Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
+					> fg_ConcurrentActor() / [=, Connection = m_Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 					{
-						fs_LogClose(_Result);
+						fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
 					}
 				;
 				m_Connection.f_Clear();
@@ -169,6 +193,11 @@ namespace NMib
 			f_Reset(true);
 			m_pSSLContext.f_Clear();
 			m_LastError = _Error;
+		}
+		
+		NStr::CStr CActorDistributionManagerInternal::CConnection::f_GetServerURL() const
+		{
+			return "Unknown";
 		}
 
 		void CActorDistributionManagerInternal::CClientConnection::f_Reset(bool _bResetHost)
@@ -190,6 +219,11 @@ namespace NMib
 		NStr::CStr CActorDistributionManagerInternal::CClientConnection::f_GetConnectionID() const
 		{
 			return m_ConnectionID;
+		}
+
+		NStr::CStr CActorDistributionManagerInternal::CClientConnection::f_GetServerURL() const
+		{
+			return m_ServerURL.f_Encode();
 		}
 		
 		void CActorDistributionManagerInternal::CClientConnection::f_SetLastError(NStr::CStr const &_Error)

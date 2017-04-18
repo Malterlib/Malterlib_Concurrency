@@ -46,8 +46,17 @@ namespace NMib
 				void f_Reset(bool _bResetHost);
 				void f_Destroy(NStr::CStr const &_Error);
 				TCDispatchedActorCall<void> f_Disconnect();
-				static void fs_LogClose(TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result);
+				static void fs_LogClose
+					(
+						TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result
+						, bool _bIsLastConnection
+						, NStr::CStr const &_ConnectionID
+						, NStr::CStr const &_ServerURL
+						, NStr::CStr const &_Desc
+					)
+				;
 				virtual NStr::CStr f_GetConnectionID() const = 0;
+				virtual NStr::CStr f_GetServerURL() const;
 				
 				TCActor<NWeb::CWebSocketActor> m_Connection;
 				CActorSubscription m_ConnectionSubscription;
@@ -68,6 +77,7 @@ namespace NMib
 				void f_Reset(bool _bResetHost);
 				void f_Destroy(NStr::CStr const &_Error);
 				NStr::CStr f_GetConnectionID() const override;
+				NStr::CStr f_GetServerURL() const override;
 				void f_SetLastError(NStr::CStr const &_Error);
 				
 				NStr::CStr m_ConnectionID;
@@ -223,6 +233,7 @@ namespace NMib
 				bool m_bOutgoing = false;
 				bool m_bAnonymous = false;
 				bool m_bDeleted = false;
+				bool m_bLoggedConnection = false;
 			};
 			
 			struct CLocalNamespace; 

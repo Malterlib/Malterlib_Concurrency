@@ -7,10 +7,18 @@
 
 namespace NMib::NConcurrency
 {
+	CDistributedAppInterfaceBackup::CDistributedAppInterfaceBackup()
+ 	{
+		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_AppendManifest);
+	}
+	
+	CDistributedAppInterfaceBackup::~CDistributedAppInterfaceBackup() = default;
+
 	CDistributedAppInterfaceClient::CDistributedAppInterfaceClient()
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_PreUpdate);
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_GetAppStartResult);
+		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_StartBackup);
 	}
 	
 	CDistributedAppInterfaceClient::~CDistributedAppInterfaceClient() = default;

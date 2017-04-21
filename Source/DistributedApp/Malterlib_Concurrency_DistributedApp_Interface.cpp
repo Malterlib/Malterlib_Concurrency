@@ -33,7 +33,20 @@ namespace NMib::NConcurrency
 		return m_pThis->fp_PreUpdate();
 	}
 	
+	NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
+		(
+			NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+		)
+	{
+		return m_pThis->fp_StartBackup(fg_Move(_BackupInterface));
+	}
+	
 	TCContinuation<void> CDistributedAppActor::fp_PreUpdate()
+	{
+		return fg_Explicit();
+	}
+	
+	TCContinuation<TCActorSubscriptionWithID<>> CDistributedAppActor::fp_StartBackup(TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface)
 	{
 		return fg_Explicit();
 	}

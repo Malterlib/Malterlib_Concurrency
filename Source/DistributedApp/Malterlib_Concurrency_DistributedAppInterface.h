@@ -7,17 +7,32 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Storage/Optional>
+#include <Mib/File/DirectoryManifest>
 
 #include "Malterlib_Concurrency_DistributedApp_Settings.h"
 
 namespace NMib::NConcurrency
 {
+	struct CDistributedAppInterfaceBackup : public NConcurrency::CActor
+	{
+		enum : uint32
+		{
+			EMinProtocolVersion = 0x101
+			, EProtocolVersion = 0x101
+		};
+
+		CDistributedAppInterfaceBackup();
+		~CDistributedAppInterfaceBackup();
+
+		virtual NConcurrency::TCContinuation<void> f_AppendManifest(NFile::CDirectoryManifestConfig const &_Config) = 0;
+	};
+	
 	struct CDistributedAppInterfaceClient : public NConcurrency::CActor
 	{
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x102
+			, EProtocolVersion = 0x103
 		};
 		
 		CDistributedAppInterfaceClient();
@@ -25,6 +40,11 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCContinuation<void> f_GetAppStartResult() = 0;
 		virtual NConcurrency::TCContinuation<void> f_PreUpdate() = 0;
+		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
+			(
+				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+			) = 0
+		;
 	};
 	
 	struct CDistributedAppInterfaceServer : public NConcurrency::CActor

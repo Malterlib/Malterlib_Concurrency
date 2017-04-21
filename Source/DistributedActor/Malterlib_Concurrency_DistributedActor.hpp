@@ -103,6 +103,15 @@ namespace NMib
 			;
 		}
 		
+		template <typename t_CActor>
+		uint32 TCActorInternal<t_CActor>::f_InterfaceVersion()
+		{
+			auto pDistributedData = static_cast<NPrivate::CDistributedActorData *>(this->mp_pDistributedActorData.f_Get());
+			if (!pDistributedData)
+				DMibError("Not a distributed actor");
+			return pDistributedData->m_ProtocolVersion;
+		}
+		
 		template <typename t_CType>
 		TCDistributedActorInterfaceShare<t_CType>::TCDistributedActorInterfaceShare
 			(

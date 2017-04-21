@@ -177,6 +177,8 @@ namespace NMib
 			template <typename ...tfp_CInterface>
 			auto f_ShareInterface();
 			
+			uint32 f_InterfaceVersion();
+			
 		private:
 			typename NTraits::TCAlign<uint8 [sizeof(t_CActor)], NTraits::TCAlignmentOf<t_CActor>::mc_Value>::CType m_ActorMemory;
 		};

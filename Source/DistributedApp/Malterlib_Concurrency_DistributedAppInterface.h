@@ -25,6 +25,16 @@ namespace NMib::NConcurrency
 		~CDistributedAppInterfaceBackup();
 
 		virtual NConcurrency::TCContinuation<void> f_AppendManifest(NFile::CDirectoryManifestConfig const &_Config) = 0;
+		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_SubscribeInitialFinished
+			(
+				NConcurrency::TCActorFunctorWithID<TCContinuation<void> ()> &&_fOnInitialFinished
+			) = 0
+		;
+		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_SubscribeBackupStopped
+			(
+				NConcurrency::TCActorFunctorWithID<TCContinuation<void> ()> &&_fOnStopped
+			) = 0
+		;
 	};
 	
 	struct CDistributedAppInterfaceClient : public NConcurrency::CActor
@@ -40,9 +50,12 @@ namespace NMib::NConcurrency
 
 		virtual NConcurrency::TCContinuation<void> f_GetAppStartResult() = 0;
 		virtual NConcurrency::TCContinuation<void> f_PreUpdate() = 0;
+		virtual NConcurrency::TCContinuation<void> f_PreStop() = 0;
 		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
 			(
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+				, NConcurrency::CActorSubscription &&_ManifestFinished
+				, NStr::CStr const &_BackupRoot
 			) = 0
 		;
 	};

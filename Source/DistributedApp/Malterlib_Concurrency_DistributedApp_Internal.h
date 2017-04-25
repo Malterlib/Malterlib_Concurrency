@@ -9,9 +9,12 @@ namespace NMib::NConcurrency
 	{
 		NConcurrency::TCContinuation<void> f_GetAppStartResult() override;
 		NConcurrency::TCContinuation<void> f_PreUpdate() override;
+		NConcurrency::TCContinuation<void> f_PreStop() override;
 		NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
 			(
 				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+				, NConcurrency::CActorSubscription &&_ManifestFinished
+				, NStr::CStr const &_BackupRoot
 			) override
 		;
 		

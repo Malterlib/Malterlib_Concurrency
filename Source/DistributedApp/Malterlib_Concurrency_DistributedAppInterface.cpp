@@ -10,6 +10,8 @@ namespace NMib::NConcurrency
 	CDistributedAppInterfaceBackup::CDistributedAppInterfaceBackup()
  	{
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_AppendManifest);
+		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeInitialFinished);
+		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeBackupStopped);
 	}
 	
 	CDistributedAppInterfaceBackup::~CDistributedAppInterfaceBackup() = default;
@@ -17,6 +19,7 @@ namespace NMib::NConcurrency
 	CDistributedAppInterfaceClient::CDistributedAppInterfaceClient()
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_PreUpdate);
+		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_PreStop);
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_GetAppStartResult);
 		DMibPublishActorFunction(CDistributedAppInterfaceClient::f_StartBackup);
 	}

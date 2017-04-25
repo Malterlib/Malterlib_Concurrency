@@ -59,9 +59,17 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				mp_Actor
-				, [=, pFunctor = mp_pFunctor]() mutable -> CReturn
+				, [Params = NContainer::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable -> CReturn
 				{
-					return (*pFunctor)(fg_Forward<tfp_CParams>(p_Params)...);
+					return NContainer::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
+						(
+							[&](auto &&..._Params) mutable
+							{
+								return (*pFunctor)(fg_Forward<decltype(_Params)>(_Params)...);
+							}
+							, fg_Move(Params) 
+						)
+					;
 				}
 			)
 		;

@@ -112,7 +112,14 @@ namespace NMib::NConcurrency
 		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
 		virtual TCContinuation<void> fp_PreUpdate();
-		virtual TCContinuation<TCActorSubscriptionWithID<>> fp_StartBackup(TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface);
+		virtual TCContinuation<void> fp_PreStop(); /// Stop generating new data here to make backups consistent
+		virtual TCContinuation<CActorSubscription> fp_StartBackup
+			(
+				TCDistributedActorInterface<CDistributedAppInterfaceBackup> &&_BackupInterface
+				, CActorSubscription &&_ManifestFinished
+				, NStr::CStr const &_BackupRoot
+			)
+		;
 
 		void fp_Construct() override;
 		TCContinuation<void> fp_Destroy() override;

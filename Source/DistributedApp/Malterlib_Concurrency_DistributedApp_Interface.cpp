@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 	using namespace NProcess;
 	using namespace NContainer;
 	
-	NConcurrency::TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
+	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
 		auto pThis = m_pThis;
 		
@@ -28,17 +28,33 @@ namespace NMib::NConcurrency
 		return pThis->mp_DeferredAppStartupResults.f_Insert();
 	}
 	
-	NConcurrency::TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
+	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
 	{
 		return m_pThis->fp_PreUpdate();
 	}
 	
-	NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
+	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreStop()
+	{
+		return m_pThis->fp_PreStop();
+	}
+	
+	TCContinuation<TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
 		(
-			NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+			, CActorSubscription &&_ManifestFinished
+			, CStr const &_BackupRoot
 		)
 	{
-		return m_pThis->fp_StartBackup(fg_Move(_BackupInterface));
+		TCContinuation<TCActorSubscriptionWithID<>> Continuation;
+
+		m_pThis->fp_StartBackup(fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot)
+			> Continuation / [Continuation](CActorSubscription &&_Subscription)
+			{
+				Continuation.f_SetResult(fg_Move(_Subscription));
+			}
+		;
+
+		return Continuation;
 	}
 	
 	TCContinuation<void> CDistributedAppActor::fp_PreUpdate()
@@ -46,7 +62,17 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 	
-	TCContinuation<TCActorSubscriptionWithID<>> CDistributedAppActor::fp_StartBackup(TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface)
+	TCContinuation<void> CDistributedAppActor::fp_PreStop()
+	{
+		return fg_Explicit();
+	}
+	
+	TCContinuation<CActorSubscription> CDistributedAppActor::fp_StartBackup
+		(
+			TCDistributedActorInterface<CDistributedAppInterfaceBackup> &&_BackupInterface
+			, CActorSubscription &&_ManifestFinished
+			, CStr const &_BackupRoot
+		)
 	{
 		return fg_Explicit();
 	}
@@ -130,7 +156,7 @@ namespace NMib::NConcurrency
 								TrustInterface = mp_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 							
 							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
-								> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<NConcurrency::TCActorSubscriptionWithID<>> &&_Subscription)
+								> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
 								{
 									if (!_Subscription)
 									{
@@ -198,7 +224,7 @@ namespace NMib::NConcurrency
 					, Buffer = CStr{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]
-				(EStdInReaderOutputType _Type, const NStr::CStr &_Input) mutable -> NConcurrency::TCContinuation<void>
+				(EStdInReaderOutputType _Type, const NStr::CStr &_Input) mutable -> TCContinuation<void>
 				{
 					if (_Type != EStdInReaderOutputType_StdIn)
 						return fg_Explicit();

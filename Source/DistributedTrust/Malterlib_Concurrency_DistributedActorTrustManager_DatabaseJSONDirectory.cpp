@@ -36,8 +36,7 @@ namespace NMib
 			NStr::CStr f_GetPath(tfp_CComponent const &...p_Component) const;
 			template <typename ...tfp_CComponent>
 			bool f_Delete(tfp_CComponent const &...p_Component) const;
-			template <typename tf_CObject>
-			NStr::CStr f_GetNameHash(tf_CObject const &_Object) const;
+			NStr::CStr f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const;
 			NStr::CStr f_PercentEncode(NStr::CStr const &_Str) const;
 			NStr::CStr f_PercentDecode(NStr::CStr const &_Str) const;
 			template <typename ...tfp_CComponent>
@@ -631,11 +630,10 @@ namespace NMib
 			return true;
 		}
 		
-		template <typename tf_CObject>
-		NStr::CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(tf_CObject const &_Object) const
+		NStr::CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const
 		{
 			NDataProcessing::TCBinaryStreamHash<NDataProcessing::CHash_SHA256> HashStream;
-			HashStream << _Object;
+			_Object.m_URL.f_Feed(HashStream, 0x101);
 			auto Digest = HashStream.f_GetDigest();
 			return Digest.f_GetString();
 		}

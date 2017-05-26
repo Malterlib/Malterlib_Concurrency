@@ -69,6 +69,8 @@ namespace NMib
 			CActor(CActor const &) = delete;
 			CActor &operator = (CActor &&) = delete;
 			CActor &operator = (CActor const &) = delete;
+
+			bool f_IsDestroyed() const;
 			
 			virtual ~CActor();
 			void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);

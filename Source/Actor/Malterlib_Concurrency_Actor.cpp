@@ -22,6 +22,11 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	bool CActor::f_IsDestroyed() const
+	{
+		return mp_bDestroyed;
+	}
+
 	void CActor::fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach)
 	{
 		_fToDisptach();

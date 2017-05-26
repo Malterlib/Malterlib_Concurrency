@@ -42,13 +42,25 @@ namespace NMib
 		
 
 		COneOf::COneOf(NEncoding::CEJSON const &_Config)
-			: m_Config({_Config})
 		{
+			m_Config.f_Array().f_Insert(_Config);
 		}
+
 		template <typename ...tfp_CParams>
 		COneOf::COneOf(tfp_CParams const &...p_Config)
-			: m_Config({NEncoding::CEJSON(p_Config)...})
 		{
+			auto &Array = m_Config.f_Array();
+
+			TCInitializerList<bool> Dummy = 
+				{
+					[&]
+					{
+						Array.f_Insert(NEncoding::CEJSON(p_Config));
+						return false;
+					}
+					()...
+				}
+			;
 		}
 		
 		COneOf::operator NEncoding::CEJSON () &&
@@ -62,13 +74,25 @@ namespace NMib
 		}
 	
 		COneOfType::COneOfType(NEncoding::CEJSON const &_Config)
-			: m_Config({_Config})
 		{
+			m_Config.f_Array().f_Insert(_Config);
 		}
+
 		template <typename ...tfp_CParams>
 		COneOfType::COneOfType(tfp_CParams const &...p_Config)
-			: m_Config({NEncoding::CEJSON(p_Config)...})
 		{
+			auto &Array = m_Config.f_Array();
+
+			TCInitializerList<bool> Dummy = 
+				{
+					[&]
+					{
+						Array.f_Insert(NEncoding::CEJSON(p_Config));
+						return false;
+					}
+					()...
+				}
+			;
 		}
 		
 		COneOfType::operator NEncoding::CEJSON () &&

@@ -106,7 +106,7 @@ namespace NMib
 			if (_pObject->f_ImmediateDelete())
 			{
 				_pObject->~tf_CToDelete();
-				if (_pObject->f_WeakRefCountDecrease() == 0)
+				if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 					_Allocator.f_Free(_pObject);
 			}
 			else
@@ -119,7 +119,7 @@ namespace NMib
 						, [_pObject, pAllocator]
 						{
 							_pObject->~tf_CToDelete();
-							if (_pObject->f_WeakRefCountDecrease() == 0)
+							if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 								pAllocator->f_Free(_pObject);
 						}
 					)

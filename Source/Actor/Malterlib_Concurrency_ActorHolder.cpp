@@ -61,12 +61,12 @@ namespace NMib
 
 		void CActorHolder::fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory)
 		{
-			f_RefCountIncrease();
+			f_RefCountIncrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
 			
 			// Handle exception in construct
 			auto CleanupRefCount = g_OnScopeExit > [&]
 				{
-					f_RefCountDecrease();
+					f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
 				}
 			;
 			
@@ -385,10 +385,10 @@ namespace NMib
 
 		}
 	
-		aint CActorHolder::f_RefCountDecrease()
+		aint CActorHolder::f_RefCountDecrease(DMibRefcountDebuggingOnly(NPtr::CRefCountDebugReference &o_DebugRef))
 		{
 			// TODO: Investigate this when using weak actors
-			aint Ret = CSuper::f_RefCountDecrease();
+			aint Ret = CSuper::f_RefCountDecrease(DMibRefcountDebuggingOnly(o_DebugRef));
 			if (Ret == 1)
 			{
 				smint Expected = 0;
@@ -424,7 +424,7 @@ namespace NMib
 						mp_bDestroyed.f_Exchange(2);
 						TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
 						
-						if (CSuper::f_RefCountDecrease() != 1)
+						if (CSuper::f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef)) != 1)
 						{
 							if (fOnDestroyed)
 								fOnDestroyed();

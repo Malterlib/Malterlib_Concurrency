@@ -413,6 +413,7 @@ namespace NMib
 			fp_InitConcurrentActors(); // Make sure concurrent actors are created
 			auto &TimerActor = f_GetTimerActor();
 			NTime::CClock Clock{true};
+
 #ifdef DMibDebug
 			bool bAborted = false;
 #endif
@@ -437,7 +438,24 @@ namespace NMib
 						{
 							if (Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0 || Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0)
 								continue;
-							DMibDTrace("\t{}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibDTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+
+#if DMibConfig_RefcountDebugging
+							mint iCallstack = 0;
+							for (auto &Callstack : Actor.m_Debug->m_Callstacks)
+							{
+								DMibTrace2("        Reference callstack {}\n", iCallstack);
+								Callstack.f_Trace(12);
+								++iCallstack;
+							}
+							iCallstack = 0;
+							for (auto &Callstack : Actor.m_Debug->m_WeakCallstacks)
+							{
+								DMibTrace2("        Weak reference callstack {}\n", iCallstack);
+								Callstack.f_Trace(12);
+								++iCallstack;
+							}
+#endif
 						}
 						Clock.f_Start();
 					}

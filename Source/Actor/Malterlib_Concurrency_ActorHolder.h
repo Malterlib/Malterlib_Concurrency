@@ -76,7 +76,7 @@ namespace NMib
 			CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 			virtual ~CActorHolder();
 
-			aint f_RefCountDecrease();
+			aint f_RefCountDecrease(DMibRefcountDebuggingOnly(NPtr::CRefCountDebugReference &o_DebugRef));
 			
 			void f_SetFixedCore(mint _iFixedCore);
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
@@ -110,6 +110,8 @@ namespace NMib
 		public:
 			NStr::CStr m_ActorTypeName;
 #endif
+
+			DMibRefcountDebuggingOnly(NPtr::CRefCountDebugReference m_DebugSelfRef);
 			
 		protected:
 			struct COnTerminate

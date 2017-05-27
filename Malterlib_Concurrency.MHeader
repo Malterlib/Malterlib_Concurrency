@@ -23,6 +23,11 @@ Import "Apps/*/*.MHeader"
 			%File "Documentation/*"
 		}
 	}
+
+	%Dependency Lib_Malterlib_Web
+	{
+		Dependency.Indirect true
+	}
 }
 
 Property

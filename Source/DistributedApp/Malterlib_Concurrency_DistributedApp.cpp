@@ -73,17 +73,6 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
 	{
-#ifdef DPlatformFamily_Windows
-		NDataProcessing::CHash_SHA256 Hash;
-		CStr Path = fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific);
-		Hash.f_AddData(Path.f_GetStr(), Path.f_GetLen());
-		uint16 Port = 0;
-		NMem::fg_MemCopy(&Port, Hash.f_GetDigest().f_GetData(), sizeof(Port));
-		if (Port == 0)
-			++Port;
-
-		return fg_Format("localhost:{}", Port);
-#else
 		mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
 		if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= aint(MaxLength))
 			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
@@ -97,7 +86,6 @@ namespace NMib::NConcurrency
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
 		DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= aint(MaxLength));
 		return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
-#endif
 	}
 	
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
@@ -337,11 +325,7 @@ namespace NMib::NConcurrency
 	
 	NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
 	{
-#ifdef DPlatformFamily_Windows
-		return NHTTP::CURL{fg_Format("wss://{}/", fp_GetLocalHostname(false))};
-#else
 		return NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
-#endif
 	}
 	
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const

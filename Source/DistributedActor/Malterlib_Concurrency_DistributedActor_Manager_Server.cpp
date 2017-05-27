@@ -137,7 +137,16 @@ namespace NMib
 		{
 			TCActorResultVector<NMib::NNet::CNetAddress> ResolvedAddresses;
 			for (auto &Address : _Settings.m_ListenAddresses)
-				m_ResolveActor(&NNet::CResolveActor::f_Resolve, fp_TranslateHostname(Address.f_GetHost()), NNet::ENetAddressType_None) > ResolvedAddresses.f_AddResult(); 
+			{
+				auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
+				if (TranslatedAddress.f_IsEmpty())
+				{
+					if (_pContinuation)
+						_pContinuation->f_SetException(DMibErrorInstance("Listen address is empty"));
+					return;
+				}
+				m_ResolveActor(&NNet::CResolveActor::f_Resolve, TranslatedAddress, NNet::ENetAddressType_None) > ResolvedAddresses.f_AddResult(); 
+			}
 
 			ResolvedAddresses.f_GetResults() > [this, _Settings, _pContinuation, _ListenID](TCAsyncResult<NContainer::TCVector<TCAsyncResult<NMib::NNet::CNetAddress>>> &&_Results)
 				{

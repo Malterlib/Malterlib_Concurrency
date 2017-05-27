@@ -341,6 +341,22 @@ namespace NMib
 			Section.f_RegisterDirectCommand
 				(
 					{
+						"Names"_= {"--daemon-run-standalone"}
+						, "Description"_= 
+							"Run the daemon as a program without debugging helpers.\n"
+							"Use this when you want to run the daemon manually without attempting to use system daemon facilities and without daemonizing.\n"
+						, "SectionOptions"_= {"Daemon_Mode"}
+						, "Parameters"_= {DaemonNameParam}
+					}
+					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+					{
+						return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_RunAsProgramNoDebug);
+					}
+				)
+			;
+			Section.f_RegisterDirectCommand
+				(
+					{
 						"Names"_= {"--daemon-exists"}
 						, "Description"_= "Check if the daemon exists and has been installed.\n"
 						, "Status"_= 

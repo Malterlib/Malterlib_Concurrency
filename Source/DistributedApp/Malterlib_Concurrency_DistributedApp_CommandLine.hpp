@@ -61,6 +61,7 @@ namespace NMib
 					()...
 				}
 			;
+			(void)Dummy;
 		}
 		
 		COneOf::operator NEncoding::CEJSON () &&
@@ -93,6 +94,7 @@ namespace NMib
 					()...
 				}
 			;
+			(void)Dummy;
 		}
 		
 		COneOfType::operator NEncoding::CEJSON () &&

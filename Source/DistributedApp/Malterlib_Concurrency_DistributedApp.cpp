@@ -58,6 +58,9 @@ namespace NMib::NConcurrency
 				<= aint(NSys::NNet::fg_GetMaxUnixSocketNameLength())
 			)
 		;
+#else
+		if (!CFile::fs_GetDrive(m_ConfigDirectory).f_IsEmpty())
+			m_ConfigDirectory = m_ConfigDirectory.f_Replace(CFile::fs_GetDrive(m_ConfigDirectory), CFile::fs_GetDrive(m_ConfigDirectory).f_LowerCase());
 #endif
 	}
 

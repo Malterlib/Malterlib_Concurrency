@@ -32,6 +32,7 @@ Import "Apps/*/*.MHeader"
 
 Property
 {
+/*
 	MalterlibConcurrency_DistributedActorsInAnyTarget_Template "true"
 	{
 		&
@@ -43,6 +44,11 @@ Property
 	}
 	MalterlibConcurrency_DistributedActorsInAnyTarget "@(Builtin.Function->ExplodeList('@(Workspace.AllTargets)', ';', 'MalterlibConcurrency_DistributedActorsInAnyTarget_Template'))"
 	MalterlibConcurrency_DistributedActors false
+	{
+		!!MalterlibConcurrency_DistributedActors ""
+	}
+	*/
+	MalterlibConcurrency_DistributedActors true
 	{
 		!!MalterlibConcurrency_DistributedActors ""
 	}

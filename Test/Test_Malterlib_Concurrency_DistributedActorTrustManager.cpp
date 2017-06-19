@@ -395,7 +395,7 @@ namespace
 				DispatchActor->f_BlockDestroy();
 				
 				DMibExpect(DispatchError, ==, "");
-				DMibExpect(nCalls, >, 1);
+				DMibExpect(nCalls, >, 1u);
 				
 				ServerTrustManager->f_BlockDestroy();
 				ClientTrustManager->f_BlockDestroy();

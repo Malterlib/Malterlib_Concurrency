@@ -92,5 +92,22 @@ namespace NMib
 		{
 			using CActorHolder = CSeparateThreadActorHolder;
 		};
+		
+		template <typename t_CActor>
+		struct TCRoundRobinActors
+		{
+			TCRoundRobinActors(mint _nActors);
+			
+			template <typename tf_CParam>
+			void f_Construct(tf_CParam &&_Param);
+			
+			TCContinuation<void> f_Destroy();
+			
+			TCActor<t_CActor> const &operator *() const;
+			
+		private:
+			NContainer::TCVector<TCActor<t_CActor>> mp_Actors;
+			mutable mint mp_iCurrentActor = 0;
+		};
 	}
 }

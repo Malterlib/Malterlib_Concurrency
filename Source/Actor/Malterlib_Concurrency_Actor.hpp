@@ -332,5 +332,39 @@ namespace NMib
 		{
 			return _fToDisptach();
 		}
+		
+		template <typename t_CActor>
+		TCRoundRobinActors<t_CActor>::TCRoundRobinActors(mint _nActors)
+		{
+			mp_Actors.f_SetLen(_nActors);
+		}
+		
+		template <typename t_CActor>
+		template <typename tf_CParam>
+		void TCRoundRobinActors<t_CActor>::f_Construct(tf_CParam &&_Param)
+		{
+			for (auto &Actor : mp_Actors)
+				Actor = fg_TempCopy(_Param);
+		}
+		
+		template <typename t_CActor>
+		TCContinuation<void> TCRoundRobinActors<t_CActor>::f_Destroy()
+		{
+			TCActorResultVector<void> Results;
+			for (auto &Actor : mp_Actors)
+				Actor->f_Destroy() > Results.f_AddResult();
+			
+			TCContinuation<void> Continuation;
+			Results.f_GetResults() > Continuation.f_ReceiveAny();
+			return Continuation;
+		}
+		
+		template <typename t_CActor>
+		TCActor<t_CActor> const &TCRoundRobinActors<t_CActor>::operator *() const
+		{
+			mint iCurrentActor = mp_iCurrentActor;
+			mp_iCurrentActor = (mp_iCurrentActor + 1) % mp_Actors.f_GetLen();
+			return mp_Actors[iCurrentActor];
+		}
 	}
 }

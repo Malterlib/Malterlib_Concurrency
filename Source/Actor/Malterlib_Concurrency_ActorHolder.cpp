@@ -61,59 +61,66 @@ namespace NMib
 
 		void CActorHolder::fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory)
 		{
-			f_RefCountIncrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
-			
-			// Handle exception in construct
-			auto CleanupRefCount = g_OnScopeExit > [&]
-				{
-					f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
-				}
-			;
-			
-			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			
-			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
-			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
-			fp_StartQueueProcessing();
-			
-			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-#if defined DMibContractConfigure_CheckEnabled
-			auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
-#endif
-			auto pOldActor = ThreadLocal.m_pCurrentActor;
-			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
-#if defined DMibContractConfigure_CheckEnabled
-			ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
-#endif
-			
-			auto CleanupWorking = g_OnScopeExit > [&]
-				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
-#if defined DMibContractConfigure_CheckEnabled
-					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
-#endif
-					ThreadLocal.m_pCurrentActor = pOldActor;
-					
-					mint NewWorking = mp_Working.f_Exchange(0);
-					if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
-						fp_QueueProcess([]{}, false); // Reschedule
-				}
-			;
-			
-			auto CleanupConstruction = g_OnScopeExit > [&]
-				{
-					mp_pActor.f_Detach();
-				}
-			;
+			bool bNeedKickstart = false;
+			{
+				
+				f_RefCountIncrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
+				// Handle exception in construct
+				auto CleanupRefCount = g_OnScopeExit > [&]
+					{
+						f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
+					}
+				;
+				
+				auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+				
+				mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
+				DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
+				fp_StartQueueProcessing();
+				
+				auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+	#if defined DMibContractConfigure_CheckEnabled
+				auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
+	#endif
+				auto pOldActor = ThreadLocal.m_pCurrentActor;
+				ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
+	#if defined DMibContractConfigure_CheckEnabled
+				ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
+	#endif
+				
+				auto CleanupWorking = g_OnScopeExit > [&]
+					{
+						ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+	#if defined DMibContractConfigure_CheckEnabled
+						ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
+	#endif
+						ThreadLocal.m_pCurrentActor = pOldActor;
+						
+						mint NewWorking = mp_Working.f_Exchange(0);
+						if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
+							fp_QueueProcess([]{}, false); // Reschedule
+					}
+				;
+				
+				auto CleanupConstruction = g_OnScopeExit > [&]
+					{
+						mp_pActor.f_Detach();
+					}
+				;
 
-			_fConstruct();
+				_fConstruct();
 
-			// Construction was successful
-			CleanupConstruction.f_Clear();
+				// Construction was successful
+				CleanupConstruction.f_Clear();
+				
+				mp_pActor->fp_Construct();
+				
+				CleanupRefCount.f_Clear(); // Disable refcount decrease
+				bNeedKickstart = !mp_ConcurrentRunQueue.f_IsEmpty();
+			}
 			
-			mp_pActor->fp_Construct();
-			
-			CleanupRefCount.f_Clear(); // Disable refcount decrease
+			if (bNeedKickstart)
+				fp_QueueProcess([]{}, false);
 		}
 		
 		bool CActorHolder::fp_AddToQueue(FActorQueueDispatch &&_Functor)

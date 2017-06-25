@@ -197,7 +197,34 @@ namespace NMib
 			}
 		}
 
-		void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+		void CTimerActor::f_FireAtExit()
+		{
+			for (auto iTimer = m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
+			{
+				auto &Timer = *iTimer;
+				++iTimer;
+				
+				if (!Timer.m_bFireAtExit)
+					continue;
+
+				auto TimerType = Timer.m_TimerType;
+
+				Timer.m_Callbacks();
+
+				switch (TimerType)
+				{
+				case ETimerType_Oneshot:
+					m_TimerQueue.f_Remove(&Timer);
+					m_OneshotTimers.f_Remove(Timer);
+					break;
+				case ETimerType_Exact:
+				case ETimerType_Normal:
+					break;
+				}
+			}
+		}
+
+		void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback, bool _bFireAtExit)
 		{
 			DMibRequire(_Period > 0.0);
 
@@ -207,6 +234,7 @@ namespace NMib
 			Timer.m_NextElapse = m_Clock.f_GetTime() + _Period;
 			Timer.m_TimerType = ETimerType_Oneshot;
 			Timer.m_pDestroyed = fg_Construct(false);
+			Timer.m_bFireAtExit = _bFireAtExit;
 
 			m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 
@@ -335,11 +363,11 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 		
-		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period)
+		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period, bool _bFireAtExit)
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_Period]()
+					[_Period, _bFireAtExit]()
 					{
 						TCContinuation<void> Continuation;
 						fg_TimerActor()
@@ -351,6 +379,7 @@ namespace NMib
 								{
 									Continuation.f_SetResult();
 								}
+								, _bFireAtExit
 							)
 							> fg_DiscardResult();
 						;
@@ -360,7 +389,7 @@ namespace NMib
 			;
 		}
 		
-		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
+		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor, bool _bFireAtExit)
 		{
 			TCActor<CActor> pActor = _pActor;
 			if (!pActor)
@@ -371,6 +400,7 @@ namespace NMib
 					, _Period
 					, fg_Move(pActor)
 					, fg_Move(_fCallback)
+					, _bFireAtExit
 				)
 				> fg_DiscardResult();
 			;

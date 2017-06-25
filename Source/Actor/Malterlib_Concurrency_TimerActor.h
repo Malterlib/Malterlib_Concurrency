@@ -38,15 +38,13 @@ namespace NMib
 				CTimer(CActor *_pThisActor);
 				~CTimer();
 
+				DMibListLinkDS_Link(CTimer, m_Link);
+				TCActorSubscriptionManager<void (), true, CTimerHandleCleanup> m_Callbacks;
+				NPtr::TCSharedPointer<bool> m_pDestroyed;
 				zfp64 m_NextElapse;
 				zfp64 m_Period;
 				ETimerType m_TimerType;
-
-				DMibListLinkDS_Link(CTimer, m_Link);
-
-				TCActorSubscriptionManager<void (), true, CTimerHandleCleanup> m_Callbacks;
-
-				NPtr::TCSharedPointer<bool> m_pDestroyed;
+				bool m_bFireAtExit = false;
 
 				bool operator < (CTimer const &_Right) const
 				{
@@ -78,14 +76,15 @@ namespace NMib
 			~CTimerActor();
 			
 			void f_FireAllTimeouts();
-			void f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
+			void f_FireAtExit();
+			void f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback, bool _bFireAtExit);
 			CActorSubscription f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 			CActorSubscription f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 			CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 		};
 
-		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period);
-		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor = nullptr);
+		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period, bool _bFireAtExit = true);
+		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor = nullptr, bool _bFireAtExit = true);
 		TCDispatchedActorCall<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 		TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 		TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);

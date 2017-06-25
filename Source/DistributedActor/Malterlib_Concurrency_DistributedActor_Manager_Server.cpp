@@ -175,6 +175,7 @@ namespace NMib
 												return; // Removed already
 											fp_Listen(_ListenID, _Settings, nullptr);
 										}
+										, true
 									)
 									> fg_DiscardResult()
 								;

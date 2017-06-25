@@ -156,6 +156,7 @@ namespace NMib
 							return;
 						fp_Reconnect(_pConnection, _pContinuation, _bRetry);
 					}
+					, true
 				)
 				> fg_DiscardResult()
 			;

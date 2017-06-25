@@ -659,6 +659,7 @@ namespace NMib
 											
 											Continuation.f_SetException(DMibErrorInstance("Timed out waiting for remote trust manager"));
 										}
+										, true
 									)
 									> fg_DiscardResult()
 								;

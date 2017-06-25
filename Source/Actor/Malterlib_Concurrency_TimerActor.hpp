@@ -8,11 +8,11 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
-		auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage) -> TCDispatchedActorCall<CReturnType>
+		auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) -> TCDispatchedActorCall<CReturnType>
 		{
 			return fg_ConcurrentDispatch
 				(
-					[_TimeoutMessage, _Timeout, This = f_ByValue()]() mutable -> TCContinuation<CReturnType>
+					[_TimeoutMessage, _Timeout, _bFireAtExit, This = f_ByValue()]() mutable -> TCContinuation<CReturnType>
 					{
 						TCContinuation<CReturnType> Continuation;
 						NPtr::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
@@ -32,6 +32,7 @@ namespace NMib
 										Continuation.f_SetException(DMibErrorInstance(_TimeoutMessage));
 								}
 								, fg_AnyConcurrentActor()
+								, _bFireAtExit
 							)
 						;
 						

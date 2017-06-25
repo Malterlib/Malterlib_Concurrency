@@ -428,7 +428,10 @@ namespace NMib
 					if (Clock.f_GetTime() > 10.0)
 						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
 					else
+					{
+						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
 						NSys::fg_Thread_SmallestSleep();
+					}
 #ifdef DMibDebug
 					if (Clock.f_GetTime() > 10.0)
 					{

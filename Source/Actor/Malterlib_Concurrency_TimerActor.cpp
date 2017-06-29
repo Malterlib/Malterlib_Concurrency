@@ -374,7 +374,7 @@ namespace NMib
 							(
 								&CTimerActor::f_OneshotTimer
 								, _Period
-								, fg_AnyConcurrentActor()
+								, fg_TimerActor()
 								, [Continuation]
 								{
 									Continuation.f_SetResult();

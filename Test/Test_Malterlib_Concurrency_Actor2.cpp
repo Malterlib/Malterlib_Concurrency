@@ -233,6 +233,7 @@ namespace
 								if (--nExpectedHandlers == 0)
 									HandlersFinished.f_SetSignaled();
 							}
+							, true
 						)
 						> fg_DiscardResult()
 					;

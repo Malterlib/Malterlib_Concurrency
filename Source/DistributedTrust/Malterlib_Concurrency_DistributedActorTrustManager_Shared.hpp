@@ -10,13 +10,13 @@ namespace NMib
 		template <typename tf_CStream>
 		void CDistributedActorTrustManager_Address::f_Feed(tf_CStream &_Stream) const
 		{
-			_Stream << m_URL;
+			m_URL.f_Feed(_Stream, 0x101);
 		}
 		
 		template <typename tf_CStream>
 		void CDistributedActorTrustManager_Address::f_Consume(tf_CStream &_Stream)
 		{
-			_Stream >> m_URL;
+			m_URL.f_Consume(_Stream);
 		}
 		
 		template <typename tf_CStr>

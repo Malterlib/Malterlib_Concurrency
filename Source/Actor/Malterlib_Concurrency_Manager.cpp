@@ -354,16 +354,15 @@ namespace NMib
 #endif
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			ThreadLocal.m_pThisQueue = &_Queue;
+#if DMibPPtrBits > 32
+			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#endif
 			while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 			{
 				NTime::CCyclesClock Clock;
 				Clock.f_Start();
 				while (true)
 				{
-#if DMibPPtrBits > 32
-					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#endif
-
 					bool bDoMore = true;
 					while (bDoMore)
 					{
@@ -391,6 +390,11 @@ namespace NMib
 									bDoneSomething = true;
 								while (auto *pJob = _Queue.m_JobQueue.f_FirstQueueEntry())
 								{
+#if DMibPPtrBits > 32
+									if (!Checkout.f_IsCheckedOut())
+										Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#endif
+									
 									(*pJob)();
 									_Queue.m_JobQueue.f_PopQueueEntry(pJob);
 									bDoneSomething = true;
@@ -398,6 +402,10 @@ namespace NMib
 							}
 						}
 					}
+					
+#if DMibPPtrBits > 32
+					Checkout = NMem::CMemoryManagerCheckout(nullptr);
+#endif
 					if (Clock.f_GetTime() > 0.000035) // Loop for at least 35 µs before going to kernel
 						break;
 				}
@@ -413,6 +421,7 @@ namespace NMib
 			fp_InitConcurrentActors(); // Make sure concurrent actors are created
 			auto &TimerActor = f_GetTimerActor();
 			NTime::CClock Clock{true};
+			NTime::CClock TimerClock{true};
 
 #ifdef DMibDebug
 			bool bAborted = false;
@@ -423,15 +432,22 @@ namespace NMib
 #ifdef DMibDebug
 				volatile static bool s_AbortLoop = false;
 #endif
+				TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
+
 				while (m_nActors.f_Load() > nExpectedActors)
 				{
-					if (Clock.f_GetTime() > 10.0)
-						TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
-					else
+					if (TimerClock.f_GetTime() > 0.010)
 					{
-						TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
-						NSys::fg_Thread_SmallestSleep();
+						if (Clock.f_GetTime() > 10.0)
+							TimerActor(&CTimerActor::f_FireAllTimeouts).f_CallSync();
+						else
+						{
+							TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
+						}
+						TimerClock.f_Start();
 					}
+
+					NSys::fg_Thread_SmallestSleep();
 #ifdef DMibDebug
 					if (Clock.f_GetTime() > 10.0)
 					{

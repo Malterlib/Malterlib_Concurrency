@@ -431,6 +431,49 @@ namespace NMib
 			Results.f_GetResults() > Continuation;
 			return Continuation;
 		}
+
+		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+		template <bool tf_bSupportMultiple, typename tf_FResult>
+		auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params)
+			-> typename TCEnableIf<tf_bSupportMultiple>::CType
+		{
+			auto &Internal = *mp_pInternal;
+			if (Internal.mp_bDeferrCallbacks)
+				DMibError("Deferred callbacks not supported");
+
+			auto Params = NContainer::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
+			
+			for (auto &Callback : Internal.mp_Callbacks)
+			{
+				auto Actor = Callback.m_Actor.f_Lock();
+				if (!Actor)
+					continue;
+				_fDoCall
+					(
+						fg_Dispatch
+						(
+							Actor
+							, [fCallback = Callback.m_fCallback, Params]() mutable
+							{
+								 return NPrivate::fg_CallCallback
+									(
+										fg_Move(fCallback)
+										, fg_Move(Params)
+										, 
+	#ifndef DCompiler_MSVC
+										typename 
+	#endif
+										NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+										, NMeta::TCTypeList<tp_CCallbackParams...>()
+									)
+								;
+							}
+						)
+						, static_cast<t_CExtraData &>(Callback)
+					)
+				;
+			}
+		}
 		
 		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 		TCContinuation<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()

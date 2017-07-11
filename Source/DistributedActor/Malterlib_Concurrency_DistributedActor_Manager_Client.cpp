@@ -484,7 +484,18 @@ namespace NMib
 								pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
 								pConnection->m_IdentifyContinuation.f_Dispatch() 
-									> [this, RealHostID, UniqueHostID, Sequence, pConnectionWeak, _pContinuation, CertificateChain = fg_Move(CertificateChain), bFirstConnection]
+									>
+									[
+										this
+										, RealHostID
+										, UniqueHostID
+										, Sequence
+										, pConnectionWeak
+										, _pContinuation
+										, CertificateChain = fg_Move(CertificateChain)
+										, bFirstConnection
+										, fReportError
+									]
 									(TCAsyncResult<void> &&_Result) mutable
 									{
 										auto pConnection = pConnectionWeak.f_Lock();
@@ -502,8 +513,7 @@ namespace NMib
 										}
 										if (!_Result)
 										{
-											if (_pContinuation)
-												_pContinuation->f_SetException(fg_Move(_Result));
+											fReportError(fg_Format("Error identifying connection: {}", _Result.f_GetExceptionStr()), _Result.f_GetException());
 											return;
 										}
 										if (!pConnection->m_pHost)
@@ -604,7 +614,7 @@ namespace NMib
 		TCContinuation<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
 		{
 			auto &Internal = *mp_pInternal;
-			
+
 			TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
 			
 			CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;

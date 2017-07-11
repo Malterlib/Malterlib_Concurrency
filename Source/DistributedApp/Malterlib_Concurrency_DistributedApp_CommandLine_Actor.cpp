@@ -112,21 +112,23 @@ namespace NMib
 						TCSharedPointer<CState> pState = fg_Construct();
 						auto &State = *pState;
 						State.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(CommandLineTrustPath);
-						State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
-							(
-								State.m_TrustManagerDatabase
-								, [](CActorDistributionManagerInitSettings const &_Settings)
-								{
-									return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
-								}
-								, mp_Settings.m_KeySetting
-								, mp_Settings.m_ListenFlags
-								, mp_Settings.f_GetCompositeFriendlyName()
-								, CStr() 
-								, fp_GetTranslateHostnames()
-								, 1
-							)
+						
+						CDistributedActorTrustManager::COptions Options;
+						
+						Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+							{
+								return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
+							}
 						;
+						Options.m_KeySetting = mp_Settings.m_KeySetting;
+						Options.m_ListenFlags = mp_Settings.m_ListenFlags;
+						Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+						Options.m_Enclave = CStr();
+						Options.m_TranslateHostnames = fp_GetTranslateHostnames();
+						Options.m_DefaultConnectionConcurrency = 1;
+						
+						State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(State.m_TrustManagerDatabase, fg_Move(Options));
+						
 						State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)
 							{
 								mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Continuation / [this, Continuation, pState, _HostID, pCleanup](bool _bHasClient)

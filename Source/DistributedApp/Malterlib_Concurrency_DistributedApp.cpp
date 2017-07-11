@@ -7,6 +7,7 @@
 #include <Mib/Cryptography/UUID>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Concurrency/DistributedAppInterface>
+#include <Mib/Network/Socket>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
@@ -54,7 +55,7 @@ namespace NMib::NConcurrency
 		// A longer app name and enclave results in a unix socket name becoming too long 
 		DMibRequire
 			(
-				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true).f_GetLen() 
+				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true, m_Enclave).f_GetLen()
 				<= aint(NSys::NNet::fg_GetMaxUnixSocketNameLength())
 			)
 		;
@@ -64,31 +65,39 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific) const
+	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific, CStr const &_Enclave) const
 	{
-		CStr SocketName;
 		if (!m_Enclave.f_IsEmpty() && _bEnclaveSpecific)
-			SocketName = fg_Format("{}.{}.socket", m_AppName, m_Enclave);
+			return fg_Format("{}/{}.{}.socket", _Prefix, m_AppName, _Enclave);
 		else
-			SocketName = fg_Format("{}.socket", m_AppName);
-		return fg_Format("{}/{}", _Prefix, SocketName);
+			return fg_Format("{}/{}.socket", _Prefix, m_AppName);
 	}
 
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
 	{
 		mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
-		if (fp_GetLocalSocketPath(m_ConfigDirectory, true).f_GetLen() <= aint(MaxLength))
-			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific));
+		if (fp_GetLocalSocketPath(m_ConfigDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
+			return fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific, _Enclave);
 		
 		CStr ConfigHash = fg_GetHashedUuidString(m_ConfigDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
 		CStr TempDir = CFile::fs_GetTemporaryDirectory();
 		CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
-		if (fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= aint(MaxLength))
-			return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+		if (fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength))
+			return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
 		
 		Prefix = fg_Format("/tmp/{}", ConfigHash);
-		DMibCheck(fp_GetLocalSocketPath(Prefix, true).f_GetLen() <= aint(MaxLength));
-		return fg_Format("UNIX(777):{}", fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific));
+		DMibCheck(fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength));
+		return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
+	}
+	
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const
+	{
+		return f_GetLocalSocketFileName(_bEnclaveSpecific, "*");
+	}
+	
+	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
+	{
+		return fg_Format("UNIX(777):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
 	}
 	
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
@@ -428,10 +437,51 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
+	void CDistributedAppActor::fp_CleanupEnclaveSockets()
+	{
+		if (mp_Settings.m_Enclave.f_IsEmpty())
+			return;
+
+		mp_CleanupSocketsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup sockets"));
+
+		g_Dispatch(mp_CleanupSocketsActor) > [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+			{
+				try
+				{
+					for (auto &File : CFile::fs_FindFiles(WildcardPath, EFileAttrib_File))
+					{
+						try
+						{
+							try
+							{
+								NNet::CNetAddress Address = NNet::CSocket::fs_ResolveAddress(fg_Format("UNIX:{}", File));
+								NNet::CSocket Socket;
+								Socket.f_Connect(Address);
+							}
+							catch (NException::CException const &_Exception)
+							{
+								CFile::fs_DeleteFile(File);
+							}
+						}
+						catch (NException::CException const &_Exception)
+						{
+						}
+					}
+				}
+				catch (NException::CException const &_Exception)
+				{
+				}
+			}
+			> fg_DiscardResult()
+		;
+	}
+
 	TCContinuation<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
 		TCContinuation<void> Continuation;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
+		
+		fp_CleanupEnclaveSockets();
 		
 		mp_State.m_StateDatabase.f_Load()
 			+ mp_State.m_ConfigDatabase.f_Load()
@@ -454,22 +504,25 @@ namespace NMib::NConcurrency
 				}
 
 				int32 DefaultConcurrency = 1;
-				
 				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
 					DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
 				
-				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						mp_TrustManagerDatabase
-						, fg_Move(fManagerFactor)
-						, mp_Settings.m_KeySetting
-						, mp_Settings.m_ListenFlags
-						, mp_Settings.f_GetCompositeFriendlyName()
-						, mp_Settings.m_Enclave
-						, fp_GetTranslateHostnames()
-						, DefaultConcurrency
-					)
-				;
+				fp64 InitialConnectionTimeout = 5.0;
+				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
+					InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
+				
+				CDistributedActorTrustManager::COptions Options;
+				
+				Options.m_fConstructManager = fg_Move(fManagerFactor);
+				Options.m_KeySetting = mp_Settings.m_KeySetting;
+				Options.m_ListenFlags = mp_Settings.m_ListenFlags;
+				Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+				Options.m_Enclave = mp_Settings.m_Enclave;
+				Options.m_TranslateHostnames = fp_GetTranslateHostnames();
+				Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
+				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
+				
+				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(mp_TrustManagerDatabase, fg_Move(Options));
 				
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
 					> Continuation % "Failed to initialize trust manager" / [this, Continuation, _Params]()
@@ -521,10 +574,13 @@ namespace NMib::NConcurrency
 		return Continuation;				
 	}
 
-	TCContinuation<void> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params)
+	TCContinuation<void> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor)
 	{
 		if (mp_State.m_bStoppingApp)
 			return DMibErrorInstance("Startup aborted");
+		
+		mp_State.m_LogActor = _LogActor;
+
 		if (!mp_pInitOnce)
 		{
 			mp_FileOperationsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Distributed app file access"));
@@ -649,9 +705,9 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 	
-	bool fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
+	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 	{
-		bool bInstalledLogDispatcher = false;
+		TCActor<CActor> LogActor;
 #if DMibEnableTrace > 0
 		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 		{
@@ -668,15 +724,14 @@ namespace NMib::NConcurrency
 		{
 			if (pParam->f_Boolean())
 			{
-				auto LoggerActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
-				bInstalledLogDispatcher = true;		
+				LogActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
 				fg_GetSys()->f_GetLogger().f_SetDispatcher
 					(
-						[LoggerActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
+						[LogActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
 						{
 							fg_Dispatch
 								(
-									LoggerActor
+									LogActor
 									, fg_Move(_fToDispatch)
 								)
 								> fg_DiscardResult() 
@@ -687,7 +742,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		
-		return bInstalledLogDispatcher;
+		return LogActor;
 	}
 
 	aint fg_RunApp
@@ -729,11 +784,12 @@ namespace NMib::NConcurrency
 				(
 					[&](NEncoding::CEJSON const &_Params, bool _bForceStart)
 					{
-						if (fg_ApplyLoggingOption(_Params))
+						TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
+						if (LogActor)
 							bInstalledLogDispatcher = true;
 						if (_bStartApp || _bForceStart)
 						{
-							AppActor(&CDistributedAppActor::f_StartApp, _Params).f_CallSync();
+							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor).f_CallSync();
 							bStartedApp = true;
 						}
 					}

@@ -80,36 +80,34 @@ namespace
 		{
 			auto f_CreateServerTrustManager(CStr const &_SessionID = {}) const
 			{
-				return fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						m_ServerDatabase
-						, [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-						, CDistributedActorTestKeySettings{}
-						, NNet::ENetFlag_None
-						, "TestServer" 
-						, _SessionID	
-					)
+				CDistributedActorTrustManager::COptions Options;
+				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+					{
+						return fg_ConstructActor<CActorDistributionManager>(_Settings);
+					}
 				;
+				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_FriendlyName = "TestServer";
+				Options.m_Enclave = _SessionID;
+
+				return fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
 			}
 			
 			auto f_CreateClientTrustManager(CStr const &_SessionID = {}) const 
 			{
-				return fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						m_ClientDatabase
-						, [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-						, CDistributedActorTestKeySettings{}
-						, NNet::ENetFlag_None
-						, "TestClient"
-						, _SessionID 
-					)
+				CDistributedActorTrustManager::COptions Options;
+				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+					{
+						return fg_ConstructActor<CActorDistributionManager>(_Settings);
+					}
 				;
+				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_FriendlyName = "TestClient";
+				Options.m_Enclave = _SessionID;
+				
+				return fg_ConstructActor<CDistributedActorTrustManager>(m_ClientDatabase, fg_Move(Options));
 			}
 			
 			CState
@@ -215,6 +213,7 @@ namespace
 				
 				{
 					DMibTestPath("From database");
+
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 					
 					CDistributedActorTrustManager_Address ServerAddress;
@@ -453,18 +452,17 @@ namespace
 					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(60.0);
 				}
 				
-				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>
-					(
-						Client2Database
-						, [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-						, CDistributedActorTestKeySettings{} 
-						, NNet::ENetFlag_None
-						, "ClientTrustManager2" 
-					)
+				CDistributedActorTrustManager::COptions Options;
+				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+					{
+						return fg_ConstructActor<CActorDistributionManager>(_Settings);
+					}
 				;
+				Options.m_KeySetting = CDistributedActorTestKeySettings{};
+				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_FriendlyName = "ClientTrustManager2";
+				
+				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Client2Database, fg_Move(Options));
 				
 				auto TrustTicket2 = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr).f_CallSync(60.0);
 				// Test fraudulent client add

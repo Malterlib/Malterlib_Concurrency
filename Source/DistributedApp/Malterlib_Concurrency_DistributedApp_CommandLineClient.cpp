@@ -447,6 +447,21 @@ namespace NMib
 			auto &Internal = *mp_pInternal; 
 			if (!Internal.m_bInitialized)
 			{
+				CDistributedActorTrustManager::COptions Options;
+				
+				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings) -> NConcurrency::TCActor<NConcurrency::CActorDistributionManager>
+					{
+						return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
+					}
+				;
+				Options.m_KeySetting = Internal.m_Settings.m_KeySetting;
+				Options.m_ListenFlags = Internal.m_Settings.m_ListenFlags;
+				Options.m_FriendlyName = Internal.m_Settings.f_GetCompositeFriendlyName() + "_CommandLine";
+				Options.m_Enclave = NCryptography::fg_RandomID();
+				Options.m_TranslateHostnames = Internal.m_TranslateHostnames;
+				Options.m_InitialConnectionTimeout = 55.0;
+				Options.m_DefaultConnectionConcurrency = -1;
+				
 				Internal.m_TrustManager = 
 					fg_ConstructActor<CDistributedActorTrustManager>
 					(
@@ -454,16 +469,7 @@ namespace NMib
 						(
 							fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_ConfigDirectory, Internal.m_Settings.m_AppName)
 						)
-						, [](CActorDistributionManagerInitSettings const &_Settings) -> NConcurrency::TCActor<NConcurrency::CActorDistributionManager>
-						{
-							return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
-						}
-						, Internal.m_Settings.m_KeySetting
-						, Internal.m_Settings.m_ListenFlags
-						, Internal.m_Settings.f_GetCompositeFriendlyName() + "_CommandLine"
-						, NCryptography::fg_RandomID() // Allow several command line clients at the same time
-						, Internal.m_TranslateHostnames
-						, -1
+						, fg_Move(Options)
 					)
 				;
 				Internal.m_TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);

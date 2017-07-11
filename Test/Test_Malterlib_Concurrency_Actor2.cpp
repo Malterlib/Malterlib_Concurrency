@@ -292,9 +292,11 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 1000000.0
 								, pLocalActor
-								, [&]
+								, [&]() -> TCContinuation<void>
 								{
 									DMibNeverGetHere;
+									
+									return fg_Explicit();
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -313,13 +315,15 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, pLocalActor
-								, [&]
+								, [&]() -> TCContinuation<void>
 								{
 									if (!bHandledTimer1.f_Exchange(true))
 									{
 										if (--nExpectedHandlers == 0)
 											HandlersFinished.f_SetSignaled();
 									}
+									
+									return fg_Explicit();
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -337,13 +341,15 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, pLocalActor
-								, [&]
+								, [&]() -> TCContinuation<void>
 								{
 									if (!bHandledTimer2.f_Exchange(true))
 									{
 										if (--nExpectedHandlers == 0)
 											HandlersFinished.f_SetSignaled();
 									}
+									
+									return fg_Explicit();
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)

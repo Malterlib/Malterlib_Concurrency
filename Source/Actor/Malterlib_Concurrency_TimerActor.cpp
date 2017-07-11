@@ -14,6 +14,47 @@ namespace NMib
 			return fg_ConcurrencyManager().f_GetTimerActor();
 		}
 
+		void CTimerActor::fp_CallTimer(CTimer &_Timer, bool _bOnlyMissed)
+		{
+			_Timer.m_Callbacks.f_CallEach
+				(
+					[&](TCDispatchedActorCall<void> &&_ActorCall, CTimerSubscriptionState &_HandleInfo)
+					{
+						if (_bOnlyMissed)
+						{
+							if (!_HandleInfo.m_bMissed || _HandleInfo.m_bOutstanding)
+								return;
+						}
+						else
+						{
+							if (_HandleInfo.m_bOutstanding)
+							{
+								_HandleInfo.m_bMissed = true;
+								return;
+							}
+						}
+						_HandleInfo.m_bOutstanding = true;
+						_ActorCall > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&)
+							{
+								if (*pDestroyed)
+									return;
+
+								pHandleInfo->m_bOutstanding = false;
+								
+								if (pHandleInfo->m_bMissed)
+									fp_CallTimer(*pTimer, true);
+							}
+						;
+					}
+				)
+			;
+			
+			if (_bOnlyMissed)
+				return;
+
+			_Timer.m_OneshotCallbacks();
+		}
+		
 		void CTimerActor::fp_ProcessTimers()
 		{
 #if DMibEnableSafeCheck > 0
@@ -39,8 +80,8 @@ namespace NMib
 				m_TimerQueue.f_Remove(pTimer);
 
 				auto TimerType = Timer.m_TimerType;
-
-				Timer.m_Callbacks();
+				
+				fp_CallTimer(Timer);
 
 				switch (TimerType)
 				{
@@ -151,19 +192,22 @@ namespace NMib
 			DMibRequire(m_ExactTimers.f_IsEmpty());
 		}
 
-		CTimerActor::CTimerHandleCleanup::CTimerHandleCleanup(NFunction::TCFunctionMutable<void ()> &&_fCleanup)
+		CTimerActor::CTimerSubscriptionState::CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup)
 			: m_fCleanup(fg_Move(_fCleanup))
 		{
 		}
 		
-		CTimerActor::CTimerHandleCleanup::~CTimerHandleCleanup()
+		CTimerActor::CTimerSubscriptionState::~CTimerSubscriptionState()
 		{
+			*m_pDestroyed = true;
+
 			if (m_fCleanup)
 				m_fCleanup();
 		}
 
 		CTimerActor::CTimer::CTimer(CActor *_pThisActor)
 			: m_Callbacks(_pThisActor, false)
+			, m_OneshotCallbacks(_pThisActor, false)
 		{
 		}
 
@@ -182,7 +226,7 @@ namespace NMib
 
 				auto TimerType = Timer.m_TimerType;
 
-				Timer.m_Callbacks();
+				fp_CallTimer(Timer);
 
 				switch (TimerType)
 				{
@@ -209,8 +253,8 @@ namespace NMib
 
 				auto TimerType = Timer.m_TimerType;
 
-				Timer.m_Callbacks();
-
+				fp_CallTimer(Timer);
+				
 				switch (TimerType)
 				{
 				case ETimerType_Oneshot:
@@ -245,7 +289,7 @@ namespace NMib
 			// _pActor unless it's referenced from within _fCallback
 			NPtr::TCSharedPointer<NPtr::TCSharedPointer<CActorSubscription>> pCallbackHandle = fg_Construct(fg_Construct());
 
-			**pCallbackHandle = Timer.m_Callbacks.f_Register
+			**pCallbackHandle = Timer.m_OneshotCallbacks.f_Register
 				(
 					_pActor
 					, fg_Move(_fCallback)
@@ -275,7 +319,7 @@ namespace NMib
 			CTimer *pTimer = &Timer;
 			auto pDestroyed = Timer.m_pDestroyed;
 
-			auto pCallbackHandle = Timer.m_Callbacks.f_Register
+			auto pCallbackHandle = Timer.m_OneshotCallbacks.f_Register
 				(
 					_pActor
 					, fg_Move(_fCallback)
@@ -292,7 +336,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+		CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			auto &Timer = *m_RegisteredTimers(_Period, this);
@@ -329,7 +373,7 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 
-		CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+		CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
 			DMibRequire(_Period > 0.0);
 			CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));
@@ -363,30 +407,35 @@ namespace NMib
 			return fg_Move(pCallbackHandle);
 		}
 		
-		TCDispatchedActorCall<void> fg_Timeout(fp64 _Period, bool _bFireAtExit)
+		CTimeoutHelper::CTimeoutHelper(fp64 _Period, bool _bFireAtExit)
+			: mp_Period(_Period)
+			, mp_bFireAtExit(_bFireAtExit)
 		{
-			return fg_ConcurrentDispatch
+		}
+		
+		CTimeoutHelper &CTimeoutHelper::operator ()(TCActor<CActor> const &_DispatchActor)
+		{
+			mp_DispatchActor = _DispatchActor;
+			return *this;
+		}
+		
+		void CTimeoutHelper::operator > (NFunction::TCFunctionMutable<void ()> &&_fOnTimeout) const
+		{
+			fg_TimerActor()
 				(
-					[_Period, _bFireAtExit]()
-					{
-						TCContinuation<void> Continuation;
-						fg_TimerActor()
-							(
-								&CTimerActor::f_OneshotTimer
-								, _Period
-								, fg_TimerActor()
-								, [Continuation]
-								{
-									Continuation.f_SetResult();
-								}
-								, _bFireAtExit
-							)
-							> fg_DiscardResult();
-						;
-						return Continuation;
-					}
+					&CTimerActor::f_OneshotTimer
+					, mp_Period
+					, mp_DispatchActor ? mp_DispatchActor : fg_CurrentActor()
+					, fg_Move(_fOnTimeout)
+					, mp_bFireAtExit
 				)
+				> fg_DiscardResult();
 			;
+		}
+		
+		CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)
+		{
+			return CTimeoutHelper(_Period, _bFireAtExit);
 		}
 		
 		void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor, bool _bFireAtExit)
@@ -428,7 +477,7 @@ namespace NMib
 			;
 		}
 
-		TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+		TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
 			return fg_ConcurrentDispatch
 				(
@@ -450,7 +499,7 @@ namespace NMib
 			;
 		}
 		
-		TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+		TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
 			return fg_ConcurrentDispatch
 				(

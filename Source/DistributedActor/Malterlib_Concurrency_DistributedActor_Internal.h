@@ -282,6 +282,7 @@ namespace NMib
 			{
 				TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
 				CActorSubscription m_ListenCallbackSubscription;
+				NStr::CStr m_LastReportedError;
 				
 				NStr::CStr const &f_GetID() const
 				{

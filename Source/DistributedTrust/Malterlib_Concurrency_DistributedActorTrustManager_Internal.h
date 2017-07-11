@@ -163,16 +163,7 @@ namespace NMib
 				(
 					CDistributedActorTrustManager *_pThis
 					, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-					, NFunction::TCFunctionMovable
-					<
-						TCActor<CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
-					> &&_fConstructManager
-					, NNet::CSSLKeySetting _KeySetting
-					, NNet::ENetFlag _ListenFlags
-					, NStr::CStr const &_FriendlyName
-					, NStr::CStr const &_Enclave
-					, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
-					, int32 _DefaultConnectionConcurrency 
+					, COptions &&_Options
 				)
 			;
 			~CInternal();
@@ -250,6 +241,8 @@ namespace NMib
 			
 			EInitialize m_Initialize = EInitialize_None;
 			NStr::CStr m_InitializeError;
+			
+			fp64 m_InitialConnectionTimeout = 5.0;
 			
 			int32 m_DefaultConnectionConcurrency = 1;
 		};

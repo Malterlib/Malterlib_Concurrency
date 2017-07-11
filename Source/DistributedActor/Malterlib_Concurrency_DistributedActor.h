@@ -622,7 +622,7 @@ namespace NMib
 				)
 			;
 			void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
-			void fp_RemoveListen(NStr::CStr const &_ListenID);
+			TCContinuation<void> fp_RemoveListen(NStr::CStr const &_ListenID);
 			void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
 			TCContinuation<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 			void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);

@@ -24,7 +24,8 @@ namespace NMib::NConcurrency
 		NEncoding::CSimpleJSONDatabase m_ConfigDatabase;
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
-		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer; 
+		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer;
+		TCActor<CActor> m_LogActor;
 		NHTTP::CURL m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_HostID;
@@ -62,7 +63,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 		
-		TCContinuation<void> f_StartApp(NEncoding::CEJSON const &_Params); 
+		TCContinuation<void> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor);
 		TCContinuation<void> f_StopApp(); 
 		
 		TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 
@@ -136,6 +137,7 @@ namespace NMib::NConcurrency
 		struct CDistributedAppInterfaceClientImplementation;
 		
 		TCContinuation<void> fp_Initialize(NEncoding::CEJSON const &_Params);
+		void fp_CleanupEnclaveSockets();
 		TCContinuation<void> fp_SetupListen();
 		TCContinuation<void> fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params);
 		TCContinuation<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params);
@@ -162,6 +164,7 @@ namespace NMib::NConcurrency
 
 		TCActor<ICDistributedActorTrustManagerDatabase> mp_TrustManagerDatabase;
 		TCActor<CSeparateThreadActor> mp_FileOperationsActor;
+		TCActor<CSeparateThreadActor> mp_CleanupSocketsActor;
 		TCDistributedActor<CCommandLine> mp_CommandLine;
 		CDistributedActorPublication mp_CommandLinePublication;
 		CDistributedActorTrustManager_Address mp_PrimaryListen;
@@ -179,7 +182,7 @@ namespace NMib::NConcurrency
 		bool mp_bDelegateTrustToAppInterface = false;
 	};
 
-	bool fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
+	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
 	aint fg_RunApp
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory

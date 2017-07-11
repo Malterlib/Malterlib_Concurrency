@@ -152,32 +152,24 @@ namespace NMib
 				{
 					auto fReportListenFailure = [this, _Settings, _pContinuation, _ListenID](CExceptionPointer _Error, NStr::CStr const &_ErrorString)
 						{
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/Actors
-									, Error
-									, "{}"
-									, _ErrorString
-								)
-							;
+							bool bReportError = true;
 							if (_Settings.m_bRetryOnListenFailure)
 							{
-								m_Listens[_ListenID];
+								auto &Listen = m_Listens[_ListenID];
+								if (Listen.m_LastReportedError != _ErrorString)
+								{
+									bReportError = true;
+									Listen.m_LastReportedError = _ErrorString;
+								}
+								else
+									bReportError = false;
 								
-								fg_TimerActor()
-									(
-										&CTimerActor::f_OneshotTimer
-										, 0.5
-										, fg_ThisActor(m_pThis)
-										, [this, _pContinuation, _Settings, _ListenID]() mutable
-										{
-											if (!m_Listens.f_FindEqual(_ListenID))
-												return; // Removed already
-											fp_Listen(_ListenID, _Settings, nullptr);
-										}
-										, true
-									)
-									> fg_DiscardResult()
+								fg_Timeout(0.5) > [this, _pContinuation, _Settings, _ListenID]() mutable
+									{
+										if (!m_Listens.f_FindEqual(_ListenID))
+											return; // Removed already
+										fp_Listen(_ListenID, _Settings, nullptr);
+									}
 								;
 								
 								if (_pContinuation)
@@ -185,7 +177,18 @@ namespace NMib
 							}
 							else if (_pContinuation)
 								_pContinuation->f_SetException(fg_Move(_Error));
-							return;
+							
+							if (bReportError)
+							{
+								DMibLogWithCategory
+									(
+										Mib/Concurrency/Actors
+										, Error
+										, "{}"
+										, _ErrorString
+									)
+								;
+							}
 						}
 					;
 					
@@ -576,13 +579,18 @@ namespace NMib
 						{
 							if (!_Result)
 							{
-								
 								fReportListenFailure(_Result.f_GetException(), fg_Format("Failed to start listen on ({vs,vb}): {}", _Settings.m_ListenAddresses, _Result.f_GetExceptionStr()));
 								return;
 							}
 							
 							auto &Listen = m_Listens[_ListenID] = fg_Move(*pListenState);
 							pListenState.f_Clear();
+							
+							if (!Listen.m_LastReportedError.f_IsEmpty())
+							{
+								Listen.m_LastReportedError.f_Clear();
+								DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Listen error resolved");
+							}
 							
 							Listen.m_ListenCallbackSubscription = fg_Move(*_Result);
 							if (_pContinuation)
@@ -603,8 +611,9 @@ namespace NMib
 			return Continuation;
 		}
 		
-		void CActorDistributionManager::fp_RemoveListen(NStr::CStr const &_ListenID)
+		TCContinuation<void> CActorDistributionManager::fp_RemoveListen(NStr::CStr const &_ListenID)
 		{
+			TCContinuation<void> Continuation;
 			auto &Internal = *mp_pInternal;
 			auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
 			if (pListen)
@@ -612,11 +621,17 @@ namespace NMib
 				pListen->m_ListenCallbackSubscription.f_Clear();
 				if (pListen->m_WebsocketServer)
 				{
-					pListen->m_WebsocketServer->f_DestroyNoResult(DMibPFile, DMibPLine);
+					pListen->m_WebsocketServer->f_Destroy() > Continuation;
 					pListen->m_WebsocketServer.f_Clear();
 				}
+				else
+					Continuation.f_SetResult();
 				Internal.m_Listens.f_Remove(pListen);
 			}
+			else
+				Continuation.f_SetResult();
+			
+			return Continuation;
 		}
 	}
 }

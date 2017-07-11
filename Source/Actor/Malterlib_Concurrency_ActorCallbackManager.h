@@ -49,6 +49,9 @@ namespace NMib
 			template <bool tf_bSupportMultiple = t_bSupportMultiple>
 			typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
 
+			template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
+			typename TCEnableIf<tf_bSupportMultiple>::CType f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params);
+			
 		private:
 			struct CInternal
 			{

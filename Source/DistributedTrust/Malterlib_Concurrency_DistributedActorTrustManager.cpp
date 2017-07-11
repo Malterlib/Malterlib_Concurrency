@@ -12,18 +12,9 @@ namespace NMib::NConcurrency
 	CDistributedActorTrustManager::CDistributedActorTrustManager
 		(
 			NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-			, NFunction::TCFunctionMovable
-			<
-				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
-			> &&_fConstructManager
-			, NNet::CSSLKeySetting _KeySetting
-			, NNet::ENetFlag _ListenFlags
-			, NStr::CStr const &_FriendlyName
-			, NStr::CStr const &_Enclave
-			, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
-			, int32 _DefaultConnectionConcurrency
+			, COptions &&_Options
 		)
-		: mp_pInternal(fg_Construct(this, _Database, fg_Move(_fConstructManager), _KeySetting, _ListenFlags, _FriendlyName, _Enclave, _TranslateHostnames, _DefaultConnectionConcurrency))
+		: mp_pInternal(fg_Construct(this, _Database, fg_Move(_Options)))
 	{
 		fp_Init();
 	}
@@ -36,26 +27,18 @@ namespace NMib::NConcurrency
 		(
 			CDistributedActorTrustManager *_pThis
 			, NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-			, NFunction::TCFunctionMovable
-			<
-				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
-			> &&_fConstructManager
-			, NNet::CSSLKeySetting _KeySetting
-			, NNet::ENetFlag _ListenFlags
-			, NStr::CStr const &_FriendlyName
-			, NStr::CStr const &_Enclave
-			, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames
-			, int32 _DefaultConnectionConcurrency
+			, COptions &&_Options
 		)
 		: m_pThis(_pThis)
 		, m_Database(_Database)
-		, m_fDistributionManagerFactory(fg_Move(_fConstructManager))
-		, m_KeySetting(_KeySetting)
-		, m_ListenFlags(_ListenFlags)
-		, m_FriendlyName(_FriendlyName)
-		, m_Enclave(_Enclave)
-		, m_TranslateHostnames(_TranslateHostnames)
-		, m_DefaultConnectionConcurrency(_DefaultConnectionConcurrency)
+		, m_fDistributionManagerFactory(fg_Move(_Options.m_fConstructManager))
+		, m_KeySetting(_Options.m_KeySetting)
+		, m_ListenFlags(_Options.m_ListenFlags)
+		, m_FriendlyName(_Options.m_FriendlyName)
+		, m_Enclave(_Options.m_Enclave)
+		, m_TranslateHostnames(_Options.m_TranslateHostnames)
+		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)
+		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
 	{
 	}
 	

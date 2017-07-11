@@ -540,6 +540,11 @@ namespace NMib::NConcurrency
 			DMibCheck(mp_Actor.f_IsEmpty())("Actor call without result used");
 		}
 #endif
+		
+		void f_Clear()
+		{
+			mp_Actor.f_Clear();
+		}
 
 		auto f_ByValue()
 		{

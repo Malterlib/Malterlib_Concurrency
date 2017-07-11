@@ -15,11 +15,12 @@ namespace NMib
 		{
 			CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
 			{
-				if (fg_ApplyLoggingOption(_Params))
+				TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
+				if (LogActor)
 					m_bInstalledLogDispatcher = true;
 				
 				m_Actor = _Actor;
-				m_Actor(&CDistributedAppActor::f_StartApp, _Params) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
+				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor) > fg_ConcurrentActor() / [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 						{

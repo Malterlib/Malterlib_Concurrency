@@ -279,21 +279,21 @@ namespace NMib::NConcurrency
 	
 	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID) const
 	{
-		return fg_ConstructActor<CDistributedActorTrustManager>
-			(
-				m_Database
-				, [](CActorDistributionManagerInitSettings const &_Settings)
-				{
-					return fg_ConstructActor<CActorDistributionManager>(_Settings);
-				}
-				, CDistributedActorTestKeySettings{}
-				, NNet::ENetFlag_None
-				, _FriendlyName
-				, _SessionID
-				, NContainer::TCMap<NStr::CStr, NStr::CStr>{}
-				, 1
-			)
+		CDistributedActorTrustManager::COptions Options;
+		
+		Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+			{
+				return fg_ConstructActor<CActorDistributionManager>(_Settings);
+			}
 		;
+		Options.m_KeySetting = CDistributedActorTestKeySettings{};
+		Options.m_ListenFlags = NNet::ENetFlag_None;
+		Options.m_FriendlyName = _FriendlyName;
+		Options.m_Enclave = _SessionID;
+		Options.m_TranslateHostnames = {};
+		Options.m_DefaultConnectionConcurrency = 1;
+		
+		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));
 	}
 	
 	CTrustManagerTestHelper::CTrustManagerTestHelper()

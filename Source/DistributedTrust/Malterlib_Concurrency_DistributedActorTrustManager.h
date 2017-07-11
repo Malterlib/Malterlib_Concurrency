@@ -139,20 +139,26 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, CHostConnectionState> m_Hosts;
 		};
 		
+		struct COptions
+		{
+			NFunction::TCFunctionMovable
+			<
+				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
+			> m_fConstructManager = nullptr;
+			
+			NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
+			NStr::CStr m_FriendlyName;
+			NStr::CStr m_Enclave;
+			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+			fp64 m_InitialConnectionTimeout = 5.0;
+			int32 m_DefaultConnectionConcurrency = 1;
+		};
 		
 		CDistributedActorTrustManager
 			(
 				NConcurrency::TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-				, NFunction::TCFunctionMovable
-				<
-					NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
-				> &&_fConstructManager = nullptr
-				,  NNet::CSSLKeySetting _KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting()
-				, NNet::ENetFlag _ListenFlags = NNet::ENetFlag_None
-				, NStr::CStr const &_FriendlyName = {}
-				, NStr::CStr const &_Enclave  = {}
-				, NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames = {}
-				, int32 _DefaultConnectionConcurrency = 1
+				, COptions &&_Options
 			)
 		;
 		

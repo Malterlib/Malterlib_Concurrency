@@ -23,13 +23,17 @@ namespace NMib
 						if (_bOnlyMissed)
 						{
 							if (!_HandleInfo.m_bMissed || _HandleInfo.m_bOutstanding)
+							{
+								_ActorCall.f_Clear();
 								return;
+							}
 						}
 						else
 						{
 							if (_HandleInfo.m_bOutstanding)
 							{
 								_HandleInfo.m_bMissed = true;
+								_ActorCall.f_Clear();
 								return;
 							}
 						}

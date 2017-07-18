@@ -32,6 +32,8 @@ namespace NMib::NConcurrency
 		;
 		NStr::CStr f_GetCompositeFriendlyName() const;
 		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
+		NStr::CStr f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
+		NStr::CStr f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const;
 		
 		CDistributedAppActor_Settings &&f_ConfigDirectory(NStr::CStr const &_ConfigDirectory) &&;
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
@@ -52,6 +54,6 @@ namespace NMib::NConcurrency
 		bool m_bRequireListen = false;
 		bool m_bSeparateConcurrencyManager = false;
 	private:
-		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific) const;
+		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
 	};
 }

@@ -458,17 +458,17 @@ namespace NMib::NConcurrency
 								NNet::CSocket Socket;
 								Socket.f_Connect(Address);
 							}
-							catch (NException::CException const &_Exception)
+							catch (NException::CException const &)
 							{
 								CFile::fs_DeleteFile(File);
 							}
 						}
-						catch (NException::CException const &_Exception)
+						catch (NException::CException const &)
 						{
 						}
 					}
 				}
-				catch (NException::CException const &_Exception)
+				catch (NException::CException const &)
 				{
 				}
 			}

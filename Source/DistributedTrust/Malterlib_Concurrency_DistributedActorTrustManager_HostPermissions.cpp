@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> Continuation;
 			
 		HostInfos.f_GetResults() 
-			> Continuation / [this, Continuation, Return = fg_Move(Return)] 
+			> Continuation / [Continuation, Return = fg_Move(Return)] 
 			(NContainer::TCMap<NStr::CStr, TCAsyncResult<CHostInfo>> &&_HostInfos) mutable
 			{
 				for (auto &Permissions : Return)

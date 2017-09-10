@@ -422,7 +422,7 @@ namespace NMib::NConcurrency
 					Continuation.f_SetResult();
 					return;
 				}
-				ChangesResults.f_GetResults() > [this, Continuation](TCAsyncResult<TCVector<TCAsyncResult<void>>> &&_Results)
+				ChangesResults.f_GetResults() > [Continuation](TCAsyncResult<TCVector<TCAsyncResult<void>>> &&_Results)
 					{
 						if (!fg_CombineResults(Continuation, fg_Move(_Results)))
 							return;
@@ -557,7 +557,7 @@ namespace NMib::NConcurrency
 										if (mp_State.m_bStoppingApp)
 											return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
 										fp_SetupCommandLineTrust()
-											> Continuation % "Failed to setup commmand line trust" / [this, Continuation]()
+											> Continuation % "Failed to setup commmand line trust" / [Continuation]()
 											{
 												Continuation.f_SetResult();
 											}

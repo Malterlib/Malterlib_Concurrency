@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> Continuation;
 			
 		HostInfos.f_GetResults() 
-			> Continuation / [this, Continuation, Return = fg_Move(Return)] 
+			> Continuation / [Continuation, Return = fg_Move(Return)] 
 			(NContainer::TCMap<NStr::CStr, TCAsyncResult<CHostInfo>> &&_HostInfos) mutable
 			{
 				for (auto &Permissions : Return)
@@ -239,7 +239,7 @@ namespace NMib::NConcurrency
 		}
 	
 		TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>> Continuation;
-		auto fOnSubscribe = [this, _pState, NamespaceName, Continuation](TCAsyncResult<void> const &_Result, CInternal::CNamespaceState &_Namespace) -> bool
+		auto fOnSubscribe = [_pState, NamespaceName, Continuation](TCAsyncResult<void> const &_Result, CInternal::CNamespaceState &_Namespace) -> bool
 			{
 				if (!_Result)
 				{
@@ -396,7 +396,7 @@ namespace NMib::NConcurrency
 				if (!Namespace.m_bExistsInDatabase)
 				{
 					Namespace.m_bExistsInDatabase = true;
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, NamespaceName, Namespace.m_Namespace) > [this](TCAsyncResult<void> &&_Result)
+					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, NamespaceName, Namespace.m_Namespace) > [](TCAsyncResult<void> &&_Result)
 						{
 							if (_Result)
 								return;

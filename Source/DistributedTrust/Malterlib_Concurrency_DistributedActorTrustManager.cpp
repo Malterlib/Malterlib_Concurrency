@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 							&ICDistributedActorTrustManagerDatabase::f_HasClient
 							, _HostID
 						)
-						> Continuation % "Failed to check for client existence" / [this, Continuation, _HostID](bool _bExists)
+						> Continuation % "Failed to check for client existence" / [Continuation, _HostID](bool _bExists)
 						{
 							Continuation.f_SetResult(_bExists);
 						}

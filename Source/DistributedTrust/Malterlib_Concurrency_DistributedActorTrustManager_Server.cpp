@@ -347,7 +347,7 @@ namespace NMib
 			
 			TCContinuation<NStr::CStr> Continuation;
 
-			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [this, Continuation, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
+			m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [Continuation, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
 				{
 					if (!_Client)
 					{

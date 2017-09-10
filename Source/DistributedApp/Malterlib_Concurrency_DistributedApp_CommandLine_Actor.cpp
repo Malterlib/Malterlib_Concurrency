@@ -37,7 +37,7 @@ namespace NMib
 			fg_Dispatch
 				(
 					mp_FileOperationsActor
-					, [this, Continuation, CommandLineTrustPath, ExpectedAddress]()
+					, [Continuation, CommandLineTrustPath, ExpectedAddress]()
 					{
 						if (!CFile::fs_FileExists(CommandLineTrustPath))
 							return false;
@@ -196,7 +196,7 @@ namespace NMib
 						Continuation.f_SetResult();
 						return;
 					}
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Continuation / [this, Continuation]()
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Continuation / [Continuation]()
 						{
 							Continuation.f_SetResult();
 						}

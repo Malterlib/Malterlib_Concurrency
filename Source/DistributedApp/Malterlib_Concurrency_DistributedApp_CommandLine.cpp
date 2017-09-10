@@ -121,7 +121,7 @@ namespace NMib
 					try
 					{
 						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-						Command.m_fActorRunCommand(ValidatedParams) > Continuation / [this, _PreResults, Continuation](CDistributedAppCommandLineResults &&_Results)
+						Command.m_fActorRunCommand(ValidatedParams) > Continuation / [_PreResults, Continuation](CDistributedAppCommandLineResults &&_Results)
 							{
 								auto FinalResults = _PreResults;
 								FinalResults.m_Status = _Results.m_Status;
@@ -410,6 +410,8 @@ namespace NMib
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, Address, _ConnectionConcurrency)
 				> Continuation / [Continuation, Address, _ConnectionConcurrency]()
 				{
+					(void)_ConnectionConcurrency;
+					
 					DMibLogWithCategory
 						(
 							Mib/Concurrency/App
@@ -799,7 +801,7 @@ namespace NMib
 			TCContinuation<CDistributedAppCommandLineResults> Continuation;
 			fg_Dispatch
 				(
-					[this, fCommand = fg_Move(_fCommand)]
+					[fCommand = fg_Move(_fCommand)]
 					{
 						return fCommand();
 					}

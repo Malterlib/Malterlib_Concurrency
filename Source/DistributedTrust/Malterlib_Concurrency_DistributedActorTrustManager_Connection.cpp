@@ -145,7 +145,7 @@ namespace NMib
 													, _Results.m_HostID
 													, Client
 												)
-												> Continuation % "Failed to add client to trust database" / [this, Continuation, Certificate = _Results.m_SignedCertificate]() mutable
+												> Continuation % "Failed to add client to trust database" / [Continuation, Certificate = _Results.m_SignedCertificate]() mutable
 												{
 													Continuation.f_SetResult(fg_Move(Certificate));
 												}
@@ -629,11 +629,11 @@ namespace NMib
 												}
 											;
 										}
-										, [this](CDistributedActorIdentifier const &_RemovedActor)
+										, [](CDistributedActorIdentifier const &_RemovedActor)
 										{
 										}
 									)
-									> [pConnectionState, this, Continuation](auto &&_Subscription)
+									> [pConnectionState, Continuation](auto &&_Subscription)
 									{
 										if (pConnectionState->m_bReplied)
 											return;

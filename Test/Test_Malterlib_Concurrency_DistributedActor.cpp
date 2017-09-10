@@ -1071,9 +1071,9 @@ namespace
 				TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 				auto TestActor = fg_ConcurrentActor();
 				TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
-				auto &TestValue = *pTestValue;
+				[[maybe_unused]] auto &TestValue = *pTestValue;
 				
-				auto fSubscription = [&]() -> CActorSubscription
+				[[maybe_unused]] auto fSubscription = [&]() -> CActorSubscription
 					{
 						return g_ActorSubscription(TestActor) >
 							[pTestValue]

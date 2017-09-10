@@ -341,15 +341,15 @@ namespace NMib::NConcurrency
 						}
 					;
 				}
-				, [this](CDDPServerConnection::CSubscribeInfo const &_SubscribeInfo) // On subscribe
+				, [](CDDPServerConnection::CSubscribeInfo const &_SubscribeInfo) // On subscribe
 				{
 					_SubscribeInfo.f_Error(CEJSON()); // Sub not found
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "DDP subscription {}", _SubscribeInfo.m_Name);
 				}
-				, [this](CStr const &_SubscriptionID) // On unsubscribe
+				, [](CStr const &_SubscriptionID) // On unsubscribe
 				{
 				}
-				, [this](CStr const &_Error) // On error
+				, [](CStr const &_Error) // On error
 				{
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "DDP connection error: {}", _Error);
 				}

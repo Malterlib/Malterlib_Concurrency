@@ -50,12 +50,11 @@ namespace NMib
 				while (nThreads > 0)
 				{
 					--nThreads;
-					mint iThread = nThreads;
 					m_Threads.f_Insert
 						(
 							NThread::CThreadObject::fs_StartThread
 							(
-								[this, NumaNode, iThread](NThread::CThreadObject * _pThread) -> aint
+								[this, NumaNode](NThread::CThreadObject * _pThread) -> aint
 								{
 									fg_GetSys()->f_MemoryManager_SetNumaNode(NumaNode);
 									NSys::fg_Thread_SetNumaAffinity(NSys::fg_Thread_GetCurrent(), NumaNode);

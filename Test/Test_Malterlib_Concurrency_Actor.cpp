@@ -169,6 +169,7 @@ namespace
 					(
 						[_bGarbageCollect]
 						{
+							(void)_bGarbageCollect;
 							auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #ifdef DDoGarbageCollection
 							if (_bGarbageCollect)
@@ -856,7 +857,7 @@ namespace
 #else
 				mint nIterations = 5'000'000;
 #endif
-				mint nIterationsFull = nIterations;
+				[[maybe_unused]] mint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 
 #if DDoTest_Message_DispatchVector
@@ -1107,7 +1108,7 @@ namespace
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
 								(
-									[&PerfTestActors, nIterationsPerSplit, pActor]
+									[nIterationsPerSplit, pActor]
 									{
 										for (mint i = 0; i < nIterationsPerSplit; ++i)
 											(*pActor)(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
@@ -1159,7 +1160,7 @@ namespace
 							ResultVector.f_SetLen(nIterationsPerSplit);
 							fg_ConcurrentDispatch
 								(
-									[&PerfTestActors, nIterationsPerSplit, pActor, iSplit, &ResultVector]
+									[nIterationsPerSplit, pActor, &ResultVector]
 									{
 										for (mint i = 0; i < nIterationsPerSplit; ++i)
 											(*pActor)(&CPerformanceTestActor::f_AddInt, 1) > ResultVector.f_AddResult();
@@ -1354,7 +1355,7 @@ namespace
 #else
 				mint nIterations = 1'000'000;
 #endif
-				mint nIterationsFull = nIterations;
+				[[maybe_unused]] mint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
 				CTestPerformance PerfTestDestroy(0.025);
 #if DDoTest_Create_Vector

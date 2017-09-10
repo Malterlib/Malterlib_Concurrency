@@ -1026,7 +1026,7 @@ namespace
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add double permissions");
-						auto &Permissions = TrustedSubscription.f_GetPermissions();
+						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
 						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test2"));
 					}
@@ -1056,7 +1056,7 @@ namespace
 					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 					{
 						DMibTestPath("After add double permissions");
-						auto &Permissions = TrustedSubscription.f_GetPermissions();
+						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test"));
 						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(ServerHostID, "com.malterlib/Test2"));
 					}

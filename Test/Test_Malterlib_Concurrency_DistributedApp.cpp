@@ -53,7 +53,7 @@ namespace
 							}
 						}
 					}
-					, [this](NEncoding::CEJSON const &_Params) -> TCContinuation<CDistributedAppCommandLineResults>
+					, [](NEncoding::CEJSON const &_Params) -> TCContinuation<CDistributedAppCommandLineResults>
 					{
 						CDistributedAppCommandLineResults Results;
 						Results.m_Status = _Params["Integer"].f_Integer(); 
@@ -114,7 +114,7 @@ namespace
 										{
 											auto Section = o_Specification.f_AddSection("Test1", "Testing test 2");
 											
-											auto Command = Section.f_RegisterDirectCommand
+											[[maybe_unused]] auto Command = Section.f_RegisterDirectCommand
 												(
 													{
 														"Names"_= {"--test", "-t"}

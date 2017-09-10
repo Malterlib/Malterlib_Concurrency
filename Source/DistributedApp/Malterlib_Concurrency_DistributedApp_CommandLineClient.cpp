@@ -356,7 +356,7 @@ namespace NMib
 			for (auto &Option : pFoundCommand->m_Options)
 				fCheckOption(Option);
 			
-			if (iCommandParameter && !iCommandParameter->m_bOptional)
+			if (iCommandParameter && !iCommandParameter->m_bOptional && !bUsedVectorParam)
 				DMibError(fg_Format("Missing required command parameter: {}", iCommandParameter->m_Identifier));
 			
 			for (; iCommandParameter; ++iCommandParameter)

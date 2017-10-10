@@ -5,7 +5,9 @@
 
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Concurrency/DistributedAppInterface>
+#include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedAppInterfaceLaunch>
+#include <Mib/Concurrency/DistributedAppInProcess>
 
 namespace NMib::NConcurrency
 {
@@ -26,6 +28,9 @@ namespace NMib::NConcurrency
 		
 		TCActor<CDistributedAppInterfaceLaunchActor> m_Launch;
 		NPtr::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;
+
+		TCActor<CDistributedAppInProcessActor> m_InProcess;
+
 		NStr::CStr m_HostID;
 		NStr::CStr m_LaunchID;
 		NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
@@ -33,6 +38,7 @@ namespace NMib::NConcurrency
 		TCContinuation<CDistributedApp_LaunchInfo> m_Continuation;
 		
 		void f_Abort();
+		TCContinuation<void> f_Destroy();
 	};
 	
 	struct CDistributedApp_LaunchHelper : public CActor
@@ -56,6 +62,7 @@ namespace NMib::NConcurrency
 		TCContinuation<void> fp_Destroy() override;
 		TCContinuation<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
 		TCContinuation<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
+		TCContinuation<CDistributedApp_LaunchInfo> f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
 		CDistributedApp_LaunchHelperDependencies m_Dependencies;
 		NContainer::TCMap<NStr::CStr, CDistributedApp_LaunchInfo> m_Launches;

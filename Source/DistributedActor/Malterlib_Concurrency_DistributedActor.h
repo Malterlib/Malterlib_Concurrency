@@ -661,7 +661,6 @@ namespace NMib
 		CActorDistributionManagerInitSettings fg_InitDistributionManager(CActorDistributionManagerInitSettings const &_Settings);
 		TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 		void fg_InitDistributedActorSystem();
-		NStr::CStr &fg_DistributedActorSuggestedEnclave();
 	}
 }
 

@@ -719,8 +719,8 @@ namespace NMib
 
 		uint32 CDistributedAppActor::f_CommandLine_RemoveAllTrust(bool _bConfirm)
 		{
-			CStr TrustDatabaseLocation = fg_Format("{}/TrustDatabase.{}", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName);
-			CStr TrustDatabaseCommandLineLocation = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName);
+			CStr TrustDatabaseLocation = fg_Format("{}/TrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
+			CStr TrustDatabaseCommandLineLocation = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 			
 			auto fLogAction = [&](CStr const &_ToLog)
 				{

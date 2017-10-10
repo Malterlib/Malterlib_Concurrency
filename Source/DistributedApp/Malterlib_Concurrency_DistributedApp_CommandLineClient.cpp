@@ -467,7 +467,7 @@ namespace NMib
 					(
 						fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
 						(
-							fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_ConfigDirectory, Internal.m_Settings.m_AppName)
+							fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_RootDirectory, Internal.m_Settings.m_AppName)
 						)
 						, fg_Move(Options)
 					)

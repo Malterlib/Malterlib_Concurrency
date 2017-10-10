@@ -145,7 +145,7 @@ namespace NMib
 								
 				if (_bSaveSettings && Result == 0 && _Params["Daemon_SaveSettings"].f_Boolean())
 				{
-					NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_ConfigDirectory, _Settings.m_AppName);
+					NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
 					NEncoding::CEJSON DaemonSettings;
 					if (NFile::CFile::fs_FileExists(SettingsFile))
 						DaemonSettings = NEncoding::CEJSON::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
@@ -164,7 +164,7 @@ namespace NMib
 			mp_Settings = _Settings;
 			auto Section = o_CommandLine.f_AddSection("Daemon", "Commands for managing running the application as a system or user daemon.");
 			
-			NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_ConfigDirectory, _Settings.m_AppName);
+			NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
 			NEncoding::CEJSON DaemonSettings;
 			if (NFile::CFile::fs_FileExists(SettingsFile))
 				DaemonSettings = NEncoding::CEJSON::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
@@ -184,7 +184,7 @@ namespace NMib
 							, "Default"_= DaemonSettings["Mode"].f_String()
 							, "Description"_= "Specify the mode of the daemon\n"
 							"@Indent=15\r"
-							"global:      Install the daemon as a system daemon. This daemon will start when the compure starts.\r"
+							"global:      Install the daemon as a system daemon. This daemon will start when the computer starts.\r"
 							"user:        Install the daemon as a user daemon. This daemon will start when the current user logs in.\r"
 							"all-users:   Install the daemon as a user daemon for all users. This daemon will start when a user logs in.\r"
 							, "DefaultEnabled"_= false
@@ -428,7 +428,7 @@ namespace NMib
 				(
 					[this]
 					{
-						auto &SuggestedEnclave = fg_DistributedActorSuggestedEnclave();
+						auto &SuggestedEnclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave;
 						auto OldEnclave = SuggestedEnclave;
 						SuggestedEnclave = NStr::CStr{};
 						auto Cleanup = g_OnScopeExit > [&]

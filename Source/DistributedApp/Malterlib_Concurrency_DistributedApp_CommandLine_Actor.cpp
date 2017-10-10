@@ -28,7 +28,7 @@ namespace NMib
 		
 		TCContinuation<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 		{
-			CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_ConfigDirectory, mp_Settings.m_AppName);
+			CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 			
 			TCContinuation<void> Continuation;
 			

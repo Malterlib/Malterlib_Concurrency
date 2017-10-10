@@ -157,11 +157,6 @@ namespace NMib::NConcurrency
 		NPrivate::fg_DistributedActorSubSystem();
 	}
 	
-	NStr::CStr &fg_DistributedActorSuggestedEnclave()
-	{
-		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_SuggestedEnclave;
-	}
-
 	CCallingHostInfo const &CActorDistributionManager::fs_GetCallingHostInfo()
 	{
 		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;

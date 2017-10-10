@@ -4,13 +4,12 @@
 #include <Mib/Core/Core>
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
-#include <Mib/Cryptography/UUID>
-#include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Network/Socket>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
+#include "Malterlib_Concurrency_DistributedApp_Private.h"
 
 namespace NMib::NConcurrency
 {
@@ -22,139 +21,36 @@ namespace NMib::NConcurrency
 	using namespace NNet;
 	using namespace NDataProcessing;
 
-	namespace
+	namespace NPrivate
 	{
-		CUniversallyUniqueIdentifier g_HostnameRootUUID("8ED61926-AC8A-4793-92C5-DE05547999E7", EUniversallyUniqueIdentifierFormat_Bare);
+		CSubSystem_Concurrency_DistributedApp::CSubSystem_Concurrency_DistributedApp()
+		{
+			fg_DistributedActorSubSystem();
+		}
+
+		CSubSystem_Concurrency_DistributedApp::~CSubSystem_Concurrency_DistributedApp()
+		{
+		}
+
+		TCSubSystem<CSubSystem_Concurrency_DistributedApp, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedApp = {DAggregateInit};
+
+		CSubSystem_Concurrency_DistributedApp &fg_DistributedAppSubSystem()
+		{
+			return *g_MalterlibSubSystem_Concurrency_DistributedApp;
+		}
 	}
 
-	CDistributedAppActor_Settings::CDistributedAppActor_Settings
-		(
-			NStr::CStr const &_AppName
-			, bool _bRequireListen
-			, NStr::CStr const &_ConfigDirectory
-			, bool _bSeparateConcurrencyManager
-			, NNet::CSSLKeySetting _KeySetting
-			, NStr::CStr const &_FriendlyName
-			, NStr::CStr const &_Enclave
-			, EDistributedAppUpdateType _UpdateType
-			, NStr::CStr const &_AuditCategory
-		)
-		: m_AppName(_AppName)
-		, m_bRequireListen(_bRequireListen)
-		, m_ConfigDirectory(_ConfigDirectory)
-		, m_bSeparateConcurrencyManager(_bSeparateConcurrencyManager)
-		, m_KeySetting(_KeySetting)
-		, m_FriendlyName(_FriendlyName)
-		, m_Enclave(_Enclave)
-		, m_UpdateType(_UpdateType)
-		, m_AuditCategory(_AuditCategory)
+	CDistributedAppThreadLocal &fg_DistributedAppThreadLocal()
 	{
-		if (m_AuditCategory.f_IsEmpty())
-			m_AuditCategory = _AppName;
-#ifndef DPlatformFamily_Windows
-		// A longer app name and enclave results in a unix socket name becoming too long 
-		DMibRequire
-			(
-				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true, m_Enclave).f_GetLen()
-				<= aint(NSys::NNet::fg_GetMaxUnixSocketNameLength())
-			)
-		;
-#else
-		if (!CFile::fs_GetDrive(m_ConfigDirectory).f_IsEmpty())
-			m_ConfigDirectory = m_ConfigDirectory.f_Replace(CFile::fs_GetDrive(m_ConfigDirectory), CFile::fs_GetDrive(m_ConfigDirectory).f_LowerCase());
-#endif
-	}
-
-	NStr::CStr CDistributedAppActor_Settings::fp_GetLocalSocketPath(CStr const &_Prefix, bool _bEnclaveSpecific, CStr const &_Enclave) const
-	{
-		if (!m_Enclave.f_IsEmpty() && _bEnclaveSpecific)
-			return fg_Format("{}/{}.{}.socket", _Prefix, m_AppName, _Enclave);
-		else
-			return fg_Format("{}/{}.socket", _Prefix, m_AppName);
-	}
-
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
-	{
-		mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
-		if (fp_GetLocalSocketPath(m_ConfigDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(m_ConfigDirectory, _bEnclaveSpecific, _Enclave);
-		
-		CStr ConfigHash = fg_GetHashedUuidString(m_ConfigDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
-		CStr TempDir = CFile::fs_GetTemporaryDirectory();
-		CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
-		if (fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength))
-			return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
-		
-		Prefix = fg_Format("/tmp/{}", ConfigHash);
-		DMibCheck(fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength));
-		return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
-	}
-	
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketWildcard(bool _bEnclaveSpecific) const
-	{
-		return f_GetLocalSocketFileName(_bEnclaveSpecific, "*");
-	}
-	
-	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
-	{
-		return fg_Format("UNIX(777):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ConfigDirectory(CStr const &_ConfigDirectory) &&
-	{
-		m_ConfigDirectory = _ConfigDirectory;
-		return fg_Move(*this);
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_SeparateConcurrencyManager(bool _bSeparateConcurrencyManager) &&
-	{
-		m_bSeparateConcurrencyManager = _bSeparateConcurrencyManager;
-		return fg_Move(*this);
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&
-	{
-		m_KeySetting = _KeySetting;
-		return fg_Move(*this);
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_FriendlyName(CStr const &_FriendlyName) &&
-	{
-		m_FriendlyName = _FriendlyName;
-		return fg_Move(*this);
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_Enclave(CStr const &_Enclave) &&
-	{
-		m_Enclave = _Enclave;
-		return fg_Move(*this);
-	}
-
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_AuditCategory(NStr::CStr const &_Category) &&
-	{
-		m_AuditCategory = _Category;
-		return fg_Move(*this);
-	}
-	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_UpdateType(EDistributedAppUpdateType _UpdateType) &&
-	{
-		m_UpdateType = _UpdateType;
-		return fg_Move(*this);
-	}
-	
-	NStr::CStr CDistributedAppActor_Settings::f_GetCompositeFriendlyName() const
-	{
-		CStr FriendlyName = m_FriendlyName;
-		if (FriendlyName.f_IsEmpty())
-			FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName()); 
-		return fg_Format("{}/{}", FriendlyName, m_AppName);
+		return *(*NPrivate::g_MalterlibSubSystem_Concurrency_DistributedApp).m_ThreadLocal;
 	}
 
 	CDistributedAppState::~CDistributedAppState() = default;
 	
 	CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
-		: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
-		, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_ConfigDirectory, _Settings.m_AppName))
+		: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_RootDirectory, _Settings.m_AppName))
+		, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_RootDirectory, _Settings.m_AppName))
+		, m_RootDirectory(_Settings.m_RootDirectory)
 	{
 	}
 	
@@ -170,7 +66,7 @@ namespace NMib::NConcurrency
 	{
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
 		fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
-		fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_ConfigDirectory + "/Log");
+		fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_RootDirectory + "/Log");
 	}
 	
 	CDistributedAppActor::~CDistributedAppActor()
@@ -494,7 +390,7 @@ namespace NMib::NConcurrency
 					fManagerFactor
 				;
 				
-				if (mp_Settings.m_bSeparateConcurrencyManager)
+				if (mp_Settings.m_bSeparateDistributionManager)
 				{
 					fManagerFactor = [](CActorDistributionManagerInitSettings const &_Settings)
 						{
@@ -537,7 +433,7 @@ namespace NMib::NConcurrency
 							{
 								if (mp_State.m_bStoppingApp)
 								{
-									if (mp_Settings.m_bSeparateConcurrencyManager)
+									if (mp_Settings.m_bSeparateDistributionManager)
 									{
 										_DistributionManager->f_Destroy() > [Continuation](TCAsyncResult<void> &&)
 											{
@@ -586,7 +482,7 @@ namespace NMib::NConcurrency
 			mp_FileOperationsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Distributed app file access"));
 			mp_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
 				(
-					mp_Settings.m_ConfigDirectory + fg_Format("/TrustDatabase.{}", mp_Settings.m_AppName)
+					mp_Settings.m_RootDirectory + fg_Format("/TrustDatabase.{}", mp_Settings.m_AppName)
 				)
 			;
 
@@ -695,7 +591,7 @@ namespace NMib::NConcurrency
 	TCContinuation<void> CDistributedAppActor::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
-		if (mp_Settings.m_bSeparateConcurrencyManager && mp_State.m_DistributionManager)
+		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
 			mp_State.m_DistributionManager->f_Destroy() > Destroys.f_AddResult();
 		if (mp_State.m_TrustManager)
 			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
@@ -758,7 +654,7 @@ namespace NMib::NConcurrency
 		try
 		{
 			{
-				auto &SuggestedEnclave = fg_DistributedActorSuggestedEnclave();
+				auto &SuggestedEnclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave;
 				auto OldEnclave = SuggestedEnclave;
 				SuggestedEnclave = NCryptography::fg_RandomID();
 				auto Cleanup = g_OnScopeExit > [&]

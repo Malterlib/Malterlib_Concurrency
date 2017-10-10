@@ -8,6 +8,8 @@
 #include <Mib/Concurrency/ActorCallOnce>
 #include <Mib/Concurrency/DistributedAppInterface>
 
+#include "Malterlib_Concurrency_DistributedApp_SettingsProperties.h"
+#include "Malterlib_Concurrency_DistributedApp_ThreadLocal.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLineClient.h"
 #include "Malterlib_Concurrency_DistributedApp_Settings.h"
@@ -17,7 +19,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppActor;
 	struct CDistributedAppInterfaceClient;
-	
+
 	struct CDistributedAppState
 	{
 		NEncoding::CSimpleJSONDatabase m_StateDatabase;
@@ -30,6 +32,7 @@ namespace NMib::NConcurrency
 		TCWeakActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_HostID;
 		NStr::CStr m_CommandLineHostID;
+		NStr::CStr m_RootDirectory;
 		bool m_bStoppingApp = false;
 
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;

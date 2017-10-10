@@ -263,18 +263,13 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
-		CStr ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
-		CStr RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
-		CStr Options = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerOptions");
-		
-		while (!Options.f_IsEmpty())
-		{
-			CStr Option = fg_GetStrSep(Options, ";");
-			if (Option == "DelegateTrust")
-				mp_bDelegateTrustToAppInterface = true;
-		}
-		
-		if (ServerAddress.f_IsEmpty() || RequestTicketMagic.f_IsEmpty())
+
+		CStr ServerAddress = mp_Settings.m_InterfaceSettings.m_ServerAddress;
+		CStr RequestTicketMagic = mp_Settings.m_InterfaceSettings.m_RequestTicketMagic;
+		auto pRequestTicket = mp_Settings.m_InterfaceSettings.m_pRequestTicket;
+		mp_bDelegateTrustToAppInterface = (mp_Settings.m_InterfaceSettings.m_Options & CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface) != CDistributedAppActor_InterfaceSettings::EOption_None;
+
+		if (ServerAddress.f_IsEmpty() || (RequestTicketMagic.f_IsEmpty() && pRequestTicket.f_IsEmpty()))
 			return fp_SubscribeAppServerInterface(_Params);
 
 		TCContinuation<void> Continuation;
@@ -323,10 +318,20 @@ namespace NMib::NConcurrency
 
 						if (_bHasExpected)
 							return fSaveAndSubscribe();
+
+						TCContinuation<CDistributedActorTrustManager::CTrustTicket> RequestTicketContinuation;
+						if (pRequestTicket)
+						{
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket with provided functor");
+							RequestTicketContinuation = (*pRequestTicket)();
+						}
+						else
+						{
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket from parent process");
+							RequestTicketContinuation = CDistributedAppActor::fp_GetTicketThroughStdIn(RequestTicketMagic);
+						}
 						
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket from parent process");
-						self(&CDistributedAppActor::fp_GetTicketThroughStdIn, RequestTicketMagic)
-							.f_Timeout(60.0, "Timed out getting trust ticket through stdin") 
+						RequestTicketContinuation.f_Dispatch().f_Timeout(60.0, "Timed out getting trust ticket through stdin")
 							> Continuation % "Failed to get ticket through stdin" / [=](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 							{
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Got trust ticket, adding client connection");

@@ -2,7 +2,6 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ActorSubscription>
-#include <Mib/Process/ProcessLaunch>
 
 #include "Malterlib_Concurrency_DistributedApp_TestHelpers.h"
 
@@ -11,6 +10,7 @@ namespace NMib::NConcurrency
 	void CDistributedApp_LaunchInfo::f_Abort()
 	{
 		m_Launch.f_Clear();
+		m_InProcess.f_Clear();
 		if (m_pClientInterface)
 			m_pClientInterface->f_Clear();
 		m_pClientInterface.f_Clear();
@@ -20,6 +20,16 @@ namespace NMib::NConcurrency
 		if (!m_Continuation.f_IsSet())
 			m_Continuation.f_SetException(DMibErrorInstance("Aborted"));
 	}
+
+	TCContinuation<void> CDistributedApp_LaunchInfo::f_Destroy()
+	{
+		if (m_InProcess)
+			return m_InProcess->f_Destroy();
+		else if (m_Launch)
+			return m_Launch->f_Destroy();
+		return fg_Explicit();
+	}
+
 	
 	CDistributedApp_LaunchInfo::CDistributedApp_LaunchInfo() = default;
 	CDistributedApp_LaunchInfo::~CDistributedApp_LaunchInfo() = default;
@@ -67,7 +77,7 @@ namespace NMib::NConcurrency
 		TCActorResultVector<void> Destroys;
 		for (auto &Launch : m_Launches)
 		{
-			Launch.m_Launch->f_Destroy() > Destroys.f_AddResult();
+			Launch.f_Destroy() > Destroys.f_AddResult();
 			Launch.f_Abort();
 		}
 
@@ -77,7 +87,41 @@ namespace NMib::NConcurrency
 		Destroys.f_GetResults() > Continuation.f_ReceiveAny();
 		return Continuation;
 	}
-	
+
+	TCContinuation<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
+	{
+		NStr::CStr LaunchID = NCryptography::fg_RandomID();
+		auto &LaunchInfo = m_Launches[LaunchID];
+		auto Continuation = LaunchInfo.m_Continuation;
+		LaunchInfo.m_LaunchID = LaunchID;
+		LaunchInfo.m_InProcess = fg_ConstructActor<CDistributedAppInProcessActor>
+			(
+				m_Dependencies.m_Address
+				, m_Dependencies.m_TrustManager
+				, g_ActorFunctor
+				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>
+				{
+					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
+					DMibCheck(pLaunch);
+					pLaunch->m_HostID = _HostID;
+					return fg_Explicit();
+				}
+				, _Description
+				, true
+			)
+		;
+
+		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory)) > Continuation / [this, LaunchID]()
+			{
+				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
+				if (!pLaunch)
+					return;
+			}
+		;
+
+		return Continuation;
+	}
+
 	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable)
 		-> TCContinuation<CDistributedApp_LaunchInfo>
 	{

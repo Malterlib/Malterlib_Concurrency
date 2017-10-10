@@ -26,7 +26,6 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			CCallingHostInfo m_CallingHostInfo;
 			CDistributedActorData *m_pCurrentRemoteDispatchActorData = nullptr;
-			NStr::CStr m_SuggestedEnclave;
 		};
 		
 		NThread::TCThreadLocal<CThreadLocal> m_ThreadLocal;

@@ -320,6 +320,19 @@ namespace NMib::NConcurrency
 		return pHost->f_FindEqual(_Permission) != nullptr;
 	}
 	
+	bool CTrustedPermissionSubscription::f_HostHasWildcardPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const
+	{
+		auto pHost = mp_Permissions.f_FindEqual(_Host);
+		if (!pHost)
+			return false;
+		for (auto &Wildcard : *pHost)
+		{
+			if (NStr::fg_StrMatchWildcard(_Permission.f_GetStr(), Wildcard.f_GetStr()) == NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+				return true;
+		}
+		return pHost->f_FindEqual(_Permission) != nullptr;
+	}
+	
 	bool CTrustedPermissionSubscription::f_HostHasAnyPermission(NStr::CStr const &_Host, NContainer::TCVector<NStr::CStr> const &_Permissions) const
 	{
 		for (auto &Permission : _Permissions)

@@ -138,7 +138,7 @@ namespace NMib::NConcurrency
 	
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketHostname(bool _bEnclaveSpecific) const
 	{
-		return fg_Format("UNIX(777):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
+		return fg_Format("UNIX(666):{}", f_GetLocalSocketFileName(_bEnclaveSpecific, m_Enclave));
 	}
 	
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RootDirectory(CStr const &_RootDirectory) &&

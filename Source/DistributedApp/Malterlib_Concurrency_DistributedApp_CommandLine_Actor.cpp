@@ -21,11 +21,16 @@ namespace NMib
 		{
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::CCommandLine::f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+		TCContinuation<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
+			(
+				 NStr::CStr const &_Command
+				 , NEncoding::CEJSON const &_Params
+				 , CCommandLineControl &&_CommandLine
+			)
 		{
-			return mp_Actor(&CDistributedAppActor::f_RunCommandLine, fg_GetCallingHostInfo(), _Command, _Params);
+			return mp_Actor(&CDistributedAppActor::f_RunCommandLine, fg_GetCallingHostInfo(), _Command, _Params, NPtr::TCSharedPointer<CCommandLineControl>{fg_Construct(fg_Move(_CommandLine))});
 		}
-		
+
 		TCContinuation<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 		{
 			CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);

@@ -53,11 +53,9 @@ namespace
 							}
 						}
 					}
-					, [](NEncoding::CEJSON const &_Params) -> TCContinuation<CDistributedAppCommandLineResults>
+					, [](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
-						CDistributedAppCommandLineResults Results;
-						Results.m_Status = _Params["Integer"].f_Integer(); 
-						return fg_Explicit(Results);
+						return fg_Explicit(_Params["Integer"].f_Integer());
 					}
 				)
 			;

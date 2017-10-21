@@ -58,7 +58,8 @@ namespace NMib::NConcurrency
 		{
 			CCommandLine(TCWeakActor<CDistributedAppActor> const &_Actor);
 			
-			TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override;
+			TCContinuation<uint32> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, CCommandLineControl &&_CommandLine) override;
+
 		private:
 			TCWeakActor<CDistributedAppActor> mp_Actor; 
 		};
@@ -71,37 +72,58 @@ namespace NMib::NConcurrency
 		
 		TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 
 
-		TCContinuation<CDistributedAppCommandLineResults> f_RunCommandLine(CCallingHostInfo const &_CallingHost, NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCContinuation<uint32> f_RunCommandLine
+			(
+				 CCallingHostInfo const &_CallingHost
+				 , NStr::CStr const &_Command
+				 , NEncoding::CEJSON const &_Params
+				 , NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			)
+		;
 
 		uint32 f_CommandLine_RemoveAllTrust(bool _bConfirm);
 		
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddConnection(NStr::CStr const &_Ticket, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency); 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GenerateTrustTicket(NStr::CStr const &_ForListen);
+		TCContinuation<uint32> f_CommandLine_AddConnection
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_Ticket
+				 , bool _bIncludeFriendlyHostName
+				 , int32 _ConnectionConcurrency
+			)
+		;
+		TCContinuation<uint32> f_CommandLine_GenerateTrustTicket(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_ForListen);
 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListTrustedHosts(bool _bIncludeFriendlyHostName);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveTrustedHost(NStr::CStr const &_HostID);
+		TCContinuation<uint32> f_CommandLine_ListTrustedHosts(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
+		TCContinuation<uint32> f_CommandLine_RemoveTrustedHost(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID);
 		
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GetHostID();
+		TCContinuation<uint32> f_CommandLine_GetHostID(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_GetConnetionStatus();
+		TCContinuation<uint32> f_CommandLine_GetConnetionStatus(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListConnections(bool _bIncludeFriendlyHostName);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveConnection(NStr::CStr const &_URL);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_SetConnectionConcurrency(NStr::CStr const &_URL, int32 _ConnectionConcurrency);
+		TCContinuation<uint32> f_CommandLine_ListConnections(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
+		TCContinuation<uint32> f_CommandLine_RemoveConnection(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_AddAdditionalConnection
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_URL
+				 , bool _bIncludeFriendlyHostName
+				 , int32 _ConnectionConcurrency
+			)
+		;
+		TCContinuation<uint32> f_CommandLine_SetConnectionConcurrency(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL, int32 _ConnectionConcurrency);
 		 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddListen(NStr::CStr const &_URL); 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveListen(NStr::CStr const &_URL); 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_SetPrimaryListen(NStr::CStr const &_URL);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListListen();
+		TCContinuation<uint32> f_CommandLine_AddListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_RemoveListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_SetPrimaryListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_ListListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_TrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_UntrustHostForNamespace(NStr::CStr const &_Namespace, NStr::CStr const &_Host); 
+		TCContinuation<uint32> f_CommandLine_ListNamespaces(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts);
+		TCContinuation<uint32> f_CommandLine_TrustHostForNamespace(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_Namespace, NStr::CStr const &_Host);
+		TCContinuation<uint32> f_CommandLine_UntrustHostForNamespace(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_Namespace, NStr::CStr const &_Host);
 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_ListHostPermissions(bool _bIncludeHosts);
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_AddHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
-		TCContinuation<CDistributedAppCommandLineResults> f_CommandLine_RemoveHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission); 
+		TCContinuation<uint32> f_CommandLine_ListHostPermissions(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts);
+		TCContinuation<uint32> f_CommandLine_AddHostPermission(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID, NStr::CStr const &_Permission);
+		TCContinuation<uint32> f_CommandLine_RemoveHostPermission(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID, NStr::CStr const &_Permission);
 		
 		
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
@@ -112,7 +134,7 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCContinuation<void> fp_StopApp() = 0;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine); 
-		virtual TCContinuation<CDistributedAppCommandLineResults> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		virtual TCContinuation<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
 		virtual TCContinuation<void> fp_PreUpdate();
@@ -150,10 +172,10 @@ namespace NMib::NConcurrency
 		TCContinuation<void> fp_SetupCommandLineListen();
 		TCContinuation<void> fp_SetupCommandLineTrust();
 		
-		TCContinuation<CDistributedAppCommandLineResults> fp_RunCommandLineAndLogError
+		TCContinuation<uint32> fp_RunCommandLineAndLogError
 			(
 				NStr::CStr const &_Description
-				, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> ()> &&_fCommand
+				, NFunction::TCFunction<TCContinuation<uint32> ()> &&_fCommand
 			)
 		;
 		

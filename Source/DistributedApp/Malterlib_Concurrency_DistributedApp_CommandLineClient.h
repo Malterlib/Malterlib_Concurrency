@@ -27,7 +27,7 @@ namespace NMib
 			;
 			
 			void f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> const &_fLazyStartApp);
-			
+
 			CDistributedAppCommandLineClient
 				(
 					CDistributedAppActor_Settings const &_Settings

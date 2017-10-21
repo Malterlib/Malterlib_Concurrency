@@ -22,60 +22,117 @@ namespace NMib
 			DMibPublishActorFunction(ICCommandLine::f_RunCommandLine);
 		}
 
-		CDistributedAppCommandLineResults::COutput::COutput() = default;
-		
-		CDistributedAppCommandLineResults::COutput::COutput(NStr::CStr const &_Output, EOutputType _OutputType)
-			: m_OutputType(_OutputType)
-			, m_Output(_Output)
+		ICCommandLineControl::ICCommandLineControl()
 		{
+			DMibPublishActorFunction(ICCommandLineControl::f_RegisterForStdIn);
+			DMibPublishActorFunction(ICCommandLineControl::f_ReadLine);
+			DMibPublishActorFunction(ICCommandLineControl::f_ReadPrompt);
+			DMibPublishActorFunction(ICCommandLineControl::f_AbortReads);
+			DMibPublishActorFunction(ICCommandLineControl::f_StdOut);
+			DMibPublishActorFunction(ICCommandLineControl::f_StdErr);
 		}
 
-		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults() = default;
+		ICCommandLineControl::~ICCommandLineControl() = default;
 
-		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults(CAsyncResult const &_Result)
+		NConcurrency::TCContinuation<void> CCommandLineControl::f_StdOut(NStr::CStrSecure const &_Output) const
 		{
-			f_AddAsyncResult(_Result);
+			if (!m_ControlActor)
+				return fg_Explicit();
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOut, _Output);
 		}
-		
-		CDistributedAppCommandLineResults::CDistributedAppCommandLineResults(NStr::CStr const &_Output, EOutputType _OutputType)
-		{
-			m_Output.f_Insert(fg_Construct(_Output, _OutputType));
-		}																			 
 
-		void CDistributedAppCommandLineResults::f_AddAsyncResult(CAsyncResult const &_Result)
+		NConcurrency::TCContinuation<void> CCommandLineControl::f_StdErr(NStr::CStrSecure const &_Output) const
+		{
+			if (!m_ControlActor)
+				return fg_Explicit();
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdErr, _Output);
+		}
+
+		auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
+			-> NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>>
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdIn, fg_Move(_fOnInput), _Flags);
+		}
+
+		NConcurrency::TCContinuation<NStr::CStrSecure> CCommandLineControl::f_ReadLine() const
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadLine);
+		}
+
+		NConcurrency::TCContinuation<NStr::CStrSecure> CCommandLineControl::f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadPrompt, _Params);
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::f_AbortReads() const
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_AbortReads);
+		}
+
+		uint32 CCommandLineControl::f_AddAsyncResult(CAsyncResult const &_Result) const
 		{
 			if (!_Result)
 			{
-				f_AddStdErr(fg_Format("{}\n", _Result.f_GetExceptionStr()));
-				m_Status = 1;
+				f_StdErr(fg_Format<CStrSecure>("{}\n", _Result.f_GetExceptionStr()));
+				return 1;
 			}
-		}
-		
-		void CDistributedAppCommandLineResults::f_AddStdOut(CStr const &_Output)
-		{
-			m_Output.f_Insert(fg_Construct(_Output, EOutputType_StdOut));
-		}
-		
-		void CDistributedAppCommandLineResults::f_AddStdErr(CStr const &_Output)
-		{
-			m_Output.f_Insert(fg_Construct(_Output, EOutputType_StdErr));
-		}
-		
-		void CDistributedAppCommandLineResults::f_SetExitStatus(uint32 _Status)
-		{
-			m_Status = _Status;
+			return 0;
 		}
 
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::fp_PreRunCommandLine(CStr const &_Command, NEncoding::CEJSON const &_Params)
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator +=(NStr::CStrSecure const &_StdOut) const
 		{
-			return fg_Explicit(CDistributedAppCommandLineResults());
+			return f_StdOut(_StdOut);
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator %=(NStr::CStrSecure const &_StdErr) const
+		{
+			return f_StdErr(_StdErr);
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator +=(NStr::CStr::CFormat const &_StdOut) const
+		{
+			return f_StdOut(CStr{_StdOut});
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator %=(NStr::CStr::CFormat const &_StdErr) const
+		{
+			return f_StdErr(CStr{_StdErr});
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator +=(NStr::CStrSecure::CFormat const &_StdOut) const
+		{
+			return f_StdOut(_StdOut);
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator %=(NStr::CStrSecure::CFormat const &_StdErr) const
+		{
+			return f_StdErr(_StdErr);
+		}
+
+		TCContinuation<void> CDistributedAppActor::fp_PreRunCommandLine
+			(
+				 CStr const &_Command
+				 , NEncoding::CEJSON const &_Params
+				 , NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			)
+		{
+			return fg_Explicit();
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_RunCommandLine
+		TCContinuation<uint32> CDistributedAppActor::f_RunCommandLine
 			(
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
 				, NEncoding::CEJSON const &_Params
+				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		{
 			if (!fp_HasCommandLineAccess(_CallingHost.f_GetRealHostID()))
@@ -99,8 +156,8 @@ namespace NMib
 			
 			CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 		
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
-			fp_PreRunCommandLine(_Command, ValidatedParams) > Continuation / [this, Continuation, ValidatedParams, _Command, _CallingHost](CDistributedAppCommandLineResults &&_PreResults)
+			TCContinuation<uint32> Continuation;
+			fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=]()
 				{
 					auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
 					
@@ -121,14 +178,7 @@ namespace NMib
 					try
 					{
 						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-						Command.m_fActorRunCommand(ValidatedParams) > Continuation / [_PreResults, Continuation](CDistributedAppCommandLineResults &&_Results)
-							{
-								auto FinalResults = _PreResults;
-								FinalResults.m_Status = _Results.m_Status;
-								FinalResults.m_Output.f_Insert(fg_Move(_Results.m_Output));
-								Continuation.f_SetResult(fg_Move(FinalResults));
-							}
-						;
+						Command.m_fActorRunCommand(ValidatedParams, _pCommandLine) > Continuation;
 					}
 					catch (NException::CException const &_Exception)
 					{
@@ -140,8 +190,8 @@ namespace NMib
 			
 			return Continuation;
 		}
-		
-		static bool fg_ValidateConnectionConcurrency(int32 _Concurrency, TCContinuation<CDistributedAppCommandLineResults> &o_Continuation)
+
+		static bool fg_ValidateConnectionConcurrency(int32 _Concurrency, TCContinuation<uint32> &o_Continuation)
 		{
 			if (_Concurrency == -1 || (_Concurrency >= 1 && _Concurrency <= 128))
 				return true;
@@ -150,8 +200,14 @@ namespace NMib
 			return false;
 		}
 		
-		auto CDistributedAppActor::f_CommandLine_AddConnection(NStr::CStr const &_Ticket, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency)
-			-> TCContinuation<CDistributedAppCommandLineResults> 
+		auto CDistributedAppActor::f_CommandLine_AddConnection
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_Ticket
+				 , bool _bIncludeFriendlyHostName
+				 , int32 _ConnectionConcurrency
+			)
+			-> TCContinuation<uint32>
 		{
 			CDistributedActorTrustManager::CTrustTicket Ticket;
 			try
@@ -163,25 +219,26 @@ namespace NMib
 				return DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr()));
 			}
 			
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			
 			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
 				return Continuation;
 			
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency)
-				> Continuation / [Continuation, _bIncludeFriendlyHostName](CHostInfo &&_HostInfo)
+				> Continuation / [=](CHostInfo &&_HostInfo)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", _HostInfo.f_GetDesc());
 					if (_bIncludeFriendlyHostName)
-						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.f_GetDesc()));
+						*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
 					else
-						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.m_HostID));
+						*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_GenerateTrustTicket(CStr const &_ForListen)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_ForListen)
 		{
 			CDistributedActorTrustManager_Address ForListen;
 			if (_ForListen.f_IsEmpty())
@@ -193,69 +250,73 @@ namespace NMib
 			else
 				ForListen.m_URL = _ForListen;
 				
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ForListen, nullptr) 
-				> Continuation / [Continuation](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
+				> Continuation / [=](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", _Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
-					Continuation.f_SetResult(fg_Format("{}\n", _Ticket.m_Ticket.f_ToStringTicket()));
+					*_pCommandLine += CStrSecure::CFormat("{}\n") << _Ticket.m_Ticket.f_ToStringTicket();
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_GetHostID()
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetHostID(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID) 
-				> Continuation / [Continuation](CStr &&_HostID)
+				> Continuation / [=](CStr &&_HostID)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported host id '{}' to command line", _HostID);
-					Continuation.f_SetResult(fg_Format("{}\n", _HostID));
+					*_pCommandLine += "{}\n"_f << _HostID;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListTrustedHosts(bool _bIncludeFriendlyHostName)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListTrustedHosts(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClients)
-				> Continuation / [Continuation, _bIncludeFriendlyHostName](NContainer::TCMap<NStr::CStr, CHostInfo> &&_TrustedHosts)
+				> Continuation / [=](NContainer::TCMap<NStr::CStr, CHostInfo> &&_TrustedHosts)
 				{
 					CStr Result;
 					for (auto &Host : _TrustedHosts)
 					{
 						if (_bIncludeFriendlyHostName)
-							Result += fg_Format("{}\n", Host.f_GetDesc());
+							Result += "{}\n"_f << Host.f_GetDesc();
 						else
-							Result += fg_Format("{}\n", Host.m_HostID);
+							Result += "{}\n"_f <<  Host.m_HostID;
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported trusted hosts to command line");
-					Continuation.f_SetResult(Result);
+
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(NStr::CStr const &_HostID)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID)
 				> Continuation / [Continuation, _HostID]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove trusted host '{}' from command line", _HostID);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_GetConnetionStatus()
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetConnetionStatus(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetConnectionState)
-				> Continuation / [Continuation](CDistributedActorTrustManager::CConnectionState &&_ConnectionState)
+				> Continuation / [=](CDistributedActorTrustManager::CConnectionState &&_ConnectionState)
 				{
 					mint LongestAddress = fg_StrLen("URL");
 					mint LongestHostInfo = fg_StrLen("Host");
@@ -269,21 +330,17 @@ namespace NMib
 							AddressState[State.f_GetAddress()] = State;
 						}
 					}
-					CStr Result;
 					auto fOutputLine = [&](CStr const &_URL, CStr const &_Connected, CStr const &_HostInfo, CStr const &_Concurrency, auto const &_ErrorTime, CStr const &_Error)
 						{
-							Result += fg_Format
-								(
-									"{sj*,a-}     {sj*,a-}     {sj9,a-}     {sj11,a-}     {sj23,a-}     {a-}\n"
-									, _URL
-									, LongestAddress
-									, _HostInfo
-									, LongestHostInfo
-									, _Connected
-									, _Concurrency
-									, _ErrorTime
-									, _Error
-								)
+							*_pCommandLine += "{sj*,a-}     {sj*,a-}     {sj9,a-}     {sj11,a-}     {sj23,a-}     {a-}\n"_f
+								<< _URL
+								<< LongestAddress
+								<< _HostInfo
+								<< LongestHostInfo
+								<< _Connected
+								<< _Concurrency
+								<< _ErrorTime
+								<< _Error
 							;
 						}
 					;
@@ -327,17 +384,17 @@ namespace NMib
 						}
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connection status to command line");
-					Continuation.f_SetResult(Result);
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		 
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListConnections(bool _bIncludeFriendlyHostName)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListConnections(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections)
-				> Continuation / [Continuation, _bIncludeFriendlyHostName]
+				> Continuation / [=]
 				(NContainer::TCMap<CDistributedActorTrustManager_Address, CDistributedActorTrustManager::CClientConnectionInfo> &&_ClientConnections)
 				{
 					CStr Result;
@@ -351,34 +408,40 @@ namespace NMib
 						else
 							HostInfo = ConnectionInfo.m_HostInfo.m_HostID;
 
-						Result += fg_Format("{}     {}     {}\n", Address.m_URL.f_Encode(), HostInfo, ConnectionInfo.m_ConnectionConcurrency);
+						*_pCommandLine += "{}     {}     {}\n"_f << Address.m_URL.f_Encode() << HostInfo << ConnectionInfo.m_ConnectionConcurrency;
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connections to command line");
-					Continuation.f_SetResult(Result);
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_RemoveConnection(NStr::CStr const &_URL)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveConnection(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, Address)
 				> Continuation / [Continuation, _URL]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove connection '{}' from command line", _URL);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection(NStr::CStr const &_URL, bool _bIncludeFriendlyHostName, int32 _ConnectionConcurrency)
-			-> TCContinuation<CDistributedAppCommandLineResults> 
+		auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_URL
+				 , bool _bIncludeFriendlyHostName
+				 , int32 _ConnectionConcurrency
+			)
+			-> TCContinuation<uint32>
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			
 			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
 				return Continuation;
@@ -386,21 +449,27 @@ namespace NMib
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, Address, _ConnectionConcurrency)
-				> Continuation / [Continuation, _bIncludeFriendlyHostName](CHostInfo &&_HostInfo)
+				> Continuation / [=](CHostInfo &&_HostInfo)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add additional connection to host '{}' from command line", _HostInfo.f_GetDesc());
 					if (_bIncludeFriendlyHostName)
-						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.f_GetDesc()));
+						*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
 					else
-						Continuation.f_SetResult(fg_Format("{}\n", _HostInfo.m_HostID));
+						*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency(NStr::CStr const &_URL, int32 _ConnectionConcurrency)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_URL
+				 , int32 _ConnectionConcurrency
+			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			
 			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
 				return Continuation;
@@ -421,7 +490,7 @@ namespace NMib
 							, Address.m_URL.f_Encode()
 						)
 					;
-					Continuation.f_SetResult(CDistributedAppCommandLineResults());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
@@ -487,9 +556,9 @@ namespace NMib
 				}
 			}
 		}
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_AddListen(NStr::CStr const &_URL)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, Address) 
@@ -510,7 +579,7 @@ namespace NMib
 							}
 							else
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Add listen '{}' saved to database from command line", _URL);
-							Continuation.f_SetResult(CStr());
+							Continuation.f_SetResult(0);
 						}
 					;
 				}
@@ -518,9 +587,9 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_RemoveListen(NStr::CStr const &_URL)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, Address) 
@@ -541,7 +610,7 @@ namespace NMib
 							}
 							else
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove listen '{}' saved to database from command line", _URL);
-							Continuation.f_SetResult(CStr());
+							Continuation.f_SetResult(0);
 						}
 					;
 				}
@@ -549,9 +618,9 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_SetPrimaryListen(NStr::CStr const &_URL)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			CDistributedActorTrustManager_Address Address;
 			Address.m_URL = _URL;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, Address) 
@@ -572,7 +641,7 @@ namespace NMib
 						{
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Set primary listen '{}' from command line", EncodedURL);
 							mp_PrimaryListen = Address;
-							Continuation.f_SetResult(CStr());
+							Continuation.f_SetResult(0);
 						}
 					;
 				}
@@ -580,138 +649,152 @@ namespace NMib
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListListen()
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens)
-				> Continuation / [Continuation](NContainer::TCSet<CDistributedActorTrustManager_Address> &&_Listens)
+				> Continuation / [=](NContainer::TCSet<CDistributedActorTrustManager_Address> &&_Listens)
 				{
 					CStr Result;
 					for (auto &Listen : _Listens)
-						Result += fg_Format("{}\n", Listen.m_URL.f_Encode());
+						Result += "{}\n"_f << Listen.m_URL.f_Encode();
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");
-					Continuation.f_SetResult(Result);
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListNamespaces(bool _bIncludeTrustedHosts)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeTrustedHosts)
-				> Continuation / [Continuation, _bIncludeTrustedHosts](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
+				> Continuation / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
 				{
 					CStr Result;
 					for (auto &Permissions : _Namespaces)
 					{
 						auto &Namespace = _Namespaces.fs_GetKey(Permissions);
-						Result += fg_Format("{}\n", Namespace);
+						Result += "{}\n"_f << Namespace;
 						if (_bIncludeTrustedHosts)
 						{
 							Result += "    Trusted\n";
 							for (auto &Host : Permissions.m_AllowedHosts)
-								Result += fg_Format("        {}\n", Host.f_GetDesc());
+								Result += "        {}\n"_f << Host.f_GetDesc();
 							Result += "    Untrusted\n";
 							for (auto &Host : Permissions.m_DisallowedHosts)
-								Result += fg_Format("        {}\n", Host.f_GetDesc());
+								Result += "        {}\n"_f << Host.f_GetDesc();
 						}
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported namespaces to command line");
-					Continuation.f_SetResult(Result);
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
 			(
-				NStr::CStr const &_Namespace
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Namespace
 				, NStr::CStr const &_Host
 			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Hosts;
 			Hosts[_Host];
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, Hosts)
 				> Continuation / [Continuation, _Namespace, _Host]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Trusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
 			(
-				NStr::CStr const &_Namespace
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Namespace
 				, NStr::CStr const &_Host
 			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Hosts;
 			Hosts[_Host];
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, Hosts)
 				> Continuation / [Continuation, _Namespace, _Host]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Untrusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 
 
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_ListHostPermissions(bool _bIncludeHosts)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListHostPermissions(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, _bIncludeHosts)
-				> Continuation / [Continuation, _bIncludeHosts](NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> &&_Permissions)
+				> Continuation / [=](NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> &&_Permissions)
 				{
 					CStr Result;
 					for (auto &Permission : _Permissions)
 					{
 						auto &PermissionName = _Permissions.fs_GetKey(Permission);
-						Result += fg_Format("{}\n", PermissionName);
+						Result += "{}\n"_f << PermissionName;
 						if (_bIncludeHosts)
 						{
 							for (auto &Host : Permission)
-								Result += fg_Format("    {}\n", Host.f_GetDesc());
+								Result += "    {}\n"_f << Host.f_GetDesc();
 						}
 					}
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported permissions to command line");
-					Continuation.f_SetResult(Result);
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported permissions to command line {}", Result);
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_AddHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddHostPermission
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_HostID, NStr::CStr const &_Permission
+			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Permissions;
 			Permissions[_Permission];
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, Permissions)
 				> Continuation / [Continuation, _HostID, _Permission]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permission '{}' to host '{}' from command line", _Permission, _HostID);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::f_CommandLine_RemoveHostPermission(NStr::CStr const &_HostID, NStr::CStr const &_Permission)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveHostPermission
+			(
+				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				 , NStr::CStr const &_HostID
+				 , NStr::CStr const &_Permission
+			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Permissions;
 			Permissions[_Permission];
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, Permissions)
 				> Continuation / [Continuation, _HostID, _Permission]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' from command line", _Permission, _HostID);
-					Continuation.f_SetResult(CStr());
+					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
@@ -792,13 +875,13 @@ namespace NMib
 			return 0;
 		}
 		
-		TCContinuation<CDistributedAppCommandLineResults> CDistributedAppActor::fp_RunCommandLineAndLogError
+		TCContinuation<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
 				CStr const &_Description
-				, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> ()> &&_fCommand
+				, NFunction::TCFunction<TCContinuation<uint32> ()> &&_fCommand
 			)
 		{
-			TCContinuation<CDistributedAppCommandLineResults> Continuation;
+			TCContinuation<uint32> Continuation;
 			fg_Dispatch
 				(
 					[fCommand = fg_Move(_fCommand)]
@@ -806,7 +889,7 @@ namespace NMib
 						return fCommand();
 					}
 				)
-				> [Continuation, _Description](TCAsyncResult<CDistributedAppCommandLineResults> &&_Other)
+				> [Continuation, _Description](TCAsyncResult<uint32> &&_Other)
 				{
 					if (!_Other)
 						DMibLogWithCategory(Mib/Concurrency/App, Error, "{} failed from command line: {}", _Description, _Other.f_GetExceptionStr());
@@ -881,9 +964,9 @@ namespace NMib
 								IncludeFriendlyNameOption
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListConnections(_Params["IncludeFriendlyName"].f_Boolean());
+							return f_CommandLine_ListConnections(_pCommandLine, _Params["IncludeFriendlyName"].f_Boolean());
 						}
 					)
 				;
@@ -895,9 +978,9 @@ namespace NMib
 							, "Description"_= "List the status for all outgoing connections.\n"
 							, "Output"_= "A table with the status for outgoing connections."
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_GetConnetionStatus();
+							return f_CommandLine_GetConnetionStatus(_pCommandLine);
 						}
 					)
 				;
@@ -924,16 +1007,17 @@ namespace NMib
 								, IncludeFriendlyNameOption
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Add trust connection"
-									, [this, _Params]
+									, [=]
 									{
 										return f_CommandLine_AddConnection
 											(
-												_Params["Ticket"].f_String()
+												_pCommandLine
+												, _Params["Ticket"].f_String()
 												, _Params["IncludeFriendlyName"].f_Boolean()
 												, _Params["ConnectionConcurrency"].f_Integer()
 											)
@@ -968,16 +1052,17 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Set connection concurrency"
-									, [this, _Params]
+									, [=]
 									{
 										return f_CommandLine_SetConnectionConcurrency
 											(
-												_Params["Address"].f_String()
+												_pCommandLine
+												, _Params["Address"].f_String()
 												, _Params["ConnectionConcurrency"].f_Integer()
 											)
 										;
@@ -1008,16 +1093,17 @@ namespace NMib
 								, IncludeFriendlyNameOption
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Add additional trust connection"
-									, [this, _Params]
+									, [=]
 									{
 										return f_CommandLine_AddAdditionalConnection
 											(
-												_Params["ConnectionURL"].f_String()
+												_pCommandLine
+												, _Params["ConnectionURL"].f_String()
 												, _Params["IncludeFriendlyName"].f_Boolean()
 												, _Params["ConnectionConcurrency"].f_Integer()
 											)
@@ -1043,14 +1129,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Remove trust connection"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_RemoveConnection(_Params["ConnectionURL"].f_String());
+										return f_CommandLine_RemoveConnection(_pCommandLine, _Params["ConnectionURL"].f_String());
 									}
 								)
 							;
@@ -1070,9 +1156,9 @@ namespace NMib
 								IncludeFriendlyNameOption
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListTrustedHosts(_Params["IncludeFriendlyName"].f_Boolean());
+							return f_CommandLine_ListTrustedHosts(_pCommandLine, _Params["IncludeFriendlyName"].f_Boolean());
 						}
 					)
 				;
@@ -1091,14 +1177,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Remove trusted host"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_RemoveTrustedHost(_Params["HostID"].f_String());
+										return f_CommandLine_RemoveTrustedHost(_pCommandLine, _Params["HostID"].f_String());
 									}
 								)
 							;
@@ -1127,14 +1213,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Generate trust ticket"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_GenerateTrustTicket(_Params["ForListenURL"].f_String());
+										return f_CommandLine_GenerateTrustTicket(_pCommandLine, _Params["ForListenURL"].f_String());
 									}
 								)
 							;
@@ -1150,9 +1236,9 @@ namespace NMib
 							, "Description"_= "List addresses that this application listens for incoming connections on.\n"
 							, "Output"_= "A new line separated list of listen addresses."
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListListen();
+							return f_CommandLine_ListListen(_pCommandLine);
 						}
 					)
 				;
@@ -1175,14 +1261,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Add trust listen address"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_AddListen(_Params["ListenURL"].f_String());
+										return f_CommandLine_AddListen(_pCommandLine, _Params["ListenURL"].f_String());
 									}
 								)
 							;
@@ -1205,14 +1291,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Remove listen address"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_RemoveListen(_Params["ListenURL"].f_String());
+										return f_CommandLine_RemoveListen(_pCommandLine, _Params["ListenURL"].f_String());
 									}
 								)
 							;
@@ -1236,14 +1322,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Set primary listen address"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_SetPrimaryListen(_Params["ListenURL"].f_String());
+										return f_CommandLine_SetPrimaryListen(_pCommandLine, _Params["ListenURL"].f_String());
 									}
 								)
 							;
@@ -1268,9 +1354,9 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListNamespaces(_Params["IncludeTrustedHosts"].f_Boolean());
+							return f_CommandLine_ListNamespaces(_pCommandLine, _Params["IncludeTrustedHosts"].f_Boolean());
 						}
 					)
 				;
@@ -1298,14 +1384,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Trusted host for namespace"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_TrustHostForNamespace(_Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
+										return f_CommandLine_TrustHostForNamespace(_pCommandLine, _Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
 									}
 								)
 							;
@@ -1336,14 +1422,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Untrust host for namespace"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_UntrustHostForNamespace(_Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
+										return f_CommandLine_UntrustHostForNamespace(_pCommandLine, _Params["TrustNamespace"].f_String(), _Params["TrustHost"].f_String());
 									}
 								)
 							;
@@ -1368,9 +1454,9 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListHostPermissions(_Params["IncludeHosts"].f_Boolean());
+							return f_CommandLine_ListHostPermissions(_pCommandLine, _Params["IncludeHosts"].f_Boolean());
 						}
 					)
 				;
@@ -1398,14 +1484,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Trusted host for namespace"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_AddHostPermission(_Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+										return f_CommandLine_AddHostPermission(_pCommandLine, _Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
 									}
 								)
 							;
@@ -1436,14 +1522,14 @@ namespace NMib
 								}
 							}
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
 									"Trusted host for namespace"
-									, [this, _Params]
+									, [=]
 									{
-										return f_CommandLine_RemoveHostPermission(_Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+										return f_CommandLine_RemoveHostPermission(_pCommandLine, _Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
 									}
 								)
 							;
@@ -1457,9 +1543,9 @@ namespace NMib
 							, "Description"_= "Get the host ID for this application.\n"
 							, "Output"_= "The host ID of this application."
 						}
-						, [this](CEJSON const &_Params)
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_GetHostID();
+							return f_CommandLine_GetHostID(_pCommandLine);
 						}
 					)
 				;

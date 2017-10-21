@@ -1113,7 +1113,7 @@ namespace NMib
 		auto CDistributedAppCommandLineSpecification::CSection::f_RegisterCommand
 			(
 				NEncoding::CEJSON const &_CommandDescription
-				, NFunction::TCFunction<TCContinuation<CDistributedAppCommandLineResults> (NEncoding::CEJSON const &_Parameters)> const &_fRunCommand
+				, NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Parameters, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> const &_fRunCommand
 				, bool _bRunLocalApp
 			)
 			-> CCommand

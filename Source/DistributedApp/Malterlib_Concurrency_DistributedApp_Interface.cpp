@@ -221,17 +221,17 @@ namespace NMib::NConcurrency
 				, g_ActorFunctor > 
 				[
 					=
-					, Buffer = CStr{}
+					, Buffer = CStrSecure{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]
-				(EStdInReaderOutputType _Type, const NStr::CStr &_Input) mutable -> TCContinuation<void>
+				(EStdInReaderOutputType _Type, const NStr::CStrSecure &_Input) mutable -> TCContinuation<void>
 				{
 					if (_Type != EStdInReaderOutputType_StdIn)
 						return fg_Explicit();
 					Buffer += _Input;
 					while (Buffer.f_FindChar('\n') >= 0)
 					{
-						CStr Line = fg_GetStrLineSep(Buffer);
+						CStrSecure Line = fg_GetStrLineSep(Buffer);
 						if (Line.f_StartsWith(RequestMagicPrefix))
 						{
 							try

@@ -10,6 +10,8 @@ DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::CDistributedActorStrea
 
 namespace NMib::NConcurrency
 {
+	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(1);
+
 	template <uint32 t_SubscriptionID = 0>
 	struct TCActorSubscriptionWithID : public CActorSubscription
 	{
@@ -60,7 +62,7 @@ namespace NMib::NConcurrency
 	
 	template <typename t_CInterface>
 	using TCDistributedActorInterface = TCActorInterface<TCDistributedActorWrapper<t_CInterface>>;
-	
+
 	template <typename t_CInterface, uint32 t_SubscriptionID = 0>
 	struct TCDistributedActorInterfaceWithID : public TCDistributedActorInterface<t_CInterface>
 	{

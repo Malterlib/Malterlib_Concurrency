@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			if (m_bCallInitiator)
 			{
-				if (ActorFunctor.m_PendingSubscriptions.f_IsEmpty())
+				if (ActorFunctor.m_PendingSubscriptions.f_IsEmpty() && SequenceID != gc_SubscriptionNotRequired)
 				{
 					o_Error = "No matching subscription for actor functors or interfaces or interfaces";
 					return false; // We have registered functors/actors without a matching subscription

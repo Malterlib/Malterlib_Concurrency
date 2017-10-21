@@ -29,12 +29,12 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Consume(tf_CStream &_Stream);
 			
-			NStr::CStr f_ToStringTicket() const;
-			static CTrustTicket fs_FromStringTicket(NStr::CStr const &_StringTicket);
+			NStr::CStrSecure f_ToStringTicket() const;
+			static CTrustTicket fs_FromStringTicket(NStr::CStrSecure const &_StringTicket);
 
 			CDistributedActorTrustManager_Address m_ServerAddress;
 			NContainer::TCVector<uint8> m_ServerPublicCert;
-			NStr::CStr m_Token;
+			NStr::CStrSecure m_Token;
 		};
 		
 		struct CNamespacePermissions

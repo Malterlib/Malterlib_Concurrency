@@ -7,16 +7,16 @@
 
 namespace NMib::NConcurrency
 {
-	NStr::CStr CDistributedActorTrustManagerInterface::CTrustTicket::f_ToStringTicket() const
+	NStr::CStrSecure CDistributedActorTrustManagerInterface::CTrustTicket::f_ToStringTicket() const
 	{
-		auto Data = NStream::fg_ToByteVector(*this);
+		auto Data = NStream::fg_ToSecureByteVector(*this);
 		return NDataProcessing::fg_Base64Encode(Data);
 	}
 	
-	CDistributedActorTrustManagerInterface::CTrustTicket CDistributedActorTrustManagerInterface::CTrustTicket::fs_FromStringTicket(NStr::CStr const &_StringTicket)
+	CDistributedActorTrustManagerInterface::CTrustTicket CDistributedActorTrustManagerInterface::CTrustTicket::fs_FromStringTicket(NStr::CStrSecure const &_StringTicket)
 	{
-		NContainer::TCVector<uint8> Data;
+		NContainer::CSecureByteVector Data;
 		NDataProcessing::fg_Base64Decode(_StringTicket, Data);
-		return NStream::fg_FromByteVector<CTrustTicket>(Data);
+		return NStream::fg_FromSecureByteVector<CTrustTicket>(Data);
 	}
 }

@@ -48,8 +48,8 @@ namespace NMib::NConcurrency
 		
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		NHTTP::CURL mp_Address;
-		NStr::CStr mp_RequestTicketMagic;
-		NStr::CStr mp_RequestTicketMagicLine;
+		NStr::CStrSecure mp_RequestTicketMagic;
+		NStr::CStrSecure mp_RequestTicketMagicLine;
 		NStr::CStr mp_Description;
 		FOnUseTicket mp_fOnUseTicket;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;

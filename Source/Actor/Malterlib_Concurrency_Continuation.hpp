@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -137,6 +137,16 @@ namespace NMib::NConcurrency
 	void TCContinuation<t_CReturnValue>::f_SetException(tf_CResult &&_Result) const
 	{
 		m_pData->f_SetException(fg_Forward<tf_CResult>(_Result));
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CException, typename tf_CResult>
+	void TCContinuation<t_CReturnValue>::f_SetExceptionOrResult(tf_CException &&_Exception, tf_CResult &&_Result) const
+	{
+		if (!_Exception)
+			m_pData->f_SetException(fg_Forward<tf_CException>(_Exception));
+		else
+			m_pData->f_SetResult(fg_Forward<tf_CResult>(_Result));
 	}
 
 	template <typename t_CReturnValue>

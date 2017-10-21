@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -153,6 +153,8 @@ namespace NMib::NConcurrency
 		void f_SetResult(tf_CResult &&_Result) const;
 		template <typename tf_CResult>
 		void f_SetException(tf_CResult &&_Result) const;
+		template <typename tf_CException, typename tf_CResult>
+		void f_SetExceptionOrResult(tf_CException &&_Exception, tf_CResult &&_Result) const;
 		void f_SetCurrentException() const;
 		auto f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation>;
 		

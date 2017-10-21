@@ -5,6 +5,44 @@
 
 namespace NMib::NConcurrency
 {
+	namespace NPrivate
+	{
+		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction, typename t_CReturn = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CReturn>
+		struct TCCallToContinuation
+		{
+			template <typename tf_CClass, typename ...tfp_CParam>
+			static TCContinuation<t_CReturn> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
+			{
+				TCContinuation<t_CReturn> Return;
+				Return.f_SetResult((_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...));
+				return Return;
+			}
+		};
+
+		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction, typename t_CReturn>
+		struct TCCallToContinuation<t_CMemberFunction, t_fMemberFunction, TCContinuation<t_CReturn>>
+		{
+			template <typename tf_CClass, typename ...tfp_CParam>
+			static TCContinuation<t_CReturn> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
+			{
+				return (_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...);
+			}
+		};
+
+		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction>
+		struct TCCallToContinuation<t_CMemberFunction, t_fMemberFunction, void>
+		{
+			template <typename tf_CClass, typename ...tfp_CParam>
+			static TCContinuation<void> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
+			{
+				TCContinuation<void> Return;
+				(_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...);
+				Return.f_SetResult();
+				return Return;
+			}
+		};
+	}
+
 	template 
 	<
 		typename tf_CMemberFunction
@@ -20,6 +58,8 @@ namespace NMib::NConcurrency
 		NFunction::TCFunctionMovable<TCContinuation<CReturn> ()> ToDispatch;
 		
 		auto *pActorDataRaw = static_cast<NPrivate::CDistributedActorData *>(_Actor->f_GetDistributedActorData().f_Get());
+
+		TCActor<> DispatchActor;
 
 		do
 		{
@@ -57,20 +97,33 @@ namespace NMib::NConcurrency
 				;
 				
 				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
-				
-				ToDispatch = [_Actor, Data = Stream.f_MoveVector(), pActorData = fg_Move(pActorData), Context, Version = pActorDataRaw->m_ProtocolVersion]() mutable
+
+				TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
+
+				if (!DistributionManager)
+					DispatchActor = _Actor;
+				else
+					DispatchActor = DistributionManager;
+
+				ToDispatch =
+					[
+						 DistributionManager = fg_Move(DistributionManager)
+						 , Data = Stream.f_MoveVector()
+						 , pActorData = fg_Move(pActorData)
+						 , Context
+						 , Version = pActorDataRaw->m_ProtocolVersion
+					]
+					() mutable
 					{
 						TCContinuation<CReturn> Continuation;
-						
-						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
-						
+
 						if (!DistributionManager)
 						{
 							Continuation.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
 							return Continuation;
 						}
-
-						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(Data), Context)
+						auto *pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
+						pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context)
 							> [Continuation, Context, Version](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
 							{
 								if (!_Result)
@@ -95,13 +148,15 @@ namespace NMib::NConcurrency
 			}
 			else // When local
 			{
+				DispatchActor = _Actor;
 				ToDispatch = [_Actor, Params = NContainer::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
 						return NContainer::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
 							(
-								[&](auto &&..._Params) mutable
+								[&](auto &&..._Params) mutable -> TCContinuation<CReturn>
 								{
-									return _Actor(t_pMemberFunction, fg_Forward<decltype(_Params)>(_Params)...);
+									auto *pActor = NPrivate::fg_GetInternalActor(_Actor);
+									return NPrivate::TCCallToContinuation<tf_CMemberFunction, t_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
 								}
 								, fg_Move(Params) 
 							)
@@ -112,7 +167,7 @@ namespace NMib::NConcurrency
 		}
 		while (false)
 			;
-		return _Actor.f_CallByValue
+		return DispatchActor.f_CallByValue
 			(
 				&CActor::f_DispatchWithReturn<TCContinuation<CReturn>>
 				, fg_Move(ToDispatch)

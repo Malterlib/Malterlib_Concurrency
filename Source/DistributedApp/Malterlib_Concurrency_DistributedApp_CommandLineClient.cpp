@@ -84,6 +84,13 @@ namespace NMib::NConcurrency
 		private:
 			TCActor<NProcess::CStdInActor> m_InputActor;
 
+			TCContinuation<void> fp_Destroy() override
+			{
+				if (!m_InputActor)
+					return fg_Explicit();
+				return m_InputActor->f_Destroy();
+			}
+
 			void fp_CreateInputActor()
 			{
 				if (!m_InputActor)
@@ -122,7 +129,7 @@ namespace NMib::NConcurrency
 			CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
 			CommandLineControl.m_CommandLineHeight = ConsoleProperties.m_Height;
 
-			return DMibCallActor
+			aint Status = DMibCallActor
 				(
 					 CommandLineActor
 					 , ICCommandLine::f_RunCommandLine
@@ -131,6 +138,10 @@ namespace NMib::NConcurrency
 					 , fg_Move(CommandLineControl)
 				).f_CallSync()
 			;
+
+			pCommandLineControl->f_Destroy().f_CallSync();
+
+			return Status;
 		}
 		return 0;
 	}

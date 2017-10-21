@@ -32,8 +32,13 @@ namespace
 			CTestActor()
 			{
 				DMibPublishActorFunction(CTestActor::f_Test);
+				DMibPublishActorFunction(CTestActor::f_TestVoid);
 			}
-			
+
+			void f_TestVoid()
+			{
+			}
+
 			uint32 f_Test()
 			{
 				return 5;
@@ -146,6 +151,8 @@ namespace
 			CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 
 			TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
+			DMibCallActor(Actor, CTestActor::f_TestVoid).f_CallSync(60.0);
 
 			uint32 Result = DMibCallActor(Actor, CTestActor::f_Test).f_CallSync(60.0);
 			DMibExpect(Result, ==, 5);

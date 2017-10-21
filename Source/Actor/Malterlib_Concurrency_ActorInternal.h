@@ -26,6 +26,9 @@ namespace NMib
 					, tf_CResultFunctor &&_fResultFunctor
 				)
 			;
+
+			template <typename tf_CActor>
+			tf_CActor *fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
 		}
 		
 		struct CActorDistributionManagerInternal;
@@ -129,8 +132,10 @@ namespace NMib
 					, tf_CResultFunctor &&_fResultFunctor
 				)
 			;
-			
-			
+
+			template <typename tf_CActor>
+			friend tf_CActor *NPrivate::fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
+
 			friend class CActorHolder;
 			friend struct CCurrentActorScope;			
 			t_CActor *fp_GetActor() const;

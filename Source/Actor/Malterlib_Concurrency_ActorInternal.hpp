@@ -7,7 +7,15 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-		
+		namespace NPrivate
+		{
+			template <typename tf_CActor>
+			tf_CActor *fg_GetInternalActor(TCActor<tf_CActor> const &_Actor)
+			{
+				return _Actor->fp_GetActor();
+			}
+		}
+
 		template <typename t_CActor>
 		inline_always CConcurrencyManager &TCActorInternal<t_CActor>::f_ConcurrencyManager() const
 		{

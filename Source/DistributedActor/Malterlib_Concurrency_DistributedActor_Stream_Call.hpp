@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 					break;
 				}
 				
-				NPrivate::CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion, true};
+				NPrivate::CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
 				
 				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream
 					(

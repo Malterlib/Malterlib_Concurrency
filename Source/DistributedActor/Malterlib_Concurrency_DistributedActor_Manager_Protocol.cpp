@@ -76,9 +76,12 @@ namespace NMib
 						
 						Host.m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
 						Host.m_AllowedNamespaces = Identify.m_AllowedNamespaces;
-						if (Host.m_ActorProtocolVersion)
+
+						uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+
+						if (!bShouldReset && HostActorProtocolVersion)
 						{
-							if (Identify.m_ProtocolVersion != Host.m_ActorProtocolVersion)
+							if (Identify.m_ProtocolVersion != HostActorProtocolVersion)
 							{
 								DMibLog
 									(
@@ -87,7 +90,7 @@ namespace NMib
 										, _pConnection->m_pHost->m_bIncoming
 										, _pConnection->f_GetConnectionID()
 										, Identify.m_ProtocolVersion
-										, Host.m_ActorProtocolVersion
+										, HostActorProtocolVersion
 									);
 								if (!_pConnection->m_IdentifyContinuation.f_IsSet())
 									_pConnection->m_IdentifyContinuation.f_SetException(DMibErrorInstance("Inconsistent protocol version"));
@@ -95,7 +98,20 @@ namespace NMib
 							}
 						}
 						else
+						{
+							DMibLog
+								(
+									DebugVerbose1
+									, " ---- {} {} Reset actor protocol version {} -> {}"
+									, _pConnection->m_pHost->m_bIncoming
+									, _pConnection->f_GetConnectionID()
+									, HostActorProtocolVersion
+									, Identify.m_ProtocolVersion
+								)
+							;
+
 							Host.m_ActorProtocolVersion = Identify.m_ProtocolVersion;
+						}
 						
 						if (!Identify.m_FriendlyName.f_IsEmpty() && Identify.m_FriendlyName != Host.m_FriendlyName)
 						{

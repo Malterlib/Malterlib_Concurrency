@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 						Stream << pActorDataRaw->m_ProtocolVersion;
 						Stream << _FunctionID;
 						
-						CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion, true};
+						CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
 						
 						TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, pActorDataRaw->m_ProtocolVersion, fg_Forward<tp_CParams>(p_Params)...);
 						

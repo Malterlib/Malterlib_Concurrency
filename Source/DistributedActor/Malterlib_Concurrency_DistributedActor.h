@@ -46,7 +46,7 @@ namespace NMib
 			{
 				virtual ~ICHost();
 
-				uint32 m_ActorProtocolVersion = 0;
+				NAtomic::TCAtomic<uint32> m_ActorProtocolVersion = 0;
 				bool m_bDeleted = false;
 			};
 			

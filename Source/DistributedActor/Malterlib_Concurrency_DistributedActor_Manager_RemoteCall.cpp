@@ -223,7 +223,7 @@ namespace NMib::NConcurrency
 			Continuation.f_SetException(DMibErrorInstance("Remote actor longer available"));
 			return Continuation;
 		}
-		
+
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 		
 		if (!pHostInterface || pHostInterface->m_bDeleted)
@@ -233,6 +233,12 @@ namespace NMib::NConcurrency
 		}
 
 		auto pHost = reinterpret_cast<NPtr::TCSharedPointer<NActorDistributionManagerInternal::CHost, NPtr::CSupportWeakTag> &>(pHostInterface);
+
+		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
+		{
+			Continuation.f_SetException(DMibErrorInstance("Remote host restarted with new actor protocol"));
+			return Continuation;
+		}
 
 		State.m_pHost = pHost;
 		State.m_DistributionManager = fg_ThisActor(this);
@@ -261,8 +267,9 @@ namespace NMib::NConcurrency
 	{
 		CDistributedActorCommand_RemoteCallResult RemoteCallResult;
 		auto &Host = *_pConnection->m_pHost;
-		DMibFastCheck(Host.m_ActorProtocolVersion != 0);
-		DMibBinaryStreamVersion(_Stream, Host.m_ActorProtocolVersion);
+		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
+		DMibFastCheck(ProtocolVersion != 0);
+		DMibBinaryStreamVersion(_Stream, ProtocolVersion);
 		_Stream >> RemoteCallResult;
 		
 		auto pCall = Host.m_OutstandingCalls.f_FindEqual(RemoteCallResult.m_ReplyToPacketID);
@@ -320,11 +327,11 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
+		auto &State = *_Context.m_pState;
 		auto &Host = *_pHost;
-		if (Host.m_bDeleted)
+		if (Host.m_bDeleted || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 		
-		auto &State = *_Context.m_pState;
 		CDistributedActorCommand_RemoteCallResult Result;
  		Result.m_ReplyToPacketID = _PacketID;
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
@@ -337,8 +344,9 @@ namespace NMib::NConcurrency
 		}
 		
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-		DMibFastCheck(Host.m_ActorProtocolVersion != 0);
-		DMibBinaryStreamVersion(Stream, Host.m_ActorProtocolVersion);
+		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
+		DMibFastCheck(ProtocolVersion != 0);
+		DMibBinaryStreamVersion(Stream, ProtocolVersion);
 		Stream << Result;
 		Stream.f_FeedBytes(_Data.f_GetArray(), _Data.f_GetLen());
 		
@@ -382,7 +390,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		auto &Host = *pHost;
 
-		NPrivate::CDistributedActorStreamContext Context{Host.m_ActorProtocolVersion, false};
+		NPrivate::CDistributedActorStreamContext Context{Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed), false};
 		auto &ContextState = *Context.m_pState;
 		ContextState.m_pHost = pHost;
 		ContextState.m_DistributionManager = fg_ThisActor(m_pThis);
@@ -612,7 +620,7 @@ namespace NMib::NConcurrency
 		}
 		for (auto &Subscription : _State.m_Subscriptions)
 		{
-			if (_pSubscriptionData && _Host.m_ActorProtocolVersion >= 0x104 && Claimed.f_BinarySearch(Subscription.m_SubscriptionID) < 0)
+			if (_pSubscriptionData && _Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed) >= 0x104 && Claimed.f_BinarySearch(Subscription.m_SubscriptionID) < 0)
 				continue;
 			auto &PublishedSubscription = _Host.m_ImplicitlyPublishedSubscriptions[Subscription.m_SubscriptionID];
 			PublishedSubscription.m_Subscription = fg_Move(Subscription.m_Subscription);
@@ -685,8 +693,10 @@ namespace NMib::NConcurrency
 		DMibCheck(pSubscription);
 		if (!pSubscription)
 			return fg_Explicit();
-		
-		if (Host.m_ActorProtocolVersion >= 0x105)
+
+		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+
+		if (HostActorProtocolVersion >= 0x105)
 		{
 			auto pPendingDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(_SubscriptionID);
 			if (pPendingDestroy)
@@ -709,7 +719,7 @@ namespace NMib::NConcurrency
 		Stream << Result;
 		Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
 
-		if (Host.m_ActorProtocolVersion < 0x105)
+		if (HostActorProtocolVersion < 0x105)
 			return fg_Explicit();
 		
 		return Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID];
@@ -741,7 +751,7 @@ namespace NMib::NConcurrency
 
 		CDistributedActorCommand_DestroySubscription DestroySubscription;
 		_Stream >> DestroySubscription;
-		if (Host.m_ActorProtocolVersion >= 0x105)
+		if (Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed) >= 0x105)
 		{
 			auto *pSubscription = Host.m_ImplicitlyPublishedSubscriptions.f_FindEqual(DestroySubscription.m_SubscriptionID);
 			

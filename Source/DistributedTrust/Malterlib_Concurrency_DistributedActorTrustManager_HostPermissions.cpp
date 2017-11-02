@@ -57,7 +57,12 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions)
+	TCContinuation<void> CDistributedActorTrustManager::f_AddHostPermissions
+		(
+			 NStr::CStr const &_HostID
+			 , NContainer::TCSet<NStr::CStr> const &_Permissions
+			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
+		)
 	{
 		if (!CActorDistributionManager::fs_IsValidHostID(_HostID))
 			return DMibErrorInstance("Invalid host id");
@@ -73,7 +78,9 @@ namespace NMib::NConcurrency
 		}
 		if (PermissionsAdded.f_IsEmpty())
 			return fg_Explicit();
-		
+
+		TCActorResultVector<void> SubscriptionResults;
+
 		for (auto &Subscription : Internal.m_HostPermissionsSubscriptions)
 		{
 			auto const &Wildcard = Internal.m_HostPermissionsSubscriptions.fs_GetKey(Subscription);
@@ -91,22 +98,41 @@ namespace NMib::NConcurrency
 				continue;
 
 			for (auto &pSubscription : Subscription.m_Subscriptions)
-				pSubscription->f_AddPermissions(_HostID, FilteredPermissions);
+				pSubscription->f_AddPermissions(_HostID, FilteredPermissions) > SubscriptionResults.f_AddResult();
 		}
 
-		TCContinuation<void> Continuation;
+		TCContinuation<void> SaveDatabaseContinuation;
 		if (HostPermissions.m_bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetHostPermissions, _HostID, HostPermissions.m_HostPermissions) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetHostPermissions, _HostID, HostPermissions.m_HostPermissions) > SaveDatabaseContinuation;
 		else
 		{
 			HostPermissions.m_bExistsInDatabase = true;
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddHostPermissions, _HostID, HostPermissions.m_HostPermissions) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddHostPermissions, _HostID, HostPermissions.m_HostPermissions) > SaveDatabaseContinuation;
 		}
-		
-		return Continuation;			
+
+		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
+		{
+			TCContinuation<void> Continuation;
+			SaveDatabaseContinuation.f_Dispatch() + SubscriptionResults.f_GetResults()
+				> Continuation / [Continuation](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
+				{
+					Continuation.f_SetResult();
+				}
+			;
+			return Continuation;
+		}
+
+		SubscriptionResults.f_GetResults() > fg_DiscardResult();
+
+		return SaveDatabaseContinuation;
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions)
+	TCContinuation<void> CDistributedActorTrustManager::f_RemoveHostPermissions
+		(
+			 NStr::CStr const &_HostID
+			 , NContainer::TCSet<NStr::CStr> const &_Permissions
+			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
+		)
 	{
 		if (!CActorDistributionManager::fs_IsValidHostID(_HostID))
 			return DMibErrorInstance("Invalid host id");
@@ -126,6 +152,8 @@ namespace NMib::NConcurrency
 		if (PermissionsRemoved.f_IsEmpty())
 			return fg_Explicit();
 
+		TCActorResultVector<void> SubscriptionResults;
+
 		for (auto &Subscription : Internal.m_HostPermissionsSubscriptions)
 		{
 			auto const &Wildcard = Internal.m_HostPermissionsSubscriptions.fs_GetKey(Subscription);
@@ -143,22 +171,48 @@ namespace NMib::NConcurrency
 				continue;
 
 			for (auto &pSubscription : Subscription.m_Subscriptions)
-				pSubscription->f_RemovePermissions(_HostID, FilteredPermissions);
+				pSubscription->f_RemovePermissions(_HostID, FilteredPermissions) > SubscriptionResults.f_AddResult();
 		}
 		
-		if (!HostPermissions.m_HostPermissions.m_Permissions.f_IsEmpty())
-			return fg_Explicit();
-		
-		bool bExistsInDatabase = HostPermissions.m_bExistsInDatabase;
-		HostPermissions.m_bExistsInDatabase = false;
-		Internal.m_HostPermissions.f_Remove(_HostID);
-		
-		if (!bExistsInDatabase)
-			return fg_Explicit();
-		
-		TCContinuation<void> Continuation;
-		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveHostPermissions, _HostID) > Continuation;
-		return Continuation;			
+		TCContinuation<void> SaveDatabaseContinuation;
+
+		if (HostPermissions.m_HostPermissions.m_Permissions.f_IsEmpty())
+		{
+			if (HostPermissions.m_bExistsInDatabase)
+			{
+				HostPermissions.m_bExistsInDatabase = false;
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveHostPermissions, _HostID) > SaveDatabaseContinuation;
+			}
+			else
+				SaveDatabaseContinuation.f_SetResult();
+			Internal.m_HostPermissions.f_Remove(_HostID);
+		}
+		else
+		{
+			if (HostPermissions.m_bExistsInDatabase)
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetHostPermissions, _HostID, HostPermissions.m_HostPermissions) > SaveDatabaseContinuation;
+			else
+			{
+				HostPermissions.m_bExistsInDatabase = true;
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddHostPermissions, _HostID, HostPermissions.m_HostPermissions) > SaveDatabaseContinuation;
+			}
+		}
+
+		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
+		{
+			TCContinuation<void> Continuation;
+			SaveDatabaseContinuation.f_Dispatch() + SubscriptionResults.f_GetResults()
+				> Continuation / [Continuation](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
+				{
+					Continuation.f_SetResult();
+				}
+			;
+			return Continuation;
+		}
+
+		SubscriptionResults.f_GetResults() > fg_DiscardResult();
+
+		return SaveDatabaseContinuation;
 	}
 	
 	TCContinuation<void> CDistributedActorTrustManager::f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions)
@@ -177,6 +231,9 @@ namespace NMib::NConcurrency
 
 	TCContinuation<CTrustedPermissionSubscription> CDistributedActorTrustManager::f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor)
 	{
+		if (!_Actor)
+			return DMibErrorInstance("Invalid destination actor");
+		
 		NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
@@ -208,9 +265,10 @@ namespace NMib::NConcurrency
 		CTrustedPermissionSubscriptionState::~CTrustedPermissionSubscriptionState()
 		{
 		}
-		void CTrustedPermissionSubscriptionState::f_AddPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)
+
+		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_AddPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)
 		{
-			fg_Dispatch
+			return fg_Dispatch
 				(
 					m_DispatchActor
 					, [this, _HostID, _PermissionsAdded, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
@@ -230,13 +288,12 @@ namespace NMib::NConcurrency
 							m_fOnPermissionsAdded(_HostID, Added);
 					}
 				)
-				> fg_DiscardResult() 
 			;
 		}
 		
-		void CTrustedPermissionSubscriptionState::f_RemovePermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)
+		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_RemovePermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)
 		{
-			fg_Dispatch
+			return fg_Dispatch
 				(
 					m_DispatchActor
 					, [this, _HostID, _PermissionsRemoved, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
@@ -261,7 +318,6 @@ namespace NMib::NConcurrency
 							m_fOnPermissionsRemoved(_HostID, Removed);
 					}
 				)
-				> fg_DiscardResult() 
 			;
 		}
 	}
@@ -297,7 +353,6 @@ namespace NMib::NConcurrency
 		if (TrustManager)
 			TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeToPermissions, mp_pState) > fg_DiscardResult();
 		State.m_pSubscription = nullptr;
-		State.m_DispatchActor.f_Clear();
 		State.m_fOnPermissionsAdded.f_Clear();
 		State.m_fOnPermissionsRemoved.f_Clear();
 		mp_pState = nullptr;
@@ -402,6 +457,8 @@ namespace NMib::NConcurrency
 	
 	void CDistributedActorTrustManager::fp_UnsubscribeToPermissions(NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
 	{
+		_pState->m_DispatchActor.f_Clear();
+
 		auto &Internal = *mp_pInternal;
 		
 		for (auto &Wildcard : _pState->m_Wildcards)

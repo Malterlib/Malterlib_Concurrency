@@ -29,6 +29,7 @@ namespace NMib::NConcurrency
 	aint CDistributedAppCommandLineClient::f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine)
 	{
 		auto &Internal = *mp_pInternal;
+		NException::CDisableExceptionTraceScope DisableTrace;
 		auto ParsedCommandLine = Internal.m_pCommandLineSpecification->f_ParseCommandLine(_CommandLine);
 		return f_RunCommand(ParsedCommandLine.m_Command, ParsedCommandLine.m_Params);
 	}

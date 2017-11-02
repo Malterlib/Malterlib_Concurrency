@@ -411,22 +411,24 @@ namespace NMib
 		
 		void CActorHolder::fp_Destroy(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 		{
-			for (auto &OnTerminate : mp_OnTerminate)
-				OnTerminate.m_fOnTerminate();
-			mp_OnTerminate.f_Clear();
-			
 			auto OnExit
 				= fg_OnScopeExit
 				(
 					[this, fOnDestroyed = fg_Move(_fOnDestroyed)]() mutable
 					{
+						while (auto pOnTerminate = mp_OnTerminate.f_FindAny())
+						{
+							pOnTerminate->m_fOnTerminate();
+							mp_OnTerminate.f_Remove(pOnTerminate);
+						}
+
 						if (!mp_pActor)
 						{
 							if (fOnDestroyed)
 								fOnDestroyed();
 							return;
 						}
-						
+
 						mp_pActor.f_Clear();
 						mp_bDestroyed.f_Exchange(2);
 						TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
@@ -437,6 +439,7 @@ namespace NMib
 								fOnDestroyed();
 							return;
 						}
+
 						// Dispatch to our queue again, otherwise we ourselves could be in callstack
 						mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
 							(
@@ -608,7 +611,7 @@ namespace NMib
 				(
 					[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo]
 					{
-						pDelegateTo->mp_OnTerminate.f_Remove(*pOnTerminateEntry);
+						pDelegateTo->mp_OnTerminate.f_TryRemovePointerBasedComparison(pOnTerminateEntry);
 					}
 				)
 			;

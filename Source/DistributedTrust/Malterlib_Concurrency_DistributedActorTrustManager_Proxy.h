@@ -98,13 +98,13 @@ namespace NMib::NConcurrency
 		TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) override;
-		TCContinuation<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts) override;
-		TCContinuation<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts) override;
+		TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
+		TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) override;
-		TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions) override;
-		TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions) override;
-		
+		TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) override;
+		TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) override;
+
 	private:
 		NException::CException fp_AccessDenied() const;
 		bool fp_CheckPermissions(EPermission _Permissions) const;

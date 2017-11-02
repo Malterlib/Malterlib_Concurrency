@@ -16,17 +16,31 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	class TCActor;
 
+	template <typename t_CActor>
+	class TCWeakActor;
+
 	template <typename t_CReturnValue>
 	struct TCContinuation;
 		
 	template <typename t_CReturn>
-	using TCDispatchedActorCall = 
+	using TCDispatchedActorCall =
 		TCActorCall
 		<
 			TCActor<CActor>
 			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
 			, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>> 
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+		>
+	;
+
+	template <typename t_CReturn>
+	using TCDispatchedWeakActorCall =
+		TCActorCall
+		<
+			TCWeakActor<CActor>
+			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
+			, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 		>
 	;
 }

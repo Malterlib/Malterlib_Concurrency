@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <exception>
@@ -37,6 +37,19 @@ namespace NMib::NConcurrency
 		catch (NException::CException const& _Exception)
 		{
 			return _Exception.f_GetErrorStr();
+		}
+		return NStr::CStr();
+	}
+	
+	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const
+	{
+		try
+		{
+			f_Access();
+		}
+		catch (NException::CException const& _Exception)
+		{
+			return _Exception.f_GetCallstackStr(_Indent);
 		}
 		return NStr::CStr();
 	}

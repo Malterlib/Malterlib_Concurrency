@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		;
 		~CDistributedAppInProcessActor();
 
-		TCContinuation<void> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
+		TCContinuation<NStr::CStr> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
 	private:
 		TCContinuation<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();

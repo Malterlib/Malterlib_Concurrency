@@ -705,7 +705,7 @@ namespace NMib
 			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Hosts;
 			Hosts[_Host];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, Hosts)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, Hosts, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 				> Continuation / [Continuation, _Namespace, _Host]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Trusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
@@ -725,7 +725,7 @@ namespace NMib
 			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Hosts;
 			Hosts[_Host];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, Hosts)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, Hosts, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 				> Continuation / [Continuation, _Namespace, _Host]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Untrusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
@@ -770,7 +770,7 @@ namespace NMib
 			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Permissions;
 			Permissions[_Permission];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, Permissions)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 				> Continuation / [Continuation, _HostID, _Permission]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permission '{}' to host '{}' from command line", _Permission, _HostID);
@@ -790,7 +790,7 @@ namespace NMib
 			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Permissions;
 			Permissions[_Permission];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, Permissions)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 				> Continuation / [Continuation, _HostID, _Permission]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' from command line", _Permission, _HostID);

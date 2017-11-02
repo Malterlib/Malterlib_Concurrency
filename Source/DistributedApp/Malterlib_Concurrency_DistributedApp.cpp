@@ -65,8 +65,11 @@ namespace NMib::NConcurrency
 		, mp_Settings(_Settings)
 	{
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
-		fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
-		fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_RootDirectory + "/Log");
+		if (!_Settings.m_InterfaceSettings.m_pRequestTicket)
+		{
+			fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
+			fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_RootDirectory + "/Log");
+		}
 	}
 	
 	CDistributedAppActor::~CDistributedAppActor()
@@ -470,7 +473,7 @@ namespace NMib::NConcurrency
 		return Continuation;				
 	}
 
-	TCContinuation<void> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor)
+	TCContinuation<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor)
 	{
 		if (mp_State.m_bStoppingApp)
 			return DMibErrorInstance("Startup aborted");
@@ -498,7 +501,7 @@ namespace NMib::NConcurrency
 			;
 		}				
 			
-		TCContinuation<void> Continuation;
+		TCContinuation<NStr::CStr> Continuation;
 		g_Dispatch > [this, _Params]()
 			{
 				TCContinuation<void> Continuation;
@@ -540,7 +543,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished");
-				Continuation.f_SetResult();
+				Continuation.f_SetResult(mp_State.m_HostID);
 			}
 		;
 		

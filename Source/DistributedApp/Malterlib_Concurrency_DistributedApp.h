@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 		
-		TCContinuation<void> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor);
+		TCContinuation<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor);
 		TCContinuation<void> f_StopApp(); 
 		
 		TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 

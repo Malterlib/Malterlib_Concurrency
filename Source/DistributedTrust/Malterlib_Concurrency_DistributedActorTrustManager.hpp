@@ -54,7 +54,6 @@ namespace NMib::NConcurrency
 		if (TrustManager)
 			TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeTrustedActors, mp_pState) > fg_DiscardResult();
 		State.m_pSubscription = nullptr;
-		State.m_DispatchActor.f_Clear();
 		State.m_fOnNewActor.f_Clear();
 		State.m_fOnRemovedActor.f_Clear();
 		mp_pState = nullptr;
@@ -114,7 +113,9 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return DMibErrorInstance("Invalid namespace name");			
+			return DMibErrorInstance("Invalid namespace name");
+		if (!_Actor)
+			return DMibErrorInstance("Invalid destination actor");
 		NPtr::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
@@ -165,9 +166,9 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CActor>
-	void TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
+	TCDispatchedWeakActorCall<void> TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
 	{
-		fg_Dispatch
+		return fg_Dispatch
 			(
 				m_DispatchActor
 				, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
@@ -189,14 +190,13 @@ namespace NMib::NConcurrency
 					}
 				}
 			)
-			> fg_DiscardResult() 
 		;
 	}
 	
 	template <typename t_CActor>
-	void TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
+	TCDispatchedWeakActorCall<void> TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
 	{
-		fg_Dispatch
+		return fg_Dispatch
 			(
 				m_DispatchActor
 				, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
@@ -217,7 +217,6 @@ namespace NMib::NConcurrency
 					}
 				}
 			)
-			> fg_DiscardResult() 
 		;
 	}
 	

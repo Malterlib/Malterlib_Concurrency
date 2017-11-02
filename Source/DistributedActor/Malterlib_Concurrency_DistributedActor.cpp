@@ -223,7 +223,7 @@ namespace NMib::NConcurrency
 		NNet::CSSLContext::CCertificateOptions Options;
 		Options.m_KeySetting = _KeySetting;
 		Options.m_Hostnames = _HostNames;
-		Options.m_Subject = m_Subject; 
+		Options.m_CommonName = m_Subject;
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID;
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> KeyData = m_PrivateKey;
 		
 		NNet::CSSLContext::CCertificateOptions Options;
-		Options.m_Subject = m_Subject; 
+		Options.m_CommonName = m_Subject; 
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID; 

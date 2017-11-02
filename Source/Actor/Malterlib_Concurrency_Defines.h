@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -37,16 +37,27 @@ namespace NMib
 		struct TCContinuation;
 		
 		template <typename t_CReturn>
-		using TCDispatchedActorCall = 
+		using TCDispatchedActorCall =
 			TCActorCall
 			<
 				TCActor<CActor>
 				, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
 				, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
-				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>> 
+				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 			>
 		;
-		
+
+		template <typename t_CReturn>
+		using TCDispatchedWeakActorCall =
+			TCActorCall
+			<
+				TCWeakActor<CActor>
+				, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
+				, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			>
+		;
+
 		struct CInternalActorAllocator : public NMem::CAllocator_Heap
 		{
 		};

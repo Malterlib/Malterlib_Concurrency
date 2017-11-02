@@ -145,7 +145,7 @@ namespace NMib::NConcurrency
 			
 			NNet::CSSLContext::CCertificateOptions Options;
 			Options.m_KeySetting = m_KeySetting;
-			Options.m_Subject = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64); 
+			Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64); 
 			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 			Extension.m_bCritical = false; 
 			Extension.m_Value = m_BasicConfig.m_HostID;

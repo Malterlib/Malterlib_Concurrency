@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -43,6 +43,7 @@ namespace NMib::NConcurrency
 		
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
 		NStr::CStr f_GetExceptionStr() const; ///< Returns a string for the contained exception.
+		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
 		CExceptionPointer f_GetException() const; ///< Returns the contained exception as a exception pointer
 		
 		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCContinuation implementation

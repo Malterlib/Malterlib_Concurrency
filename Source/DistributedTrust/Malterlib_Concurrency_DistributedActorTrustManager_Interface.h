@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x102
+			, EProtocolVersion = 0x103
 		};
 	  
 		struct CTrustTicket
@@ -75,6 +75,26 @@ namespace NMib::NConcurrency
 			int32 m_ConnectionConcurrency = -1;
 		};
 
+		struct CChangeNamespaceHosts
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NStr::CStr m_Namespace;
+			NContainer::TCSet<NStr::CStr> m_Hosts;
+			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
+		};
+
+		struct CChangeHostPermissions
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NStr::CStr m_HostID;
+			NContainer::TCSet<NStr::CStr> m_Permissions;
+			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
+		};
+
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
@@ -113,12 +133,12 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) = 0;
-		virtual TCContinuation<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts) = 0;
-		virtual TCContinuation<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts) = 0;
+		virtual TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
+		virtual TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
 
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) = 0;
-		virtual TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions) = 0;
-		virtual TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions) = 0;
+		virtual TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) = 0;
+		virtual TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) = 0;
 	};
 }
 

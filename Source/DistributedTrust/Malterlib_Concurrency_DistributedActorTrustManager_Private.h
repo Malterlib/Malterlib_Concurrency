@@ -25,8 +25,8 @@ namespace NMib::NConcurrency::NPrivate
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual void f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
-		virtual void f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
+		virtual TCDispatchedWeakActorCall<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
+		virtual TCDispatchedWeakActorCall<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
 	};
 	
 	struct CTrustedPermissionSubscriptionState : public NPtr::TCSharedPointerIntrusiveBase<>
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
 		NContainer::TCVector<NStr::CStr> m_Wildcards;
 
-		void f_AddPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded);
-		void f_RemovePermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
+		TCDispatchedWeakActorCall<void> f_AddPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded);
+		TCDispatchedWeakActorCall<void> f_RemovePermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
 	};
 }

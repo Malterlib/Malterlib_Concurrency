@@ -70,7 +70,7 @@ namespace NMib
 										{
 											NNet::CSSLContext::CCertificateOptions Options;
 											Options.m_KeySetting = KeySetting;
-											Options.m_Subject = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
+											Options.m_CommonName = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
 											Options.m_Hostnames.f_Insert(Host);
 											auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 											Extension.m_bCritical = false; 

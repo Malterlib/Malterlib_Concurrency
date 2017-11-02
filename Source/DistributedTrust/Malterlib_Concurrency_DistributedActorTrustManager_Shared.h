@@ -7,6 +7,12 @@
 
 namespace NMib::NConcurrency
 {
+	enum EDistributedActorTrustManagerOrderingFlag
+	{
+		EDistributedActorTrustManagerOrderingFlag_None = 0
+		, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions = DMibBit(1)
+	};
+
 	struct CDistributedActorTrustManager_Address
 	{
 		template <typename tf_CStream>

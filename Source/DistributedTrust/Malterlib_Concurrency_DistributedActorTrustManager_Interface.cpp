@@ -63,7 +63,27 @@ namespace NMib::NConcurrency
 		_Stream % m_ConnectionConcurrency;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CClientConnectionInfo);
-		
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CChangeNamespaceHosts::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Namespace;
+		_Stream % m_Hosts;
+		if (_Stream.f_GetVersion() >= 0x103)
+			_Stream % m_OrderingFlags;
+	};
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CChangeNamespaceHosts);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CChangeHostPermissions::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_HostID;
+		_Stream % m_Permissions;
+		if (_Stream.f_GetVersion() >= 0x103)
+			_Stream % m_OrderingFlags;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CChangeHostPermissions);
+
 	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator == (CClientConnectionInfo const &_Right) const
 	{
 		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) == NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);

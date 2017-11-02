@@ -18,13 +18,15 @@ namespace NMib::NConcurrency
 		NHTTP::CURL m_Address;
 	};
 
-	struct CDistributedApp_LaunchInfo
+	struct CDistributedApp_LaunchInfoData
 	{
-		CDistributedApp_LaunchInfo();
-		~CDistributedApp_LaunchInfo();
-		
-		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo &&) = default;
-		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo const &_Other) = default;
+		CDistributedApp_LaunchInfoData();
+		~CDistributedApp_LaunchInfoData();
+
+		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&) = default;
+		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
+	
+		TCContinuation<void> f_Destroy();
 		
 		TCActor<CDistributedAppInterfaceLaunchActor> m_Launch;
 		NPtr::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;
@@ -35,10 +37,18 @@ namespace NMib::NConcurrency
 		NStr::CStr m_LaunchID;
 		NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
 		NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
-		TCContinuation<CDistributedApp_LaunchInfo> m_Continuation;
-		
-		void f_Abort();
+	};
+	
+	struct CDistributedApp_LaunchInfo : public CDistributedApp_LaunchInfoData
+	{
+		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfoData const &_LaunchInfo, CActorSubscription &&_Subscription);
+		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo &&_Other) = default;
+		~CDistributedApp_LaunchInfo();
+		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo const &_Other) = delete;
+
 		TCContinuation<void> f_Destroy();
+
+		CActorSubscription m_Subscription;
 	};
 	
 	struct CDistributedApp_LaunchHelper : public CActor
@@ -56,8 +66,23 @@ namespace NMib::NConcurrency
 			CDistributedApp_LaunchHelper *m_pThis = nullptr;
 		};
 		
+		struct CLaunchInfo : public CDistributedApp_LaunchInfoData
+		{
+			void f_Abort();
+			
+			TCContinuation<CDistributedApp_LaunchInfo> m_Continuation;
+		};
+		
+		struct CPendingLaunch
+		{
+			NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
+			NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
+		};
+	
 		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr);
 		~CDistributedApp_LaunchHelper();
+		
+		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
 		
 		TCContinuation<void> fp_Destroy() override;
 		TCContinuation<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
@@ -65,7 +90,9 @@ namespace NMib::NConcurrency
 		TCContinuation<CDistributedApp_LaunchInfo> f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
 		CDistributedApp_LaunchHelperDependencies m_Dependencies;
-		NContainer::TCMap<NStr::CStr, CDistributedApp_LaunchInfo> m_Launches;
+		NContainer::TCMap<NStr::CStr, CLaunchInfo> m_Launches;
+		NContainer::TCMap<NStr::CStr, CPendingLaunch> m_PendingLaunches;
+		NContainer::TCMap<NStr::CStr, TCContinuation<void>> m_PendingDestroys;
 		TCDelegatedActorInterface<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
 		bool m_bLogToStderr = false;
 	};

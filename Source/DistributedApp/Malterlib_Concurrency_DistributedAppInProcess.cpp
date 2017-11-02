@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<void> CDistributedAppInProcessActor::f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
+	TCContinuation<NStr::CStr> CDistributedAppInProcessActor::f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
 	{
 		auto &ThreadLocal = fg_DistributedAppThreadLocal();
 		auto OldSettings = ThreadLocal.m_DefaultSettings;
@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 
 		mp_DistributedApp = _fDistributedAppFactory();
 
-		TCContinuation<void> Continuation;
+		TCContinuation<NStr::CStr> Continuation;
 
 		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr) > Continuation;
 

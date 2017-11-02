@@ -7,7 +7,7 @@
 
 namespace NMib::NConcurrency
 {
-	void CDistributedApp_LaunchInfo::f_Abort()
+	void CDistributedApp_LaunchHelper::CLaunchInfo::f_Abort()
 	{
 		m_Launch.f_Clear();
 		m_InProcess.f_Clear();
@@ -21,18 +21,48 @@ namespace NMib::NConcurrency
 			m_Continuation.f_SetException(DMibErrorInstance("Aborted"));
 	}
 
+
+	TCContinuation<void> CDistributedApp_LaunchInfoData::f_Destroy()
+	{
+		TCContinuation<void> Destroy;
+		if (m_InProcess)
+			m_InProcess->f_Destroy() > Destroy;
+		else if (m_Launch)
+			m_Launch->f_Destroy() > Destroy;
+		else
+			Destroy.f_SetResult();
+
+		return Destroy;
+	}
+	
 	TCContinuation<void> CDistributedApp_LaunchInfo::f_Destroy()
 	{
-		if (m_InProcess)
-			return m_InProcess->f_Destroy();
-		else if (m_Launch)
-			return m_Launch->f_Destroy();
-		return fg_Explicit();
+		if (!m_Subscription)
+			return CDistributedApp_LaunchInfoData::f_Destroy();
+
+		TCContinuation<void> Continuation;
+		
+		auto Subscription = fg_Move(m_Subscription);
+
+		Subscription->f_Destroy() > Continuation / [Continuation, This = fg_Move(*this)]() mutable
+			{
+				This.CDistributedApp_LaunchInfoData::f_Destroy() > Continuation;
+			}
+		;
+
+		return Continuation;
 	}
 
-	
-	CDistributedApp_LaunchInfo::CDistributedApp_LaunchInfo() = default;
+
+	CDistributedApp_LaunchInfo::CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfoData const &_LaunchInfo, CActorSubscription &&_Subscription)
+		: CDistributedApp_LaunchInfoData{_LaunchInfo}
+		, m_Subscription(fg_Move(_Subscription))
+	{
+	}
+
 	CDistributedApp_LaunchInfo::~CDistributedApp_LaunchInfo() = default;
+	CDistributedApp_LaunchInfoData::CDistributedApp_LaunchInfoData() = default;
+	CDistributedApp_LaunchInfoData::~CDistributedApp_LaunchInfoData() = default;
 	
 	NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
 		(
@@ -55,12 +85,26 @@ namespace NMib::NConcurrency
 			if (_TrustInterface)
 				LaunchInfo.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 			if (!LaunchInfo.m_Continuation.f_IsSet())
-				LaunchInfo.m_Continuation.f_SetResult(LaunchInfo);
+			{
+				LaunchInfo.m_Continuation.f_SetResult
+					(
+						CDistributedApp_LaunchInfo
+						{
+							LaunchInfo
+							, pThis->fp_GetLaunchSubscription(pThis->m_Launches.fs_GetKey(LaunchInfo))
+						}
+					)
+				;
+			}
 			
 			return fg_Explicit(g_ActorSubscription > []{});
 		}
+		auto &PendingLaunch = pThis->m_PendingLaunches[HostID];
+		PendingLaunch.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
+		if (_TrustInterface)
+			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 		
-		return fg_Explicit(nullptr);
+		return fg_Explicit(g_ActorSubscription > []{});
 	}
 
 	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
@@ -80,12 +124,46 @@ namespace NMib::NConcurrency
 			Launch.f_Destroy() > Destroys.f_AddResult();
 			Launch.f_Abort();
 		}
-
-		m_AppInterfaceServer.f_Destroy() > Destroys.f_AddResult();
 		
+		for (auto &Destroy : m_PendingDestroys)
+			Destroy > Destroys.f_AddResult();
+
 		TCContinuation<void> Continuation;
-		Destroys.f_GetResults() > Continuation.f_ReceiveAny();
+		Destroys.f_GetResults() > [=](auto &&_Results)
+			{
+				m_AppInterfaceServer.f_Destroy() > Continuation;
+			}
+		;
 		return Continuation;
+	}
+	
+	CActorSubscription CDistributedApp_LaunchHelper::fp_GetLaunchSubscription(NStr::CStr const &_LaunchID)
+	{
+		return g_ActorSubscription > [this, _LaunchID]() -> TCContinuation<void>
+			{
+				auto *pLaunch = m_Launches.f_FindEqual(_LaunchID);
+				if (!pLaunch)
+				{
+					DMibLog(Info, "Launch subscription goes out of scope: {} has no launch", _LaunchID);
+					return fg_Explicit();
+				}
+				TCContinuation<void> Continuation;
+				DMibLog(Info, "Launch subscription goes out of scope: {} {}", _LaunchID, pLaunch->m_HostID);
+				pLaunch->f_Destroy() > [=, Pending = m_PendingDestroys[_LaunchID], HostID = pLaunch->m_HostID](auto &&_Result)
+					{
+						if (!_Result)
+							DMibLog(Info, "Launch subscription Destroy failed: {} {}", _LaunchID, _Result.f_GetExceptionStr());
+
+						DMibLog(Info, "Launch subscription Destroy finished: {} {}", _LaunchID, HostID);
+						Pending.f_SetResult();
+						Continuation.f_SetResult();
+						m_PendingDestroys.f_Remove(_LaunchID);
+					}
+				;
+				m_Launches.f_Remove(_LaunchID);
+				return Continuation;
+			}
+		;
 	}
 
 	TCContinuation<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
@@ -111,11 +189,31 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory)) > Continuation / [this, LaunchID]()
+		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory)) > Continuation / [this, LaunchID](NStr::CStr &&_HostID)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 				if (!pLaunch)
 					return;
+				pLaunch->m_HostID = _HostID;
+				auto pPending = m_PendingLaunches.f_FindEqual(_HostID);
+				if (!pPending)
+					return;
+				
+				pLaunch->m_pClientInterface = fg_Move(pPending->m_pClientInterface);
+				pLaunch->m_pTrustInterface = fg_Move(pPending->m_pTrustInterface);
+				if (!pLaunch->m_Continuation.f_IsSet())
+				{
+					pLaunch->m_Continuation.f_SetResult
+						(
+							CDistributedApp_LaunchInfo
+							{
+								*pLaunch
+								, fp_GetLaunchSubscription(LaunchID)
+							}
+						)
+					;
+				}
+				m_PendingLaunches.f_Remove(pPending);
 			}
 		;
 

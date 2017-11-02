@@ -682,8 +682,13 @@ namespace NMib::NConcurrency
 			;
 
 			if (pResult->m_WaitEvent.f_WaitTimeout(_Timeout))
-				DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish", fg_GetTypeName<t_CFunctor>()));
-
+			{
+				NStr::CStr CallstackStr = pResult->m_Result.f_GetExceptionCallstackStr(0);
+				if (CallstackStr)
+					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish. Call stack:\n{}", fg_GetTypeName<t_CFunctor>(), CallstackStr));
+				else
+					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish", fg_GetTypeName<t_CFunctor>()));
+			}
 			return pResult->m_Result.f_Move();
 		}
 	};

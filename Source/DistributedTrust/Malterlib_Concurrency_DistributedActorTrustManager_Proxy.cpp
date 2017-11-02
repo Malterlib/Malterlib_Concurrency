@@ -178,26 +178,26 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeHostInfo);
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AllowHostsForNamespace(CStr const &_Namespace, TCSet<CStr> const &_Hosts)
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command)
 	{
 		if (!fp_CheckPermissions(EPermission_NamespacePermissions_Add))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Namespace, mp_Permissions.m_AllowedNamespaces))
+		if (!fg_AllAllowedInSet(_Command.m_Namespace, mp_Permissions.m_AllowedNamespaces))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Hosts, mp_Permissions.m_AllowedHosts))
+		if (!fg_AllAllowedInSet(_Command.m_Hosts, mp_Permissions.m_AllowedHosts))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, _Hosts);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Command.m_Namespace, _Command.m_Hosts, _Command.m_OrderingFlags);
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManagerProxy::f_DisallowHostsForNamespace(CStr const &_Namespace, TCSet<CStr> const &_Hosts)
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command)
 	{
 		if (!fp_CheckPermissions(EPermission_NamespacePermissions_Remove))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Namespace, mp_Permissions.m_AllowedNamespaces))
+		if (!fg_AllAllowedInSet(_Command.m_Namespace, mp_Permissions.m_AllowedNamespaces))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Hosts, mp_Permissions.m_AllowedHosts))
+		if (!fg_AllAllowedInSet(_Command.m_Hosts, mp_Permissions.m_AllowedHosts))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, _Hosts);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Command.m_Namespace, _Command.m_Hosts, _Command.m_OrderingFlags);
 	}
 
 	TCContinuation<TCMap<CStr, TCMap<CStr, CHostInfo>>> CDistributedActorTrustManagerProxy::f_EnumHostPermissions(bool _bIncludeHostInfo)
@@ -207,25 +207,25 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, _bIncludeHostInfo);
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AddHostPermissions(CStr const &_HostID, TCSet<CStr> const &_Permissions)
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AddHostPermissions(CChangeHostPermissions const &_Command)
 	{
 		if (!fp_CheckPermissions(EPermission_HostPermissions_Add))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_HostID, mp_Permissions.m_AllowedHosts))
+		if (!fg_AllAllowedInSet(_Command.m_HostID, mp_Permissions.m_AllowedHosts))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Permissions, mp_Permissions.m_AllowedPermissions))
+		if (!fg_AllAllowedInSet(_Command.m_Permissions, mp_Permissions.m_AllowedPermissions))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, _Permissions);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _Command.m_HostID, _Command.m_Permissions, _Command.m_OrderingFlags);
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveHostPermissions(CStr const &_HostID, TCSet<CStr> const &_Permissions)
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveHostPermissions(CChangeHostPermissions const &_Command)
 	{
 		if (!fp_CheckPermissions(EPermission_HostPermissions_Remove))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_HostID, mp_Permissions.m_AllowedHosts))
+		if (!fg_AllAllowedInSet(_Command.m_HostID, mp_Permissions.m_AllowedHosts))
 			return fp_AccessDenied();
-		if (!fg_AllAllowedInSet(_Permissions, mp_Permissions.m_AllowedPermissions))
+		if (!fg_AllAllowedInSet(_Command.m_Permissions, mp_Permissions.m_AllowedPermissions))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, _Permissions);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _Command.m_HostID, _Command.m_Permissions, _Command.m_OrderingFlags);
 	}
 }

@@ -25,10 +25,13 @@ namespace NMib
 		ICCommandLineControl::ICCommandLineControl()
 		{
 			DMibPublishActorFunction(ICCommandLineControl::f_RegisterForStdIn);
+			DMibPublishActorFunction(ICCommandLineControl::f_RegisterForStdInBinary);
+			DMibPublishActorFunction(ICCommandLineControl::f_ReadBinary);
 			DMibPublishActorFunction(ICCommandLineControl::f_ReadLine);
 			DMibPublishActorFunction(ICCommandLineControl::f_ReadPrompt);
 			DMibPublishActorFunction(ICCommandLineControl::f_AbortReads);
 			DMibPublishActorFunction(ICCommandLineControl::f_StdOut);
+			DMibPublishActorFunction(ICCommandLineControl::f_StdOutBinary);
 			DMibPublishActorFunction(ICCommandLineControl::f_StdErr);
 		}
 
@@ -41,11 +44,26 @@ namespace NMib
 			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOut, _Output);
 		}
 
+		NConcurrency::TCContinuation<void> CCommandLineControl::f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const
+		{
+			if (!m_ControlActor)
+				return fg_Explicit();
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOutBinary, _Output);
+		}
+
 		NConcurrency::TCContinuation<void> CCommandLineControl::f_StdErr(NStr::CStrSecure const &_Output) const
 		{
 			if (!m_ControlActor)
 				return fg_Explicit();
 			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdErr, _Output);
+		}
+
+		auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, NProcess::EStdInReaderFlag _Flags) const
+			-> NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>>
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdInBinary, fg_Move(_fOnBinaryInput), _Flags);
 		}
 
 		auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
@@ -54,6 +72,13 @@ namespace NMib
 			if (!m_ControlActor)
 				return DMibErrorInstance("No control actor");
 			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdIn, fg_Move(_fOnInput), _Flags);
+		}
+
+		NConcurrency::TCContinuation<NContainer::CSecureByteVector> CCommandLineControl::f_ReadBinary() const
+		{
+			if (!m_ControlActor)
+				return DMibErrorInstance("No control actor");
+			return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadBinary);
 		}
 
 		NConcurrency::TCContinuation<NStr::CStrSecure> CCommandLineControl::f_ReadLine() const
@@ -115,6 +140,11 @@ namespace NMib
 		NConcurrency::TCContinuation<void> CCommandLineControl::operator %=(NStr::CStrSecure::CFormat const &_StdErr) const
 		{
 			return f_StdErr(_StdErr);
+		}
+
+		NConcurrency::TCContinuation<void> CCommandLineControl::operator +=(NContainer::CSecureByteVector const &_StdOut) const
+		{
+			return f_StdOutBinary(_StdOut);
 		}
 
 		TCContinuation<void> CDistributedAppActor::fp_PreRunCommandLine

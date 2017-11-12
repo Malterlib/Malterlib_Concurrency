@@ -14,26 +14,36 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EMinProtocolVersion = 0x102
+			, EProtocolVersion = 0x102
 		};
 
 		ICCommandLineControl();
 		~ICCommandLineControl();
 
 		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCContinuation<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrSecure const &_Input)>;
+		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID
+			<
+				NConcurrency::TCContinuation<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector const &_Input, NStr::CStr const &_Error)
+			>
+		;
 
 		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
+		virtual NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
+
+		virtual NConcurrency::TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() = 0;
 		virtual NConcurrency::TCContinuation<NStr::CStrSecure> f_ReadLine() = 0;
 		virtual NConcurrency::TCContinuation<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) = 0;
 		virtual NConcurrency::TCContinuation<void> f_AbortReads() = 0;
 
+		virtual NConcurrency::TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) = 0;
 		virtual NConcurrency::TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) = 0;
 		virtual NConcurrency::TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) = 0;
 	};
 
 	struct CCommandLineControl
 	{
+		NConcurrency::TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const;
 		NConcurrency::TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) const;
 		NConcurrency::TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) const;
 
@@ -43,8 +53,13 @@ namespace NMib::NConcurrency
 		NConcurrency::TCContinuation<void> operator %= (NStr::CStr::CFormat const &_StdErr) const;
 		NConcurrency::TCContinuation<void> operator += (NStr::CStrSecure::CFormat const &_StdOut) const;
 		NConcurrency::TCContinuation<void> operator %= (NStr::CStrSecure::CFormat const &_StdErr) const;
+		NConcurrency::TCContinuation<void> operator += (NContainer::CSecureByteVector const &_StdOut) const;
 
 		NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
+		NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>>
+			f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
+		;
+		NConcurrency::TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() const;
 		NConcurrency::TCContinuation<NStr::CStrSecure> f_ReadLine() const;
 		NConcurrency::TCContinuation<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const;
 		NConcurrency::TCContinuation<void> f_AbortReads() const;

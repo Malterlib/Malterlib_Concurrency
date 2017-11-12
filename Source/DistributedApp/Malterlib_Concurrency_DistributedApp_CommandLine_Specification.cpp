@@ -45,7 +45,7 @@ namespace NMib
 				}
 
 				o_bIsVector = false;
-				if (Identifier.f_FindReverse("...") == Identifier.f_GetLen() - 3)
+				if (Identifier.f_GetLen() >= 3 && Identifier.f_FindReverse("...") == Identifier.f_GetLen() - 3)
 				{
 					o_bIsVector = true;
 					Identifier = Identifier.f_Left(Identifier.f_GetLen() - 3);

@@ -38,6 +38,20 @@ namespace NMib::NConcurrency
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
+			TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+			{
+				fp_CreateInputActor();
+
+				TCContinuation<TCActorSubscriptionWithID<>> Continuation;
+				m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags) > Continuation / [=](NConcurrency::CActorSubscription &&_Subscription)
+					{
+						Continuation.f_SetResult(fg_Move(_Subscription));
+					}
+				;
+
+				return Continuation;
+			}
+
 			TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				fp_CreateInputActor();
@@ -50,6 +64,12 @@ namespace NMib::NConcurrency
 				;
 
 				return Continuation;
+			}
+
+			TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() override
+			{
+				fp_CreateInputActor();
+				return m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
 			}
 
 			TCContinuation<NStr::CStrSecure> f_ReadLine() override
@@ -73,6 +93,12 @@ namespace NMib::NConcurrency
 			TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) override
 			{
 				DMibConOutRaw(_Output);
+				return fg_Explicit();
+			}
+
+			TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
+			{
+				NSys::fg_ConsoleOutputBinary(_Output);
 				return fg_Explicit();
 			}
 

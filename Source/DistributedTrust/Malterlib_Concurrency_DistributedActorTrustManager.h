@@ -154,6 +154,7 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 			fp64 m_InitialConnectionTimeout = 5.0;
 			int32 m_DefaultConnectionConcurrency = 1;
+			bool m_bRetryOnListenFailureDuringInit = true;
 		};
 
 		CDistributedActorTrustManager

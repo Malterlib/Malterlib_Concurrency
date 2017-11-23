@@ -39,6 +39,7 @@ namespace NMib::NConcurrency
 		, m_TranslateHostnames(_Options.m_TranslateHostnames)
 		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)
 		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
+		, m_bRetryOnListenFailureDuringInit(_Options.m_bRetryOnListenFailureDuringInit)
 	{
 	}
 	

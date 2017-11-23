@@ -95,6 +95,8 @@ namespace
 				Options.m_ListenFlags = NNet::ENetFlag_None;
 				Options.m_FriendlyName = "TestServer";
 				Options.m_Enclave = _SessionID;
+				Options.m_InitialConnectionTimeout = 30.0;
+				Options.m_bRetryOnListenFailureDuringInit = false;
 
 				return fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
 			}
@@ -111,7 +113,9 @@ namespace
 				Options.m_ListenFlags = NNet::ENetFlag_None;
 				Options.m_FriendlyName = "TestClient";
 				Options.m_Enclave = _SessionID;
-				
+				Options.m_InitialConnectionTimeout = 30.0;
+				Options.m_bRetryOnListenFailureDuringInit = false;
+
 				return fg_ConstructActor<CDistributedActorTrustManager>(m_ClientDatabase, fg_Move(Options));
 			}
 			
@@ -146,14 +150,28 @@ namespace
 		{
 			CPermissionTestState(CState &_State, uint16 _Port)
 				: m_Port{_Port}
-				, m_ServerTrustManager{_State.f_CreateServerTrustManager()}
-				, m_ClientTrustManager{_State.f_CreateClientTrustManager()}
+				, m_ServerTrustManager{f_CreateServerTrustManager(_State)}
+				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager()}
 				, m_ClientHelper{f_InitClientTrustManager()}
 			{
 				m_ExpectedPermissions[m_ServerHostID]["com.malterlib/Test"];
 				m_ExpectedEnumHostPermissions["com.malterlib/Test"][m_ServerHostID] = CHostInfo(m_ServerHostID, "TestServer");
 				m_ExpectedEnumHostPermissionsNoHostInfo["com.malterlib/Test"][m_ServerHostID];
+			}
+
+			TCActor<CDistributedActorTrustManager> f_CreateServerTrustManager(CState &_State)
+			{
+				TCActor<CDistributedActorTrustManager> TrustManager = _State.f_CreateServerTrustManager();
+				TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);
+				return TrustManager;
+			}
+
+			TCActor<CDistributedActorTrustManager> f_CreateClientTrustManager(CState &_State)
+			{
+				TCActor<CDistributedActorTrustManager> TrustManager = _State.f_CreateClientTrustManager();
+				TrustManager(&CDistributedActorTrustManager::f_Initialize).f_CallSync(60.0);
+				return TrustManager;
 			}
 
 			TCActor<CDistributedActorTrustManager> f_InitServerTrustManager()

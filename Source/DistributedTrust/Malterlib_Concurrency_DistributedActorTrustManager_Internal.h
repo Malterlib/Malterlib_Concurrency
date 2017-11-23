@@ -245,6 +245,8 @@ namespace NMib
 			fp64 m_InitialConnectionTimeout = 5.0;
 			
 			int32 m_DefaultConnectionConcurrency = 1;
+
+			bool m_bRetryOnListenFailureDuringInit = true;
 		};
 	}
 }

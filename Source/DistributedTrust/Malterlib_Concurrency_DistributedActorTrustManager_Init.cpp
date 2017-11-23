@@ -410,7 +410,7 @@ namespace NMib::NConcurrency
 					ListenSettings.m_PrivateKey = pServerCert->m_PrivateKey;
 					ListenSettings.m_PublicCertificate = pServerCert->m_PublicCertificate;
 					ListenSettings.m_CACertificate = m_BasicConfig.m_CACertificate;
-					ListenSettings.m_bRetryOnListenFailure = true;
+					ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 					ListenSettings.m_ListenFlags = m_ListenFlags;
 					
 					m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults.f_AddResult(Listen); 

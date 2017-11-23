@@ -239,14 +239,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult(fg_Move(*Result));
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 				DMibError(Errors);
 		}
 
@@ -258,14 +262,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult();
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 				DMibError(Errors);
 		}
 
@@ -278,8 +286,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -287,10 +299,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(fg_Move(*Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -307,8 +322,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -316,10 +335,13 @@ namespace NMib
 					if (Result)
 						_fOnResult();
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -336,8 +358,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -345,10 +371,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(fg_Move(*Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -365,8 +394,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -374,10 +407,13 @@ namespace NMib
 					if (Result)
 						_fOnResult();
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -395,14 +431,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult(fg_Move(*Result));
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -419,14 +459,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult();
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -443,14 +487,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult(fg_Move(*Result));
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -467,14 +515,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult();
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -492,14 +544,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 				DMibError(Errors);
 		}
 
@@ -511,14 +567,18 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			for (auto &Result : _Results)
 			{
 				if (Result)
 					_fOnResult(_Results->fs_GetKey(Result));
 				else
+				{
+					bIsError = true;
 					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 				DMibError(Errors);
 		}
 
@@ -531,8 +591,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -540,10 +604,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -560,8 +627,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -569,10 +640,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(_Results->fs_GetKey(Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -589,8 +663,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -598,10 +676,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(_Results->fs_GetKey(Result), fg_Move(*Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;
@@ -618,8 +699,12 @@ namespace NMib
 			)
 		{
 			NStr::CStr Errors;
+			bool bIsError = false;
 			if (!_Results)
+			{
+				bIsError = true;
 				fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			}
 			else
 			{
 				for (auto &Result : *_Results)
@@ -627,10 +712,13 @@ namespace NMib
 					if (Result)
 						_fOnResult(_Results->fs_GetKey(Result));
 					else
+					{
+						bIsError = true;
 						fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					}
 				}
 			}
-			if (!Errors.f_IsEmpty())
+			if (bIsError)
 			{
 				_Continuation.f_SetException(DMibErrorInstance(Errors));
 				return false;

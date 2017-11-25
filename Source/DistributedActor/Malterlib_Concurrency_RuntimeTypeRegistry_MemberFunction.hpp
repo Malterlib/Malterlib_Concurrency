@@ -33,7 +33,8 @@ namespace NMib
 				: CRuntimeTypeRegistryEntry_MemberFunction
 				(
 					t_NameHash
-					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
+					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+				 	, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 				)
 			{
 			}
@@ -174,7 +175,8 @@ namespace NMib
 				: CRuntimeTypeRegistryEntry_MemberFunction
 				(
 					t_NameHash
-					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
+					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+				 	, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 				)
 			{
 			}
@@ -292,7 +294,8 @@ namespace NMib
 				: CRuntimeTypeRegistryEntry_MemberFunction
 				(
 					t_NameHash
-					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>() 
+					, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+				 	, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 				)
 			{
 			}

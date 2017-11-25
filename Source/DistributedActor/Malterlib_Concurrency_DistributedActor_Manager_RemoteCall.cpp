@@ -439,81 +439,71 @@ namespace NMib::NConcurrency
 		{
 			do
 			{
-				auto pPublishedActor = m_PublishedActors.f_FindEqual(RemoteCall.m_ActorID);
-				
-				if (!pPublishedActor)
-				{
-					auto pPublishedInterface = Host.m_ImplicitlyPublishedInterfaces.f_FindEqual(RemoteCall.m_ActorID);
-					if (pPublishedInterface)
-					{
-						Actor = pPublishedInterface->m_Actor.f_Lock();
-						if (!Actor)
-						{
-							fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Remote actor no longer exists"), Context);
-							return true;
-						}
-						
-						auto &TypeRegistry = fg_RuntimeTypeRegistry();
-						
-						auto pEntry = TypeRegistry.m_EntryByHash_MemberFunction.f_FindEqual(FunctionHash);
-						
-						if (!pEntry || pPublishedInterface->m_Hierarchy.f_BinarySearch(pEntry->m_TypeHash) < 0)
-						{
-							fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Function does not exist on remote actor"), Context);
-							return true;
-						}
+				NActorDistributionManagerInternal::CPublishedInterface *pPublishedInterface;
 
-						if (!pPublishedInterface->m_ProtocolVersions.f_ValidVersion(ProtocolVersion))
-						{
-							fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Protocol version is not valid for remote actor"), Context);
-							return true;
-						}
-						
-						fCall = [pEntry, pActor = Actor->fp_GetActor()](CDistributedActorReadStream &_Stream) mutable
-							{
-								return pEntry->f_Call
-									(
-										_Stream
-										, pActor
-									)
-								;					
-							}
-						;
-						break;
-					}
-					fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Remote actor no longer exists"), Context);
-					return true;
-				}
-				
-				if (Host.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
+				if (auto pPublishedActor = m_PublishedActors.f_FindEqual(RemoteCall.m_ActorID))
 				{
-					fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Access denied"), Context);
-					return true;
+					if (Host.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
+					{
+						fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Access denied"), Context);
+						return true;
+					}
+
+					pPublishedInterface = pPublishedActor;
 				}
-				
-				Actor = pPublishedActor->m_Actor.f_Lock();
+				else
+				{
+					pPublishedInterface = Host.m_ImplicitlyPublishedInterfaces.f_FindEqual(RemoteCall.m_ActorID);
+					if (!pPublishedInterface)
+					{
+						fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Remote actor no longer exists"), Context);
+						return true;
+					}
+				}
+
+				Actor = pPublishedInterface->m_Actor.f_Lock();
 				if (!Actor)
 				{
 					fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Remote actor no longer exists"), Context);
 					return true;
 				}
-				
+
 				auto &TypeRegistry = fg_RuntimeTypeRegistry();
-				
 				auto pEntry = TypeRegistry.m_EntryByHash_MemberFunction.f_FindEqual(FunctionHash);
 				
-				if (!pEntry || pPublishedActor->m_Hierarchy.f_BinarySearch(pEntry->m_TypeHash) < 0)
+				if (!pEntry || pPublishedInterface->m_Hierarchy.f_BinarySearch(pEntry->m_TypeHash) < 0)
 				{
 					fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Function does not exist on remote actor"), Context);
 					return true;
 				}
 				
-				if (!pPublishedActor->m_ProtocolVersions.f_ValidVersion(ProtocolVersion))
+				if (!pPublishedInterface->m_ProtocolVersions.f_ValidVersion(ProtocolVersion))
 				{
 					fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Protocol version is not valid for remote actor"), Context);
 					return true;
 				}
-				
+
+				if (ProtocolVersion < pEntry->m_LowestSupportedVersion)
+				{
+					fp_ReplyToRemoteCallWithException
+						(
+							pHost
+							, RemoteCall.m_PacketID
+							, DMibErrorInstance
+							(
+								NStr::fg_Format
+								(
+									"Tried to call function with protocol version 0x{nfh}, while the function requires protocol version 0x{nfh} or later on remote actor"
+									, pEntry->m_LowestSupportedVersion
+									, ProtocolVersion
+								)
+							)
+							, Context
+						)
+					;
+					return true;
+				}
+
 				fCall = [pEntry, pActor = Actor->fp_GetActor()](CDistributedActorReadStream &_Stream) mutable
 					{
 						return pEntry->f_Call

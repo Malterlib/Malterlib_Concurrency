@@ -24,9 +24,11 @@ namespace NMib
 			(
 				uint32 _Hash
 				, uint32 _TypeHash
+			 	, uint32 _LowestSupportedVersion
 			)
 			: m_Hash(_Hash)
 			, m_TypeHash(_TypeHash)
+			, m_LowestSupportedVersion(_LowestSupportedVersion)
 		{
 			auto &SubSystem = fg_RuntimeTypeRegistry();
 			// Check that we don't have any hash collisions

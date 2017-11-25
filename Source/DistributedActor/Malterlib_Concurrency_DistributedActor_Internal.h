@@ -157,12 +157,16 @@ namespace NMib
 				CActorSubscription m_Subscription;
 				NContainer::TCVector<TCActor<>> m_ReferencedActors;
 			};
-			
-			struct CImplicitlyPublishedInterface
+
+			struct CPublishedInterface
 			{
 				TCWeakDistributedActor<CActor> m_Actor;
 				NContainer::TCVector<uint32> m_Hierarchy;
 				CDistributedActorProtocolVersions m_ProtocolVersions;
+			};
+
+			struct CImplicitlyPublishedInterface : public CPublishedInterface
+			{
 			};
 			
 			struct CSubscriptionReferences
@@ -238,12 +242,9 @@ namespace NMib
 			
 			struct CLocalNamespace; 
 			
-			struct CPublishedActor
+			struct CPublishedActor : public CPublishedInterface
 			{
-				TCWeakDistributedActor<CActor> m_Actor;
-				NContainer::TCVector<uint32> m_Hierarchy;
 				CLocalNamespace *m_pNamespace = nullptr;
-				CDistributedActorProtocolVersions m_ProtocolVersions;
 
 				NStr::CStr const &f_GetActorID() const
 				{

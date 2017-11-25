@@ -133,8 +133,8 @@ namespace NMib
 				, tfp_CParams &&...p_Params
 			)
 		;
-		
-		template 
+
+		template
 		<
 			typename tf_CMemberFunction
 			, tf_CMemberFunction t_pMemberFunction

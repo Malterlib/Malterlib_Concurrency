@@ -65,10 +65,21 @@ namespace NMib::NConcurrency
 		{
 			if (pActorDataRaw && pActorDataRaw->m_bRemote) // Only when remote
 			{
+				if (pActorDataRaw->m_ProtocolVersion < TCLowestSupportedVersionForMemberFunction<tf_CMemberFunction, t_pMemberFunction>::mc_Value)
+				{
+					ToDispatch = []
+						{
+							TCContinuation<CReturn> Continuation;
+							Continuation.f_SetException(DMibErrorInstance("The remote is using an older protocol version not supported for this function"));
+							return Continuation;
+						}
+					;
+					break;
+				}
 				CDistributedActorWriteStream Stream;
 				Stream << uint8(0); // Dummy command
 				Stream << uint64(0); // Dummy packet ID
-				Stream << pActorDataRaw->m_ActorID;				
+				Stream << pActorDataRaw->m_ActorID;
 				Stream << t_NameHash;
 				Stream << pActorDataRaw->m_ProtocolVersion;
 				

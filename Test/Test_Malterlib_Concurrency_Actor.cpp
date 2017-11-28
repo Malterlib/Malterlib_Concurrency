@@ -240,8 +240,24 @@ namespace
 						(Actor->f_Destroy() + Actor->f_Destroy()).f_CallSync(30.0);
 					}
 				;
-				
-				DMibExpectException(fDoubleDestroy(), DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed"));
+
+				DMibTest
+					(
+					 	DMibExpr
+					 	(
+						 	fg_ThrowsException
+						 	(
+							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
+#if DMibConfig_Concurrency_DebugBlockDestroy
+							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor 'NMib::NConcurrency::CActor' called has been deleted")
+#else
+							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
+#endif
+							)
+						)
+					 	== DMibLExpr(fDoubleDestroy())
+					)
+				;
 			};
 		}
 		
@@ -369,6 +385,7 @@ namespace
 					uint32 Value = WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(60.0);
 					DMibExpect(Value, ==, 2);;
 					
+					TestActor->f_Destroy().f_CallSync();
 					TestActor.f_Clear();
 					
 					DMibExpectExceptionType(WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(60.0), NException::CException);

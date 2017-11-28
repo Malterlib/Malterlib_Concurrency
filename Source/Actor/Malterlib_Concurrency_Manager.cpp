@@ -423,13 +423,13 @@ namespace NMib
 			NTime::CClock Clock{true};
 			NTime::CClock TimerClock{true};
 
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			bool bAborted = false;
 #endif
 			{
 				// Disregard concurrent actor from destroy
 				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 				volatile static bool s_AbortLoop = false;
 #endif
 				TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
@@ -448,16 +448,16 @@ namespace NMib
 					}
 
 					NSys::fg_Thread_SmallestSleep();
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 					if (Clock.f_GetTime() > 10.0)
 					{
-						DMibDTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
+						DMibTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
 						DMibLock(m_ActorListLock);
 						for (auto &Actor : this->m_Actors)
 						{
 							if (Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0 || Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0)
 								continue;
-							DMibDTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
 
 #if DMibConfig_RefcountDebugging
 							mint iCallstack = 0;
@@ -487,7 +487,7 @@ namespace NMib
 				}
 			}
 			
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			if (bAborted)
 				return;
 #endif
@@ -637,7 +637,7 @@ namespace NMib
 			return NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor();
 		}
 		
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 		namespace NPrivate
 		{
 			CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks)

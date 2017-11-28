@@ -77,7 +77,7 @@ namespace NMib
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(pActor);
 				{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
 					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
@@ -109,7 +109,7 @@ namespace NMib
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(pActor);
 				{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 					auto &Callstack = _Local.m_Result.m_Callstacks;
 					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
@@ -137,7 +137,7 @@ namespace NMib
 				>::CType 
 			fg_CallWithAsyncResult(tf_CLocal &_Local)
 			{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 				auto &Callstack = _Local.m_Result.m_Callstacks;
 				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
@@ -157,11 +157,11 @@ namespace NMib
 						{
 							if (_Result.f_IsSet())
 							{
-		#if DMibConcurrencyDebugActorCallstacks
+		#if DMibConfig_Concurrency_DebugActorCallstacks
 								auto Callstacks = fg_Move(Local.m_Result.m_Callstacks);
 		#endif
 								Local.m_Result = fg_Move(_Result);
-		#if DMibConcurrencyDebugActorCallstacks
+		#if DMibConfig_Concurrency_DebugActorCallstacks
 								Local.m_Result.m_Callstacks = fg_Move(Callstacks);
 		#endif
 							}
@@ -180,7 +180,7 @@ namespace NMib
 			template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>
 			void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor _pResultActor, tf_CResult &&_Result)
 			{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
 				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
@@ -191,7 +191,7 @@ namespace NMib
 			template <typename tf_CResultFunctor, typename tf_CResult>
 			void fg_CallResultFunctorDirect(tf_CResultFunctor &_ResultFunctor, tf_CResult &&_Result)
 			{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 				auto &Callstack = _Result.m_Callstacks;
 				CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif

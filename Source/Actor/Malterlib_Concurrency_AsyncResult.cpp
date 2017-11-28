@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 		DMibRequire(!m_bHasBeenSet);
 		DMibRequire(!m_pException);
 		m_pException = fg_Move(_AsyncResult.m_pException);
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 		m_Callstacks = fg_Move(_AsyncResult.m_Callstacks);
 #endif
 	}
@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 		DMibRequire(!m_bHasBeenSet);
 		DMibRequire(!m_pException);
 		m_pException = _AsyncResult.m_pException;
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 		m_Callstacks = _AsyncResult.m_Callstacks;
 #endif
 	}

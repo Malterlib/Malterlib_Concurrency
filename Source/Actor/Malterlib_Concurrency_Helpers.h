@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 			using CType = t_CType;
 		};
 		
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks);
 		
 		struct CAsyncCallstacksScope

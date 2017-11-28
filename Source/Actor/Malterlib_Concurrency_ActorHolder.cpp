@@ -12,7 +12,7 @@ namespace NMib
 		{
 		}
 		
-		static constexpr mint gc_NoFixedCore = DMibBitRangeTyped(0, sizeof(mint)*8 - 3, mint);
+		static constexpr mint gc_NoFixedCore = DMibBitRangeTyped(0, sizeof(mint)*8 - 4, mint);
 
 		CActorHolder::CActorHolder
 			(
@@ -23,6 +23,7 @@ namespace NMib
 			)
 			: mp_pConcurrencyManager(_pConcurrencyManager)
 			, mp_bImmediateDelete(_bImmediateDelete)
+			, mp_bSelfReferenced(false)
 			, mp_Priority(_Priority)
 			, mp_iFixedCore(gc_NoFixedCore)
 			, mp_pDistributedActorData(fg_Move(_pDistributedActorData))
@@ -31,7 +32,7 @@ namespace NMib
 		
 		CActorHolder::~CActorHolder()
 		{
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			DMibLock(mp_pConcurrencyManager->m_ActorListLock);
 			m_ActorLink.f_Unlink();
 #endif
@@ -65,9 +66,11 @@ namespace NMib
 			{
 				
 				f_RefCountIncrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
+				mp_bSelfReferenced = true;
 				// Handle exception in construct
 				auto CleanupRefCount = g_OnScopeExit > [&]
 					{
+						mp_bSelfReferenced = false;
 						f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef));
 					}
 				;
@@ -248,7 +251,7 @@ namespace NMib
 									(
 										!pActor->fp_Terminate
 										(
-#ifdef DCompiler_MSVC
+#if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging
 											NFunction::TCFunctionSmallMutable<void ()>
 											(
 #endif
@@ -256,7 +259,7 @@ namespace NMib
 												{
 													Continuation.f_SetResult(fg_Move(Result));
 												}
-#ifdef DCompiler_MSVC
+#if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging
 											)
 #endif
 										)
@@ -432,12 +435,16 @@ namespace NMib
 						mp_pActor.f_Clear();
 						mp_bDestroyed.f_Exchange(2);
 						TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
-						
-						if (CSuper::f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef)) != 1)
+
+						if (mp_bSelfReferenced)
 						{
-							if (fOnDestroyed)
-								fOnDestroyed();
-							return;
+							mp_bSelfReferenced = false;
+							if (CSuper::f_RefCountDecrease(DMibRefcountDebuggingOnly(m_DebugSelfRef)) != 1)
+							{
+								if (fOnDestroyed)
+									fOnDestroyed();
+								return;
+							}
 						}
 
 						// Dispatch to our queue again, otherwise we ourselves could be in callstack

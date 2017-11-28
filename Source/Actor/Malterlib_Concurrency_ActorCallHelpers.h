@@ -946,7 +946,7 @@ namespace NMib::NConcurrency
 			, m_pResultActor(_pResultActor)
 			, m_pActorInternal(_pActorInternal)
 		{
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			if (ThreadLocal.m_pCallstacks)
 				m_Result.m_Callstacks = *ThreadLocal.m_pCallstacks;
@@ -1046,7 +1046,7 @@ namespace NMib::NConcurrency
 		{
 			if (m_pActorInternal)
 			{
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 				m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
 #else
 				m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));

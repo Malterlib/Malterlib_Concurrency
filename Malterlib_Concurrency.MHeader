@@ -127,3 +127,62 @@ Property
 
 	%Target "@(Malterlib_Concurrency_App_Targets)"
 }
+
+Property
+{
+	MalterlibConcurrency_DebugActorCallstacks "" // User: Set to true to enable actor calls callstack debugging
+	{
+		!!MalterlibConcurrency_DebugActorCallstacks ""
+	}
+
+	MalterlibConcurrency_DebugBlockDestroy "" // User: Set to true to enable debug of block destroy for concurrency manager
+	{
+		!!MalterlibConcurrency_DebugBlockDestroy ""
+	}
+}
+
+Compile
+{
+	!!LanguageFamily .NET
+
+	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugActorCallstacks "true"
+	}
+	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugBlockDestroy "true"
+	}
+}
+
+// C and C++ Settings
+Compile
+{
+	&
+	{
+		LanguageFamily Native
+		|
+		{
+			CompileDialect C
+		}
+	}
+
+	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks=1;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugActorCallstacks "true"
+	}
+	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks=0;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugActorCallstacks "false"
+	}
+
+	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy=1;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugBlockDestroy "true"
+	}
+	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy=0;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugBlockDestroy "false"
+	}
+}
+

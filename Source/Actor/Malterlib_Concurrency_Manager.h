@@ -81,7 +81,7 @@ namespace NMib
 			inline_never mint fp_InitConcurrentActors();
 
 			NAtomic::TCAtomic<mint> m_nActors;
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			NThread::CMutual m_ActorListLock;
 			DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
 #endif
@@ -105,7 +105,7 @@ namespace NMib
 			
 			CActor *m_pCurrentActor = nullptr;
 			CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
-	#if DMibConcurrencyDebugActorCallstacks
+	#if DMibConfig_Concurrency_DebugActorCallstacks
 			CAsyncCallstacks *m_pCallstacks = nullptr;
 	#endif
 			CConcurrencyManager::CQueue *m_pThisQueue = nullptr;

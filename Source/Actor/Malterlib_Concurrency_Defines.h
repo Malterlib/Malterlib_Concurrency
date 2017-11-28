@@ -12,7 +12,7 @@ namespace NMib
 {
 	namespace NConcurrency
 	{
-#		define DMibConcurrency_CheckFunctionCalls 
+#		define DMibConcurrency_CheckFunctionCalls
 		class CActor;
 		class CDefaultActorHolder;
 		template <typename t_CActor>

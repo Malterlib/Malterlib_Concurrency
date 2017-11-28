@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		CExceptionPointer m_pException;
 		bint m_bHasBeenSet = false;
 	public:
-#if DMibConcurrencyDebugActorCallstacks
+#if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks m_Callstacks;
 #endif
 	public:

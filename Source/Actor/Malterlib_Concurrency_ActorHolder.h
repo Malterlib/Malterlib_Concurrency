@@ -105,7 +105,7 @@ namespace NMib
 			bool fp_DequeueProcess(bool _bRun);
 			
 		private:
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			DMibListLinkDS_Link(CActorHolder, m_ActorLink);
 		public:
 			NStr::CStr m_ActorTypeName;
@@ -139,7 +139,8 @@ namespace NMib
 			CConcurrencyManager *mp_pConcurrencyManager;
 			EPriority mp_Priority:1;
 			mint mp_bImmediateDelete:1;
-			mint mp_iFixedCore:sizeof(mint)*8 - 2;
+			mint mp_bSelfReferenced:1;
+			mint mp_iFixedCore:sizeof(mint)*8 - 3;
 			NPtr::TCUniquePointer<CActor, NMem::CAllocator_Placement> mp_pActor;
 			mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
 

@@ -17,7 +17,7 @@ namespace NMib
 			TCActorInternal<tf_CType> &InternalActor = *_pInternalActor.f_Get();
 			
 			++m_nActors;
-#ifdef DMibDebug
+#if DMibConfig_Concurrency_DebugBlockDestroy
 			InternalActor.m_ActorTypeName = fg_GetTypeName<tf_CType>();
 			{
 				DMibLock(m_ActorListLock);

@@ -566,34 +566,60 @@ namespace NMib::NConcurrency::NPrivate
 		m_Result.f_SetResult();
 		fp_OnResult();
 	}
+
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> const &_Result)
 	{
 		m_Result = _Result;
 		fp_OnResult();
 	}
+
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> &_Result)
 	{
 		m_Result = _Result;
 		fp_OnResult();
 	}
+
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> volatile &_Result)
 	{
 		m_Result = _Result;
 		fp_OnResult();
 	}
+
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> const volatile &_Result)
 	{
 		m_Result = _Result;
 		fp_OnResult();
 	}
+
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> &&_Result)
 	{
 		m_Result = fg_Move(_Result);
+		fp_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> const &_Result)
+	{
+		m_Result = _Result.m_pData->m_Result;
+		fp_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> &_Result)
+	{
+		m_Result = _Result.m_pData->m_Result;
+		fp_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> &&_Result)
+	{
+		m_Result = fg_Move(_Result.m_pData->m_Result);
 		fp_OnResult();
 	}
 

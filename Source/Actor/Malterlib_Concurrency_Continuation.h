@@ -97,6 +97,11 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetResult(TCAsyncResult<t_CReturnValue> volatile &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> const volatile &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> &&_Result);
+
+		void f_SetResult(TCContinuation<t_CReturnValue> const &_Result);
+		void f_SetResult(TCContinuation<t_CReturnValue> &_Result);
+		void f_SetResult(TCContinuation<t_CReturnValue> &&_Result);
+		
 		template <typename tf_CResult>
 		void f_SetResult(tf_CResult &&_Result);
 		template <typename tf_CResult>

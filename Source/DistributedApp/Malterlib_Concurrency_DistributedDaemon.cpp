@@ -20,7 +20,7 @@ namespace NMib
 					m_bInstalledLogDispatcher = true;
 				
 				m_Actor = _Actor;
-				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor) > fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
+				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor, EDistributedAppType_Daemon) > fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 					{
 						if (!_Result)
 						{

@@ -33,12 +33,15 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_DistributedAppThreadLocal();
 		auto OldSettings = ThreadLocal.m_DefaultSettings;
+		auto OldAppType = ThreadLocal.m_DefaultAppType;
 		auto Cleanup = g_OnScopeExit > [&]
 			{
 				ThreadLocal.m_DefaultSettings = OldSettings;
+				ThreadLocal.m_DefaultAppType = OldAppType;
 			}
 		;
 
+		ThreadLocal.m_DefaultAppType = EDistributedAppType_InProcess;
 		ThreadLocal.m_DefaultSettings.m_bSeparateDistributionManager = true;
 		ThreadLocal.m_DefaultSettings.m_RootDirectory = _HomeDirectory;
 
@@ -58,7 +61,7 @@ namespace NMib::NConcurrency
 
 		TCContinuation<NStr::CStr> Continuation;
 
-		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr) > Continuation;
+		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr, EDistributedAppType_InProcess) > Continuation;
 
 		return Continuation;
 	}

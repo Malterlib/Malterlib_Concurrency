@@ -10,6 +10,7 @@ namespace NMib::NConcurrency
 	struct CDistributedAppThreadLocal
 	{
 		CDistributedAppActor_SettingsProperties m_DefaultSettings;
+		EDistributedAppType m_DefaultAppType = EDistributedAppType_Unknown;
 	};
 
 	CDistributedAppThreadLocal &fg_DistributedAppThreadLocal();

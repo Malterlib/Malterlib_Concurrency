@@ -8,6 +8,18 @@
 
 namespace NMib::NConcurrency
 {
+	enum EDistributedAppType
+	{
+		EDistributedAppType_Unknown
+		, EDistributedAppType_Unchanged
+		, EDistributedAppType_InProcess
+		, EDistributedAppType_Daemon
+		, EDistributedAppType_Local
+		, EDistributedAppType_ForceLocal
+		, EDistributedAppType_CommandLine
+		, EDistributedAppType_DirectCommandLine
+	};
+	
 	enum EDistributedAppUpdateType
 	{
 		EDistributedAppUpdateType_Independent

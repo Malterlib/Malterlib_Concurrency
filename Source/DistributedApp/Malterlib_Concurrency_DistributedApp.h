@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		
 		CDistributedAppState(CDistributedAppActor_Settings const &_Settings);			
 	};
-	
+
 	struct CDistributedAppActor : public CActor
 	{
 		struct CCommandLine : public ICCommandLine
@@ -66,10 +66,13 @@ namespace NMib::NConcurrency
 		
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
-		
-		TCContinuation<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor);
-		TCContinuation<void> f_StopApp(); 
-		
+
+		TCContinuation<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType);
+		TCContinuation<void> f_StopApp();
+
+		void f_SetAppType(EDistributedAppType _AppType);
+		void f_LogApplicationInfo();
+
 		TCContinuation<CDistributedAppCommandLineClient> f_GetCommandLineClient(); 
 
 		TCContinuation<uint32> f_RunCommandLine
@@ -203,6 +206,9 @@ namespace NMib::NConcurrency
 		CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
 		TCAsyncResult<void> mp_AppStartupResult;
 		NContainer::TCVector<TCContinuation<void>> mp_DeferredAppStartupResults;
+
+		NStr::CStr mp_CurrentLogDirectory;
+		EDistributedAppType mp_AppType = EDistributedAppType_Unknown;
 		
 		bool mp_bDelegateTrustToAppInterface = false;
 	};

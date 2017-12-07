@@ -26,6 +26,11 @@ namespace NMib::NConcurrency
 		mp_fLazyStartApp = _fLazyStartApp;
 	}
 
+	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyPreRunDirectCommand)
+	{
+		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
+	}
+
 	aint CDistributedAppCommandLineClient::f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine)
 	{
 		auto &Internal = *mp_pInternal;
@@ -138,7 +143,12 @@ namespace NMib::NConcurrency
 		auto &Command = **pFoundCommand;
 
 		if (Command.m_fDirectRunCommand)
+		{
+			if (mp_fLazyPreRunDirectCommand)
+				mp_fLazyPreRunDirectCommand(_Params);
+
 			return Command.m_fDirectRunCommand(_Params, *this);
+		}
 		else if (Command.m_fActorRunCommand)
 		{
 			if (mp_fLazyStartApp)

@@ -10,6 +10,7 @@
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 #include "Malterlib_Concurrency_DistributedApp_Private.h"
+#include <Mib/Process/Platform>
 
 namespace NMib::NConcurrency
 {
@@ -63,12 +64,15 @@ namespace NMib::NConcurrency
 	CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
 		: mp_State(_Settings)
 		, mp_Settings(_Settings)
+		, mp_AppType(fg_DistributedAppThreadLocal().m_DefaultAppType)
 	{
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
-		if (!_Settings.m_InterfaceSettings.m_pRequestTicket)
+
+		if (mp_AppType != EDistributedAppType_InProcess)
 		{
 			fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
-			fg_GetSys()->f_SetDefaultLogFileDirectory(_Settings.m_RootDirectory + "/Log");
+			mp_CurrentLogDirectory = _Settings.m_RootDirectory + "/Log";
+			fg_GetSys()->f_SetDefaultLogFileDirectory(mp_CurrentLogDirectory);
 		}
 	}
 	
@@ -473,8 +477,92 @@ namespace NMib::NConcurrency
 		return Continuation;				
 	}
 
-	TCContinuation<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor)
+	namespace
 	{
+		ch8 const *fg_GetAppTypeName(EDistributedAppType _AppType)
+		{
+			switch (_AppType)
+			{
+			case EDistributedAppType_InProcess: return "in process";
+			case EDistributedAppType_Daemon: return "as daemon";
+			case EDistributedAppType_Local: return "as local";
+			case EDistributedAppType_ForceLocal: return "as forced local";
+			case EDistributedAppType_CommandLine:  return "as command line";
+			case EDistributedAppType_DirectCommandLine:  return "as direct command line";
+			}
+			return "invalid app type";
+		}
+	}
+
+	void CDistributedAppActor::f_LogApplicationInfo()
+	{
+		CStr ProgramPath = CFile::fs_GetProgramPath();
+
+		NProcess::CVersionInfo VersionInfo;
+		NProcess::NPlatform::fg_Process_GetVersionInfo(ProgramPath, VersionInfo);
+
+		DMibLogWithCategory
+			(
+			 	Mib/Concurrency/App
+			 	, Info
+			 	, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
+			 	, mp_Settings.m_AppName
+			 	, fg_GetAppTypeName(mp_AppType)
+			 	, CFile::fs_GetFileNoExt(ProgramPath)
+				, VersionInfo.m_Major
+				, VersionInfo.m_Minor
+				, VersionInfo.m_Revision
+				, VersionInfo.m_MinorRevision
+				, NProcess::NPlatform::fg_Process_GetCurrentUID()
+				, VersionInfo.m_GitCommit
+				, VersionInfo.m_GitBranch
+				, VersionInfo.m_BuildTime
+			)
+		;
+	}
+
+	void CDistributedAppActor::f_SetAppType(EDistributedAppType _AppType)
+	{
+		DMibRequire(_AppType != EDistributedAppType_Unknown);
+
+		if (mp_AppType == _AppType || mp_AppType == EDistributedAppType_Unchanged)
+			return;
+
+		mp_AppType = _AppType;
+
+		CStr NewLogDirectory;
+		switch (_AppType)
+		{
+		case EDistributedAppType_InProcess:
+			break;
+		case EDistributedAppType_Daemon:
+		case EDistributedAppType_Local:
+		case EDistributedAppType_ForceLocal:
+			NewLogDirectory = mp_Settings.m_RootDirectory + "/Log";
+			break;
+		case EDistributedAppType_CommandLine:
+		case EDistributedAppType_DirectCommandLine:
+			NewLogDirectory = mp_Settings.m_RootDirectory + "/Log/CommandLine";
+			break;
+		}
+
+		if (!NewLogDirectory.f_IsEmpty() && NewLogDirectory != mp_CurrentLogDirectory)
+		{
+			mp_CurrentLogDirectory = NewLogDirectory;
+			fg_GetSys()->f_SetDefaultLogFileDirectory(NewLogDirectory);
+		}
+
+		if (_AppType == EDistributedAppType_CommandLine)
+			f_LogApplicationInfo();
+	}
+
+	TCContinuation<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType)
+	{
+		f_SetAppType(_AppType);
+
+		if (_AppType != EDistributedAppType_CommandLine)
+			f_LogApplicationInfo();
+
 		if (mp_State.m_bStoppingApp)
 			return DMibErrorInstance("Startup aborted");
 		
@@ -607,6 +695,7 @@ namespace NMib::NConcurrency
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 	{
 		TCActor<CActor> LogActor;
+
 #if DMibEnableTrace > 0
 		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 		{
@@ -678,19 +767,38 @@ namespace NMib::NConcurrency
 			
 			if (_fMutateCommandLine)
 				CommandLineClient.f_MutateCommandLineSpecification(_fMutateCommandLine);
-			
+
+			CommandLineClient.f_SetLazyPreRunDirectCommand
+				(
+					[&](NEncoding::CEJSON const &_Params)
+					{
+						AppActor(&CDistributedAppActor::f_SetAppType, EDistributedAppType_DirectCommandLine).f_CallSync();
+					}
+				)
+			;
+
 			CommandLineClient.f_SetLazyStartApp
 				(
 					[&](NEncoding::CEJSON const &_Params, bool _bForceStart)
 					{
+						EDistributedAppType AppType = EDistributedAppType_Unchanged;
+						if (_bForceStart)
+							AppType = EDistributedAppType_ForceLocal;
+						else if (_bStartApp)
+							AppType = EDistributedAppType_Local;
+						else
+							AppType = EDistributedAppType_CommandLine;
+
 						TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
 						if (LogActor)
 							bInstalledLogDispatcher = true;
 						if (_bStartApp || _bForceStart)
 						{
-							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor).f_CallSync();
+							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor, AppType).f_CallSync();
 							bStartedApp = true;
 						}
+						else if (AppType != EDistributedAppType_Unchanged)
+							AppActor(&CDistributedAppActor::f_SetAppType, AppType).f_CallSync();
 					}
 				)
 			;

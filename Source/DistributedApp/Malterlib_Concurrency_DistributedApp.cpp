@@ -479,7 +479,7 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
-		ch8 const *fg_GetAppTypeName(EDistributedAppType _AppType)
+		[[maybe_unused]] ch8 const *fg_GetAppTypeName(EDistributedAppType _AppType)
 		{
 			switch (_AppType)
 			{

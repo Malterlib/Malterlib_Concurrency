@@ -426,7 +426,6 @@ namespace NMib
 						if (!*pParse)
 							fReportError("Missing year");
 						int64 Year = fParseInt(pParse, int64(), "-");
-						++pParse;
 						if (!*pParse)
 							fReportError("Missing month");
 						uint32 Month = fParseInt(pParse, uint32(), "-");

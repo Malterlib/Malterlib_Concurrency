@@ -241,6 +241,7 @@ namespace
 					}
 				;
 
+#if DMibConfig_Concurrency_DebugBlockDestroy
 				DMibTest
 					(
 					 	DMibExpr
@@ -248,16 +249,27 @@ namespace
 						 	fg_ThrowsException
 						 	(
 							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-#if DMibConfig_Concurrency_DebugBlockDestroy
 							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor 'NMib::NConcurrency::CActor' called has been deleted")
-#else
-							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
-#endif
 							)
 						)
 					 	== DMibLExpr(fDoubleDestroy())
 					)
 				;
+#else
+				DMibTest
+					(
+					 	DMibExpr
+					 	(
+						 	fg_ThrowsException
+						 	(
+							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
+							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
+							)
+						)
+					 	== DMibLExpr(fDoubleDestroy())
+					)
+				;
+#endif
 			};
 		}
 		

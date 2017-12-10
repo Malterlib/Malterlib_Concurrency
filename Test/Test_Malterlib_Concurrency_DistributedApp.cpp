@@ -82,8 +82,18 @@ namespace
 			{
 				mp_bFirstRun = false;
 				CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp";
-				if (NFile::CFile::fs_FileExists(ConfigDir))
-					NFile::CFile::fs_DeleteDirectoryRecursive(ConfigDir);
+				for (mint i = 0; i < 5; ++i)
+				{
+					try
+					{
+						if (NFile::CFile::fs_FileExists(ConfigDir))
+							NFile::CFile::fs_DeleteDirectoryRecursive(ConfigDir);
+						break;
+					}
+					catch (NFile::CExceptionFile const &)
+					{
+					}
+				}
 			}
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>();
 			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<>{}, EDistributedAppType_InProcess).f_CallSync();

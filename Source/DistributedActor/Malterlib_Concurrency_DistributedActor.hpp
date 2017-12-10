@@ -70,9 +70,7 @@ namespace NMib
 		auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-#ifndef DCompiler_MSVC
 			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
-#endif
 			
 			return NPrivate::fg_PublishActor
 				(
@@ -88,9 +86,7 @@ namespace NMib
 		auto TCActorInternal<t_CActor>::f_ShareInterface()
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-#ifndef DCompiler_MSVC
 			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
-#endif
 			
 			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
 			
@@ -221,6 +217,10 @@ namespace NMib
 			CDistributedActorInterfaceInfo Ret;
 			
 			CDistributedActorProtocolVersions Versions;
+
+#if DMibEnableSafeCheck > 0
+			bool bMultipleVersions = false;
+#endif
 			
 			TCInitializerList<bool> Dummy = 
 				{
@@ -229,8 +229,11 @@ namespace NMib
 						CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EMinProtocolVersion, tfp_CInterface::EProtocolVersion};
 						if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
 							Versions = ThisVersions;
-						else 
-							DMibFastCheck(ThisVersions == Versions); // Can only publish one protocol version
+#if DMibEnableSafeCheck > 0
+						else if (ThisVersions != Versions)
+							bMultipleVersions = true;
+#endif
+							
 						Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
 						return true;
 					}
@@ -238,6 +241,8 @@ namespace NMib
 				}
 			;
 			(void)Dummy;
+
+			DMibFastCheck(!bMultipleVersions); // Can only publish one protocol version
 
 			Ret.mp_ProtocolVersions = Versions;
 			

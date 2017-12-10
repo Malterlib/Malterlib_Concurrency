@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -144,10 +144,7 @@ namespace NMib
 													fg_Move(fCallback)
 													, fg_Move(Params)
 													, 
-				#ifndef DCompiler_MSVC
-													typename 
-				#endif
-													NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+													typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 													, NMeta::TCTypeList<tp_CCallbackParams...>()
 												)
 											;
@@ -177,10 +174,7 @@ namespace NMib
 									fg_Move(fCallback)
 									, fg_Move(Params)
 									, 
-#ifndef DCompiler_MSVC
-									typename 
-#endif
-									NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+									typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 									, NMeta::TCTypeList<tp_CCallbackParams...>()
 								)
 							;
@@ -220,10 +214,7 @@ namespace NMib
 													fg_Move(fCallback)
 													, fg_Move(LambdaParams)
 													, 
-				#ifndef DCompiler_MSVC
-													typename 
-				#endif
-													NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+													typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 													, NMeta::TCTypeList<tp_CCallbackParams...>()
 												)
 											;
@@ -253,10 +244,7 @@ namespace NMib
 									fg_Move(fCallback)
 									, fg_Move(Params)
 									, 
-#ifndef DCompiler_MSVC
-									typename 
-#endif
-									NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+									typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 									, NMeta::TCTypeList<tp_CCallbackParams...>()
 								)
 							;
@@ -297,10 +285,7 @@ namespace NMib
 													fg_Move(fCallback)
 													, fg_Move(Params)
 													, 
-				#ifndef DCompiler_MSVC
-													typename 
-				#endif
-													NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+													typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 													, NMeta::TCTypeList<tp_CCallbackParams...>()
 												)
 											;
@@ -331,10 +316,7 @@ namespace NMib
 									fg_Move(fCallback)
 									, fg_Move(Params)
 									, 
-#ifndef DCompiler_MSVC
-									typename 
-#endif
-									NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+									typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 									, NMeta::TCTypeList<tp_CCallbackParams...>()
 								)
 							;
@@ -377,10 +359,7 @@ namespace NMib
 													fg_Move(fCallback)
 													, fg_Move(Params)
 													, 
-				#ifndef DCompiler_MSVC
-													typename 
-				#endif
-													NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+													typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 													, NMeta::TCTypeList<tp_CCallbackParams...>()
 												)
 											;
@@ -415,10 +394,7 @@ namespace NMib
 									fg_Move(fCallback)
 									, fg_Move(Params)
 									, 
-#ifndef DCompiler_MSVC
-									typename 
-#endif
-									NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+									typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 									, NMeta::TCTypeList<tp_CCallbackParams...>()
 								)
 							;
@@ -460,10 +436,7 @@ namespace NMib
 										fg_Move(fCallback)
 										, fg_Move(Params)
 										, 
-	#ifndef DCompiler_MSVC
-										typename 
-	#endif
-										NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+										typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 										, NMeta::TCTypeList<tp_CCallbackParams...>()
 									)
 								;

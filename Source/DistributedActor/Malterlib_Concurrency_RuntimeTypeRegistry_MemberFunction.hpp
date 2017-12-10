@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -144,10 +144,7 @@ namespace NMib
 						static_cast<t_CStreamParams &>(_Stream)
 						, _pObject
 						,
-	#ifndef DCompiler_MSVC
-						typename 
-	#endif
-						NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+						typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
 						, CParams()
 					)
 				;
@@ -261,10 +258,7 @@ namespace NMib
 						static_cast<t_CStreamParams &>(_Stream)
 						, _pObject
 						,
-	#ifndef DCompiler_MSVC
-						typename 
-	#endif
-						NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+						typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
 						, CParams()
 					)
 				;
@@ -391,10 +385,7 @@ namespace NMib
 						static_cast<t_CStreamParams &>(_Stream)
 						, _pObject
 						,
-	#ifndef DCompiler_MSVC
-						typename 
-	#endif
-						NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+						typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
 						, CParams()
 					)
 				;

@@ -457,7 +457,7 @@ namespace NMib::NConcurrency
 				if (NTraits::TCIsSame<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CResultFunctor>::CType, NPrivate::CDiscardResultFunctor>::mc_Value)
 					return true;
 
-				static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value, "");
+				static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
 				
 				auto ResultActor = fg_GetResultActor(_ResultActor);
 				ResultActor->f_QueueProcess
@@ -739,7 +739,7 @@ namespace NMib::NConcurrency
 			
 			void f_ReportResult()
 			{
-				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value, "");
+				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value);
 				NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 				m_Actor.f_GetActor()->f_QueueProcess
 					(
@@ -887,7 +887,7 @@ namespace NMib::NConcurrency
 	>
 	inline_always TCActor<tf_CResultActor> const &fg_GetResultActor(TCActor<tf_CResultActor> const &_ResultActor)
 	{
-		static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value, "");
+		static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
 		return _ResultActor;
 	}
 	

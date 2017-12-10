@@ -216,7 +216,7 @@ namespace NMib
 			TCContinuation<void> Continuation;
 			mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
-			
+
 			mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline")
 				> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)
 				{

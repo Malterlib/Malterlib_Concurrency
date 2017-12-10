@@ -1327,8 +1327,18 @@ namespace
 						}
 						, [BaseDirectory]
 						{
-							if (NFile::CFile::fs_FileExists(BaseDirectory))
-								NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
+							for (mint i = 0; i < 5; ++i)
+							{
+								try
+								{
+									if (NFile::CFile::fs_FileExists(BaseDirectory))
+										NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
+									break;
+								}
+								catch (NFile::CExceptionFile const &)
+								{
+								}
+							}
 						}
 					)
 				;

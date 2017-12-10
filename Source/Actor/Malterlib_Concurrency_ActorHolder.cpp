@@ -662,7 +662,7 @@ namespace NMib
 
 		CConcurrentRunQueue::CConcurrentRunQueue()
 		{
-			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory, "");
+			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory);
 		}
 		
 		CConcurrentRunQueue::~CConcurrentRunQueue()

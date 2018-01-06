@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <Mib/Function/Function>
 
@@ -134,7 +134,7 @@ namespace NMib
 			typedef TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator> CReturnEntry;
 
 			template<typename T>
-			struct CStdAllocator
+			struct CStdAllocator : public std::allocator<T>
 			{
 				T* allocate( size_t n ) 
 				{

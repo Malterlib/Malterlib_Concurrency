@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 #pragma once
 
@@ -71,7 +71,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 				}
 
 				m_pEntry = _Other.m_pEntry;
@@ -84,7 +84,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 					m_pEntry = nullptr;
 				}
 			}
@@ -147,7 +147,7 @@ namespace NMib
 				CListEntry *pEntry;
 				while (m_Queue.pop(pEntry))
 				{
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 				}
 			}
 			TCThreadSafeQueue(TCThreadSafeQueue const &_Other);
@@ -196,8 +196,8 @@ namespace NMib
 				CListEntry *pEntry = nullptr;
 				while (m_Queue.pop(pEntry))
 				{
-					_olItems.f_Insert(pEntry->m_Data);
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					_olItems.f_Insert(fg_Move(pEntry->m_Data));
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 				}
 			}
 
@@ -263,7 +263,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 				}
 
 				m_pEntry = _Other.m_pEntry;
@@ -276,7 +276,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 					m_pEntry = nullptr;
 				}
 			}
@@ -340,7 +340,7 @@ namespace NMib
 				CListEntry *pEntry = m_Queue.f_Pop();
 				while (pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 					pEntry = m_Queue.f_Pop();
 				}
 			}
@@ -418,8 +418,8 @@ namespace NMib
 				CListEntry *pEntry = m_Queue.f_Pop();
 				while (pEntry)
 				{
-					_olItems.f_Insert(pEntry->m_Data);
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					_olItems.f_Insert(fg_Move(pEntry->m_Data));
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 					pEntry = m_Queue.f_Pop();
 				}
 			}

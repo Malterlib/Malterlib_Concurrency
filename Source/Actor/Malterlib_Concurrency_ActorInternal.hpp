@@ -113,9 +113,16 @@ namespace NMib
 		{
 			if (_pObject->f_ImmediateDelete())
 			{
-				_pObject->~tf_CToDelete();
+				mint Size = NPtr::fg_DeleteWeakObjectGetSize(_pObject);
 				if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
-					_Allocator.f_Free(_pObject);
+				{
+					if (Size)
+						_Allocator.f_Free(_pObject, Size);
+					else
+						_Allocator.f_FreeNoSize(_pObject);
+				}
+				else
+					_pObject->f_WeakRefCountSetSize(Size);
 			}
 			else
 			{
@@ -126,9 +133,16 @@ namespace NMib
 						_pObject->f_GetPriority()
 						, [_pObject, pAllocator]
 						{
-							_pObject->~tf_CToDelete();
+							mint Size = NPtr::fg_DeleteWeakObjectGetSize(_pObject);
 							if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
-								pAllocator->f_Free(_pObject);
+							{
+								if (Size)
+									pAllocator->f_Free(_pObject, Size);
+								else
+									pAllocator->f_FreeNoSize(_pObject);
+							}
+							else
+								_pObject->f_WeakRefCountSetSize(Size);
 						}
 					)
 				;

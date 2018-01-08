@@ -58,9 +58,9 @@ namespace NMib
 			void CHost::f_DeletePackets()
 			{
 				DMibFastCheck(m_RemoteActors.f_IsEmpty());
-				m_Incoming_ReceivedPackets.f_DeleteAll();
-				m_Outgoing_QueuedPackets.f_DeleteAll();
-				m_Outgoing_SentPackets.f_DeleteAll();
+				m_Incoming_ReceivedPackets.f_DeleteAllDefiniteType();
+				m_Outgoing_QueuedPackets.f_DeleteAllDefiniteType();
+				m_Outgoing_SentPackets.f_DeleteAllDefiniteType();
 			}
 		}
 		

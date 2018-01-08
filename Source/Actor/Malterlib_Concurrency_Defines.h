@@ -60,6 +60,10 @@ namespace NMib
 
 		struct CInternalActorAllocator : public NMem::CAllocator_Heap
 		{
+			enum
+			{
+				mc_bIsDefault = false
+			};
 		};
 
 		template <typename t_CHolder>

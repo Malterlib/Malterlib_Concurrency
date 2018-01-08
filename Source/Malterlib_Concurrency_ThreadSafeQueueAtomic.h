@@ -66,7 +66,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 				}
 
 				m_pEntry = _Other.m_pEntry;
@@ -79,7 +79,7 @@ namespace NMib
 			{
 				if (m_pEntry)
 				{
-					fg_DeleteObject(t_CAllocator(), m_pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), m_pEntry);
 					m_pEntry = nullptr;
 				}
 			}
@@ -143,7 +143,7 @@ namespace NMib
 
 				void deallocate( T* p, size_t n )
 				{
-					t_CAllocator::f_Free(p);
+					t_CAllocator::f_Free(p, sizeof(T) * n);
 				}
 
 				template<typename Type>
@@ -164,7 +164,7 @@ namespace NMib
 				CListEntry *pEntry;
 				while (m_Queue.pop(pEntry))
 				{
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 				}
 			}
 			TCThreadSafeQueueAtomic(TCThreadSafeQueueAtomic const &_Other);
@@ -213,8 +213,8 @@ namespace NMib
 				CListEntry *pEntry = nullptr;
 				while (m_Queue.pop(pEntry))
 				{
-					_olItems.f_Insert(pEntry->m_Data);
-					fg_DeleteObject(t_CAllocator(), pEntry);
+					_olItems.f_Insert(fg_Move(pEntry->m_Data));
+					fg_DeleteObjectDefiniteType(t_CAllocator(), pEntry);
 				}
 			}
 

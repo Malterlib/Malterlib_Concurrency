@@ -284,7 +284,7 @@ namespace NMib
 					if (!pSocketInfo || pSocketInfo->m_PeerCertificate.f_IsEmpty())
 					{
 						NStr::CStr Error = "Missing peer certificate";
-						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+						fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
 						return;
 					}
 					
@@ -296,21 +296,21 @@ namespace NMib
 						if (RealHostID.f_IsEmpty())
 						{
 							NStr::CStr Error = "Missing or incorrect Host ID in server certificate";
-							fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+							fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
 							return;
 						}
 					}
 					catch (NException::CException const &)
 					{
 						NStr::CStr Error = "Incorrect peer certificate";
-						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+						fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
 						return;
 					}
 
 					if (!Connection.m_ExpectedRealHostID.f_IsEmpty() && Connection.m_ExpectedRealHostID != RealHostID)
 					{
 						NStr::CStr Error = "Host ID mismatch";
-						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+						fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
 						return;
 					}
 					
@@ -321,7 +321,7 @@ namespace NMib
 					if (!Enclave.f_IsEmpty() && !CActorDistributionManager::fs_IsValidEnclave(Enclave))
 					{
 						NStr::CStr Error = "Invalid enclave";
-						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+						fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
 						return;
 					}
 					
@@ -357,7 +357,7 @@ namespace NMib
 					if (Host.m_RealHostID != RealHostID || Host.m_UniqueHostID != UniqueHostID || Host.m_bAnonymous != Connection.m_bAnonymous)
 					{
 						NStr::CStr Error = "Host IDs mismatch";
-						fReportError(Error, fg_ExceptionPointer(DMibErrorInstance(Error)));						
+						fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));						
 						return;
 					}
 					

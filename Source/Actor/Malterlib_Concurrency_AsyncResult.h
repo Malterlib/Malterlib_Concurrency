@@ -3,25 +3,10 @@
 
 #pragma once
 
-#include <exception>
-
 #include "Malterlib_Concurrency_Configuration.h"
 
 namespace NMib::NConcurrency
 {
-	using CExceptionPointer = std::exception_ptr;
-	
-	template <typename tf_CException>
-	CExceptionPointer fg_ExceptionPointer(tf_CException &&_Exception)
-	{
-		return std::make_exception_ptr(fg_Forward<tf_CException>(_Exception));
-	}
-
-	inline_always CExceptionPointer fg_CurrentException()
-	{
-		return std::current_exception();
-	}
-	
 	/// Common functionality for TCAsyncResult
 	class CAsyncResult
 	{

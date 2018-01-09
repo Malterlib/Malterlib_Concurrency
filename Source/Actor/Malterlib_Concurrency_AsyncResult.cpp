@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(!m_bHasBeenSet);
 		DMibRequire(!m_pException);
-		m_pException = fg_CurrentException();
+		m_pException = NException::fg_CurrentException();
 	}
 
 	void TCAsyncResult<void>::f_SetResult()

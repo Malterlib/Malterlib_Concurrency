@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -125,7 +125,7 @@ namespace NMib
 				auto Exception = DMibImpExceptionInstance(t_CException, "");
 				_Stream >> Exception;
 				
-				return fg_ExceptionPointer(fg_Move(Exception));
+				return NException::fg_ExceptionPointer(fg_Move(Exception));
 			}
 			
 			template <typename t_CException, uint32 t_NameHash>

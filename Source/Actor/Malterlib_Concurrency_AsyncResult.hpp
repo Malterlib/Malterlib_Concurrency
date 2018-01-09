@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(!m_bHasBeenSet);
 		DMibRequire(!m_pException);
-		m_pException = fg_ExceptionPointer(fg_Forward<tf_CException>(_Exception));
+		m_pException = NException::fg_ExceptionPointer(fg_Forward<tf_CException>(_Exception));
 	}
 
 	

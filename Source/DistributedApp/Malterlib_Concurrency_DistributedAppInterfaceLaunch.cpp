@@ -124,6 +124,7 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
 				CProcessLaunchActor::f_SendStdIn(mp_RequestTicketMagic + ":" + _Ticket->m_Ticket.f_ToStringTicket() + "\n") > [this](TCAsyncResult<void> &&_Result)
 					{
+						(void)this;
 						if (!_Result)
 							DMibLogWithCategory(Malterlib/Concurrency, Error, "Failed to send ticket to '{}'", mp_Description);
 					}

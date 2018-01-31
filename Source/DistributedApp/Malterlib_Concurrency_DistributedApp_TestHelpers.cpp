@@ -34,7 +34,16 @@ namespace NMib::NConcurrency
 
 		return Destroy;
 	}
-	
+
+#if DMibConfig_Tests_Enable
+	TCContinuation<NEncoding::CEJSON> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	{
+		if (!m_InProcess)
+			DMibError("No in process actor");
+		return m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
+	}
+#endif
+
 	TCContinuation<void> CDistributedApp_LaunchInfo::f_Destroy()
 	{
 		if (!m_Subscription)

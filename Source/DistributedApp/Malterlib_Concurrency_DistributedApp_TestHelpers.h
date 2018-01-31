@@ -27,6 +27,10 @@ namespace NMib::NConcurrency
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
 	
 		TCContinuation<void> f_Destroy();
+
+#if DMibConfig_Tests_Enable
+		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+#endif
 		
 		TCActor<CDistributedAppInterfaceLaunchActor> m_Launch;
 		NPtr::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;

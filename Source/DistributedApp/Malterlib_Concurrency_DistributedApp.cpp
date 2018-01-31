@@ -826,4 +826,16 @@ namespace NMib::NConcurrency
 		
 		return Ret;
 	}
+
+#if DMibConfig_Tests_Enable
+	TCContinuation<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	{
+		return fp_Test_Command(_Command, _Params);
+	}
+
+	TCContinuation<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	{
+		return fg_Explicit();
+	}
+#endif
 }

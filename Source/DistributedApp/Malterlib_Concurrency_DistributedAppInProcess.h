@@ -35,6 +35,10 @@ namespace NMib::NConcurrency
 
 		TCContinuation<NStr::CStr> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
+#if DMibConfig_Tests_Enable
+		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+#endif
+
 	private:
 		TCContinuation<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();
 

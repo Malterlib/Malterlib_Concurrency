@@ -152,4 +152,14 @@ namespace NMib::NConcurrency
 
 		return Continuation;
 	}
+
+#if DMibConfig_Tests_Enable
+	TCContinuation<NEncoding::CEJSON> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	{
+		if (!mp_DistributedApp)
+			DMibError("No distributed app");
+		
+		return mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
+	}
+#endif
 }

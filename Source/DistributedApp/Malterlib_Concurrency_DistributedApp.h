@@ -133,6 +133,10 @@ namespace NMib::NConcurrency
 		
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 
+#if DMibConfig_Tests_Enable
+		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+#endif
+
 	protected:
 		virtual TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCContinuation<void> fp_StopApp() = 0;
@@ -149,6 +153,10 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_BackupRoot
 			)
 		;
+
+#if DMibConfig_Tests_Enable
+		virtual TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+#endif
 
 		void fp_Construct() override;
 		TCContinuation<void> fp_Destroy() override;

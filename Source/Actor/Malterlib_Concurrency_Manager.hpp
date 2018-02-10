@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -16,16 +16,9 @@ namespace NMib
 		{
 			TCActorInternal<tf_CType> &InternalActor = *_pInternalActor.f_Get();
 			
-			++m_nActors;
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			InternalActor.m_ActorTypeName = fg_GetTypeName<tf_CType>();
-			{
-				DMibLock(m_ActorListLock);
-				m_Actors.f_Insert(InternalActor);
-			}
 #endif
-			InternalActor.mp_pConcurrencyManager = this;
-			
 			InternalActor.fp_ConstructActor
 				(
 					[&]

@@ -28,6 +28,13 @@ namespace NMib
 			, mp_iFixedCore(gc_NoFixedCore)
 			, mp_pDistributedActorData(fg_Move(_pDistributedActorData))
 		{
+			++_pConcurrencyManager->m_nActors;
+#if DMibConfig_Concurrency_DebugBlockDestroy
+			{
+				DMibLock(m_ActorListLock);
+				m_Actors.f_Insert(this);
+			}
+#endif
 		}
 		
 		CActorHolder::~CActorHolder()

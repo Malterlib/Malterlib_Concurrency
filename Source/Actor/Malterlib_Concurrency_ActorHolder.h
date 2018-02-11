@@ -92,7 +92,11 @@ namespace NMib
 			
 			NPtr::TCSharedPointer<ICDistributedActorData> &f_GetDistributedActorData();
 			NPtr::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
-			
+
+#if DMibConfig_Tests_Enable
+			void f_TestDetach();
+#endif
+
 		private:
 			void fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory);
 			

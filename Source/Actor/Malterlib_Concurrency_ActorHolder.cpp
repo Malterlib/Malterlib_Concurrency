@@ -31,8 +31,8 @@ namespace NMib
 			++_pConcurrencyManager->m_nActors;
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			{
-				DMibLock(m_ActorListLock);
-				m_Actors.f_Insert(this);
+				DMibLock(_pConcurrencyManager->m_ActorListLock);
+				_pConcurrencyManager->m_Actors.f_Insert(this);
 			}
 #endif
 		}
@@ -45,6 +45,14 @@ namespace NMib
 #endif
 			--mp_pConcurrencyManager->m_nActors;
 		}
+
+#if DMibConfig_Tests_Enable
+		void CActorHolder::f_TestDetach()
+		{
+			mp_pActor.f_Detach();
+		}
+#endif
+
 
 		NPtr::TCSharedPointer<ICDistributedActorData> &CActorHolder::f_GetDistributedActorData()
 		{

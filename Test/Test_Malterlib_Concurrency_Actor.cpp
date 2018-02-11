@@ -27,9 +27,9 @@
 #define DDoTest_Message_CActorToResVector 1
 #define DDoTest_Message_BranchedConcurrentActor 1
 
-#define DDoTest_Create_Vector 0
-#define DDoTest_Create_LinkedList 0
-#define DDoTest_Create_ThreadSafeQueue 0
+#define DDoTest_Create_Vector 1
+#define DDoTest_Create_LinkedList 1
+#define DDoTest_Create_ThreadSafeQueue 1
 #define DDoTest_Create_ActorConcurrent 1
 #define DDoTest_Create_Actor 1
 #define DDoTest_Create_ActorOutside 1
@@ -63,7 +63,7 @@ namespace
 			DMibError("Test error");
 		}
 	};
-	
+
 	class CPerformanceTestActor : public CActor
 	{
 		zuint32 m_Value;
@@ -73,7 +73,7 @@ namespace
 			mc_bAllowInternalAccess = true
 		};
 
-		CPerformanceTestActor()
+		CPerformanceTestActor(int _Dummy = 0)
 		{
 		}
 		CPerformanceTestActor(CPerformanceTestActor &&_Other)
@@ -88,6 +88,40 @@ namespace
 		{
 			return m_Value;
 		}
+	};
+
+	class CPerformanceTestActorEmul : public CPerformanceTestActor
+	{
+	public:
+		enum
+		{
+			mc_bAllowInternalAccess = true
+		};
+
+		static int fs_Setup(CPerformanceTestActorEmul *_pThis)
+		{
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			ThreadLocal.m_pCurrentActor = _pThis;
+	#if defined DMibContractConfigure_CheckEnabled
+			ThreadLocal.m_pCurrentlyConstructingActor = _pThis;
+	#endif
+			return 0;
+		}
+
+		CPerformanceTestActorEmul()
+			 : CPerformanceTestActor(fs_Setup(this))
+		{
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			ThreadLocal.m_pCurrentActor = nullptr;
+#if defined DMibContractConfigure_CheckEnabled
+			ThreadLocal.m_pCurrentlyConstructingActor = nullptr;
+#endif
+#if DMibConfig_Tests_Enable
+			ThreadLocal.m_pCurrentlyProcessingActorHolder->f_TestDetach();
+#endif
+		}
+
+		CPerformanceTestActorEmul(CPerformanceTestActorEmul &&_Other) = default;
 	};
 
 	class CExceptionActor : public CActor
@@ -1416,7 +1450,7 @@ namespace
 						}
 					;
 
-					TCVector<CPerformanceTestActor> ToDispatch;
+					TCVector<CPerformanceTestActorEmul> ToDispatch;
 	
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
@@ -1455,7 +1489,7 @@ namespace
 						}
 					;
 
-					TCLinkedList<CPerformanceTestActor> ToDispatch;
+					TCLinkedList<CPerformanceTestActorEmul> ToDispatch;
 	
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
@@ -1497,7 +1531,7 @@ namespace
 						}
 					;
 
-					TCThreadSafeQueue<CPerformanceTestActor> ToDispatch;
+					TCThreadSafeQueue<CPerformanceTestActorEmul> ToDispatch;
 	
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{

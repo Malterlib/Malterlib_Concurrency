@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -73,6 +73,8 @@ namespace NMib
 				NPtr::TCUniquePointer<NThread::CThreadObjectNonTracked, NMem::CAllocator_NonTrackedHeap> m_pThread;
 				CQueue(CQueue &&_Other);
 				CQueue();
+				void f_Signal(CConcurrencyManager *_pThis);
+				void fp_CreateThread(CConcurrencyManager *_pThis);
 			};
 			
 			void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
@@ -96,6 +98,7 @@ namespace NMib
 			NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors[EPriority_Max];
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
+			NThread::CMutual m_ThreadCreateLock;
 		};
 		
 		struct CConcurrencyThreadLocal

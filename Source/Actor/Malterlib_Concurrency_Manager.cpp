@@ -112,18 +112,6 @@ namespace NMib
 			m_nThreads = nThreads;
 			for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 			{
-				NStr::CStrNonTracked Name;
-				EThreadPriority ThreadPrio = EThreadPriority_Normal;
-				switch (Priority)
-				{
-				case EPriority_Low:
-					Name = "Low";
-					ThreadPrio = EThreadPriority_Lowest;
-					break;
-				case EPriority_Normal:
-					Name = "Normal";
-					break;
-				}
 				auto &Queues = m_Queues[Priority];
 				Queues.f_SetLen(nThreads);
 				for (mint i = 0; i < nThreads; ++i)
@@ -131,21 +119,8 @@ namespace NMib
 					auto *pQueue = &Queues[i];
 					pQueue->m_iQueue = i;
 					pQueue->m_Priority = Priority;
-
-					Queues[i].m_pThread =
-						(
-							NThread::CThreadObjectNonTracked::fs_StartThread
-							(
-								[this, pQueue](NThread::CThreadObjectNonTracked *_pThread) -> aint
-								{
-									fp_RunThread(*pQueue, _pThread);
-									return 0;
-								}
-								, NStr::CStrNonTracked::CFormat("MalterlibThreadPool({}) {}") << Name << i
-								, ThreadPrio
-							)
-						)
-					;
+					if (Priority == EPriority_Normal)
+						pQueue->f_Signal(this);
 				}
 			}
 		}
@@ -257,7 +232,48 @@ namespace NMib
 		CConcurrencyManager::CQueue::CQueue()
 		{
 		}
-		
+
+		inline_never void CConcurrencyManager::CQueue::fp_CreateThread(CConcurrencyManager *_pThis)
+		{
+			DMibLock(_pThis->m_ThreadCreateLock);
+			if (m_pThread)
+				return;
+
+			NStr::CStrNonTracked Name;
+			EThreadPriority ThreadPrio = EThreadPriority_Normal;
+			switch (m_Priority)
+			{
+			case EPriority_Low:
+				Name = "(Low)";
+				ThreadPrio = EThreadPriority_Lowest;
+				break;
+			case EPriority_Normal:
+				break;
+			}
+
+			m_pThread =
+				(
+					NThread::CThreadObjectNonTracked::fs_StartThread
+					(
+						[_pThis, this](NThread::CThreadObjectNonTracked *_pThread) -> aint
+						{
+							_pThis->fp_RunThread(*this, _pThread);
+							return 0;
+						}
+						, NStr::CStrNonTracked::CFormat("ActorPool{} {}") << Name << m_iQueue
+						, ThreadPrio
+					)
+				)
+			;
+		}
+
+		inline_always void CConcurrencyManager::CQueue::f_Signal(CConcurrencyManager *_pThis)
+		{
+			m_Event.f_Signal();
+			if (!m_pThread)
+				fp_CreateThread(_pThis);
+		}
+
 		void CConcurrencyManager::f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -269,7 +285,7 @@ namespace NMib
 
 			auto &Queue = m_Queues[_Priority].f_GetArray()[0]; // Otherwise dipsatch on first queue, rely on work stealing to distribute
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
-				Queue.m_Event.f_Signal();
+				Queue.f_Signal(this);
 		}
 		
 		void CConcurrencyManager::f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
@@ -285,7 +301,7 @@ namespace NMib
 
 			auto &Queue = m_Queues[_Priority].f_GetArray()[iQueue];
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
-				Queue.m_Event.f_Signal();
+				Queue.f_Signal(this);
 		}
 
 		void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue)
@@ -324,7 +340,7 @@ namespace NMib
 			
 			auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
 			if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
-				Queue.m_Event.f_Signal();
+				Queue.f_Signal(this);
 		}
 		
 		constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);

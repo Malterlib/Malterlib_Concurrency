@@ -90,19 +90,40 @@ namespace NMib::NConcurrency
 			if (LaunchInfo.m_HostID != HostID)
 				continue;
 
+			auto &LaunchID = pThis->m_Launches.fs_GetKey(LaunchInfo);
+
 			LaunchInfo.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
 			if (_TrustInterface)
 				LaunchInfo.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
-			if (!LaunchInfo.m_Continuation.f_IsSet())
+
+			if (!LaunchInfo.m_InProcess)
 			{
-				LaunchInfo.m_Continuation.f_SetResult
-					(
-						CDistributedApp_LaunchInfo
+				DMibCallActor(*LaunchInfo.m_pClientInterface, CDistributedAppInterfaceClient::f_GetAppStartResult)
+					> [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
+					{
+						auto *pLaunch = pThis->m_Launches.f_FindEqual(LaunchID);
+						if (!pLaunch)
+							return;
+
+						auto &LaunchInfo = *pLaunch;
+
+						if (LaunchInfo.m_Continuation.f_IsSet())
+							return;
+						if (!_LaunchResult)
 						{
-							LaunchInfo
-							, pThis->fp_GetLaunchSubscription(pThis->m_Launches.fs_GetKey(LaunchInfo))
+							LaunchInfo.m_Continuation.f_SetException(_LaunchResult);
+							return;
 						}
-					)
+						LaunchInfo.m_Continuation.f_SetResult
+							(
+								CDistributedApp_LaunchInfo
+								{
+									LaunchInfo
+									, pThis->fp_GetLaunchSubscription(LaunchID)
+								}
+							)
+						;
+					}
 				;
 			}
 			
@@ -204,12 +225,12 @@ namespace NMib::NConcurrency
 				if (!pLaunch)
 					return;
 				pLaunch->m_HostID = _HostID;
-				auto pPending = m_PendingLaunches.f_FindEqual(_HostID);
-				if (!pPending)
-					return;
-				
-				pLaunch->m_pClientInterface = fg_Move(pPending->m_pClientInterface);
-				pLaunch->m_pTrustInterface = fg_Move(pPending->m_pTrustInterface);
+				if (auto pPending = m_PendingLaunches.f_FindEqual(_HostID))
+				{
+					pLaunch->m_pClientInterface = fg_Move(pPending->m_pClientInterface);
+					pLaunch->m_pTrustInterface = fg_Move(pPending->m_pTrustInterface);
+					m_PendingLaunches.f_Remove(pPending);
+				}
 				if (!pLaunch->m_Continuation.f_IsSet())
 				{
 					pLaunch->m_Continuation.f_SetResult
@@ -222,7 +243,6 @@ namespace NMib::NConcurrency
 						)
 					;
 				}
-				m_PendingLaunches.f_Remove(pPending);
 			}
 		;
 

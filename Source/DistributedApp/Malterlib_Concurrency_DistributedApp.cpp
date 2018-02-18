@@ -630,7 +630,7 @@ namespace NMib::NConcurrency
 					Continuation.f_SetException(fg_Move(_Result));
 					return;
 				}
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished");
+				DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished: {}", mp_Settings.m_AppName);
 				Continuation.f_SetResult(mp_State.m_HostID);
 			}
 		;

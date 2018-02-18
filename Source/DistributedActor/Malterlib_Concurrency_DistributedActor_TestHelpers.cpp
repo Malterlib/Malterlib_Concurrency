@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Network/Sockets/SSL>
@@ -16,6 +16,9 @@ namespace NMib::NConcurrency
 		, mp_ClientCryptography(NCryptography::fg_RandomID())
 		, mp_ListenPort(_TestPort)
 	{
+		NHTTP::CURL URLv4{NStr::fg_Format("wss://[IPv4:127.0.0.1]:{}/", _TestPort)};
+		NHTTP::CURL URLv6{NStr::fg_Format("wss://[IPv6:::1]:{}/", _TestPort)};
+		mp_ListenSettings.m_ListenAddresses = {URLv4, URLv6};
 	}
 
 	CDistributedActorTestHelperCombined::~CDistributedActorTestHelperCombined()

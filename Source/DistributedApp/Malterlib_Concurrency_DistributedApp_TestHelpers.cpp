@@ -96,37 +96,34 @@ namespace NMib::NConcurrency
 			if (_TrustInterface)
 				LaunchInfo.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 
-			if (!LaunchInfo.m_InProcess)
-			{
-				DMibCallActor(*LaunchInfo.m_pClientInterface, CDistributedAppInterfaceClient::f_GetAppStartResult)
-					> [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
+			DMibCallActor(*LaunchInfo.m_pClientInterface, CDistributedAppInterfaceClient::f_GetAppStartResult)
+				> [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
+				{
+					auto *pLaunch = pThis->m_Launches.f_FindEqual(LaunchID);
+					if (!pLaunch)
+						return;
+
+					auto &LaunchInfo = *pLaunch;
+
+					if (LaunchInfo.m_Continuation.f_IsSet())
+						return;
+					if (!_LaunchResult)
 					{
-						auto *pLaunch = pThis->m_Launches.f_FindEqual(LaunchID);
-						if (!pLaunch)
-							return;
-
-						auto &LaunchInfo = *pLaunch;
-
-						if (LaunchInfo.m_Continuation.f_IsSet())
-							return;
-						if (!_LaunchResult)
-						{
-							LaunchInfo.m_Continuation.f_SetException(_LaunchResult);
-							return;
-						}
-						LaunchInfo.m_Continuation.f_SetResult
-							(
-								CDistributedApp_LaunchInfo
-								{
-									LaunchInfo
-									, pThis->fp_GetLaunchSubscription(LaunchID)
-								}
-							)
-						;
+						LaunchInfo.m_Continuation.f_SetException(_LaunchResult);
+						return;
 					}
-				;
-			}
-			
+					LaunchInfo.m_Continuation.f_SetResult
+						(
+							CDistributedApp_LaunchInfo
+							{
+								LaunchInfo
+								, pThis->fp_GetLaunchSubscription(LaunchID)
+							}
+						)
+					;
+				}
+			;
+
 			return fg_Explicit(g_ActorSubscription > []{});
 		}
 		auto &PendingLaunch = pThis->m_PendingLaunches[HostID];
@@ -230,18 +227,18 @@ namespace NMib::NConcurrency
 					pLaunch->m_pClientInterface = fg_Move(pPending->m_pClientInterface);
 					pLaunch->m_pTrustInterface = fg_Move(pPending->m_pTrustInterface);
 					m_PendingLaunches.f_Remove(pPending);
-				}
-				if (!pLaunch->m_Continuation.f_IsSet())
-				{
-					pLaunch->m_Continuation.f_SetResult
-						(
-							CDistributedApp_LaunchInfo
-							{
-								*pLaunch
-								, fp_GetLaunchSubscription(LaunchID)
-							}
-						)
-					;
+					if (!pLaunch->m_Continuation.f_IsSet())
+					{
+						pLaunch->m_Continuation.f_SetResult
+							(
+								CDistributedApp_LaunchInfo
+								{
+									*pLaunch
+									, fp_GetLaunchSubscription(LaunchID)
+								}
+							)
+						;
+					}
 				}
 			}
 		;

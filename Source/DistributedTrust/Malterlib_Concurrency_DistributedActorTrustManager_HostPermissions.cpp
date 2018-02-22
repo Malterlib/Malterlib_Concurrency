@@ -359,45 +359,124 @@ namespace NMib::NConcurrency
 		mp_Permissions.f_Clear();
 	}
 
-	bool CTrustedPermissionSubscription::f_HostHasPermission(NStr::CStr const &_Host, ch8 const *_pPermission) const
+	CPermissions::CPermissions() = default;
+
+	CPermissions::CPermissions(TCInitializerList<NStr::CStr> const &_Init)
+		: m_Permissions{_Init}
 	{
-		auto pHost = mp_Permissions.f_FindEqual(_Host);
-		if (!pHost)
-			return false;
-		return pHost->f_FindEqual(_pPermission) != nullptr;
 	}
-	
-	bool CTrustedPermissionSubscription::f_HostHasPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const
+
+	CPermissions &&CPermissions::f_Description(NStr::CStr const &_Description) &&
 	{
-		auto pHost = mp_Permissions.f_FindEqual(_Host);
-		if (!pHost)
-			return false;
-		return pHost->f_FindEqual(_Permission) != nullptr;
+		m_Description = _Description;
+		return fg_Move(*this);
 	}
-	
-	bool CTrustedPermissionSubscription::f_HostHasWildcardPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const
+
+	CPermissions &&CPermissions::f_Wildcard(bool _bIsWildcard) &&
 	{
-		auto pHost = mp_Permissions.f_FindEqual(_Host);
-		if (!pHost)
-			return false;
-		for (auto &Wildcard : *pHost)
+		m_bIsWildcard = _bIsWildcard;
+		return fg_Move(*this);
+	}
+
+	bool CPermissions::f_MatchesPermission(NContainer::TCSet<NStr::CStr> const &_HostPermissions) const
+	{
+		// Does the host permissions contain a match for any of the permissions in m_Permissions?
+		if (m_bIsWildcard)
 		{
-			if (NStr::fg_StrMatchWildcard(_Permission.f_GetStr(), Wildcard.f_GetStr()) == NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
-				return true;
+			for (auto &Permission : _HostPermissions)
+			{
+				for (auto const &AnyPermission : m_Permissions)
+				{
+					if (NStr::fg_StrMatchWildcard(AnyPermission.f_GetStr(), Permission.f_GetStr()) == NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+						return true;
+				}
+			}
 		}
-		return pHost->f_FindEqual(_Permission) != nullptr;
-	}
-	
-	bool CTrustedPermissionSubscription::f_HostHasAnyPermission(NStr::CStr const &_Host, NContainer::TCVector<NStr::CStr> const &_Permissions) const
-	{
-		for (auto &Permission : _Permissions)
+		else
 		{
-			if (f_HostHasPermission(_Host, Permission))
-				return true;
+			for (auto const &AnyPermission : m_Permissions)
+			{
+				if (_HostPermissions.f_FindEqual(AnyPermission))
+					return true;
+			}
 		}
+
 		return false;
 	}
-	
+
+	TCContinuation<bool> CTrustedPermissionSubscription::f_HasPermission
+		(
+		 	NStr::CStr const &_Description
+		 	, NContainer::TCVector<NStr::CStr> const &_Permissions
+		 	, CCallingHostInfo const &_CallingHostInfo
+		) const
+	{
+		auto const &Host = _CallingHostInfo.f_GetRealHostID();
+		if (auto pHostPermissions = mp_Permissions.f_FindEqual(Host))
+		{
+			for (auto const &Permission : _Permissions)
+			{
+				if (pHostPermissions->f_FindEqual(Permission))
+					return fg_Explicit(true);
+			}
+		}
+		return fg_Explicit(false);
+	}
+
+	TCContinuation<bool> CTrustedPermissionSubscription::f_HasPermissions
+		(
+		 	NStr::CStr const &_Description
+		 	, NContainer::TCVector<CPermissions> const &_Permissions
+		 	, CCallingHostInfo const &_CallingHostInfo
+		) const
+	{
+		auto const &Host = _CallingHostInfo.f_GetRealHostID();
+		if (auto pHostPermissions = mp_Permissions.f_FindEqual(Host))
+		{
+			for (auto const &Permission : _Permissions)
+			{
+				if (!Permission.f_MatchesPermission(*pHostPermissions))
+					return fg_Explicit(false);
+			}
+			return fg_Explicit(true);
+		}
+		return fg_Explicit(false);
+	}
+
+	TCContinuation<NContainer::TCMap<NStr::CStr, bool>> CTrustedPermissionSubscription::f_HasPermissions
+		(
+			NStr::CStr const &_Description
+		 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissions>> const &_NamedPermissionQueries
+		 	, CCallingHostInfo const &_CallingHostInfo
+		) const
+	{
+		NContainer::TCMap<NStr::CStr, bool> Result;
+
+		auto const &Host = _CallingHostInfo.f_GetRealHostID();
+		if (auto pHostPermissions = mp_Permissions.f_FindEqual(Host))
+		{
+			for (auto const &PermissionQuery : _NamedPermissionQueries)
+			{
+				bool bSucceeded = true;
+				for (auto const &AllPermissions : PermissionQuery)
+				{
+					if (!AllPermissions.f_MatchesPermission(*pHostPermissions))
+					{
+						bSucceeded = false;
+						break;
+					}
+				}
+				Result[_NamedPermissionQueries.fs_GetKey(PermissionQuery)] = bSucceeded;
+			}
+		}
+		else
+		{
+			for (auto const &PermissionQuery : _NamedPermissionQueries)
+				Result[_NamedPermissionQueries.fs_GetKey(PermissionQuery)] = false;
+		}
+		return fg_Explicit(fg_Move(Result));
+	}
+
 	NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &CTrustedPermissionSubscription::f_GetPermissions() const
 	{
 		return mp_Permissions;

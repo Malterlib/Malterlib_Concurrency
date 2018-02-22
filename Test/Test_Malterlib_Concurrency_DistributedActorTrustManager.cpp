@@ -154,6 +154,7 @@ namespace
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager()}
 				, m_ClientHelper{f_InitClientTrustManager()}
+				, m_ServerHostInfo({}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0)
 			{
 				m_ExpectedPermissions[m_ServerHostID]["com.malterlib/Test"];
 				m_ExpectedEnumHostPermissions["com.malterlib/Test"][m_ServerHostID] = CHostInfo(m_ServerHostID, "TestServer");
@@ -239,6 +240,7 @@ namespace
 			CStr m_ServerHostID;
 			CDistributedActorTestHelper m_ServerHelper;
 			CDistributedActorTestHelper m_ClientHelper;
+			CCallingHostInfo m_ServerHostInfo;
 
 			TCActor<> m_TestActor = fg_ConcurrentActor();
 
@@ -1080,7 +1082,7 @@ namespace
 						DMibTestPath("Before add permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Before add permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
 						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
@@ -1093,7 +1095,7 @@ namespace
 						DMibTestPath("After add permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissions);
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissions);
 						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
@@ -1106,7 +1108,7 @@ namespace
 						DMibTestPath("After remove permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("After remove permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
 						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
 						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
@@ -1117,8 +1119,8 @@ namespace
 					{
 						DMibTestPath("After add double permissions");
 						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					}
 					TestState.f_RemoveHostPermissions("com.malterlib/Test");
 					TestState.f_RemoveHostPermissions("com.malterlib/Test");
@@ -1150,8 +1152,8 @@ namespace
 					{
 						DMibTestPath("After add double permissions");
 						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					}
 					TestState.f_RemoveHostPermissions("com.malterlib/Test");
 					TestState.f_RemoveHostPermissions("com.malterlib/Test");
@@ -1193,8 +1195,8 @@ namespace
 					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2");
 					{
 						DMibTestPath("After add double permissions");
-						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-						DMibExpectTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
+						DMibExpectTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+						DMibExpectTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						DMibExpect(nPermissions.f_Load(), ==, 2);
 						
 					}
@@ -1257,9 +1259,9 @@ namespace
 						).f_CallSync(60.0)
 					;
 					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2", "com.malterlib/Test3");
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test3"));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 				}
 				{
 					DMibTestPath("After Reload");
@@ -1271,17 +1273,17 @@ namespace
 							 , TestState.m_TestActor
 						).f_CallSync(60.0)
 					;
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test3"));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 
 					TestState.f_RemoveHostPermissions("com.malterlib/Test2", "com.malterlib/Test3");
 
 					{
 						DMibTestPath("After Remove");
-						DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
-						DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test3"));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("After Remove", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					}
 				}
 				{
@@ -1294,9 +1296,9 @@ namespace
 							 , TestState.m_TestActor
 						).f_CallSync(60.0)
 					;
-					DMibAssertTrue(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test"));
-					DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test2"));
-					DMibAssertFalse(TrustedSubscription.f_HostHasPermission(TestState.m_ServerHostID, "com.malterlib/Test3"));
+					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 				}
 			};
 		}

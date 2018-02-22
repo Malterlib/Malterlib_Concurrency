@@ -219,24 +219,4 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
-	
-	template <typename ...tfp_CPermission>
-	bool CTrustedPermissionSubscription::f_HostHasAnyPermission(NStr::CStr const &_Host, tfp_CPermission const &...p_Permission) const
-	{
-		bool bHasPermission = false;
-		fg_Swallow
-			(
-				[&]
-				{
-					if (bHasPermission)
-						return true;
-					if (f_HostHasPermission(_Host, p_Permission))
-						bHasPermission = true;
-					return true;
-				}
-				()...
-			)
-		;
-		return bHasPermission;
-	}
 }

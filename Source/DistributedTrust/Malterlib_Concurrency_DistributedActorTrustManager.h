@@ -64,7 +64,20 @@ namespace NMib::NConcurrency
 		
 		NPtr::TCSharedPointer<CState> mp_pState;
 	};
-	
+
+	struct CPermissions
+	{
+		CPermissions();
+		CPermissions(TCInitializerList<NStr::CStr> const &);
+		CPermissions &&f_Description(NStr::CStr const &_Description) &&;
+		CPermissions &&f_Wildcard(bool _bIsWildcard) &&;
+		bool f_MatchesPermission(NContainer::TCSet<NStr::CStr> const &_HostPermissions) const;
+
+		NContainer::TCVector<NStr::CStr> m_Permissions;
+		NStr::CStr m_Description;
+		bool m_bIsWildcard = false;
+	};
+
 	struct CTrustedPermissionSubscription
 	{
 		CTrustedPermissionSubscription(CTrustedPermissionSubscription const &) = delete;
@@ -74,13 +87,28 @@ namespace NMib::NConcurrency
 		CTrustedPermissionSubscription() = default;
 		~CTrustedPermissionSubscription();
 
-		template <typename ...tfp_CPermission>
-		bool f_HostHasAnyPermission(NStr::CStr const &_Host, tfp_CPermission const &...p_Permission) const;
-		
-		bool f_HostHasPermission(NStr::CStr const &_Host, ch8 const *_pPermission) const;
-		bool f_HostHasPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const;
-		bool f_HostHasWildcardPermission(NStr::CStr const &_Host, NStr::CStr const &_Permission) const;
-		bool f_HostHasAnyPermission(NStr::CStr const &_Host, NContainer::TCVector<NStr::CStr> const &_Permissions) const;
+		TCContinuation<bool> f_HasPermission
+			(
+			 	NStr::CStr const &_Description
+			 	, NContainer::TCVector<NStr::CStr> const &_Permissions
+			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+			) const
+		;
+		TCContinuation<bool> f_HasPermissions
+			(
+			 	NStr::CStr const &_Description
+			 	, NContainer::TCVector<CPermissions> const &_Permissions
+			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+			) const
+		;
+		TCContinuation<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
+			(
+			 	NStr::CStr const &_Description
+			 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissions>> const &_NamedPermissionQueries
+			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+			) const
+		;
+
 		NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &f_GetPermissions() const;
 		
 		void f_Clear();

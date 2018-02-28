@@ -85,8 +85,10 @@ namespace NMib::NConcurrency
 		CStr Category = _Category;
 		if (Category.f_IsEmpty())
 			Category = mp_Settings.m_AuditCategory;
+#if (DMibSysLogSeverities) != 0
 		NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
 		NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
+#endif
 	}
 
 	CDistributedAppAuditor::CDistributedAppAuditor() = default;
@@ -708,6 +710,7 @@ namespace NMib::NConcurrency
 			if (pParam->f_Boolean())
 				fg_GetSys()->f_AddStdErrLogger();
 		}
+#if (DMibSysLogSeverities) != 0
 		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())
@@ -729,6 +732,7 @@ namespace NMib::NConcurrency
 				;
 			}
 		}
+#endif
 		
 		return LogActor;
 	}
@@ -759,8 +763,10 @@ namespace NMib::NConcurrency
 			bool bInstalledLogDispatcher = false;
 			auto CleanupLogDispatcher = g_OnScopeExit > [&]
 				{
+#if (DMibSysLogSeverities) != 0
 					if (bInstalledLogDispatcher)
 						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+#endif
 				}
 			;
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();

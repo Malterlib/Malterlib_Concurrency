@@ -84,8 +84,10 @@ namespace NMib::NConcurrency
 			{
 				if (!_Result)
 				{
+#if (DMibSysLogSeverities) != 0
 					NLog::CSysLogCatScope Scope(fg_GetSys()->f_GetLogger(), mp_Settings.m_AuditCategory);
 					DMibLog(Error, "Failed to save state database: {}", _Result.f_GetExceptionStr());
+#endif
 				}
 				Continuation.f_SetResult(fg_Move(_Result));
 			}
@@ -100,8 +102,10 @@ namespace NMib::NConcurrency
 			{
 				if (!_Result)
 				{
+#if (DMibSysLogSeverities) != 0
 					NLog::CSysLogCatScope Scope(fg_GetSys()->f_GetLogger(), mp_Settings.m_AuditCategory);
 					DMibLog(Error, "Failed to save config database: {}", _Result.f_GetExceptionStr());
+#endif
 				}
 				Continuation.f_SetResult(fg_Move(_Result));
 			}

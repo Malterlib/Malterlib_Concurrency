@@ -37,8 +37,10 @@ namespace NMib
 					m_Actor = nullptr;
 				}
 				
+#if (DMibSysLogSeverities) != 0
 				if (m_bInstalledLogDispatcher)
 					fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+#endif
 			}
 		
 			TCActor<CDistributedAppActor> m_Actor;

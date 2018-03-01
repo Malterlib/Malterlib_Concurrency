@@ -5,6 +5,8 @@
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
 #include <Mib/Concurrency/DistributedActor>
+#include <Mib/Encoding/EJSON>
+#include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
 {
@@ -95,6 +97,15 @@ namespace NMib::NConcurrency
 			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
 		};
 
+		struct CUserInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NStr::CStr m_UserName;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
+		};
+
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
@@ -139,6 +150,18 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) = 0;
 		virtual TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) = 0;
 		virtual TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) = 0;
+
+		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
+		virtual TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) = 0;
+		virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) = 0;
+		virtual TCContinuation<void> f_SetUserInfo
+			(
+				NStr::CStr const &_UserID
+				, NStorage::TCOptional<NStr::CStr> const &_UserName
+			 	, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
+			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+			) = 0
+		;
 	};
 }
 

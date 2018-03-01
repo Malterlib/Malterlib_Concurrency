@@ -10,6 +10,8 @@
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Network/SSL>
+#include <Mib/Encoding/JSONShortcuts>
+
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -1299,6 +1301,157 @@ namespace
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
+				}
+			};
+			DMibTestSuite("User Database")
+			{
+				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
+				using CKeys = TCSet<CStr>;
+				CState State{_fDatabaseFactory, _fCleanup};
+				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
+				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
+				CStr const ID3 = "JNsXrbgP3dL6xuFXm";
+				CStr const ID4 = "Tao5Dmb6FpMzTCQyD";
+				NStorage::TCOptional<NStr::CStr> UnsetUserName;
+
+				CMetadata Empty;
+				CMetadata Metadata2{{"Key", "Value"}};
+				CMetadata Metadata3{{"Key2", "FunkyStuff"}};
+				Metadata3["Key1"] = {"Key1"_= "NewValue1", "Key2"_= "Value2"};
+				CMetadata Metadata4{{"Key0", "Value0"}};
+				Metadata4["Key1"] = "Value1";
+				
+				TCSet<CStr> NoRemove;
+				{
+					DMibTestPath("Initial");
+					CPermissionTestState TestState{State, 31407};
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID3, "User3").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID4, "User4").f_CallSync(60.0);
+
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1 again").f_CallSync(60.0)
+							, DMibErrorInstance("User '2YAzJPcR2K5QMbJYP' already exists")
+						)
+					;
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, "**COOL**", "Invalid ID").f_CallSync(60.0)
+							, DMibErrorInstance("Invalid user ID")
+						)
+					;
+
+					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+
+					DMibExpect(AllUsers.f_GetLen(), ==, 4);
+					DMibExpect(AllUsers[ID1].m_UserName, ==, "User1");
+					DMibExpect(AllUsers[ID2].m_UserName, ==, "User2");
+					DMibExpect(AllUsers[ID3].m_UserName, ==, "User3");
+					DMibExpect(AllUsers[ID4].m_UserName, ==, "User4");
+
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, NoRemove, Metadata2).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID3, UnsetUserName, NoRemove, Metadata3).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID4, UnsetUserName, NoRemove, Metadata4).f_CallSync(60.0);
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, "**COOL**", UnsetUserName, NoRemove, Metadata4).f_CallSync(60.0)
+							, DMibErrorInstance("Invalid user ID")
+						)
+					;
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, "1234567890", UnsetUserName, NoRemove, Metadata4).f_CallSync(60.0)
+							, DMibErrorInstance("User '1234567890' does not exist")
+						)
+					;
+
+					AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+					DMibExpectTrue(AllUsers[ID1].m_Metadata.f_IsEmpty());
+					DMibExpect(AllUsers[ID2].m_Metadata, ==, Metadata2);
+					DMibExpect(AllUsers[ID3].m_Metadata, ==, Metadata3);
+					DMibExpect(AllUsers[ID4].m_Metadata, ==, Metadata4);
+				}
+				{
+					DMibTestPath("From database");
+					CPermissionTestState TestState{State, 31407};
+
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+
+					DMibExpect(AllUsers.f_GetLen(), ==, 4);
+					DMibExpect(AllUsers[ID1].m_UserName, ==, "User1");
+					DMibExpect(AllUsers[ID2].m_UserName, ==, "User2");
+					DMibExpect(AllUsers[ID3].m_UserName, ==, "User3");
+					DMibExpect(AllUsers[ID4].m_UserName, ==, "User4");
+					DMibExpectTrue(AllUsers[ID1].m_Metadata.f_IsEmpty());
+					DMibExpect(AllUsers[ID2].m_Metadata, ==, Metadata2);
+					DMibExpect(AllUsers[ID3].m_Metadata, ==, Metadata3);
+					DMibExpect(AllUsers[ID4].m_Metadata, ==, Metadata4);
+				}
+				{
+					DMibTestPath("Set userinfo and remove metadata");
+					CPermissionTestState TestState{State, 31407};
+
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+
+					NStorage::TCOptional<NStr::CStr> SetUserName{"NewUser1"};
+					CMetadata UnsetMetadata;
+					CMetadata SetMetadata;
+					SetMetadata["Key1"] = "NewValue";
+					SetMetadata["Key2"] = "Value2";
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID1, SetUserName, CKeys{}, UnsetMetadata).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID4, UnsetUserName, CKeys{}, SetMetadata).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, CKeys{"Key"}, CMetadata{}).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID3, UnsetUserName, CKeys{"Key1"}, CMetadata{}).f_CallSync(60.0);
+
+					Metadata3.f_Remove("Key1");
+					SetMetadata["Key0"] = "Value0";
+					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+					DMibExpect(AllUsers[ID1].m_UserName, ==, "NewUser1");
+					DMibExpect(AllUsers[ID2].m_UserName, ==, "User2");
+					DMibExpect(AllUsers[ID3].m_UserName, ==, "User3");
+					DMibExpect(AllUsers[ID4].m_UserName, ==, "User4");
+					DMibExpectTrue(AllUsers[ID1].m_Metadata.f_IsEmpty());
+					DMibExpectTrue(AllUsers[ID2].m_Metadata.f_IsEmpty());
+					DMibExpect(AllUsers[ID3].m_Metadata, ==, Metadata3);
+					DMibExpect(AllUsers[ID4].m_Metadata, ==, SetMetadata);
+
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, CKeys{"Key"}, CMetadata{}).f_CallSync(60.0);
+							, DMibErrorInstance("Key 'Key' does not exist")
+						)
+					;
+				}
+				{
+					DMibTestPath("Remove user");
+					CPermissionTestState TestState{State, 31407};
+
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID4).f_CallSync(60.0);
+
+					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+
+					DMibExpect(AllUsers.f_GetLen(), ==, 2);
+					DMibExpect("NewUser1", ==, AllUsers[ID1].m_UserName);
+					DMibExpect("User3", ==, AllUsers[ID3].m_UserName);
+
+					DMibExpectException
+						(
+							TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(60.0)
+							, DMibErrorInstance("No user with ID 'DPYQEvAqw4RQhXRYe'")
+						)
+					;
+
+
 				}
 			};
 		}

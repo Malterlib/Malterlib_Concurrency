@@ -8,7 +8,9 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 	using namespace NContainer;
-	
+	using namespace NStorage;
+	using namespace NEncoding;
+
 	namespace
 	{
 		bool fg_AllAllowedInSet(TCSet<CStr> const &_ToCheck, TCSet<CStr> const &_Allowed)
@@ -227,5 +229,39 @@ namespace NMib::NConcurrency
 		if (!fg_AllAllowedInSet(_Command.m_Permissions, mp_Permissions.m_AllowedPermissions))
 			return fp_AccessDenied();
 		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _Command.m_HostID, _Command.m_Permissions, _Command.m_OrderingFlags);
+	}
+
+	TCContinuation<TCMap<CStr, CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManagerProxy::f_EnumUsers(bool _bIncludeFullInfo)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Read))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, _bIncludeFullInfo);
+	}
+
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AddUser(CStr const &_UserID, CStr const &_UserName)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AddUser, _UserID, _UserName);
+	}
+
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveUser(CStr const &_UserID)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Remove))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveUser, _UserID);
+	}
+	
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_SetUserInfo
+		(
+			CStr const &_UserID
+			, TCOptional<CStr> const &_UserName
+			, TCSet<CStr> const &_RemoveMetadata
+			, TCMap<CStr, CEJSON> const &_AddMetadata
+		)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, _UserName, _RemoveMetadata, _AddMetadata);
 	}
 }

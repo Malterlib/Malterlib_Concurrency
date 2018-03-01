@@ -3,6 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Cryptography/RandomID>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
@@ -14,7 +15,9 @@ namespace NMib
 	using namespace NPtr;
 	using namespace NEncoding;
 	using namespace NContainer;
-	
+	using namespace NStorage;
+	using namespace NProcess;
+
 	namespace NConcurrency
 	{
 		ICCommandLine::ICCommandLine()
@@ -904,7 +907,102 @@ namespace NMib
 			
 			return 0;
 		}
-		
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+		{
+			TCContinuation<uint32> Continuation;
+			CStr const &_UserName = _Params["UserName"].f_String();
+			CStr const &UserID = NCryptography::fg_RandomID();
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, UserID, _UserName)
+				> Continuation / [Continuation, UserID, _UserName]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add user ID '{}' ({}) to host from command line", UserID, _UserName);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUser, _UserID)
+				> Continuation / [Continuation, _UserID]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove user '{}' from command line", _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListUsers(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, false)
+				> Continuation / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo> &&_Users)
+				{
+					CStr Result;
+					for (auto &UserInfo : _Users)
+					{
+						auto &UserID = _Users.fs_GetKey(UserInfo);
+						Result += "{}\n"_f << UserID;
+						Result += "    {}\n"_f << UserInfo.m_UserName;
+					}
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported users to command line {}", Result);
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+		{
+			TCContinuation<uint32> Continuation;
+			CStr const &UserID = _Params["UserID"].f_String();
+			TCOptional<CStr> UserName;
+			TCMap<CStr, CEJSON> AddMetadata;
+			TCSet<CStr> RemoveMetadata;
+
+			if (auto pValue = _Params.f_GetMember("UserName"))
+				UserName = pValue->f_String();
+
+			if (auto pValue = _Params.f_GetMember("Metadata"))
+			{
+				auto Object = pValue->f_Object();
+				for (auto iMetadata = Object.f_OrderedIterator(); iMetadata; ++iMetadata)
+					AddMetadata[iMetadata->f_Name()] = iMetadata->f_Value();
+			}
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo,  UserID, UserName, RemoveMetadata, AddMetadata)
+				> Continuation / [Continuation, UserID]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Set metadata for user '{}' from command line", UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_Key)
+		{
+			TCContinuation<uint32> Continuation;
+			TCOptional<CStr> UserName;
+			TCMap<CStr, CEJSON> AddMetadata;
+			TCSet<CStr> RemoveMetadata;
+			RemoveMetadata[_Key];
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, UserName, AddMetadata, RemoveMetadata)
+				> Continuation / [Continuation, _UserID, _Key]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove metadata '{}' from user '{}' from command line", _Key, _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+
 		TCContinuation<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
 				CStr const &_Description
@@ -1576,6 +1674,129 @@ namespace NMib
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return f_CommandLine_GetHostID(_pCommandLine);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-add"}
+							, "Description"_= "Add a user to the database.\n"
+							, "Output"_= "None."
+							, "Parameters"_=
+							{
+								"UserName"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The name of the user being added to the database"
+								}
+							}
+					}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_AddUser(_pCommandLine, _Params);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-remove"}
+							, "Description"_= "Remove a user from the database.\n"
+							, "Output"_= "None."
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to remove from the database"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_RemoveUser(_pCommandLine, _Params["UserID"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-list"}
+							, "Description"_= "List the users in the database.\n"
+							, "Output"_= "A newline separated list of the users."
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_ListUsers(_pCommandLine);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-set-userinfo"}
+							, "Description"_= "Set or add metadata to a user.\n"
+							"Change user name or add new key, value pairs to the user's metadata or replace a value if the key already exists."
+							, "Options"_=
+							{
+								"Metadata?"_=
+								{
+									"Names"_= {"--metadata"}
+									, "Type"_= EJSONType_Object
+									, "Description"_= "The metadata to set.\n"
+									"The metadata is specified as a JSON object '{\"Key\" : \"Value\"}'"
+								}
+								, "UserName?"_=
+								{
+									"Names"_= {"--username"}
+									, "Type"_= ""
+									, "Description"_= "The new username.\n"
+								}
+							}
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to remove from the database"
+								}
+							}
+
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_SetUserInfo(_pCommandLine, _Params);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-users-remove-metadata"}
+							, "Description"_= "Remove the metadata matching key from the secret."
+							, "Options"_=
+							{
+
+								"Key"_=
+								{
+									"Names"_= {"--key"}
+									, "Type"_= ""
+									, "Description"_= "Key of the metadata to remove.\n"
+								}
+							}
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to remove metadata from"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_RemoveMetadata(_pCommandLine, _Params["UserID"].f_String(), _Params["Key"].f_String());
 						}
 					)
 				;

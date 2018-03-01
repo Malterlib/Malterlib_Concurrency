@@ -44,6 +44,11 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
 		TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
 		TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) override;
+		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
+		TCContinuation<CUserInfo> f_GetUserInfo(NStr::CStr const &_UserID) override;
+		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, CUserInfo const &_UserInfo) override;
+		TCContinuation<void> f_SetUserInfo(NStr::CStr const &_UserID, CUserInfo const &_UserInfo) override;
+		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) override;
 		
 		CBasicConfig m_BasicConfig;
 		int32 m_CertificateSerial = 0;
@@ -54,6 +59,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> m_ClientConnections;
 		NContainer::TCMap<NStr::CStr, CNamespace> m_Namespaces;
 		NContainer::TCMap<NStr::CStr, CHostPermissions> m_HostPermissions;
+		NContainer::TCMap<NStr::CStr, CUserInfo> m_Users;
 	};
 	
 	struct CTrustManagerTestHelper

@@ -604,6 +604,11 @@ namespace NMib::NConcurrency
 		return NNet::fg_IsValidHostname(_String);
 	}
 	
+	bool CActorDistributionManager::fs_IsValidUserID(NStr::CStr const &_String)
+	{
+		return NNet::fg_IsValidHostname(_String);
+	}
+
 	CDistributedActorInterfaceShare::CDistributedActorInterfaceShare()
 	{
 	}

@@ -9,6 +9,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Private.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Interface.h"
 #include <Mib/Concurrency/ActorFunctor>
+#include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
 {
@@ -191,7 +192,7 @@ namespace NMib::NConcurrency
 				, COptions &&_Options
 			)
 		;
-		
+
 		~CDistributedActorTrustManager();
 		
 		
@@ -244,6 +245,18 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		TCContinuation<void> f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
 		TCContinuation<void> f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
+
+		TCContinuation<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo);
+		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName);
+		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID);
+		TCContinuation<void> f_SetUserInfo
+			(
+				NStr::CStr const &_UserID
+				, NStorage::TCOptional<NStr::CStr> const &_UserName
+			 	, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
+			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+			)
+		;
 
 		TCContinuation<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
 		

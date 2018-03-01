@@ -54,6 +54,12 @@ namespace NMib
 			TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
 			TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
 			TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) override;
+
+			TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
+			TCContinuation<CUserInfo> f_GetUserInfo(NStr::CStr const &_User) override;
+			TCContinuation<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_Users) override;
+			TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_Users) override;
+			TCContinuation<void> f_RemoveUser(NStr::CStr const &_User) override;
 		private:
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;

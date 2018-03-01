@@ -4,6 +4,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_DatabaseJSONDirectory.h"
 
 #include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Web/HTTP/URL>
 
@@ -12,7 +13,8 @@ namespace NMib
 	namespace NConcurrency
 	{
 		using namespace NDistributedActorTrustManagerDatabase;
-		
+		using namespace NStr;
+
 		struct CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal
 		{
 			using CActorHolder = CSeparateThreadActorHolder;
@@ -68,6 +70,8 @@ namespace NMib
 			void f_FromJSON(CNamespace &_Namespace, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 			NEncoding::CEJSON f_ToJSON(CHostPermissions const &_HostPermissions) const;
 			void f_FromJSON(CHostPermissions &_HostPermissions, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
+			NEncoding::CEJSON f_ToJSON(CUserInfo const &_UserInfo) const;
+			void f_FromJSON(CUserInfo &v, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 		};
 		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory)
@@ -593,6 +597,76 @@ namespace NMib
 			;
 		}
 		
+		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumUsers(bool _bIncludeFullInfo)
+		{
+			return TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					NContainer::TCMap<NStr::CStr, CUserInfo> AllUsers;
+					for (auto &UserID : Internal.f_Find("Users"))
+					{
+						CUserInfo UserInfo;
+						Internal.f_Read(UserInfo, "Users", UserID);
+						AllUsers[UserID] = UserInfo;
+					}
+					return AllUsers;
+				}
+			;
+		}
+
+		TCContinuation<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(NStr::CStr const &_UserID)
+		{
+			return TCContinuation<CUserInfo>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					CUserInfo UserInfo;
+					if (!Internal.f_Read(UserInfo, "Users", _UserID))
+						DMibError("No information found for that user ID");
+					return UserInfo;
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(NStr::CStr const &_UserID, CUserInfo const &_UserInfo)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (Internal.f_Exists("Users", _UserID))
+						DMibError("User info already exists for that user ID");
+					Internal.f_Write(_UserInfo, "Users", _UserID);
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(NStr::CStr const &_UserID, CUserInfo const &_UserInfo)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					Internal.f_Write(_UserInfo, "Users", _UserID);
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(NStr::CStr const &_UserID)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Delete("Users", _UserID))
+						DMibError("No user info for that user ID");
+				}
+			;
+		}
+
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::CInternal(NStr::CStr const &_BaseDirectory)
 			: m_BaseDirectory(_BaseDirectory)
 		{
@@ -853,6 +927,34 @@ namespace NMib
 			o_HostPermissions.m_Permissions.f_Clear();
 			for (auto &Permission : _JSON["Permissions"].f_Array())
 				o_HostPermissions.m_Permissions[Permission.f_String()];
+		}
+
+		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CUserInfo const &_UserInfo) const
+		{
+			NEncoding::CEJSON JSON;
+			JSON["UserName"] = _UserInfo.m_UserName;
+			if (!_UserInfo.m_Metadata.f_IsEmpty())
+			{
+				auto &Metadata = JSON["Metadata"] = NEncoding::EJSONType_Object;
+				for (auto &Item : _UserInfo.m_Metadata)
+				{
+					Metadata[_UserInfo.m_Metadata.fs_GetKey(Item)] = Item;
+				}
+			}
+			return JSON;
+		}
+
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CUserInfo &o_UserInfo, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		{
+			o_UserInfo.m_UserName = _JSON["UserName"].f_String();
+			o_UserInfo.m_Metadata.f_Clear();
+			auto pValue = _JSON.f_GetMember("Metadata");
+			if (!pValue)
+				return;
+
+			auto Object = pValue->f_Object();
+			for (auto iMetadata = Object.f_OrderedIterator(); iMetadata; ++iMetadata)
+				o_UserInfo.m_Metadata[iMetadata->f_Name()] = iMetadata->f_Value();
 		}
 	}
 }

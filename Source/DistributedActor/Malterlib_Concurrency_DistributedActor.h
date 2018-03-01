@@ -595,7 +595,8 @@ namespace NMib
 			static bool fs_IsValidNamespaceName(NStr::CStr const &_String);
 			static bool fs_IsValidHostID(NStr::CStr const &_String);
 			static bool fs_IsValidEnclave(NStr::CStr const &_String);
-
+			static bool fs_IsValidUserID(NStr::CStr const &_String);
+		
 		private:
 			TCContinuation<void> fp_Destroy() override;
 			

@@ -1,6 +1,7 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
+#include <Mib/Encoding/JSONShortcuts>
 #include "Malterlib_Concurrency_DistributedActorTrustManager_TestHelpers.h"
 #include "../DistributedActor/Malterlib_Concurrency_DistributedActor_TestHelpers.h"
 
@@ -241,11 +242,11 @@ namespace NMib::NConcurrency
 		{
 			auto &HostPermissions = Return[iHostPermissions.f_GetKey()];
 			if (_bIncludeFullInfo)
-				HostPermissions = *iHostPermissions; 
+				HostPermissions = *iHostPermissions;
 		}
 		return fg_Explicit(Return);
 	}
-	
+
 	TCContinuation<CHostPermissions> CTrustManagerDatabaseTestHelper::f_GetHostPermissions(CStr const &_HostID)
 	{
 		auto pHostPermissions = m_HostPermissions.f_FindEqual(_HostID);
@@ -253,14 +254,14 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance("No host permissions for host ID");
 		return fg_Explicit(*pHostPermissions);
 	}
-	
+
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddHostPermissions(CStr const &_HostID, CHostPermissions const &_HostPermissions)
 	{
 		if (!m_HostPermissions(_HostID, _HostPermissions).f_WasCreated())
 			return DMibErrorInstance("Host permissions already exists for host ID");
 		return fg_Explicit();
 	}
-	
+
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetHostPermissions(CStr const &_HostID, CHostPermissions const &_HostPermissions)
 	{
 		auto pHostPermissions = m_HostPermissions.f_FindEqual(_HostID);
@@ -269,14 +270,57 @@ namespace NMib::NConcurrency
 		*pHostPermissions = _HostPermissions;
 		return fg_Explicit();
 	}
-	
+
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveHostPermissions(CStr const &_HostID)
 	{
 		if (!m_HostPermissions.f_Remove(_HostID))
 			return DMibErrorInstance("No host permissions for host ID");
 		return fg_Explicit();
 	}
-	
+
+	TCContinuation<NContainer::TCMap<CStr, CUserInfo>> CTrustManagerDatabaseTestHelper::f_EnumUsers(bool _bIncludeFullInfo)
+	{
+		NContainer::TCMap<CStr, CUserInfo> Return;
+		for (auto iUsers = m_Users.f_GetIterator(); iUsers; ++iUsers)
+		{
+			auto &User = Return[iUsers.f_GetKey()];
+			User.m_UserName = iUsers->m_UserName;
+			User.m_Metadata = iUsers->m_Metadata;
+		}
+		return fg_Explicit(Return);
+	}
+
+	TCContinuation<CUserInfo> CTrustManagerDatabaseTestHelper::f_GetUserInfo(CStr const &_UserID)
+	{
+		auto pUsers = m_Users.f_FindEqual(_UserID);
+		if (!pUsers)
+			return DMibErrorInstance("No user with ID");
+		return fg_Explicit(*pUsers);
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
+	{
+		if (!m_Users(_UserID, _UserInfo).f_WasCreated())
+			return DMibErrorInstance("There is already a user with that user ID");
+		return fg_Explicit();
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
+	{
+		auto pUsers = m_Users.f_FindEqual(_UserID);
+		if (!pUsers)
+			return DMibErrorInstance("User '{}' does not exists"_f << _UserID);
+		*pUsers = _UserInfo;
+		return fg_Explicit();
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveUser(CStr const &_UserID)
+	{
+		if (!m_Users.f_Remove(_UserID))
+			return DMibErrorInstance("There is no user with that user ID");
+		return fg_Explicit();
+	}
+
 	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID) const
 	{
 		CDistributedActorTrustManager::COptions Options;

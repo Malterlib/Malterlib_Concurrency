@@ -40,8 +40,13 @@ namespace NMib::NConcurrency
 			, EPermission_HostPermissions_Add = DMibBit(14)
 			, EPermission_HostPermissions_Remove = DMibBit(15)
 			, EPermission_HostPermissions = EPermission_HostPermissions_Read | EPermission_HostPermissions_Add | EPermission_HostPermissions_Remove
-			
-			, EPermission_All = 
+
+			, EPermission_User_Read = DMibBit(16)
+			, EPermission_User_Write = DMibBit(17)
+			, EPermission_User_Remove = DMibBit(18)
+			, EPermission_UserPermissions = EPermission_User_Read | EPermission_User_Write | EPermission_User_Remove
+
+			, EPermission_All =
 			(
 				EPermission_HostID_Read 
 				| EPermission_Listen 
@@ -49,6 +54,7 @@ namespace NMib::NConcurrency
 				| EPermission_ClientConnection 
 				| EPermission_NamespacePermissions 
 				| EPermission_HostPermissions
+				| EPermission_UserPermissions
 			)
 		};
 		
@@ -104,6 +110,18 @@ namespace NMib::NConcurrency
 		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) override;
 		TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) override;
 		TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) override;
+
+		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
+		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) override;
+		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) override;
+		TCContinuation<void> f_SetUserInfo
+			(
+				NStr::CStr const &_UserID
+				, NStorage::TCOptional<NStr::CStr> const &_UserName
+			 	, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
+			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+			) override
+		;
 
 	private:
 		NException::CException fp_AccessDenied() const;

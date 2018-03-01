@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Concurrency/ConcurrencyDefines>
+#include <Mib/Encoding/EJSON>
 #include "../Actor/Malterlib_Concurrency_Actor.h"
 #include "../DistributedActor/Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
@@ -130,6 +131,22 @@ namespace NMib
 
 				NContainer::TCSet<NStr::CStr> m_Permissions;
 			};
+
+			struct CUserInfo
+			{
+				enum
+				{
+					EVersion = 0x101
+				};
+
+				template <typename tf_CStream>
+				void f_Feed(tf_CStream &_Stream) const;
+				template <typename tf_CStream>
+				void f_Consume(tf_CStream &_Stream);
+
+				NStr::CStr m_UserName;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
+			};
 		}
 		
 		class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
@@ -142,7 +159,8 @@ namespace NMib
 			using CClientConnection = NDistributedActorTrustManagerDatabase::CClientConnection;
 			using CNamespace = NDistributedActorTrustManagerDatabase::CNamespace;
 			using CHostPermissions = NDistributedActorTrustManagerDatabase::CHostPermissions;
-			
+			using CUserInfo = NDistributedActorTrustManagerDatabase::CUserInfo;
+
 			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() = 0;
 			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
 			virtual TCContinuation<int32> f_GetNewCertificateSerial() = 0;
@@ -182,6 +200,12 @@ namespace NMib
 			virtual TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) = 0;
 			virtual TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) = 0;
 			virtual TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) = 0;
+
+			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
+ 			virtual TCContinuation<CUserInfo> f_GetUserInfo(NStr::CStr const &_User) = 0;
+			virtual TCContinuation<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_Users) = 0;
+			virtual TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_Users) = 0;
+			virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_User) = 0;
 		};
 	}
 }

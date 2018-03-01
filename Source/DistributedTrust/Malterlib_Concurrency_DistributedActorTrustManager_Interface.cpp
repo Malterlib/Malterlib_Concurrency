@@ -28,6 +28,10 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumHostPermissions);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddHostPermissions);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveHostPermissions);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumUsers);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddUser);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveUser);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetUserInfo);
 	}
 	
 	CDistributedActorTrustManagerInterface::~CDistributedActorTrustManagerInterface() = default;
@@ -93,4 +97,12 @@ namespace NMib::NConcurrency
 	{
 		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) < NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
 	}
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CUserInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_UserName;
+		_Stream % m_Metadata;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo);
 }

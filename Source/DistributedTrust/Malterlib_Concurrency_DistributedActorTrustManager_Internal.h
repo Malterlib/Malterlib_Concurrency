@@ -133,6 +133,12 @@ namespace NMib
 				inline NStr::CStr const &f_GetPermission() const;
 			};
 			
+			struct CUserState
+			{
+				NDistributedActorTrustManagerDatabase::CUserInfo m_UserInfo;
+				bool m_bExistsInDatabase = false;
+			};
+
 			struct CTicketInterface : public CActor
 			{
 				enum : uint32
@@ -178,6 +184,7 @@ namespace NMib
 					, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
 					, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
+					, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
 				)
 			;
 			
@@ -233,6 +240,8 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CHostPermissionState> m_HostPermissions;
 			NContainer::TCMap<NStr::CStr, CHostPermissionSubscriptionState> m_HostPermissionsSubscriptions;
 			
+			NContainer::TCMap<NStr::CStr, CUserState> m_Users;
+
 			NTime::CTimer m_TicketTimer;
 			
 			NNet::CSSLKeySetting const m_KeySetting;

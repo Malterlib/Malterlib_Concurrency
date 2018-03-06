@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationData.h"
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Encoding/EJSON>
 #include <Mib/Storage/Optional>
@@ -101,6 +102,8 @@ namespace NMib::NConcurrency
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
 
 			NStr::CStr m_UserName;
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
@@ -152,6 +155,7 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) = 0;
 
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
+		virtual TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) = 0;
 		virtual TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) = 0;
 		virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) = 0;
 		virtual TCContinuation<void> f_SetUserInfo
@@ -162,6 +166,12 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			) = 0
 		;
+
+		virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumAuthenticationFactors() = 0;
+		virtual TCContinuation<NContainer::TCMap<NStr::CStr, NConcurrency::CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) = 0;
+		virtual TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) = 0;
+		virtual TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) = 0;
+		virtual TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
 	};
 }
 

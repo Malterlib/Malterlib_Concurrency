@@ -60,6 +60,12 @@ namespace NMib
 			TCContinuation<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_Users) override;
 			TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_Users) override;
 			TCContinuation<void> f_RemoveUser(NStr::CStr const &_User) override;
+
+			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) override;
+			TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CAuthenticationFactor const &_Factor) override;
+			TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CAuthenticationFactor const &_Factor) override;
+			TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) override;
+
 		private:
 			struct CInternal;
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;

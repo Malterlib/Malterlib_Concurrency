@@ -1002,6 +1002,102 @@ namespace NMib
 			return Continuation;
 		}
 
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ExportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, bool _bIncludePrivate)
+		{
+			TCContinuation<uint32> Continuation;
+			fg_ExportUser(mp_State.m_TrustManager, _UserID, _bIncludePrivate) > Continuation / [Continuation, _UserID, _pCommandLine](CStr const &_UserData)
+				{
+					*_pCommandLine += _UserData;
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Exported user ID '{}' from command line", _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ImportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserData)
+		{
+			TCContinuation<uint32> Continuation;
+			fg_ImportUser(mp_State.m_TrustManager, _UserData) > Continuation / [Continuation](CStr const &_UserID)
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Import user ID '{}' from command line", _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
+			(
+				TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CStr const &_UserID
+				, CStr const &_Factor
+			)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, _pCommandLine, _UserID, _Factor)
+				> Continuation / [Continuation, _UserID, _Factor](CStr const &_FactorID)
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Added authentification factor '{}' of type '{}' to user '{}' from command line", _FactorID, _Factor, _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor
+			(
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CStr const &_UserID
+				, CStr const &_Factor
+			)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, _UserID, _Factor)
+				> Continuation / [Continuation, _UserID, _Factor]()
+				{
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Removed authentification factor '{}' from user '{}' from command line", _Factor, _UserID);
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_EnumUserAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _UserID)
+				> Continuation / [Continuation, _UserID, _pCommandLine](TCMap<CStr, CAuthenticationData> &&_Factors)
+				{
+					CStr Result;
+					for (auto &Factor : _Factors)
+					{
+						Result += "{}\n\t{}\n"_f << _Factors.fs_GetKey(Factor) << Factor.m_Name;
+					}
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors)
+				> Continuation / [Continuation, _pCommandLine](TCSet<CStr> &&_Factors)
+				{
+					CStr Result;
+					for (auto &Factor : _Factors)
+					{
+						Result += "{}\n"_f << Factor;
+					}
+					*_pCommandLine += Result;
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
 
 		TCContinuation<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
@@ -1764,7 +1860,7 @@ namespace NMib
 								"UserID"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The user ID to remove from the database"
+									, "Description"_= "The user ID to change the information for."
 								}
 							}
 
@@ -1778,9 +1874,9 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-users-remove-metadata"}
+							"Names"_= {"--trust-user-remove-metadata"}
 							, "Category"_= Category
-							, "Description"_= "Remove the metadata matching key from the secret."
+							, "Description"_= "Remove the metadata matching key from the user."
 							, "Options"_=
 							{
 
@@ -1803,6 +1899,160 @@ namespace NMib
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return f_CommandLine_RemoveMetadata(_pCommandLine, _Params["UserID"].f_String(), _Params["Key"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-export"}
+							, "Category"_= Category
+							, "Description"_= "Export a user from the database.\n"
+							, "Output"_= "An encoded text representation of the user data."
+							, "Options"_=
+							{
+
+								"IncludePrivate?"_=
+								{
+									"Names"_= {"--include-private-data"}
+									, "Default"_= true
+									, "Description"_= "In addition to data needed to verify a users identity, include private data needed to authenticate as that user.\n"
+								}
+							}
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID of the user to export"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							bool bIncludePrivate = false;
+							if (auto *pValue = _Params.f_GetMember("IncludePrivate"))
+							{
+								bIncludePrivate = pValue->f_Boolean();
+							}
+
+							return f_CommandLine_ExportUser(_pCommandLine, _Params["UserID"].f_String(), bIncludePrivate);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-import"}
+							, "Category"_= Category
+							, "Description"_= "Import a user into the database.\n"
+							, "Output"_= "None."
+							, "Parameters"_=
+							{
+								"UserData"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The encoded text representation of the user data"
+								}
+							}
+					}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_ImportUser(_pCommandLine, _Params["UserData"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-add-authentication-factor"}
+							, "Category"_= Category
+							, "Description"_= "Add an authentication factor to the user."
+							, "Options"_=
+							{
+								"Factor"_=
+								{
+									"Names"_= {"--authentication-factor"}
+									, "Type"_= ""
+									, "Description"_= "The authentication factor to add.\n"
+								}
+							}
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to add an authentication factor to."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_RegisterAuthenticationFactor(_pCommandLine, _Params["UserID"].f_String(), _Params["Factor"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-remove-authentication-factor"}
+							, "Category"_= Category
+							, "Description"_= "Remove an authentication factor to the user."
+							, "Options"_=
+							{
+								"Factor"_=
+								{
+									"Names"_= {"--authentication-factor"}
+									, "Type"_= ""
+									, "Description"_= "The authentication factor to remove.\n"
+								}
+							}
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to remove an authentication factor from."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_UnregisterAuthenticationFactor(_pCommandLine, _Params["UserID"].f_String(), _Params["Factor"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-list-available-authentication-factor-types"}
+							, "Category"_= Category
+							, "Description"_= "List available authentication factors."
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_EnumAuthenticationFactors(_pCommandLine);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-list-authentication-factors"}
+							, "Category"_= Category
+							, "Description"_= "List the authentication factors registered to a user."
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "List the authentication factors registered for the user."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_EnumUserAuthenticationFactors(_pCommandLine, _Params["UserID"].f_String());
 						}
 					)
 				;

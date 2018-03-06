@@ -65,6 +65,7 @@ namespace NMib::NConcurrency
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumNamespaces, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumHostPermissions, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumUsers, true)
+			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumAuthenticationFactor, true)
 			> [this, Continuation]
 			(
 				TCAsyncResult<CBasicConfig> &&_BasicConfig 
@@ -74,6 +75,7 @@ namespace NMib::NConcurrency
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CHostPermissions>> &&_HostPermissions
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CUserInfo>> &&_Users
+			 	, TCAsyncResult<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> &&_AuthenticationFactors
 
 			) mutable
 			{
@@ -91,8 +93,12 @@ namespace NMib::NConcurrency
 					return Continuation.f_SetException(fg_Move(_HostPermissions));
 				if (!_Users)
 					return Continuation.f_SetException(fg_Move(_Users));
+				if (!_AuthenticationFactors)
+					return Continuation.f_SetException(fg_Move(_AuthenticationFactors));
 
-				f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces, *_HostPermissions, *_Users);
+				f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces, *_HostPermissions, *_Users, *_AuthenticationFactors);
+
+				m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 			}
 		;
 		
@@ -123,6 +129,7 @@ namespace NMib::NConcurrency
 			, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
 			, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
 			, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
+			, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>> &_AuthenticationFactors
 		)
 	{
 		auto pCleanup = fg_OnScopeExitShared
@@ -311,6 +318,7 @@ namespace NMib::NConcurrency
 				, _Namespaces
 				, _HostPermissions
 				, _Users
+			 	, _AuthenticationFactors
 				, pCleanup
 			]
 			(
@@ -378,6 +386,17 @@ namespace NMib::NConcurrency
 					auto &UserState = m_Users[UserID];
 					UserState.m_UserInfo = UserInfo;
 					UserState.m_bExistsInDatabase = true;
+				}
+
+				for (auto &UserAuthenticationFactors : _AuthenticationFactors)
+				{
+					auto &UserID = _AuthenticationFactors.fs_GetKey(UserAuthenticationFactors);
+					for (auto &Factor: UserAuthenticationFactors)
+					{
+						auto &AuthenticationFactor = m_AuthenticationFactors[UserID][UserAuthenticationFactors.fs_GetKey(Factor)];
+						AuthenticationFactor.m_AuthenticationFactor = Factor;
+						AuthenticationFactor.m_bExistsInDatabase = true;
+					}
 				}
 
 				for (auto iClientConnection = _ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)

@@ -74,6 +74,8 @@ namespace NMib::NConcurrency
 			mp_CurrentLogDirectory = _Settings.m_RootDirectory + "/Log";
 			fg_GetSys()->f_SetDefaultLogFileDirectory(mp_CurrentLogDirectory);
 		}
+		
+		fp_MakeActive();
 	}
 	
 	CDistributedAppActor::~CDistributedAppActor()
@@ -865,6 +867,15 @@ namespace NMib::NConcurrency
 		}
 		
 		return Ret;
+	}
+
+	void CDistributedAppActor::fp_MakeActive()
+	{
+		extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSimple_MakeActive();
+		extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
+
+		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSimple_MakeActive();
+		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
 	}
 
 #if DMibConfig_Tests_Enable

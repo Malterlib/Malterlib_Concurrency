@@ -136,6 +136,13 @@ namespace NMib::NConcurrency
 		TCContinuation<uint32> f_CommandLine_RemoveUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
 		TCContinuation<uint32> f_CommandLine_SetUserInfo(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
 		TCContinuation<uint32> f_CommandLine_RemoveMetadata(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Key);
+		TCContinuation<uint32> f_CommandLine_ExportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, bool _bIncludePrivate);
+		TCContinuation<uint32> f_CommandLine_ImportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserData);
+
+		TCContinuation<uint32> f_CommandLine_RegisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
+		TCContinuation<uint32> f_CommandLine_UnregisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
+		TCContinuation<uint32> f_CommandLine_EnumUserAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
+		TCContinuation<uint32> f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 		
@@ -219,6 +226,7 @@ namespace NMib::NConcurrency
 		NHTTP::CURL fp_GetLocalAddress() const;
 		NStr::CStr fp_GetLocalHostname(bool _bEnclaveSpecific) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
+		void fp_MakeActive();
 
 		TCActor<ICDistributedActorTrustManagerDatabase> mp_TrustManagerDatabase;
 		TCActor<CSeparateThreadActor> mp_FileOperationsActor;

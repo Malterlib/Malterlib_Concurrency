@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 
 #include <Mib/Concurrency/ActorCallOnce>
 
@@ -139,6 +140,12 @@ namespace NMib
 				bool m_bExistsInDatabase = false;
 			};
 
+			struct CAuthenticationFactorState
+			{
+				NDistributedActorTrustManagerDatabase::CAuthenticationFactor m_AuthenticationFactor;
+				bool m_bExistsInDatabase = false;
+			};
+
 			struct CTicketInterface : public CActor
 			{
 				enum : uint32
@@ -185,6 +192,7 @@ namespace NMib
 					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
 					, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
 					, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
+				 	, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>> &_AuthenticationFactors
 				)
 			;
 			
@@ -241,6 +249,10 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CHostPermissionSubscriptionState> m_HostPermissionsSubscriptions;
 			
 			NContainer::TCMap<NStr::CStr, CUserState> m_Users;
+				
+			// The outer map uses the UserID as index, the inner uses the factorID
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactorState>> m_AuthenticationFactors;
+			NContainer::TCMap<NStr::CStr, TCActor<ICDistributedActorTrustManagerAuthenticationActor>> m_AuthenticationActors;
 
 			NTime::CTimer m_TicketTimer;
 			

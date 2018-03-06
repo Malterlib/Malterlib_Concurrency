@@ -42,7 +42,11 @@ namespace NMib
 			NStr::CStr f_PercentEncode(NStr::CStr const &_Str) const;
 			NStr::CStr f_PercentDecode(NStr::CStr const &_Str) const;
 			template <typename ...tfp_CComponent>
+			NContainer::TCSet<NStr::CStr> f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const;
+			template <typename ...tfp_CComponent>
 			NContainer::TCSet<NStr::CStr> f_Find(tfp_CComponent const &...p_Component) const;
+			template <typename ...tfp_CComponent>
+			NContainer::TCSet<NStr::CStr> f_FindRecursive(tfp_CComponent const &...p_Component) const;
 			template <typename ...tfp_CComponent>
 			bool f_Exists(tfp_CComponent const &...p_Component) const;
 			template <typename tf_CObject, typename ...tfp_CComponent>
@@ -71,7 +75,9 @@ namespace NMib
 			NEncoding::CEJSON f_ToJSON(CHostPermissions const &_HostPermissions) const;
 			void f_FromJSON(CHostPermissions &_HostPermissions, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 			NEncoding::CEJSON f_ToJSON(CUserInfo const &_UserInfo) const;
-			void f_FromJSON(CUserInfo &v, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
+			void f_FromJSON(CUserInfo &_UserInfo, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
+			NEncoding::CEJSON f_ToJSON(CAuthenticationFactor const &_Factor) const;
+			void f_FromJSON(CAuthenticationFactor &_Factor, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const;
 		};
 		
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory)
@@ -667,6 +673,71 @@ namespace NMib
 			;
 		}
 
+		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumAuthenticationFactor
+			(
+				bool _bIncludeFullInfo
+			)
+		{
+			return TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					NContainer::TCMap<CStr, NContainer::TCMap<CStr, CAuthenticationFactor>> AllAuthentications;
+					for (auto &FactorIDFactor : Internal.f_FindRecursive("AuthenticationFactors"))
+					{
+						CAuthenticationFactor Factor;
+						Internal.f_Read(Factor, "AuthenticationFactors", FactorIDFactor);
+						if (!_bIncludeFullInfo)
+							Factor.m_PrivateData.f_Clear();
+						AllAuthentications[NFile::CFile::fs_GetPath(FactorIDFactor)][NFile::CFile::fs_GetFile(FactorIDFactor)] = Factor;
+					}
+					return AllAuthentications;
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					if (Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("User '{}' already has authetication factor ID '{}' registered"_f << _UserID << _FactorID);
+					Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					if (!Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("User '{}' Does not have authetication factor ID '{}' registered"_f << _UserID << _FactorID);
+					Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
+				}
+			;
+		}
+
+		TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+		{
+			return TCContinuation<void>::fs_RunProtected<NException::CException>() >
+				[&]
+				{
+					auto &Internal = *mp_pInternal;
+					if (!Internal.f_Delete("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("No authentication factor '{}' registered for user ID '{}'"_f << _FactorID << _UserID);
+				}
+			;
+		}
+
 		CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::CInternal(NStr::CStr const &_BaseDirectory)
 			: m_BaseDirectory(_BaseDirectory)
 		{
@@ -727,18 +798,34 @@ namespace NMib
 		}
 
 		template <typename ...tfp_CComponent>
+		NContainer::TCSet<NStr::CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const
+		{
+			using namespace NFile;
+			NStr::CStr Path = f_GetPath(p_Component..., "*");
+
+			CFile::CFindFilesOptions Options(Path, _bRecursive);
+			Options.m_AttribMask = EFileAttrib_File;
+			auto Files = CFile::fs_FindFiles(Options);
+
+			NContainer::TCSet<NStr::CStr> ReturnNames;
+			NStr::CStr const SearchPath = CFile::fs_GetPath(Path);
+			for (auto const &File : Files)
+			{
+				ReturnNames[CFile::fs_AppendPath(CFile::fs_MakePathRelative(CFile::fs_GetPath(File.m_Path), SearchPath), CFile::fs_GetFileNoExt(File.m_Path))];
+			}
+			return ReturnNames;
+		}
+
+		template <typename ...tfp_CComponent>
 		NContainer::TCSet<NStr::CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Find(tfp_CComponent const &...p_Component) const
 		{
-			NStr::CStr Path = f_GetPath(p_Component..., "*");
-			
-			NFile::CFile::CFindFilesOptions Options(Path, false);
-			Options.m_AttribMask = NFile::EFileAttrib_File;
-			auto Files = NFile::CFile::fs_FindFiles(Options);
-			
-			NContainer::TCSet<NStr::CStr> ReturnNames;
-			for (auto const &File : Files)
-				ReturnNames[NFile::CFile::fs_GetFileNoExt(File.m_Path)];
-			return ReturnNames;
+			return f_Find(false, p_Component...);
+		}
+
+		template <typename ...tfp_CComponent>
+		NContainer::TCSet<NStr::CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FindRecursive(tfp_CComponent const &...p_Component) const
+		{
+			return f_Find(true, p_Component...);
 		}
 
 		template <typename ...tfp_CComponent>
@@ -955,6 +1042,48 @@ namespace NMib
 			auto Object = pValue->f_Object();
 			for (auto iMetadata = Object.f_OrderedIterator(); iMetadata; ++iMetadata)
 				o_UserInfo.m_Metadata[iMetadata->f_Name()] = iMetadata->f_Value();
+		}
+
+		NEncoding::CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CAuthenticationFactor const &_Factor) const
+		{
+			NEncoding::CEJSON JSON;
+			JSON["Category"] = _Factor.m_Category;
+			JSON["Name"] = _Factor.m_Name;
+			if (!_Factor.m_PublicData.f_IsEmpty())
+			{
+				auto &PublicData = JSON["PublicData"] = NEncoding::EJSONType_Object;
+				for (auto &Item : _Factor.m_PublicData)
+					PublicData[_Factor.m_PublicData.fs_GetKey(Item)] = Item;
+			}
+			if (!_Factor.m_PrivateData.f_IsEmpty())
+			{
+				auto &PrivateData = JSON["PrivateData"] = NEncoding::EJSONType_Object;
+				for (auto &Item : _Factor.m_PrivateData)
+					PrivateData[_Factor.m_PrivateData.fs_GetKey(Item)] = Item;
+			}
+			return JSON;
+		}
+
+		void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CAuthenticationFactor &o_Factor, NEncoding::CEJSON const &_JSON, NStr::CStr const &_Name) const
+		{
+			o_Factor.m_Category = (EAuthenticationFactorCategory)_JSON["Category"].f_Integer();
+			o_Factor.m_Name = _JSON["Name"].f_String();
+			o_Factor.m_PublicData.f_Clear();
+			o_Factor.m_PrivateData.f_Clear();
+
+			if (auto pValue = _JSON.f_GetMember("PublicData"))
+			{
+				auto Object = pValue->f_Object();
+				for (auto iPublicData = Object.f_OrderedIterator(); iPublicData; ++iPublicData)
+					o_Factor.m_PublicData[iPublicData->f_Name()] = iPublicData->f_Value();
+			}
+
+			if (auto pValue = _JSON.f_GetMember("PrivateData"))
+			{
+				auto Object = pValue->f_Object();
+				for (auto iPrivateData = Object.f_OrderedIterator(); iPrivateData; ++iPrivateData)
+					o_Factor.m_PrivateData[iPrivateData->f_Name()] = iPrivateData->f_Value();
+			}
 		}
 	}
 }

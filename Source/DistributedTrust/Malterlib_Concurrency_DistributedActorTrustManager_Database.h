@@ -8,6 +8,7 @@
 #include "../Actor/Malterlib_Concurrency_Actor.h"
 #include "../DistributedActor/Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Shared.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationData.h"
 
 namespace NMib
 {
@@ -147,6 +148,25 @@ namespace NMib
 				NStr::CStr m_UserName;
 				NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
 			};
+
+			struct CAuthenticationFactor
+			{
+				enum
+				{
+					EVersion = 0x101
+				};
+
+				template <typename tf_CStream>
+				void f_Feed(tf_CStream &_Stream) const;
+				template <typename tf_CStream>
+				void f_Consume(tf_CStream &_Stream);
+				CAuthenticationFactor const &operator = (NConcurrency::CAuthenticationData const &_Data);
+
+				EAuthenticationFactorCategory m_Category;
+				NStr::CStr m_Name;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PublicData;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PrivateData;
+			};
 		}
 		
 		class ICDistributedActorTrustManagerDatabase : public NConcurrency::CActor
@@ -160,6 +180,7 @@ namespace NMib
 			using CNamespace = NDistributedActorTrustManagerDatabase::CNamespace;
 			using CHostPermissions = NDistributedActorTrustManagerDatabase::CHostPermissions;
 			using CUserInfo = NDistributedActorTrustManagerDatabase::CUserInfo;
+			using CAuthenticationFactor = NDistributedActorTrustManagerDatabase::CAuthenticationFactor;
 
 			virtual TCContinuation<CBasicConfig> f_GetBasicConfig() = 0;
 			virtual TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
@@ -203,9 +224,14 @@ namespace NMib
 
 			virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
  			virtual TCContinuation<CUserInfo> f_GetUserInfo(NStr::CStr const &_User) = 0;
-			virtual TCContinuation<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_Users) = 0;
-			virtual TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_Users) = 0;
+			virtual TCContinuation<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_UserInfo) = 0;
+			virtual TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_UserInfo) = 0;
 			virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_User) = 0;
+
+			virtual TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) = 0;
+			virtual TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationFactor const &_Factor) = 0;
+			virtual TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationFactor const &_Factor) = 0;
+			virtual TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) = 0;
 		};
 	}
 }

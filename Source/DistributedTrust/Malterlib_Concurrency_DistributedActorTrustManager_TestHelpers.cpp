@@ -292,6 +292,9 @@ namespace NMib::NConcurrency
 
 	TCContinuation<CUserInfo> CTrustManagerDatabaseTestHelper::f_GetUserInfo(CStr const &_UserID)
 	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
 		auto pUsers = m_Users.f_FindEqual(_UserID);
 		if (!pUsers)
 			return DMibErrorInstance("No user with ID");
@@ -300,6 +303,9 @@ namespace NMib::NConcurrency
 
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
 		if (!m_Users(_UserID, _UserInfo).f_WasCreated())
 			return DMibErrorInstance("There is already a user with that user ID");
 		return fg_Explicit();
@@ -307,6 +313,9 @@ namespace NMib::NConcurrency
 
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
 		auto pUsers = m_Users.f_FindEqual(_UserID);
 		if (!pUsers)
 			return DMibErrorInstance("User '{}' does not exists"_f << _UserID);
@@ -316,8 +325,64 @@ namespace NMib::NConcurrency
 
 	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveUser(CStr const &_UserID)
 	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
 		if (!m_Users.f_Remove(_UserID))
 			return DMibErrorInstance("There is no user with that user ID");
+		return fg_Explicit();
+	}
+
+	TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> CTrustManagerDatabaseTestHelper::f_EnumAuthenticationFactor(bool _bIncludeFullInfo)
+	{
+		return fg_Explicit(m_AuthenticationFactors);
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
+		if (auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID))
+		{
+			if (pFactors->f_FindEqual(_FactorID))
+				return DMibErrorInstance("User '{}' already has authentication factor ID '{}' registered"_f << _UserID << _FactorID);
+		}
+		m_AuthenticationFactors[_UserID][_FactorID] = _Factor;
+		return fg_Explicit();
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
+		if (auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID))
+		{
+			if (!pFactors->f_FindEqual(_FactorID))
+				return DMibErrorInstance("User '{}' does not have authentication factor ID '{}' registered"_f << _UserID << _FactorID);
+		}
+		m_AuthenticationFactors[_UserID][_FactorID] = _Factor;
+		return fg_Explicit();
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
+		auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID);
+		if (!pFactors)
+			return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
+
+		auto &Factors = *pFactors;
+		auto *pFactor = Factors.f_FindEqual(_FactorID);
+		if (!pFactor)
+			return DMibErrorInstance("User '{}' does not have an authentication factor of type '{}' registered"_f << _UserID << _FactorID);
+
+		Factors.f_Remove(_FactorID);
+		if (Factors.f_IsEmpty())
+			m_AuthenticationFactors.f_Remove(_UserID);
 		return fg_Explicit();
 	}
 
@@ -365,3 +430,4 @@ namespace NMib::NConcurrency
 	{
 	}
 }
+

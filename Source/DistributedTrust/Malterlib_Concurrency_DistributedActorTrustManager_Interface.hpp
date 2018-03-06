@@ -52,4 +52,17 @@ namespace NMib::NConcurrency
 	{
 		o_String += typename tf_CString::CFormat("{} ({} concurrency)") << m_HostInfo << m_ConnectionConcurrency;
 	}
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CUserInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_UserName;
+		_Stream % m_Metadata;
+	}
+
+	template <typename tf_CString>
+	void CDistributedActorTrustManagerInterface::CUserInfo::f_Format(tf_CString &o_String) const
+	{
+		o_String += typename tf_CString::CFormat("User : '{}', Metadata '{}')") << m_UserName << m_Metadata;
+	}
 }

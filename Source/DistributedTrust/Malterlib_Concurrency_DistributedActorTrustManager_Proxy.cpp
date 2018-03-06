@@ -3,6 +3,7 @@
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Proxy.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
+#include <Mib/Concurrency/DistributedApp>
 
 namespace NMib::NConcurrency
 {
@@ -238,6 +239,13 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, _bIncludeFullInfo);
 	}
 
+	TCContinuation<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManagerProxy::f_TryGetUser(CStr const &_UserID)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Read))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_TryGetUser, _UserID);
+	}
+
 	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AddUser(CStr const &_UserID, CStr const &_UserName)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
@@ -264,4 +272,40 @@ namespace NMib::NConcurrency
 			return fp_AccessDenied();
 		return mp_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, _UserName, _RemoveMetadata, _AddMetadata);
 	}
+
+	TCContinuation<NContainer::TCSet<NStr::CStr>> CDistributedActorTrustManagerProxy::f_EnumAuthenticationFactors()
+	{
+		if (!fp_CheckPermissions(EPermission_User_Read))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors);
+	}
+
+	TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationData>> CDistributedActorTrustManagerProxy::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Read))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _UserID);
+	}
+
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_AddAuthenticationFactor, _UserID, _FactorID, fg_Move(_Data));
+	}
+
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_SetAuthenticationFactor, _UserID, _FactorID, fg_Move(_Data));
+	}
+
+	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID)
+	{
+		if (!fp_CheckPermissions(EPermission_User_Write))
+			return fp_AccessDenied();
+		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, _UserID, _FactorID);
+	}
+
 }

@@ -49,7 +49,11 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, CUserInfo const &_UserInfo) override;
 		TCContinuation<void> f_SetUserInfo(NStr::CStr const &_UserID, CUserInfo const &_UserInfo) override;
 		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) override;
-		
+		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) override;
+		TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationFactor const &_Factor) override;
+		TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationFactor const &_Factor) override;
+		TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) override;
+
 		CBasicConfig m_BasicConfig;
 		int32 m_CertificateSerial = 0;
 		
@@ -60,6 +64,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CNamespace> m_Namespaces;
 		NContainer::TCMap<NStr::CStr, CHostPermissions> m_HostPermissions;
 		NContainer::TCMap<NStr::CStr, CUserInfo> m_Users;
+		NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>> m_AuthenticationFactors;
 	};
 	
 	struct CTrustManagerTestHelper

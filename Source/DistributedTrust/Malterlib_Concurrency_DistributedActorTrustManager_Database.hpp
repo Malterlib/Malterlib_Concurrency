@@ -154,6 +154,48 @@ namespace NMib
 					DMibError("Invalid host permissions version");
 				_Stream >> m_Permissions;
 			}
+
+			template <typename tf_CStream>
+			void CUserInfo::f_Feed(tf_CStream &_Stream) const
+			{
+				_Stream << EVersion;
+				_Stream << m_UserName;
+				_Stream << m_Metadata;
+			}
+
+			template <typename tf_CStream>
+			void CUserInfo::f_Consume(tf_CStream &_Stream)
+			{
+				uint32 Version;
+				_Stream >> Version;
+				if (Version > EVersion)
+					DMibError("Invalid user info version");
+				_Stream >> m_UserName;
+				_Stream >> m_Metadata;
+			}
+
+			template <typename tf_CStream>
+			void CAuthenticationFactor::f_Feed(tf_CStream &_Stream) const
+			{
+				_Stream << EVersion;
+				_Stream << m_Category;
+				_Stream << m_Name;
+				_Stream << m_PublicData;
+				_Stream << m_PrivateData;
+			}
+
+			template <typename tf_CStream>
+			void CAuthenticationFactor::f_Consume(tf_CStream &_Stream)
+			{
+				uint32 Version;
+				_Stream >> Version;
+				if (Version > EVersion)
+					DMibError("Invalid authentication factor info version");
+				_Stream >> m_Category;
+				_Stream >> m_Name;
+				_Stream >> m_PublicData;
+				_Stream >> m_PrivateData;
+			}
 		}
 	}
 }

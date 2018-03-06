@@ -112,6 +112,7 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) override;
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
+		TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) override;
 		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) override;
 		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) override;
 		TCContinuation<void> f_SetUserInfo
@@ -122,6 +123,14 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			) override
 		;
+		TCContinuation<NStr::CStr> f_ExportUser(NStr::CStr const &_UserID, bool _bIncludePrivate);
+		TCContinuation<NStr::CStr> f_ImportUser(NStr::CStr const &_UserData);
+
+		TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumAuthenticationFactors() override;
+		TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) override;
+		TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) override;
+		TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) override;
+		TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
 
 	private:
 		NException::CException fp_AccessDenied() const;

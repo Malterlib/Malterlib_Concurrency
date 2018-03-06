@@ -8,11 +8,13 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Database.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Private.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Interface.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_Proxy.h"
 #include <Mib/Concurrency/ActorFunctor>
 #include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
 {
+	struct CCommandLineControl;
 	class CDistributedActorTrustManager;
 	
 	struct CTrustedActorInfo
@@ -247,6 +249,7 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo);
+		TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID);
 		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName);
 		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID);
 		TCContinuation<void> f_SetUserInfo
@@ -257,6 +260,12 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			)
 		;
+		TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumAuthenticationFactors();
+		TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID);
+		TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
+		TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
+		TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID);
+		TCContinuation<NStr::CStr> f_RegisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
 
 		TCContinuation<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
 		
@@ -291,6 +300,19 @@ namespace NMib::NConcurrency
 		struct CInternal;
 		NPtr::TCUniquePointer<CInternal> mp_pInternal;			
 	};
+
+	class CDistributedActorTrustManagerProxy;
+
+	template<typename t_CType>
+	TCContinuation<NStr::CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	template<typename t_CType>
+	TCContinuation<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	extern template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	extern template TCContinuation<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
 }
 
 #ifndef DMibPNoShortCuts

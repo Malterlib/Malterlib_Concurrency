@@ -9,8 +9,10 @@
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedAppTrustManagerAuthenticationActor>
 #include <Mib/Network/SSL>
 #include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 
 
 using namespace NMib;
@@ -20,6 +22,61 @@ using namespace NMib::NStr;
 
 namespace
 {
+	class CAuthenticationActorTest1 : public ICDistributedActorTrustManagerAuthenticationActor
+	{
+	public:
+		CAuthenticationActorTest1() = default;
+		virtual ~CAuthenticationActorTest1() = default;
+
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		{
+			CAuthenticationData Result;
+			Result.m_Category = EAuthenticationFactorCategory_None;
+			Result.m_Name = "Test1";
+			Result.m_PublicData["Public"] = "PublicData1";
+			Result.m_PrivateData["Private"] = "PrivateData1";
+
+			return fg_Explicit(Result);
+		}
+	};
+
+	class CAuthenticationActorTest2 : public ICDistributedActorTrustManagerAuthenticationActor
+	{
+	public:
+		CAuthenticationActorTest2() = default;
+		virtual ~CAuthenticationActorTest2() = default;
+
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		{
+			CAuthenticationData Result;
+			Result.m_Category = EAuthenticationFactorCategory_None;
+			Result.m_Name = "Test2";
+			Result.m_PublicData["Public"] = "PublicData2";
+			Result.m_PrivateData["Private"] = "PrivateData2";
+
+			return fg_Explicit(Result);
+		}
+	};
+
+	class CDistributedActorTrustManagerAuthenticationActorFactoryTest1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	{
+		TCActor<ICDistributedActorTrustManagerAuthenticationActor> operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
+		{
+			return fg_ConstructActor<CAuthenticationActorTest1>();
+		}
+	};
+
+	class CDistributedActorTrustManagerAuthenticationActorFactoryTest2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
+	{
+		TCActor<ICDistributedActorTrustManagerAuthenticationActor> operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
+		{
+			return fg_ConstructActor<CAuthenticationActorTest2>();
+		}
+	};
+
+	DMibAuthenticationFactorRegister(CDistributedActorTrustManagerAuthenticationActorFactoryTest1);
+	DMibAuthenticationFactorRegister(CDistributedActorTrustManagerAuthenticationActorFactoryTest2);
+
 	class CDistributedActorTrustManager_Tests : public NMib::NTest::CTest
 	{
 	public:
@@ -275,6 +332,8 @@ namespace
 				, NFunction::TCFunction<void ()> const &_fCleanup
 			)
 		{
+			auto HelperActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActor{HelperActor};
 			DMibTestSuite("Basic")
 			{
 				CState State{_fDatabaseFactory, _fCleanup};
@@ -1307,11 +1366,13 @@ namespace
 			{
 				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
 				using CKeys = TCSet<CStr>;
+				NPtr::TCSharedPointer<CCommandLineControl> pCommandLine;
 				CState State{_fDatabaseFactory, _fCleanup};
 				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
 				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
 				CStr const ID3 = "JNsXrbgP3dL6xuFXm";
 				CStr const ID4 = "Tao5Dmb6FpMzTCQyD";
+				CStr const ID5 = "RSZFNPB5mFEANtCNd";
 				NStorage::TCOptional<NStr::CStr> UnsetUserName;
 
 				CMetadata Empty;
@@ -1325,7 +1386,6 @@ namespace
 				{
 					DMibTestPath("Initial");
 					CPermissionTestState TestState{State, 31407};
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(60.0);
@@ -1353,6 +1413,11 @@ namespace
 					DMibExpect(AllUsers[ID3].m_UserName, ==, "User3");
 					DMibExpect(AllUsers[ID4].m_UserName, ==, "User4");
 
+					auto OptionalUserInfo1 = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID1).f_CallSync(60.0);
+					DMibExpectTrue(OptionalUserInfo1);
+					DMibExpect(OptionalUserInfo1->m_UserName, ==, "User1");
+					DMibExpectFalse(TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_TryGetUser, "NotInDB").f_CallSync(60.0));
+
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID2, UnsetUserName, NoRemove, Metadata2).f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID3, UnsetUserName, NoRemove, Metadata3).f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID4, UnsetUserName, NoRemove, Metadata4).f_CallSync(60.0);
@@ -1379,8 +1444,6 @@ namespace
 					DMibTestPath("From database");
 					CPermissionTestState TestState{State, 31407};
 
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
-
 					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
 
 					DMibExpect(AllUsers.f_GetLen(), ==, 4);
@@ -1393,12 +1456,188 @@ namespace
 					DMibExpect(AllUsers[ID3].m_Metadata, ==, Metadata3);
 					DMibExpect(AllUsers[ID4].m_Metadata, ==, Metadata4);
 				}
+				auto fGetNames = [](TCActor<CDistributedActorTrustManager> &_Actor, CStr const &_ID) -> TCSet<CStr>
+					{
+						auto const &Factors = _Actor(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _ID).f_CallSync(60.0);
+						TCSet<CStr> Results;
+						for (auto const &Factor : Factors)
+							Results[Factor.m_Name];
+						return Results;
+					}
+				;
+				{
+					DMibTestPath("Register Authentication");
+					CPermissionTestState TestState{State, 31407};
+
+					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors).f_CallSync(60.0);
+					DMibExpect(Factors.f_GetLen(), >=, 2);
+					DMibExpectTrue(!!Factors.f_FindEqual("Test1"));
+					DMibExpectTrue(!!Factors.f_FindEqual("Test2"));
+
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID2, "Test2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID3, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID3, "Test2").f_CallSync(60.0);
+
+					DMibExpect(TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0).f_GetLen(), ==, 2);
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID1), ==, TCSet<CStr>{"Test1"});
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID2), ==, TCSet<CStr>{"Test2"});
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID3), ==, (TCSet<CStr>{"Test1", "Test2"}));
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID4), ==, TCSet<CStr>{});
+				}
+				{
+					DMibTestPath("Export/Import");
+					CPermissionTestState TestState{State, 31407};
+
+					auto Exported1 = fg_ExportUser(TestState.m_ServerTrustManager, ID1, true).f_CallSync(60.0);
+					auto Exported2 = fg_ExportUser(TestState.m_ServerTrustManager, ID2, true).f_CallSync(60.0);
+					auto Exported3 = fg_ExportUser(TestState.m_ServerTrustManager, ID3, true).f_CallSync(60.0);
+					auto Exported4 = fg_ExportUser(TestState.m_ServerTrustManager, ID4, true).f_CallSync(60.0);
+
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported1).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported2).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported3).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported4).f_CallSync(60.0);
+
+					auto AllUsers = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
+
+					DMibExpect(AllUsers.f_GetLen(), ==, 4);
+					DMibExpect(AllUsers[ID1].m_UserName, ==, "User1");
+					DMibExpect(AllUsers[ID2].m_UserName, ==, "User2");
+					DMibExpect(AllUsers[ID3].m_UserName, ==, "User3");
+					DMibExpect(AllUsers[ID4].m_UserName, ==, "User4");
+					DMibExpectTrue(AllUsers[ID1].m_Metadata.f_IsEmpty());
+					DMibExpect(AllUsers[ID2].m_Metadata, ==, Metadata2);
+					DMibExpect(AllUsers[ID3].m_Metadata, ==, Metadata3);
+					DMibExpect(AllUsers[ID4].m_Metadata, ==, Metadata4);
+
+					DMibExpect(TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0).f_GetLen(), ==, 2);
+					DMibExpect(fGetNames(TestState.m_ClientTrustManager, ID1), ==, TCSet<CStr>{"Test1"});
+					DMibExpect(fGetNames(TestState.m_ClientTrustManager, ID2), ==, TCSet<CStr>{"Test2"});
+					DMibExpect(fGetNames(TestState.m_ClientTrustManager, ID3), ==, (TCSet<CStr>{"Test1", "Test2"}));
+					DMibExpect(fGetNames(TestState.m_ClientTrustManager, ID4), ==, TCSet<CStr>{});
+
+					//
+					// Importing should add new stuff to the existing user and not overwrite a factor with private stuff with one with only public stuff
+					//
+					// Export a new user
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID5, "User5").f_CallSync(60.0);
+					auto Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto SingleUser1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
+					DMibExpectTrue(SingleUser1);
+					DMibExpect(SingleUser1->m_UserName, ==, "User5");
+					DMibExpectTrue(SingleUser1->m_Metadata.f_IsEmpty());
+
+					// Make sure we can add metadata to existing user
+					CMetadata Metadata5{{"Key5", "Value5"}};
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, NoRemove, Metadata5).f_CallSync(60.0);
+					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					SingleUser1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
+					DMibExpect(SingleUser1->m_Metadata, ==, Metadata5);
+
+					// Remove metadata, export again, and check that it wasn't removed on the client side
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, CKeys{"Key5"}, CMetadata{}).f_CallSync(60.0);
+					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto SingleUser2 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
+					DMibExpectTrue(SingleUser2);
+					DMibExpect(SingleUser2->m_Metadata, ==, Metadata5);
+
+					// Add authentication factor and export with private data
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
+					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto Factors1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
+					int nNonEmpty1 = 0;
+					for (auto &Factor : Factors1)
+						nNonEmpty1 += !Factor.m_PrivateData.f_IsEmpty();
+
+ 					DMibExpect(nNonEmpty1, ==, Factors1.f_GetLen());
+
+					// Add two more, this time only export public data, check all factors exported two still have private data
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
+					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto Factors2 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
+					int nNonEmpty2 = 0;
+					for (auto &Factor : Factors2)
+						nNonEmpty2 += !Factor.m_PrivateData.f_IsEmpty();
+ 					DMibExpect(nNonEmpty2, ==, 2);
+ 					DMibExpect(Factors2.f_GetLen(), ==, 4);
+
+					// Export private data this time, check that all factors exported now have private data
+					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
+					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto Factors3 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
+					int nNonEmpty3 = 0;
+					for (auto &Factor : Factors3)
+						nNonEmpty3 += !Factor.m_PrivateData.f_IsEmpty();
+ 					DMibExpect(nNonEmpty3, ==, 4);
+ 					DMibExpect(Factors3.f_GetLen(), ==, 4);
+
+					// Cleanup on the client side
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID1).f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID3).f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID4).f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID5).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, NoRemove, Metadata5).f_CallSync(60.0);
+				}
+				{
+					DMibTestPath("Basic testing of the trust proxy");
+					CPermissionTestState TestState{State, 31407};
+					CDistributedActorTrustManagerProxy::CPermissions Permissions;
+					Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
+
+					CDistributedActorTestHelper ServerHelper{TestState.m_ServerTrustManager};
+					CDistributedActorTestHelper ClientHelper{TestState.m_ClientTrustManager};
+
+					TCActor<CDistributedActorTrustManagerInterface> ServerProxy
+						= ServerHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>(TestState.m_ServerTrustManager, Permissions)
+					;
+					TCActor<CDistributedActorTrustManagerInterface> ClientProxy
+						= ClientHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>(TestState.m_ClientTrustManager, Permissions)
+					;
+
+					auto Exported5 = fg_ExportUser(ServerProxy, ID5, true).f_CallSync(60.0);
+					fg_ImportUser(ClientProxy, Exported5).f_CallSync(60.0);
+
+					auto AllUsers = ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUsers, true).f_CallSync(60.0);
+					DMibExpect(AllUsers.f_GetLen(), ==, 1);
+					DMibExpect(AllUsers[ID5].m_UserName, ==, "User5");
+ 					DMibExpect(TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 4);
+
+					ClientProxy
+						(&CDistributedActorTrustManagerInterface::f_AddAuthenticationFactor
+							, ID5
+							, "AjPPPXBWJMB8PfZiC"
+							, CAuthenticationData{EAuthenticationFactorCategory_Knowledge, "Junk"}
+						).f_CallSync(60.0)
+					;
+ 					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 5);
+					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveAuthenticationFactor, ID5, "AjPPPXBWJMB8PfZiC").f_CallSync(60.0);
+ 					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 5 - 1);
+
+					ClientProxy(&CDistributedActorTrustManagerInterface::f_AddUser, ID1, "User1").f_CallSync(60.0);
+					DMibExpectTrue(ClientProxy(&CDistributedActorTrustManagerInterface::f_TryGetUser, ID1).f_CallSync(60.0));
+					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUsers, true).f_CallSync(60.0).f_GetLen(), ==, 2);
+					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveUser, ID1).f_CallSync(60.0);
+					DMibExpectFalse(ClientProxy(&CDistributedActorTrustManagerInterface::f_TryGetUser, ID1).f_CallSync(60.0));
+
+					ClientProxy(&CDistributedActorTrustManagerInterface::f_SetUserInfo, ID5, UnsetUserName, CKeys{"Key5"}, CMetadata{}).f_CallSync(60.0);
+
+					// Cleanup 
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID5).f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID5).f_CallSync(60.0);
+				}
 				{
 					DMibTestPath("Set userinfo and remove metadata");
 					CPermissionTestState TestState{State, 31407};
-
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
-
 
 					NStorage::TCOptional<NStr::CStr> SetUserName{"NewUser1"};
 					CMetadata UnsetMetadata;
@@ -1430,10 +1669,28 @@ namespace
 					;
 				}
 				{
+					DMibTestPath("Unregister Authentication");
+					CPermissionTestState TestState{State, 31407};
+					NPtr::TCSharedPointer<CCommandLineControl> pCommandLine;
+
+					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0);
+					for (auto &Factor : Factors)
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID1, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+					Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID2).f_CallSync(60.0);
+					for (auto &Factor : Factors)
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID2, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+					Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID3).f_CallSync(60.0);
+					for (auto &Factor : Factors)
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID3, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID1), ==, TCSet<CStr>{});
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID2), ==, TCSet<CStr>{});
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID3), ==, TCSet<CStr>{});
+					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID4), ==, TCSet<CStr>{});
+				}
+				{
 					DMibTestPath("Remove user");
 					CPermissionTestState TestState{State, 31407};
-
-					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID4).f_CallSync(60.0);
@@ -1450,8 +1707,6 @@ namespace
 							, DMibErrorInstance("No user with ID 'DPYQEvAqw4RQhXRYe'")
 						)
 					;
-
-
 				}
 			};
 		}

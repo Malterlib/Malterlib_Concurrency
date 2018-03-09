@@ -77,6 +77,22 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
+	CDistributedAppActor::CLocalAppState::CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor)
+		: CDistributedAppState(_Settings) 
+		, mp_AppActor(_AppActor)
+	{
+	}
+
+	TCContinuation<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase() 
+	{
+		return mp_AppActor.fp_SaveStateDatabase();
+	}
+
+	TCContinuation<void> CDistributedAppActor::CLocalAppState::f_SaveConfigDatabase() 
+	{
+		return mp_AppActor.fp_SaveConfigDatabase();
+	}
+
 	TCContinuation<void> CDistributedAppActor::fp_SaveStateDatabase()
 	{
 		TCContinuation<void> Continuation;

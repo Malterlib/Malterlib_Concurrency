@@ -36,7 +36,10 @@ namespace NMib::NConcurrency
 		bool m_bStoppingApp = false;
 
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
-		
+
+		virtual TCContinuation<void> f_SaveStateDatabase() = 0;
+		virtual TCContinuation<void> f_SaveConfigDatabase() = 0;
+
 		CDistributedAppState() = delete;
 		~CDistributedAppState();
 		
@@ -49,7 +52,7 @@ namespace NMib::NConcurrency
 	private:
 		friend struct CDistributedAppActor;
 		
-		CDistributedAppState(CDistributedAppActor_Settings const &_Settings);			
+		CDistributedAppState(CDistributedAppActor_Settings const &_Settings);
 	};
 
 	struct CDistributedAppActor : public CActor
@@ -170,8 +173,19 @@ namespace NMib::NConcurrency
 		TCContinuation<void> fp_SaveConfigDatabase();
 		
 		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr const &_Description);
+
+		struct CLocalAppState : public CDistributedAppState
+		{
+			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor);
+
+			TCContinuation<void> f_SaveStateDatabase() override;
+			TCContinuation<void> f_SaveConfigDatabase() override;
+
+		private:
+			CDistributedAppActor &mp_AppActor;
+		};
 		
-		CDistributedAppState mp_State;
+		CLocalAppState mp_State;
 		CDistributedAppActor_Settings mp_Settings;
 		
 	private:

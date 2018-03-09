@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&) = default;
 	
 	CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
-		: mp_State(_Settings)
+		: mp_State(_Settings, *this)
 		, mp_Settings(_Settings)
 		, mp_AppType(fg_DistributedAppThreadLocal().m_DefaultAppType)
 	{

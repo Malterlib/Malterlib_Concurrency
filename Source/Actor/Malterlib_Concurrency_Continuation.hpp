@@ -383,7 +383,12 @@ namespace NMib::NConcurrency
 				bool bFailed = false;
 				TCInitializerList<bool> Dummy = 
 					{
-						[&]
+						[
+							&
+#if defined(DCompiler_MSVC_Workaround)
+							, &Continuation
+#endif
+						]
 						{
 							if (!bFailed && !p_Results)
 							{

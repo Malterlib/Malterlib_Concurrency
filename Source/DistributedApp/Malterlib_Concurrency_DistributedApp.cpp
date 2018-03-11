@@ -347,9 +347,10 @@ namespace NMib::NConcurrency
 		if (mp_Settings.m_Enclave.f_IsEmpty())
 			return;
 
-		mp_CleanupSocketsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup sockets"));
+		if (!mp_CleanupFilesActor)
+			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
 
-		g_Dispatch(mp_CleanupSocketsActor) > [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+		g_Dispatch(mp_CleanupFilesActor) > [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
 			{
 				try
 				{
@@ -381,12 +382,45 @@ namespace NMib::NConcurrency
 		;
 	}
 
+#ifdef DPlatformFamily_Windows
+	void CDistributedAppActor::fp_CleanupOldExecutables()
+	{
+		if (!mp_CleanupFilesActor)
+			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
+
+		g_Dispatch(mp_CleanupFilesActor) > []
+			{
+				try
+				{
+					for (auto &File : CFile::fs_FindFiles(CFile::fs_GetProgramPath() + "~*.TMP", EFileAttrib_File))
+					{
+						try
+						{
+							CFile::fs_DeleteFile(File);
+						}
+						catch (NException::CException const &)
+						{
+						}
+					}
+				}
+				catch (NException::CException const &)
+				{
+				}
+			}
+			> fg_DiscardResult()
+		;
+	}
+#endif
+
 	TCContinuation<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
 		TCContinuation<void> Continuation;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
 		
 		fp_CleanupEnclaveSockets();
+#ifdef DPlatformFamily_Windows
+		fp_CleanupOldExecutables();
+#endif
 		
 		mp_State.m_StateDatabase.f_Load()
 			+ mp_State.m_ConfigDatabase.f_Load()

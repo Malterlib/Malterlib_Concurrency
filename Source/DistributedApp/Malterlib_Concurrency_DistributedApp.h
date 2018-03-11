@@ -193,6 +193,9 @@ namespace NMib::NConcurrency
 		
 		TCContinuation<void> fp_Initialize(NEncoding::CEJSON const &_Params);
 		void fp_CleanupEnclaveSockets();
+#ifdef DPlatformFamily_Windows
+		void fp_CleanupOldExecutables();
+#endif
 		TCContinuation<void> fp_SetupListen();
 		TCContinuation<void> fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params);
 		TCContinuation<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params);
@@ -219,7 +222,7 @@ namespace NMib::NConcurrency
 
 		TCActor<ICDistributedActorTrustManagerDatabase> mp_TrustManagerDatabase;
 		TCActor<CSeparateThreadActor> mp_FileOperationsActor;
-		TCActor<CSeparateThreadActor> mp_CleanupSocketsActor;
+		TCActor<CSeparateThreadActor> mp_CleanupFilesActor;
 		TCDistributedActor<CCommandLine> mp_CommandLine;
 		CDistributedActorPublication mp_CommandLinePublication;
 		CDistributedActorTrustManager_Address mp_PrimaryListen;

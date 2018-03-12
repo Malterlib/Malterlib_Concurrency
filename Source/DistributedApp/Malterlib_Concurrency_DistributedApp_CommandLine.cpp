@@ -1677,10 +1677,12 @@ namespace NMib
 						}
 					)
 				;
+				Category = "User management (PRERELEASE)";
 				Distributed.f_RegisterCommand
 					(
 						{
 							"Names"_= {"--trust-user-add"}
+							, "Category"_= Category
 							, "Description"_= "Add a user to the database.\n"
 							, "Output"_= "None."
 							, "Parameters"_=
@@ -1702,6 +1704,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-user-remove"}
+							, "Category"_= Category
 							, "Description"_= "Remove a user from the database.\n"
 							, "Output"_= "None."
 							, "Parameters"_=
@@ -1723,6 +1726,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-user-list"}
+							, "Category"_= Category
 							, "Description"_= "List the users in the database.\n"
 							, "Output"_= "A newline separated list of the users."
 						}
@@ -1736,6 +1740,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-user-set-userinfo"}
+							, "Category"_= Category
 							, "Description"_= "Set or add metadata to a user.\n"
 							"Change user name or add new key, value pairs to the user's metadata or replace a value if the key already exists."
 							, "Options"_=
@@ -1774,6 +1779,7 @@ namespace NMib
 					(
 						{
 							"Names"_= {"--trust-users-remove-metadata"}
+							, "Category"_= Category
 							, "Description"_= "Remove the metadata matching key from the secret."
 							, "Options"_=
 							{

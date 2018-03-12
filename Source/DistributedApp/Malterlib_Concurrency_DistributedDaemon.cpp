@@ -164,7 +164,7 @@ namespace NMib
 		void CDistributedDaemon::fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)
 		{
 			mp_Settings = _Settings;
-			auto Section = o_CommandLine.f_AddSection("Daemon", "Commands for managing running the application as a system or user daemon.");
+			auto Section = o_CommandLine.f_AddSection("Daemon", "Commands for managing running the application as a system or user daemon.", "Distributed Computing");
 			
 			NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
 			NEncoding::CEJSON DaemonSettings;

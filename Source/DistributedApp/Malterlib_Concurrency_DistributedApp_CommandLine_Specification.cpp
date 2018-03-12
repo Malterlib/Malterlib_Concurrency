@@ -1180,10 +1180,30 @@ namespace NMib
 			DefaultSection.m_Description = _Description;
 		}
 
-		auto CDistributedAppCommandLineSpecification::f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description) -> CSection
+		auto CDistributedAppCommandLineSpecification::f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description, NStr::CStr const &_AfterSection) -> CSection
 		{
 			auto &Internal = *mp_pInternal;
-			auto &NewSection = Internal.m_Sections.f_Insert();
+			CInternal::CSection *pNewSection;
+			if (_AfterSection.f_IsEmpty())
+				pNewSection = &Internal.m_Sections.f_Insert();
+			else
+			{
+				CInternal::CSection *pPreviousSection = nullptr;
+				for (auto &Section : Internal.m_Sections)
+				{
+					if (Section.m_Heading == _AfterSection)
+					{
+						pPreviousSection = &Section;
+						break;
+					}
+				}
+				if (!pPreviousSection)
+					pNewSection = &Internal.m_Sections.f_Insert();
+				else
+					pNewSection = &Internal.m_Sections.f_InsertAfter(*pPreviousSection);
+			}
+
+			auto &NewSection = *pNewSection;
 			NewSection.m_Heading = _Heading;
 			NewSection.m_Description = _Description;
 			return CSection(&Internal, &NewSection);

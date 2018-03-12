@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 		CDistributedAppCommandLineSpecification &operator =(CDistributedAppCommandLineSpecification &&_Other);
 
 		CSection f_GetDefaultSection();
-		CSection f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description);
+		CSection f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description, NStr::CStr const &_AfterSection = {});
 		void f_SetDefaultCommand(CCommand const &_Command);
 		void f_SetProgramDescription(NStr::CStr const &_Heading, NStr::CStr const &_Description);
 		void f_RegisterGlobalOptions(NEncoding::CEJSON const &_Options);

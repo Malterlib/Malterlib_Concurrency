@@ -869,11 +869,11 @@ namespace NMib::NConcurrency
 		return Ret;
 	}
 
+	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSimple_MakeActive();
+	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
+
 	void CDistributedAppActor::fp_MakeActive()
 	{
-		extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSimple_MakeActive();
-		extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
-
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSimple_MakeActive();
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
 	}

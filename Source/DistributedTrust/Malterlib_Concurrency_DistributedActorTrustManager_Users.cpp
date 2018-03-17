@@ -186,14 +186,13 @@ namespace NMib::NConcurrency
 								Stream << _UserID;
 								Stream << UserInfo;
 
-								Stream << (int)_Factors.f_GetLen();
-								for (auto &Factor : _Factors)
+								if (!_bIncludePrivate)
 								{
-									Stream << _Factors.fs_GetKey(Factor);
-									if (!_bIncludePrivate)
+									for (auto &Factor : _Factors)
 										Factor.m_PrivateData.f_Clear();
-									Stream << Factor;
 								}
+
+								Stream << _Factors;
 
 								return NDataProcessing::fg_Base64Encode(Stream.f_GetVector());
 							}
@@ -227,7 +226,7 @@ namespace NMib::NConcurrency
 
 				NDataProcessing::fg_Base64Decode(_UserData, Data);
 				NStream::CBinaryStreamMemoryPtr<> Stream;
-				Stream.f_OpenRead(Data.f_GetArray(), Data.f_GetLen());
+				Stream.f_OpenRead(Data);
 				Stream >> Result.m_UserID;
 
 				if (!CActorDistributionManager::fs_IsValidUserID(Result.m_UserID))
@@ -243,24 +242,22 @@ namespace NMib::NConcurrency
 						DMibError("Invalid metadata for key '{}'"_f << Result.m_UserInfo.m_Metadata.fs_GetKey(Metadata));
 				}
 
-				int FactorCount;
-				for (Stream >> FactorCount; FactorCount > 0; --FactorCount)
-				{
-					NStr::CStr FactorName;
-					Stream >> FactorName;
-					auto &AuthenticationData = Result.m_AuthenticationData[FactorName];
-					Stream >> AuthenticationData;
+				Stream >> Result.m_AuthenticationData;
 
-					for (auto const &Data : AuthenticationData.m_PrivateData)
+				for (auto &Factor : Result.m_AuthenticationData)
+				{
+					auto &FactorName = Result.m_AuthenticationData.fs_GetKey(Factor);
+
+					for (auto const &Data : Factor.m_PrivateData)
 					{
 						if (!Data.f_IsValid())
-							DMibError("Invalid private data for key '{}'"_f << AuthenticationData.m_PrivateData.fs_GetKey(Data));
+							DMibError("Invalid private data for key '{}' in factor '{}'"_f << Factor.m_PrivateData.fs_GetKey(Data) << FactorName);
 					}
 
-					for (auto const &Data : AuthenticationData.m_PublicData)
+					for (auto const &Data : Factor.m_PublicData)
 					{
 						if (!Data.f_IsValid())
-							DMibError("Invalid public data for key '{}'"_f << AuthenticationData.m_PublicData.fs_GetKey(Data));
+							DMibError("Invalid public data for key '{}' in factor '{}'"_f << Factor.m_PublicData.fs_GetKey(Data) << FactorName);
 					}
 				}
 				return Result;

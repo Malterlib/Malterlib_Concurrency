@@ -22,10 +22,18 @@ namespace NMib
 				m_Actor = _Actor;
 				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor, EDistributedAppType_Daemon) > fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 					{
-						if (!_Result)
-						{
-							DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
-						}
+						if (_Result)
+							return;
+
+						DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
+
+						NStr::CStr Ticket = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
+						if (Ticket.f_IsEmpty())
+							return;
+
+						NEncoding::CEJSON Json;
+						Json["Error"] = _Result.f_GetExceptionStr();
+						DMibConErrOut2("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
 					}
 				;
 			}

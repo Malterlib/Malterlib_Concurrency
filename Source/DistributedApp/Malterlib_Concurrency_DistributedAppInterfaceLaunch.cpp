@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Concurrency/ActorSubscription>
+#include <Mib/Encoding/EJSON>
 
 #include "Malterlib_Concurrency_DistributedAppInterfaceLaunch.h"
 
@@ -14,17 +15,18 @@ namespace NMib::NConcurrency
 			NHTTP::CURL const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
+		 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 			, NStr::CStr const &_Description
 			, bool _bDelegateTrust
 		)
 		: mp_Address(_Address)
 		, mp_TrustManager(_TrustManager)
 		, mp_fOnUseTicket(fg_Move(_fOnUseTicket))
+		, mp_fOnLaunchError(fg_Move(_fOnLaunchError))
 		, mp_RequestTicketMagic(NCryptography::fg_RandomID())
 		, mp_Description(_Description)
 		, mp_bDelegateTrust(_bDelegateTrust)
 	{
-		mp_RequestTicketMagicLine = mp_RequestTicketMagic + "\n";
 	}
 	
 	CDistributedAppInterfaceLaunchActor::~CDistributedAppInterfaceLaunchActor()
@@ -56,10 +58,53 @@ namespace NMib::NConcurrency
 	{
 		if (o_Output.f_IsEmpty())
 			return;
-		if (_OutputType == NProcess::EProcessLaunchOutputType_StdErr && o_Output.f_Find(mp_RequestTicketMagicLine) >= 0)
+		if (_OutputType == NProcess::EProcessLaunchOutputType_StdErr)
 		{
-			o_Output = o_Output.f_Replace(mp_RequestTicketMagicLine, "");
-			fp_HandleTicketRequest();
+			auto iRequestMagic = o_Output.f_Find(mp_RequestTicketMagic);
+			while (iRequestMagic >= 0)
+			{
+				auto iOutputLen = o_Output.f_GetLen();
+				ch8 const *pOutput = o_Output.f_GetStr();
+
+				auto iEndLine = iRequestMagic + mp_RequestTicketMagic.f_GetLen();
+				auto iStartCommand = iEndLine;
+
+				while (iEndLine < iOutputLen && pOutput[iEndLine] != '\n')
+					++iEndLine;
+
+				if (pOutput[iStartCommand] == ':')
+					++iStartCommand;
+
+				NStr::CStr CommandData = o_Output.f_Extract(iStartCommand, iEndLine - iStartCommand);
+
+				if (pOutput[iEndLine] == '\n')
+					++iEndLine;
+
+				o_Output = o_Output.f_Delete(iRequestMagic, iEndLine - iRequestMagic);
+
+				if (CommandData.f_IsEmpty())
+					fp_HandleTicketRequest();
+				else
+				{
+					NStr::CStr Command = NStr::fg_GetStrSep(CommandData, ":");
+					if (Command == "Error")
+					{
+						try
+						{
+							NEncoding::CEJSON const Data = NEncoding::CEJSON::fs_FromString(CommandData);
+							if (mp_fOnLaunchError)
+								mp_fOnLaunchError(Data["Error"].f_String()) > fg_DiscardResult();
+						}
+						catch (NException::CException const &_Exception)
+						{
+							DMibLogWithCategory(Malterlib/Concurrency, Info, "For '{}', failed to parse error command: {}", mp_Description, _Exception);
+						}
+					}
+					else
+						DMibLogWithCategory(Malterlib/Concurrency, Info, "For '{}', unknown DistributedAppInterface command: {}", mp_Description, Command);
+				}
+				iRequestMagic = o_Output.f_Find(mp_RequestTicketMagic);
+			}
 		}
 	}
 	

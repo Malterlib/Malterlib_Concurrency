@@ -271,6 +271,10 @@ namespace NMib::NConcurrency
 					pLaunch->m_HostID = _HostID;
 					return fg_Explicit();
 				}
+				, g_ActorFunctor > [](NStr::CStr const &_Error) -> TCContinuation<void>
+				{
+					return fg_Explicit();
+				}
 				, _Description
 				, true
 			)

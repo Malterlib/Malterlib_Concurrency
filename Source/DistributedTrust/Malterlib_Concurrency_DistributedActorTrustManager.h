@@ -219,6 +219,7 @@ namespace NMib::NConcurrency
 					)
 				> 
 				&&_fOnUseTicket
+			 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 			)
 		;
 		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);

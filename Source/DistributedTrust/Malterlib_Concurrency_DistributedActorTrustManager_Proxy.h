@@ -77,22 +77,7 @@ namespace NMib::NConcurrency
 		TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) override;
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() override;
-		TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
-			(
-				CDistributedActorTrustManager_Address const &_Address
-				, TCActorFunctorWithID
-				<
-					TCContinuation<void> 
-					(
-						NStr::CStr const &_HostID
-						, CCallingHostInfo const &_HostInfo
-						, NContainer::TCVector<uint8> const &_CertificateRequest
-					)
-					, 0
-				> 
-				&&_fOnUseTicket
-			) override
-		;
+		TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) override;
 		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
 		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
 

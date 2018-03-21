@@ -39,7 +39,8 @@ namespace NMib
 			auto Age = m_TicketTimer.f_Elapsed() - pTicket->m_CreationTime;
 			
 			auto fOnUseTicket = fg_Move(pTicket->m_fOnUseTicket);
-			
+			auto fOnCertificateSigned = fg_Move(pTicket->m_fOnCertificateSigned);
+
 			m_Tickets.f_Remove(_Token);
 			
 			if (Age.f_GetTime() > 60.0*60.0) // 1 hour ticket time
@@ -53,7 +54,13 @@ namespace NMib
 			TCContinuation<NContainer::TCVector<uint8>> Continuation;
 			
 			m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
-				> Continuation % "Failed to check for existing client" / [=, fOnUseTicket = fg_Move(fOnUseTicket)](NPtr::TCUniquePointer<CClient> &&_ExistingClient) mutable
+				> Continuation % "Failed to check for existing client" /
+				[
+				 	=
+				 	, fOnUseTicket = fg_Move(fOnUseTicket)
+				 	, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
+				]
+				(NPtr::TCUniquePointer<CClient> &&_ExistingClient) mutable
 				{
 					bool bExistingClient = !_ExistingClient.f_IsEmpty();
 					if (bExistingClient)
@@ -70,25 +77,35 @@ namespace NMib
 						}
 					}
 					
-					TCActorResultVector<void> ValidateSignRequestResults;
+					TCContinuation<void> ValidateSignRequestContinuation;
 					
 					if (fOnUseTicket)
-						fOnUseTicket(HostID, _HostInfo, _CertificateRequest) > ValidateSignRequestResults.f_AddResult(); 
+						fOnUseTicket(HostID, _HostInfo, _CertificateRequest) > ValidateSignRequestContinuation;
+					else
+						ValidateSignRequestContinuation.f_SetResult();
 					
-					ValidateSignRequestResults.f_GetResults() 
-						> Continuation % "Failed to validate request results" / [=, fOnUseTicket = fg_Move(fOnUseTicket)](NContainer::TCVector<TCAsyncResult<void>> &&_ValidationResults)
+					ValidateSignRequestContinuation
+						>
+						[
+						 	=
+						 	, fOnUseTicket = fg_Move(fOnUseTicket)
+						 	, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
+						]
+						(TCAsyncResult<void> &&_ValidationResult) mutable
 						{
-							for (auto &Result : _ValidationResults)
+							if (!_ValidationResult)
 							{
-								if (!Result)
-								{
-									Continuation.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", Result.f_GetExceptionStr())));
-									return;
-								}
+								Continuation.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", _ValidationResult.f_GetExceptionStr())));
+								return;
 							}
-							
+
 							m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) 
-								> Continuation % "Failed to get new certificate serial" / [=](int32 _Serial)
+								> Continuation % "Failed to get new certificate serial" /
+								[
+									=
+								 	, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
+								]
+								(int32 _Serial) mutable
 								{
 									struct CResults
 									{
@@ -135,7 +152,7 @@ namespace NMib
 												return Results;
 											}
 										) 
-										> Continuation / [=](CResults &&_Results)
+										> Continuation / [=, fOnCertificateSigned = fg_Move(fOnCertificateSigned)](CResults &&_Results) mutable
 										{
 											ICDistributedActorTrustManagerDatabase::CClient Client;
 											Client.m_PublicCertificate = _Results.m_SignedCertificate;
@@ -145,9 +162,43 @@ namespace NMib
 													, _Results.m_HostID
 													, Client
 												)
-												> Continuation % "Failed to add client to trust database" / [Continuation, Certificate = _Results.m_SignedCertificate]() mutable
+												> Continuation % "Failed to add client to trust database" /
+												[
+												 	=
+												 	, Certificate = fg_Move(_Results.m_SignedCertificate)
+												 	, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
+												]
+												() mutable
 												{
-													Continuation.f_SetResult(fg_Move(Certificate));
+													if (!fOnCertificateSigned)
+														return Continuation.f_SetResult(fg_Move(Certificate));
+
+													TCContinuation<void> OnCertificateSignedContinuation;
+													fOnCertificateSigned(HostID, _HostInfo) > OnCertificateSignedContinuation;
+
+													OnCertificateSignedContinuation >
+														[
+														 	=
+														 	, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
+														 	, Certificate = fg_Move(Certificate)
+														]
+														(TCAsyncResult<void> &&_Result) mutable
+														{
+															if (!_Result)
+															{
+																DMibLogWithCategory
+																	(
+																		Mib/Concurrency/Trust
+																		, Error
+																		, "On certifigace signed notification failed: {}"
+																		, _Result.f_GetExceptionStr()
+																	)
+																;
+															}
+
+															return Continuation.f_SetResult(fg_Move(Certificate));
+														}
+													;
 												}
 											;
 										}
@@ -200,6 +251,7 @@ namespace NMib
 			(
 				CDistributedActorTrustManager_Address const &_Address
 				, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> &&_fOnUseTicket
+			 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 			)
 		{
 			auto &Internal = *mp_pInternal;
@@ -207,7 +259,7 @@ namespace NMib
 			Internal.f_RunAfterInit
 				(
 					Continuation
-					, [this, Continuation, _Address, fOnUseTicket = fg_Move(_fOnUseTicket)]() mutable
+					, [this, Continuation, _Address, fOnUseTicket = fg_Move(_fOnUseTicket), fOnCertificateSigned = fg_Move(_fOnCertificateSigned)]() mutable
 					{
 						auto &Internal = *mp_pInternal;
 
@@ -236,12 +288,13 @@ namespace NMib
 						auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];
 						TicketState.m_CreationTime = Internal.m_TicketTimer.f_Elapsed();
 						TicketState.m_fOnUseTicket = fg_Move(fOnUseTicket);
-						
+						TicketState.m_fOnCertificateSigned = fg_Move(fOnCertificateSigned);
+
 						CTrustGenerateConnectionTicketResult Result;
 						Result.m_Ticket = fg_Move(TrustTicket);
-						if (TicketState.m_fOnUseTicket)
+						if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
 						{
-							Result.m_OnUseTicketSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
+							Result.m_NotificationsSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
 								{
 									auto &Internal = *mp_pInternal;
 
@@ -249,10 +302,14 @@ namespace NMib
 									if (!pTicket)
 										return fg_Explicit();
 									
-									TCContinuation<void> Continuation = pTicket->m_fOnUseTicket.f_Destroy();
-									
+									TCActorResultVector<void> Destroys;
+									pTicket->m_fOnUseTicket.f_Destroy() > Destroys.f_AddResult();
+									pTicket->m_fOnCertificateSigned.f_Destroy() > Destroys.f_AddResult();
+
 									Internal.m_Tickets.f_Remove(Token);
 									
+									TCContinuation<void> Continuation;
+									Destroys.f_GetResults() > Continuation.f_ReceiveAny();
 									return Continuation;
 								}
 							;
@@ -480,14 +537,18 @@ namespace NMib
 														if (Connection.m_ClientConnection.m_PublicServerCertificate == _TrustTicket.m_ServerPublicCert)
 														{
 															Connection.m_ClientConnection.m_PublicClientCertificate = *_PublicCertificate;
-															Internal.m_Database
-																(
-																	&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-																	, Connection.f_GetAddress()
-																	, Connection.m_ClientConnection
-																)
-																> DatabaseUpdates.f_AddResult()
-															;
+
+															if (Internal.m_ClientConnectionsInDatabase.f_Exists(Connection.f_GetAddress()))
+															{
+																Internal.m_Database
+																	(
+																		&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+																		, Connection.f_GetAddress()
+																		, Connection.m_ClientConnection
+																	)
+																	> DatabaseUpdates.f_AddResult()
+																;
+															}
 															auto ConnectionSettings = Internal.f_GetConnectionSettings(Connection);
 															for (auto &ConnectionReference : Connection.m_ConnectionReferences)
 															{
@@ -496,10 +557,15 @@ namespace NMib
 															}
 														}
 													}													
-													
+
+													bool bIsInDatabase = Internal.m_ClientConnectionsInDatabase.f_Exists(_TrustTicket.m_ServerAddress);
+													Internal.m_ClientConnectionsInDatabase[_TrustTicket.m_ServerAddress];
+
 													Internal.m_Database
 														(
-															&ICDistributedActorTrustManagerDatabase::f_AddClientConnection
+															bIsInDatabase
+														 	? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+														 	: &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
 															, _TrustTicket.m_ServerAddress
 															, ClientConnection
 														) 
@@ -583,6 +649,7 @@ namespace NMib
 																	if (!_ConnectionResult)
 																	{
 																		pConnectionState->f_Replied();
+																		Internal.m_ClientConnectionsInDatabase.f_Remove(Address);
 																		Internal.m_Database
 																			(
 																				&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection
@@ -828,9 +895,14 @@ namespace NMib
 											{
 												auto &Internal = *mp_pInternal;
 								
+												bool bIsInDatabase = Internal.m_ClientConnectionsInDatabase.f_Exists(_Address);
+												Internal.m_ClientConnectionsInDatabase[_Address];
+
 												Internal.m_Database
 													(
-														&ICDistributedActorTrustManagerDatabase::f_AddClientConnection
+														bIsInDatabase
+														? &ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+														: &ICDistributedActorTrustManagerDatabase::f_AddClientConnection
 														, _Address
 														, NewClientConnection
 													) 
@@ -883,8 +955,9 @@ namespace NMib
 					Continuation
 					, [this, Continuation, _Address]
 					{
-						auto &Internal = *mp_pInternal; 
-						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address) 
+						auto &Internal = *mp_pInternal;
+						Internal.m_ClientConnectionsInDatabase.f_Remove(_Address);
+						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address)
 							> Continuation % "Failed to remove client connection from database" / [this, Continuation, _Address]
 							{
 								auto &Internal = *mp_pInternal;
@@ -962,7 +1035,7 @@ namespace NMib
 							return;
 						}
 						
-						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true) 
+						Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
 							> (Continuation % "Failed to enum client connections in database") 
 							/ [Continuation, Addresses = fg_Move(Addresses)](NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> &&_ClientConnections) mutable
 							{

@@ -235,43 +235,130 @@ namespace NMib
 		
 		auto CDistributedAppActor::f_CommandLine_AddConnection
 			(
-				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				 , NStr::CStr const &_Ticket
-				 , bool _bIncludeFriendlyHostName
-				 , int32 _ConnectionConcurrency
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Ticket
+				, bool _bIncludeFriendlyHostName
+				, int32 _ConnectionConcurrency
+			 	, NContainer::TCSet<NStr::CStr> &&_TrustedNamespaces
 			)
 			-> TCContinuation<uint32>
 		{
-			CDistributedActorTrustManager::CTrustTicket Ticket;
-			try
+			for (auto &Namespace : _TrustedNamespaces)
 			{
-				Ticket = CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(_Ticket);
+				if (!CActorDistributionManager::fs_IsValidNamespaceName(Namespace))
+					return DMibErrorInstance("'{}' is not a valid namespace name"_f << Namespace);
 			}
-			catch (NException::CException const &_Exception)
-			{
-				return DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr()));
-			}
-			
+
 			TCContinuation<uint32> Continuation;
-			
 			if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
 				return Continuation;
-			
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency)
-				> Continuation / [=](CHostInfo &&_HostInfo)
+
+			TCContinuation<CStrSecure> TicketContinuation;
+			if (_Ticket.f_IsEmpty())
+				TicketContinuation = _pCommandLine->f_ReadPrompt({"Please paste connection ticket: ", false});
+			else
+				TicketContinuation.f_SetResult(_Ticket);
+
+			TicketContinuation > Continuation / [=](CStrSecure &&_TicketStr) mutable
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", _HostInfo.f_GetDesc());
-					if (_bIncludeFriendlyHostName)
-						*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
-					else
-						*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
-					Continuation.f_SetResult(0);
+					CDistributedActorTrustManager::CTrustTicket Ticket;
+					try
+					{
+						NException::CDisableExceptionTraceScope DisableExceptionTrace;
+						Ticket = CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(_TicketStr);
+					}
+					catch (NException::CException const &_Exception)
+					{
+						return Continuation.f_SetException(DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr())));
+					}
+
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency)
+						> Continuation / [=](CHostInfo &&_HostInfo)
+						{
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", _HostInfo.f_GetDesc());
+
+							TCContinuation<void> TrustNamespaceContination;
+							if (!_TrustedNamespaces.f_IsEmpty())
+							{
+								TCActorResultMap<CStr, void> TrustResults;
+
+								NContainer::TCSet<NStr::CStr> Hosts;
+								Hosts[_HostInfo.m_HostID];
+
+								CStr HostID = _HostInfo.m_HostID;
+
+								for (auto &Namespace : _TrustedNamespaces)
+								{
+									mp_State.m_TrustManager
+										(
+											&CDistributedActorTrustManager::f_AllowHostsForNamespace
+											, Namespace
+											, Hosts
+											, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+										)
+										> TrustResults.f_AddResult(Namespace);
+									;
+								}
+
+								TrustResults.f_GetResults() > [=](TCAsyncResult<TCMap<CStr, TCAsyncResult<void>>> &&_Results)
+									{
+										if (!_Results)
+											*_pCommandLine %= "Failed to trust namespaces: {}\n"_f << _Results.f_GetExceptionStr();
+										else
+										{
+											TCSet<CStr> SuccessfulNamespaces;
+											for (auto &NamespaceResult : *_Results)
+											{
+												CStr const &NamespaceName = _Results->fs_GetKey(NamespaceResult);
+												if (NamespaceResult)
+													SuccessfulNamespaces[NamespaceName];
+												else
+													*_pCommandLine %= "Failed to trust namespace '{}': {}\n"_f << NamespaceName << NamespaceResult.f_GetExceptionStr();
+											}
+											if (!SuccessfulNamespaces.f_IsEmpty())
+											{
+												DMibLogWithCategory
+													(
+													 	Mib/Concurrency/App
+													 	, Info
+													 	, "Trusted host '{}' for namespaces {vs} from add connection command line"
+													 	, HostID
+													 	, SuccessfulNamespaces
+													)
+												;
+											}
+										}
+
+										TrustNamespaceContination.f_SetResult();
+									}
+								;
+							}
+							else
+								TrustNamespaceContination.f_SetResult();
+
+							TrustNamespaceContination > TrustNamespaceContination / [=]
+								{
+									if (_bIncludeFriendlyHostName)
+										*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
+									else
+										*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
+									Continuation.f_SetResult(0);
+								}
+							;
+						}
+					;
 				}
 			;
+
 			return Continuation;
 		}
 		
-		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_ForListen)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket
+			(
+			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, CStr const &_ForListen
+			 	, TCSet<CStr> const &_Permissions
+			)
 		{
 			CDistributedActorTrustManager_Address ForListen;
 			if (_ForListen.f_IsEmpty())
@@ -282,11 +369,54 @@ namespace NMib
 			}
 			else
 				ForListen.m_URL = _ForListen;
-				
+
+			CStr TicketPermissionRequestID = NCryptography::fg_RandomID();
+
+			COnScopeExitShared pCleanup;
+
+			bool bHasPermissions = !_Permissions.f_IsEmpty();
+
+			if (bHasPermissions)
+			{
+				pCleanup = g_OnScopeExitActor > [this, TicketPermissionRequestID]
+					{
+						mp_TicketPermissionSubscriptions.f_Remove(TicketPermissionRequestID);
+					}
+				;
+			}
+
 			TCContinuation<uint32> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ForListen, nullptr) 
+			mp_State.m_TrustManager
+				(
+				 	&CDistributedActorTrustManager::f_GenerateConnectionTicket
+				 	, ForListen
+				 	, nullptr
+				 	, bHasPermissions ? g_ActorFunctor > [this, _Permissions, pCleanup = fg_Move(pCleanup)]
+				 	(
+					 	NStr::CStr const &_HostID
+					 	, CCallingHostInfo const &_HostInfo
+					) mutable -> TCContinuation<void>
+				 	{
+						if (_Permissions.f_IsEmpty())
+							return fg_Explicit();
+
+						TCContinuation<void> Continuation;
+						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, _Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
+							> Continuation / [Continuation, _HostID, _Permissions, pCleanup = fg_Move(pCleanup)]()
+							{
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permissions {vs} to host '{}' as part of ticket usage", _Permissions, _HostID);
+								Continuation.f_SetResult();
+							}
+						;
+						return Continuation;
+					}
+				 	: nullptr
+				)
 				> Continuation / [=](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
+					if (bHasPermissions)
+						mp_TicketPermissionSubscriptions[TicketPermissionRequestID] = fg_Move(_Ticket.m_NotificationsSubscription);
+
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", _Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
 					*_pCommandLine += CStrSecure::CFormat("{}\n") << _Ticket.m_Ticket.f_ToStringTicket();
 					Continuation.f_SetResult(0);
@@ -1219,16 +1349,23 @@ namespace NMib
 							, "Output"_= "The host information for the remote server."
 							, "Parameters"_=
 							{
-								"Ticket"_= 
+								"Ticket?"_=
 								{
 									"Default"_= ""
-									, "Description"_= "Specify ticket to use for adding the connection"
+									, "Description"_= "Specify ticket to use for adding the connection, if this is empty, the ticket will be promted for."
 								}
 							}
 							, "Options"_=
 							{
 								ConnectionConcurrencyOption
 								, IncludeFriendlyNameOption
+								, "TrustedNamespaces?"_=
+								{
+									"Names"_= {"--trusted-namespaces"}
+									, "Type"_= {""}
+									, "Default"_= _[_]
+									, "Description"_= "The namespaces that should be trusted for the host you are establishing trust with."
+								}
 							}
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -1237,13 +1374,18 @@ namespace NMib
 								(
 									"Add trust connection"
 									, [=]
-									{
+ 									{
+										NContainer::TCSet<NStr::CStr> TrustedNamespaces;
+										for (auto &NamespaceJSON : _Params["TrustedNamespaces"].f_Array())
+											TrustedNamespaces[NamespaceJSON.f_String()];
+
 										return f_CommandLine_AddConnection
 											(
 												_pCommandLine
 												, _Params["Ticket"].f_String()
 												, _Params["IncludeFriendlyName"].f_Boolean()
 												, _Params["ConnectionConcurrency"].f_Integer()
+											 	, fg_Move(TrustedNamespaces)
 											)
 										;
 									}
@@ -1425,6 +1567,16 @@ namespace NMib
 								" A ticket can only be used once and expires after a set time."
 								" Once used with --trust-add-connection on the remote host the remote host will be trusted by this application."
 							, "Output"_= "The trust ticket that can be used with --trust-add-connection on the remote application."
+							, "Options"_=
+							{
+								"Permissions?"_=
+								{
+									"Names"_= {"--permissions"}
+									, "Type"_= {""}
+									, "Default"_= _[_]
+									, "Description"_= "The permissions that should be granted to the host that uses the returned ticket."
+								}
+							}
 							, "Parameters"_=
 							{
 								"ForListenURL?"_= 
@@ -1444,7 +1596,11 @@ namespace NMib
 									"Generate trust ticket"
 									, [=]
 									{
-										return f_CommandLine_GenerateTrustTicket(_pCommandLine, _Params["ForListenURL"].f_String());
+										NContainer::TCSet<NStr::CStr> Permissions;
+										for (auto &PermissionJSON : _Params["Permissions"].f_Array())
+											Permissions[PermissionJSON.f_String()];
+
+										return f_CommandLine_GenerateTrustTicket(_pCommandLine, _Params["ForListenURL"].f_String(), Permissions);
 									}
 								)
 							;

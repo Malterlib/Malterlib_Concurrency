@@ -140,6 +140,7 @@ namespace NMib::NConcurrency
 						return;
 					m_Listen.f_Clear();
 					m_ClientConnections.f_Clear();
+					m_ClientConnectionsInDatabase.f_Clear();
 					m_Hosts.f_Clear();
 				}
 			)
@@ -416,7 +417,9 @@ namespace NMib::NConcurrency
 						_Continuation.f_SetException(DMibErrorInstance("Client connection has certificate with missing host id. Broken database?"));
 						return;
 					}
-					
+
+					m_ClientConnectionsInDatabase[iClientConnection.f_GetKey()];
+
 					auto &ClientConnection = m_ClientConnections[iClientConnection.f_GetKey()];
 					
 					ClientConnection.m_ClientConnection = *iClientConnection;

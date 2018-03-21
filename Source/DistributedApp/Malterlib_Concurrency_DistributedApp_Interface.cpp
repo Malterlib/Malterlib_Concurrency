@@ -83,6 +83,16 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	TCContinuation<void> CDistributedAppState::f_SaveStateDatabase()
+	{
+		return DMibErrorInstance("Copied app state does not support this");
+	}
+
+	TCContinuation<void> CDistributedAppState::f_SaveConfigDatabase()
+	{
+		return DMibErrorInstance("Copied app state does not support this");
+	}
+	
 	TCContinuation<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase() 
 	{
 		return mp_AppActor.fp_SaveStateDatabase();

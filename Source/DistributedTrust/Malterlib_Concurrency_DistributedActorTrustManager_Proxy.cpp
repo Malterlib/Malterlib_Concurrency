@@ -89,26 +89,12 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_EnumClients);
 	}
 	
-	auto CDistributedActorTrustManagerProxy::f_GenerateConnectionTicket
-		(
-			CDistributedActorTrustManager_Address const &_Address
-			, TCActorFunctorWithID
-			<
-				TCContinuation<void> 
-				(
-					CStr const &_HostID
-					, CCallingHostInfo const &_HostInfo
-					, TCVector<uint8> const &_CertificateRequest
-				)
-				, 0
-			> 
-			&&_fOnUseTicket
-		)
+	auto CDistributedActorTrustManagerProxy::f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command)
 		-> TCContinuation<CTrustGenerateConnectionTicketResult> 
 	{
 		if (!fp_CheckPermissions(EPermission_Client_Add))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, _Address, fg_Move(_fOnUseTicket));
+		return mp_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, _Command.m_Address, fg_Move(_Command.m_fOnUseTicket), fg_Move(_Command.m_fOnCertificateSigned));
 	}
 	
 	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveClient(CStr const &_HostID)

@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x103
+			, EProtocolVersion = 0x104
 		};
 	  
 		struct CTrustTicket
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency
 			void f_Consume(CDistributedActorReadStream &_Stream);
 			
 			CTrustTicket m_Ticket;
-			TCActorSubscriptionWithID<0> m_OnUseTicketSubscription;
+			TCActorSubscriptionWithID<0> m_NotificationsSubscription;
 		};
 		
 		struct CClientConnectionInfo
@@ -109,6 +109,27 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
 		};
 
+		struct CGenerateConnectionTicket
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CDistributedActorTrustManager_Address m_Address;
+			TCActorFunctorWithID
+				<
+					TCContinuation<void>
+					(
+						NStr::CStr const &_HostID
+						, CCallingHostInfo const &_HostInfo
+						, NContainer::TCVector<uint8> const &_CertificateRequest
+					)
+					, 0
+				>
+				m_fOnUseTicket
+			;
+			TCActorFunctorWithID<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
+		};
+
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
@@ -120,22 +141,7 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) = 0;
 
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() = 0;
-		virtual TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
-			(
-				CDistributedActorTrustManager_Address const &_Address
-				, TCActorFunctorWithID
-				<
-					TCContinuation<void> 
-					(
-						NStr::CStr const &_HostID
-						, CCallingHostInfo const &_HostInfo
-						, NContainer::TCVector<uint8> const &_CertificateRequest
-					)
-					, 0
-				> 
-				&&_fOnUseTicket
-			) = 0
-		;
+		virtual TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) = 0;
 		virtual TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
 		virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
 

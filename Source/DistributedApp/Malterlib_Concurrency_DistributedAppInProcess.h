@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 
 		struct CHandleRequest
 		{
-			CActorSubscription m_OnUseTicketSubscription;
+			CActorSubscription m_NotificationsSubscription;
 		};
 		
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;

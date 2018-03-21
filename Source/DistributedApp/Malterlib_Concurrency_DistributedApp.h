@@ -37,8 +37,8 @@ namespace NMib::NConcurrency
 
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 
-		virtual TCContinuation<void> f_SaveStateDatabase() = 0;
-		virtual TCContinuation<void> f_SaveConfigDatabase() = 0;
+		virtual TCContinuation<void> f_SaveStateDatabase();
+		virtual TCContinuation<void> f_SaveConfigDatabase();
 
 		CDistributedAppState() = delete;
 		~CDistributedAppState();
@@ -80,10 +80,10 @@ namespace NMib::NConcurrency
 
 		TCContinuation<uint32> f_RunCommandLine
 			(
-				 CCallingHostInfo const &_CallingHost
-				 , NStr::CStr const &_Command
-				 , NEncoding::CEJSON const &_Params
-				 , NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				CCallingHostInfo const &_CallingHost
+				, NStr::CStr const &_Command
+				, NEncoding::CEJSON const &_Params
+				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;
 
@@ -91,13 +91,20 @@ namespace NMib::NConcurrency
 		
 		TCContinuation<uint32> f_CommandLine_AddConnection
 			(
-				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				 , NStr::CStr const &_Ticket
-				 , bool _bIncludeFriendlyHostName
-				 , int32 _ConnectionConcurrency
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Ticket
+				, bool _bIncludeFriendlyHostName
+				, int32 _ConnectionConcurrency
+			 	, NContainer::TCSet<NStr::CStr> &&_TrustedNamespaces
 			)
 		;
-		TCContinuation<uint32> f_CommandLine_GenerateTrustTicket(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_ForListen);
+		TCContinuation<uint32> f_CommandLine_GenerateTrustTicket
+			(
+			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_ForListen
+			 	, NContainer::TCSet<NStr::CStr> const &_Permissions
+			)
+		;
 
 		TCContinuation<uint32> f_CommandLine_ListTrustedHosts(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
 		TCContinuation<uint32> f_CommandLine_RemoveTrustedHost(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID);
@@ -110,10 +117,10 @@ namespace NMib::NConcurrency
 		TCContinuation<uint32> f_CommandLine_RemoveConnection(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
 		TCContinuation<uint32> f_CommandLine_AddAdditionalConnection
 			(
-				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				 , NStr::CStr const &_URL
-				 , bool _bIncludeFriendlyHostName
-				 , int32 _ConnectionConcurrency
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_URL
+				, bool _bIncludeFriendlyHostName
+				, int32 _ConnectionConcurrency
 			)
 		;
 		TCContinuation<uint32> f_CommandLine_SetConnectionConcurrency(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL, int32 _ConnectionConcurrency);
@@ -244,6 +251,8 @@ namespace NMib::NConcurrency
 		CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
 		TCAsyncResult<void> mp_AppStartupResult;
 		NContainer::TCVector<TCContinuation<void>> mp_DeferredAppStartupResults;
+
+		NContainer::TCMap<NStr::CStr, CActorSubscription> mp_TicketPermissionSubscriptions;
 
 		NStr::CStr mp_CurrentLogDirectory;
 		EDistributedAppType mp_AppType = EDistributedAppType_Unknown;

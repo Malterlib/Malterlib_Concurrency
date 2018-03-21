@@ -127,8 +127,8 @@ namespace NMib::NConcurrency
 							return fg_Explicit();
 						
 						TCContinuation<void> Continuation;
-						if (pHandleRequest->m_OnUseTicketSubscription)
-							Continuation = pHandleRequest->m_OnUseTicketSubscription->f_Destroy();
+						if (pHandleRequest->m_NotificationsSubscription)
+							Continuation = pHandleRequest->m_NotificationsSubscription->f_Destroy();
 						else
 							Continuation.f_SetResult();
 						
@@ -148,6 +148,7 @@ namespace NMib::NConcurrency
 					;
 					return Continuation;
 				}
+			 	, nullptr
 			)
 			> [this, HandleRequestID](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
 			{
@@ -165,7 +166,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 				auto &Request = mp_HandleRequests[HandleRequestID];
-				Request.m_OnUseTicketSubscription = fg_Move(_Ticket->m_OnUseTicketSubscription);
+				Request.m_NotificationsSubscription = fg_Move(_Ticket->m_NotificationsSubscription);
 				DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
 				CProcessLaunchActor::f_SendStdIn(mp_RequestTicketMagic + ":" + _Ticket->m_Ticket.f_ToStringTicket() + "\n") > [this](TCAsyncResult<void> &&_Result)
 					{

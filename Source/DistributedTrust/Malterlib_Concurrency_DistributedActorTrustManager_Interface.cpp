@@ -56,13 +56,13 @@ namespace NMib::NConcurrency
 	void CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult::f_Feed(CDistributedActorWriteStream &_Stream) &&
 	{
 		_Stream << m_Ticket;
-		_Stream << fg_Move(m_OnUseTicketSubscription);
+		_Stream << fg_Move(m_NotificationsSubscription);
 	}
 	
 	void CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		_Stream >> m_Ticket;
-		_Stream >> m_OnUseTicketSubscription;
+		_Stream >> m_NotificationsSubscription;
 	}
 		
 	template <typename tf_CStream>
@@ -92,6 +92,16 @@ namespace NMib::NConcurrency
 			_Stream % m_OrderingFlags;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CChangeHostPermissions);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CGenerateConnectionTicket::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Address;
+		_Stream % fg_Move(m_fOnUseTicket);
+		if (_Stream.f_GetVersion() >= 0x104)
+			_Stream % fg_Move(m_fOnCertificateSigned);
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CGenerateConnectionTicket);
 
 	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator == (CClientConnectionInfo const &_Right) const
 	{

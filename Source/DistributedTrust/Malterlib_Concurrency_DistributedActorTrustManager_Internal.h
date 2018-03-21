@@ -46,6 +46,7 @@ namespace NMib
 			{
 				NTime::CTimer m_CreationTime;
 				TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> m_fOnUseTicket;
+				TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
 			};
 			
 			struct CHostState
@@ -239,6 +240,7 @@ namespace NMib
 			
 			NContainer::TCMap<NStr::CStr, CHostState> m_Hosts;
 			NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState> m_ClientConnections;
+			NContainer::TCSet<CDistributedActorTrustManager_Address> m_ClientConnectionsInDatabase;
 			
 			NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
 			

@@ -189,7 +189,7 @@ namespace NMib
 					{
 						"Daemon_Mode?"_= 
 						{
-							"Names"_= {"--daemon-mode"}
+							"Names"_= {"--mode"}
 							, "Type"_= COneOf{"global", "user", "all-users"}
 							, "Default"_= DaemonSettings["Mode"].f_String()
 							, "Description"_= "Specify the mode of the daemon\n"
@@ -217,7 +217,7 @@ namespace NMib
 			;
 			auto DaemonWaitOption = "Daemon_Wait?"_= 
 				{
-					"Names"_= {"--daemon-wait"}
+					"Names"_= {"--wait"}
 					, "Default"_= true
 					, "Description"_= "Wait for service to stop"
 				}
@@ -239,33 +239,46 @@ namespace NMib
 						{
 							"Daemon_SaveSettings?"_= 
 							{
-								"Names"_= {"--daemon-save-settings"}
+								"Names"_= {"--save-settings"}
 								, "Default"_= true
 								, "Description"_= "Enable or disable the saving of the mode and daemon name to file."
 							}
 							, "Daemon_RunAsUser?"_= 
 							{
-								"Names"_= {"--daemon-run-as-user", "-RunAsUser"}
+								"Names"_= {"--run-as-user", "-RunAsUser"}
 								, "Default"_= ""
 								, "Description"_= "Specify the user that the daemon should run as when started."
 							}
 							, "Daemon_RunAsGroup?"_= 
 							{
-								"Names"_= {"--daemon-run-as-group", "-RunAsGroup"}
+								"Names"_= {"--run-as-group", "-RunAsGroup"}
 								, "Default"_= ""
 								, "Description"_= "Specify the group that the daemon should run as when started."
 							}
-							, "Daemon_FailIfAdded?"_= 
+							, "Daemon_FailIfAdded?"_=
 							{
-								"Names"_= {"--daemon-fail-if-added"}
+								"Names"_= {"--fail-if-added"}
 								, "Default"_= true
 								, "Description"_= "Fail if daemon is already installed."
+							}
+							, "Daemon_Start?"_=
+							{
+								"Names"_= {"--start"}
+								, "Default"_= true
+								, "Description"_= "Start the daemon after it's added."
 							}
 						}
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{
-						return fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Add);
+						uint32 Status = fg_RunDaemon(*this, _Params, mp_Settings, true, EServiceAction_Add);
+						if (Status)
+							return Status;
+
+						if (_Params["Daemon_Start"].f_Boolean())
+							return fg_RunDaemon(*this, _Params, mp_Settings, false, EServiceAction_Start);
+						else
+							return Status;
 					}
 				)
 			;
@@ -400,25 +413,25 @@ namespace NMib
 						{
 							"Daemon_Daemonize?"_= 
 							{
-								"Names"_= {"--daemon-daemonize", "-Daemonize"}
+								"Names"_= {"--daemonize", "-Daemonize"}
 								, "Type"_= true
 								, "Description"_= "Daemonizes the daemon on some platforms. [INTERNAL]"
 							}
 							, "Daemon_DoStart?"_= 
 							{
-								"Names"_= {"--daemon-do-start", "-DoStart"}
+								"Names"_= {"--do-start", "-DoStart"}
 								, "Type"_= true
 								, "Description"_= "Starts the daemon on some platform. [INTERNAL]"
 							}
 							, "Daemon_DoStop?"_= 
 							{
-								"Names"_= {"--daemon-do-stop", "-DoStop"}
+								"Names"_= {"--do-stop", "-DoStop"}
 								, "Type"_= true
 								, "Description"_= "Stops the daemon on some platform. [INTERNAL]"
 							}
 							, "Daemon_DoStatus?"_= 
 							{
-								"Names"_= {"--daemon-do-status", "-DoStatus"}
+								"Names"_= {"--do-status", "-DoStatus"}
 								, "Type"_= true
 								, "Description"_= "Checks daemon status on some platform. [INTERNAL]"
 							}

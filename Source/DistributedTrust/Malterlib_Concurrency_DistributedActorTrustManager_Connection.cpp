@@ -478,6 +478,21 @@ namespace NMib
 											pConnectionState->m_bDisableTimeout = true;
 											pConnectionState->m_TicketInterface = _NewActor.f_GetActor<CInternal::CTicketInterface>();
 
+											if (!pConnectionState->m_TicketInterface)
+											{
+												using namespace NStr;
+												CStr AvailableHashes;
+												for (auto &Hash : _NewActor.f_GetTypeHashes())
+													fg_AddStrSep(AvailableHashes, "{nfh}"_f << Hash, ", ");
+
+												auto TypeNameHelper = fg_GetTypeNameConstExpr<CInternal::CTicketInterface>();
+												CStr TypeName(TypeNameHelper.m_pString, TypeNameHelper.m_Len);
+
+												pConnectionState->f_Replied();
+												Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to get ticket interface: {} [{nfh}] from available hashes: {}", TypeName, fg_GetTypeHash<CInternal::CTicketInterface>(), AvailableHashes)));
+												return;
+											}
+
 											auto &Internal = *mp_pInternal;
 											
 											NNet::CSSLContext::CCertificateOptions Options;

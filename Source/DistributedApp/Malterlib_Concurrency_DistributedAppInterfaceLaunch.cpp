@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -97,6 +97,7 @@ namespace NMib::NConcurrency
 						}
 						catch (NException::CException const &_Exception)
 						{
+							(void)_Exception;
 							DMibLogWithCategory(Malterlib/Concurrency, Info, "For '{}', failed to parse error command: {}", mp_Description, _Exception);
 						}
 					}

@@ -180,12 +180,12 @@ namespace NMib
 		
 		void CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ValidateTemplate(CEJSON const &_Template, CStr const &_Identifier, bool _bPrevIsSetOf) const
 		{
-			switch (_Template.f_Type())
+			switch (_Template.f_EType())
 			{
-			case EJSONType_String:
-			case EJSONType_Integer:
-			case EJSONType_Float:
-			case EJSONType_Boolean:
+			case EEJSONType_String:
+			case EEJSONType_Integer:
+			case EEJSONType_Float:
+			case EEJSONType_Boolean:
 			case EEJSONType_Binary:
 			case EEJSONType_Date:
 				break;
@@ -214,7 +214,7 @@ namespace NMib
 					}
 				}
 				break;
-			case EJSONType_Object:
+			case EEJSONType_Object:
 				{
 					auto &TemplateObject = _Template.f_Object();
 					
@@ -236,7 +236,7 @@ namespace NMib
 					}
 				}
 				break;
-			case EJSONType_Array:
+			case EEJSONType_Array:
 				{
 					auto &TemplateArray = _Template.f_Array();
 					if (TemplateArray.f_IsEmpty())
@@ -249,7 +249,7 @@ namespace NMib
 					fp_ValidateTemplate(Template, fg_Format("{}.[]", _Identifier), false); 
 				}
 				break;
-			case EJSONType_Null:
+			case EEJSONType_Null:
 				if (_bPrevIsSetOf)
 					break;
 				DMibError("null can only be used in COneOf statements");
@@ -266,17 +266,17 @@ namespace NMib
 		
 		namespace
 		{
-			CStr fg_GetEJSONTypeName(EJSONType _Type)
+			CStr fg_GetEJSONTypeName(EEJSONType _Type)
 			{
 				switch (_Type)
 				{
-				case EJSONType_Null: return "null";
-				case EJSONType_String: return "string";
-				case EJSONType_Integer: return "integer";
-				case EJSONType_Float: return "float";
-				case EJSONType_Boolean: return "boolean";
-				case EJSONType_Object: return "object";
-				case EJSONType_Array: return "array";
+				case EEJSONType_Null: return "null";
+				case EEJSONType_String: return "string";
+				case EEJSONType_Integer: return "integer";
+				case EEJSONType_Float: return "float";
+				case EEJSONType_Boolean: return "boolean";
+				case EEJSONType_Object: return "object";
+				case EEJSONType_Array: return "array";
 				case EEJSONType_Date: return "date";
 				case EEJSONType_Binary: return "binary";
 				case EEJSONType_UserType: return "user type";
@@ -284,10 +284,10 @@ namespace NMib
 				}
 			}
 			
-			void fg_CheckType(CEJSON const &_Value, EJSONType _Type)
+			void fg_CheckType(CEJSON const &_Value, EEJSONType _Type)
 			{
-				if (_Value.f_Type() != _Type)
-					DMibError(fg_Format("Expected '{}' but got '{}': {}", fg_GetEJSONTypeName(_Type), fg_GetEJSONTypeName(_Value.f_Type()), _Value).f_TrimRight());
+				if (_Value.f_EType() != _Type)
+					DMibError(fg_Format("Expected '{}' but got '{}': {}", fg_GetEJSONTypeName(_Type), fg_GetEJSONTypeName(_Value.f_EType()), _Value).f_TrimRight());
 			}
 		}
 
@@ -296,19 +296,19 @@ namespace NMib
 			CEJSON Return;
 			try
 			{
-				switch (_Template.f_Type())
+				switch (_Template.f_EType())
 				{
-				case EJSONType_String:
+				case EEJSONType_String:
 					{
-						fg_CheckType(_Value, _Template.f_Type());
+						fg_CheckType(_Value, _Template.f_EType());
 						Return = _Value.f_String();
 					}
 					break;
-				case EJSONType_Integer:
+				case EEJSONType_Integer:
 					{
 						if (_bStrict)
 						{
-							fg_CheckType(_Value, _Template.f_Type());
+							fg_CheckType(_Value, _Template.f_EType());
 							Return = _Value.f_Integer();
 						}
 						else if (_Value.f_IsString())
@@ -326,11 +326,11 @@ namespace NMib
 							Return = _Value.f_AsInteger();
 					}
 					break;
-				case EJSONType_Float:
+				case EEJSONType_Float:
 					{
 						if (_bStrict)
 						{
-							fg_CheckType(_Value, _Template.f_Type());
+							fg_CheckType(_Value, _Template.f_EType());
 							Return = _Value.f_Float();
 						}
 						else if (_Value.f_IsString())
@@ -344,11 +344,11 @@ namespace NMib
 							Return = _Value.f_AsFloat();
 					}
 					break;
-				case EJSONType_Boolean:
+				case EEJSONType_Boolean:
 					{
 						if (_bStrict)
 						{
-							fg_CheckType(_Value, _Template.f_Type());
+							fg_CheckType(_Value, _Template.f_EType());
 							Return = _Value.f_Boolean();
 						}
 						else if (_Value.f_IsString())
@@ -520,12 +520,12 @@ namespace NMib
 						DMibError("Converting to user type is not supported");
 					}
 					break;
-				case EJSONType_Object:
+				case EEJSONType_Object:
 					{
 						CEJSON RawValue;
 						if (_bStrict)
 						{
-							fg_CheckType(_Value, _Template.f_Type());
+							fg_CheckType(_Value, _Template.f_EType());
 							RawValue = _Value.f_Object();
 						}
 						else if (_Value.f_IsObject())
@@ -596,12 +596,12 @@ namespace NMib
 						}
 					}
 					break;
-				case EJSONType_Array:
+				case EEJSONType_Array:
 					{
 						CEJSON RawValue;
 						if (_bStrict)
 						{
-							fg_CheckType(_Value, _Template.f_Type());
+							fg_CheckType(_Value, _Template.f_EType());
 							RawValue = _Value.f_Array();
 						}
 						else if (_Value.f_IsArray())
@@ -637,10 +637,10 @@ namespace NMib
 						Return = RawValue;
 					}
 					break;
-				case EJSONType_Null:
+				case EEJSONType_Null:
 					if (_bStrict)
 					{
-						fg_CheckType(_Value, _Template.f_Type());
+						fg_CheckType(_Value, _Template.f_EType());
 						Return = nullptr;
 						break;
 					}
@@ -683,15 +683,15 @@ namespace NMib
 		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const
 		{
 			CStr Return;
-			switch (_Template.f_Type())
+			switch (_Template.f_EType())
 			{
-			case EJSONType_String:
-			case EJSONType_Integer:
-			case EJSONType_Float:
-			case EJSONType_Boolean:
-			case EJSONType_Object:
-			case EJSONType_Array:
-			case EJSONType_Null:
+			case EEJSONType_String:
+			case EEJSONType_Integer:
+			case EEJSONType_Float:
+			case EEJSONType_Boolean:
+			case EEJSONType_Object:
+			case EEJSONType_Array:
+			case EEJSONType_Null:
 				{
 					Return = _Value.f_ToString("    ");
 				}

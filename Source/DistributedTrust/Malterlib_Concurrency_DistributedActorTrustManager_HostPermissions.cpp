@@ -411,6 +411,8 @@ namespace NMib::NConcurrency
 		 	, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
+		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
 		auto const &Host = _CallingHostInfo.f_GetRealHostID();
 		if (auto pHostPermissions = mp_Permissions.f_FindEqual(Host))
 		{
@@ -430,6 +432,8 @@ namespace NMib::NConcurrency
 		 	, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
+		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
 		auto const &Host = _CallingHostInfo.f_GetRealHostID();
 		if (auto pHostPermissions = mp_Permissions.f_FindEqual(Host))
 		{
@@ -450,6 +454,8 @@ namespace NMib::NConcurrency
 		 	, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
+		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
 		NContainer::TCMap<NStr::CStr, bool> Result;
 
 		auto const &Host = _CallingHostInfo.f_GetRealHostID();

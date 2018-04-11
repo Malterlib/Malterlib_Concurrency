@@ -93,15 +93,6 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	CDistributedAppAuditor::CDistributedAppAuditor() = default;
-	CDistributedAppAuditor::~CDistributedAppAuditor() = default;
-
-	CDistributedAppAuditor::CDistributedAppAuditor(TCWeakActor<CDistributedAppActor> const &_AppActor, CCallingHostInfo const &_CallingHostInfo)
-		: mp_AppActor(_AppActor)
-		, mp_CallingHostInfo(_CallingHostInfo)
-	{
-	}
-
 	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr const &_Description)
 	{
 		auto CurrentCallingHostInfo = fg_GetCallingHostInfo();
@@ -138,105 +129,7 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
-	
-	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
- 		mp_AppActor(&CDistributedAppActor::f_Audit, _Severity, _Message, _Category, mp_CallingHostInfo) > fg_DiscardResult();
-		return _Message;
-	}
-	
-	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		CStr FullMessage;
-		CStr FirstMessage;
-		for (CStr const &Message : _Message)
-		{
-			if (FirstMessage.f_IsEmpty())
-				FirstMessage = Message;
-			fg_AddStrSep(FullMessage, Message, " ");
-		}
- 		mp_AppActor(&CDistributedAppActor::f_Audit, _Severity, FullMessage, _Category, mp_CallingHostInfo) > fg_DiscardResult();
-		return FirstMessage;
-	}
 
-	CStr CDistributedAppAuditor::f_Critical(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Critical, _Message, _Category);
-	}
-	
-	CStr CDistributedAppAuditor::f_Critical(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Critical, _Message, _Category);
-	}
-	
-	CStr CDistributedAppAuditor::f_Error(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Error, _Message, _Category);
-	}
-
-	CStr CDistributedAppAuditor::f_Error(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Error, _Message, _Category);
-	}
-	
-	NException::CException CDistributedAppAuditor::f_Exception(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
-	}
-	
-	NException::CException CDistributedAppAuditor::f_Exception(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
-	}
-	
-	CStr CDistributedAppAuditor::f_Warning(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Warning, _Message, _Category);
-	}
-	
-	CStr CDistributedAppAuditor::f_Warning(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Warning, _Message, _Category);
-	}
-	
-	CStr CDistributedAppAuditor::f_Info(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Info, _Message, _Category);
-	}
-
-	CStr CDistributedAppAuditor::f_Info(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return f_Audit(NLog::ESeverity_Info, _Message, _Category);
-	}
-	
-	CCallingHostInfo const &CDistributedAppAuditor::f_HostInfo() const
-	{
-		return mp_CallingHostInfo;
-	}
-
-	CDistributedAppAuditor CDistributedAppActor::f_Auditor(CCallingHostInfo const &_CallingHostInfo) const
-	{
-		return {fg_ThisActor(this), _CallingHostInfo};
-	}
-	
-	CDistributedAppAuditor CDistributedAppState::f_Auditor(CCallingHostInfo const &_CallingHostInfo) const
-	{
-		return {m_AppActor, _CallingHostInfo};
-	}
-	
-	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NStr::CStr const &_Category) const
-	{
-		if (_Message.f_IsEmpty())
-			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, "Access denied", _Category));
-		else
-			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category));
-	}
-	
-	NException::CException CDistributedAppAuditor::f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
-	{
-		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
-	}
-	
 	NStr::CStr CDistributedAppActor::fp_GetLocalHostname(bool _bEnclaveSpecific) const
 	{
 		return mp_Settings.f_GetLocalSocketHostname(_bEnclaveSpecific);

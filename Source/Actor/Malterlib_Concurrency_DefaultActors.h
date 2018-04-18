@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -56,6 +56,19 @@ namespace NMib
 		};
 		
 		TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();
-		
+
+		class CDirectCallActorHolder;
+
+		class CDirectCallActor : public CActor
+		{
+		public:
+			using CActorHolder = CDirectCallActorHolder;
+			enum
+			{
+				mc_bImmediateDelete = true
+			};
+		};
+
+		TCActor<CDirectCallActor> const &fg_DirectCallActor();
 	}
 }

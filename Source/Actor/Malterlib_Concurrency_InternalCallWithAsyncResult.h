@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -81,12 +81,12 @@ namespace NMib
 					auto &Callstack = _Local.m_Result.m_Callstacks;
 					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
-					if (_Local.fs_ShouldDiscardResult())
+					if constexpr (tf_CLocal::mc_ShouldDiscardResults)
 						_Local.m_ToCall(*(pActor));
 					else
 						_Local.m_Result.f_SetResult(_Local.m_ToCall(*(pActor)));
 				}
-				fg_RemoveQualifiers(_Local).template f_ResultAvailable<>();
+				fg_RemoveQualifiers(_Local).f_ResultAvailable();
 			}
 			
 			// Direct void result
@@ -114,10 +114,10 @@ namespace NMib
 					CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 					_Local.m_ToCall(*pActor);
-					if (!_Local.fs_ShouldDiscardResult())
+					if constexpr (!tf_CLocal::mc_ShouldDiscardResults)
 						_Local.m_Result.f_SetResult();
 				}
-				fg_RemoveQualifiers(_Local).template f_ResultAvailable<>();
+				fg_RemoveQualifiers(_Local).f_ResultAvailable();
 			}
 
 			// Continuation result
@@ -144,7 +144,7 @@ namespace NMib
 				
 				auto pActor = _Local.m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(pActor);
-				if (_Local.fs_ShouldDiscardResult())
+				if constexpr (tf_CLocal::mc_ShouldDiscardResults)
 				{
 					_Local.m_ToCall(*pActor);
 					return;
@@ -168,7 +168,7 @@ namespace NMib
 							else
 								Local.m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set"));
 
-							fg_RemoveQualifiers(Local).template f_ResultAvailable<>();
+							fg_RemoveQualifiers(Local).f_ResultAvailable();
 						}
 					)
 				;

@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -461,7 +461,7 @@ namespace NMib
 		
 		TCDispatchedActorCall<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{
@@ -483,7 +483,7 @@ namespace NMib
 
 		TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{
@@ -505,7 +505,7 @@ namespace NMib
 		
 		TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
 					{

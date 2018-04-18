@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -99,4 +99,7 @@ namespace NMib::NConcurrency
 	
 	constexpr CConcurrentDispatchHelper g_ConcurrentDispatchInit{};
 	CConcurrentDispatchHelper const &g_ConcurrentDispatch = g_ConcurrentDispatchInit;
+
+	constexpr CDirectDispatchHelper g_DirectDispatchInit{};
+	CDirectDispatchHelper const &g_DirectDispatch = g_DirectDispatchInit;
 }

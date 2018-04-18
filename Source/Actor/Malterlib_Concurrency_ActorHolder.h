@@ -233,6 +233,23 @@ namespace NMib
 			NPtr::TCUniquePointer<NThread::CThreadObject> m_pThread;
 			NStr::CStr mp_ThreadName;
 		};
+
+		class CDirectCallActorHolder : public CDefaultActorHolder
+		{
+		public:
+			CDirectCallActorHolder
+				(
+					CConcurrencyManager *_pConcurrencyManager
+					, bool _bImmediateDelete
+					, EPriority _Priority
+					, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				)
+			;
+			~CDirectCallActorHolder();
+
+		protected:
+			void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;
+		};
 	}
 }
 

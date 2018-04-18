@@ -915,15 +915,6 @@ namespace NMib::NConcurrency
 	>
 	struct TCReportLocal
 	{
-		mutable t_CFunctor m_ToCall;
-		mutable NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> m_Result;
-		
-		using CResultFunctor = NFunction::TCFunctionMovable<void (NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> &&_Result)>;
-		
-		mutable CResultFunctor m_ResultFunctor;
-		mutable TCActor<t_CResultActor> m_pResultActor;
-		mutable TCActorInternal<t_CActor> *m_pActorInternal;
-
 		TCReportLocal(TCReportLocal &&_Other)
 			: m_ToCall(fg_Move(_Other.m_ToCall))
 			, m_Result(fg_Move(_Other.m_Result))
@@ -968,54 +959,33 @@ namespace NMib::NConcurrency
 				m_Result.m_Callstacks.f_Remove(m_Result.m_Callstacks.f_GetLast());
 #endif				
 		}
-		
-		template <bool t_bCallDirect, TCEnableIfType<t_bCallDirect> * = nullptr>
-		inline_always void fp_CallResult() const
+
+		inline_always void f_ResultAvailable()
 		{
-			NPrivate::fg_CallResultFunctorDirect(m_ResultFunctor, fg_Move(m_Result));
-		}
-		
-		template <bool t_bCallDirect, TCEnableIfType<!t_bCallDirect> * = nullptr>
-		inline_always void fp_CallResult() const
-		{
-			NPrivate::fg_CallResultFunctor(m_ResultFunctor, fg_GetResultActor(m_pResultActor)->fp_GetActor(), fg_Move(m_Result));
+			if constexpr (mc_ShouldCallResultDirect)
+			{
+				m_pActorInternal = nullptr;
+				(*this)();
+			}
+			else if (mc_ShouldDiscardResults)
+				m_pActorInternal = nullptr;
+			else
+			{
+				auto pActor = fg_GetResultActor(m_pResultActor);
+				m_pActorInternal = nullptr;
+				pActor->f_QueueProcess(fg_Move(*this));
+			}
 		}
 
-		constexpr static inline_always bool fs_ShouldCallResultDirect()
-		{
-			return NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
-		}
-		
-		constexpr static inline_always bool fs_ShouldDiscardResult()
-		{
-			return NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
-		}
-		
-		template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<t_bCallDirect> * = nullptr>
-		inline_always void f_ResultAvailable()
-		{
-			m_pActorInternal = nullptr;
-			(*this)();
-		}
-
-		template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<t_bDiscard> * = nullptr>
-		inline_always void f_ResultAvailable()
-		{
-			m_pActorInternal = nullptr;
-		}
-		
-		template <bool t_bCallDirect = fs_ShouldCallResultDirect(), bool t_bDiscard = fs_ShouldDiscardResult(), TCEnableIfType<!t_bCallDirect && !t_bDiscard> * = nullptr>
-		inline_always void f_ResultAvailable()
-		{
-			auto pActor = fg_GetResultActor(m_pResultActor);
-			m_pActorInternal = nullptr;
-			pActor->f_QueueProcess(fg_Move(*this));
-		}
-		
 		void operator ()() const
 		{
 			if (m_Result.f_IsSet())
-				fp_CallResult<fs_ShouldCallResultDirect()>();
+			{
+				if constexpr (mc_ShouldCallResultDirect)
+					NPrivate::fg_CallResultFunctorDirect(m_ResultFunctor, fg_Move(m_Result));
+				else
+					NPrivate::fg_CallResultFunctor(m_ResultFunctor, fg_GetResultActor(m_pResultActor)->fp_GetActor(), fg_Move(m_Result));
+			}
 			else
 			{
 				NPrivate::fg_CallWithAsyncResult
@@ -1035,30 +1005,35 @@ namespace NMib::NConcurrency
 				return fg_ConcurrencyManager();
 			return m_pActorInternal->f_ConcurrencyManager();
 		}
-		
-		template <bool tf_bDiscard, TCEnableIfType<tf_bDiscard> * = nullptr>
-		void fp_Destruct()
-		{
-		}
-		
-		template <bool tf_bDiscard, TCEnableIfType<!tf_bDiscard> * = nullptr>
-		void fp_Destruct()
-		{
-			if (m_pActorInternal)
-			{
-#if DMibConfig_Concurrency_DebugBlockDestroy
-				m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
-#else
-				m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
-#endif
-				f_ResultAvailable<>();
-			}
-		}
-		
+
 		~TCReportLocal()
 		{
-			fp_Destruct<fs_ShouldDiscardResult()>();
+			if constexpr (!mc_ShouldDiscardResults)
+			{
+				if (m_pActorInternal)
+				{
+#if DMibConfig_Concurrency_DebugBlockDestroy
+					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
+#else
+					m_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
+#endif
+					f_ResultAvailable();
+				}
+			}
 		}
+
+		constexpr static const bool mc_ShouldCallResultDirect = NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
+		constexpr static const bool mc_ShouldDiscardResults = NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
+
+		mutable t_CFunctor m_ToCall;
+		mutable NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> m_Result;
+
+		using CResultFunctor = NFunction::TCFunctionMovable<void (NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType> &&_Result)>;
+
+		mutable CResultFunctor m_ResultFunctor;
+		mutable TCActor<t_CResultActor> m_pResultActor;
+		mutable TCActorInternal<t_CActor> *m_pActorInternal;
+
 	private:
 		TCReportLocal(TCReportLocal const &_Other);
 	};

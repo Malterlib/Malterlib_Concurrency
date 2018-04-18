@@ -63,7 +63,12 @@ namespace NMib
 		{
 			return fg_ConcurrencyManager().f_GetConcurrentActorLowPrio();
 		}
-		
+
+		TCActor<CDirectCallActor> const &fg_DirectCallActor()
+		{
+			return fg_ConcurrencyManager().f_GetDirectCallActor();
+		}
+
 		CConcurrencyThreadLocal::CConcurrencyThreadLocal()
 		{
 			for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
@@ -123,6 +128,8 @@ namespace NMib
 						pQueue->f_Signal(this);
 				}
 			}
+
+			m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActor>());
 		}
 
 		void CConcurrencyManager::f_Stop()
@@ -444,7 +451,7 @@ namespace NMib
 #endif
 			{
 				// Disregard concurrent actor from destroy
-				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
+				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 2;
 #if DMibConfig_Concurrency_DebugBlockDestroy
 				volatile static bool s_AbortLoop = false;
 #endif
@@ -518,12 +525,12 @@ namespace NMib
 						m_pTimerActor = nullptr;
 					}
 				}
-				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen();
+				mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1;
 				while (m_nActors.f_Load() > nExpectedActors)
 					NSys::fg_Thread_SmallestSleep();
 			}
 			
-			// Finally delete the concurrent actor
+			// Delete the concurrent actors
 			{
 				{
 					DMibLock(m_pConcurrentActorLock);
@@ -537,9 +544,16 @@ namespace NMib
 					
 					m_nThreads = 0;
 				}
-				while (m_nActors.f_Load() > 0)
+				while (m_nActors.f_Load() > 1)
 					NSys::fg_Thread_SmallestSleep();
 			}
+
+			// Finally delete the direct call actor
+			m_DirectCallActor->fp_Terminate(nullptr);
+			m_DirectCallActor.f_Clear();
+
+			while (m_nActors.f_Load() > 0)
+				NSys::fg_Thread_SmallestSleep();
 		}
 
 		inline_never mint CConcurrencyManager::fp_InitConcurrentActors()
@@ -617,6 +631,11 @@ namespace NMib
 			auto &ToReturn = m_ConcurrentActors[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
 			++ThreadLocal.m_iConcurrentActor[EPriority_Low];
 			return ToReturn;
+		}
+
+		TCActor<CDirectCallActor> const &CConcurrencyManager::f_GetDirectCallActor()
+		{
+			return m_DirectCallActor;
 		}
 
 		TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()

@@ -780,10 +780,16 @@ namespace NMib
 			return fg_Dispatch(fg_ConcurrentActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
 		}
 
+		template <typename tf_FToDispatch>
+		auto fg_DirectDispatch(tf_FToDispatch &&_fDispatch)
+		{
+			return fg_Dispatch(fg_DirectCallActor(), fg_Forward<tf_FToDispatch>(_fDispatch));
+		}
+
 		template <typename t_CReturnValue>
 		TCDispatchedActorCall<t_CReturnValue> TCContinuation<t_CReturnValue>::f_Dispatch() const
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[Continuation = *this]
 					{
@@ -839,9 +845,20 @@ namespace NMib
 				return fg_ConcurrentDispatch(fg_Forward<tf_FFunction>(_fFunction));
 			}
 		};
-		
+
 		extern CConcurrentDispatchHelper const &g_ConcurrentDispatch;
-		
+
+		struct CDirectDispatchHelper
+		{
+			template <typename tf_FFunction>
+			inline auto operator > (tf_FFunction &&_fFunction) const
+			{
+				return fg_DirectDispatch(fg_Forward<tf_FFunction>(_fFunction));
+			}
+		};
+
+		extern CDirectDispatchHelper const &g_DirectDispatch;
+
 		template <typename t_CReturnValue>
 		template <typename tf_FResultHandler>
 		void TCContinuation<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
@@ -876,7 +893,7 @@ namespace NMib
 		template <typename tf_CType>
 		auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::operator + (TCContinuation<tf_CType> const &_Continuation)
 		{
-			return *this + fg_ConcurrentDispatch
+			return *this + fg_DirectDispatch
 				(
 					[_Continuation]
 					{
@@ -890,7 +907,7 @@ namespace NMib
 		template <typename tf_CType>
 		auto TCActorCallPack<tp_CCalls...>::operator + (TCContinuation<tf_CType> const &_Continuation)
 		{
-			return *this + fg_ConcurrentDispatch
+			return *this + fg_DirectDispatch
 				(
 					[_Continuation]
 					{
@@ -904,7 +921,7 @@ namespace NMib
 		template <typename tf_CType>
 		auto TCContinuation<t_CReturnValue>::operator + (TCContinuation<tf_CType> const &_Other) const
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[Continuation = *this]
 					{
@@ -919,7 +936,7 @@ namespace NMib
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
 		auto TCContinuation<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
 		{
-			return fg_ConcurrentDispatch
+			return fg_DirectDispatch
 				(
 					[Continuation = *this]
 					{

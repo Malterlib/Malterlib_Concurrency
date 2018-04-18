@@ -49,6 +49,7 @@ namespace NMib
 			TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
 			TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 			TCActor<CTimerActor> const &f_GetTimerActor();
+			TCActor<CDirectCallActor> const &f_GetDirectCallActor();
 			
 			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
@@ -99,6 +100,7 @@ namespace NMib
 			NThread::CMutual m_pTimerActorLock;
 			TCActor<CTimerActor> m_pTimerActor;
 			NThread::CMutual m_ThreadCreateLock;
+			TCActor<CDirectCallActor> m_DirectCallActor;
 		};
 		
 		struct CConcurrencyThreadLocal

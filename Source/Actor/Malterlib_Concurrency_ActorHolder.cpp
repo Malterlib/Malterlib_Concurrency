@@ -675,6 +675,30 @@ namespace NMib
 		{
 		}
 
+		///
+		/// CDirectCallActorHolder
+		///
+
+		CDirectCallActorHolder::CDirectCallActorHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+			)
+			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
+		{
+		}
+
+		CDirectCallActorHolder::~CDirectCallActorHolder()
+		{
+		}
+
+		void CDirectCallActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		{
+			_Functor();
+		}
+
 		CConcurrentRunQueue::CConcurrentRunQueue()
 		{
 			static_assert(sizeof(CQueueEntry) == gc_ActorQueueDispatchFunctionMemory);

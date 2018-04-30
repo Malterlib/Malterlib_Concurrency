@@ -114,6 +114,7 @@ namespace NMib
 			if (_pObject->f_ImmediateDelete())
 			{
 				mint Size = NPtr::fg_DeleteWeakObjectGetSize(_pObject);
+				_pObject->f_WeakRefCountSetSize(Size);
 				if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 				{
 					if (Size)
@@ -121,8 +122,6 @@ namespace NMib
 					else
 						_Allocator.f_FreeNoSize(_pObject);
 				}
-				else
-					_pObject->f_WeakRefCountSetSize(Size);
 			}
 			else
 			{
@@ -134,6 +133,7 @@ namespace NMib
 						, [_pObject, pAllocator]
 						{
 							mint Size = NPtr::fg_DeleteWeakObjectGetSize(_pObject);
+							_pObject->f_WeakRefCountSetSize(Size);
 							if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 							{
 								if (Size)
@@ -141,8 +141,6 @@ namespace NMib
 								else
 									pAllocator->f_FreeNoSize(_pObject);
 							}
-							else
-								_pObject->f_WeakRefCountSetSize(Size);
 						}
 					)
 				;

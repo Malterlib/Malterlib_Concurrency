@@ -55,6 +55,10 @@ namespace NMib
 			{
 				template <typename ...tfp_CInterface>
 				static CDistributedActorInterfaceInfo fs_GenerateInfo();
+
+				template <typename ...tfp_CInterface>
+				static CDistributedActorInterfaceInfo fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions);
+
 				inline_always NContainer::TCVector<uint32> const &f_GetInterfaceHashes() const;
 				inline_always CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
 				
@@ -64,14 +68,14 @@ namespace NMib
 				CDistributedActorProtocolVersions mp_ProtocolVersions;
 			};
 		}
-		
+
 		template <typename t_CActor>
 		template <typename ...tfp_CInterface>
 		auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
 			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
-			
+
 			return NPrivate::fg_PublishActor
 				(
 					this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
@@ -87,9 +91,9 @@ namespace NMib
 		{
 			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
 			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
-			
+
 			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
-			
+
 			return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
 				{
 					InterfaceInfo.f_GetInterfaceHashes()
@@ -98,7 +102,41 @@ namespace NMib
 				}
 			;
 		}
-		
+
+		template <typename t_CActor>
+		template <typename ...tfp_CInterface>
+		auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions)
+		{
+			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+
+			return NPrivate::fg_PublishActor
+				(
+					this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+					, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions)
+					, _Namespace
+				)
+			;
+		}
+
+		template <typename t_CActor>
+		template <typename ...tfp_CInterface>
+		auto TCActorInternal<t_CActor>::f_ShareInterfaceWithVersion(CDistributedActorProtocolVersions const &_Versions)
+		{
+			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+
+			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions);
+
+			return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
+				{
+					InterfaceInfo.f_GetInterfaceHashes()
+					, InterfaceInfo.f_GetProtocolVersions()
+					, this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+				}
+			;
+		}
+
 		template <typename t_CActor>
 		uint32 TCActorInternal<t_CActor>::f_InterfaceVersion()
 		{
@@ -210,7 +248,29 @@ namespace NMib
 			m_pActor = &Interface->f_AccessInternal();
 			m_Actor = fg_Move(Interface);
 		}
-		
+
+		template <typename ...tfp_CInterface>
+		NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions)
+		{
+			CDistributedActorInterfaceInfo Ret;
+
+			TCInitializerList<bool> Dummy =
+				{
+					[&]
+					{
+						Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
+						return true;
+					}
+					()...
+				}
+			;
+			(void)Dummy;
+
+			Ret.mp_ProtocolVersions = _Versions;
+
+			return Ret;
+		}
+
 		template <typename ...tfp_CInterface>
 		NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo()
 		{
@@ -248,6 +308,7 @@ namespace NMib
 			
 			return Ret;
 		}
+
 		NContainer::TCVector<uint32> const &NPrivate::CDistributedActorInterfaceInfo::f_GetInterfaceHashes() const
 		{
 			return mp_InterfaceHashes;

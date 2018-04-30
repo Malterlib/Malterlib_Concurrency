@@ -33,6 +33,7 @@ namespace NMib
 		
 		struct CActorDistributionManagerInternal;
 		struct CCurrentActorScope;
+		struct CDistributedActorProtocolVersions;
 		
 		template <typename t_CActor>
 		class TCActorInternal : public t_CActor::CActorHolder
@@ -175,13 +176,19 @@ namespace NMib
 					, tf_CResultFunctor &&_ResultFunctor
 				)
 			;
-			
+
 			template <typename ...tfp_CInterface>
 			auto f_Publish(NStr::CStr const &_Namespace);
 
 			template <typename ...tfp_CInterface>
+			auto f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions);
+
+			template <typename ...tfp_CInterface>
 			auto f_ShareInterface();
-			
+
+			template <typename ...tfp_CInterface>
+			auto f_ShareInterfaceWithVersion(CDistributedActorProtocolVersions const &_Versions);
+
 			uint32 f_InterfaceVersion();
 			
 		private:

@@ -242,6 +242,14 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		template <typename tf_CActor>
 		TCContinuation<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors(NStr::CStr const &_Namespace, TCActor<CActor> const &_Actor);
+		template <typename tf_CActor>
+		TCContinuation<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActorsWithVersion
+			(
+			 	NStr::CStr const &_Namespace
+			 	, TCActor<CActor> const &_Actor
+			 	, CDistributedActorProtocolVersions const &_Versions
+			)
+		;
 		
 		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo);
 		TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_Permissions, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);

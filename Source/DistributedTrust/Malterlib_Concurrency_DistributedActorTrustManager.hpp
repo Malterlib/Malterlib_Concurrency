@@ -112,6 +112,17 @@ namespace NMib::NConcurrency
 			, TCActor<CActor> const &_Actor
 		)
 	{
+		return f_SubscribeTrustedActorsWithVersion<t_CActor>(_Namespace, _Actor, fg_SubscribeVersions<t_CActor>());
+	}
+
+	template <typename t_CActor>
+	TCContinuation<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
+		(
+			NStr::CStr const &_Namespace
+			, TCActor<CActor> const &_Actor
+		 	, CDistributedActorProtocolVersions const &_Versions
+		)
+	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			return DMibErrorInstance("Invalid namespace name");
 		if (!_Actor)
@@ -121,7 +132,7 @@ namespace NMib::NConcurrency
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
 		State.m_TypeHash = fg_GetTypeHash<t_CActor>();
-		State.m_ProtocolVersions = fg_SubscribeVersions<t_CActor>();
+		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
 		
 		TCContinuation<TCTrustedActorSubscription<t_CActor>> Continuation;

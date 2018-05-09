@@ -61,7 +61,7 @@ namespace NMib
 				TCActor<NWeb::CWebSocketActor> m_Connection;
 				CActorSubscription m_ConnectionSubscription;
 				NPtr::TCSharedPointer<NNet::CSSLContext> m_pSSLContext;
-				NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> m_pHost;
+				NPtr::TCSharedPointerSupportWeak<CHost> m_pHost;
 				TCContinuation<void> m_IdentifyContinuation;
 				DMibListLinkDS_Link(CConnection, m_Link);
 				DMibListLinkDS_Link(CConnection, m_HostLink);
@@ -231,6 +231,10 @@ namespace NMib
 				TCActorSubscriptionManager<void (), true> m_OnDisconnect;
 				
 				NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
+
+				TCDistributedActor<ICDistributedActorAuthenticationHandler> m_AuthenticationHandler;
+				NStr::CStr m_ClaimedUserID;
+
 				bool m_bAllowAllNamespaces = false;
 				
 				bool m_bIncoming = false;
@@ -330,7 +334,7 @@ namespace NMib
 			using CListen = NActorDistributionManagerInternal::CListen;
 			using CDecodedClientConnectionSetting = NActorDistributionManagerInternal::CDecodedClientConnectionSetting;
 			using CWebsocketHandler = NActorDistributionManagerInternal::CWebsocketHandler;
-			
+
 			friend struct NActorDistributionManagerInternal::CHost;
 			
 			CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings);
@@ -340,7 +344,7 @@ namespace NMib
 			NContainer::TCMap<mint, NPtr::TCSharedPointer<CServerConnection, NPtr::CSupportWeakTag>> m_ServerConnections;
 			mint m_NextConnectionID = 0;
 			
-			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag>> m_Hosts;
+			NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointerSupportWeak<CHost>> m_Hosts;
 			NContainer::TCMap<NStr::CStr, DMibListLinkDS_List(CHost, m_RealHostsLink)> m_HostsByRealHostID;
 			CActorDistributionManager *m_pThis;
 			NStr::CStr m_ExecutionID;
@@ -413,20 +417,20 @@ namespace NMib
 				)
 			;
 			template <typename tf_CCommand>
-			void fp_QueueCommand(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, tf_CCommand const &_Command);
-			uint64 fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data);
-			void fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost);
+			void fp_QueueCommand(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, tf_CCommand const &_Command);
+			uint64 fp_QueuePacket(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data);
+			void fp_SendPacketQueue(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost);
 			void fp_ProcessPacketQueue(CConnection *_pConnection);
 			void fp_SendPacket(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_pMessage);
 			bool fp_HandleProtocolIncoming(CConnection *_pConnection, NPtr::TCSharedPointer<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> const &_pMessage);
 			void fp_Identify(CConnection *_pConnection);
-			NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll);
-			void fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor);
+			NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
+			void fp_NotifyNewActor(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor);
 			void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor);
 			
 			void fp_ReplyToRemoteCallWithException
 				(
-					NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+					NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 					, uint64 _PacketID
 					, NException::CExceptionBase const &_Exception
 					, NPrivate::CDistributedActorStreamContext const &_Context
@@ -434,7 +438,7 @@ namespace NMib
 			;
 			void fp_ReplyToRemoteCallWithException
 				(
-					NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+					NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 					, uint64 _PacketID
 					, CAsyncResult const &_Exception
 					, NPrivate::CDistributedActorStreamContext const &_Context
@@ -442,7 +446,7 @@ namespace NMib
 			;
 			void fp_ReplyToRemoteCall
 				(
-					NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+					NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 					, uint64 _PacketID
 					, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
 					, NPrivate::CDistributedActorStreamContext const &_Context

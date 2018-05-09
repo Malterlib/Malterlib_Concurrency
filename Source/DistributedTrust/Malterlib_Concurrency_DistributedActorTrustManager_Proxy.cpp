@@ -94,7 +94,36 @@ namespace NMib::NConcurrency
 	{
 		if (!fp_CheckPermissions(EPermission_Client_Add))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, _Command.m_Address, fg_Move(_Command.m_fOnUseTicket), fg_Move(_Command.m_fOnCertificateSigned));
+
+		return mp_TrustManager
+			(
+			 	&CDistributedActorTrustManager::f_GenerateConnectionTicket
+			 	, _Command.m_Address
+			 	, _Command.m_fOnUseTicket
+			 	? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)>
+			 	{
+					g_ActorFunctor(fg_Move(_Command.m_fOnUseTicket.f_GetSubscription()))
+					(fg_Move(_Command.m_fOnUseTicket.f_GetActor()))
+					> [fOnUseTicket = fg_Move(_Command.m_fOnUseTicket.f_GetFunctor())]
+					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) mutable -> TCContinuation<void>
+					{
+						return fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
+					}
+				}
+			 	: nullptr
+			 	, _Command.m_fOnCertificateSigned ? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)>
+			 	{
+					g_ActorFunctor(fg_Move(_Command.m_fOnCertificateSigned.f_GetSubscription()))
+					(fg_Move(_Command.m_fOnCertificateSigned.f_GetActor()))
+					> [fOnCertificateSigned = fg_Move(_Command.m_fOnCertificateSigned.f_GetFunctor())]
+					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo) mutable -> TCContinuation<void>
+					{
+						return fOnCertificateSigned(_HostID, _HostInfo);
+					}
+				}
+			 	: nullptr
+			)
+		;
 	}
 	
 	TCContinuation<void> CDistributedActorTrustManagerProxy::f_RemoveClient(CStr const &_HostID)
@@ -293,5 +322,4 @@ namespace NMib::NConcurrency
 			return fp_AccessDenied();
 		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, _UserID, _FactorID);
 	}
-
 }

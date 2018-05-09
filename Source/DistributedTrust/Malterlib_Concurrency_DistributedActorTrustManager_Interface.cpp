@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Interface.h"
+#include "../DistributedActor/Malterlib_Concurrency_DistributedActor_Stream_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -114,4 +115,18 @@ namespace NMib::NConcurrency
 	}
 
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CUserInfo);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % mp_UniqueHostID;
+		_Stream % mp_HostInfo;
+		_Stream % mp_LastExecutionID;
+		_Stream % mp_ProtocolVersion;
+		if (_Stream.f_GetVersion() >= 0x105)
+			_Stream % mp_ClaimedUserID;
+		if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+			mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalCallingHostInfo);
 }

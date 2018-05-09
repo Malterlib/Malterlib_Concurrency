@@ -118,13 +118,16 @@ namespace NMib::NConcurrency
 			{
 				CCallingHostInfo
 				{
-					CurrentCallingHostInfo.f_GetDistributionManager() ? CurrentCallingHostInfo.f_GetDistributionManager() : mp_State.m_DistributionManager 
+					CurrentCallingHostInfo.f_GetDistributionManager() ? CurrentCallingHostInfo.f_GetDistributionManager() : mp_State.m_DistributionManager
+					, CurrentCallingHostInfo.f_GetAuthenticationHandler()
 					, CurrentCallingHostInfo.f_GetUniqueHostID()
 					, CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty()
 					? CHostInfo(mp_State.m_HostID, FriendlyName) 
 					: CHostInfo(CurrentCallingHostInfo.f_GetHostInfo().m_HostID, FriendlyName)
 					, CurrentCallingHostInfo.f_LastExecutionID()
 					, CurrentCallingHostInfo.f_GetProtocolVersion()
+					, CurrentCallingHostInfo.f_GetClaimedUserID()
+					, CurrentCallingHostInfo.f_GetHost()
 				}
 			}
 		;

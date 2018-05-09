@@ -213,7 +213,7 @@ namespace
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager()}
 				, m_ClientHelper{f_InitClientTrustManager()}
-				, m_ServerHostInfo({}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0)
+				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", nullptr)
 			{
 				m_ExpectedPermissions[m_ServerHostID]["com.malterlib/Test"];
 				m_ExpectedEnumHostPermissions["com.malterlib/Test"][m_ServerHostID] = CHostInfo(m_ServerHostID, "TestServer");

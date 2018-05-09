@@ -544,7 +544,7 @@ namespace NMib
 			_Stream << m_MinSupported;
 			_Stream << m_MaxSupported;
 		}
-		
+
 		template <typename tf_CStream>
 		void CDistributedActorProtocolVersions::f_Consume(tf_CStream &_Stream)
 		{

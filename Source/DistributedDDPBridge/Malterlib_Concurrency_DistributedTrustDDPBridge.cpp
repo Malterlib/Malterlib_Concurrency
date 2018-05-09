@@ -280,13 +280,16 @@ namespace NMib::NConcurrency
 						return;
 					}
 
-					CCallingHostInfo ThisCallingHostInfo = CCallingHostInfo			
+					CCallingHostInfo ThisCallingHostInfo = CCallingHostInfo
 						{
 							m_DistributionManager
+							, nullptr // TODO: Implement authentication
 							, pConnection->m_RealHostID 
 							, pConnection->m_HostInfo
 							, pConnection->m_LastExecutionID
 							, 0
+							, ""
+							, nullptr
 						}
 					;
 					

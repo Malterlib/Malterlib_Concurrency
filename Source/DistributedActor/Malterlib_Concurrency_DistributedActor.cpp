@@ -6,6 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Process/Platform>
 #include <Mib/Cryptography/RandomID>
+#include <Mib/Encoding/EJSON>
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
@@ -361,36 +362,25 @@ namespace NMib::NConcurrency
 	CCallingHostInfo::CCallingHostInfo
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
+		 	, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 			, NStr::CStr const &_UniqueHostID
 			, CHostInfo const &_HostInfo
 			, NStr::CStr const &_LastExecutionID
 			, uint32 _ProtocolVersion
+			, NStr::CStr const &_ClaimedUserID
+		 	, NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 		)
 		: mp_DistributionManager(_DistributionManager)
-		, mp_UniqueHostID(_UniqueHostID) 
+		, mp_AuthenticationHandler(_AuthenticationHandler)
+		, mp_UniqueHostID(_UniqueHostID)
 		, mp_HostInfo(_HostInfo)
 		, mp_LastExecutionID(_LastExecutionID)
-		, mp_ProtocolVersion(_ProtocolVersion) 
+		, mp_ProtocolVersion(_ProtocolVersion)
+		, mp_ClaimedUserID(_ClaimedUserID)
+		, mp_pHost(_pHost)
 	{
 	}
 
-	void CCallingHostInfo::f_Feed(CDistributedActorWriteStream &_Stream) const
-	{
-		_Stream << mp_UniqueHostID;
-		_Stream << mp_HostInfo;
-		_Stream << mp_LastExecutionID;
-		_Stream << mp_ProtocolVersion;
-	}
-	
-	void CCallingHostInfo::f_Consume(CDistributedActorReadStream &_Stream)
-	{
-		_Stream >> mp_UniqueHostID;
-		_Stream >> mp_HostInfo;
-		_Stream >> mp_LastExecutionID;
-		_Stream >> mp_ProtocolVersion;
-		mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
-	}
-	
 	uint32 CCallingHostInfo::f_GetProtocolVersion() const
 	{
 		return mp_ProtocolVersion;
@@ -416,16 +406,21 @@ namespace NMib::NConcurrency
 		return mp_LastExecutionID;
 	}
 	
+	NStr::CStr const &CCallingHostInfo::f_GetClaimedUserID() const
+	{
+		return mp_ClaimedUserID;
+	}
+
 	bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID) 
+		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			== NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		; 
 	}		
 
 	bool CCallingHostInfo::operator <(CCallingHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID) 
+		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			< NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		; 
 	}		
@@ -435,6 +430,16 @@ namespace NMib::NConcurrency
 		return mp_DistributionManager.f_Lock();
 	}
 	
+	TCDistributedActor<ICDistributedActorAuthenticationHandler> CCallingHostInfo::f_GetAuthenticationHandler() const
+	{
+		return mp_AuthenticationHandler.f_Lock();
+	}
+
+	NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> CCallingHostInfo::f_GetHost() const
+	{
+		return mp_pHost.f_Lock();
+	}
+
 	TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const
 	{
 		return fg_ConcurrentDispatch
@@ -504,7 +509,7 @@ namespace NMib::NConcurrency
 	{
 		return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) < NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 	}
-	
+
 	NPrivate::CDistributedActorInterfaceInfo::CDistributedActorInterfaceInfo() = default;
 
 	CDistributedActorProtocolVersions::CDistributedActorProtocolVersions() = default;

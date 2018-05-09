@@ -14,7 +14,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCContinuation<void> f_Destroy();
 
-		NPtr::TCSharedPointer<ICHost, NPtr::CSupportWeakTag> m_pHost;
+		NPtr::TCSharedPointerSupportWeak<ICHost> m_pHost;
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_SubscriptionID;
 		NStr::CStr m_LastExecutionID;
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency::NPrivate
 		
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_LastExecutionID;
-		NPtr::TCSharedPointer<NActorDistributionManagerInternal::CHost, NPtr::CSupportWeakTag> m_pHost;
+		NPtr::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
 		
 		uint32 m_ActorProtocolVersion;
 		bool m_bCallInitiator;

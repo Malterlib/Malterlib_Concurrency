@@ -268,7 +268,7 @@ namespace NMib
 			return mp_InheritanceHierarchy;
 		}
 		
-		void CActorDistributionManagerInternal::fp_NotifyNewActor(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, CRemoteActor &_RemoteActor)
+		void CActorDistributionManagerInternal::fp_NotifyNewActor(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor)
 		{
 			CAbstractDistributedActor AbstractActor
 				{

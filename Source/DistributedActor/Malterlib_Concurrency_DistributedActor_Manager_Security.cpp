@@ -26,7 +26,7 @@ namespace NMib
 			}
 		}
 		
-		NContainer::TCSet<NStr::CStr> const &CActorDistributionManagerInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, bool &o_bAllowAll)
+		NContainer::TCSet<NStr::CStr> const &CActorDistributionManagerInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll)
 		{
 			if (_pHost->m_bIncoming && _pHost->m_bOutgoing)
 			{
@@ -57,6 +57,43 @@ namespace NMib
 		{
 			auto &Internal = *mp_pInternal;
 			Internal.m_TranslateHostnames = _TranslateHostnames;		
+		}
+
+		TCContinuation<void> CActorDistributionManager::f_SetAuthenticationHandler
+			(
+				NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			 	, NStr::CStr const &_LastExecutionID
+				, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+				, NStr::CStr const &_UserID
+			)
+		{
+			auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+			if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
+				return fg_Explicit();
+
+			Host.m_AuthenticationHandler = _AuthenticationHandler;
+			Host.m_ClaimedUserID = _UserID;
+
+			return fg_Explicit();
+		}
+
+		TCContinuation<void> CActorDistributionManager::f_RemoveAuthenticationHandler
+			(
+				NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+				, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+			)
+		{
+			auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+			if (Host.m_bDeleted)
+				return fg_Explicit();
+
+			if (Host.m_AuthenticationHandler == _AuthenticationHandler)
+			{
+				Host.m_AuthenticationHandler.f_Clear();
+				Host.m_ClaimedUserID.f_Clear();
+			}
+
+			return fg_Explicit();
 		}
 	}
 }

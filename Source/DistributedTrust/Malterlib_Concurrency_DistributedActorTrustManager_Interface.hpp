@@ -26,6 +26,17 @@ namespace NMib::NConcurrency
 		_Stream >> m_Token;
 	}
 
+	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo &&_Other)
+		: CCallingHostInfo(fg_Move(_Other))
+	{
+
+	}
+
+	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo const &_Other)
+		: CCallingHostInfo(_Other)
+	{
+	}
+
 	NStr::CStr const &CDistributedActorTrustManagerInterface::CNamespacePermissions::f_GetName() const
 	{
 		return NContainer::TCMap<NStr::CStr, CNamespacePermissions>::fs_GetKey(*this);

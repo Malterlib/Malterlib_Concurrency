@@ -12,6 +12,7 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
+#include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 #include <Mib/Network/SSLKeySetting>
 #include <Mib/Web/WebSocket>
 
@@ -109,7 +110,7 @@ namespace NMib
 			NStr::CStr m_HostID;
 			NStr::CStr m_FriendlyName;
 		};
-		
+
 		template <typename t_CActor>
 		struct TCDistributedActorWrapper : public t_CActor
 		{
@@ -445,10 +446,13 @@ namespace NMib
 			CCallingHostInfo
 				(
 					TCActor<CActorDistributionManager> const &_DistributionManager
+					, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 					, NStr::CStr const &_UniqueHostID
 					, CHostInfo const &_HostInfo
 					, NStr::CStr const &_LastExecutionID
 					, uint32 _ProtocolVersion
+					, NStr::CStr const &_ClaimedUserID
+				 	, NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 				)
 			;
 			
@@ -457,21 +461,24 @@ namespace NMib
 			CHostInfo const &f_GetHostInfo() const;
 			NStr::CStr const &f_LastExecutionID() const;
 			TCActor<CActorDistributionManager> f_GetDistributionManager() const;
+			TCDistributedActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
 			uint32 f_GetProtocolVersion() const;
+			NStr::CStr const &f_GetClaimedUserID() const;
+			NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
+
+			bool operator == (CCallingHostInfo const &_Right) const;
+			bool operator < (CCallingHostInfo const &_Right) const;
 			
-			bool operator ==(CCallingHostInfo const &_Right) const;
-			bool operator <(CCallingHostInfo const &_Right) const;
-			
- 			void f_Feed(CDistributedActorWriteStream &_Stream) const;
-			void f_Consume(CDistributedActorReadStream &_Stream);
-			
-		private:
+		protected:
 			TCWeakActor<CActorDistributionManager> mp_DistributionManager;
+			TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandler;
+			NPtr::TCWeakPointer<NPrivate::ICHost> mp_pHost;
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
 			CHostInfo mp_HostInfo;
 			NStr::CStr mp_LastExecutionID;
 			uint32 mp_ProtocolVersion;
+			NStr::CStr mp_ClaimedUserID;
 		};
 		
 		struct CActorDistributionManagerInternal;
@@ -548,6 +555,21 @@ namespace NMib
 			void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
 			void f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames);
 			
+			TCContinuation<void> f_SetAuthenticationHandler
+				(
+					NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+				 	, NStr::CStr const &_LastExecutionID
+					, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+					, NStr::CStr const &_UserID
+				)
+			;
+			TCContinuation<void> f_RemoveAuthenticationHandler
+				(
+				 	NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+				 	, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+				)
+			;
+
 			TCContinuation<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings const &_Settings);
 			TCContinuation<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings);
 			
@@ -617,7 +639,7 @@ namespace NMib
 			;
 			TCContinuation<void> fp_DestroyRemoteSubscription
 				(
-					NPtr::TCSharedPointer<NPrivate::ICHost> const &_pHost
+					NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 					, NStr::CStr const &_SubscriptionID
 					, NStr::CStr const &_LastExecutionID
 				)

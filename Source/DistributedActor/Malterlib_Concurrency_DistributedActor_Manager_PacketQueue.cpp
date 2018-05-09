@@ -37,7 +37,7 @@ namespace NMib
 			;
 		}
 		
-		uint64 CActorDistributionManagerInternal::fp_QueuePacket(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
+		uint64 CActorDistributionManagerInternal::fp_QueuePacket(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_Data)
 		{
 			auto PacketID = ++_pHost->m_Outgoing_CurrentPacketID;
 			DMibLog(DebugVerbose2, " ---- {} Queueing packet {}", _pHost->m_bIncoming, PacketID);
@@ -56,7 +56,7 @@ namespace NMib
 			return PacketID;
 		}
 		
-		void CActorDistributionManagerInternal::fp_SendPacketQueue(NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost)
+		void CActorDistributionManagerInternal::fp_SendPacketQueue(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost)
 		{
 			if (_pHost->m_ActiveConnections.f_IsEmpty())
 				return; // No connections to send over

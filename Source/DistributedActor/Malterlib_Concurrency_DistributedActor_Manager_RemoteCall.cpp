@@ -232,7 +232,7 @@ namespace NMib::NConcurrency
 			return Continuation;
 		}
 
-		auto pHost = reinterpret_cast<NPtr::TCSharedPointer<NActorDistributionManagerInternal::CHost, NPtr::CSupportWeakTag> &>(pHostInterface);
+		auto pHost = reinterpret_cast<NPtr::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
 
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
 		{
@@ -299,7 +299,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
 		(
-			NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
 			, NException::CExceptionBase const &_Exception
 			, NPrivate::CDistributedActorStreamContext const &_Context
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
 		(
-			NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
 			, CAsyncResult const &_Exception
 			, NPrivate::CDistributedActorStreamContext const &_Context
@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCall
 		(
-			NPtr::TCSharedPointer<CHost, NPtr::CSupportWeakTag> const &_pHost
+			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
 			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
 			, NPrivate::CDistributedActorStreamContext const &_Context
@@ -534,7 +534,17 @@ namespace NMib::NConcurrency
 					Actor
 					, ParamData = fg_Move(ParamData)
 					, HostID = Host.m_RealHostID
-					, CallingHostInfo = CCallingHostInfo(fg_ThisActor(m_pThis), Host.m_UniqueHostID, Host.f_GetHostInfo(), Host.m_LastExecutionID, ProtocolVersion)
+					, CallingHostInfo = CCallingHostInfo
+				 		(
+							fg_ThisActor(m_pThis)
+							, Host.m_AuthenticationHandler
+							, Host.m_UniqueHostID
+							, Host.f_GetHostInfo()
+							, Host.m_LastExecutionID
+							, ProtocolVersion
+							, Host.m_ClaimedUserID
+						 	, pHost
+						)
 					, Context
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
@@ -671,7 +681,7 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CActorDistributionManager::fp_DestroyRemoteSubscription
 		(
-			NPtr::TCSharedPointer<NPrivate::ICHost> const &_pHost
+			NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 			, NStr::CStr const &_SubscriptionID
 			, NStr::CStr const &_LastExecutionID
 		)

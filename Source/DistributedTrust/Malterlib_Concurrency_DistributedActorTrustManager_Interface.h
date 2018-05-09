@@ -109,6 +109,26 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
 		};
 
+		struct CLocalCallingHostInfo : public CCallingHostInfo
+		{
+			CLocalCallingHostInfo(CCallingHostInfo &&_Other);
+			CLocalCallingHostInfo(CCallingHostInfo const &_Other);
+
+			CLocalCallingHostInfo() = default;
+			CLocalCallingHostInfo(CLocalCallingHostInfo &&) = default;
+			CLocalCallingHostInfo(CLocalCallingHostInfo const &) = default;
+
+			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo &&) = default;
+			CLocalCallingHostInfo &operator = (CLocalCallingHostInfo const &) = default;
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			using CCallingHostInfo::operator =;
+			using CCallingHostInfo::operator ==;
+			using CCallingHostInfo::operator <;
+		};
+
 		struct CGenerateConnectionTicket
 		{
 			template <typename tf_CStream>
@@ -120,14 +140,14 @@ namespace NMib::NConcurrency
 					TCContinuation<void>
 					(
 						NStr::CStr const &_HostID
-						, CCallingHostInfo const &_HostInfo
+						, CLocalCallingHostInfo const &_HostInfo
 						, NContainer::TCVector<uint8> const &_CertificateRequest
 					)
 					, 0
 				>
 				m_fOnUseTicket
 			;
-			TCActorFunctorWithID<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
+			TCActorFunctorWithID<TCContinuation<void> (NStr::CStr const &_HostID, CLocalCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
 		};
 
 		CDistributedActorTrustManagerInterface();

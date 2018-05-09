@@ -1,0 +1,28 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+#pragma once
+
+#include "Malterlib_Concurrency_DistributedActor.h"
+
+namespace NMib::NConcurrency
+{
+	struct ICDistributedActorAuthentication : public CActor
+	{
+		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedActorAuthentication";
+
+		enum : uint32
+		{
+			EMinProtocolVersion = 0x101
+			, EProtocolVersion = 0x101
+		};
+
+		virtual TCContinuation<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler
+			(
+				TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler
+				, NStr::CStr const &_UserID
+			) = 0
+		;
+	};
+}
+

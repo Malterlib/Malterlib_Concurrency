@@ -1470,7 +1470,7 @@ namespace
 					CPermissionTestState TestState{State, 31407};
 
 					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors).f_CallSync(60.0);
-					DMibExpect(Factors.f_GetLen(), >=, 2);
+					DMibExpect(Factors.f_GetLen(), >=, 2u);
 					DMibExpectTrue(!!Factors.f_FindEqual("Test1"));
 					DMibExpectTrue(!!Factors.f_FindEqual("Test2"));
 

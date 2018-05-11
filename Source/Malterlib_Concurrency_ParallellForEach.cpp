@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_ParallellForEach.h"
@@ -123,5 +123,10 @@ namespace NMib
 		}
 	
 		NAggregate::TCAggregate<CThreadPool> g_ThreadPool = {DAggregateInit};
+
+		CThreadPool &fg_DefaultThreadPool()
+		{
+			return *g_ThreadPool;
+		}
 	}
 }

@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,11 +10,11 @@ namespace NMib
 	namespace NConcurrency
 	{
 		template <typename tf_CContainer, typename tf_CFunctor>
-		void fg_ParallellForEach(tf_CContainer &&_Container, tf_CFunctor &&_Functor)
+		void fg_ParallellForEach(tf_CContainer &&_Container, tf_CFunctor &&_Functor, CThreadPool &_ThreadPool)
 		{
 			if (_Container.f_IsEmpty())
 				return;
-			auto &ThreadPool = *g_ThreadPool;
+			auto &ThreadPool = _ThreadPool;
 			
 			NThread::CEventAutoReset DoneEvent;
 			align_cacheline NAtomic::TCAtomic<mint> nDispatched;

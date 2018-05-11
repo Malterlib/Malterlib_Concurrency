@@ -6,9 +6,10 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
-	TCActorSequencer<t_CReturnType>::TCActorSequencer()
+	TCActorSequencer<t_CReturnType>::TCActorSequencer(mint _MaxConcurrency)
 		: mp_pState(fg_Construct())
 	{
+		mp_pState->m_MaxConcurrency = _MaxConcurrency;
 	}
 	
 	template <typename t_CReturnType>
@@ -52,7 +53,7 @@ namespace NMib::NConcurrency
 		State.m_ToSequence.f_Clear();
 		State.m_bDestroyed = true;
 		
-		if (State.m_bRunning)
+		if (State.m_nRunning)
 			return State.m_AbortContinuation;
 		else
 			return fg_Explicit();
@@ -63,24 +64,27 @@ namespace NMib::NConcurrency
 	{
 		auto &State = *mp_pState;
 		
-		if (State.m_ToSequence.f_IsEmpty() || State.m_bRunning)
+		if (State.m_ToSequence.f_IsEmpty() || State.m_nRunning >= State.m_MaxConcurrency)
 			return;
 		
-		State.m_bRunning = true;
+		++State.m_nRunning;
 		
 		auto ToSequence = State.m_ToSequence.f_Pop();
-		g_Dispatch > fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Continuation = ToSequence.m_Continuation](TCAsyncResult<void> &&_Result)
+		g_Dispatch > fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Continuation = ToSequence.m_Continuation](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				Continuation.f_SetResult(_Result);
 				
 				auto &State = *pState;
 				
-				State.m_bRunning = false;
+				--State.m_nRunning;
 				
 				if (State.m_bDestroyed)
 				{
-					if (!State.m_AbortContinuation.f_IsSet())
-						State.m_AbortContinuation.f_SetResult();
+					if (State.m_nRunning == 0)
+					{
+						if (!State.m_AbortContinuation.f_IsSet())
+							State.m_AbortContinuation.f_SetResult();
+					}
 					return;
 				}
 				

@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	struct TCActorSequencer
 	{
-		TCActorSequencer();
+		TCActorSequencer(mint _MaxConcurrency = 1);
 		~TCActorSequencer();
 		
 		template <typename tf_FToSequence>
@@ -29,7 +29,8 @@ namespace NMib::NConcurrency
 		{
 			NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
 			TCContinuation<void> m_AbortContinuation;
-			bool m_bRunning = false;
+			mint m_MaxConcurrency = 1;
+			mint m_nRunning = 0;
 			bool m_bDestroyed = false;
 		};
 		

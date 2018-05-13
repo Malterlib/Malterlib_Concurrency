@@ -726,6 +726,118 @@ namespace NMib
 			return true;
 		}
 
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			bool bIsError = false;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results.fs_GetKey(Result), fg_Move(*Result));
+				else
+				{
+					bIsError = true;
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (bIsError)
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			bool bIsError = false;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results.fs_GetKey(Result));
+				else
+				{
+					bIsError = true;
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (bIsError)
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			bool bIsError = false;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results.fs_GetKey(Result), fg_Move(*Result));
+				else
+				{
+					bIsError = true;
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (bIsError)
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
+
+		template <typename tf_CKey, typename tf_FOnResult>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult
+			)
+		{
+			NStr::CStr Errors;
+			bool bIsError = false;
+			for (auto &Result : _Results)
+			{
+				if (Result)
+					_fOnResult(_Results.fs_GetKey(Result));
+				else
+				{
+					bIsError = true;
+					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				}
+			}
+			if (bIsError)
+			{
+				_Continuation.f_SetException(DMibErrorInstance(Errors));
+				return false;
+			}
+			return true;
+		}
 		template
 		<
 			typename tf_FToDispatch

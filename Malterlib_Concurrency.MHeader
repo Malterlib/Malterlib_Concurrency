@@ -130,12 +130,12 @@ Property
 
 Property
 {
-	MalterlibConcurrency_DebugActorCallstacks "" // User: Set to true to enable actor calls callstack debugging
+	MalterlibConcurrency_DebugActorCallstacks "" // User(Debug)=true: Set to true to enable actor calls callstack debugging
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks ""
 	}
 
-	MalterlibConcurrency_DebugBlockDestroy "" // User: Set to true to enable debug of block destroy for concurrency manager
+	MalterlibConcurrency_DebugBlockDestroy "" // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
 	{
 		!!MalterlibConcurrency_DebugBlockDestroy ""
 	}

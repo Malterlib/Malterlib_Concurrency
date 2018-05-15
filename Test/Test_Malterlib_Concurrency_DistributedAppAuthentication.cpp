@@ -444,93 +444,74 @@ namespace
 		;
 	}
 
-	struct CCommandLineControlActor : public ICCommandLineControl
+	struct CCommandLineControlActorTest : public ICCommandLineControl
 	{
 		TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
-			fp_CreateInputActor();
-
-			TCContinuation<TCActorSubscriptionWithID<>> Continuation;
-			m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags) > Continuation / [=](NConcurrency::CActorSubscription &&_Subscription)
-				{
-					Continuation.f_SetResult(fg_Move(_Subscription));
-				}
-			;
-
-			return Continuation;
+			DMibNeverGetHere;
+			return fg_Explicit();
 		}
 
 		TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
-			fp_CreateInputActor();
-
-			TCContinuation<TCActorSubscriptionWithID<>> Continuation;
-			m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags) > Continuation / [=](NConcurrency::CActorSubscription &&_Subscription)
-				{
-					Continuation.f_SetResult(fg_Move(_Subscription));
-				}
-			;
-
-			return Continuation;
+			DMibNeverGetHere;
+			return fg_Explicit();
 		}
 
 		TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() override
 		{
-			fp_CreateInputActor();
-			return m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
+			DMibNeverGetHere;
+			return fg_Explicit();
 		}
 
 		TCContinuation<NStr::CStrSecure> f_ReadLine() override
 		{
-			fp_CreateInputActor();
-			return m_InputActor(&NProcess::CStdInActor::f_ReadLine);
+			DMibNeverGetHere;
+			return fg_Explicit();
 		}
 
 		TCContinuation<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
 		{
-			fp_CreateInputActor();
-			return m_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
+			return fg_Explicit(m_ReturnValues.f_PopBack());
 		}
 
 		TCContinuation<void> f_AbortReads() override
 		{
-			fp_CreateInputActor();
-			return m_InputActor(&NProcess::CStdInActor::f_AbortReads);
+			DMibNeverGetHere;
+			return fg_Explicit();
 		}
 
 		TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) override
 		{
-			DMibConOut("CON: {}", _Output);
+			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
 		TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
 		{
-			NSys::fg_ConsoleOutputBinary(_Output);
+			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
 		TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) override
 		{
-			DMibConErrOutRaw(_Output);
+			DMibNeverGetHere;
+			return fg_Explicit();
+		}
+
+		TCContinuation<void> f_ReturnString(NStr::CStrSecure const &_String)
+		{
+			m_ReturnValues.f_InsertLast(_String);
 			return fg_Explicit();
 		}
 
 	private:
-		TCActor<NProcess::CStdInActor> m_InputActor;
-
 		TCContinuation<void> fp_Destroy() override
 		{
-			if (!m_InputActor)
-				return fg_Explicit();
-			return m_InputActor->f_Destroy();
+			return fg_Explicit();
 		}
 
-		void fp_CreateInputActor()
-		{
-			if (!m_InputActor)
-				m_InputActor = fg_Construct();
-		}
+		TCVector<NStr::CStrSecure> m_ReturnValues;
 	};
 
 	struct CCallCount : public CActor
@@ -921,7 +902,7 @@ public:
 		}
 
 		// Before running a command on the client we also need a command line control object
-		TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
+		TCDistributedActor<CCommandLineControlActorTest> pCommandLineControl = Dependencies.m_DistributionManager->f_ConstructActor<CCommandLineControlActorTest>();
 		CCommandLineControl CommandLineControl;
 		CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
 
@@ -1004,6 +985,7 @@ public:
 		fAddHostUserPermission("com.malterlib/Nonexistant1", CPermissionRequirements{{{"Nonexistant1"}}});
 		fAddHostUserPermission("com.malterlib/Succeed123_Fail1", CPermissionRequirements{{{"Succeed1", "Succeed2", "Succeed3", "Fail1"}}});
 		fAddHostUserPermission("com.malterlib/Succeed123_Nonexistant1", CPermissionRequirements{{{"Succeed1", "Succeed2", "Succeed3", "Nonexistant1"}}});
+        fAddHostUserPermission("com.malterlib/Password", CPermissionRequirements{{{"Password"}}});
 
 		auto fCheckCallCounts = [](TCMap<CStr, aint> &&_Expected, aint _Line)
 			{
@@ -1219,6 +1201,52 @@ public:
 			fCheckCallCounts({{"Succeed1", 1}, {"Succeed2", 1}, {"Fail1", 1}}, __LINE__);
 		};
 
+		// Test password authentication
+		{
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Wrong").f_CallSync(g_Timeout);
+			DMibExpectException
+				(
+					(DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout))
+					, DMibErrorInstance("Password mismatch")
+				)
+			;
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
+			auto ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
+			auto ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
+			fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
+			fg_ImportUser(ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			{
+				DMibTestPath("Correct Password");
+				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+				DMibExpectTrue((DMibCallActor(Client, CClientInterface::f_PerformCall1, TCVector<CStr>{"com.malterlib/Password"}).f_CallSync(g_Timeout)));
+			}
+			{
+				DMibTestPath("Wrong Password");
+				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Wrong").f_CallSync(g_Timeout);
+				DMibExpectFalse((DMibCallActor(Client, CClientInterface::f_PerformCall1, TCVector<CStr>{"com.malterlib/Password"}).f_CallSync(g_Timeout)));
+			}
+			// Add another password factor - both password should work for authentication
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
+			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
+			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
+			ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
+			ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
+			fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
+			fg_ImportUser(ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			{
+				DMibTestPath("Correct Password 1");
+				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+				DMibExpectTrue((DMibCallActor(Client, CClientInterface::f_PerformCall1, TCVector<CStr>{"com.malterlib/Password"}).f_CallSync(g_Timeout)));
+			}
+			{
+				DMibTestPath("Correct Password 2");
+				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
+				DMibExpectTrue((DMibCallActor(Client, CClientInterface::f_PerformCall1, TCVector<CStr>{"com.malterlib/Password"}).f_CallSync(g_Timeout)));
+			}
+		}
 	}
 };
 

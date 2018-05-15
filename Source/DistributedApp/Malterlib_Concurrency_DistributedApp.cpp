@@ -773,12 +773,14 @@ namespace NMib::NConcurrency
 	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
 	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSucceed_MakeActive();
 	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorFail_MakeActive();
+	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorPassword_MakeActive();
 
 	void CDistributedAppActor::fp_MakeActive()
 	{
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSucceed_MakeActive();
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorFail_MakeActive();
+		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorPassword_MakeActive();
 	}
 
 #if DMibConfig_Tests_Enable

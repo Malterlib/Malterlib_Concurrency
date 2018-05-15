@@ -13,46 +13,33 @@ namespace NMib::NConcurrency
 	ICDistributedActorTrustManagerAuthenticationActor::ICDistributedActorTrustManagerAuthenticationActor() = default;
 	ICDistributedActorTrustManagerAuthenticationActor::~ICDistributedActorTrustManagerAuthenticationActor() = default;
 
-	TCMap<NStr::CStr, TCActor<ICDistributedActorTrustManagerAuthenticationActor>> ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors
+	TCMap<NStr::CStr, CAuthenticationActorInfo> ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors
 		(
 			TCActor<CDistributedActorTrustManager> const &_TrustManager
 		)
 	{
-		NMib::CRunTimeObjectInfo * const pAuthentificationFactors = fg_GetRuntimeTypeInfo("NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory");
-		TCMap<NStr::CStr, TCActor<ICDistributedActorTrustManagerAuthenticationActor>> Result;
+		NMib::CRunTimeObjectInfo * const pAuthenticationFactors = fg_GetRuntimeTypeInfo("NMib::NConcurrency::ICDistributedActorTrustManagerAuthenticationActorFactory");
+		TCMap<NStr::CStr, CAuthenticationActorInfo> Result;
 
-		if (pAuthentificationFactors)
+		if (pAuthenticationFactors)
 		{
-			auto Iter = pAuthentificationFactors->m_Children.f_GetIter();
-
-			while (Iter)
+			for (auto &RunTimeObjectInfo : pAuthenticationFactors->m_Children)
 			{
-				NMib::CRunTimeObjectInfo *pIter = Iter;
-				NStr::CStr Name = pIter->f_GetName();
-				if (Name.f_Find("CDistributedActorTrustManagerAuthenticationActorFactory") == 0)
-				{
-					Name = Name.f_Extract(fg_StrLen("CDistributedActorTrustManagerAuthenticationActorFactory"));
-					if (auto *pFactory = (ICDistributedActorTrustManagerAuthenticationActorFactory *)pIter->f_CreateObject())
-						Result[Name] = (*pFactory)(_TrustManager);
-				}
-				++Iter;
+				NStr::CStr Name = RunTimeObjectInfo.f_GetName();
+				if (!Name.f_StartsWith("CDistributedActorTrustManagerAuthenticationActorFactory"))
+					continue;
+
+				Name = Name.f_Extract(fg_StrLen("CDistributedActorTrustManagerAuthenticationActorFactory"));
+				if (auto *pFactory = (ICDistributedActorTrustManagerAuthenticationActorFactory *)RunTimeObjectInfo.f_CreateObject())
+					Result[Name] = (*pFactory)(_TrustManager);
 			}
 		}
 		return Result;
 	}
 
-	TCContinuation<TCSet<CStr>> CDistributedActorTrustManager::f_EnumAuthenticationFactors()
+	TCContinuation<TCMap<CStr, CAuthenticationActorInfo>> CDistributedActorTrustManager::f_EnumAuthenticationActors() const
 	{
-		TCSet<CStr> Result;
 		auto &Internal = *mp_pInternal;
-
-		for (auto &Actor : Internal.m_AuthenticationActors)
-			Result[Internal.m_AuthenticationActors.fs_GetKey(Actor)];
-
-		return fg_Explicit(Result);
+		return fg_Explicit(Internal.m_AuthenticationActors);
 	}
 }
-
-
-
-

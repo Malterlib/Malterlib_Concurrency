@@ -6,7 +6,7 @@
 
 namespace NMib::NConcurrency
 {
-	CAuthenticationData const &CAuthenticationData::operator = (NDistributedActorTrustManagerDatabase::CAuthenticationFactor const &_Factor)
+	CAuthenticationData const &CAuthenticationData::operator = (NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor const &_Factor)
 	{
 		// Make sure you update the function below as well
 		m_Category = _Factor.m_Category;
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 		return *this;
 	}
 
-	NDistributedActorTrustManagerDatabase::CAuthenticationFactor const &NDistributedActorTrustManagerDatabase::CAuthenticationFactor::operator = (CAuthenticationData const &_Data)
+	NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor const &NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor::operator = (CAuthenticationData const &_Data)
 	{
 		// Make sure you update the function above as well
 		m_Category = _Data.m_Category;

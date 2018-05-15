@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 				continue;
 			if (pMatched)
 			{
-				o_Error = fg_Format
+				o_Error = NStr::fg_Format
 					(
 						"Found more than one suitable. '{}' and '{}'"
 						, pMatched->m_TrustInfo.m_HostInfo
@@ -160,9 +160,14 @@ namespace NMib::NConcurrency
 	void TCTrustedActorSubscription<t_CActor>::f_OnActor
 		(
 			NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
+		 	, bool _bReportCurrent
 		)
 	{
 		mp_pState->m_fOnNewActor = fg_Move(_fOnNewActor);
+
+		if (!_bReportCurrent)
+			return;
+
 		for (auto &Actor : m_Actors)
 			mp_pState->m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo);
 	}

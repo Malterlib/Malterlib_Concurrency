@@ -26,6 +26,17 @@ namespace NMib::NConcurrency
 		return fg_Explicit(++m_CertificateSerial);
 	}
 	
+	TCContinuation<CDefaultUser> CTrustManagerDatabaseTestHelper::f_GetDefaultUser()
+	{
+		return fg_Explicit(m_DefaultUser);
+	}
+
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
+	{
+		m_DefaultUser = _DefaultUser;
+		return fg_Explicit();
+	}
+
 	TCContinuation<NContainer::TCMap<CStr, CServerCertificate>> CTrustManagerDatabaseTestHelper::f_EnumServerCertificates(bool _bIncludeFullInfo)
 	{
 		NContainer::TCMap<CStr, CServerCertificate> Return;
@@ -235,45 +246,45 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 	
-	TCContinuation<NContainer::TCMap<CStr, CHostPermissions>> CTrustManagerDatabaseTestHelper::f_EnumHostPermissions(bool _bIncludeFullInfo)
+	TCContinuation<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CTrustManagerDatabaseTestHelper::f_EnumPermissions(bool _bIncludeFullInfo)
 	{
-		NContainer::TCMap<CStr, CHostPermissions> Return;
-		for (auto iHostPermissions = m_HostPermissions.f_GetIterator(); iHostPermissions; ++iHostPermissions)
+		NContainer::TCMap<CPermissionIdentifiers, CPermissions> Return;
+		for (auto iPermissions = m_Permissions.f_GetIterator(); iPermissions; ++iPermissions)
 		{
-			auto &HostPermissions = Return[iHostPermissions.f_GetKey()];
+			auto &Permissions = Return[iPermissions.f_GetKey()];
 			if (_bIncludeFullInfo)
-				HostPermissions = *iHostPermissions;
+				Permissions = *iPermissions;
 		}
 		return fg_Explicit(Return);
 	}
 
-	TCContinuation<CHostPermissions> CTrustManagerDatabaseTestHelper::f_GetHostPermissions(CStr const &_HostID)
+	TCContinuation<CPermissions> CTrustManagerDatabaseTestHelper::f_GetPermissions(CPermissionIdentifiers const &_Identity)
 	{
-		auto pHostPermissions = m_HostPermissions.f_FindEqual(_HostID);
-		if (!pHostPermissions)
+		auto pPermissions = m_Permissions.f_FindEqual(_Identity);
+		if (!pPermissions)
 			return DMibErrorInstance("No host permissions for host ID");
-		return fg_Explicit(*pHostPermissions);
+		return fg_Explicit(*pPermissions);
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddHostPermissions(CStr const &_HostID, CHostPermissions const &_HostPermissions)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		if (!m_HostPermissions(_HostID, _HostPermissions).f_WasCreated())
+		if (!m_Permissions(_Identity, _Permissions).f_WasCreated())
 			return DMibErrorInstance("Host permissions already exists for host ID");
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetHostPermissions(CStr const &_HostID, CHostPermissions const &_HostPermissions)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		auto pHostPermissions = m_HostPermissions.f_FindEqual(_HostID);
-		if (!pHostPermissions)
+		auto pPermissions = m_Permissions.f_FindEqual(_Identity);
+		if (!pPermissions)
 			return DMibErrorInstance("No host permissions for host ID");
-		*pHostPermissions = _HostPermissions;
+		*pPermissions = _Permissions;
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveHostPermissions(CStr const &_HostID)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
 	{
-		if (!m_HostPermissions.f_Remove(_HostID))
+		if (!m_Permissions.f_Remove(_Identity))
 			return DMibErrorInstance("No host permissions for host ID");
 		return fg_Explicit();
 	}
@@ -333,45 +344,58 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
-	TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> CTrustManagerDatabaseTestHelper::f_EnumAuthenticationFactor(bool _bIncludeFullInfo)
+	TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> CTrustManagerDatabaseTestHelper::f_EnumAuthenticationFactor
+		(
+			bool _bIncludeFullInfo
+		)
 	{
-		return fg_Explicit(m_AuthenticationFactors);
+		if (_bIncludeFullInfo)
+			return fg_Explicit(m_UserAuthenticationFactors);
+
+		auto FactorsWithoutPrivate = m_UserAuthenticationFactors;
+		for (auto &Factors : FactorsWithoutPrivate)
+		{
+			for (auto &Factor : Factors)
+				Factor.m_PrivateData.f_Clear();
+		}
+
+		return fg_Explicit(FactorsWithoutPrivate);
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_AddUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CUserAuthenticationFactor const &_Factor)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
 
-		if (auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID))
+		if (auto *pFactors = m_UserAuthenticationFactors.f_FindEqual(_UserID))
 		{
 			if (pFactors->f_FindEqual(_FactorID))
 				return DMibErrorInstance("User '{}' already has authentication factor ID '{}' registered"_f << _UserID << _FactorID);
 		}
-		m_AuthenticationFactors[_UserID][_FactorID] = _Factor;
+		m_UserAuthenticationFactors[_UserID][_FactorID] = _Factor;
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationFactor const &_Factor)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_SetUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CUserAuthenticationFactor const &_Factor)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
 
-		if (auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID))
+		if (auto *pFactors = m_UserAuthenticationFactors.f_FindEqual(_UserID))
 		{
 			if (!pFactors->f_FindEqual(_FactorID))
 				return DMibErrorInstance("User '{}' does not have authentication factor ID '{}' registered"_f << _UserID << _FactorID);
 		}
-		m_AuthenticationFactors[_UserID][_FactorID] = _Factor;
+		m_UserAuthenticationFactors[_UserID][_FactorID] = _Factor;
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+	TCContinuation<void> CTrustManagerDatabaseTestHelper::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
 
-		auto *pFactors = m_AuthenticationFactors.f_FindEqual(_UserID);
+		auto *pFactors = m_UserAuthenticationFactors.f_FindEqual(_UserID);
 		if (!pFactors)
 			return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
 
@@ -382,11 +406,11 @@ namespace NMib::NConcurrency
 
 		Factors.f_Remove(_FactorID);
 		if (Factors.f_IsEmpty())
-			m_AuthenticationFactors.f_Remove(_UserID);
+			m_UserAuthenticationFactors.f_Remove(_UserID);
 		return fg_Explicit();
 	}
 
-	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID) const
+	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID, bool _bSupportAuthentication) const
 	{
 		CDistributedActorTrustManager::COptions Options;
 		
@@ -401,6 +425,7 @@ namespace NMib::NConcurrency
 		Options.m_Enclave = _SessionID;
 		Options.m_TranslateHostnames = {};
 		Options.m_DefaultConnectionConcurrency = 1;
+		Options.m_bSupportAuthentication = _bSupportAuthentication;
 		
 		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));
 	}

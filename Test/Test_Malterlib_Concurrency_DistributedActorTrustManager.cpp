@@ -9,10 +9,11 @@
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
-#include <Mib/Concurrency/DistributedAppTrustManagerAuthenticationActor>
+#include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
 #include <Mib/Network/SSL>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
+#include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
 
 
 using namespace NMib;
@@ -22,29 +23,78 @@ using namespace NMib::NStr;
 
 namespace
 {
-	class CAuthenticationActorTest1 : public ICDistributedActorTrustManagerAuthenticationActor
+	struct CAuthenticationActorTestSucceed : public ICDistributedActorTrustManagerAuthenticationActor
 	{
-	public:
-		CAuthenticationActorTest1() = default;
-		virtual ~CAuthenticationActorTest1() = default;
+		CAuthenticationActorTestSucceed(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager, CStr const &_Name)
+			: m_TrustManager(_TrustManager)
+			, m_Name(_Name)
+		{
+		}
+		virtual ~CAuthenticationActorTestSucceed() = default;
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
-			Result.m_Name = "Test1";
+			Result.m_Name = m_Name;
 			Result.m_PublicData["Public"] = "PublicData1";
 			Result.m_PrivateData["Private"] = "PrivateData1";
 
 			return fg_Explicit(Result);
 		}
+
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+			(
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Description
+				, NContainer::TCSet<NStr::CStr> const &_Permissions
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+			) override
+		{
+			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			if (_Challenge.m_UserID)
+			{
+				ICDistributedActorAuthenticationHandler::CResponse Response;
+
+				for (auto const &RegisteredFactor : _Factors)
+				{
+					Response.m_Challenge = _Challenge;
+					Response.m_Permissions = _Permissions;
+					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
+					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
+					Response.m_FactorName = RegisteredFactor.m_Name;
+					break;
+				}
+				Continuation.f_SetResult(fg_Move(Response));
+			}
+			else
+				Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+			return Continuation;
+		}
+
+		TCContinuation<bool> f_VerifyResponse
+			(
+			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
+			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+			 	, CAuthenticationData const &_AuthenticationData
+			) override
+		{
+			return fg_Explicit(_Response.m_Challenge ==_Challenge && m_Name == CStr(_Response.m_ResponseData.f_GetArray(), _Response.m_ResponseData.f_GetLen()));
+		}
+		
+		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
+		CStr m_Name;
 	};
 
-	class CAuthenticationActorTest2 : public ICDistributedActorTrustManagerAuthenticationActor
+	struct CAuthenticationActorFail : public ICDistributedActorTrustManagerAuthenticationActor
 	{
-	public:
-		CAuthenticationActorTest2() = default;
-		virtual ~CAuthenticationActorTest2() = default;
+		CAuthenticationActorFail(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager, CStr const &_Name)
+			: m_TrustManager(_TrustManager)
+			, m_Name(_Name)
+		{
+		}
+		virtual ~CAuthenticationActorFail() = default;
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
@@ -56,21 +106,63 @@ namespace
 
 			return fg_Explicit(Result);
 		}
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+			(
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Description
+				, NContainer::TCSet<NStr::CStr> const &_Permissions
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+			) override
+		{
+			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			if (_Challenge.m_UserID)
+			{
+				ICDistributedActorAuthenticationHandler::CResponse Response;
+
+				for (auto const &RegisteredFactor : _Factors)
+				{
+					Response.m_Challenge = _Challenge;
+					Response.m_Permissions = _Permissions;
+					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
+					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
+					Response.m_FactorName = RegisteredFactor.m_Name;
+					break;
+				}
+				Continuation.f_SetResult(fg_Move(Response));
+			}
+			else
+				Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+			return Continuation;
+		}
+
+		TCContinuation<bool> f_VerifyResponse
+			(
+			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
+			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+			 	, CAuthenticationData const &_AuthenticationData
+			) override
+		{
+			return fg_Explicit(false);
+		}
+
+		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
+		CStr m_Name;
 	};
 
 	class CDistributedActorTrustManagerAuthenticationActorFactoryTest1 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
-		TCActor<ICDistributedActorTrustManagerAuthenticationActor> operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
+		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
-			return fg_ConstructActor<CAuthenticationActorTest1>();
+			return CAuthenticationActorInfo{fg_ConstructActor<CAuthenticationActorTestSucceed>(_TrustManager, "Test1"), EAuthenticationFactorCategory_None};
 		}
 	};
 
 	class CDistributedActorTrustManagerAuthenticationActorFactoryTest2 : public ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
-		TCActor<ICDistributedActorTrustManagerAuthenticationActor> operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
+		CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) override
 		{
-			return fg_ConstructActor<CAuthenticationActorTest2>();
+			return CAuthenticationActorInfo{fg_ConstructActor<CAuthenticationActorFail>(_TrustManager, "Test2"), EAuthenticationFactorCategory_None};
 		}
 	};
 
@@ -215,9 +307,9 @@ namespace
 				, m_ClientHelper{f_InitClientTrustManager()}
 				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", nullptr)
 			{
-				m_ExpectedPermissions[m_ServerHostID]["com.malterlib/Test"];
-				m_ExpectedEnumHostPermissions["com.malterlib/Test"][m_ServerHostID] = CHostInfo(m_ServerHostID, "TestServer");
-				m_ExpectedEnumHostPermissionsNoHostInfo["com.malterlib/Test"][m_ServerHostID];
+				m_ExpectedPermissions[CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)]["com.malterlib/Test"];
+				m_ExpectedEnumPermissions["com.malterlib/Test"][CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)].m_HostInfo = CHostInfo(m_ServerHostID, "TestServer");
+				m_ExpectedEnumPermissionsNoHostInfo["com.malterlib/Test"][CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)];
 			}
 
 			TCActor<CDistributedActorTrustManager> f_CreateServerTrustManager(CState &_State)
@@ -266,28 +358,121 @@ namespace
 				m_ServerTrustManager->f_BlockDestroy();
 			}
 
+			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return)
+			{
+			}
+
+			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			void fg_CreateMapHelper(TCMap<tf_CKey, tf_CValue> &_Return, tf_CKey &&_First, tf_CParams && ...p_Params)
+			{
+				_Return[fg_Forward<tf_CKey>(_First)];
+				fg_CreateMapHelper<tf_CKey, tf_CValue>(_Return, fg_Forward<tf_CParams>(p_Params)...);
+			}
+
+			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			TCMap<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>::CType, typename NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>::CType> fg_CreateMap
+				(
+					tf_CKey && _First
+					, tf_CParams && ...p_Params
+				)
+			{
+				TCMap<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>::CType, typename NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>::CType> Return;
+				fg_CreateMapHelper<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>::CType, typename NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>::CType>
+					(
+					 	Return
+					 	, fg_Forward<tf_CKey>(_First)
+					 	, fg_Forward<tf_CParams>(p_Params)...
+					)
+				;
+				return Return;
+			}
+
+			template <typename tf_CKey, typename tf_CValue, typename... tf_CParams>
+			TCMap<tf_CKey, tf_CValue> fg_CreateMap(tf_CParams && ...p_Params)
+			{
+				TCMap<tf_CKey, tf_CValue> Return;
+				fg_CreateMapHelper<tf_CKey, tf_CValue>(Return, fg_Forward<tf_CParams>(p_Params)...);
+				return Return;
+			}
+
+			static TCMap<CStr, CPermissionRequirements> fs_CreateMap(CStr const &_Permission, CPermissionRequirements const &_Methods)
+			{
+				TCMap<CStr, CPermissionRequirements> Result;
+				Result[_Permission] = _Methods;
+				return Result;
+			}
+
 			template <typename ...tfp_CPermission>
-			void f_AddHostPermissions(tfp_CPermission &&...p_Permissions)
+			void f_AddPermissions(tfp_CPermission &&...p_Permissions)
 			{
 				m_ClientTrustManager
 					(
-						 &CDistributedActorTrustManager::f_AddHostPermissions
-						 , m_ServerHostID
-						 , fg_CreateSet<CStr>(p_Permissions...)
-						 , EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+						&CDistributedActorTrustManager::f_AddPermissions
+					 	, CPermissionIdentifiers{m_ServerHostID, ""}
+						, fg_CreateMap<CStr, CPermissionRequirements>(p_Permissions...)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(60.0)
 				;
 			}
 
 			template <typename ...tfp_CPermission>
-			void f_RemoveHostPermissions(tfp_CPermission &&...p_Permissions)
+			void f_RemovePermissions(tfp_CPermission &&...p_Permissions)
 			{
 				m_ClientTrustManager
 					(
-						 &CDistributedActorTrustManager::f_RemoveHostPermissions
-						 , m_ServerHostID
-						 , fg_CreateSet<CStr>(p_Permissions...)
-						 , EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+						&CDistributedActorTrustManager::f_RemovePermissions
+					 	, CPermissionIdentifiers{m_ServerHostID, ""}
+						, fg_CreateSet<CStr>(p_Permissions...)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+					).f_CallSync(60.0)
+				;
+			}
+
+			void f_AddUserPermission(CStr const &_UserID, CStr const &_Permission, CPermissionRequirements const &_Methods = {})
+			{
+				m_ClientTrustManager
+					(
+						&CDistributedActorTrustManager::f_AddPermissions
+					 	, CPermissionIdentifiers{"", _UserID}
+						, fs_CreateMap(_Permission, _Methods)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+					).f_CallSync(60.0)
+				;
+			}
+
+			void f_RemoveUserPermission(CStr const &_UserID, CStr const &_Permission)
+			{
+				m_ClientTrustManager
+					(
+						&CDistributedActorTrustManager::f_RemovePermissions
+					 	, CPermissionIdentifiers{"", _UserID}
+						, fg_CreateSet<CStr>(_Permission)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+					).f_CallSync(60.0)
+				;
+			}
+
+			void f_AddHostUserPermission(CStr const &_UserID, CStr const &_Permission, CPermissionRequirements const &_Methods = {})
+			{
+				m_ClientTrustManager
+					(
+						&CDistributedActorTrustManager::f_AddPermissions
+					 	, CPermissionIdentifiers{m_ServerHostID, _UserID}
+						, fs_CreateMap(_Permission, _Methods)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+					).f_CallSync(60.0)
+				;
+			}
+
+			void f_RemoveHostUserPermission(CStr const &_UserID, CStr const &_Permission)
+			{
+				m_ClientTrustManager
+					(
+						&CDistributedActorTrustManager::f_RemovePermissions
+					 	, CPermissionIdentifiers{m_ServerHostID, _UserID}
+						, fg_CreateSet<CStr>(_Permission)
+						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(60.0)
 				;
 			}
@@ -303,11 +488,12 @@ namespace
 
 			TCActor<> m_TestActor = fg_ConcurrentActor();
 
-			NContainer::TCMap<CStr, NContainer::TCSet<CStr>> m_ExpectedPermissionsEmpty;
-			NContainer::TCMap<CStr, NContainer::TCSet<CStr>> m_ExpectedPermissions;
-			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> m_ExpectedEnumHostPermissionsEmpty;
-			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> m_ExpectedEnumHostPermissions;
-			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> m_ExpectedEnumHostPermissionsNoHostInfo;
+			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_ExpectedPermissionsEmpty;
+			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_ExpectedPermissions;
+
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<CPermissionIdentifiers, CDistributedActorTrustManagerInterface::CPermissionInfo>> m_ExpectedEnumPermissionsEmpty;
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<CPermissionIdentifiers, CDistributedActorTrustManagerInterface::CPermissionInfo>> m_ExpectedEnumPermissions;
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<CPermissionIdentifiers, CDistributedActorTrustManagerInterface::CPermissionInfo>> m_ExpectedEnumPermissionsNoHostInfo;
 		};
 
 		void fp_DoTests(TCActor<CDistributedActorTrustManager> const &_ServerTrustManager, TCActor<CDistributedActorTrustManager> const &_ClientTrustManager)
@@ -334,6 +520,7 @@ namespace
 		{
 			auto HelperActor = fg_ConcurrentActor();
 			CCurrentActorScope CurrentActor{HelperActor};
+
 			DMibTestSuite("Basic")
 			{
 				CState State{_fDatabaseFactory, _fCleanup};
@@ -609,6 +796,7 @@ namespace
 				}
 
 				TCActor<ICDistributedActorTrustManagerDatabase> Client2Database = _fDatabaseFactory("Client2");
+				Client2Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(60.0);
 
 				{
 					NDistributedActorTrustManagerDatabase::CBasicConfig BasicConfig;
@@ -1144,60 +1332,60 @@ namespace
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
 						DMibAssertFalse(TrustedSubscription.f_HasPermission("Before add permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumPermissionsEmpty);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumPermissionsEmpty);
 					}
 					
-					TestState.f_AddHostPermissions("com.malterlib/Test");
-					TestState.f_AddHostPermissions("com.malterlib/Test");
+					TestState.f_AddPermissions("com.malterlib/Test");
+					TestState.f_AddPermissions("com.malterlib/Test");
 					{
 						DMibTestPath("After add permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissions);
 						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissions);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumHostPermissionsNoHostInfo);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumPermissions);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumPermissionsNoHostInfo);
 					}
 
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
 					{
 						DMibTestPath("After remove permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
 						DMibAssertFalse(TrustedSubscription.f_HasPermission("After remove permission", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumHostPermissionsEmpty);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumPermissionsEmpty);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumPermissionsEmpty);
 					}
 					
-					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2");
+					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2");
 					{
 						DMibTestPath("After add double permissions");
 						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					}
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test2");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test2");
 					{
 						DMibTestPath("After remove double permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
 					}
-					TestState.f_AddHostPermissions("com.malterlib/Test3");
+					TestState.f_AddPermissions("com.malterlib/Test3");
 					{
 						DMibTestPath("After add irrelevant permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssert(Permissions, ==, TestState.m_ExpectedPermissionsEmpty);
 					}
-					TestState.f_RemoveHostPermissions("com.malterlib/Test3");
+					TestState.f_RemovePermissions("com.malterlib/Test3");
 				}
 				{
 					DMibTestPath("Double wildcards");
@@ -1209,16 +1397,16 @@ namespace
 						).f_CallSync(60.0)
 					;
 
-					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2");
+					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2");
 					{
 						DMibTestPath("After add double permissions");
 						[[maybe_unused]] auto &Permissions = TrustedSubscription.f_GetPermissions();
 						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 						DMibAssertTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					}
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test2");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test2");
 					{
 						DMibTestPath("After remove double permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
@@ -1238,7 +1426,7 @@ namespace
 					NAtomic::TCAtomic<mint> nPermissions{0};
 					TrustedSubscription.f_OnPermissionsAdded
 						(
-							[&](CStr const &, TCSet<CStr> const &_Permissions)
+							[&](CPermissionIdentifiers const &, TCSet<CStr> const &_Permissions)
 							{
 								nPermissions.f_FetchAdd(_Permissions.f_GetLen());
 							}
@@ -1246,14 +1434,14 @@ namespace
 					;
 					TrustedSubscription.f_OnPermissionsRemoved
 						(
-							[&](CStr const &, TCSet<CStr> const &_Permissions)
+							[&](CPermissionIdentifiers const &, TCSet<CStr> const &_Permissions)
 							{
 								nPermissions.f_FetchSub(_Permissions.f_GetLen());
 							}
 						)
 					;
 
-					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2");
+					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2");
 					{
 						DMibTestPath("After add double permissions");
 						DMibExpectTrue(TrustedSubscription.f_HasPermission("After add double permissions", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
@@ -1261,9 +1449,9 @@ namespace
 						DMibExpect(nPermissions.f_Load(), ==, 2);
 						
 					}
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
-					TestState.f_RemoveHostPermissions("com.malterlib/Test2");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test2");
 					{
 						DMibTestPath("After remove double permission");
 						auto &Permissions = TrustedSubscription.f_GetPermissions();
@@ -1273,37 +1461,37 @@ namespace
 				}
 				{
 					DMibTestPath("Registered permissions");
-					TestState.f_AddHostPermissions("com.malterlib/Test");
+					TestState.f_AddPermissions("com.malterlib/Test");
 					{
 						DMibTestPath("After add permission");
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissions);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumHostPermissionsNoHostInfo);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumPermissions);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0) .m_Permissions;
+						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumPermissionsNoHostInfo);
 					}
 
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RegisterPermissions, fg_CreateSet<CStr>("com.malterlib/Test5")).f_CallSync(60.0);
 					{
 						DMibTestPath("After register permission");
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						auto ExpectedEnumHostPermissions2 = TestState.m_ExpectedEnumHostPermissions;
-						ExpectedEnumHostPermissions2["com.malterlib/Test5"];
-						DMibAssert(EnumPermissions, ==, ExpectedEnumHostPermissions2);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						auto ExpectedEnumHostPermissionsNoHostInfo2 = TestState.m_ExpectedEnumHostPermissionsNoHostInfo;
-						ExpectedEnumHostPermissionsNoHostInfo2["com.malterlib/Test5"];
-						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumHostPermissionsNoHostInfo2);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						auto ExpectedEnumPermissions2 = TestState.m_ExpectedEnumPermissions;
+						ExpectedEnumPermissions2["com.malterlib/Test5"];
+						DMibAssert(EnumPermissions, ==, ExpectedEnumPermissions2);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0).m_Permissions;
+						auto ExpectedEnumPermissionsNoHostInfo2 = TestState.m_ExpectedEnumPermissionsNoHostInfo;
+						ExpectedEnumPermissionsNoHostInfo2["com.malterlib/Test5"];
+						DMibAssert(EnumPermissionsNoHostInfo, ==, ExpectedEnumPermissionsNoHostInfo2);
 					}
 
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_UnregisterPermissions, fg_CreateSet<CStr>("com.malterlib/Test5")).f_CallSync(60.0);
 					{
 						DMibTestPath("After unregister permission");
-						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, true).f_CallSync(60.0);
-						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumHostPermissions);
-						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, false).f_CallSync(60.0);
-						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumHostPermissionsNoHostInfo);
+						auto EnumPermissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissions, ==, TestState.m_ExpectedEnumPermissions);
+						auto EnumPermissionsNoHostInfo = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, false).f_CallSync(60.0).m_Permissions;
+						DMibAssert(EnumPermissionsNoHostInfo, ==, TestState.m_ExpectedEnumPermissionsNoHostInfo);
 					}
-					TestState.f_RemoveHostPermissions("com.malterlib/Test");
+					TestState.f_RemovePermissions("com.malterlib/Test");
 				}
 			};
 			DMibTestSuite("Permissions Database")
@@ -1319,7 +1507,7 @@ namespace
 							 , TestState.m_TestActor
 						).f_CallSync(60.0)
 					;
-					TestState.f_AddHostPermissions("com.malterlib/Test", "com.malterlib/Test2", "com.malterlib/Test3");
+					TestState.f_AddPermissions("com.malterlib/Test", "com.malterlib/Test2", "com.malterlib/Test3");
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
@@ -1338,7 +1526,7 @@ namespace
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 					DMibAssertTrue(TrustedSubscription.f_HasPermission("After Reload", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(60.0));
 
-					TestState.f_RemoveHostPermissions("com.malterlib/Test2", "com.malterlib/Test3");
+					TestState.f_RemovePermissions("com.malterlib/Test2", "com.malterlib/Test3");
 
 					{
 						DMibTestPath("After Remove");
@@ -1469,16 +1657,16 @@ namespace
 					DMibTestPath("Register Authentication");
 					CPermissionTestState TestState{State, 31407};
 
-					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors).f_CallSync(60.0);
+					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors).f_CallSync(60.0);
 					DMibExpect(Factors.f_GetLen(), >=, 2u);
 					DMibExpectTrue(!!Factors.f_FindEqual("Test1"));
 					DMibExpectTrue(!!Factors.f_FindEqual("Test2"));
 
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID2, "Test2").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID3, "Test1").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID3, "Test2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID1, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID2, "Test2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID3, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID3, "Test2").f_CallSync(60.0);
 
 					DMibExpect(TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0).f_GetLen(), ==, 2);
 					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID1), ==, TCSet<CStr>{"Test1"});
@@ -1547,8 +1735,8 @@ namespace
 					DMibExpect(SingleUser2->m_Metadata, ==, Metadata5);
 
 					// Add authentication factor and export with private data
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
 					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
 					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto Factors1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
@@ -1559,8 +1747,8 @@ namespace
  					DMibExpect(nNonEmpty1, ==, Factors1.f_GetLen());
 
 					// Add two more, this time only export public data, check all factors exported two still have private data
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
-					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
+					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
 					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
 					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto Factors2 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
@@ -1613,14 +1801,14 @@ namespace
  					DMibExpect(TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 4);
 
 					ClientProxy
-						(&CDistributedActorTrustManagerInterface::f_AddAuthenticationFactor
+						(&CDistributedActorTrustManagerInterface::f_AddUserAuthenticationFactor
 							, ID5
 							, "AjPPPXBWJMB8PfZiC"
 							, CAuthenticationData{EAuthenticationFactorCategory_Knowledge, "Junk"}
 						).f_CallSync(60.0)
 					;
  					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 5);
-					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveAuthenticationFactor, ID5, "AjPPPXBWJMB8PfZiC").f_CallSync(60.0);
+					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveUserAuthenticationFactor, ID5, "AjPPPXBWJMB8PfZiC").f_CallSync(60.0);
  					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0).f_GetLen(), ==, 5 - 1);
 
 					ClientProxy(&CDistributedActorTrustManagerInterface::f_AddUser, ID1, "User1").f_CallSync(60.0);
@@ -1675,13 +1863,13 @@ namespace
 
 					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0);
 					for (auto &Factor : Factors)
-						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID1, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, ID1, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
 					Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID2).f_CallSync(60.0);
 					for (auto &Factor : Factors)
-						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID2, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, ID2, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
 					Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID3).f_CallSync(60.0);
 					for (auto &Factor : Factors)
-						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, ID3, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
+						TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, ID3, Factors.fs_GetKey(Factor)).f_CallSync(60.0);
 
 					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID1), ==, TCSet<CStr>{});
 					DMibExpect(fGetNames(TestState.m_ServerTrustManager, ID2), ==, TCSet<CStr>{});
@@ -1709,9 +1897,536 @@ namespace
 					;
 				}
 			};
+
+			DMibTestSuite("Permissions for HostID+UserID combos")
+			{
+				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
+				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
+				CStr const ID3 = "JNsXrbgP3dL6xuFXm";
+				CStr const ID4 = "Tao5Dmb6FpMzTCQyD";
+				CStr const ID5 = "RSZFNPB5mFEANtCNd";
+
+				CState State{_fDatabaseFactory, _fCleanup};
+				{
+					DMibTestPath("Basic HostID+UserID permission checks");
+					CPermissionTestState TestState{State, 31411};
+
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID3, "User3").f_CallSync(60.0);
+					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID4, "User4").f_CallSync(60.0);
+
+					TestState.f_AddPermissions("com.malterlib/Host");
+					TestState.f_AddUserPermission(ID1, "com.malterlib/User1");
+					TestState.f_AddUserPermission(ID2, "com.malterlib/User2");
+					TestState.f_AddUserPermission(ID1, "com.malterlib/User12");
+					TestState.f_AddUserPermission(ID2, "com.malterlib/User12");
+					TestState.f_AddHostUserPermission(ID3, "com.malterlib/HostUser3");
+					TestState.f_AddHostUserPermission(ID4, "com.malterlib/HostUser4");
+					TestState.f_AddHostUserPermission(ID3, "com.malterlib/HostUser34");
+					TestState.f_AddHostUserPermission(ID4, "com.malterlib/HostUser34");
+
+					//This doesn't make sense, but you can do it
+					TestState.f_AddHostUserPermission(ID4, "com.malterlib/ThreeWay");
+					TestState.f_AddUserPermission(ID4, "com.malterlib/ThreeWay");
+					TestState.f_AddPermissions("com.malterlib/ThreeWay");
+
+					auto HostID = TestState.m_ServerHostID;
+					auto Permissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+
+					DMibAssertTrue(Permissions.f_GetLen() == 8);
+					DMibAssertTrue(Permissions["com.malterlib/Host"].f_GetLen() == 1);
+					DMibAssertTrue(!!Permissions["com.malterlib/Host"].f_FindEqual(CPermissionIdentifiers(HostID, "")));
+
+					DMibAssertTrue(Permissions["com.malterlib/User1"].f_GetLen() == 1);
+					DMibAssertTrue(!!Permissions["com.malterlib/User1"].f_FindEqual(CPermissionIdentifiers("", ID1)));
+
+					DMibAssertTrue(Permissions["com.malterlib/User2"].f_GetLen() == 1);
+					DMibAssertTrue(!!Permissions["com.malterlib/User2"].f_FindEqual(CPermissionIdentifiers("", ID2)));
+
+					DMibAssertTrue(Permissions["com.malterlib/User12"].f_GetLen() == 2);
+					DMibAssertTrue(!!Permissions["com.malterlib/User12"].f_FindEqual(CPermissionIdentifiers("", ID1)));
+					DMibAssertTrue(!!Permissions["com.malterlib/User12"].f_FindEqual(CPermissionIdentifiers("", ID2)));
+
+					DMibAssertTrue(Permissions["com.malterlib/HostUser3"].f_GetLen() == 1);
+					DMibAssertTrue(!!Permissions["com.malterlib/HostUser3"].f_FindEqual(CPermissionIdentifiers(HostID, ID3)));
+
+					DMibAssertTrue(Permissions["com.malterlib/HostUser4"].f_GetLen() == 1);
+					DMibAssertTrue(!!Permissions["com.malterlib/HostUser4"].f_FindEqual(CPermissionIdentifiers(HostID, ID4)));
+
+					DMibAssertTrue(Permissions["com.malterlib/HostUser34"].f_GetLen() == 2);
+					DMibAssertTrue(!!Permissions["com.malterlib/HostUser34"].f_FindEqual(CPermissionIdentifiers(HostID, ID3)));
+					DMibAssertTrue(!!Permissions["com.malterlib/HostUser34"].f_FindEqual(CPermissionIdentifiers(HostID, ID4)));
+
+					DMibAssertTrue(Permissions["com.malterlib/ThreeWay"].f_GetLen() == 3);
+					DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers(HostID, "")));
+					DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers(HostID, ID4)));
+					DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers("", ID4)));
+
+					{
+						DMibTestPath("Remove 1st");
+
+						TestState.f_RemoveHostUserPermission(ID4, "com.malterlib/ThreeWay");
+						Permissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssertTrue(Permissions["com.malterlib/ThreeWay"].f_GetLen() == 2);
+						DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers(HostID, "")));
+						DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers("", ID4)));
+					}
+					{
+						DMibTestPath("Remove 2nd");
+
+						TestState.f_RemoveUserPermission(ID4, "com.malterlib/ThreeWay");
+						Permissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssertTrue(Permissions["com.malterlib/ThreeWay"].f_GetLen() == 1);
+						DMibAssertTrue(!!Permissions["com.malterlib/ThreeWay"].f_FindEqual(CPermissionIdentifiers(HostID, "")));
+					}
+					{
+						DMibTestPath("Remove 3rd");
+
+						TestState.f_RemovePermissions("com.malterlib/ThreeWay");
+						Permissions = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumPermissions, true).f_CallSync(60.0).m_Permissions;
+						DMibAssertTrue(Permissions.f_GetLen() == 7);
+					}
+
+					auto TrustedSubscription = TestState.m_ClientTrustManager
+						(
+							 &CDistributedActorTrustManager::f_SubscribeToPermissions
+							 , fg_CreateVector<CStr>("com.malterlib/*")
+							 , TestState.m_TestActor
+						).f_CallSync(60.0)
+					;
+
+					auto fHostInfo = [&Info = TestState.m_ServerHostInfo](CStr const &_UserID, CStr const &_HostID = "")
+						{
+							return CCallingHostInfo
+								(
+									Info.f_GetDistributionManager()
+									, Info.f_GetAuthenticationHandler()
+									, Info.f_GetUniqueHostID()
+									, _HostID ? CHostInfo(_HostID, _HostID) : Info.f_GetHostInfo()
+									, Info.f_LastExecutionID()
+									, Info.f_GetProtocolVersion()
+									, _UserID
+								 	, Info.f_GetHost()
+								)
+							;
+						}
+					;
+					
+					// Test the simplest form of permission checking: f_HasPermission - true if any permission matches
+					{
+						DMibTestPath("Test ID1 f_HasPermission");
+						auto HostInfo = fHostInfo(ID1);
+
+						// These should all be true if we have permission for one or more of the permissions in the vector
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host", "com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host", "com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/Nomatch"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Nomatch", "com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Nomatch"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User2", "com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermission");
+						auto HostInfo = fHostInfo(ID3);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/HostUser4"}, HostInfo).f_CallSync(60.0));
+					}
+
+					{
+						DMibTestPath("Test ID1 f_HasPermission, other host");
+						auto HostInfo = fHostInfo(ID1, ID5);
+
+						// We no longer have the host based permissions
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host", "com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/Nomatch"}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Nomatch", "com.malterlib/User1"}, HostInfo).f_CallSync(60.0));
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host", "com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User2"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Nomatch"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User2", "com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermission, other host");
+						auto HostInfo = fHostInfo(ID3, ID5);
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/Host"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/User1", "com.malterlib/HostUser3"}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermission("Setup", {"com.malterlib/HostUser4"}, HostInfo).f_CallSync(60.0));
+					}
+
+					// Test the slightly more complex form of permission checking: f_HasPermissions (variant 1).
+					//
+					// In one call we can do multiple permission queries. Each query can have multiple permissions where having either one of them is enough.
+					// For example (CommandAll or Command/ThisCommand) and (ReadAll or Read/ThisData).
+					using VQ = TCVector<CPermissionQuery>;
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (1)");
+						auto HostInfo = fHostInfo(ID1);
+
+						// This test should behave exactly as f_HasPermission if there is only one query, so we repeat those tests
+
+						// These should all be true if we have permission for one or more of the permissions in the vector
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermissions (1)");
+						auto HostInfo = fHostInfo(ID3);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(60.0));
+					}
+
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (1), other host");
+						auto HostInfo = fHostInfo(ID1, ID5);
+
+						// We no longer have the host based permissions
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Nomatch"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermissions (1), other host");
+						auto HostInfo = fHostInfo(ID3, ID5);
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/HostUser4"}}, HostInfo).f_CallSync(60.0));
+					}
+
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (1), multiple queries");
+						auto HostInfo = fHostInfo(ID1);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}, {"com.malterlib/User1"}}, HostInfo).f_CallSync(60.0));
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", VQ{{"com.malterlib/Host"}, {"com.malterlib/Host"}}, HostInfo).f_CallSync(60.0));
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+								, HostInfo
+							).f_CallSync(60.0))
+						;
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+								, HostInfo
+							).f_CallSync(60.0))
+						;
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}}
+								, HostInfo
+							).f_CallSync(60.0))
+						;
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}}
+								, HostInfo
+							).f_CallSync(60.0))
+						;
+					}
+
+					// Test the even more complex form of permission checking: f_HasPermissions (variant 2).
+					//
+					// As above we can pose multiple queries in one call and each query can have multiple forms of the permission. As in the  (CommandAll or Command/ThisCommand) and
+					// (ReadAll or Read/ThisData) example, but in this case it is possible to combine several such query vectors in one call. Each query is tagged,
+					// so the caller can tell which query that failed.
+					auto fMQ1 = [](CStr _Tag, VQ &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
+						{
+							TCMap<CStr, TCVector<CPermissionQuery>> Result;
+							Result[_Tag] = fg_Move(_Query);
+							return Result;
+						}
+					;
+					auto fMQ2 = [](CStr _Tag1, VQ &&_Query1, CStr _Tag2, VQ &&_Query2) -> TCMap<CStr, TCVector<CPermissionQuery>>
+						{
+							TCMap<CStr, TCVector<CPermissionQuery>> Result;
+							Result[_Tag1] = fg_Move(_Query1);
+							Result[_Tag2] = fg_Move(_Query2);
+							return Result;
+						}
+					;
+					auto fMQ3 = [](CStr _Tag1, VQ &&_Query1, CStr _Tag2, VQ &&_Query2, CStr _Tag3, VQ &&_Query3) -> TCMap<CStr, TCVector<CPermissionQuery>>
+						{
+							TCMap<CStr, TCVector<CPermissionQuery>> Result;
+							Result[_Tag1] = fg_Move(_Query1);
+							Result[_Tag2] = fg_Move(_Query2);
+							Result[_Tag3] = fg_Move(_Query3);
+							return Result;
+						}
+					;
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (2)");
+						auto HostInfo = fHostInfo(ID1);
+
+						// This test should behave exactly as f_HasPermission if there is only one query, so we repeat those tests
+
+						// These should all be true if we have permission for one or more of the permissions in the vector
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermissions (2)");
+						auto HostInfo = fHostInfo(ID3);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+					}
+
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (2), other host");
+						auto HostInfo = fHostInfo(ID1, ID5);
+
+						// We no longer have the host based permissions
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Nomatch"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch", "com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						// But we must have permission for at least one
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host", "com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Nomatch"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User2", "com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+					}
+					{
+						DMibTestPath("Test ID3 f_HasPermissions (2), other host");
+						auto HostInfo = fHostInfo(ID3, ID5);
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/User1", "com.malterlib/HostUser3"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/HostUser4"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+					}
+
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (2), multiple queries");
+						auto HostInfo = fHostInfo(ID1);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/User1"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions("Setup", fMQ1("Tag", VQ{{"com.malterlib/Host"}, {"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0)["Tag"]);
+
+						DMibAssertTrue(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)["Tag"])
+						;
+
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)["Tag"])
+						;
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/NoMatch", "com.malterlib/User2"}, {"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)["Tag"])
+						;
+						DMibAssertFalse(TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ1("Tag", VQ{{"com.malterlib/NoMatch", "com.malterlib/User1"}, {"com.malterlib/Host", "com.malterlib/User2"}, {"com.malterlib/User34"}})
+								, HostInfo
+							).f_CallSync(60.0)["Tag"])
+						;
+					}
+					{
+						DMibTestPath("Test ID1 f_HasPermissions (2), multiple named queries");
+						auto HostInfo = fHostInfo(ID1);
+
+						auto Res1 = TrustedSubscription.f_HasPermissions("Setup", fMQ2("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}), HostInfo).f_CallSync(60.0);
+						DMibAssertTrue(Res1["Tag1"]);
+						DMibAssertTrue(Res1["Tag2"]);
+
+						auto Res2 = TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ3("Tag1", VQ{{"com.malterlib/User2", "com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)
+						;
+						DMibAssertTrue(Res2["Tag1"]);
+						DMibAssertTrue(Res2["Tag2"]);
+						DMibAssertTrue(Res2["Tag3"]);
+
+						// For the rest of the test we will only test the tag that we know will fail. The check gives up early if it finds one that fails so we don't know which
+						// of the other tags that might have been tested (well, it tests the named queries in the iteration order of the map, but we should write tests that relies
+						// on that behavior).
+						auto Res3 = TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ3("Tag1", VQ{{"com.malterlib/NoMatch"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)
+						;
+						DMibAssertFalse(Res3["Tag1"]);
+
+						auto Res4 = TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/NoMatch"}}, "Tag3", VQ{{"com.malterlib/User12"}})
+								, HostInfo
+							).f_CallSync(60.0)
+						;
+						DMibAssertFalse(Res4["Tag2"]);
+
+						auto Res5 = TrustedSubscription.f_HasPermissions
+							(
+								"Setup"
+								, fMQ3("Tag1", VQ{{"com.malterlib/User1"}}, "Tag2", VQ{{"com.malterlib/Host"}}, "Tag3", VQ{{"com.malterlib/NoMatch"}})
+								, HostInfo
+							).f_CallSync(60.0)
+						;
+						DMibAssertFalse(Res5["Tag3"]);
+					}
+				}
+			};
 		}
+
+		void fp_DoDatabaseConversionTests()
+		{
+			auto HelperActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActor{HelperActor};
+
+			DMibTestSuite("Host Permissions to Permissions")
+			{
+				NStr::CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/TestDatababseConversion";
+				if (NFile::CFile::fs_FileExists(BaseDirectory))
+					NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
+
+				NFile::CFile::fs_CreateDirectory(BaseDirectory / "HostPermissions");
+				NFile::CFile::fs_WriteStringToFile
+					(
+					 	BaseDirectory / "BasicConfig.json"
+					 	, R"---(
+							{
+								"HostID": "gib5oMQHBfS6hpSDv",
+								"CAPrivateKey": {
+									"$binary": ""
+								},
+								"CACertificate": {
+									"$binary": ""
+								}
+							}
+					 	)---"
+					)
+				;
+				NFile::CFile::fs_WriteStringToFile
+					(
+					 	BaseDirectory / "HostPermissions/8MJEEHW9rbRfQKcf8.json"
+					 	, R"---(
+							{
+								"Permissions": [
+									"Application/ReadAll",
+									"Application/TagAll",
+									"Application/WriteAll"
+								]
+							}
+						)---"
+					)
+				;
+
+				auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory);
+				DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(60.0);
+				auto Permissions = DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true).f_CallSync(60.0);
+
+				DMibAssertTrue(Permissions.f_FindEqual(CPermissionIdentifiers{"8MJEEHW9rbRfQKcf8", ""}));
+				DMibExpectFalse(Permissions.f_FindEqual(CPermissionIdentifiers{"8MJEEHW9rbRfQKcf8", ""})->m_Permissions.f_IsEmpty());
+
+				DMibExpect(NFile::CFile::fs_FindFiles(BaseDirectory / "HostPermissions/*").f_GetLen(), ==, 0);
+				auto PermissionFiles = NFile::CFile::fs_FindFiles(BaseDirectory / "Permissions/*");
+				DMibAssert(PermissionFiles.f_GetLen(), ==, 1);
+				DMibExpect(NFile::CFile::fs_GetFile(PermissionFiles[0]), ==, "H_8MJEEHW9rbRfQKcf8.json");
+
+				DatabaseActor->f_Destroy().f_CallSync(60.0);
+
+				{
+					DMibTestPath("After reload");
+					auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory);
+					DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(60.0);
+
+					auto Permissions = DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true).f_CallSync(60.0);
+					DMibAssertTrue(Permissions.f_FindEqual(CPermissionIdentifiers{"8MJEEHW9rbRfQKcf8", ""}));
+					DMibExpectFalse(Permissions.f_FindEqual(CPermissionIdentifiers{"8MJEEHW9rbRfQKcf8", ""})->m_Permissions.f_IsEmpty());
+				}
+			};
+		}
+
 		void f_DoTests()
 		{
+			DMibTestCategory("Database Conversion")
+			{
+				fp_DoDatabaseConversionTests();
+			};
+
 			DMibTestCategory("Dummy Database")
 			{
 				fp_DoBasicTests

@@ -12,25 +12,22 @@ namespace NMib::NConcurrency
 {
 	namespace NDistributedActorTrustManagerDatabase
 	{
-		struct CAuthenticationFactor;
+		struct CUserAuthenticationFactor;
 	}
 
 	enum EAuthenticationFactorCategory
 	{
 		EAuthenticationFactorCategory_None = 0
-		, EAuthenticationFactorCategory_Knowledge
 		, EAuthenticationFactorCategory_Possession
 		, EAuthenticationFactorCategory_Inherence
+		, EAuthenticationFactorCategory_Knowledge
 	};
 
 	struct CAuthenticationData
 	{
-		template <typename tf_CStream>
-		void f_Stream(tf_CStream &_Stream);
+		CAuthenticationData const &operator = (NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor const &_Factor);
 
-		CAuthenticationData const &operator = (NDistributedActorTrustManagerDatabase::CAuthenticationFactor const &_Factor);
-
-		EAuthenticationFactorCategory m_Category;
+		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PublicData;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PrivateData;
@@ -40,6 +37,3 @@ namespace NMib::NConcurrency
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;
 #endif
-
-#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationData.hpp"
-

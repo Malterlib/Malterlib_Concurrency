@@ -7,6 +7,9 @@
 
 namespace NMib::NConcurrency
 {
+	class ICDistributedActorTrustManagerAuthenticationActor;
+	struct CAuthenticationActorInfo;
+
 	class CDistributedActorTrustManagerProxy : public CDistributedActorTrustManagerInterface
 	{
 	public:
@@ -36,15 +39,17 @@ namespace NMib::NConcurrency
 			, EPermission_NamespacePermissions_Remove = DMibBit(12)
 			, EPermission_NamespacePermissions = EPermission_NamespacePermissions_Read | EPermission_NamespacePermissions_Add | EPermission_NamespacePermissions_Remove
 
-			, EPermission_HostPermissions_Read = DMibBit(13)
-			, EPermission_HostPermissions_Add = DMibBit(14)
-			, EPermission_HostPermissions_Remove = DMibBit(15)
-			, EPermission_HostPermissions = EPermission_HostPermissions_Read | EPermission_HostPermissions_Add | EPermission_HostPermissions_Remove
+			, EPermission_Permissions_Read = DMibBit(13)
+			, EPermission_Permissions_Add = DMibBit(14)
+			, EPermission_Permissions_Remove = DMibBit(15)
+			, EPermission_Permissions = EPermission_Permissions_Read | EPermission_Permissions_Add | EPermission_Permissions_Remove
 
 			, EPermission_User_Read = DMibBit(16)
 			, EPermission_User_Write = DMibBit(17)
 			, EPermission_User_Remove = DMibBit(18)
 			, EPermission_UserPermissions = EPermission_User_Read | EPermission_User_Write | EPermission_User_Remove
+
+			, EPermission_UserPrivate_Read = DMibBit(19)
 
 			, EPermission_All =
 			(
@@ -53,8 +58,9 @@ namespace NMib::NConcurrency
 				| EPermission_Client 
 				| EPermission_ClientConnection 
 				| EPermission_NamespacePermissions 
-				| EPermission_HostPermissions
+				| EPermission_Permissions
 				| EPermission_UserPermissions
+				| EPermission_UserPrivate_Read
 			)
 		};
 		
@@ -64,6 +70,7 @@ namespace NMib::NConcurrency
 			NContainer::TCSet<NStr::CStr> m_AllowedNamespaces; // If empty all namespaces are allowed
 			NContainer::TCSet<NStr::CStr> m_AllowedPermissions; // If empty all permissions are allowed
 			NContainer::TCSet<NStr::CStr> m_AllowedHosts; // If empty all hosts are allowed
+			NContainer::TCSet<NStr::CStr> m_AllowedUsers; // If empty all users are allowed
 		};
 		
 		CDistributedActorTrustManagerProxy(TCActor<CDistributedActorTrustManager> const &_Actor, CPermissions const &_Permissions);
@@ -92,9 +99,9 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
 		TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) override;
-		TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) override;
-		TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) override;
+		TCContinuation<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) override;
+		TCContinuation<void> f_AddPermissions(CAddPermissions const &_Command) override;
+		TCContinuation<void> f_RemovePermissions(CRemovePermissions const &_Command) override;
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
 		TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) override;
@@ -111,11 +118,11 @@ namespace NMib::NConcurrency
 		TCContinuation<NStr::CStr> f_ExportUser(NStr::CStr const &_UserID, bool _bIncludePrivate);
 		TCContinuation<NStr::CStr> f_ImportUser(NStr::CStr const &_UserData);
 
-		TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumAuthenticationFactors() override;
-		TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) override;
-		TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) override;
-		TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) override;
-		TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
+		TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const override;
+		TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const override;
+		TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
+		TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
+		TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
 
 	private:
 		NException::CException fp_AccessDenied() const;

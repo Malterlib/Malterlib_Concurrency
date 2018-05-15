@@ -159,7 +159,7 @@ namespace NMib
 		{
 			return fg_Explicit();
 		}
-		
+
 		TCContinuation<uint32> CDistributedAppActor::f_RunCommandLine
 			(
 				CCallingHostInfo const &_CallingHost
@@ -352,12 +352,45 @@ namespace NMib
 
 			return Continuation;
 		}
-		
+
+		namespace
+		{
+			CPermissionRequirements fg_ParsePermissionRequirements(CEJSON const &_AuthenticationFactors)
+			{
+				CPermissionRequirements Requirements;
+				if (!_AuthenticationFactors.f_IsValid())
+					return Requirements;
+
+				if (_AuthenticationFactors.f_IsString())
+				{
+					Requirements.m_AuthenticationFactors[TCSet<CStr>{_AuthenticationFactors.f_String()}];
+					return Requirements;
+				}
+
+				for (auto &Inner : _AuthenticationFactors.f_Array())
+				{
+					if (Inner.f_IsArray())
+					{
+						TCSet<CStr> Factors;
+						for (auto &Factor : Inner.f_Array())
+							Factors[Factor.f_String()];
+						Requirements.m_AuthenticationFactors[Factors];
+					}
+					else
+						Requirements.m_AuthenticationFactors[TCSet<CStr>{Inner.f_String()}];
+				}
+
+				return Requirements;
+			}
+		}
+
 		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket
 			(
 			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, CStr const &_ForListen
 			 	, TCSet<CStr> const &_Permissions
+				, NStr::CStr const &_UserID
+				, NEncoding::CEJSON const &_AuthenticationFactors
 			)
 		{
 			CDistributedActorTrustManager_Address ForListen;
@@ -384,6 +417,7 @@ namespace NMib
 					}
 				;
 			}
+			auto Requirements = fg_ParsePermissionRequirements(_AuthenticationFactors);
 
 			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager
@@ -391,7 +425,7 @@ namespace NMib
 				 	&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				 	, ForListen
 				 	, nullptr
-				 	, bHasPermissions ? g_ActorFunctor > [this, _Permissions, pCleanup = fg_Move(pCleanup)]
+				 	, bHasPermissions ? g_ActorFunctor > [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements]
 				 	(
 					 	NStr::CStr const &_HostID
 					 	, CCallingHostInfo const &_HostInfo
@@ -400,11 +434,21 @@ namespace NMib
 						if (_Permissions.f_IsEmpty())
 							return fg_Explicit();
 
+						NContainer::TCMap<NStr::CStr, CPermissionRequirements> Permissions;
+						for (auto const &Permission : _Permissions)
+							Permissions[Permission] = Requirements;
+
 						TCContinuation<void> Continuation;
-						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, _Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-							> Continuation / [Continuation, _HostID, _Permissions, pCleanup = fg_Move(pCleanup)]()
+						mp_State.m_TrustManager
+							(
+								&CDistributedActorTrustManager::f_AddPermissions
+							 	, CPermissionIdentifiers{_HostID, _UserID}
+								, Permissions
+								, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+							)
+							> Continuation / [Continuation, _HostID, _Permissions, pCleanup = fg_Move(pCleanup), _UserID]()
 							{
-								DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permissions {vs} to host '{}' as part of ticket usage", _Permissions, _HostID);
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permissions {vs} to host '{}' for user '{}' as part of ticket usage", _Permissions, _HostID, _UserID);
 								Continuation.f_SetResult();
 							}
 						;
@@ -899,21 +943,21 @@ namespace NMib
 		}
 
 
-		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListHostPermissions(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts)
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListPermissions(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts)
 		{
 			TCContinuation<uint32> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumHostPermissions, _bIncludeHosts)
-				> Continuation / [=](NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>> &&_Permissions)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumPermissions, _bIncludeHosts)
+				> Continuation / [=](CDistributedActorTrustManagerInterface::CEnumPermissionsResult &&_Permissions)
 				{
 					CStr Result;
-					for (auto &Permission : _Permissions)
+					for (auto &Permission : _Permissions.m_Permissions)
 					{
-						auto &PermissionName = _Permissions.fs_GetKey(Permission);
+						auto &PermissionName = _Permissions.m_Permissions.fs_GetKey(Permission);
 						Result += "{}\n"_f << PermissionName;
 						if (_bIncludeHosts)
 						{
-							for (auto &Host : Permission)
-								Result += "    {}\n"_f << Host.f_GetDesc();
+							for (auto &PermissionInfo : Permission)
+								Result += "    {}\n"_f << PermissionInfo.f_GetDesc();
 						}
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported permissions to command line {}", Result);
@@ -923,40 +967,70 @@ namespace NMib
 			;
 			return Continuation;
 		}
-		
-		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddHostPermission
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddPermission
 			(
-				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				 , NStr::CStr const &_HostID, NStr::CStr const &_Permission
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_HostID
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_Permission
+				, CEJSON const &_AuthenticationFactors
 			)
 		{
+			if (_HostID.f_IsEmpty() && _UserID.f_IsEmpty())
+				return DMibErrorInstance("You need to specify at least one of --host or --user");
+
 			TCContinuation<uint32> Continuation;
-			NContainer::TCSet<NStr::CStr> Permissions;
-			Permissions[_Permission];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddHostPermissions, _HostID, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-				> Continuation / [Continuation, _HostID, _Permission]()
+			NContainer::TCMap<NStr::CStr, CPermissionRequirements> Permissions;
+			Permissions[_Permission] = fg_ParsePermissionRequirements(_AuthenticationFactors);
+
+			mp_State.m_TrustManager
+				(
+					&CDistributedActorTrustManager::f_AddPermissions
+				 	, CPermissionIdentifiers{_HostID, _UserID}
+					, Permissions
+					, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+				)
+				> Continuation / [Continuation, _HostID, _UserID, _Permission, _AuthenticationFactors]()
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permission '{}' to host '{}' from command line", _Permission, _HostID);
+					DMibLogWithCategory
+						(
+							Mib/Concurrency/App
+							, Info
+							, "Add permission '{}' to host '{}' user '{}' authentication factor '{}' from command line"
+							, _Permission
+							, _HostID
+							, _UserID
+							, _AuthenticationFactors
+						)
+					;
 					Continuation.f_SetResult(0);
 				}
 			;
 			return Continuation;
 		}
 		
-		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveHostPermission
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemovePermission
 			(
-				 NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				 , NStr::CStr const &_HostID
-				 , NStr::CStr const &_Permission
+				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_HostID
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_Permission
 			)
 		{
 			TCContinuation<uint32> Continuation;
 			NContainer::TCSet<NStr::CStr> Permissions;
 			Permissions[_Permission];
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveHostPermissions, _HostID, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-				> Continuation / [Continuation, _HostID, _Permission]()
+			mp_State.m_TrustManager
+				(
+				 	&CDistributedActorTrustManager::f_RemovePermissions
+				 	, CPermissionIdentifiers{_HostID, _UserID}
+				 	, Permissions
+				 	, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
+				)
+				> Continuation / [Continuation, _HostID, _UserID, _Permission]()
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' from command line", _Permission, _HostID);
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' user '{}' from command line", _Permission, _HostID, _UserID);
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1157,6 +1231,31 @@ namespace NMib
 			return Continuation;
 		}
 
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser)
+				> Continuation / [Continuation, _pCommandLine](CStr const &_UserID)
+				{
+					*_pCommandLine += _UserID;
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+		{
+			TCContinuation<uint32> Continuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, _UserID)
+				> Continuation / [Continuation]()
+				{
+					Continuation.f_SetResult(0);
+				}
+			;
+			return Continuation;
+		}
+
 		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
 			(
 				TCSharedPointer<CCommandLineControl> const &_pCommandLine
@@ -1165,10 +1264,10 @@ namespace NMib
 			)
 		{
 			TCContinuation<uint32> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterAuthenticationFactor, _pCommandLine, _UserID, _Factor)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, _pCommandLine, _UserID, _Factor)
 				> Continuation / [Continuation, _UserID, _Factor](CStr const &_FactorID)
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Added authentification factor '{}' of type '{}' to user '{}' from command line", _FactorID, _Factor, _UserID);
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Added authentication factor '{}' of type '{}' to user '{}' from command line", _FactorID, _Factor, _UserID);
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1183,10 +1282,10 @@ namespace NMib
 			)
 		{
 			TCContinuation<uint32> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveAuthenticationFactor, _UserID, _Factor)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, _Factor)
 				> Continuation / [Continuation, _UserID, _Factor]()
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Removed authentification factor '{}' from user '{}' from command line", _Factor, _UserID);
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Removed authentication factor '{}' from user '{}' from command line", _Factor, _UserID);
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1214,14 +1313,12 @@ namespace NMib
 		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 		{
 			TCContinuation<uint32> Continuation;
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationFactors)
-				> Continuation / [Continuation, _pCommandLine](TCSet<CStr> &&_Factors)
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
+				> Continuation / [Continuation, _pCommandLine](NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> &&_Factors)
 				{
 					CStr Result;
 					for (auto &Factor : _Factors)
-					{
-						Result += "{}\n"_f << Factor;
-					}
+						Result += "{}\n"_f << _Factors.fs_GetKey(Factor);
 					*_pCommandLine += Result;
 					Continuation.f_SetResult(0);
 				}
@@ -1290,6 +1387,7 @@ namespace NMib
 #endif
 			{
 				auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "Use these commands to manage connectability and trust between different hosts.");
+
 				auto IncludeFriendlyNameOption = "IncludeFriendlyName?"_= 
 					{
 						"Names"_= {"--include-friendly-name"}
@@ -1297,6 +1395,7 @@ namespace NMib
 						, "Description"_= "Include friendly host name in output"
 					}
 				;
+
 				auto ConnectionConcurrencyOption = "ConnectionConcurrency?"_= 
 					{
 						"Names"_= {"--connection-concurrency"}
@@ -1304,7 +1403,19 @@ namespace NMib
 						, "Description"_= "The number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default."
 					}
 				;
-				
+
+				auto PermissionUserAuthenticationFactorsOption = "AuthenticationFactors?"_=
+					{
+						"Names"_= {"--authentication-factors"}
+						, "Type"_= COneOfType{CEJSON({CEJSON({""})}), CEJSON({""}), CEJSON{""}}
+						, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a JSON array of arrays:\n"
+							"[[\"Factor1\"]]                                    - must authenticate by Factor1\n"
+							"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2\n"
+							"[[\"Factor1\"], [\"Factor2\"]]                       - must authenticate by Factor1 and Factor2\n"
+							"[[\"Factor1\", \"Factor2\"], [\"Factor1\", \"Factor3\"]] - must authenticate by Factor1 and either Factor2 or Factor3.\n"
+					}
+				;
+
 				CStr Category = "Outgoing connections";
 				Distributed.f_RegisterCommand
 					(
@@ -1574,8 +1685,15 @@ namespace NMib
 									"Names"_= {"--permissions"}
 									, "Type"_= {""}
 									, "Default"_= _[_]
-									, "Description"_= "The permissions that should be granted to the host that uses the returned ticket."
+									, "Description"_= "The permissions that should be granted to the host/user that uses the returned ticket."
 								}
+								, "UserID?"_=
+								{
+									"Names"_= {"--user"}
+									, "Type"_= ""
+									, "Description"_= "If specified, the permissions are added for the specific user for the host that uses the ticket."
+								}
+								, PermissionUserAuthenticationFactorsOption
 							}
 							, "Parameters"_=
 							{
@@ -1600,7 +1718,15 @@ namespace NMib
 										for (auto &PermissionJSON : _Params["Permissions"].f_Array())
 											Permissions[PermissionJSON.f_String()];
 
-										return f_CommandLine_GenerateTrustTicket(_pCommandLine, _Params["ForListenURL"].f_String(), Permissions);
+										CStr UserID;
+										if (auto *pValue =_Params.f_GetMember("UserID"))
+											UserID = pValue->f_String();
+
+										CEJSON AuthenticationFactors;
+										if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
+											AuthenticationFactors = pValue->f_Array();
+
+										return f_CommandLine_GenerateTrustTicket(_pCommandLine, _Params["ForListenURL"].f_String(), Permissions, UserID, AuthenticationFactors);
 									}
 								)
 							;
@@ -1836,42 +1962,66 @@ namespace NMib
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_ListHostPermissions(_pCommandLine, _Params["IncludeHosts"].f_Boolean());
+							return f_CommandLine_ListPermissions(_pCommandLine, _Params["IncludeHosts"].f_Boolean());
 						}
 					)
 				;
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-permission-add-host"}
+							"Names"_= {"--trust-permission-add"}
 							, "Category"_= Category
-							, "Description"_= "Add a permission to a host.\n"
+							, "Description"_= "Add a permission to a host, a user, or a host/user pair.\n"
 							, "Parameters"_=
 							{
-								"PermissionHost"_= 
+								"Permission"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The host to add a permission to."
+									, "Description"_= "The permission to add."
 								}
 							}
 							, "Options"_=
 							{
-								"Permission"_= 
+								"HostID?"_=
 								{
-									"Names"_= {"--permission"}
+									"Names"_= {"--host"}
 									, "Type"_= ""
-									, "Description"_= "The permission to add to the host."
+									, "Description"_= "The host to add a permission to."
 								}
+								, "UserID?"_=
+								{
+									"Names"_= {"--user"}
+									, "Type"_= ""
+									, "Description"_= "The user to add the permission to."
+								}
+								, PermissionUserAuthenticationFactorsOption
 							}
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return fp_RunCommandLineAndLogError
 								(
-									"Trusted host for namespace"
+									"Add permissions"
 									, [=]
 									{
-										return f_CommandLine_AddHostPermission(_pCommandLine, _Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+										CStr HostID;
+										if (auto *pValue =_Params.f_GetMember("HostID"))
+											HostID = pValue->f_String();
+										CStr UserID;
+										if (auto *pValue =_Params.f_GetMember("UserID"))
+											UserID = pValue->f_String();
+										CEJSON AuthenticationFactors;
+										if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
+											AuthenticationFactors = pValue->f_Array();
+										return f_CommandLine_AddPermission
+											(
+												_pCommandLine
+												, HostID
+												, UserID
+												, _Params["Permission"].f_String()
+											 	, AuthenticationFactors
+											)
+										;
 									}
 								)
 							;
@@ -1881,24 +2031,30 @@ namespace NMib
 				Distributed.f_RegisterCommand
 					(
 						{
-							"Names"_= {"--trust-permission-remove-host"}
+							"Names"_= {"--trust-permission-remove"}
 							, "Category"_= Category
-							, "Description"_= "Remove a permission to a host.\n"
+							, "Description"_= "Remove a permission from a host, a user, or a host/user pair.\n"
 							, "Parameters"_=
 							{
-								"PermissionHost"_= 
+								"Permission"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The host to remove a permission from."
+									, "Description"_= "The permission to remove."
 								}
 							}
 							, "Options"_=
 							{
-								"Permission"_= 
+								"HostID?"_=
 								{
-									"Names"_= {"--permission"}
+									"Names"_= {"--host"}
 									, "Type"_= ""
-									, "Description"_= "The permission to remove from the host."
+									, "Description"_= "The host to remove the permission from."
+								}
+								, "UserID?"_=
+								{
+									"Names"_= {"--user"}
+									, "Type"_= ""
+									, "Description"_= "The user to remove the permission from."
 								}
 							}
 						}
@@ -1906,10 +2062,24 @@ namespace NMib
 						{
 							return fp_RunCommandLineAndLogError
 								(
-									"Trusted host for namespace"
+									"Remove permissions"
 									, [=]
 									{
-										return f_CommandLine_RemoveHostPermission(_pCommandLine, _Params["PermissionHost"].f_String(), _Params["Permission"].f_String());
+										CStr HostID;
+										if (auto *pValue =_Params.f_GetMember("HostID"))
+											HostID = pValue->f_String();
+										CStr UserID;
+										if (auto *pValue =_Params.f_GetMember("UserID"))
+											UserID = pValue->f_String();
+
+										return f_CommandLine_RemovePermission
+											(
+												_pCommandLine
+												, HostID
+												, UserID
+												, _Params["Permission"].f_String()
+											)
+										;
 									}
 								)
 							;
@@ -2008,7 +2178,7 @@ namespace NMib
 								{
 									"Names"_= {"--username"}
 									, "Type"_= ""
-									, "Description"_= "The new username.\n"
+									, "Description"_= "The new username."
 								}
 							}
 							, "Parameters"_=
@@ -2040,7 +2210,7 @@ namespace NMib
 								{
 									"Names"_= {"--key"}
 									, "Type"_= ""
-									, "Description"_= "Key of the metadata to remove.\n"
+									, "Description"_= "Key of the metadata to remove."
 								}
 							}
 							, "Parameters"_=
@@ -2048,13 +2218,49 @@ namespace NMib
 								"UserID"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The user ID to remove metadata from"
+									, "Description"_= "The user ID to remove metadata from."
 								}
 							}
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return f_CommandLine_RemoveMetadata(_pCommandLine, _Params["UserID"].f_String(), _Params["Key"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-get-default-user"}
+							, "Category"_= Category
+							, "Description"_= "Get the default user name.\n"
+							, "Output"_= "The default username."
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_GetDefaultUser(_pCommandLine);
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-set-default-user"}
+							, "Category"_= Category
+							, "Description"_= "Set the user name to use.\n"
+							, "Output"_= "None."
+							, "Parameters"_=
+							{
+								"UserID"_=
+								{
+									"Type"_= ""
+									, "Description"_= "The user ID to use."
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_SetDefaultUser(_pCommandLine, _Params["UserID"].f_String());
 						}
 					)
 				;
@@ -2071,8 +2277,8 @@ namespace NMib
 								"IncludePrivate?"_=
 								{
 									"Names"_= {"--include-private-data"}
-									, "Default"_= true
-									, "Description"_= "In addition to data needed to verify a users identity, include private data needed to authenticate as that user.\n"
+									, "Default"_= false
+									, "Description"_= "In addition to data needed to verify a users identity, include private data needed to authenticate as that user."
 								}
 							}
 							, "Parameters"_=
@@ -2108,7 +2314,7 @@ namespace NMib
 								"UserData"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The encoded text representation of the user data"
+									, "Description"_= "The encoded text representation of the user data."
 								}
 							}
 					}
@@ -2130,7 +2336,7 @@ namespace NMib
 								{
 									"Names"_= {"--authentication-factor"}
 									, "Type"_= ""
-									, "Description"_= "The authentication factor to add.\n"
+									, "Description"_= "The authentication factor to add."
 								}
 							}
 							, "Parameters"_=
@@ -2160,7 +2366,7 @@ namespace NMib
 								{
 									"Names"_= {"--authentication-factor"}
 									, "Type"_= ""
-									, "Description"_= "The authentication factor to remove.\n"
+									, "Description"_= "The authentication factor to remove."
 								}
 							}
 							, "Parameters"_=
@@ -2183,7 +2389,7 @@ namespace NMib
 						{
 							"Names"_= {"--trust-user-list-available-authentication-factor-types"}
 							, "Category"_= Category
-							, "Description"_= "List available authentication factors."
+							, "Description"_= "List available authentication factors.\n"
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
@@ -2196,7 +2402,7 @@ namespace NMib
 						{
 							"Names"_= {"--trust-user-list-authentication-factors"}
 							, "Category"_= Category
-							, "Description"_= "List the authentication factors registered to a user."
+							, "Description"_= "List the authentication factors registered to a user.\n"
 							, "Parameters"_=
 							{
 								"UserID"_=

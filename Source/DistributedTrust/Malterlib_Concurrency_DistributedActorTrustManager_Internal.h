@@ -7,11 +7,14 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 
 #include <Mib/Concurrency/ActorCallOnce>
+#include <Mib/Concurrency/DistributedActorAuthentication>
+#include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 
 namespace NMib
 {
 	namespace NConcurrency
 	{
+		struct CAuthenticationActorInfo;
 		using namespace NDistributedActorTrustManagerDatabase;
 		
 		enum EInitialize
@@ -119,18 +122,18 @@ namespace NMib
 				inline NStr::CStr const &f_GetNamespaceName() const;
 			};
 
-			struct CHostPermissionState
+			struct CPermissionState
 			{
-				NDistributedActorTrustManagerDatabase::CHostPermissions m_HostPermissions;
+				NDistributedActorTrustManagerDatabase::CPermissions m_Permissions;
 				bool m_bExistsInDatabase = false;
 				
-				inline NStr::CStr const &f_GetHostID() const;
+				inline CPermissionIdentifiers const &f_GetIdentity() const;
 			};
 			
-			struct CHostPermissionSubscriptionState
+			struct CPermissionSubscriptionState
 			{
 				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
-				NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> m_PermissionsPerHost;
+				NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_PermissionsPerIdentity;
 
 				inline NStr::CStr const &f_GetPermission() const;
 			};
@@ -141,9 +144,9 @@ namespace NMib
 				bool m_bExistsInDatabase = false;
 			};
 
-			struct CAuthenticationFactorState
+			struct CUserAuthenticationFactorState
 			{
-				NDistributedActorTrustManagerDatabase::CAuthenticationFactor m_AuthenticationFactor;
+				NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor m_AuthenticationFactor;
 				bool m_bExistsInDatabase = false;
 			};
 
@@ -161,6 +164,17 @@ namespace NMib
 				CDistributedActorTrustManager::CInternal *mp_pInternal;
 				TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;
 			};
+
+			struct CDistributedActorAuthenticationImplementation : public ICDistributedActorAuthentication
+			{
+				CDistributedActorAuthenticationImplementation();
+
+				auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
+					-> TCContinuation<TCActorSubscriptionWithID<>> override
+				;
+
+				CDistributedActorTrustManager *m_pThis;
+			};
 			
 			struct CActorDistributionManagerAccessHandler : public ICActorDistributionManagerAccessHandler
 			{
@@ -172,7 +186,7 @@ namespace NMib
 
 				CDistributedActorTrustManager::CInternal *m_pThis;
 			};
-			
+
 			CInternal
 				(
 					CDistributedActorTrustManager *_pThis
@@ -187,13 +201,14 @@ namespace NMib
 				(
 					TCContinuation<NStr::CStr> &_Continuation
 					, CBasicConfig const &_Basic
+					, CDefaultUser const &_DefaultUser
 					, NContainer::TCSet<CListenConfig> const &_Listen
 					, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 					, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
-					, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
+					, NContainer::TCMap<CPermissionIdentifiers, CPermissions> const &_Permissions
 					, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
-				 	, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>> &_AuthenticationFactors
+				 	, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> &_AuthenticationFactors
 				)
 			;
 			
@@ -224,7 +239,9 @@ namespace NMib
 			TCActor<CActorDistributionManagerAccessHandler> m_AccessHandler;
 			
 			TCDistributedActor<CTicketInterface> m_TicketInterface;
-			CDistributedActorPublication m_TicketInterfacePublication;		
+			CDistributedActorPublication m_TicketInterfacePublication;
+
+			TCDelegatedActorInterface<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
 
 			NPtr::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
 			
@@ -234,7 +251,8 @@ namespace NMib
 			NStr::CStr m_Enclave;
 			
 			CBasicConfig m_BasicConfig;
-			
+			CDefaultUser m_DefaultUser;
+
 			NContainer::TCMap<CListenConfig, CListenState> m_Listen;
 			NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
 			
@@ -247,14 +265,15 @@ namespace NMib
 			NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
 			
 			NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
-			NContainer::TCMap<NStr::CStr, CHostPermissionState> m_HostPermissions;
-			NContainer::TCMap<NStr::CStr, CHostPermissionSubscriptionState> m_HostPermissionsSubscriptions;
+			NContainer::TCMap<CPermissionIdentifiers, CPermissionState> m_Permissions;
+			NContainer::TCMap<NStr::CStr, CPermissionSubscriptionState> m_PermissionsSubscriptions;
 			
 			NContainer::TCMap<NStr::CStr, CUserState> m_Users;
 				
-			// The outer map uses the UserID as index, the inner uses the factorID
-			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactorState>> m_AuthenticationFactors;
-			NContainer::TCMap<NStr::CStr, TCActor<ICDistributedActorTrustManagerAuthenticationActor>> m_AuthenticationActors;
+			// The outer map uses the UserID as index, the inner uses the FactorID
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactorState>> m_UserAuthenticationFactors;
+			NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> m_AuthenticationActors;
+			NContainer::TCMap<NStr::CStr, TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler>> m_AuthenticationHandlers;
 
 			NTime::CTimer m_TicketTimer;
 			
@@ -270,6 +289,7 @@ namespace NMib
 			int32 m_DefaultConnectionConcurrency = 1;
 
 			bool m_bRetryOnListenFailureDuringInit = true;
+			bool m_bSupportAuthentication = true;
 		};
 	}
 }

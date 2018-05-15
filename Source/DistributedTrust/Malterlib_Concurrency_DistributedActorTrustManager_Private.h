@@ -10,6 +10,7 @@ namespace NMib::NConcurrency
 	struct CTrustedActorInfo;
 	template <typename t_CActor>
 	struct TCTrustedActor;
+	struct CPermissionIdentifiers;
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -36,17 +37,20 @@ namespace NMib::NConcurrency::NPrivate
 		CTrustedPermissionSubscriptionState();
 		~CTrustedPermissionSubscriptionState();
 
+		// Valid anywhere
+		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
+
 		// Valid on dispatched actor
 		CTrustedPermissionSubscription *m_pSubscription = nullptr;
-		NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded)> m_fOnPermissionsAdded;
-		NFunction::TCFunctionMovable<void (NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> m_fOnPermissionsRemoved;
+		NFunction::TCFunctionMovable<void (CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded)> m_fOnPermissionsAdded;
+		NFunction::TCFunctionMovable<void (CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)> m_fOnPermissionsRemoved;
 		
 		// Valid on trust manager
 		TCWeakActor<CActor> m_DispatchActor;
-		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
 		NContainer::TCVector<NStr::CStr> m_Wildcards;
 
-		TCDispatchedWeakActorCall<void> f_AddPermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsAdded);
-		TCDispatchedWeakActorCall<void> f_RemovePermissions(NStr::CStr const &_HostID, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
+		TCDispatchedWeakActorCall<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded);
+		TCDispatchedWeakActorCall<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
 	};
 }
+

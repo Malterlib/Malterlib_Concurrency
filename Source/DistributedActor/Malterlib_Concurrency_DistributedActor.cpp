@@ -481,12 +481,14 @@ namespace NMib::NConcurrency
 	
 	void CHostInfo::f_Feed(CDistributedActorWriteStream &_Stream) const
 	{
+		// Warning: This is used in actor interfaces, if changed you need to handle this
 		_Stream << m_HostID;
 		_Stream << m_FriendlyName;
 	}
 	
 	void CHostInfo::f_Consume(CDistributedActorReadStream &_Stream)
 	{
+		// Warning: This is used in actor interfaces, if changed you need to handle this
 		_Stream >> m_HostID;
 		_Stream >> m_FriendlyName;
 	}

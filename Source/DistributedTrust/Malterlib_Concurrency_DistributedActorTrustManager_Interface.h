@@ -11,13 +11,15 @@
 
 namespace NMib::NConcurrency
 {
+	struct CAuthenticationActorInfo;
+	class ICDistributedActorTrustManagerAuthenticationActor;
 	class CDistributedActorTrustManagerInterface : public NConcurrency::CActor
 	{
 	public:
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x104
+			, EProtocolVersion = 0x105
 		};
 	  
 		struct CTrustTicket
@@ -88,12 +90,37 @@ namespace NMib::NConcurrency
 			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
 		};
 
-		struct CChangeHostPermissions
+		struct CLocalPermissionRequirements : public CPermissionRequirements
+		{
+			CLocalPermissionRequirements(CPermissionRequirements &&_Other);
+			CLocalPermissionRequirements(CPermissionRequirements const &_Other);
+
+			CLocalPermissionRequirements() = default;
+			CLocalPermissionRequirements(CLocalPermissionRequirements &&) = default;
+			CLocalPermissionRequirements(CLocalPermissionRequirements const &) = default;
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			using CPermissionRequirements::f_Format;
+			using CPermissionRequirements::operator =;
+		};
+
+		struct CAddPermissions
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			NStr::CStr m_HostID;
+			CPermissionIdentifiers m_Identity;
+			NContainer::TCMap<NStr::CStr, CLocalPermissionRequirements> m_Permissions;
+			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
+		};
+
+		struct CRemovePermissions
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CPermissionIdentifiers m_Identity;
 			NContainer::TCSet<NStr::CStr> m_Permissions;
 			EDistributedActorTrustManagerOrderingFlag m_OrderingFlags = EDistributedActorTrustManagerOrderingFlag_None;
 		};
@@ -104,6 +131,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
+			bool operator == (CUserInfo const &_Right) const;
 
 			NStr::CStr m_UserName;
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
@@ -129,6 +157,24 @@ namespace NMib::NConcurrency
 			using CCallingHostInfo::operator <;
 		};
 
+		struct CLocalAuthenticationData : public CAuthenticationData
+		{
+			CLocalAuthenticationData(CAuthenticationData &&_Other);
+			CLocalAuthenticationData(CAuthenticationData const &_Other);
+
+			CLocalAuthenticationData() = default;
+			CLocalAuthenticationData(CLocalAuthenticationData &&) = default;
+			CLocalAuthenticationData(CLocalAuthenticationData const &) = default;
+
+			CLocalAuthenticationData &operator = (CLocalAuthenticationData &&) = default;
+			CLocalAuthenticationData &operator = (CLocalAuthenticationData const &) = default;
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			using CAuthenticationData::operator =;
+		};
+
 		struct CGenerateConnectionTicket
 		{
 			template <typename tf_CStream>
@@ -148,6 +194,39 @@ namespace NMib::NConcurrency
 				m_fOnUseTicket
 			;
 			TCActorFunctorWithID<TCContinuation<void> (NStr::CStr const &_HostID, CLocalCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
+		};
+
+		struct CPermissionInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			template <typename tf_CString>
+			void f_Format(tf_CString &o_String) const;
+
+			CPermissionIdentifiers const &f_GetIdentifiers() const;
+
+			NStr::CStr f_GetDesc() const;
+			bool operator == (CPermissionInfo const &_Right) const;
+
+			NStorage::TCOptional<CHostInfo> m_HostInfo;
+			NStorage::TCOptional<CUserInfo> m_UserInfo;
+			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
+		};
+
+		struct CEnumPermissionsResult
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCMap<NStr::CStr, NContainer::TCMap<CPermissionIdentifiers, CPermissionInfo>> m_Permissions;
+		};
+
+		struct CLocalAuthenticationActorInfo
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			EAuthenticationFactorCategory m_Category;
 		};
 
 		CDistributedActorTrustManagerInterface();
@@ -176,12 +255,12 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
 		virtual TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CHostInfo>>> f_EnumHostPermissions(bool _bIncludeHostInfo) = 0;
-		virtual TCContinuation<void> f_AddHostPermissions(CChangeHostPermissions const &_Command) = 0;
-		virtual TCContinuation<void> f_RemoveHostPermissions(CChangeHostPermissions const &_Command) = 0;
+		virtual TCContinuation<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) = 0;
+		virtual TCContinuation<void> f_AddPermissions(CAddPermissions const &_Command) = 0;
+		virtual TCContinuation<void> f_RemovePermissions(CRemovePermissions const &_Command) = 0;
 
 		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
-		virtual TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) = 0;
+		virtual TCContinuation<NStorage::TCOptional<CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) = 0;
 		virtual TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) = 0;
 		virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) = 0;
 		virtual TCContinuation<void> f_SetUserInfo
@@ -193,11 +272,12 @@ namespace NMib::NConcurrency
 			) = 0
 		;
 
-		virtual TCContinuation<NContainer::TCSet<NStr::CStr>> f_EnumAuthenticationFactors() = 0;
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, NConcurrency::CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) = 0;
-		virtual TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) = 0;
-		virtual TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data) = 0;
-		virtual TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
+		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const = 0;
+
+		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const = 0;
+		virtual TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
+		virtual TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
+		virtual TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
 	};
 }
 

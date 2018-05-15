@@ -18,7 +18,9 @@ namespace NMib
 			TCContinuation<CBasicConfig> f_GetBasicConfig() override;
 			TCContinuation<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) override;
 			TCContinuation<int32> f_GetNewCertificateSerial() override;
-			
+			TCContinuation<CDefaultUser> f_GetDefaultUser() override;
+			TCContinuation<void> f_SetDefaultUser(CDefaultUser const &_DefaultUser) override;
+
 			TCContinuation<NContainer::TCMap<NStr::CStr, CServerCertificate>> f_EnumServerCertificates(bool _bIncludeFullInfo) override;
 			TCContinuation<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) override;
 			TCContinuation<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) override;
@@ -49,11 +51,11 @@ namespace NMib
 			TCContinuation<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) override;
 			TCContinuation<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) override;
 			
-			TCContinuation<NContainer::TCMap<NStr::CStr, CHostPermissions>> f_EnumHostPermissions(bool _bIncludeFullInfo) override;
- 			TCContinuation<CHostPermissions> f_GetHostPermissions(NStr::CStr const &_HostID) override;
-			TCContinuation<void> f_AddHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
-			TCContinuation<void> f_SetHostPermissions(NStr::CStr const &_HostID, CHostPermissions const &_HostPermissions) override;
-			TCContinuation<void> f_RemoveHostPermissions(NStr::CStr const &_HostID) override;
+			TCContinuation<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> f_EnumPermissions(bool _bIncludeFullInfo) override;
+			TCContinuation<CPermissions> f_GetPermissions(CPermissionIdentifiers const &_Identity) override;
+			TCContinuation<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions) override;
+			TCContinuation<void> f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions) override;
+			TCContinuation<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity) override;
 
 			TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
 			TCContinuation<CUserInfo> f_GetUserInfo(NStr::CStr const &_User) override;
@@ -61,10 +63,10 @@ namespace NMib
 			TCContinuation<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_Users) override;
 			TCContinuation<void> f_RemoveUser(NStr::CStr const &_User) override;
 
-			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) override;
-			TCContinuation<void> f_AddAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CAuthenticationFactor const &_Factor) override;
-			TCContinuation<void> f_SetAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CAuthenticationFactor const &_Factor) override;
-			TCContinuation<void> f_RemoveAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) override;
+			TCContinuation<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) override;
+			TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CUserAuthenticationFactor const &_Factor) override;
+			TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName, CUserAuthenticationFactor const &_Factor) override;
+			TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) override;
 
 		private:
 			struct CInternal;

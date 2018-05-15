@@ -13,6 +13,7 @@ namespace NMib
 			void CBasicConfig::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
+				_Stream << m_Version;
 				_Stream << m_HostID;
 				_Stream << m_CAPrivateKey;
 				_Stream << m_CACertificate;
@@ -25,6 +26,8 @@ namespace NMib
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid basic config version");
+				if (Version >= 0x102)
+					_Stream >> m_Version;
 				_Stream >> m_HostID;
 				_Stream >> m_CAPrivateKey;
 				_Stream >> m_CACertificate;
@@ -139,20 +142,27 @@ namespace NMib
 			}
 			
 			template <typename tf_CStream>
-			void CHostPermissions::f_Feed(tf_CStream &_Stream) const
+			void CPermissions::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
 				_Stream << m_Permissions;
 			}
-			
+
 			template <typename tf_CStream>
-			void CHostPermissions::f_Consume(tf_CStream &_Stream)
+			void CPermissions::f_Consume(tf_CStream &_Stream)
 			{
 				uint32 Version;
 				_Stream >> Version;
 				if (Version > EVersion)
 					DMibError("Invalid host permissions version");
-				_Stream >> m_Permissions;
+				if (Version == 0x101)
+				{
+					NContainer::TCSet<NStr::CStr> Temporary;
+					_Stream >> Temporary;
+					m_Permissions = Temporary; // Converts set to map
+				}
+				else
+					_Stream >> m_Permissions;
 			}
 
 			template <typename tf_CStream>
@@ -175,7 +185,24 @@ namespace NMib
 			}
 
 			template <typename tf_CStream>
-			void CAuthenticationFactor::f_Feed(tf_CStream &_Stream) const
+			void CDefaultUser::f_Feed(tf_CStream &_Stream) const
+			{
+				_Stream << EVersion;
+				_Stream << m_UserID;
+			}
+
+			template <typename tf_CStream>
+			void CDefaultUser::f_Consume(tf_CStream &_Stream)
+			{
+				uint32 Version;
+				_Stream >> Version;
+				if (Version > EVersion)
+					DMibError("Invalid user info version");
+				_Stream >> m_UserID;
+			}
+
+			template <typename tf_CStream>
+			void CUserAuthenticationFactor::f_Feed(tf_CStream &_Stream) const
 			{
 				_Stream << EVersion;
 				_Stream << m_Category;
@@ -185,7 +212,7 @@ namespace NMib
 			}
 
 			template <typename tf_CStream>
-			void CAuthenticationFactor::f_Consume(tf_CStream &_Stream)
+			void CUserAuthenticationFactor::f_Consume(tf_CStream &_Stream)
 			{
 				uint32 Version;
 				_Stream >> Version;

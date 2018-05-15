@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 		bool bExistsInDatabase = pUser->m_bExistsInDatabase;
 
 		TCActorResultVector<void> Results;
-		if (auto *pFactors = Internal.m_AuthenticationFactors.f_FindEqual(_UserID))
+		if (auto *pFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_UserID))
 		{
 			TCSet<CStr> Factors;
 			for (auto &Factor : *pFactors)
@@ -84,9 +84,9 @@ namespace NMib::NConcurrency
 					Factors[pFactors->fs_GetKey(Factor)];
 			}
 			for (auto &Factor : Factors)
-				f_RemoveAuthenticationFactor(_UserID, Factor) > Results.f_AddResult();
+				f_RemoveUserAuthenticationFactor(_UserID, Factor) > Results.f_AddResult();
 
-			Internal.m_AuthenticationFactors.f_Remove(_UserID);
+			Internal.m_UserAuthenticationFactors.f_Remove(_UserID);
 		}
 
 		if (bExistsInDatabase)
@@ -163,6 +163,34 @@ namespace NMib::NConcurrency
 		}
 		return Continuation;
 	}
+	
+	TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_GetDefaultUser()
+	{
+		auto &Internal = *mp_pInternal;
+		return fg_Explicit(Internal.m_DefaultUser.m_UserID);
+	}
+
+	TCContinuation<void> CDistributedActorTrustManager::f_SetDefaultUser(NStr::CStr const &_UserID)
+	{
+		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+			return DMibErrorInstance("Invalid user ID");
+
+		auto &Internal = *mp_pInternal;
+		auto *pUser = Internal.m_Users.f_FindEqual(_UserID);
+		if (!pUser)
+			return DMibErrorInstance("No user with ID '{}'"_f << _UserID);
+
+		Internal.m_DefaultUser.m_UserID = _UserID;
+		TCContinuation<void> Continuation;
+		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetDefaultUser, CDefaultUser{_UserID}) > Continuation / [Continuation]
+			{
+				Continuation.f_SetResult();
+			}
+		;
+
+		return Continuation;
+	}
+
 	template<typename t_CType>
 	TCContinuation<CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, CStr const &_UserID, bool _bIncludePrivate)
 	{
@@ -177,12 +205,16 @@ namespace NMib::NConcurrency
 					return Continuation.f_SetException(DMibErrorInstance("User {} does not exist"_f << _UserID));
 
 				DMibCallActor(_TrustManager, t_CType::f_EnumUserAuthenticationFactors, _UserID)
-					> Continuation / [Continuation, _UserID, UserInfo = *_UserInfo, _bIncludePrivate](NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors) mutable
+					> Continuation / [Continuation, _UserID, UserInfo = *_UserInfo, _bIncludePrivate]
+					(NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> _Factors) mutable
 					{
 						TCContinuation<NStr::CStr>::fs_RunProtected<NException::CException>() >
 							[&]() -> NStr::CStr
 							{
 								NStream::CBinaryStreamMemory<> Stream;
+								uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion;
+								DMibBinaryStreamVersion(Stream, Version);
+								Stream << Version;
 								Stream << _UserID;
 								Stream << UserInfo;
 
@@ -213,7 +245,7 @@ namespace NMib::NConcurrency
 		{
 			NStr::CStr m_UserID;
 			CDistributedActorTrustManagerInterface::CUserInfo m_UserInfo;
-			NContainer::TCMap<NStr::CStr, CAuthenticationData> m_AuthenticationData;
+			NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> m_AuthenticationData;
 		};
 
 		TCContinuation<NStr::CStr> Continuation;
@@ -227,6 +259,14 @@ namespace NMib::NConcurrency
 				NDataProcessing::fg_Base64Decode(_UserData, Data);
 				NStream::CBinaryStreamMemoryPtr<> Stream;
 				Stream.f_OpenRead(Data);
+
+				uint32 Version;
+				Stream >> Version;
+				if (Version > CDistributedActorTrustManagerInterface::EProtocolVersion)
+					DMibError("Unsupported export version 0x{nfh}"_f << Version);
+
+				DMibBinaryStreamVersion(Stream, Version);
+
 				Stream >> Result.m_UserID;
 
 				if (!CActorDistributionManager::fs_IsValidUserID(Result.m_UserID))
@@ -293,14 +333,14 @@ namespace NMib::NConcurrency
 													{
 														if (pFactor->m_PrivateData.f_IsEmpty() || !Data.m_PrivateData.f_IsEmpty())
 														{
-															DMibCallActor(_TrustManager, t_CType::f_SetAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
+															DMibCallActor(_TrustManager, t_CType::f_SetUserAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
 																> Results.f_AddResult()
 															;
 														}
 													}
 													else
 													{
-														DMibCallActor(_TrustManager, t_CType::f_AddAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
+														DMibCallActor(_TrustManager, t_CType::f_AddUserAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
 															> Results.f_AddResult();
 														;
 													}

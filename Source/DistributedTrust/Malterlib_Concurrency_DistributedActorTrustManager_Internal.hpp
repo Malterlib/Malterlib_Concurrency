@@ -46,9 +46,9 @@ namespace NMib
 			return NContainer::TCMap<NStr::CStr, CNamespaceState>::fs_GetKey(*this);
 		}
 		
-		NStr::CStr const &CDistributedActorTrustManager::CInternal::CHostPermissionState::f_GetHostID() const
+		CPermissionIdentifiers const &CDistributedActorTrustManager::CInternal::CPermissionState::f_GetIdentity() const
 		{
-			return NContainer::TCMap<NStr::CStr, CHostPermissionState>::fs_GetKey(*this);
+			return NContainer::TCMap<CPermissionIdentifiers, CPermissionState>::fs_GetKey(*this);
 		}
 	}
 }

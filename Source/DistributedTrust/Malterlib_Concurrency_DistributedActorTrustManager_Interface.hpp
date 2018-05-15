@@ -26,6 +26,16 @@ namespace NMib::NConcurrency
 		_Stream >> m_Token;
 	}
 
+	inline CDistributedActorTrustManagerInterface::CLocalPermissionRequirements::CLocalPermissionRequirements(CPermissionRequirements &&_Other)
+		: CPermissionRequirements(fg_Move(_Other))
+	{
+	}
+
+	inline CDistributedActorTrustManagerInterface::CLocalPermissionRequirements::CLocalPermissionRequirements(CPermissionRequirements const &_Other)
+		: CPermissionRequirements(_Other)
+	{
+	}
+
 	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo &&_Other)
 		: CCallingHostInfo(fg_Move(_Other))
 	{
@@ -34,6 +44,17 @@ namespace NMib::NConcurrency
 
 	inline CDistributedActorTrustManagerInterface::CLocalCallingHostInfo::CLocalCallingHostInfo(CCallingHostInfo const &_Other)
 		: CCallingHostInfo(_Other)
+	{
+	}
+
+	inline CDistributedActorTrustManagerInterface::CLocalAuthenticationData::CLocalAuthenticationData(CAuthenticationData &&_Other)
+		: CAuthenticationData(fg_Move(_Other))
+	{
+
+	}
+
+	inline CDistributedActorTrustManagerInterface::CLocalAuthenticationData::CLocalAuthenticationData(CAuthenticationData const &_Other)
+		: CAuthenticationData(_Other)
 	{
 	}
 
@@ -64,16 +85,15 @@ namespace NMib::NConcurrency
 		o_String += typename tf_CString::CFormat("{} ({} concurrency)") << m_HostInfo << m_ConnectionConcurrency;
 	}
 
-	template <typename tf_CStream>
-	void CDistributedActorTrustManagerInterface::CUserInfo::f_Stream(tf_CStream &_Stream)
-	{
-		_Stream % m_UserName;
-		_Stream % m_Metadata;
-	}
-
 	template <typename tf_CString>
 	void CDistributedActorTrustManagerInterface::CUserInfo::f_Format(tf_CString &o_String) const
 	{
 		o_String += typename tf_CString::CFormat("User : '{}', Metadata '{}')") << m_UserName << m_Metadata;
+	}
+
+	template <typename tf_CStr>
+	void CDistributedActorTrustManagerInterface::CPermissionInfo::f_Format(tf_CStr &o_Str) const
+	{
+		o_Str += typename tf_CStr::CFormat("Host {} User {} Authentication methods {}") << m_HostInfo << m_UserInfo << m_AuthenticationFactors;
 	}
 }

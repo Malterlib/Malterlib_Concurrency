@@ -59,28 +59,32 @@ namespace NMib::NConcurrency
 		TCContinuation<NStr::CStr> Continuation;
 		
 		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
+			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumNamespaces, true)
-			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumHostPermissions, true)
+			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumUsers, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumAuthenticationFactor, true)
 			> [this, Continuation]
 			(
-				TCAsyncResult<CBasicConfig> &&_BasicConfig 
+				TCAsyncResult<CBasicConfig> &&_BasicConfig
+				, TCAsyncResult<CDefaultUser> &&_DefaultUser
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CServerCertificate>> &&_ServerCertificates
 				, TCAsyncResult<NContainer::TCSet<CListenConfig>> &&_ListenConfigs
 				, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> &&_ClientConnections
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
-				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CHostPermissions>> &&_HostPermissions
+				, TCAsyncResult<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> &&_Permissions
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CUserInfo>> &&_Users
-			 	, TCAsyncResult<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>>> &&_AuthenticationFactors
+			 	, TCAsyncResult<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> &&_AuthenticationFactors
 
 			) mutable
 			{
 				if (!_BasicConfig)
 					return Continuation.f_SetException(fg_Move(_BasicConfig));
+				if (!_DefaultUser)
+					return Continuation.f_SetException(fg_Move(_DefaultUser));
 				if (!_ServerCertificates)
 					return Continuation.f_SetException(fg_Move(_ServerCertificates));
 				if (!_ListenConfigs)
@@ -89,14 +93,27 @@ namespace NMib::NConcurrency
 					return Continuation.f_SetException(fg_Move(_ClientConnections));
 				if (!_Namespaces)
 					return Continuation.f_SetException(fg_Move(_Namespaces));
-				if (!_HostPermissions)
-					return Continuation.f_SetException(fg_Move(_HostPermissions));
+				if (!_Permissions)
+					return Continuation.f_SetException(fg_Move(_Permissions));
 				if (!_Users)
 					return Continuation.f_SetException(fg_Move(_Users));
 				if (!_AuthenticationFactors)
 					return Continuation.f_SetException(fg_Move(_AuthenticationFactors));
 
-				f_Init(Continuation, *_BasicConfig, *_ListenConfigs, *_ServerCertificates, *_ClientConnections, *_Namespaces, *_HostPermissions, *_Users, *_AuthenticationFactors);
+				f_Init
+					(
+						Continuation
+						, *_BasicConfig
+						, *_DefaultUser
+						, *_ListenConfigs
+						, *_ServerCertificates
+						, *_ClientConnections
+						, *_Namespaces
+						, *_Permissions
+						, *_Users
+						, *_AuthenticationFactors
+					)
+				;
 
 				m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 			}
@@ -123,13 +140,14 @@ namespace NMib::NConcurrency
 		(
 			TCContinuation<NStr::CStr> &_Continuation
 			, CBasicConfig const &_Basic
+			, CDefaultUser const &_DefaultUser
 			, NContainer::TCSet<CListenConfig> const &_Listen
 			, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 			, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 			, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
-			, NContainer::TCMap<NStr::CStr, CHostPermissions> const &_HostPermissions
+			, NContainer::TCMap<CPermissionIdentifiers, CPermissions> const &_Permissions
 			, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
-			, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CAuthenticationFactor>> &_AuthenticationFactors
+			, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> &_AuthenticationFactors
 		)
 	{
 		auto pCleanup = fg_OnScopeExitShared
@@ -147,6 +165,7 @@ namespace NMib::NConcurrency
 		;
 		
 		m_BasicConfig = _Basic;
+		m_DefaultUser = _DefaultUser;
 		
 		TCActorResultVector<void> WriteDatabaseResults;
 
@@ -317,7 +336,7 @@ namespace NMib::NConcurrency
 				, _ServerCertificates
 				, _ClientConnections
 				, _Namespaces
-				, _HostPermissions
+				, _Permissions
 				, _Users
 			 	, _AuthenticationFactors
 				, pCleanup
@@ -373,12 +392,12 @@ namespace NMib::NConcurrency
 					NamespaceState.m_bExistsInDatabase = true;
 				}
 
-				for (auto &HostPermission : _HostPermissions)
+				for (auto &Permission : _Permissions)
 				{
-					auto &HostID = _HostPermissions.fs_GetKey(HostPermission);
-					auto &HostPermissionState = m_HostPermissions[HostID];
-					HostPermissionState.m_HostPermissions = HostPermission;
-					HostPermissionState.m_bExistsInDatabase = true;
+					auto &HostID = _Permissions.fs_GetKey(Permission);
+					auto &PermissionState = m_Permissions[HostID];
+					PermissionState.m_Permissions = Permission;
+					PermissionState.m_bExistsInDatabase = true;
 				}
 
 				for (auto &UserInfo : _Users)
@@ -394,7 +413,7 @@ namespace NMib::NConcurrency
 					auto &UserID = _AuthenticationFactors.fs_GetKey(UserAuthenticationFactors);
 					for (auto &Factor: UserAuthenticationFactors)
 					{
-						auto &AuthenticationFactor = m_AuthenticationFactors[UserID][UserAuthenticationFactors.fs_GetKey(Factor)];
+						auto &AuthenticationFactor = m_UserAuthenticationFactors[UserID][UserAuthenticationFactors.fs_GetKey(Factor)];
 						AuthenticationFactor.m_AuthenticationFactor = Factor;
 						AuthenticationFactor.m_bExistsInDatabase = true;
 					}
@@ -564,16 +583,37 @@ namespace NMib::NConcurrency
 						}
 						
 						pCleanup->f_Clear();
-						
+
+						TCContinuation<void> PublishContinuation;
+						if (m_bSupportAuthentication)
+						{
+							m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
+								(
+								 	m_ActorDistributionManager
+								 	, m_pThis
+								 	, ICDistributedActorAuthentication::mc_pDefaultNamespace
+								) > PublishContinuation;
+							;
+						}
+						else
+							PublishContinuation.f_SetResult();
+
 						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 						
 						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
-							> [this, _Continuation](TCAsyncResult<CDistributedActorPublication> &&_Result)
+							+ PublishContinuation
+							> [this, _Continuation]
+							(TCAsyncResult<CDistributedActorPublication> &&_Result, TCAsyncResult<void> &&_Published)
 							{
+								if (!_Published)
+									DMibLogWithCategory(Mib/Concurrency/App, Error, "Publishing authentication interface failed: {}", _Published.f_GetExceptionStr());
+								else if (m_bSupportAuthentication)
+									DMibLogWithCategory(Mib/Concurrency/App, Info, "Authentication interface published successfully");
+
 								_Continuation.f_SetResult(m_BasicConfig.m_HostID);
 								if (!_Result)
 								{
-									// TODO: Log
+									DMibLogWithCategory(Mib/Concurrency/App, Error, "Publishing ticket interface failed: {}", _Published.f_GetExceptionStr());
 									return;
 								}
 								m_TicketInterfacePublication = fg_Move(*_Result);

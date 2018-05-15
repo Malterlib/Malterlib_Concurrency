@@ -162,5 +162,19 @@ namespace NMib::NConcurrency
 		
 		return mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
 	}
+
+	TCContinuation<uint32> CDistributedAppInProcessActor::f_RunCommandLine
+		(
+			CCallingHostInfo const &_CallingHost
+			, NStr::CStr const &_Command
+			, NEncoding::CEJSON const &_Params
+			, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+		)
+	{
+		if (!mp_DistributedApp)
+			DMibError("No distributed app");
+
+		return mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+	}
 #endif
 }

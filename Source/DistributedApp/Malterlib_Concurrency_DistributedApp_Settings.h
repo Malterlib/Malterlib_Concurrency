@@ -24,6 +24,7 @@ namespace NMib::NConcurrency
 				, EDistributedAppUpdateType _UpdateType = fg_DistributedAppThreadLocal().m_DefaultSettings.m_UpdateType
 				, NStr::CStr const &_AuditCategory = fg_DistributedAppThreadLocal().m_DefaultSettings.m_AuditCategory
 			 	, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings = fg_DistributedAppThreadLocal().m_DefaultSettings.m_InterfaceSettings
+			 	, bool _bSupportUserAuthentication = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bSupportUserAuthentication
 			)
 		;
 		NStr::CStr f_GetCompositeFriendlyName() const;
@@ -39,6 +40,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&;
 		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
 		CDistributedAppActor_Settings &&f_InterfaceSettings(CDistributedAppActor_InterfaceSettings const &_InterfaceSettings) &&;
+		CDistributedAppActor_Settings &&f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&;
 
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;

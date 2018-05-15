@@ -240,6 +240,7 @@ namespace NMib::NConcurrency
 			Options.m_TranslateHostnames = Internal.m_TranslateHostnames;
 			Options.m_InitialConnectionTimeout = 55.0;
 			Options.m_DefaultConnectionConcurrency = -1;
+			Options.m_bSupportAuthentication = false;
 
 			Internal.m_TrustManager =
 				fg_ConstructActor<CDistributedActorTrustManager>

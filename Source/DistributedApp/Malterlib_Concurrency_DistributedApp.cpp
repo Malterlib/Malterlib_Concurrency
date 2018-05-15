@@ -348,6 +348,10 @@ namespace NMib::NConcurrency
 				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
 					InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
 				
+				bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
+				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJSONType_Boolean))
+					bSupportAuthentication = pValue->f_Boolean();
+
 				CDistributedActorTrustManager::COptions Options;
 				
 				Options.m_fConstructManager = fg_Move(fManagerFactor);
@@ -358,6 +362,7 @@ namespace NMib::NConcurrency
 				Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 				Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
 				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
+				Options.m_bSupportAuthentication = bSupportAuthentication;
 				
 				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(mp_TrustManagerDatabase, fg_Move(Options));
 				

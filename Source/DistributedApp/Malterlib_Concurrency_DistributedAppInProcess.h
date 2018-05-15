@@ -37,6 +37,14 @@ namespace NMib::NConcurrency
 
 #if DMibConfig_Tests_Enable
 		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCContinuation<uint32> f_RunCommandLine
+			(
+				CCallingHostInfo const &_CallingHost
+				, NStr::CStr const &_Command
+				, NEncoding::CEJSON const &_Params
+				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			)
+		;
 #endif
 
 	private:

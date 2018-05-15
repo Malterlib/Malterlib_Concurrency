@@ -49,6 +49,7 @@ namespace NMib::NConcurrency
 			, EDistributedAppUpdateType _UpdateType
 			, NStr::CStr const &_AuditCategory
 			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
+		 	, bool _bSupportUserAuthentication
 		)
 		: m_AppName(_AppName)
 		, m_bRequireListen(_bRequireListen)
@@ -60,6 +61,7 @@ namespace NMib::NConcurrency
 		, m_UpdateType(_UpdateType)
 		, m_AuditCategory(_AuditCategory)
 		, m_InterfaceSettings(_InterfaceSettings)
+		, m_bSupportUserAuthentication(_bSupportUserAuthentication)
 	{
 	}
 
@@ -75,6 +77,7 @@ namespace NMib::NConcurrency
 			, EDistributedAppUpdateType _UpdateType
 			, NStr::CStr const &_AuditCategory
 			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
+		 	, bool _bSupportUserAuthentication
 		)
 		: CDistributedAppActor_SettingsProperties
 		(
@@ -88,6 +91,7 @@ namespace NMib::NConcurrency
 			, _UpdateType
 			, _AuditCategory
 		 	, _InterfaceSettings
+		 	, _bSupportUserAuthentication
 		)
 	{
 		if (m_AuditCategory.f_IsEmpty())
@@ -186,6 +190,12 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_InterfaceSettings(CDistributedAppActor_InterfaceSettings const &_InterfaceSettings) &&
 	{
 		m_InterfaceSettings = _InterfaceSettings;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&
+	{
+		m_bSupportUserAuthentication = _bSupportUserAuthentication;
 		return fg_Move(*this);
 	}
 

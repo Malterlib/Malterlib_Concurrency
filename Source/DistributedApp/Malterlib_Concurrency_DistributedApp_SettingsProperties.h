@@ -58,6 +58,7 @@ namespace NMib::NConcurrency
 				, EDistributedAppUpdateType _UpdateType
 				, NStr::CStr const &_AuditCategory
 				, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
+			 	, bool _bSupportUserAuthentication
 			)
 		;
 
@@ -72,5 +73,6 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;
 		bool m_bRequireListen = false;
 		bool m_bSeparateDistributionManager = false;
+		bool m_bSupportUserAuthentication = true;
 	};
 }

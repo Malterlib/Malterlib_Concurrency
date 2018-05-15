@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/RandomID>
+#include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
@@ -190,34 +191,38 @@ namespace NMib
 			CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 		
 			TCContinuation<uint32> Continuation;
-			fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=]()
+			fp_SetupAuthentication(_pCommandLine) > Continuation / [=]
 				{
-					auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
-					
-					auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
-					if (!pCommand)
-					{
-						Continuation.f_SetException(DMibErrorInstance("Non-existant command line command"));
-						return;
-					}
-					
-					auto &Command = **pCommand;
-					if (!Command.m_fActorRunCommand)
-					{
-						Continuation.f_SetException(DMibErrorInstance("Non-actor cammand"));
-						return;
-					}
-
-					try
-					{
-						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-						Command.m_fActorRunCommand(ValidatedParams, _pCommandLine) > Continuation;
-					}
-					catch (NException::CException const &_Exception)
-					{
-						Continuation.f_SetException(_Exception);
-						return;
-					}
+					fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=]()
+						{
+							auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
+							
+							auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
+							if (!pCommand)
+							{
+								Continuation.f_SetException(DMibErrorInstance("Non-existant command line command"));
+								return;
+							}
+							
+							auto &Command = **pCommand;
+							if (!Command.m_fActorRunCommand)
+							{
+								Continuation.f_SetException(DMibErrorInstance("Non-actor cammand"));
+								return;
+							}
+		
+							try
+							{
+								CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
+								Command.m_fActorRunCommand(ValidatedParams, _pCommandLine) > Continuation;
+							}
+							catch (NException::CException const &_Exception)
+							{
+								Continuation.f_SetException(_Exception);
+								return;
+							}
+						}
+			;
 				}
 			;
 			

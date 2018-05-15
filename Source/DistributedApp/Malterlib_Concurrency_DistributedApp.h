@@ -196,6 +196,10 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
+        virtual TCContinuation<void> fp_SetupAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+        TCContinuation<void> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+
 #if DMibConfig_Tests_Enable
 		virtual TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 #endif
@@ -278,6 +282,10 @@ namespace NMib::NConcurrency
 		EDistributedAppType mp_AppType = EDistributedAppType_Unknown;
 
 		bool mp_bDelegateTrustToAppInterface = false;
+	protected:
+		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
+		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
+		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CActorSubscription> mp_AuthenticationRegistrationSubscriptions;
 	};
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);

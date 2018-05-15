@@ -42,6 +42,19 @@ namespace NMib::NConcurrency
 			DMibError("No in process actor");
 		return m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
 	}
+
+	TCContinuation<uint32> CDistributedApp_LaunchInfoData::f_RunCommandLine
+		(
+			CCallingHostInfo const &_CallingHost
+			, NStr::CStr const &_Command
+			, NEncoding::CEJSON const &_Params
+			, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+		)
+	{
+		if (!m_InProcess)
+			DMibError("No in process actor");
+		return m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+	}
 #endif
 
 	TCContinuation<void> CDistributedApp_LaunchInfo::f_Destroy()

@@ -55,6 +55,7 @@ namespace NMib::NConcurrency
 
 	struct ICDistributedActorTrustManagerAuthenticationActorFactory
 	{
+		virtual ~ICDistributedActorTrustManagerAuthenticationActorFactory() = default;
 		virtual CAuthenticationActorInfo operator () (TCActor<CDistributedActorTrustManager> const &_TrustManager) = 0;
 	};
 }

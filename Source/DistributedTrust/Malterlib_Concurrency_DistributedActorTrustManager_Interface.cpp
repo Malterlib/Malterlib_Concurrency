@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 		_Stream % mp_ProtocolVersion;
 		if (_Stream.f_GetVersion() >= 0x105)
 			_Stream % mp_ClaimedUserID;
-		if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+		if constexpr (tf_CStream::mc_bConsume)
 			mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalCallingHostInfo);

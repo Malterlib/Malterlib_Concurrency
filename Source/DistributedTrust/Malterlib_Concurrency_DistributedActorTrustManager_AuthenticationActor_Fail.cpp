@@ -18,16 +18,17 @@ namespace NMib::NConcurrency
 		virtual ~CDistributedActorTrustManagerAuthenticationActorFail();
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, TCSet<CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
 			 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) override
 		;
-		TCContinuation<bool> f_VerifyResponse
+		TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -61,41 +62,40 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorFail::f_AuthenticateCommand
+	TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> CDistributedActorTrustManagerAuthenticationActorFail::f_SignAuthenticationRequest
 		(
 			NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
 			, TCSet<CStr> const &_Permissions
-			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-		 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
+			, TCMap<CStr, CAuthenticationData> &&_Factors
+			, NTime::CTime const &_ExpirationTime
 		)
 	{
 		*_pCommandLine += "Fail\nAuthentication failing for '{}'\n{}"_f << _Description << _Permissions;
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
-		if (_Challenge.m_UserID)
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
+		TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
+
+		for (auto const &Challenge : _Challenges)
 		{
-			auto TrustManager = m_TrustManager.f_Lock();
-
-			ICDistributedActorAuthenticationHandler::CResponse Response;
-
 			for (auto const &RegisteredFactor : _Factors)
 			{
-				Response.m_Challenge = _Challenge;
+				ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
+				Response.m_Challenge = Challenge;
 				Response.m_Permissions = _Permissions;
 				Response.m_ResponseData.f_Insert((uint8 const *)"FAIL", 5);
 				Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 				Response.m_FactorName = RegisteredFactor.m_Name;
+				Response.m_ExpirationTime = _ExpirationTime;
 				break;
 			}
-			Continuation.f_SetResult(fg_Move(Response));
 		}
-		else
-			Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+		Continuation.f_SetResult(fg_Move(Results));
 		return Continuation;
 	};
 
-	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorFail::f_VerifyResponse
+	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorFail::f_VerifyAuthenticationResponse
 		(
 			ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

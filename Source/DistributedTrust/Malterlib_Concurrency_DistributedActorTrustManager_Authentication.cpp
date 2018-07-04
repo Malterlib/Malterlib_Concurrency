@@ -14,6 +14,7 @@ namespace NMib::NConcurrency
 	CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::CDistributedActorAuthenticationImplementation()
 	{
 		DMibPublishActorFunction(ICDistributedActorAuthentication::f_RegisterAuthenticationHandler);
+		DMibPublishActorFunction(ICDistributedActorAuthentication::f_AuthenticatePermissionPattern);
 	}
 
 	TCContinuation<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
@@ -69,6 +70,24 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
+	TCContinuation<bool> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_AuthenticatePermissionPattern
+		(
+			NStr::CStr const &_Pattern
+			, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
+		 	, NStr::CStr const &_RequestID
+		)
+	{
+		auto &Internal = *m_pThis->mp_pInternal;
+		return Internal.f_AuthenticatePermissionPattern
+			(
+				fg_TempCopy(_Pattern)
+				, fg_TempCopy(_AuthenticationFactors)
+				, fg_GetCallingHostInfo()
+			 	, _RequestID
+			)
+		;
+	}
+
 	ICDistributedActorAuthenticationHandler::CChallenge CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID)
 	{
 		ICDistributedActorAuthenticationHandler::CChallenge Challenge;
@@ -98,7 +117,6 @@ namespace NMib::NConcurrency
 		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_UserID);
 		TCContinuation<NContainer::TCVector<bool>> Continuation;
 
-		// If anything fails return a short vector
 		TCActorResultVector<bool> VerificationResults;
 
 		auto fAddFalseResult = [&]
@@ -133,7 +151,7 @@ namespace NMib::NConcurrency
 
 			CAuthenticationData Data;
 			Data = pRegisteredFactor->m_AuthenticationFactor;
-			pAuthenticationActor->m_Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_VerifyResponse, Response, _Challenge, Data)
+			pAuthenticationActor->m_Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_VerifyAuthenticationResponse, Response, _Challenge, Data)
 				> VerificationResults.f_AddResult()
 			;
 		}

@@ -45,6 +45,7 @@ namespace NMib::NConcurrency
 				{
 					auto &OutPermissions = Return.m_Permissions[Permissions.m_Permissions.m_Permissions.fs_GetKey(AuthenticationFactors)];
 					OutPermissions[Identity].m_AuthenticationFactors = AuthenticationFactors.m_AuthenticationFactors;
+					OutPermissions[Identity].m_MaximumAuthenticationLifetime = AuthenticationFactors.m_MaximumAuthenticationLifetime;
 				}
 			}
 		}
@@ -108,15 +109,15 @@ namespace NMib::NConcurrency
 		auto &Permissions = Internal.m_Permissions[_Identity];
 
 		NContainer::TCMap<NStr::CStr, CPermissionRequirements> PermissionsAdded;
-		for (auto &AuthenticationFactors : _Permissions)
+		for (auto &Requirements : _Permissions)
 		{
-			auto const &PermissionKey = _Permissions.fs_GetKey(AuthenticationFactors);
-			if (auto Mapped = Permissions.m_Permissions.m_Permissions(PermissionKey, AuthenticationFactors); Mapped.f_WasCreated())
-				PermissionsAdded[PermissionKey] = AuthenticationFactors;
-			else if (*Mapped != AuthenticationFactors)
+			auto const &Permission = _Permissions.fs_GetKey(Requirements);
+			if (auto Mapped = Permissions.m_Permissions.m_Permissions(Permission, Requirements); Mapped.f_WasCreated())
+				PermissionsAdded[Permission] = Requirements;
+			else if (*Mapped != Requirements)
 			{
-				*Mapped = AuthenticationFactors;
-				PermissionsAdded[PermissionKey] = AuthenticationFactors;
+				*Mapped = Requirements;
+				PermissionsAdded[Permission] = Requirements;
 			}
 		}
 		if (PermissionsAdded.f_IsEmpty())
@@ -128,14 +129,14 @@ namespace NMib::NConcurrency
 		{
 			auto const &Wildcard = Internal.m_PermissionsSubscriptions.fs_GetKey(Subscription);
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> FilteredPermissions;
-			for (auto &AuthenticationFactors : PermissionsAdded)
+			for (auto &Requirements : PermissionsAdded)
 			{
-				auto const &PermissionKey = PermissionsAdded.fs_GetKey(AuthenticationFactors);
-				if (NStr::fg_StrMatchWildcard(PermissionKey.f_GetStr(), Wildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+				auto const &Permission = PermissionsAdded.fs_GetKey(Requirements);
+				if (NStr::fg_StrMatchWildcard(Permission.f_GetStr(), Wildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 					continue;
-				if (!Subscription.m_PermissionsPerIdentity[_Identity](PermissionKey, AuthenticationFactors).f_WasCreated())
+				if (!Subscription.m_PermissionsPerIdentity[_Identity](Permission, Requirements).f_WasCreated())
 					continue;
-				FilteredPermissions[PermissionKey] = AuthenticationFactors;
+				FilteredPermissions[Permission] = Requirements;
 			}
 			
 			if (FilteredPermissions.f_IsEmpty())
@@ -198,6 +199,7 @@ namespace NMib::NConcurrency
 		{
 			if (Permissions.m_Permissions.m_Permissions.f_Remove(Permission))
 				PermissionsRemoved[Permission];
+			Internal.m_AuthenticationCache.f_RemoveAuthenticatedPermission(_Identity, Permission); // Invalidate cached permission
 		}
 		if (PermissionsRemoved.f_IsEmpty())
 			return fg_Explicit();
@@ -279,6 +281,137 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
+	TCContinuation<bool> CDistributedActorTrustManager::CInternal::f_AuthenticatePermissionPattern
+		(
+			NStr::CStr &&_Pattern
+			, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactors
+		 	, CCallingHostInfo const &_CallingHostInfo
+		 	, NStr::CStr const &_RequestID
+		)
+	{
+		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+		auto const &UserID = _CallingHostInfo.f_GetClaimedUserID();
+		auto const &HostID = _CallingHostInfo.f_GetRealHostID();
+		if (!HostID)
+			return DMibErrorInstance("Cannot omit host id");
+		if (!UserID)
+			return DMibErrorInstance("Cannot omit user id");
+		if (!CActorDistributionManager::fs_IsValidHostID(HostID))
+			return DMibErrorInstance("Invalid host id");
+		if (!CActorDistributionManager::fs_IsValidUserID(UserID))
+			return DMibErrorInstance("Invalid user id");
+
+		auto AuthenticationHandler = _CallingHostInfo.f_GetAuthenticationHandler();
+		if (!AuthenticationHandler)
+			return fg_Explicit(false);
+
+		using CHandler = ICDistributedActorAuthenticationHandler;
+
+		CHandler::CRequest Request;
+		Request.m_Description = "Provide advance authentication for all permissions matching the pattern";
+		Request.m_RequestedPermissions = {{CHandler::CPermissionWithRequirements{_Pattern, {_AuthenticationFactors}, -1}}};
+
+		TCContinuation<bool> Continuation;
+
+		auto CacheTime = NTime::CTime::fs_NowUTC();
+
+		auto Challenge = CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(UserID);
+		DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, Request, UserID, Challenge, _RequestID)
+			> [=, Identity = CPermissionIdentifiers(HostID, UserID)]
+			(TCAsyncResult<NContainer::TCVector<CHandler::CResponse>> &&_Responses) mutable
+			{
+				if (!_Responses)
+				{
+					DMibLogWithCategory(Mib/Concurrency/Trust, Error, "Failed to authenticate command: {}", _Responses.f_GetExceptionStr());
+					Continuation.f_SetException(_Responses.f_GetException());
+					return;
+				}
+				if (_Responses->f_IsEmpty()) // This can happen if, for example, there is a typo in the factor name
+				{
+					Continuation.f_SetResult(false);
+					return;
+				}
+				if (_Responses->f_GetLen() > 1)
+					return Continuation.f_SetException(DMibErrorInstance("Internal error: Too many authentication responses"));
+
+				m_pThis->f_VerifyAuthenticationResponses(Challenge, Request, *_Responses, UserID)
+					> Continuation / [=, Identity = fg_Move(Identity)]
+					(NContainer::TCVector<bool> &&_VerificationResults) mutable
+					{
+						if (_VerificationResults[0])
+						{
+							// This is a simpler case than for permissions. We don't care if the permission already is in the cache. We will always add the new pattern
+							// since the lifetime will be different from the pattern in the cache. For the same reason we will also propagate it to all permission subscriptions
+							// with a matching pattern. The cached patterns are not written to the database.
+							auto ExpirationTime = (*_Responses)[0].m_ExpirationTime;
+							m_AuthenticationCache.f_SetAuthenticatedPermissionPattern(Identity, fg_TempCopy(_Pattern), fg_TempCopy(_AuthenticationFactors), ExpirationTime, CacheTime);
+
+							TCActorResultVector<void> SubscriptionResults;
+							for (auto &Subscription : m_PermissionsSubscriptions)
+							{
+								auto const &SubscriptionWildcard = m_PermissionsSubscriptions.fs_GetKey(Subscription);
+								// Note that the matching is "other" way this time and the subscription wildcard appears as the first argument.
+								// We check if our pattern can match anything the subscription wildcard would match
+								if (NStr::fg_StrMatchWildcard(SubscriptionWildcard.f_GetStr(), _Pattern.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+									continue;
+
+								for (auto &pSubscription : Subscription.m_Subscriptions)
+								{
+									pSubscription->f_SetAuthenticatedPermissionPattern(Identity, fg_TempCopy(_Pattern), fg_TempCopy(_AuthenticationFactors), ExpirationTime, CacheTime)
+										> SubscriptionResults.f_AddResult()
+									;
+								}
+							}
+							SubscriptionResults.f_GetResults() > Continuation / [Continuation]
+								{
+									Continuation.f_SetResult(true);
+								}
+							;
+						}
+						else
+							Continuation.f_SetResult(false);
+					}
+				;
+			}
+		;
+		return Continuation;
+	}
+
+	TCContinuation<void> CDistributedActorTrustManager::f_UpdateAuthenticationCache
+		(
+			CPermissionIdentifiers const &_Identity
+			, NContainer::TCSet<NStr::CStr> &&_AuthenticatedPermissions
+			, NTime::CTime const &_ExpirationTime
+		 	, NTime::CTime const &_CacheTime
+		)
+	{
+		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
+		auto &Internal = *mp_pInternal;
+
+		if (!_ExpirationTime.f_IsValid())
+			return fg_Explicit();
+
+		TCActorResultVector<void> SubscriptionResults;
+		for (auto const &Permission : _AuthenticatedPermissions)
+		{
+			Internal.m_AuthenticationCache.f_AddAuthenticatedPermission(_Identity, Permission, _ExpirationTime, _CacheTime);
+
+			for (auto &Subscription : Internal.m_PermissionsSubscriptions)
+			{
+				auto const &SubscriptionWildcard = Internal.m_PermissionsSubscriptions.fs_GetKey(Subscription);
+				if (NStr::fg_StrMatchWildcard(Permission.f_GetStr(), SubscriptionWildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+					continue;
+
+				for (auto &pSubscription : Subscription.m_Subscriptions)
+					pSubscription->f_AddAuthenticatedPermission(_Identity, Permission, _ExpirationTime, _CacheTime) > SubscriptionResults.f_AddResult();
+			}
+		}
+
+		TCContinuation<void> Continuation;
+		SubscriptionResults.f_GetResults() > Continuation.f_ReceiveAny();
+		return Continuation;
+	}
+
 	TCContinuation<CTrustedPermissionSubscription> CDistributedActorTrustManager::f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor)
 	{
 		if (!_Actor)
@@ -292,18 +425,13 @@ namespace NMib::NConcurrency
 		
 		TCContinuation<CTrustedPermissionSubscription> Continuation;
 		
-		fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeToPermissions, pState) 
-			> Continuation / [pState, Continuation](NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> &&_Permissions)
-			{
-				CTrustedPermissionSubscription Result;
-				Result.mp_pState = pState;
-				pState->m_pSubscription = &Result;
-				Result.mp_Permissions = fg_Move(_Permissions);
-				
-				Continuation.f_SetResult(fg_Move(Result));
-			}
-		;
-		return Continuation;
+		CTrustedPermissionSubscription Result;
+		Result.mp_pState = pState;
+		pState->m_pSubscription = &Result;
+		Result.mp_Permissions = fp_SubscribeToPermissions(pState);
+		Result.mp_AuthenticationCache = fp_FilterCachedAuthentications(pState);
+
+		return fg_Explicit(fg_Move(Result));
 	}
 	
 	namespace NPrivate
@@ -346,7 +474,11 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved)
+		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_RemovePermissions
+			(
+				CPermissionIdentifiers const &_Identity
+				, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved
+			)
 		{
 			return fg_Dispatch
 				(
@@ -366,6 +498,7 @@ namespace NMib::NConcurrency
 						{
 							if (Permissions.f_Remove(Permission))
 								Removed[Permission];
+							Subscription.mp_AuthenticationCache.f_RemoveAuthenticatedPermission(_Identity, Permission); // Invalidate cached permission
 						}
 						if (Permissions.f_IsEmpty())
 							Subscription.mp_Permissions.f_Remove(_Identity);
@@ -375,11 +508,66 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+
+		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_SetAuthenticatedPermissionPattern
+			(
+				CPermissionIdentifiers const &_Identity
+				, NStr::CStr &&_Pattern
+				, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactors
+			 	, NTime::CTime const &_ExpirationTime
+			 	, NTime::CTime const &_CacheTime
+			)
+		{
+			return g_Dispatch(m_DispatchActor) >
+				[
+					this
+					, _Identity
+					, Pattern = fg_Move(_Pattern)
+					, AuthenticationFactors = fg_Move(_AuthenticationFactors)
+					, _ExpirationTime
+					, _CacheTime
+					, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
+				] () mutable
+				{
+					if (!m_pSubscription)
+						return;
+
+					m_pSubscription->mp_AuthenticationCache.f_SetAuthenticatedPermissionPattern(_Identity, fg_Move(Pattern), fg_Move(AuthenticationFactors), _ExpirationTime, _CacheTime);
+				}
+			;
+		}
+
+		TCDispatchedWeakActorCall<void> CTrustedPermissionSubscriptionState::f_AddAuthenticatedPermission
+			(
+				CPermissionIdentifiers const &_Identity
+				, NStr::CStr const &_Permission
+				, NTime::CTime const &_ExpirationTime
+			 	, NTime::CTime const &_CacheTime
+			)
+		{
+			return g_Dispatch(m_DispatchActor) >
+				[
+					this
+					, _Identity
+					, _Permission
+					, _ExpirationTime
+					, _CacheTime
+					, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
+				] () mutable
+				{
+					if (!m_pSubscription)
+						return;
+
+					m_pSubscription->mp_AuthenticationCache.f_AddAuthenticatedPermission(_Identity, _Permission, _ExpirationTime, _CacheTime);
+				}
+			;
+		}
 	}
-		
+
 	CTrustedPermissionSubscription::CTrustedPermissionSubscription(CTrustedPermissionSubscription &&_Other)
 		: mp_pState(fg_Move(_Other.mp_pState))
 		, mp_Permissions(fg_Move(_Other.mp_Permissions))
+		, mp_AuthenticationCache(fg_Move(_Other.mp_AuthenticationCache))
 	{
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
@@ -391,6 +579,8 @@ namespace NMib::NConcurrency
 		mp_Permissions = fg_Move(_Other.mp_Permissions);
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
+		mp_AuthenticationCache = fg_Move(_Other.mp_AuthenticationCache);
+
 		return *this;
 	}
 	
@@ -437,8 +627,32 @@ namespace NMib::NConcurrency
 		(
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements> &o_RequestedPermissions
+		 	, CPermissionIdentifiers const &_Identity
+		 	, CPermissionIdentifiers const &_FullIdentity
+		 	, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
 		) const
 	{
+		auto fFindAllInGroup = [](NContainer::TCSet<NStr::CStr> const &_Preauthenticated, NContainer::TCSet<NStr::CStr> const &_FactorGroup)
+			{
+				for (auto const &Factor : _FactorGroup)
+				{
+					if (!_Preauthenticated.f_FindEqual(Factor))
+						return false;
+				}
+				return true;
+			}
+		;
+		auto fFindAll = [fFindAllInGroup](NContainer::TCSet<NStr::CStr> const &_Preauthenticated, NContainer::TCSet<NContainer::TCSet<NStr::CStr>> const &_RequiredFactors)
+			{
+				for (auto const &FactorGroup : _RequiredFactors)
+				{
+					if (fFindAllInGroup(_Preauthenticated, FactorGroup))
+						return true;
+				}
+				return false;
+			}
+		;
+
 		EQueryResult Result = EQueryResult_NoPermission;
 		// CAuthenticationInstance Authentication;
 		// Does the host permissions contain a match for any of the permissions in m_Permissions?
@@ -454,7 +668,27 @@ namespace NMib::NConcurrency
 						if (AuthenticationFactors.m_AuthenticationFactors.f_IsEmpty())
 							return EQueryResult_HasPermission; // Matching permission and no authentication factor - no need to look further
 
-						o_RequestedPermissions.f_InsertLast(ICDistributedActorAuthenticationHandler::CPermissionWithRequirements{Permission, AuthenticationFactors.m_AuthenticationFactors});
+						if (_AuthenticationCache.f_HasAuthenticatedPermission(_FullIdentity, AnyPermission, true, AuthenticationFactors.m_MaximumAuthenticationLifetime))
+							return EQueryResult_HasPermission;
+
+						NContainer::TCSet<NStr::CStr> Preauthenticated;
+						if (AuthenticationFactors.m_MaximumAuthenticationLifetime != 0) // Cacheable?
+						{
+							Preauthenticated = _AuthenticationCache.f_HasAuthenticatedPermissionPattern(_FullIdentity, AnyPermission, AuthenticationFactors.m_MaximumAuthenticationLifetime);
+							if (fFindAll(Preauthenticated, AuthenticationFactors.m_AuthenticationFactors))
+								return EQueryResult_HasPermission;
+						}
+						o_RequestedPermissions.f_InsertLast
+							(
+							 	ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
+								{
+									Permission
+									, AuthenticationFactors.m_AuthenticationFactors
+									, AuthenticationFactors.m_MaximumAuthenticationLifetime
+									, Preauthenticated
+								}
+							)
+						;
 						Result = EQueryResult_NeedAuthentication;
 					}
 				}
@@ -470,8 +704,29 @@ namespace NMib::NConcurrency
 					if (pFactors->m_AuthenticationFactors.f_IsEmpty())
 						return EQueryResult_HasPermission; // Matching permission and no authentication factor - no need to look further
 
+					if (_AuthenticationCache.f_HasAuthenticatedPermission(_FullIdentity, AnyPermission, false, pFactors->m_MaximumAuthenticationLifetime))
+						return EQueryResult_HasPermission;
+
+					NContainer::TCSet<NStr::CStr> Preauthenticated;
+					if (pFactors->m_MaximumAuthenticationLifetime != 0) // Cacheable?
+					{
+						Preauthenticated = _AuthenticationCache.f_HasAuthenticatedPermissionPattern(_FullIdentity, AnyPermission, pFactors->m_MaximumAuthenticationLifetime);
+						if (fFindAll(Preauthenticated, pFactors->m_AuthenticationFactors))
+							return EQueryResult_HasPermission;
+					}
+
 					auto &Permission = _Permissions.fs_GetKey(pFactors);
-					o_RequestedPermissions.f_InsertLast(ICDistributedActorAuthenticationHandler::CPermissionWithRequirements{Permission, pFactors->m_AuthenticationFactors});
+					o_RequestedPermissions.f_InsertLast
+						(
+						 	ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
+						 	{
+								Permission
+								, pFactors->m_AuthenticationFactors
+								, pFactors->m_MaximumAuthenticationLifetime
+								, Preauthenticated
+							}
+						)
+					;
 					Result = EQueryResult_NeedAuthentication;
 				}
 			}
@@ -483,11 +738,12 @@ namespace NMib::NConcurrency
 		(
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 			, NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &_AuthenticatedPermissions
+		 	, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
 		) const
 	{
-
 		auto fMatchesRequirements = [&](CPermissionRequirements const &_Requirements, NStr::CStr const &_Permission) -> bool
 			{
+				// Check all permissions in the query and verify the all required authentication factors succeeded
 				auto *pAuthenticatedFactors = _AuthenticatedPermissions.f_FindEqual(_Permission);
 				if (!pAuthenticatedFactors)
 					return false;
@@ -496,16 +752,25 @@ namespace NMib::NConcurrency
 				{
 					bool bFoundAll = true;
 					for (auto const &NeededFactor : NeededFactors)
-						bFoundAll &= !!pAuthenticatedFactors->f_FindEqual(NeededFactor);
+					{
+						if (!pAuthenticatedFactors->f_FindEqual(NeededFactor))
+						{
+							bFoundAll = false;
+							break;
+						}
+					}
 
 					if (bFoundAll)
+					{
+						o_AuthenticatedPermissions[_Permission] = _Requirements.m_MaximumAuthenticationLifetime;
 						return true;
+					}
 				}
 				return false;
 			}
 		;
 
-		// This function basically does the same job as the one above, but instead of adding authentication factors that are needed, we check if the authenitcationhas succeeded
+		// This function basically does the same job as the one above, but instead of adding authentication factors that are needed we check if the authentication has succeeded
 		if (m_bIsWildcard)
 		{
 			for (auto &Requirements : _Permissions)
@@ -557,12 +822,14 @@ namespace NMib::NConcurrency
 		CPermissionQuery::EQueryResult Result = CPermissionQuery::EQueryResult_NeedAuthentication;
 		bool bFoundMatchingPermission = false;
 
+		CPermissionIdentifiers FullIdentity(_CallingHostInfo.f_GetRealHostID(), _CallingHostInfo.f_GetClaimedUserID());
+
 		NContainer::TCVector<CHandler::CPermissionWithRequirements> RequestedPermissions;
 		for (auto const &Identity : _IdentityPowerSet)
 		{
 			if (auto pPermissions = mp_Permissions.f_FindEqual(Identity))
 			{
-				switch (_Permission.f_MatchesPermission(*pPermissions, RequestedPermissions))
+				switch (_Permission.f_MatchesPermission(*pPermissions, RequestedPermissions, Identity, FullIdentity, mp_AuthenticationCache))
 				{
 				case CPermissionQuery::EQueryResult_NoPermission:
 					// Couldn't find a matching permission, but we have to check all the host/user combos in the power set before we know we will not find a matching permission
@@ -649,8 +916,16 @@ namespace NMib::NConcurrency
 		auto const &UserID = _CallingHostInfo.f_GetClaimedUserID();
 		auto const &HostID = _CallingHostInfo.f_GetRealHostID();
 
+		DMibCheck(HostID);
+		if (!UserID)
+			return DMibErrorInstance("Cannot authenticate without user");
+
+		CPermissionIdentifiers FullIdentity(HostID, UserID);
+
+		auto CacheTime = NTime::CTime::fs_NowUTC();
+
 		auto Challenge = CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(UserID);
-		DMibCallActor(AuthenticationHandler, CHandler::f_AuthenticateCommand, _Request, UserID, Challenge) > [=]
+		DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, _Request, UserID, Challenge, "") > [=]
 			(TCAsyncResult<NContainer::TCVector<CHandler::CResponse>> &&_Responses)
 			{
 				if (!_Responses)
@@ -663,7 +938,7 @@ namespace NMib::NConcurrency
 					> Continuation / [=](NContainer::TCVector<bool> &&_VerificationResults)
 					{
 						auto &Responses = *_Responses;
-
+						NTime::CTime ExpirationTime;
 						DMibCheck(_VerificationResults.f_GetLen() == Responses.f_GetLen());
 
 						// Collect all permissions that have been authenticated to avoid linear lookup in the inner most loop.
@@ -678,9 +953,26 @@ namespace NMib::NConcurrency
 									continue;
 
 								auto &Response = *iResponse;
+								if (ExpirationTime.f_IsValid())
+									ExpirationTime = fg_Min(ExpirationTime, Response.m_ExpirationTime);
+								else
+									ExpirationTime = Response.m_ExpirationTime;
 
 								for (auto const &Permission : Response.m_Permissions)
 									Succeeded[Permission][Response.m_FactorName];
+							}
+						}
+
+						// Also add the preauthenticated factors that we didn't ask for - this is simplifies the matching
+						//
+						// If the preauthenticated pattern expired while we were collecting needed permissions for the command and we have some instances of a permission
+						// that uses the preathenticated pattern and some that do not, this operation could miss a failed authentication.
+						for (auto const &PermissionGroup : _Request.m_RequestedPermissions)
+						{
+							for (auto const &PermissionWithRequirements : PermissionGroup)
+							{
+								for (auto const &Preauthenticated : PermissionWithRequirements.m_Preauthenticated)
+									Succeeded[PermissionWithRequirements.m_Permission][Preauthenticated];
 							}
 						}
 
@@ -693,9 +985,20 @@ namespace NMib::NConcurrency
 							bool bFoundOne = false;
 							for (auto const &Identity : IdentitiesPowerSet)
 							{
-								if (auto pPermissions = mp_Permissions.f_FindEqual(Identity); pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded))
+								auto *pPermissions = mp_Permissions.f_FindEqual(Identity);
+								NContainer::TCMap<NStr::CStr, int64> AuthenticatedPermissions;
+								if (pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded, AuthenticatedPermissions))
 								{
 									bFoundOne = true;
+									TrustManager
+										(
+											&CDistributedActorTrustManager::f_UpdateAuthenticationCache
+											, FullIdentity
+											, fg_Move(AuthenticatedPermissions)
+											, ExpirationTime
+										 	, CacheTime
+										) > fg_DiscardResult()
+									;
 									break;
 								}
 							}
@@ -812,11 +1115,18 @@ namespace NMib::NConcurrency
 
 		auto const &HostID = _CallingHostInfo.f_GetRealHostID();
 		auto const &UserID = _CallingHostInfo.f_GetClaimedUserID();
+
+		if (!UserID)
+			return DMibErrorInstance("Cannot authenticate without user");
+
+		CPermissionIdentifiers FullIdentity(HostID, UserID);
+
 		CHandler::CChallenge Challenge = CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(UserID);
+		auto CacheTime = NTime::CTime::fs_NowUTC();
 
 		TCContinuation<NContainer::TCMap<NStr::CStr, bool>> Continuation;
-		DMibCallActor(AuthenticationHandler, CHandler::f_AuthenticateCommand, Request, UserID, Challenge)
-			> [this, Continuation, Challenge, HostID, UserID, Results = fg_Move(Results), TrustManager = mp_pState->m_TrustManager.f_Lock(), _NamedPermissionQueries, Request]
+		DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, Request, UserID, Challenge, "")
+			> [=, Results = fg_Move(Results), TrustManager = mp_pState->m_TrustManager.f_Lock()]
 			(TCAsyncResult<NContainer::TCVector<CHandler::CResponse>> &&_Responses) mutable
 			{
 				if (!_Responses)
@@ -827,10 +1137,10 @@ namespace NMib::NConcurrency
 				}
 
 				TrustManager(&CDistributedActorTrustManager::f_VerifyAuthenticationResponses, Challenge, Request, *_Responses, UserID)
-					> Continuation / [this, Continuation, Results = fg_Move(Results), _NamedPermissionQueries, _Responses, HostID, UserID]
-					(NContainer::TCVector<bool> &&_VerificationResults) mutable
+					> Continuation / [=, Results = fg_Move(Results)](NContainer::TCVector<bool> &&_VerificationResults) mutable
 					{
 						auto &Responses = *_Responses;
+						NTime::CTime ExpirationTime;
 
 						DMibCheck(_VerificationResults.f_GetLen() == Responses.f_GetLen());
 
@@ -846,9 +1156,26 @@ namespace NMib::NConcurrency
 									continue;
 
 								auto &Response = *iResponse;
+								if (ExpirationTime.f_IsValid())
+									ExpirationTime = fg_Min(ExpirationTime, Response.m_ExpirationTime);
+								else
+									ExpirationTime = Response.m_ExpirationTime;
 
 								for (auto const &Permission : Response.m_Permissions)
 									Succeeded[Permission][Response.m_FactorName];
+							}
+						}
+
+						// Also add the preauthenticated factors that we didn't ask for - this is simplifies the matching
+						//
+						// If the preauthenticated pattern expired while we were collecting needed permissions for the command and we have some instances of a permission
+						// that uses the preathenticated pattern and some that do not, this operation could miss a failed authentication.
+						for (auto const &PermissionGroup : Request.m_RequestedPermissions)
+						{
+							for (auto const &PermissionWithRequirements : PermissionGroup)
+							{
+								for (auto const &Preauthenticated : PermissionWithRequirements.m_Preauthenticated)
+									Succeeded[PermissionWithRequirements.m_Permission][Preauthenticated];
 							}
 						}
 
@@ -869,9 +1196,20 @@ namespace NMib::NConcurrency
 								bool bFoundOne = false;
 								for (auto const &Identity : IdentitiesPowerSet)
 								{
-									if (auto pPermissions = mp_Permissions.f_FindEqual(Identity); pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded))
+									auto pPermissions = mp_Permissions.f_FindEqual(Identity);
+									NContainer::TCMap<NStr::CStr, int64> AuthenticatedPermissions;
+									if (pPermissions && AllPermissions.f_MatchesAuthentication(*pPermissions, Succeeded, AuthenticatedPermissions))
 									{
 										bFoundOne = true;
+										TrustManager
+											(
+												&CDistributedActorTrustManager::f_UpdateAuthenticationCache
+												, FullIdentity
+												, fg_Move(AuthenticatedPermissions)
+											 	, ExpirationTime
+											 	, CacheTime
+											) > fg_DiscardResult()
+										;
 										break;
 									}
 								}
@@ -918,7 +1256,7 @@ namespace NMib::NConcurrency
 		mp_pState->m_fOnPermissionsRemoved = fg_Move(_fOnPermissionsRemoved);
 	}
 
-	TCContinuation<NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>>> CDistributedActorTrustManager::fp_SubscribeToPermissions
+	NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> CDistributedActorTrustManager::fp_SubscribeToPermissions
 		(
 			NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 		)
@@ -951,10 +1289,66 @@ namespace NMib::NConcurrency
 				ReturnPermissions[Identity] += Permissions;
 			}
 		}
-		
-		return fg_Explicit(fg_Move(ReturnPermissions));
+
+		return fg_Move(ReturnPermissions);
 	}
-	
+
+	CDistributedActorTrustManagerAuthenticationCache CDistributedActorTrustManager::fp_FilterCachedAuthentications
+		(
+			NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+		)
+	{
+		auto Now = NTime::CTime::fs_NowUTC();
+		auto &Internal = *mp_pInternal;
+		CDistributedActorTrustManagerAuthenticationCache ReturnCache;
+		auto &AuthenticatedPermissions = Internal.m_AuthenticationCache.mp_AuthenticatedPermissions;
+		for (auto &Permissions : AuthenticatedPermissions)
+		{
+			NContainer::TCSet<NStr::CStr> ExpiredPermissions;
+			for (auto const &CacheLifetimes : Permissions)
+			{
+				if (CacheLifetimes.m_ExpirationTime < Now)
+					continue;
+
+				auto const &Permission = Permissions.fs_GetKey(CacheLifetimes);
+				for (auto &Wildcard : _pState->m_Wildcards)
+				{
+					if (NStr::fg_StrMatchWildcard(Permission.f_GetStr(), Wildcard.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+						continue;
+
+					ReturnCache.mp_AuthenticatedPermissions[AuthenticatedPermissions.fs_GetKey(Permissions)][Permission] = CacheLifetimes;
+					break;
+				}
+			}
+		}
+
+		auto &Preauthenticated = Internal.m_AuthenticationCache.mp_PreauthenticatedPatterns;
+		for (auto &PermissionPatterns : Preauthenticated)
+		{
+			NContainer::TCSet<NStr::CStr> EmptyPatterns;
+			for (auto &Factors : PermissionPatterns)
+			{
+				NContainer::TCSet<NStr::CStr> ExpiredFactors;
+				auto const &Pattern = PermissionPatterns.fs_GetKey(Factors);
+				for (auto &Wildcard : _pState->m_Wildcards)
+				{
+					// Note that the subscription wildcard is on the left side in the matching
+					if (NStr::fg_StrMatchWildcard(Wildcard.f_GetStr(), Pattern.f_GetStr()) != NStr::EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
+						continue;
+				}
+
+				NContainer::TCSet<NStr::CStr> ExpiredPermissions;
+				for (auto &CacheLifetimes : Factors)
+				{
+					if (CacheLifetimes.m_ExpirationTime >= Now)
+						ReturnCache.mp_PreauthenticatedPatterns[Preauthenticated.fs_GetKey(PermissionPatterns)][Pattern][Factors.fs_GetKey(CacheLifetimes)] = CacheLifetimes;
+				}
+			}
+		}
+
+		return fg_Move(ReturnCache);
+	}
+
 	void CDistributedActorTrustManager::fp_UnsubscribeToPermissions(NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
 	{
 		_pState->m_DispatchActor.f_Clear();

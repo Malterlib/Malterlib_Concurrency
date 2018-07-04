@@ -23,6 +23,13 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_UserID
 			) = 0
 		;
+		virtual TCContinuation<bool> f_AuthenticatePermissionPattern
+			(
+				NStr::CStr const &_Pattern
+				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
+			 	, NStr::CStr const &_RequestID
+			) = 0
+		;
 	};
 }
 

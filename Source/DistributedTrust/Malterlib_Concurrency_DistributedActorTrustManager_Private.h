@@ -51,6 +51,23 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCDispatchedWeakActorCall<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded);
 		TCDispatchedWeakActorCall<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
+		TCDispatchedWeakActorCall<void> f_SetAuthenticatedPermissionPattern
+			(
+				CPermissionIdentifiers const &_Identity
+				, NStr::CStr &&_Pattern
+				, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactors
+				, NTime::CTime const &_ExpirationTime
+			 	, NTime::CTime const &_CacheTime
+			)
+		;
+		TCDispatchedWeakActorCall<void> f_AddAuthenticatedPermission
+			(
+				CPermissionIdentifiers const &_Identity
+				, NStr::CStr const &_Permission
+				, NTime::CTime const &_ExpirationTime
+			 	, NTime::CTime const &_CacheTime
+			)
+		;
 	};
 }
 

@@ -6,7 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Core/RuntimeType>
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/DistributedActorAuthenticationHandler>
+#include <Mib/Concurrency/DistributedActor>
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationData.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 
@@ -29,16 +29,17 @@ namespace NMib::NConcurrency
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
 		virtual TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
-		virtual TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+		virtual TCContinuation<NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
 				, NContainer::TCSet<NStr::CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
 			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) = 0
 		;
-		virtual TCContinuation<bool> f_VerifyResponse
+		virtual TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

@@ -12,7 +12,6 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
-#include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 #include <Mib/Network/SSLKeySetting>
 #include <Mib/Web/WebSocket>
 
@@ -26,7 +25,8 @@ namespace NMib
 		struct CActorDistributionManager;
 		struct CDistributedActorPublication;
 		struct CDistributedActorProtocolVersions;
-		
+		struct ICDistributedActorAuthenticationHandler;
+
 		template <typename t_CActor>
 		struct TCDistributedActorWrapper;
 		
@@ -716,5 +716,6 @@ namespace NMib
 
 #include "Malterlib_Concurrency_DistributedActor_Private.h"
 #include "Malterlib_Concurrency_DistributedActor_Stream.h"
+#include "Malterlib_Concurrency_DistributedActor_AuthenticationHandler.h"
 #include "Malterlib_Concurrency_DistributedActor.hpp"
 

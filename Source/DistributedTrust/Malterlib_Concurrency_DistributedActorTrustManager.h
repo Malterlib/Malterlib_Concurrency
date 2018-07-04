@@ -10,6 +10,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Interface.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Proxy.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationCache.h"
 #include <Mib/Concurrency/ActorFunctor>
 #include <Mib/Storage/Optional>
 
@@ -18,6 +19,7 @@ namespace NMib::NConcurrency
 	struct CCommandLineControl;
 	class CDistributedActorTrustManager;
 	struct CAuthenticationActorInfo;
+	struct CDistributedActorTrustManagerAuthenticationCache;
 	
 	struct CTrustedActorInfo
 	{
@@ -87,12 +89,16 @@ namespace NMib::NConcurrency
 			(
 				NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 				, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements> &o_RequestedPermissions
+			 	, CPermissionIdentifiers const &_Identity
+			 	, CPermissionIdentifiers const &_FullIdentity
+			 	, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
 			) const
 		;
 		bool f_MatchesAuthentication
 			(
 				NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 				, NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &_AuthenticatedPermissions
+			 	, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
 			) const
 		;
 
@@ -189,6 +195,7 @@ namespace NMib::NConcurrency
 		
 		NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> mp_Permissions;
+		mutable CDistributedActorTrustManagerAuthenticationCache mp_AuthenticationCache;
 	};
 	
 	class CDistributedActorTrustManager : public NConcurrency::CActor
@@ -364,6 +371,15 @@ namespace NMib::NConcurrency
 			) const
 		;
 
+		TCContinuation<void> f_UpdateAuthenticationCache
+			(
+				CPermissionIdentifiers const &_Identify
+				, NContainer::TCSet<NStr::CStr> &&_AuthenticatedPermissions
+				, NTime::CTime const &_ExpirationTime
+				, NTime::CTime const &_CacheTime
+			)
+		;
+
 		// Handle renewal of certificates
 		
 	private:
@@ -381,7 +397,12 @@ namespace NMib::NConcurrency
 			-> TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
 		;
 		void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
-		TCContinuation<NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>>> fp_SubscribeToPermissions
+		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> fp_SubscribeToPermissions
+			(
+				NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+			)
+		;
+		CDistributedActorTrustManagerAuthenticationCache fp_FilterCachedAuthentications
 			(
 				NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 			)

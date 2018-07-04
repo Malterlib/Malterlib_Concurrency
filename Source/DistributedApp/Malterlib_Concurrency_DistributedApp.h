@@ -145,6 +145,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_UserID
 				, NStr::CStr const &_Permission
 				, NEncoding::CEJSON const &_AuthenticationFactors
+				, int64 _AuthenticationLifetime
 			)
 		;
 		TCContinuation<uint32> f_CommandLine_RemovePermission
@@ -170,6 +171,7 @@ namespace NMib::NConcurrency
 		TCContinuation<uint32> f_CommandLine_UnregisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
 		TCContinuation<uint32> f_CommandLine_EnumUserAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
 		TCContinuation<uint32> f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_AuthenticatePermissionPattern(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
 
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 
@@ -197,8 +199,8 @@ namespace NMib::NConcurrency
 		;
 
 		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
-        virtual TCContinuation<void> fp_SetupAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
-        TCContinuation<void> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+        virtual TCContinuation<CActorSubscription> fp_SetupAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime);
+        TCContinuation<CActorSubscription> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime);
 
 #if DMibConfig_Tests_Enable
 		virtual TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
@@ -283,9 +285,15 @@ namespace NMib::NConcurrency
 
 		bool mp_bDelegateTrustToAppInterface = false;
 	protected:
+		struct CRegisteredAuthentication
+		{
+			CTrustedActorInfo m_ActorInfo;
+			CActorSubscription m_Subscription;
+		};
+
 		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
-		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CActorSubscription> mp_AuthenticationRegistrationSubscriptions;
+		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> mp_AuthenticationRegistrationSubscriptions;
 	};
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);

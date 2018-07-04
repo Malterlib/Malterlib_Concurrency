@@ -5,7 +5,7 @@
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
-
+#include <Mib/Concurrency/Actor/Timer>
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
@@ -189,11 +189,16 @@ namespace NMib
 			}
 			
 			CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-		
+
+			int64 AuthenticationLifetime = ValidatedParams["AuthenticationLifetime"].f_Integer();
+			if (AuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet && _Command == "--trust-user-authenticate-pattern")
+				AuthenticationLifetime = CPermissionRequirements::mc_DefaultMaximumLifetime;
+
 			TCContinuation<uint32> Continuation;
-			fp_SetupAuthentication(_pCommandLine) > Continuation / [=]
+			fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
 				{
-					fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=]()
+					CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
+					fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
 						{
 							auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
 							
@@ -214,7 +219,12 @@ namespace NMib
 							try
 							{
 								CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-								Command.m_fActorRunCommand(ValidatedParams, _pCommandLine) > Continuation;
+								Command.m_fActorRunCommand(ValidatedParams, _pCommandLine)
+									> Continuation / [Continuation, AuthenticationSubscription = fg_Move(AuthenticationSubscription)](uint32 &&_Result)
+									{
+										Continuation.f_SetResult(_Result);
+									}
+								;
 							}
 							catch (NException::CException const &_Exception)
 							{
@@ -222,7 +232,7 @@ namespace NMib
 								return;
 							}
 						}
-			;
+					;
 				}
 			;
 			
@@ -980,6 +990,7 @@ namespace NMib
 				, NStr::CStr const &_UserID
 				, NStr::CStr const &_Permission
 				, CEJSON const &_AuthenticationFactors
+				, int64 _AuthenticationLifetime
 			)
 		{
 			if (_HostID.f_IsEmpty() && _UserID.f_IsEmpty())
@@ -1331,6 +1342,122 @@ namespace NMib
 			return Continuation;
 		}
 
+		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+		{
+			TCContinuation<uint32> Continuation;
+
+			CStr Pattern = _Params["Pattern"].f_String();
+			bool bJSONOutput = _Params["JSONOutput"].f_Boolean();
+
+			TCSet<CStr> Factors;
+			CEJSON const &AuthenticationFactors = _Params["AuthenticationFactors"];
+			if (AuthenticationFactors.f_IsString())
+				Factors[AuthenticationFactors.f_String()];
+			else
+			{
+				for (auto &Factor : AuthenticationFactors.f_Array())
+					Factors[Factor.f_String()];
+			}
+
+			struct CAuthenticationActorInfo
+			{
+				TCDistributedActor<ICDistributedActorAuthentication> m_Actor;
+				CStr m_RemoteHostID;
+				CStr m_Description;
+			};
+
+			TCVector<CAuthenticationActorInfo> AuthenticationActors;
+			for (auto const &RegisteredAuthentication : mp_AuthenticationRegistrationSubscriptions)
+			{
+				auto const &WeakActor = mp_AuthenticationRegistrationSubscriptions.fs_GetKey(RegisteredAuthentication);
+
+				auto Actor = WeakActor.f_Lock();
+				if (!Actor)
+					continue;
+				AuthenticationActors.f_Insert({Actor, RegisteredAuthentication.m_ActorInfo.m_HostInfo.m_HostID, RegisteredAuthentication.m_ActorInfo.m_HostInfo.f_GetDesc()});
+			}
+
+			mp_AuthenticationHandlerImplementation(&ICDistributedActorAuthenticationHandler::f_GetMultipleRequestSubscription, AuthenticationActors.f_GetLen())
+				> Continuation / [=](ICDistributedActorAuthenticationHandler::CMultipleRequestData &&_MultipleRequestData) mutable
+				{
+					TCActorResultVector<bool> Results;
+					for (auto const &AuthenticationActorInfo : AuthenticationActors)
+					{
+						DMibCallActor
+							(
+							 	AuthenticationActorInfo.m_Actor
+							 	, ICDistributedActorAuthentication::f_AuthenticatePermissionPattern
+							 	, Pattern
+							 	, Factors
+							 	, _MultipleRequestData.m_ID
+							)
+							.f_Timeout(10.0, "Timeout wating for manager to reply")
+							> Results.f_AddResult()
+						;
+					}
+
+					Results.f_GetResults() > Continuation / [=, MultipleRequestSubscription = fg_Move(_MultipleRequestData.m_Subscription)](TCVector<TCAsyncResult<bool>> &&_Results)
+						{
+							aint ReturnValue = 0;
+							DMibCheck(AuthenticationActors.f_GetLen() == _Results.f_GetLen());
+
+							CEJSON JSONOutput;
+
+							if (bJSONOutput)
+								JSONOutput["AuthenticationFailures"] = EJSONType_Array;
+
+							auto iAuthenticationActorInfo = AuthenticationActors.f_GetIterator();
+							for (auto &Result : _Results)
+							{
+								auto &AuthenticationActorInfo = *iAuthenticationActorInfo;
+								++iAuthenticationActorInfo;
+
+								if (!Result)
+								{
+									if (bJSONOutput)
+									{
+										JSONOutput["AuthenticationFailures"].f_Array().f_Insert() =
+											{
+												"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
+												, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description
+												, "Exception"_= Result.f_GetExceptionStr()
+											}
+										;
+									}
+									else
+										*_pCommandLine %= "[{}] Failed authenticate pattern. Exception: {}\n"_f << AuthenticationActorInfo.m_Description << Result.f_GetExceptionStr();
+
+									ReturnValue = 1;
+									continue;
+								}
+
+								if (!*Result)
+								{
+									if (bJSONOutput)
+									{
+										JSONOutput["AuthenticationFailures"].f_Array().f_Insert() =
+											{
+												"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
+												, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description
+											}
+										;
+									}
+									else
+										*_pCommandLine %= "[{}] Failed to authenticate.\n"_f << AuthenticationActorInfo.m_Description;
+									ReturnValue = 1;
+								}
+							}
+							if (bJSONOutput)
+								*_pCommandLine %= JSONOutput.f_ToString();
+
+							Continuation.f_SetResult(ReturnValue);
+						}
+					;
+				}
+			;
+			return Continuation;
+		}
+
 		TCContinuation<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 			(
 				CStr const &_Description
@@ -1390,6 +1517,18 @@ namespace NMib
 				)
 			;
 #endif
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"AuthenticationLifetime?"_=
+						{
+							"Names"_= {"--authentication-lifetime"}
+							,"Default"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
+							, "Description"_= "The number of minutes until the authentication expires when cached"
+						}
+					}
+				)
+			;
 			{
 				auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "Use these commands to manage connectability and trust between different hosts.");
 
@@ -1413,9 +1552,9 @@ namespace NMib
 					{
 						"Names"_= {"--authentication-factors"}
 						, "Type"_= COneOfType{CEJSON({CEJSON({""})}), CEJSON({""}), CEJSON{""}}
-						, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a JSON array of arrays:\n"
-							"[[\"Factor1\"]]                                    - must authenticate by Factor1\n"
-							"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2\n"
+						, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
+							"\"Factor1\"                                        - must authenticate by Factor1\n"
+							"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2\n"
 							"[[\"Factor1\"], [\"Factor2\"]]                       - must authenticate by Factor1 and Factor2\n"
 							"[[\"Factor1\", \"Factor2\"], [\"Factor1\", \"Factor3\"]] - must authenticate by Factor1 and either Factor2 or Factor3.\n"
 					}
@@ -1999,6 +2138,12 @@ namespace NMib
 									, "Type"_= ""
 									, "Description"_= "The user to add the permission to."
 								}
+								, "MaxLifetime?"_=
+								{
+									"Names"_= {"--max-lifetime"}
+									,"Default"_= CPermissionRequirements::mc_DefaultMaximumLifetime
+									, "Description"_= "The maximum number of minutes that a cached authentication can be used for this granted permission"
+								}
 								, PermissionUserAuthenticationFactorsOption
 							}
 						}
@@ -2018,15 +2163,8 @@ namespace NMib
 										CEJSON AuthenticationFactors;
 										if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
 											AuthenticationFactors = pValue->f_Array();
-										return f_CommandLine_AddPermission
-											(
-												_pCommandLine
-												, HostID
-												, UserID
-												, _Params["Permission"].f_String()
-											 	, AuthenticationFactors
-											)
-										;
+										int64 Lifetime = _Params["MaxLifetime"].f_Integer();
+										return f_CommandLine_AddPermission(_pCommandLine, HostID, UserID, _Params["Permission"].f_String(), AuthenticationFactors, Lifetime);
 									}
 								)
 							;
@@ -2420,6 +2558,44 @@ namespace NMib
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return f_CommandLine_EnumUserAuthenticationFactors(_pCommandLine, _Params["UserID"].f_String());
+						}
+					)
+				;
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-user-authenticate-pattern"}
+							, "Category"_= Category
+							, "Description"_= "Give advance authentication for all permissions that matches the pattern.\n"
+							, "Options"_=
+							{
+								"AuthenticationFactors"_=
+								{
+									"Names"_= {"--authentication-factors"}
+									, "Type"_= COneOfType{CEJSON({""}), CEJSON{""}}
+									, "Description"_= "The factor(s) used for authentication.\n"
+									"Authenticate these factors in advance.\n"
+								}
+								, "JSONOutput?"_=
+								{
+									"Names"_= {"--json-output"}
+									, "Default"_= false
+									, "Description"_= "Return authentication failures/successes in EJSON format."
+								}
+							}
+							, "Parameters"_=
+							{
+								"Pattern"_=
+								{
+									"Type"_= ""
+									, "Description"_= "Pattern for matching permissions.\n"
+									"All permissions matching this pattern will preauthenticated with the listed factors\n"
+								}
+							}
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_AuthenticatePermissionPattern(_pCommandLine, _Params);
 						}
 					)
 				;

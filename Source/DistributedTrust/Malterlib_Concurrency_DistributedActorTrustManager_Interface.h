@@ -211,6 +211,7 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<CHostInfo> m_HostInfo;
 			NStorage::TCOptional<CUserInfo> m_UserInfo;
 			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
+			int64 m_MaximumAuthenticationLifetime = -1;
 		};
 
 		struct CEnumPermissionsResult

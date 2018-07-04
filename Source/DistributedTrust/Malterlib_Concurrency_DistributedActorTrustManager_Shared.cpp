@@ -106,6 +106,19 @@ namespace NMib::NConcurrency
 		return Result;
 	}
 
+	TCVector<CPermissionIdentifiers> CPermissionIdentifiers::fs_GetPowerSet(CPermissionIdentifiers const &_Identify)
+	{
+		TCVector<CPermissionIdentifiers> Result{_Identify};
+		auto HostID = _Identify.f_GetHostID();
+		auto UserID = _Identify.f_GetUserID();
+		if (HostID != ms_EmptyID && UserID != ms_EmptyID)
+		{
+			Result.f_Insert(CPermissionIdentifiers(HostID, ""));
+			Result.f_Insert(CPermissionIdentifiers("", UserID));
+		}
+		return Result;
+	}
+
 	NStr::CStr CPermissionIdentifiers::f_GetStr() const
 	{
 		NStr::CStr FileName;
@@ -164,7 +177,7 @@ namespace NMib::NConcurrency
 
 	bool CPermissionRequirements::operator == (CPermissionRequirements const &_Right) const
 	{
-		return m_AuthenticationFactors == _Right.m_AuthenticationFactors;
+		return m_AuthenticationFactors == _Right.m_AuthenticationFactors && m_MaximumAuthenticationLifetime == _Right.m_MaximumAuthenticationLifetime;
 	}
 }
 

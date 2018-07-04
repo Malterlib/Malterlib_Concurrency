@@ -26,16 +26,17 @@ namespace NMib::NConcurrency
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, TCSet<CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
+			 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) override
 		;
-		TCContinuation<bool> f_VerifyResponse
+		TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -117,18 +118,17 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_AuthenticateCommand
+	TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
 		(
 			NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
 			, TCSet<CStr> const &_Permissions
-			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+			, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
 			, TCMap<CStr, CAuthenticationData> &&_Factors
+			, NTime::CTime const &_ExpirationTime
 		)
 	{
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
-		if (!_Challenge.m_UserID)
-			return fg_Explicit();
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
 
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
@@ -136,68 +136,71 @@ namespace NMib::NConcurrency
 		auto TrustManager = m_TrustManager.f_Lock();
 		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Continuation / [=, Factors = fg_Move(_Factors)](CStrSecure &&_Password) mutable
 			{
-				TCActorResultVector<ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
+				TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
-				for (auto const &Factor : Factors)
+				for (auto const &Challenge : _Challenges)
 				{
-					fg_ConcurrentDispatch
-						(
-							[Factor, _Password, FactorID = Factors.fs_GetKey(Factor), _Challenge, _Permissions]() -> ICDistributedActorAuthenticationHandler::CResponse
-							{
-								ICDistributedActorAuthenticationHandler::CResponse Response;
-								auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
-								if (!pKey)
-									return {};
-								auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
-								if (!pPasswordSalt)
-									return {};
-								auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
-								if (!pExpansionSalt)
-									return {};
-
-								CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary();
-								CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary();
-								CSecureByteVector EncyptedPrivateKey = pKey->f_Binary();
-								CBinaryStreamMemoryPtr<> Stream;
-								Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
-								CKeyExpansion KeyExpansion{_Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
-								NException::CDisableExceptionTraceScope Disable;
-								try
-								{
-									CSecureByteVector PrivateKeyData;
-									{
-										TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
-										EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
-										EncryptedStream >> PrivateKeyData;
-									}
-									// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
-									CSecureByteVector Signature = CSSLContext::fs_SignMessage(_Challenge.m_ChallengeData, PrivateKeyData);
-									return {_Permissions, _Challenge, FactorID, Factor.m_Name, Signature};
-								}
-								catch (CExceptionCryptography const &_Exception)
-								{
-									// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
-									if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
-										return {};
-									throw;
-								}
-							}
-						) > AuthenticationResults.f_AddResult();
-					;
-				}
-
-				AuthenticationResults.f_GetResults() > Continuation / [Continuation](TCVector<TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
+					for (auto const &Factor : Factors)
 					{
+						fg_ConcurrentDispatch
+							(
+								[Factor, _Password, FactorID = Factors.fs_GetKey(Factor), Challenge, _Permissions, _ExpirationTime]() -> ICDistributedActorAuthenticationHandler::CResponse
+								{
+									ICDistributedActorAuthenticationHandler::CResponse Response;
+									auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
+									if (!pKey)
+										return {};
+									auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
+									if (!pPasswordSalt)
+										return {};
+									auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
+									if (!pExpansionSalt)
+										return {};
+
+									CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary();
+									CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary();
+									CSecureByteVector EncyptedPrivateKey = pKey->f_Binary();
+									CBinaryStreamMemoryPtr<> Stream;
+									Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
+									CKeyExpansion KeyExpansion{_Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
+									NException::CDisableExceptionTraceScope Disable;
+									try
+									{
+										CSecureByteVector PrivateKeyData;
+										{
+											TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
+											EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
+											EncryptedStream >> PrivateKeyData;
+										}
+										// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
+										CSecureByteVector Signature = CSSLContext::fs_SignMessage(Challenge.m_ChallengeData, PrivateKeyData);
+										return {_Permissions, Challenge, FactorID, Factor.m_Name, Signature, _ExpirationTime};
+									}
+									catch (CExceptionCryptography const &_Exception)
+									{
+										// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
+										if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
+											return {};
+										throw;
+									}
+								}
+							 ) > AuthenticationResults.f_AddResult(TCTuple<CStr, CStr>{_Challenges.fs_GetKey(Challenge), Factors.fs_GetKey(Factor)});
+						;
+					}
+				}
+				AuthenticationResults.f_GetResults() > Continuation / [Continuation](TCMap<TCTuple<CStr, CStr>, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
+					{
+						TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
 						for (auto const &Response : _Results)
 						{
 							if (!Response)
 								DMibLogWithCategory(Malterlib/Concurrency/AuthenticationActorPassword, Info, "Unhandled exception: {}", Response.f_GetExceptionStr());
 							if (Response->m_ResponseData.f_IsEmpty())
 								continue;
-							return Continuation.f_SetResult(*Response);
-
+							Results[fg_Get<0>(_Results.fs_GetKey(Response))] = *Response;
+							// No early out, must collect all valid results
 						}
-						Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+						Continuation.f_SetResult(Results);
 					}
 				;
 			}
@@ -205,7 +208,7 @@ namespace NMib::NConcurrency
 		return Continuation;
 	};
 
-	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyResponse
+	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
 		(
 			ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

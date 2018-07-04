@@ -1155,6 +1155,7 @@ namespace NMib
 			for (auto &AuthenticationFactors : _Permissions.m_Permissions)
 			{
 				auto &RequiredFactors = PermissionsObject[_Permissions.m_Permissions.fs_GetKey(AuthenticationFactors)] = EJSONType_Object;
+				RequiredFactors["MaximumAuthenticationLifetime"] = AuthenticationFactors.m_MaximumAuthenticationLifetime;
 				auto &Factors = RequiredFactors["RequiredAuthenticationFactors"].f_Array();
 				for (auto const &InnerSet : AuthenticationFactors.m_AuthenticationFactors)
 				{
@@ -1177,6 +1178,9 @@ namespace NMib
 				{
 					CPermissionRequirements AuthenticationFactors;
 					auto &FactorsObject = Permission.f_Value().f_Object();
+					if (auto pValue = FactorsObject.f_GetMember("MaximumAuthenticationLifetime"))
+						AuthenticationFactors.m_MaximumAuthenticationLifetime = pValue->f_Integer();
+
 					auto pValue = FactorsObject.f_GetMember("RequiredAuthenticationFactors");
 					for (auto &Inner :  pValue->f_Array())
 					{

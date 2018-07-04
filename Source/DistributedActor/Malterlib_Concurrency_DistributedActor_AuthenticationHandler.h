@@ -24,11 +24,16 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
+			bool operator < (CPermissionWithRequirements const &_Right) const;
+			bool operator == (CPermissionWithRequirements const &_Right) const;
 
 			NStr::CStr m_Permission;
-			// This permission can be authenticated by any of the factor collections in the outer set. For example
+			// This permission can be authenticated by any of the factor groups in the outer set. For example
 			// {{ "Factor1", "Factor2"}, { "Factor1", "Factor3"}} can be authenticated by Factor1 and either Factor2 or Factor3
 			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
+			int64 m_MaximumAuthenticationLifetime = -1;
+			// Avoid asking for authentication for those that have been preauthenticated
+			NContainer::TCSet<NStr::CStr> m_Preauthenticated;
 		};
 
 		struct CRequest
@@ -37,6 +42,8 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
+			bool operator < (CRequest const &_Right) const;
+			bool operator == (CRequest const &_Right) const;
 
 			NStr::CStr m_Description;
 
@@ -81,15 +88,27 @@ namespace NMib::NConcurrency
 			NStr::CStr m_FactorID;
 			NStr::CStr m_FactorName;
 			NContainer::TCVector<uint8> m_ResponseData;
+			NTime::CTime m_ExpirationTime;
 		};
 
-		virtual TCContinuation<NContainer::TCVector<CResponse>> f_AuthenticateCommand
+		struct CMultipleRequestData
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			TCActorSubscriptionWithID<> m_Subscription;
+			NStr::CStr m_ID;
+		};
+
+		virtual TCContinuation<NContainer::TCVector<CResponse>> f_RequestAuthentication
 			(
 				CRequest const &_Request
 				, NStr::CStr const &_UserID
 				, CChallenge const &_Challenge
+				, NStr::CStr const &_MultipleRequestID
 			) = 0
 		;
+		virtual TCContinuation<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;
 	};
 }
 

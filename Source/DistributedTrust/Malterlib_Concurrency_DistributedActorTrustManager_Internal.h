@@ -5,6 +5,7 @@
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
+#include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationCache.h"
 
 #include <Mib/Concurrency/ActorCallOnce>
 #include <Mib/Concurrency/DistributedActorAuthentication>
@@ -172,6 +173,13 @@ namespace NMib
 				auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
 					-> TCContinuation<TCActorSubscriptionWithID<>> override
 				;
+				TCContinuation<bool> f_AuthenticatePermissionPattern
+					(
+						NStr::CStr const &_Pattern
+						, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
+					 	, NStr::CStr const &_RequestID
+					) override
+				;
 
 				CDistributedActorTrustManager *m_pThis;
 			};
@@ -230,6 +238,15 @@ namespace NMib
 			
 			void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
 
+			TCContinuation<bool> f_AuthenticatePermissionPattern
+				(
+					NStr::CStr &&_Pattern
+					, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactor
+				 	, CCallingHostInfo const &_CallingHostInfo
+					, NStr::CStr const &_RequestID
+				)
+			;
+
 			NPtr::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			CDistributedActorTrustManager *m_pThis;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_Database;
@@ -267,6 +284,7 @@ namespace NMib
 			NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
 			NContainer::TCMap<CPermissionIdentifiers, CPermissionState> m_Permissions;
 			NContainer::TCMap<NStr::CStr, CPermissionSubscriptionState> m_PermissionsSubscriptions;
+			CDistributedActorTrustManagerAuthenticationCache m_AuthenticationCache;
 			
 			NContainer::TCMap<NStr::CStr, CUserState> m_Users;
 				

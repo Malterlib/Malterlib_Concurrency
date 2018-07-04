@@ -94,6 +94,12 @@ namespace NMib::NConcurrency
 	template <typename tf_CStr>
 	void CDistributedActorTrustManagerInterface::CPermissionInfo::f_Format(tf_CStr &o_Str) const
 	{
-		o_Str += typename tf_CStr::CFormat("Host {} User {} Authentication methods {}") << m_HostInfo << m_UserInfo << m_AuthenticationFactors;
+		o_Str
+			+= typename tf_CStr::CFormat("Host {} User {} Authentication methods {} Maximum Authentication Lifetime {}")
+			<< m_HostInfo
+			<< m_UserInfo
+			<< m_AuthenticationFactors
+			<< m_MaximumAuthenticationLifetime
+		;
 	}
 }

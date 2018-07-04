@@ -18,16 +18,17 @@ namespace NMib::NConcurrency
 		virtual ~CDistributedActorTrustManagerAuthenticationActorNaive();
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, TCSet<CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
 			 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) override
 		;
-		TCContinuation<bool> f_VerifyResponse
+		TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -80,52 +81,51 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorNaive::f_AuthenticateCommand
+	TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> CDistributedActorTrustManagerAuthenticationActorNaive::f_SignAuthenticationRequest
 		(
 			NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
 			, TCSet<CStr> const &_Permissions
-			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-		 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
+			, TCMap<CStr, CAuthenticationData> &&_Factors
+			, NTime::CTime const &_ExpirationTime
 		)
 	{
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
 		PasswordPrompt.m_Prompt = "Naive\nAuthentication required for '{}'\n{}\nPassword        : "_f << _Description << _Permissions;
 		auto TrustManager = m_TrustManager.f_Lock();
 		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Continuation / [=](CStrSecure &&_Password) mutable
 			{
-				if (_Challenge.m_UserID)
+				TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
+				for (auto const &Challenge : _Challenges)
 				{
-					ICDistributedActorAuthenticationHandler::CResponse Response;
-
 					for (auto const &RegisteredFactor : _Factors)
 					{
 						if (auto *pValue = RegisteredFactor.m_PrivateData.f_FindEqual("Password"))
 						{
 							if (pValue->f_String() == _Password)
 							{
-								Response.m_Challenge = _Challenge;
+								ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
+								Response.m_Challenge = Challenge;
 								Response.m_Permissions = _Permissions;
 								Response.m_ResponseData.f_Insert((uint8 const *)_Password.f_GetStr(), _Password.f_GetLen());
 								Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 								Response.m_FactorName = RegisteredFactor.m_Name;
+								Response.m_ExpirationTime = _ExpirationTime;
 								break;
 							}
 						}
 					}
-
-					Continuation.f_SetResult(fg_Move(Response));
 				}
-				else
-					Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+				Continuation.f_SetResult(fg_Move(Results));
 			}
 		;
 		return Continuation;
 	};
 
-	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorNaive::f_VerifyResponse
+	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorNaive::f_VerifyAuthenticationResponse
 		(
 			ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -133,7 +133,6 @@ namespace NMib::NConcurrency
 		)
 	{
 		TCContinuation<bool> Continuation;
-		DMibConOut2("CDistributedActorTrustManagerAuthenticationActorNaive::f_VerifyResponse\n");
 
 		if (_Response.m_Challenge ==_Challenge && _Challenge.m_UserID && _Response.m_FactorID)
 		{

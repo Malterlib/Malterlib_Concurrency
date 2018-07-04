@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStr>
 	void ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::f_Format(tf_CStr &o_Str) const
 	{
-		o_Str += typename tf_CStr::CFormat("{}:{vs}") << m_Permission << m_AuthenticationFactors;
+		o_Str += typename tf_CStr::CFormat("{}:{vs} Lifetime {} Preauthenticated {vs}") << m_Permission << m_AuthenticationFactors << m_MaximumAuthenticationLifetime << m_Preauthenticated;
 	}
 	template <typename tf_CStr>
 	void ICDistributedActorAuthenticationHandler::CRequest::f_Format(tf_CStr &o_Str) const

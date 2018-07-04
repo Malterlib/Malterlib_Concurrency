@@ -43,37 +43,37 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+		TCContinuation<NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
 				, NContainer::TCSet<NStr::CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+			 	, NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
+			 	, TCMap<CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
-			if (_Challenge.m_UserID)
+			TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
+			TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
+			for (auto const &Challenge : _Challenges)
 			{
-				ICDistributedActorAuthenticationHandler::CResponse Response;
-
 				for (auto const &RegisteredFactor : _Factors)
 				{
-					Response.m_Challenge = _Challenge;
+					ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
+					Response.m_Challenge = Challenge;
 					Response.m_Permissions = _Permissions;
 					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
 					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 					Response.m_FactorName = RegisteredFactor.m_Name;
+					Response.m_ExpirationTime = _ExpirationTime;
 					break;
 				}
-				Continuation.f_SetResult(fg_Move(Response));
 			}
-			else
-				Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+			Continuation.f_SetResult(fg_Move(Results));
 			return Continuation;
 		}
 
-		TCContinuation<bool> f_VerifyResponse
+		TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -106,37 +106,39 @@ namespace
 
 			return fg_Explicit(Result);
 		}
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_AuthenticateCommand
+
+		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
 				, NContainer::TCSet<NStr::CStr> const &_Permissions
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
 			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
+			 	, NTime::CTime const &_ExpirationTime
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
-			if (_Challenge.m_UserID)
-			{
-				ICDistributedActorAuthenticationHandler::CResponse Response;
+			TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
+			TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
 
+			for (auto const &Challenge : _Challenges)
+			{
 				for (auto const &RegisteredFactor : _Factors)
 				{
-					Response.m_Challenge = _Challenge;
+					ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
+					Response.m_Challenge = Challenge;
 					Response.m_Permissions = _Permissions;
 					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
 					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 					Response.m_FactorName = RegisteredFactor.m_Name;
+					Response.m_ExpirationTime = _ExpirationTime;
 					break;
 				}
-				Continuation.f_SetResult(fg_Move(Response));
 			}
-			else
-				Continuation.f_SetResult(ICDistributedActorAuthenticationHandler::CResponse{});
+			Continuation.f_SetResult(fg_Move(Results));
 			return Continuation;
 		}
 
-		TCContinuation<bool> f_VerifyResponse
+		TCContinuation<bool> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

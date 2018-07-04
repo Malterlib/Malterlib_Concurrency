@@ -181,9 +181,14 @@ namespace NMib::NConcurrency
 			fg_AddStrSep(Result, "User: {} [{}]"_f << f_GetIdentifiers().f_GetUserID() << m_UserInfo->m_UserName, " ");
 		if (!m_AuthenticationFactors.f_IsEmpty())
 		{
-			fg_AddStrSep(Result, "Authentication methods:", " ");
+			fg_AddStrSep(Result, "Authentication factors:", " ");
 			for (auto const &Factors : m_AuthenticationFactors)
-			fg_AddStrSep(Result, "{vs}"_f << Factors, " ");
+				fg_AddStrSep(Result, "{vs}"_f << Factors, " ");
+
+			if (m_MaximumAuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet)
+				Result += " Authentication Lifetime: Infinite (determined by signed expire time)"_f << m_MaximumAuthenticationLifetime;
+			if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
+				Result += " Authentication Lifetime: {}"_f << m_MaximumAuthenticationLifetime;
 		}
 
 		return Result;
@@ -200,6 +205,7 @@ namespace NMib::NConcurrency
 		_Stream % m_HostInfo;
 		_Stream % m_UserInfo;
 		_Stream % m_AuthenticationFactors;
+		_Stream % m_MaximumAuthenticationLifetime;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CPermissionInfo);
 
@@ -207,6 +213,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTrustManagerInterface::CLocalPermissionRequirements::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_AuthenticationFactors;
+		_Stream % m_MaximumAuthenticationLifetime;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalPermissionRequirements);
 

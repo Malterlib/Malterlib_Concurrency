@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
+#include "Malterlib_Concurrency_WeakActor.h"
 
 namespace NMib
 {
@@ -916,14 +917,14 @@ namespace NMib
 		{
 			return f_Dispatch().f_CallSync(_Timeout);
 		}
-		
+
 		struct CDispatchHelperWithActor
 		{
 			CDispatchHelperWithActor(TCActor<> const &_Actor)
 				: m_Actor(_Actor)
 			{
 			}
-			
+
 			template <typename tf_FFunction>
 			inline auto operator > (tf_FFunction &&_fFunction) const
 			{
@@ -932,7 +933,23 @@ namespace NMib
 
 			TCActor<> m_Actor;
 		};
-		
+
+		struct CDispatchHelperWithWeakActor
+		{
+			CDispatchHelperWithWeakActor(TCWeakActor<> const &_Actor)
+				: m_Actor(_Actor)
+			{
+			}
+
+			template <typename tf_FFunction>
+			inline auto operator > (tf_FFunction &&_fFunction) const
+			{
+				return fg_Dispatch(m_Actor, fg_Forward<tf_FFunction>(_fFunction));
+			}
+
+			TCWeakActor<> m_Actor;
+		};
+
 		struct CDispatchHelper
 		{
 			template <typename tf_FFunction>
@@ -943,7 +960,12 @@ namespace NMib
 			
 			inline CDispatchHelperWithActor operator () (TCActor<> const &_Actor) const
 			{
-				return CDispatchHelperWithActor(_Actor); 
+				return CDispatchHelperWithActor(_Actor);
+			}
+
+			inline CDispatchHelperWithWeakActor operator () (TCWeakActor<> const &_Actor) const
+			{
+				return CDispatchHelperWithWeakActor(_Actor);
 			}
 		};
 		

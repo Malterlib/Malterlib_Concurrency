@@ -74,6 +74,7 @@ namespace NMib::NConcurrency
 							return Continuation;
 						}
 					;
+					DispatchActor = fg_DirectCallActor();
 					break;
 				}
 				CDistributedActorWriteStream Stream;
@@ -93,6 +94,7 @@ namespace NMib::NConcurrency
 							return Continuation;
 						}
 					;
+					DispatchActor = fg_DirectCallActor();
 					break;
 				}
 				

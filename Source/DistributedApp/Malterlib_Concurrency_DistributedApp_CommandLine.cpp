@@ -21,6 +21,60 @@ namespace NMib
 
 	namespace NConcurrency
 	{
+		#define DColor_Reset "\x1B[0m"
+		#define DColor_Bold "\x1B[1m"
+		#define DColor_Reverse "\x1B[7m"
+
+		#define DColor_256(d_Color) "\x1B[38;5;" #d_Color "m"
+
+		ch8 const CCommandLineControl::CColors::ms_Default[] = DColor_Reset;
+
+		ch8 const CCommandLineControl::CColors::ms_StatusNormal[] = DColor_Reset DColor_256(118);
+		ch8 const CCommandLineControl::CColors::ms_StatusWarning[] = DColor_Reset DColor_256(207);
+		ch8 const CCommandLineControl::CColors::ms_StatusError[] = DColor_Reset DColor_Bold DColor_256(198);
+
+		ch8 const CCommandLineControl::CColors::ms_Prompt[] = DColor_Reset DColor_256(221);
+
+		NStr::CStr CCommandLineControl::CColors::fs_Foreground16(uint8 _Color)
+		{
+			DMibRequire(_Color < 16);
+			if (_Color < 8)
+				_Color = 30 + _Color;
+			else
+				_Color = 90 + _Color;
+			return "\x1B[{}m"_f << _Color;
+		}
+
+		NStr::CStr CCommandLineControl::CColors::fs_Background16(uint8 _Color)
+		{
+			DMibRequire(_Color < 16);
+			if (_Color < 8)
+				_Color = 30 + _Color;
+			else
+				_Color = 90 + _Color;
+			return "\x1B[{}m"_f << _Color;
+		}
+
+		NStr::CStr CCommandLineControl::CColors::fs_Foreground256(uint8 _Color)
+		{
+			return "\x1B[38;5;{}m"_f << _Color;
+		}
+
+ 		NStr::CStr CCommandLineControl::CColors::fs_Background256(uint8 _Color)
+		{
+			return "\x1B[48;5;{}m"_f << _Color;
+		}
+
+		NStr::CStr CCommandLineControl::CColors::fs_ForegroundRGB(uint8 _Red, uint8 _Green, uint8 _Blue)
+		{
+			return "\x1B[38;5;{};{};{}m"_f << _Red << _Green << _Blue;
+		}
+
+		NStr::CStr CCommandLineControl::CColors::fs_BackgroundRGB(uint8 _Red, uint8 _Green, uint8 _Blue)
+		{
+			return "\x1B[48;5;{};{};{}m"_f << _Red << _Green << _Blue;
+		}
+
 		ICCommandLine::ICCommandLine()
 		{
 			DMibPublishActorFunction(ICCommandLine::f_RunCommandLine);

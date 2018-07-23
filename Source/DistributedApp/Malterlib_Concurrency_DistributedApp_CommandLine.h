@@ -43,6 +43,24 @@ namespace NMib::NConcurrency
 
 	struct CCommandLineControl
 	{
+		struct CColors
+		{
+			static ch8 const ms_Default[];
+
+			static ch8 const ms_StatusNormal[];
+			static ch8 const ms_StatusWarning[];
+			static ch8 const ms_StatusError[];
+
+			static ch8 const ms_Prompt[];
+
+			static NStr::CStr fs_Foreground16(uint8 _Color);
+			static NStr::CStr fs_Background16(uint8 _Color);
+			static NStr::CStr fs_Foreground256(uint8 _Color);
+			static NStr::CStr fs_Background256(uint8 _Color);
+			static NStr::CStr fs_ForegroundRGB(uint8 _Red, uint8 _Green, uint8 _Blue);
+			static NStr::CStr fs_BackgroundRGB(uint8 _Red, uint8 _Green, uint8 _Blue);
+		};
+
 		NConcurrency::TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const;
 		NConcurrency::TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) const;
 		NConcurrency::TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) const;

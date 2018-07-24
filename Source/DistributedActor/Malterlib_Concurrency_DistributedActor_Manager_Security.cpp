@@ -65,6 +65,7 @@ namespace NMib
 			 	, NStr::CStr const &_LastExecutionID
 				, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 				, NStr::CStr const &_UserID
+				, NStr::CStr const &_UserName
 			)
 		{
 			auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
@@ -73,6 +74,7 @@ namespace NMib
 
 			Host.m_AuthenticationHandler = _AuthenticationHandler;
 			Host.m_ClaimedUserID = _UserID;
+			Host.m_ClaimedUserName = _UserName;
 
 			return fg_Explicit();
 		}
@@ -91,6 +93,7 @@ namespace NMib
 			{
 				Host.m_AuthenticationHandler.f_Clear();
 				Host.m_ClaimedUserID.f_Clear();
+				Host.m_ClaimedUserName.f_Clear();
 			}
 
 			return fg_Explicit();

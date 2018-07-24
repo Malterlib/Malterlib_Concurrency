@@ -28,6 +28,7 @@ namespace NMib::NConcurrency
 			bool operator == (CPermissionWithRequirements const &_Right) const;
 
 			NStr::CStr m_Permission;
+			NStr::CStr m_Description;
 			// This permission can be authenticated by any of the factor groups in the outer set. For example
 			// {{ "Factor1", "Factor2"}, { "Factor1", "Factor3"}} can be authenticated by Factor1 and either Factor2 or Factor3
 			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
@@ -76,6 +77,18 @@ namespace NMib::NConcurrency
 			NStr::CStr m_UserID;
 		};
 
+		struct CSignedProperties
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::CSecureByteVector f_GetSignatureBytes() const;
+
+			NContainer::TCSet<NStr::CStr> m_Permissions;
+			NContainer::TCMap<NStr::CStr, CChallenge> m_Challenges;
+			NTime::CTime m_ExpirationTime;
+		};
+
 		struct CResponse
 		{
 			template <typename tf_CStream>
@@ -83,12 +96,11 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			NContainer::TCSet<NStr::CStr> m_Permissions;
-			CChallenge m_Challenge;
 			NStr::CStr m_FactorID;
 			NStr::CStr m_FactorName;
-			NContainer::TCVector<uint8> m_ResponseData;
-			NTime::CTime m_ExpirationTime;
+
+			CSignedProperties m_SignedProperties;
+			NContainer::CByteVector m_Signature;
 		};
 
 		struct CMultipleRequestData
@@ -103,7 +115,6 @@ namespace NMib::NConcurrency
 		virtual TCContinuation<NContainer::TCVector<CResponse>> f_RequestAuthentication
 			(
 				CRequest const &_Request
-				, NStr::CStr const &_UserID
 				, CChallenge const &_Challenge
 				, NStr::CStr const &_MultipleRequestID
 			) = 0

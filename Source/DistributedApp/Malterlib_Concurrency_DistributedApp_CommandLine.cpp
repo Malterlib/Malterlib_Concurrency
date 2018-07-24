@@ -248,8 +248,12 @@ namespace NMib
 			if (AuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet && _Command == "--trust-user-authenticate-pattern")
 				AuthenticationLifetime = CPermissionRequirements::mc_DefaultMaximumLifetime;
 
+			CStr UserID;
+			if (auto pValue = ValidatedParams.f_GetMember("AuthenticationUser"))
+				UserID = pValue->f_String();
+
 			TCContinuation<uint32> Continuation;
-			fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
+			fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 					fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
@@ -1185,12 +1189,15 @@ namespace NMib
 		TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 		{
 			TCContinuation<uint32> Continuation;
+			bool bQuiet = _Params["Quiet"].f_Boolean();
 			CStr const &_UserName = _Params["UserName"].f_String();
 			CStr const &UserID = NCryptography::fg_RandomID();
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, UserID, _UserName)
-				> Continuation / [Continuation, UserID, _UserName]()
+				> Continuation / [=]()
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Add user ID '{}' ({}) to host from command line", UserID, _UserName);
+					if (!bQuiet)
+						*_pCommandLine += "{}\n"_f << UserID;
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1220,8 +1227,7 @@ namespace NMib
 					for (auto &UserInfo : _Users)
 					{
 						auto &UserID = _Users.fs_GetKey(UserInfo);
-						Result += "{}\n"_f << UserID;
-						Result += "    {}\n"_f << UserInfo.m_UserName;
+						Result += "{} {}\n"_f << UserID << UserInfo.m_UserName;
 					}
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported users to command line {}", Result);
 					*_pCommandLine += Result;
@@ -1281,7 +1287,7 @@ namespace NMib
 			TCContinuation<uint32> Continuation;
 			fg_ExportUser(mp_State.m_TrustManager, _UserID, _bIncludePrivate) > Continuation / [Continuation, _UserID, _pCommandLine](CStr const &_UserData)
 				{
-					*_pCommandLine += _UserData;
+					*_pCommandLine += "{}\n"_f << _UserData;
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Exported user ID '{}' from command line", _UserID);
 					Continuation.f_SetResult(0);
 				}
@@ -1307,7 +1313,7 @@ namespace NMib
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser)
 				> Continuation / [Continuation, _pCommandLine](CStr const &_UserID)
 				{
-					*_pCommandLine += _UserID;
+					*_pCommandLine += "{}\n"_f << _UserID;
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1331,13 +1337,16 @@ namespace NMib
 				TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_UserID
 				, CStr const &_Factor
+			 	, bool _bQuiet
 			)
 		{
 			TCContinuation<uint32> Continuation;
 			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, _pCommandLine, _UserID, _Factor)
-				> Continuation / [Continuation, _UserID, _Factor](CStr const &_FactorID)
+				> Continuation / [=](CStr const &_FactorID)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Added authentication factor '{}' of type '{}' to user '{}' from command line", _FactorID, _Factor, _UserID);
+					if (!_bQuiet)
+						*_pCommandLine += "{}\n"_f << _FactorID;
 					Continuation.f_SetResult(0);
 				}
 			;
@@ -1370,9 +1379,7 @@ namespace NMib
 				{
 					CStr Result;
 					for (auto &Factor : _Factors)
-					{
-						Result += "{}\n\t{}\n"_f << _Factors.fs_GetKey(Factor) << Factor.m_Name;
-					}
+						Result += "{} {}\n"_f << _Factors.fs_GetKey(Factor) << Factor.m_Name;
 					*_pCommandLine += Result;
 					Continuation.f_SetResult(0);
 				}
@@ -1413,14 +1420,14 @@ namespace NMib
 					Factors[Factor.f_String()];
 			}
 
-			struct CAuthenticationActorInfo
+			struct CCollectedAuthenticationActorInfo
 			{
 				TCDistributedActor<ICDistributedActorAuthentication> m_Actor;
 				CStr m_RemoteHostID;
 				CStr m_Description;
 			};
 
-			TCVector<CAuthenticationActorInfo> AuthenticationActors;
+			TCVector<CCollectedAuthenticationActorInfo> AuthenticationActors;
 			for (auto const &RegisteredAuthentication : mp_AuthenticationRegistrationSubscriptions)
 			{
 				auto const &WeakActor = mp_AuthenticationRegistrationSubscriptions.fs_GetKey(RegisteredAuthentication);
@@ -1432,8 +1439,24 @@ namespace NMib
 			}
 
 			mp_AuthenticationHandlerImplementation(&ICDistributedActorAuthenticationHandler::f_GetMultipleRequestSubscription, AuthenticationActors.f_GetLen())
-				> Continuation / [=](ICDistributedActorAuthenticationHandler::CMultipleRequestData &&_MultipleRequestData) mutable
+				+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
+				> [=]
+				(
+					TCAsyncResult<ICDistributedActorAuthenticationHandler::CMultipleRequestData> &&_MultipleRequestData
+					, TCAsyncResult<NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo>> &&_Factors
+				) mutable
 				{
+					if (!_MultipleRequestData)
+						return Continuation.f_SetException(_MultipleRequestData.f_GetException());
+					if (!_Factors)
+						return Continuation.f_SetException(_Factors.f_GetException());
+
+					for (auto const &Factor : Factors)
+					{
+						if (!_Factors->f_FindEqual(Factor))
+							return Continuation.f_SetException(DMibErrorInstance("No authentication factor named '{}'"_f << Factor));
+					}
+
 					TCActorResultVector<bool> Results;
 					for (auto const &AuthenticationActorInfo : AuthenticationActors)
 					{
@@ -1443,14 +1466,14 @@ namespace NMib
 							 	, ICDistributedActorAuthentication::f_AuthenticatePermissionPattern
 							 	, Pattern
 							 	, Factors
-							 	, _MultipleRequestData.m_ID
+							 	, _MultipleRequestData->m_ID
 							)
 							.f_Timeout(10.0, "Timeout wating for manager to reply")
 							> Results.f_AddResult()
 						;
 					}
 
-					Results.f_GetResults() > Continuation / [=, MultipleRequestSubscription = fg_Move(_MultipleRequestData.m_Subscription)](TCVector<TCAsyncResult<bool>> &&_Results)
+					Results.f_GetResults() > Continuation / [=, MultipleRequestSubscription = fg_Move(_MultipleRequestData->m_Subscription)](TCVector<TCAsyncResult<bool>> &&_Results)
 						{
 							aint ReturnValue = 0;
 							DMibCheck(AuthenticationActors.f_GetLen() == _Results.f_GetLen());
@@ -1502,7 +1525,7 @@ namespace NMib
 								}
 							}
 							if (bJSONOutput)
-								*_pCommandLine %= JSONOutput.f_ToString();
+								*_pCommandLine += JSONOutput.f_ToString();
 
 							Continuation.f_SetResult(ReturnValue);
 						}
@@ -1579,6 +1602,18 @@ namespace NMib
 							"Names"_= {"--authentication-lifetime"}
 							,"Default"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
 							, "Description"_= "The number of minutes until the authentication expires when cached"
+						}
+					}
+				)
+			;
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"AuthenticationUser?"_=
+						{
+							"Names"_= {"--authentication-user"}
+							,"Type"_= ""
+							, "Description"_= "Override the default user ID used for authentication"
 						}
 					}
 				)
@@ -2296,7 +2331,7 @@ namespace NMib
 						}
 					)
 				;
-				Category = "User management (PRERELEASE)";
+				Category = "User management";
 				Distributed.f_RegisterCommand
 					(
 						{
@@ -2304,6 +2339,15 @@ namespace NMib
 							, "Category"_= Category
 							, "Description"_= "Add a user to the database.\n"
 							, "Output"_= "None."
+							, "Options"_=
+							{
+								"Quiet?"_=
+								{
+									"Names"_= {"--quiet"}
+									, "Default"_= false
+									, "Description"_= "Don't output user ID."
+								}
+							}
 							, "Parameters"_=
 							{
 								"UserName"_=
@@ -2535,6 +2579,12 @@ namespace NMib
 									, "Type"_= ""
 									, "Description"_= "The authentication factor to add."
 								}
+								, "Quiet?"_=
+								{
+									"Names"_= {"--quiet"}
+									, "Default"_= false
+									, "Description"_= "Don't output factor ID."
+								}
 							}
 							, "Parameters"_=
 							{
@@ -2547,7 +2597,7 @@ namespace NMib
 						}
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
-							return f_CommandLine_RegisterAuthenticationFactor(_pCommandLine, _Params["UserID"].f_String(), _Params["Factor"].f_String());
+							return f_CommandLine_RegisterAuthenticationFactor(_pCommandLine, _Params["UserID"].f_String(), _Params["Factor"].f_String(), _Params["Quiet"].f_Boolean());
 						}
 					)
 				;

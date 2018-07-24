@@ -234,6 +234,7 @@ namespace NMib
 
 				TCDistributedActor<ICDistributedActorAuthenticationHandler> m_AuthenticationHandler;
 				NStr::CStr m_ClaimedUserID;
+				NStr::CStr m_ClaimedUserName;
 
 				bool m_bAllowAllNamespaces = false;
 				

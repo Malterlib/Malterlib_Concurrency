@@ -543,6 +543,7 @@ namespace NMib::NConcurrency
 							, Host.m_LastExecutionID
 							, ProtocolVersion
 							, Host.m_ClaimedUserID
+							, Host.m_ClaimedUserName
 						 	, pHost
 						)
 					, Context

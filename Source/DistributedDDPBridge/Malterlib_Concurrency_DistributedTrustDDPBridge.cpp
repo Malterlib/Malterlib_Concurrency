@@ -289,6 +289,7 @@ namespace NMib::NConcurrency
 							, pConnection->m_LastExecutionID
 							, 0
 							, ""
+							, ""
 							, nullptr
 						}
 					;

@@ -452,6 +452,7 @@ namespace NMib
 					, NStr::CStr const &_LastExecutionID
 					, uint32 _ProtocolVersion
 					, NStr::CStr const &_ClaimedUserID
+					, NStr::CStr const &_ClaimedUserName
 				 	, NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 				)
 			;
@@ -465,6 +466,7 @@ namespace NMib
 			TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
 			uint32 f_GetProtocolVersion() const;
 			NStr::CStr const &f_GetClaimedUserID() const;
+			NStr::CStr const &f_GetClaimedUserName() const;
 			NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
 
 			bool operator == (CCallingHostInfo const &_Right) const;
@@ -477,8 +479,9 @@ namespace NMib
 			NStr::CStr mp_UniqueHostID; // Differs from HostID when anonymous
 			CHostInfo mp_HostInfo;
 			NStr::CStr mp_LastExecutionID;
-			uint32 mp_ProtocolVersion;
 			NStr::CStr mp_ClaimedUserID;
+			NStr::CStr mp_ClaimedUserName;
+			uint32 mp_ProtocolVersion;
 		};
 		
 		struct CActorDistributionManagerInternal;
@@ -561,6 +564,7 @@ namespace NMib
 				 	, NStr::CStr const &_LastExecutionID
 					, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 					, NStr::CStr const &_UserID
+					, NStr::CStr const &_UserName
 				)
 			;
 			TCContinuation<void> f_RemoveAuthenticationHandler

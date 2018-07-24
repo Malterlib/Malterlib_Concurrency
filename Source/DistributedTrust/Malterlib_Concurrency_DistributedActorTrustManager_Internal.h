@@ -240,8 +240,8 @@ namespace NMib
 
 			TCContinuation<bool> f_AuthenticatePermissionPattern
 				(
-					NStr::CStr &&_Pattern
-					, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactor
+					NStr::CStr const &_Pattern
+					, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactor
 				 	, CCallingHostInfo const &_CallingHostInfo
 					, NStr::CStr const &_RequestID
 				)
@@ -291,7 +291,6 @@ namespace NMib
 			// The outer map uses the UserID as index, the inner uses the FactorID
 			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactorState>> m_UserAuthenticationFactors;
 			NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> m_AuthenticationActors;
-			NContainer::TCMap<NStr::CStr, TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler>> m_AuthenticationHandlers;
 
 			NTime::CTimer m_TicketTimer;
 			

@@ -12,10 +12,20 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICDistributedActorAuthenticationHandler::f_GetMultipleRequestSubscription);
 	}
 
+	NContainer::CSecureByteVector ICDistributedActorAuthenticationHandler::CSignedProperties::f_GetSignatureBytes() const
+	{
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> DigestStream;
+		DigestStream << m_Permissions;
+		DigestStream << m_Challenges;
+		DigestStream << m_ExpirationTime;
+		return DigestStream.f_MoveVector();
+	}
+	
 	template <typename tf_CStream>
 	void ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_Permission;
+		_Stream % m_Description;
 		_Stream % m_AuthenticationFactors;
 		_Stream % m_MaximumAuthenticationLifetime;
 		_Stream % m_Preauthenticated;
@@ -63,14 +73,22 @@ namespace NMib::NConcurrency
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CChallenge);
 
 	template <typename tf_CStream>
-	void ICDistributedActorAuthenticationHandler::CResponse::f_Stream(tf_CStream &_Stream)
+	void ICDistributedActorAuthenticationHandler::CSignedProperties::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_Permissions;
-		_Stream % m_Challenge;
+		_Stream % m_Challenges;
+		_Stream % m_ExpirationTime;
+	}
+	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CSignedProperties);
+	
+	template <typename tf_CStream>
+	void ICDistributedActorAuthenticationHandler::CResponse::f_Stream(tf_CStream &_Stream)
+	{
 		_Stream % m_FactorID;
 		_Stream % m_FactorName;
-		_Stream % m_ResponseData;
-		_Stream % m_ExpirationTime;
+
+		_Stream % m_SignedProperties;
+		_Stream % m_Signature;
 	}
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CResponse);
 

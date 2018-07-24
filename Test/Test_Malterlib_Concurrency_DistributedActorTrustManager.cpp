@@ -43,46 +43,37 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, NStr::CStr const &_Description
-				, NContainer::TCSet<NStr::CStr> const &_Permissions
-			 	, NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
-			 	, TCMap<CStr, CAuthenticationData> &&_Factors
-			 	, NTime::CTime const &_ExpirationTime
+				, CStr const &_Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
-			TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
-			for (auto const &Challenge : _Challenges)
+			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			ICDistributedActorAuthenticationHandler::CResponse Response;
+			for (auto const &RegisteredFactor : _Factors)
 			{
-				for (auto const &RegisteredFactor : _Factors)
-				{
-					ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
-					Response.m_Challenge = Challenge;
-					Response.m_Permissions = _Permissions;
-					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
-					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
-					Response.m_FactorName = RegisteredFactor.m_Name;
-					Response.m_ExpirationTime = _ExpirationTime;
-					break;
-				}
+				Response.m_SignedProperties = _SignedProperties;
+				Response.m_Signature.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
+				Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
+				Response.m_FactorName = RegisteredFactor.m_Name;
 			}
-			Continuation.f_SetResult(fg_Move(Results));
+			Continuation.f_SetResult(fg_Move(Response));
 			return Continuation;
+		};
+
+		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+			(
+				ICDistributedActorAuthenticationHandler::CResponse const &_Response
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, CAuthenticationData const &_AuthenticationData
+			) override
+		{
+			return fg_Explicit(CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))});
 		}
 
-		TCContinuation<bool> f_VerifyAuthenticationResponse
-			(
-			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, CAuthenticationData const &_AuthenticationData
-			) override
-		{
-			return fg_Explicit(_Response.m_Challenge ==_Challenge && m_Name == CStr(_Response.m_ResponseData.f_GetArray(), _Response.m_ResponseData.f_GetLen()));
-		}
-		
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
 		CStr m_Name;
 	};
@@ -107,45 +98,36 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, NStr::CStr const &_Description
-				, NContainer::TCSet<NStr::CStr> const &_Permissions
-				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
-			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
-			 	, NTime::CTime const &_ExpirationTime
+				, CStr const &_Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
-			TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
-
-			for (auto const &Challenge : _Challenges)
+			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			ICDistributedActorAuthenticationHandler::CResponse Response;
+			for (auto const &RegisteredFactor : _Factors)
 			{
-				for (auto const &RegisteredFactor : _Factors)
-				{
-					ICDistributedActorAuthenticationHandler::CResponse &Response = Results[_Challenges.fs_GetKey(Challenge)];
-					Response.m_Challenge = Challenge;
-					Response.m_Permissions = _Permissions;
-					Response.m_ResponseData.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
-					Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
-					Response.m_FactorName = RegisteredFactor.m_Name;
-					Response.m_ExpirationTime = _ExpirationTime;
-					break;
-				}
+				Response.m_SignedProperties = _SignedProperties;
+				Response.m_Signature.f_Insert((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen());
+				Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
+				Response.m_FactorName = RegisteredFactor.m_Name;
+				break;
 			}
-			Continuation.f_SetResult(fg_Move(Results));
+			Continuation.f_SetResult(fg_Move(Response));
 			return Continuation;
-		}
+		};
 
-		TCContinuation<bool> f_VerifyAuthenticationResponse
+		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse const &_Response
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, CAuthenticationData const &_AuthenticationData
 			) override
 		{
-			return fg_Explicit(false);
+			return fg_Explicit(CVerifyAuthenticationReturn{false});
 		}
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
@@ -307,7 +289,7 @@ namespace
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager()}
 				, m_ClientHelper{f_InitClientTrustManager()}
-				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", nullptr)
+				, m_ServerHostInfo({}, {}, "", CHostInfo{m_ServerHostID, m_ServerHostID}, "", 0, "TBD", "Test", nullptr)
 			{
 				m_ExpectedPermissions[CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)]["com.malterlib/Test"];
 				m_ExpectedEnumPermissions["com.malterlib/Test"][CPermissionIdentifiers::fs_GetKeyFromFileNameOld(m_ServerHostID)].m_HostInfo = CHostInfo(m_ServerHostID, "TestServer");
@@ -2009,6 +1991,7 @@ namespace
 									, Info.f_LastExecutionID()
 									, Info.f_GetProtocolVersion()
 									, _UserID
+								 	, "Test"
 								 	, Info.f_GetHost()
 								)
 							;

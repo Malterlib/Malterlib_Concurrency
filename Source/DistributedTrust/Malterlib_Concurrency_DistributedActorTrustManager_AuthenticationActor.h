@@ -25,21 +25,26 @@ namespace NMib::NConcurrency
 	class ICDistributedActorTrustManagerAuthenticationActor : public NConcurrency::CActor
 	{
 	public:
+		struct CVerifyAuthenticationReturn
+		{
+			bool m_bVerified = false;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_UpdatedPublicData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_UpdatedPrivateData;
+		};
+
 		ICDistributedActorTrustManagerAuthenticationActor();
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
 		virtual TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
+		virtual TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
-				, NContainer::TCSet<NStr::CStr> const &_Permissions
-				, NContainer::TCMap<NStr::CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
-			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> &&_Factors
-			 	, NTime::CTime const &_ExpirationTime
+				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors
 			) = 0
 		;
-		virtual TCContinuation<bool> f_VerifyAuthenticationResponse
+		virtual TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -47,11 +52,7 @@ namespace NMib::NConcurrency
 			) = 0
 		;
 
-		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors
-			(
-				TCActor<CDistributedActorTrustManager> const &_TrustManager
-			)
-		;
+		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 	};
 
 	struct ICDistributedActorTrustManagerAuthenticationActorFactory

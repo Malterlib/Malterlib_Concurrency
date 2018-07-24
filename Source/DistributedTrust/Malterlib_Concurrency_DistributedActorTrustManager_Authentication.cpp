@@ -36,6 +36,11 @@ namespace NMib::NConcurrency
 
 		TCContinuation<TCActorSubscriptionWithID<>> Continuation;
 
+		NStr::CStr UserName = "(Unknown)";
+
+		if (auto pUser = Internal.m_Users.f_FindEqual(_UserID))
+			UserName = pUser->m_UserInfo.m_UserName;
+
 		Internal.m_ActorDistributionManager
 			(
 			 	&CActorDistributionManager::f_SetAuthenticationHandler
@@ -43,6 +48,7 @@ namespace NMib::NConcurrency
 			 	, CallingHostInfo.f_LastExecutionID()
 			 	, fg_Move(_Handler)
 			 	, _UserID
+			 	, UserName
 			)
 			> Continuation / [pThis = m_pThis, Continuation, UniqueHostID, pWeakHost, pWeakHandler = _Handler.f_Weak()]
 			{
@@ -80,8 +86,8 @@ namespace NMib::NConcurrency
 		auto &Internal = *m_pThis->mp_pInternal;
 		return Internal.f_AuthenticatePermissionPattern
 			(
-				fg_TempCopy(_Pattern)
-				, fg_TempCopy(_AuthenticationFactors)
+				_Pattern
+				, _AuthenticationFactors
 				, fg_GetCallingHostInfo()
 			 	, _RequestID
 			)
@@ -101,28 +107,28 @@ namespace NMib::NConcurrency
 			ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 		 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
 			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
-			, NStr::CStr const &_UserID
-		) const
+		)
 	{
-		// TODO: Verify _Responses against _Request
-
 		if (_Responses.f_IsEmpty())
 			return fg_Explicit();
 
-		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
+		if (!CActorDistributionManager::fs_IsValidUserID(_Challenge.m_UserID))
 			return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
 
-		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_UserID);
+		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
 		TCContinuation<NContainer::TCVector<bool>> Continuation;
 
-		TCActorResultVector<bool> VerificationResults;
+		TCActorResultVector<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> VerificationResults;
+
+		NContainer::TCVector<NStr::CStr> FactorIDs;
 
 		auto fAddFalseResult = [&]
 			{
-				TCContinuation<bool> Result;
-				Result.f_SetResult(false);
+				FactorIDs.f_Insert();
+				TCContinuation<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
+				Result.f_SetResult(ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{});
 				Result > VerificationResults.f_AddResult();
 			}
 		;
@@ -131,6 +137,7 @@ namespace NMib::NConcurrency
 		{
 			if (!pRegisteredFactors)
 			{
+				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Factor '{}' not found for user '{}'", Response.m_FactorID, _Challenge.m_UserID);
 				fAddFalseResult();
 				continue;
 			}
@@ -138,6 +145,7 @@ namespace NMib::NConcurrency
 			auto *pRegisteredFactor = pRegisteredFactors->f_FindEqual(Response.m_FactorID);
 			if (!pRegisteredFactor)
 			{
+				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Factor '{}' not found for user '{}'", Response.m_FactorID, _Challenge.m_UserID);
 				fAddFalseResult();
 				continue;
 			}
@@ -145,9 +153,23 @@ namespace NMib::NConcurrency
 			auto pAuthenticationActor = Internal.m_AuthenticationActors.f_FindEqual(pRegisteredFactor->m_AuthenticationFactor.m_Name);
 			if (!pAuthenticationActor)
 			{
+				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Factor of type '{}' not supported", pRegisteredFactor->m_AuthenticationFactor.m_Name);
 				fAddFalseResult();
 				continue;
 			}
+
+			auto *pThisChallenge = Response.m_SignedProperties.m_Challenges.f_FindEqual(Internal.m_BasicConfig.m_HostID);
+			if (!pThisChallenge || *pThisChallenge != _Challenge)
+			{
+				if (!pThisChallenge)
+					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Challenge for this host not found");
+				else
+					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Challenge does not match signed challenge");
+				fAddFalseResult();
+				continue;
+			}
+
+			FactorIDs.f_Insert(Response.m_FactorID);
 
 			CAuthenticationData Data;
 			Data = pRegisteredFactor->m_AuthenticationFactor;
@@ -156,15 +178,41 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		VerificationResults.f_GetResults() > Continuation / [Continuation](TCVector<TCAsyncResult<bool>> &&_Results)
+		VerificationResults.f_GetResults()
+			> Continuation / [this, Continuation, _Challenge, FactorIDs](TCVector<TCAsyncResult<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn>> &&_Results)
 			{
+				auto &Internal = *mp_pInternal;
 				NContainer::TCVector<bool> Results;
+				auto iFactorID = FactorIDs.f_GetIterator();
 				for (auto &AuthenticationResult : _Results)
 				{
 					if (!AuthenticationResult)
 						return Continuation.f_SetException(AuthenticationResult.f_GetException());
 
-					Results.f_InsertLast(*AuthenticationResult);
+					if (AuthenticationResult->m_bVerified && (!AuthenticationResult->m_UpdatedPrivateData.f_IsEmpty() ||  !AuthenticationResult->m_UpdatedPublicData.f_IsEmpty()))
+					{
+						auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
+						if (pRegisteredFactors)
+						{
+							auto &FactorID = *iFactorID;
+							auto *pRegisteredFactor = pRegisteredFactors->f_FindEqual(FactorID);
+							if (pRegisteredFactor)
+							{
+								CAuthenticationData NewData;
+								NewData = pRegisteredFactor->m_AuthenticationFactor;
+
+								for (auto &Value : AuthenticationResult->m_UpdatedPrivateData)
+									NewData.m_PrivateData[AuthenticationResult->m_UpdatedPrivateData.fs_GetKey(Value)] = fg_Move(Value);
+								for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
+									NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
+
+								f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData));
+							}
+						}
+					}
+
+					Results.f_InsertLast(AuthenticationResult->m_bVerified);
+					++iFactorID;
 				}
 				Continuation.f_SetResult(Results);
 			}
@@ -172,5 +220,3 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 }
-
-

@@ -362,13 +362,12 @@ namespace NMib::NConcurrency
 		TCActor<ICActorDistributionManagerAccessHandler> f_GetAccessHandler() const;
 		TCActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
 		static ICDistributedActorAuthenticationHandler::CChallenge fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID);
-		virtual TCContinuation<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses
+		TCContinuation<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses
 			(
 				ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 			 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
 				, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
-				, NStr::CStr const &_UserID
-			) const
+			)
 		;
 
 		TCContinuation<void> f_UpdateAuthenticationCache

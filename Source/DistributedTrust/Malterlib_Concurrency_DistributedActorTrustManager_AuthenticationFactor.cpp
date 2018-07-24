@@ -18,6 +18,10 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+
+		if (!Internal.m_Users.f_FindEqual(_UserID))
+			return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
+
 		TCMap<CStr, CAuthenticationData> Result;
 		if (auto *pFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_UserID))
 		{

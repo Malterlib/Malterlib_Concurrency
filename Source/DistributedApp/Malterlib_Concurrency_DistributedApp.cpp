@@ -89,7 +89,12 @@ namespace NMib::NConcurrency
 			Category = mp_Settings.m_AuditCategory;
 #if (DMibSysLogSeverities) != 0
 		NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
-		NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
+		CStr UserID = _CallingHostInfo.f_GetClaimedUserID();
+		CStr UserName = _CallingHostInfo.f_GetClaimedUserName();
+		if (UserName || UserID)
+			NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}, {} [{}]> {}", _CallingHostInfo.f_GetHostInfo(), UserID, UserName, _Message);
+		else
+			NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
 #endif
 	}
 
@@ -127,6 +132,7 @@ namespace NMib::NConcurrency
 					, CurrentCallingHostInfo.f_LastExecutionID()
 					, CurrentCallingHostInfo.f_GetProtocolVersion()
 					, CurrentCallingHostInfo.f_GetClaimedUserID()
+					, CurrentCallingHostInfo.f_GetClaimedUserName()
 					, CurrentCallingHostInfo.f_GetHost()
 				}
 			}
@@ -770,17 +776,13 @@ namespace NMib::NConcurrency
 		return Ret;
 	}
 
-	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
-	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSucceed_MakeActive();
-	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorFail_MakeActive();
 	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorPassword_MakeActive();
+	extern void fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorU2F_MakeActive();
 
 	void CDistributedAppActor::fp_MakeActive()
 	{
-		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorNaive_MakeActive();
-		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorSucceed_MakeActive();
-		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorFail_MakeActive();
 		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorPassword_MakeActive();
+		fg_Malterlib_CDistributedActorTrustManagerAuthenticationActorU2F_MakeActive();
 	}
 
 #if DMibConfig_Tests_Enable

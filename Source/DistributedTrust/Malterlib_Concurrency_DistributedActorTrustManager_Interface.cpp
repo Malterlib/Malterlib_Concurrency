@@ -148,6 +148,8 @@ namespace NMib::NConcurrency
 		_Stream % mp_ProtocolVersion;
 		if (_Stream.f_GetVersion() >= 0x105)
 			_Stream % mp_ClaimedUserID;
+		if (_Stream.f_GetVersion() >= 0x106)
+			_Stream % mp_ClaimedUserName;
 		if constexpr (tf_CStream::mc_bConsume)
 			mp_DistributionManager = _Stream.f_GetState().m_DistributionManager;
 	}
@@ -187,7 +189,7 @@ namespace NMib::NConcurrency
 
 			if (m_MaximumAuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet)
 				Result += " Authentication Lifetime: Infinite (determined by signed expire time)"_f << m_MaximumAuthenticationLifetime;
-			if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
+			else if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
 				Result += " Authentication Lifetime: {}"_f << m_MaximumAuthenticationLifetime;
 		}
 

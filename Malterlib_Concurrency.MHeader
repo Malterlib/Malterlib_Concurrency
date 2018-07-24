@@ -4,6 +4,82 @@
 Import "../Core/Lib_Malterlib.MTarget"
 Import "Apps/*/*.MHeader"
 
+%Repository "hidapi"
+{
+	Repository
+	{
+		Type External
+		Remotes "upstream=https://github.com/signal11/hidapi.git;@(Repository.Remotes)"
+	}
+}
+
+%Target Lib_hidapi
+{
+	Target
+	{
+		BaseName "hidapi"
+		Type "StaticLibrary"
+		Group "External/hidapi"
+	}
+	Compile
+	{
+		SearchPath "@('../../External/hidapi/hidapi'->MakeAbsolute());@(Compile.SearchPath)"
+	}
+
+	%Group Source
+	{
+		%Group hidapi
+		{
+			%File "../../External/hidapi/hidapi/^*"
+		}
+		%Group mac
+		{
+			%File "../../External/hidapi/mac/^*.c"
+			{
+				Compile.Disabled true
+				{
+					!PlatformFamily OSX
+				}
+			}
+		}
+		%Group windows
+		{
+			%File "../../External/hidapi/windows/^*.c"
+			{
+				Compile.Disabled true
+				{
+					!PlatformFamily Windows
+				}
+			}
+		}
+		%Group linux
+		{
+			%File "../../External/hidapi/linux/^*.c"
+			{
+				Compile.Disabled true
+				{
+					!PlatformFamily Linux
+				}
+			}
+		}
+	}
+}
+
+Target
+{
+	&
+	{
+		MalterlibConcurrency_DistributedActors true
+		LanguageFamily Native
+		TargetIsExecutable "true"
+	}
+
+	LinkWithLibraries "-ludev @(Target.LinkWithLibraries)"
+	{
+		!!PlatformFamily "Linux"
+	}
+}
+
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
 	Property.MalterlibConcurrency_DistributedActors true
@@ -25,6 +101,10 @@ Import "Apps/*/*.MHeader"
 	}
 
 	%Dependency Lib_Malterlib_Web
+	{
+		Dependency.Indirect true
+	}
+	%Dependency Lib_hidapi
 	{
 		Dependency.Indirect true
 	}

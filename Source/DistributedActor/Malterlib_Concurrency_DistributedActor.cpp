@@ -368,6 +368,7 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_LastExecutionID
 			, uint32 _ProtocolVersion
 			, NStr::CStr const &_ClaimedUserID
+			, NStr::CStr const &_ClaimedUserName
 		 	, NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 		)
 		: mp_DistributionManager(_DistributionManager)
@@ -377,6 +378,7 @@ namespace NMib::NConcurrency
 		, mp_LastExecutionID(_LastExecutionID)
 		, mp_ProtocolVersion(_ProtocolVersion)
 		, mp_ClaimedUserID(_ClaimedUserID)
+		, mp_ClaimedUserName(_ClaimedUserName)
 		, mp_pHost(_pHost)
 	{
 	}
@@ -409,6 +411,11 @@ namespace NMib::NConcurrency
 	NStr::CStr const &CCallingHostInfo::f_GetClaimedUserID() const
 	{
 		return mp_ClaimedUserID;
+	}
+
+	NStr::CStr const &CCallingHostInfo::f_GetClaimedUserName() const
+	{
+		return mp_ClaimedUserName;
 	}
 
 	bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const

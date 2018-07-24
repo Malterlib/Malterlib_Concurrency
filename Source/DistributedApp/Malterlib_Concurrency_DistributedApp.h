@@ -167,8 +167,21 @@ namespace NMib::NConcurrency
 		TCContinuation<uint32> f_CommandLine_GetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		TCContinuation<uint32> f_CommandLine_SetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
 
-		TCContinuation<uint32> f_CommandLine_RegisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
-		TCContinuation<uint32> f_CommandLine_UnregisterAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
+		TCContinuation<uint32> f_CommandLine_RegisterAuthenticationFactor
+			(
+			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_UserID
+			 	, NStr::CStr const &_Factor
+			 	, bool _bQuiet
+			)
+		;
+		TCContinuation<uint32> f_CommandLine_UnregisterAuthenticationFactor
+			(
+			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_UserID
+			 	, NStr::CStr const &_Factor
+			)
+		;
 		TCContinuation<uint32> f_CommandLine_EnumUserAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
 		TCContinuation<uint32> f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		TCContinuation<uint32> f_CommandLine_AuthenticatePermissionPattern(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
@@ -199,8 +212,14 @@ namespace NMib::NConcurrency
 		;
 
 		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
-        virtual TCContinuation<CActorSubscription> fp_SetupAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime);
-        TCContinuation<CActorSubscription> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime);
+        virtual TCContinuation<CActorSubscription> fp_SetupAuthentication
+			(
+			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, int64 _AuthenticationLifetime
+			 	, NStr::CStr const &_UserID
+			)
+		;
+        TCContinuation<CActorSubscription> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime, NStr::CStr const &_UserID);
 
 #if DMibConfig_Tests_Enable
 		virtual TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);

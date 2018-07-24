@@ -114,8 +114,6 @@ namespace NMib::NConcurrency
 						, *_AuthenticationFactors
 					)
 				;
-
-				m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 			}
 		;
 		
@@ -584,6 +582,8 @@ namespace NMib::NConcurrency
 						
 						pCleanup->f_Clear();
 
+						m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
+
 						TCContinuation<void> PublishContinuation;
 						if (m_bSupportAuthentication)
 						{
@@ -592,7 +592,8 @@ namespace NMib::NConcurrency
 								 	m_ActorDistributionManager
 								 	, m_pThis
 								 	, ICDistributedActorAuthentication::mc_pDefaultNamespace
-								) > PublishContinuation;
+								)
+								> PublishContinuation;
 							;
 						}
 						else

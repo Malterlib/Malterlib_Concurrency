@@ -26,17 +26,15 @@ namespace NMib::NConcurrency
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
 		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> f_SignAuthenticationRequest
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
-				, TCSet<CStr> const &_Permissions
-				, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
-			 	, TCMap<CStr, CAuthenticationData> &&_Factors
-			 	, NTime::CTime const &_ExpirationTime
+				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+			 	, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		;
-		TCContinuation<bool> f_VerifyAuthenticationResponse
+		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -64,12 +62,19 @@ namespace NMib::NConcurrency
 
 		CStdInReaderPromptParams NewPasswordPrompt1;
 		NewPasswordPrompt1.m_bPassword = true;
-		NewPasswordPrompt1.m_Prompt = "Password        : ";
+		NewPasswordPrompt1.m_Prompt = "Adding Password factor to user. Please provide a new password.\n{}Password        : {}"_f
+			<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
+			<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+		;
 		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Continuation / [=](CStrSecure &&_NewPassword1) mutable
 			{
 				CStdInReaderPromptParams NewPasswordPrompt2;
 				NewPasswordPrompt2.m_bPassword = true;
-				NewPasswordPrompt2.m_Prompt = "Password (again): ";
+				NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
+					<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
+					<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+				;
+
 				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Continuation / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
 					{
 						if (NewPassword1 == _NewPassword2)
@@ -118,89 +123,110 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 
-	TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
+	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
 		(
 			NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
-			, TCSet<CStr> const &_Permissions
-			, TCMap<CStr, ICDistributedActorAuthenticationHandler::CChallenge> const &_Challenges
-			, TCMap<CStr, CAuthenticationData> &&_Factors
-			, NTime::CTime const &_ExpirationTime
+		 	, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		TCContinuation<TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse>> Continuation;
+		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
 
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
-		PasswordPrompt.m_Prompt = "Authentication required for '{}'\n{vs}\nPassword: "_f << _Description << _Permissions;
+		PasswordPrompt.m_Prompt = "{}Password: {}"_f
+			<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
+			<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+		;
+		
 		auto TrustManager = m_TrustManager.f_Lock();
-		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Continuation / [=, Factors = fg_Move(_Factors)](CStrSecure &&_Password) mutable
+		if (!TrustManager)
+			return DMibErrorInstance("No trust manager");
+
+		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Continuation / [=](CStrSecure &&_Password) mutable
 			{
-				TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
+				TCActorResultMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
-				for (auto const &Challenge : _Challenges)
 				{
-					for (auto const &Factor : Factors)
+					for (auto const &Factor : _Factors)
 					{
-						fg_ConcurrentDispatch
-							(
-								[Factor, _Password, FactorID = Factors.fs_GetKey(Factor), Challenge, _Permissions, _ExpirationTime]() -> ICDistributedActorAuthenticationHandler::CResponse
-								{
-									ICDistributedActorAuthenticationHandler::CResponse Response;
-									auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
-									if (!pKey)
-										return {};
-									auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
-									if (!pPasswordSalt)
-										return {};
-									auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
-									if (!pExpansionSalt)
-										return {};
+						g_ConcurrentDispatch > [Factor, _Password, FactorID = _Factors.fs_GetKey(Factor), _SignedProperties]
+							() mutable -> ICDistributedActorAuthenticationHandler::CResponse
+							{
+								auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
+								if (!pKey || !pKey->f_IsBinary())
+									return {};
+								auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
+								if (!pPasswordSalt || !pPasswordSalt->f_IsBinary())
+									return {};
+								auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
+								if (!pExpansionSalt || !pExpansionSalt->f_IsBinary())
+									return {};
 
-									CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary();
-									CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary();
-									CSecureByteVector EncyptedPrivateKey = pKey->f_Binary();
-									CBinaryStreamMemoryPtr<> Stream;
-									Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
-									CKeyExpansion KeyExpansion{_Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
-									NException::CDisableExceptionTraceScope Disable;
-									try
+								CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary();
+								CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary();
+								CSecureByteVector EncyptedPrivateKey = pKey->f_Binary();
+
+								CBinaryStreamMemoryPtr<> Stream;
+								Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
+
+								CKeyExpansion KeyExpansion{_Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
+								NException::CDisableExceptionTraceScope Disable;
+								try
+								{
+									CSecureByteVector PrivateKeyData;
 									{
-										CSecureByteVector PrivateKeyData;
-										{
-											TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
-											EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
-											EncryptedStream >> PrivateKeyData;
-										}
-										// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
-										CSecureByteVector Signature = CSSLContext::fs_SignMessage(Challenge.m_ChallengeData, PrivateKeyData);
-										return {_Permissions, Challenge, FactorID, Factor.m_Name, Signature, _ExpirationTime};
+										TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
+										EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
+										EncryptedStream >> PrivateKeyData;
 									}
-									catch (CExceptionCryptography const &_Exception)
-									{
-										// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
-										if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
-											return {};
-										throw;
-									}
+									// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
+
+									ICDistributedActorAuthenticationHandler::CResponse Response;
+									Response.m_FactorID = FactorID;
+									Response.m_FactorName = Factor.m_Name;
+									Response.m_SignedProperties = _SignedProperties;
+									Response.m_Signature = CSSLContext::fs_SignMessage(_SignedProperties.f_GetSignatureBytes(), PrivateKeyData);
+
+									return Response;
 								}
-							 ) > AuthenticationResults.f_AddResult(TCTuple<CStr, CStr>{_Challenges.fs_GetKey(Challenge), Factors.fs_GetKey(Factor)});
+								catch (CExceptionCryptography const &_Exception)
+								{
+									// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
+									if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
+										return {};
+									throw;
+								}
+							}
+							> AuthenticationResults.f_AddResult(_Factors.fs_GetKey(Factor));
 						;
 					}
 				}
-				AuthenticationResults.f_GetResults() > Continuation / [Continuation](TCMap<TCTuple<CStr, CStr>, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
+				AuthenticationResults.f_GetResults()
+					> Continuation / [Continuation, _pCommandLine](TCMap<CStr, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
 					{
-						TCMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> Results;
 						for (auto const &Response : _Results)
 						{
-							if (!Response)
-								DMibLogWithCategory(Malterlib/Concurrency/AuthenticationActorPassword, Info, "Unhandled exception: {}", Response.f_GetExceptionStr());
-							if (Response->m_ResponseData.f_IsEmpty())
+							if (!Response || Response->m_Signature.f_IsEmpty())
 								continue;
-							Results[fg_Get<0>(_Results.fs_GetKey(Response))] = *Response;
-							// No early out, must collect all valid results
+							Continuation.f_SetResult(*Response);
+							return;
 						}
-						Continuation.f_SetResult(Results);
+
+						TCVector<CStr> Exceptions;
+						for (auto const &Response : _Results)
+						{
+							if (Response)
+								continue;
+							Exceptions.f_Insert(Response.f_GetExceptionStr());
+							return;
+						}
+
+						if (Exceptions.f_IsEmpty())
+							Continuation.f_SetException(DMibErrorInstance("Wrong password"));
+						else
+							Continuation.f_SetException(DMibErrorInstance(CStr::fs_Join(Exceptions, "\n")));
 					}
 				;
 			}
@@ -208,34 +234,32 @@ namespace NMib::NConcurrency
 		return Continuation;
 	};
 
-	TCContinuation<bool> CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
+	auto CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
 		(
 			ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 			, CAuthenticationData const &_AuthenticationData
 		)
+		-> TCContinuation<CVerifyAuthenticationReturn>
 	{
-		TCContinuation<bool> Continuation;
+		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
+		if (!pValue || !pValue->f_IsBinary())
+		return fg_Explicit(CVerifyAuthenticationReturn{});
 
-		if (_Response.m_Challenge ==_Challenge && _Challenge.m_UserID && _Response.m_FactorID)
-		{
-			auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
-			if (pValue && pValue->f_IsBinary())
-			{
-				fg_ConcurrentDispatch
-					(
-						[=, PublicKey = pValue->f_Binary()]
-						{
-							return CSSLContext::fs_VerifySignature(_Response.m_Challenge.m_ChallengeData, PublicKey, _Response.m_ResponseData);
-						}
-					) > Continuation;
-				;
-			}
-			else
-				Continuation.f_SetResult(false);
-		}
-		else
-			Continuation.f_SetResult(false);
+		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
+
+		TCContinuation<CVerifyAuthenticationReturn> Continuation;
+		
+		fg_ConcurrentDispatch
+			(
+				[=, PublicKey = pValue->f_Binary()]() -> CVerifyAuthenticationReturn
+				{
+					CVerifyAuthenticationReturn Return;
+					Return.m_bVerified = CSSLContext::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);
+					return Return;
+				}
+			) > Continuation;
+		;
 
 		return Continuation;
 	}
@@ -248,10 +272,7 @@ namespace NMib::NConcurrency
 	
 	mint CDistributedActorTrustManagerAuthenticationActorFactoryPassword::ms_MakeActive;
 
-	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator ()
-		(
-			TCActor<CDistributedActorTrustManager> const &_TrustManager
-		)
+	CAuthenticationActorInfo CDistributedActorTrustManagerAuthenticationActorFactoryPassword::operator ()(TCActor<CDistributedActorTrustManager> const &_TrustManager)
 	{
 		return CAuthenticationActorInfo{fg_ConstructActor<CDistributedActorTrustManagerAuthenticationActorPassword>(_TrustManager), EAuthenticationFactorCategory_Knowledge};
 	}

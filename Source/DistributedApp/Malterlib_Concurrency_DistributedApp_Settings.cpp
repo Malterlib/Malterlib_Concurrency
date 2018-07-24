@@ -125,8 +125,8 @@ namespace NMib::NConcurrency
 			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);
 		
 		CStr ConfigHash = fg_GetHashedUuidString(m_RootDirectory, g_HostnameRootUUID, EUniversallyUniqueIdentifierFormat_AlphaNum);
-		CStr TempDir = CFile::fs_GetTemporaryDirectory();
-		CStr Prefix = fg_Format("{}/{}", TempDir, ConfigHash);
+		CStr TempDir = CFile::fs_GetRawTemporaryDirectory();
+		CStr Prefix = TempDir / ConfigHash;
 		if (fp_GetLocalSocketPath(Prefix, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(Prefix, _bEnclaveSpecific, _Enclave);
 		

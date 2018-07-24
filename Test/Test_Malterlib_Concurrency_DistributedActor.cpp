@@ -1603,7 +1603,7 @@ namespace
 				};
 				DMibTestSuite("Basics Unix Sockets")
 				{
-					fp_BasicTests(fg_Format("UNIX:{}/TestDistributedActor.socket", NMib::NFile::CFile::fs_GetProgramDirectory()));
+					fp_BasicTests("UNIX:" + NNet::fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
 				};
 				DMibTestSuite("Anonymous client")
 				{

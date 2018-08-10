@@ -48,7 +48,15 @@ namespace NMib
 			
 			TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
 		}
-		
+
+		bool fg_CurrentActorRunning()
+		{
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			if (!ThreadLocal.m_pCurrentActor || !ThreadLocal.m_pCurrentlyProcessingActorHolder)
+				return false;
+			return ThreadLocal.m_pCurrentlyProcessingActorHolder->f_OwnsActor(ThreadLocal.m_pCurrentActor);
+		}
+
 		NConcurrency::CConcurrencyManager &fg_ConcurrencyManager()
 		{
 			return NPrivate::g_SubSystem_Concurrency->f_GetConcurrencyManager();

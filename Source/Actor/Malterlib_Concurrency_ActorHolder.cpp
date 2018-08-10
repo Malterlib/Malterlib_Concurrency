@@ -230,13 +230,16 @@ namespace NMib
 		{
 		}
 
-		
 		bool CActorHolder::f_IsDestroyed() const
 		{
 			return mp_bDestroyed.f_Load() != 0;
 		}
 
-		
+		bool CActorHolder::f_OwnsActor(CActor const *_pActor) const
+		{
+			return mp_pActor.f_Get() == _pActor;
+		}
+
 		bool CActorHolder::fp_Terminate(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 		{
 			smint Expected = 0;

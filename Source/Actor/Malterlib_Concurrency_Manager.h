@@ -53,7 +53,7 @@ namespace NMib
 			
 			void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 			void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
-			
+
 		private:
 			template <typename t_CActor>
 			friend class TCActorInternal;
@@ -130,6 +130,8 @@ namespace NMib
 		extern CAllowWrongThreadDestroy g_AllowWrongThreadDestroy;
 		
 		CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
+
+		bool fg_CurrentActorRunning();
 	
 		template <typename tf_CActor, typename... tfp_CParams>
 		TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);

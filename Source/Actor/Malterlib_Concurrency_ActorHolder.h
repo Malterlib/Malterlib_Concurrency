@@ -82,6 +82,7 @@ namespace NMib
 			void f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame = false);
 			bool f_ImmediateDelete() const;
 			bool f_IsDestroyed() const;
+			bool f_OwnsActor(CActor const *_pActor) const;
 			
 			TCDispatchedActorCall<void> f_Destroy();
 			void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);

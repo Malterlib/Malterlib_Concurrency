@@ -4,6 +4,10 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor_U2F_HID.h"
 #include "../../../../External/hidapi/hidapi/hidapi.h"
 
+#ifdef DPlatformFamily_Windows
+#pragma comment(lib, "Setupapi.lib")
+#endif
+
 namespace NMib::NConcurrency
 {
 	using namespace NContainer;

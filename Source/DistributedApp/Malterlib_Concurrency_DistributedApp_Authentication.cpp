@@ -327,7 +327,7 @@ namespace NMib::NConcurrency
 				// { C }    : { 1 }
 				// { D, E } : { 2 }
 				// { E }    : { 3 }
-				mint nRequirement = 0;
+				int32 nRequirement = 0;
 				for (auto const &OuterRequestedPermissions : Info.m_Request.m_RequestedPermissions)
 				{
 					++nRequirement;

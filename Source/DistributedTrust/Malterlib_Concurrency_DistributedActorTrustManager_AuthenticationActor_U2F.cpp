@@ -196,9 +196,9 @@ namespace
 	// The unit of data passed to and from the U2F device
 	struct CFrame
 	{
-		aint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
+		mint f_SetInitial(uint32 _ChannelID, uint8 _Command, uint16 _ByteCount, uint8 const *_pData, uint32 _Length)
 		{
-			_Length = fg_Min(_Length, CHumanInterfaceDevicesActor::EReportSize - 7);
+			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 7));
 			m_ChannelID = _ChannelID;
 			m_InitialFrame.m_Command = _Command;
 			m_InitialFrame.m_ByteCountHigh = _ByteCount >> 8;
@@ -210,9 +210,9 @@ namespace
 			return _Length;
 		}
 
-		aint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
+		mint f_SetContinuation(uint32 _ChannelID, uint8 _SequenceNumber, uint8 const *_pData, uint32 _Length)
 		{
-			_Length = fg_Min(_Length, CHumanInterfaceDevicesActor::EReportSize - 5);
+			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 5));
 			m_ChannelID = _ChannelID;
 			m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
 			NMem::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
@@ -297,21 +297,20 @@ namespace
 				return Continuation;
 			}
 
-			static TCContinuation<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			struct CReadFrameState
 			{
 				constexpr static mint c_HIDTimeout = 2;
 				constexpr static mint c_HIDMaxTimeout = 4096;
+				mint m_Timeout = c_HIDTimeout;
+			};
 
-				struct CState
-				{
-					int m_Timeout = c_HIDTimeout;
-				};
-
-				TCSharedPointer<CState> pState = fg_Construct();
+			static TCContinuation<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			{
+				TCSharedPointer<CReadFrameState> pState = fg_Construct();
 
 				TCContinuation<CFrame> Continuation;
 
-				auto fTry = [Device = _Device, Continuation](TCSharedPointer<CState> const &_pState, auto const &_fTry) -> void
+				auto fTry = [Device = _Device, Continuation](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
 					{
 						Device(&CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, _pState->m_Timeout)
 							> Continuation / [=](CByteVector &&_Result) mutable
@@ -330,7 +329,7 @@ namespace
 
 								_pState->m_Timeout *= 2;
 
-								if (_pState->m_Timeout > c_HIDMaxTimeout)
+								if (_pState->m_Timeout > CReadFrameState::c_HIDMaxTimeout)
 								{
 									Continuation.f_SetException(DMibErrorInstance("U2F transport error: Timed out reading"));
 									return;
@@ -366,7 +365,7 @@ namespace
 					uint8 m_Sequence = 0;
 					mint m_SendLength = m_ToSend.f_GetLen();
 					uint8 const *m_pSendData = m_ToSend.f_GetArray();
-					aint m_DataSent = 0;
+					mint m_DataSent = 0;
 				};
 
 				TCSharedPointer<CSendState> pSendState = fg_Construct(_Send);

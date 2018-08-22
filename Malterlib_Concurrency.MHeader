@@ -23,7 +23,9 @@ Import "Apps/*/*.MHeader"
 	}
 	Compile
 	{
+		!!CompileDialect "C"
 		SearchPath "@('../../External/hidapi/hidapi'->MakeAbsolute());@(Compile.SearchPath)"
+		Warnings Minimal
 	}
 
 	%Group Source

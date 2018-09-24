@@ -3,7 +3,7 @@
 
 #include <Mib/Core/Core>
 
-#include <Mib/Core/Core>
+#include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
 #include <Mib/Concurrency/Actor/Timer>
@@ -191,9 +191,9 @@ namespace NMib::NConcurrency
 				{
 					*State.m_pCommandLine %= "Failed to authenticate with factor '{}': {}{}{}\n"_f
 						<< CurrentFactor
-						<< (ch8 const *)CCommandLineControl::CColors::ms_StatusError
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_StatusError
 						<< _Response.f_GetExceptionStr()
-						<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 					;
 
 					State.m_Tested[CurrentFactor] = false;

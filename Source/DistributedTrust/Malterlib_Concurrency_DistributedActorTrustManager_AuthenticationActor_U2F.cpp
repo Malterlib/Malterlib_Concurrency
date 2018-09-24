@@ -1,14 +1,16 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
+#include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActor>
-#include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Container/Vector>
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Cryptography/RandomData>
-#include <Mib/Container/Vector>
 #include <Mib/Encoding/Base64>
 #include <Mib/Network/SSL>
+
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor_U2F_HID.h"
@@ -1289,8 +1291,8 @@ namespace NMib::NConcurrency
 			 	[=]
 			 	{
 					*_pCommandLine %= "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
-						<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
-						<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 					;
 				}
 			)
@@ -1342,8 +1344,8 @@ namespace NMib::NConcurrency
 			 	, [=]
 			 	{
 					*_pCommandLine %= "{}Please press the button on your U2F device.{}\n"_f
-						<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
-						<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
+						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 					;
 				}
 			)

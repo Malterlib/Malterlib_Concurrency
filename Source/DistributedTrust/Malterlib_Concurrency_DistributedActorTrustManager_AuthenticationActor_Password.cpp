@@ -1,11 +1,13 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
+#include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/DistributedApp>
-#include <Mib/Network/SSL>
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Encoding/Base64>
-#include <Mib/Concurrency/DistributedActor>
+#include <Mib/Network/SSL>
+
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 
@@ -63,16 +65,16 @@ namespace NMib::NConcurrency
 		CStdInReaderPromptParams NewPasswordPrompt1;
 		NewPasswordPrompt1.m_bPassword = true;
 		NewPasswordPrompt1.m_Prompt = "Adding Password factor to user. Please provide a new password.\n{}Password        : {}"_f
-			<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
-			<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
+			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 		;
 		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Continuation / [=](CStrSecure &&_NewPassword1) mutable
 			{
 				CStdInReaderPromptParams NewPasswordPrompt2;
 				NewPasswordPrompt2.m_bPassword = true;
 				NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
-					<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
-					<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+					<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
+					<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 				;
 
 				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Continuation / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
@@ -136,8 +138,8 @@ namespace NMib::NConcurrency
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
 		PasswordPrompt.m_Prompt = "{}Password: {}"_f
-			<< (ch8 const *)CCommandLineControl::CColors::ms_Prompt
-			<< (ch8 const *)CCommandLineControl::CColors::ms_Default
+			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
+			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 		;
 		
 		auto TrustManager = m_TrustManager.f_Lock();

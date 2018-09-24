@@ -50,6 +50,7 @@ namespace NMib::NConcurrency
 			static ch8 const ms_StatusNormal[];
 			static ch8 const ms_StatusWarning[];
 			static ch8 const ms_StatusError[];
+			static ch8 const ms_Bold[];
 
 			static ch8 const ms_Prompt[];
 

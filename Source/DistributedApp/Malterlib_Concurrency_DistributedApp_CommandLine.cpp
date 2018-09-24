@@ -32,6 +32,8 @@ namespace NMib
 		ch8 const CCommandLineControl::CColors::ms_StatusNormal[] = DColor_Reset DColor_256(118);
 		ch8 const CCommandLineControl::CColors::ms_StatusWarning[] = DColor_Reset DColor_256(207);
 		ch8 const CCommandLineControl::CColors::ms_StatusError[] = DColor_Reset DColor_Bold DColor_256(198);
+		ch8 const CCommandLineControl::CColors::ms_Bold[] = DColor_Bold;
+
 
 		ch8 const CCommandLineControl::CColors::ms_Prompt[] = DColor_Reset DColor_256(221);
 

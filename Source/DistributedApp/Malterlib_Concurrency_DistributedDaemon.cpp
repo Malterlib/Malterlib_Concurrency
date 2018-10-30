@@ -107,6 +107,8 @@ namespace NMib
 					o_DaemonParams.f_SetKey("-DoStop", _Params["Daemon_DoStop"].f_Boolean());
 				if (_Params.f_GetMember("Daemon_DoStatus"))
 					o_DaemonParams.f_SetKey("-DoStatus", _Params["Daemon_DoStatus"].f_Boolean());
+				if (_Params.f_GetMember("Daemon_DetachConsole"))
+					o_DaemonParams.f_SetDetachConsole(_Params["Daemon_DetachConsole"].f_Boolean());
 				o_DaemonParams.f_SetDisableWriteService(true); // Handled locally
 				o_DaemonParams.f_SetExecutablePath(NFile::CFile::fs_GetProgramPath());
 			}
@@ -355,6 +357,17 @@ namespace NMib
 							"Mostly for debugging purposes. On supported operating systems a tray icon will be added that you can use to send commands to the daemon.\n"
 						, "SectionOptions"_= {"Daemon_Mode"}
 						, "Parameters"_= {DaemonNameParam}
+						, "Options"_= 
+						{
+#ifdef DPlatformFamily_Windows
+							"Daemon_DetachConsole?"_= 
+							{
+								"Names"_= {"--detach-console"}
+								, "Default"_= false
+								, "Description"_= "Detach from console so no window is displayed."
+							}
+#endif
+						}
 					}
 					, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 					{

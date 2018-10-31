@@ -50,6 +50,8 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_AuditCategory
 			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
 		 	, bool _bSupportUserAuthentication
+			, NStr::CStr const &_RunAsUser
+			, NStr::CStr const &_RunAsGroup
 		)
 		: m_AppName(_AppName)
 		, m_bRequireListen(_bRequireListen)
@@ -62,6 +64,8 @@ namespace NMib::NConcurrency
 		, m_AuditCategory(_AuditCategory)
 		, m_InterfaceSettings(_InterfaceSettings)
 		, m_bSupportUserAuthentication(_bSupportUserAuthentication)
+		, m_RunAsUser(_RunAsUser)
+		, m_RunAsGroup(_RunAsGroup)
 	{
 	}
 
@@ -78,6 +82,8 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_AuditCategory
 			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
 		 	, bool _bSupportUserAuthentication
+			, NStr::CStr const &_RunAsUser
+			, NStr::CStr const &_RunAsGroup
 		)
 		: CDistributedAppActor_SettingsProperties
 		(
@@ -92,6 +98,8 @@ namespace NMib::NConcurrency
 			, _AuditCategory
 		 	, _InterfaceSettings
 		 	, _bSupportUserAuthentication
+			, _RunAsUser
+			, _RunAsGroup
 		)
 	{
 		if (m_AuditCategory.f_IsEmpty())
@@ -178,6 +186,18 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_AuditCategory(NStr::CStr const &_Category) &&
 	{
 		m_AuditCategory = _Category;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RunAsUser(NStr::CStr const &_User) &&
+	{
+		m_RunAsUser = _User;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_RunAsGroup(NStr::CStr const &_Group) &&
+	{
+		m_RunAsGroup = _Group;
 		return fg_Move(*this);
 	}
 	

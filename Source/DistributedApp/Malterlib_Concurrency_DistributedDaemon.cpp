@@ -77,10 +77,10 @@ namespace NMib
 		{
 			void fg_SetServiceOptions(CServiceParams &o_DaemonParams, NEncoding::CEJSON const &_Params)
 			{
+				EServiceMode Mode = EServiceMode_Global;
 				if (_Params.f_GetMember("Daemon_Mode"))
 				{
 					NStr::CStr ModeStr = _Params["Daemon_Mode"].f_String();
-					EServiceMode Mode = EServiceMode_Global;
 					if (ModeStr == "global")
 						Mode = EServiceMode_Global;  
 					else if (ModeStr == "user")
@@ -91,10 +91,13 @@ namespace NMib
 						DMibNeverGetHere;
 					o_DaemonParams.f_SetServiceMode(Mode);
 				}
-				if (_Params.f_GetMember("Daemon_RunAsUser"))
-					o_DaemonParams.f_SetRunAsUser(_Params["Daemon_RunAsUser"].f_String());
-				if (_Params.f_GetMember("Daemon_RunAsGroup"))
-					o_DaemonParams.f_SetRunAsGroup(_Params["Daemon_RunAsGroup"].f_String());
+				if (Mode == EServiceMode_Global)
+				{
+					if (_Params.f_GetMember("Daemon_RunAsUser"))
+						o_DaemonParams.f_SetRunAsUser(_Params["Daemon_RunAsUser"].f_String());
+					if (_Params.f_GetMember("Daemon_RunAsGroup"))
+						o_DaemonParams.f_SetRunAsGroup(_Params["Daemon_RunAsGroup"].f_String());
+				}
 				if (_Params.f_GetMember("Daemon_FailIfAdded"))
 					o_DaemonParams.f_SetActionParam(_Params["Daemon_FailIfAdded"].f_Boolean());
 				else if (_Params.f_GetMember("Daemon_Wait"))
@@ -248,13 +251,13 @@ namespace NMib
 							, "Daemon_RunAsUser?"_= 
 							{
 								"Names"_= {"--run-as-user", "-RunAsUser"}
-								, "Default"_= ""
+								, "Default"_= _Settings.m_RunAsUser
 								, "Description"_= "Specify the user that the daemon should run as when started."
 							}
 							, "Daemon_RunAsGroup?"_= 
 							{
 								"Names"_= {"--run-as-group", "-RunAsGroup"}
-								, "Default"_= ""
+								, "Default"_= _Settings.m_RunAsGroup
 								, "Description"_= "Specify the group that the daemon should run as when started."
 							}
 							, "Daemon_FailIfAdded?"_=

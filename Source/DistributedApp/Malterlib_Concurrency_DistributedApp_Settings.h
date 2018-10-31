@@ -25,6 +25,8 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_AuditCategory = fg_DistributedAppThreadLocal().m_DefaultSettings.m_AuditCategory
 			 	, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings = fg_DistributedAppThreadLocal().m_DefaultSettings.m_InterfaceSettings
 			 	, bool _bSupportUserAuthentication = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bSupportUserAuthentication
+				, NStr::CStr const &_RunAsUser = fg_DistributedAppThreadLocal().m_DefaultSettings.m_RunAsUser
+			 	, NStr::CStr const &_RunAsGroup = fg_DistributedAppThreadLocal().m_DefaultSettings.m_RunAsGroup
 			)
 		;
 		NStr::CStr f_GetCompositeFriendlyName() const;
@@ -36,6 +38,8 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_FriendlyName(NStr::CStr const &_FriendlyName) &&;
 		CDistributedAppActor_Settings &&f_Enclave(NStr::CStr const &_Enclave) &&;
 		CDistributedAppActor_Settings &&f_AuditCategory(NStr::CStr const &_Category) &&;
+		CDistributedAppActor_Settings &&f_RunAsUser(NStr::CStr const &_User) &&;
+		CDistributedAppActor_Settings &&f_RunAsGroup(NStr::CStr const &_Group) &&;
 		CDistributedAppActor_Settings &&f_SeparateDistributionManager(bool _bSeparateDistributionManager) &&;
 		CDistributedAppActor_Settings &&f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&;
 		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;

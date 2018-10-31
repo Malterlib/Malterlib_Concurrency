@@ -59,6 +59,8 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_AuditCategory
 				, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
 			 	, bool _bSupportUserAuthentication
+				, NStr::CStr const &_RunAsUser
+				, NStr::CStr const &_RunAsGroup
 			)
 		;
 
@@ -66,6 +68,8 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RootDirectory = NFile::CFile::fs_GetProgramDirectory();
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_AuditCategory;
+		NStr::CStr m_RunAsUser;
+		NStr::CStr m_RunAsGroup;
 		NStr::CStr m_Enclave;
 		NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 		NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;

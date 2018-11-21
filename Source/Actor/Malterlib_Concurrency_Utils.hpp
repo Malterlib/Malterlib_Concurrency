@@ -232,6 +232,13 @@ namespace NMib
 			return mp_Actor(&CInternalActor::f_GetResults);
 		}
 
+		template <typename t_CKey, typename t_CValue>
+		bool TCActorResultMap<t_CKey, t_CValue>::f_IsEmpty() const
+		{
+			auto &Internal = mp_Actor->f_AccessInternal();
+			return Internal.mp_nAdded.f_Load() == 0;
+		}
+
 		template <typename tf_CType, typename tf_FOnResult>
 		void fg_CombineResults
 			(

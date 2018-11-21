@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -212,6 +212,7 @@ namespace NMib
 			template <typename tf_CKey>
 			TCActorResultCall<TCActor<CInternalActor>, CResultReceived> f_AddResult(tf_CKey &&_Key);
 			auto f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults));
+			bool f_IsEmpty() const;
 		};
 
 		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>

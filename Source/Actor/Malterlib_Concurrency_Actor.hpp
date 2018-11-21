@@ -357,13 +357,30 @@ namespace NMib
 			for (auto &Actor : mp_Actors)
 				Actor = fg_TempCopy(_Param);
 		}
-		
+
+		template <typename t_CActor>
+		bool TCRoundRobinActors<t_CActor>::f_IsConstructed() const
+		{
+			return mp_Actors.f_GetLen() && !!mp_Actors[0];
+		}
+
+		template <typename t_CActor>
+		template <typename tf_CParam>
+		void TCRoundRobinActors<t_CActor>::f_ConstructFunctor(tf_CParam &&_fConstruct)
+		{
+			for (auto &Actor : mp_Actors)
+				Actor = _fConstruct();
+		}
+
 		template <typename t_CActor>
 		TCContinuation<void> TCRoundRobinActors<t_CActor>::f_Destroy()
 		{
 			TCActorResultVector<void> Results;
 			for (auto &Actor : mp_Actors)
-				Actor->f_Destroy() > Results.f_AddResult();
+			{
+				if (Actor)
+					Actor->f_Destroy() > Results.f_AddResult();
+			}
 			
 			TCContinuation<void> Continuation;
 			Results.f_GetResults() > Continuation.f_ReceiveAny();

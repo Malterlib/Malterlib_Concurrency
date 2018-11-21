@@ -101,10 +101,15 @@ namespace NMib
 		struct TCRoundRobinActors
 		{
 			TCRoundRobinActors(mint _nActors);
+
+			bool f_IsConstructed() const;
 			
 			template <typename tf_CParam>
 			void f_Construct(tf_CParam &&_Param);
-			
+
+			template <typename tf_CParam>
+			void f_ConstructFunctor(tf_CParam &&_fConstruct);
+
 			TCContinuation<void> f_Destroy();
 			
 			TCActor<t_CActor> const &operator *() const;

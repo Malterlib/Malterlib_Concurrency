@@ -326,7 +326,18 @@ namespace NMib
 				)
 			;
 		}
-		
+
+		template <typename tf_CType>
+		bool CActor::fp_CheckDestroyed(TCContinuation<tf_CType> const &o_Continuation)
+		{
+			if (mp_bDestroyed)
+			{
+				o_Continuation.f_SetException(fp_CheckDestroyed());
+				return true;
+			}
+			return false;
+		}
+
 		template <typename tf_CReturnType>
 		tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
 		{

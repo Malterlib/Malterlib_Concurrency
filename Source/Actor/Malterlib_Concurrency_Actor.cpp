@@ -40,7 +40,14 @@ namespace NMib::NConcurrency
 	void CActor::fp_Construct()
 	{
 	}
-	
+
+	NException::CExceptionPointer CActor::fp_CheckDestroyed()
+	{
+		if (mp_bDestroyed)
+			return NException::fg_ExceptionPointer(DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Actor is being destroyed"));
+		return nullptr;
+	}
+
 	TCContinuation<void> CActor::fp_DestroyInternal()
 	{
 		if (mp_bDestroyed)

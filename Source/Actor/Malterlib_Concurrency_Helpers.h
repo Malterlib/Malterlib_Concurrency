@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -22,6 +22,13 @@ namespace NMib::NConcurrency
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorAlreadyDestroyed(_Description) DMibErrorActorAlreadyDestroyed(_Description)
+#		endif
+
+	DMibImpErrorClass(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
+#		define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorIsBeingDestroyed, _Description)
+
+#		ifndef DMibPNoShortCuts
+#			define DErrorActorIsBeingDestroyed(_Description) DMibErrorActorIsBeingDestroyed(_Description)
 #		endif
 
 	DMibImpErrorClass(CExceptionActorResultWasNotSet, NMib::NException::CException);

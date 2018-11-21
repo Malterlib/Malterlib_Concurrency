@@ -54,7 +54,11 @@ namespace NMib
 		protected:
 			virtual void fp_Construct();
 			virtual TCContinuation<void> fp_Destroy();
-			
+
+			NException::CExceptionPointer fp_CheckDestroyed();
+
+			template <typename tf_CType>
+			bool fp_CheckDestroyed(TCContinuation<tf_CType> const &o_Continuation);
 		public:
 			
 			typedef CDefaultActorHolder CActorHolder;

@@ -133,7 +133,15 @@ namespace NMib::NConcurrency
 		
 		return ConnectionSettings;
 	}
-	
+
+	TCContinuation<void> CDistributedActorTrustManager::f_WaitForInitialConnection()
+	{
+		auto &Internal = *mp_pInternal;
+		if (Internal.m_bConnectionsInitialized)
+			return fg_Explicit();
+		return Internal.m_AwaitingConnection.f_Insert();
+	}
+
 	void CDistributedActorTrustManager::CInternal::f_Init
 		(
 			TCContinuation<NStr::CStr> &_Continuation
@@ -512,7 +520,7 @@ namespace NMib::NConcurrency
 					ConnectionsToTimeout[Address] = ConnectContinuation;
 					ConnectContinuation > ConnectResults.f_AddResult(Address);
 				}
-				
+
 				fg_Timeout(m_InitialConnectionTimeout) > [this, ConnectionsToTimeout = fg_Move(ConnectionsToTimeout)]
 					{
 						for (auto &ConnectionContinuation : ConnectionsToTimeout)
@@ -524,13 +532,61 @@ namespace NMib::NConcurrency
 						}
 					}
 				;
-				
+
+				TCContinuation<void> WaitForConnectionsContinuation;
+
+				if (m_bWaitForConnectionsDuringInit)
+					m_AwaitingConnection.f_Insert(WaitForConnectionsContinuation);
+				else
+					WaitForConnectionsContinuation.f_SetResult();
+
+				ConnectResults.f_GetResults() > [this, _Continuation, pCleanup]
+					(
+						TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult
+					)
+					{
+						if (!_ConnectionResult)
+						{
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/Trust
+									, Error
+									, "Failed to wait for connection results: {}"
+									, _ConnectionResult.f_GetExceptionStr()
+								)
+							;
+							return;
+						}
+						for (auto &ConnectionResult : *_ConnectionResult)
+						{
+							if (ConnectionResult)
+								continue;
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/Trust
+									, Error
+									, "Initial connection for '{}' failed with: {}"
+									, (*_ConnectionResult).fs_GetKey(ConnectionResult)
+									, ConnectionResult.f_GetExceptionStr()
+								)
+							;
+						}
+
+						m_bConnectionsInitialized = true;
+
+						for (auto &Waiting : m_AwaitingConnection)
+							Waiting.f_SetResult();
+
+						m_AwaitingConnection.f_Clear();
+					}
+				;
+
 				ListenResults.f_GetResults()
-					+ ConnectResults.f_GetResults()
+					+ WaitForConnectionsContinuation
 					> [this, _Continuation, pCleanup]
 					(
 						TCAsyncResult<NContainer::TCMap<CListenConfig, TCAsyncResult<CDistributedActorListenReference>>> &&_ListenResults
-						, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult
+					 	, TCAsyncResult<void> &&_ConnectionsResults
 					)
 					{
 						if (!_ListenResults)
@@ -539,12 +595,12 @@ namespace NMib::NConcurrency
 							return;
 						}
 
-						if (!_ConnectionResult)
+						if (!_ConnectionsResults)
 						{
-							_Continuation.f_SetException(_ConnectionResult);
+							_Continuation.f_SetException(_ConnectionsResults);
 							return;
 						}
-						
+
 						if
 							(
 								!fg_CombineResults
@@ -563,21 +619,6 @@ namespace NMib::NConcurrency
 							)
 						{
 							return;
-						}
-						
-						for (auto &ConnectionResult : *_ConnectionResult)
-						{
-							if (ConnectionResult)
-								continue;
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/Trust
-									, Error
-									, "Initial connection for '{}' failed with: {}"
-									, (*_ConnectionResult).fs_GetKey(ConnectionResult)
-									, ConnectionResult.f_GetExceptionStr()
-								)
-							;
 						}
 						
 						pCleanup->f_Clear();

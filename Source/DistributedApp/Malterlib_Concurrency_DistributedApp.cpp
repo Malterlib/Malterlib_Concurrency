@@ -164,12 +164,10 @@ namespace NMib::NConcurrency
 		
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 		
-		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
-		if (!pListen && mp_Settings.m_bRequireListen)
-			return DMibErrorInstance(fg_Format("Missing 'Listen' array section in {}Config.json", mp_Settings.m_AppName));
-		
 		CDistributedActorTrustManager_Address LocalListen;
-		LocalListen.m_URL = fp_GetLocalAddress(); 
+		LocalListen.m_URL = fp_GetLocalAddress();
+
+		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 		if (pListen)
 		{
 			bool bFirst = true; 
@@ -199,8 +197,6 @@ namespace NMib::NConcurrency
 					return DMibErrorInstance(fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode()));
 				WantedListens[Address];
 			}
-			if (WantedListens.f_IsEmpty() && mp_Settings.m_bRequireListen)
-				return DMibErrorInstance(fg_Format("At least one Listen entry needs to be in {}Config.json", mp_Settings.m_AppName));
 		}
 		WantedListens[LocalListen];
 		
@@ -367,6 +363,7 @@ namespace NMib::NConcurrency
 				Options.m_Enclave = mp_Settings.m_Enclave;
 				Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 				Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
+				Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
 				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
 				Options.m_bSupportAuthentication = bSupportAuthentication;
 				
@@ -587,6 +584,7 @@ namespace NMib::NConcurrency
 	{
 		mp_State.m_AppActor = fg_ThisActor(this);
 		mp_pCommandLineSpec = fg_Construct();
+		fp_BuildDefaultCommandLine(*mp_pCommandLineSpec, mp_Settings.m_DefaultCommandLineFunctionality);
 		fp_BuildCommandLine(*mp_pCommandLineSpec);
 	}
 
@@ -694,11 +692,18 @@ namespace NMib::NConcurrency
 		{
 			{
 				auto &SuggestedEnclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave;
+				auto &bSuggestedWaitForRemotes = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bWaitForRemotes;
+
 				auto OldEnclave = SuggestedEnclave;
 				SuggestedEnclave = NCryptography::fg_RandomID();
+
+				auto bOldWaitForRemotes = bSuggestedWaitForRemotes;
+				bSuggestedWaitForRemotes = false;
+
 				auto Cleanup = g_OnScopeExit > [&]
 					{
-						SuggestedEnclave = OldEnclave; 
+						SuggestedEnclave = OldEnclave;
+						bSuggestedWaitForRemotes = bOldWaitForRemotes;
 					}
 				;
 				AppActor = _fActorFactory();
@@ -728,10 +733,10 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyStartApp
 				(
-					[&](NEncoding::CEJSON const &_Params, bool _bForceStart)
+					[&](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
-						if (_bForceStart)
+						if (_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_RunLocalApp)
 							AppType = EDistributedAppType_ForceLocal;
 						else if (_bStartApp)
 							AppType = EDistributedAppType_Local;
@@ -741,7 +746,7 @@ namespace NMib::NConcurrency
 						TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
 						if (LogActor)
 							bInstalledLogDispatcher = true;
-						if (_bStartApp || _bForceStart)
+						if (_bStartApp || (_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_RunLocalApp))
 						{
 							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor, AppType).f_CallSync();
 							bStartedApp = true;

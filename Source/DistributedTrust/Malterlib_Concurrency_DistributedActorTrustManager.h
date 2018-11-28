@@ -248,6 +248,7 @@ namespace NMib::NConcurrency
 			fp64 m_InitialConnectionTimeout = 5.0;
 			int32 m_DefaultConnectionConcurrency = 1;
 			bool m_bRetryOnListenFailureDuringInit = true;
+			bool m_bWaitForConnectionsDuringInit = true;
 			bool m_bSupportAuthentication = true;
 		};
 
@@ -261,7 +262,8 @@ namespace NMib::NConcurrency
 		~CDistributedActorTrustManager();
 		
 		
-		TCContinuation<NStr::CStr> f_Initialize(); 
+		TCContinuation<NStr::CStr> f_Initialize();
+		TCContinuation<void> f_WaitForInitialConnection();
 		
 		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens();
 		TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);

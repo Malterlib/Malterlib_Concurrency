@@ -300,13 +300,17 @@ namespace NMib
 			
 			EInitialize m_Initialize = EInitialize_None;
 			NStr::CStr m_InitializeError;
+
+			NContainer::TCVector<TCContinuation<void>> m_AwaitingConnection;
 			
 			fp64 m_InitialConnectionTimeout = 5.0;
 			
 			int32 m_DefaultConnectionConcurrency = 1;
 
 			bool m_bRetryOnListenFailureDuringInit = true;
+			bool m_bWaitForConnectionsDuringInit = true;
 			bool m_bSupportAuthentication = true;
+			bool m_bConnectionsInitialized = false;
 		};
 	}
 }

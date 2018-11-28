@@ -121,14 +121,10 @@ namespace
 		CServerActor()
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings
-				(
-					"DistributedAppAuthenticationTestsServer"
-					, false
-					, NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Server"
-					, true
-					, NConcurrency::CDistributedActorTestKeySettings{}
-				)
+				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsServer")
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Server")
+			 	.f_SeparateDistributionManager(true)
+			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -305,14 +301,10 @@ namespace
 		CManyServerActor()
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings
-				(
-					"DistributedAppAuthenticationTestsManyServer"
-					, false
-					, NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/ManyServer"
-					, true
-					, NConcurrency::CDistributedActorTestKeySettings{}
-				)
+				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsManyServer")
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/ManyServer")
+			 	.f_SeparateDistributionManager(true)
+			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -538,14 +530,10 @@ namespace
 		CSlowServerActor()
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings
-				(
-					"DistributedAppAuthenticationTestsSlowServer"
-					, false
-					, NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/SlowServer"
-					, true
-					, NConcurrency::CDistributedActorTestKeySettings{}
-				)
+				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsSlowServer")
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/SlowServer")
+			 	.f_SeparateDistributionManager(true)
+			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -647,14 +635,10 @@ namespace
 		CClientActor(CStr _DefaultUserID)
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings
-				(
-					"DistributedAppAuthenticationTestsClient"
-					, false
-					, NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Client"
-					, true
-					, NConcurrency::CDistributedActorTestKeySettings{}
-				)
+				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsClient")
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Client")
+			 	.f_SeparateDistributionManager(true)
+			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			 	.f_SupportUserAuthentication(false)
 			)
 			, m_DefaultUserID(_DefaultUserID)
@@ -1630,6 +1614,9 @@ public:
 				, "ConcurrentLogging"_= true
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
+				, "Color"_= false
+				, "HelpCurrentCommand"_= false
+				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
 			}
 		;
@@ -1735,6 +1722,9 @@ public:
 						, "ConcurrentLogging"_= true
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
+						, "Color"_= false
+						, "HelpCurrentCommand"_= false
+						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= CurrentAuthLifetime
 					}
 				;
@@ -2461,6 +2451,9 @@ public:
 				, "ConcurrentLogging"_= true
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
+				, "Color"_= false
+				, "HelpCurrentCommand"_= false
+				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
 			}
 		;
@@ -2523,6 +2516,9 @@ public:
 						, "ConcurrentLogging"_= true
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
+						, "Color"_= false
+						, "HelpCurrentCommand"_= false
+						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= 0
 					}
 				;

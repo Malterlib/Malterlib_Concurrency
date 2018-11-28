@@ -19,9 +19,13 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		bool m_bInitialized = false;
+		bool m_bColorEnabled = true;
 	};
 
-	void CDistributedAppCommandLineClient::f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> const &_fLazyStartApp)
+	void CDistributedAppCommandLineClient::f_SetLazyStartApp
+		(
+		 	NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> const &_fLazyStartApp
+		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
 	}
@@ -131,10 +135,51 @@ namespace NMib::NConcurrency
 		};
 	}
 
+	bool CDistributedAppCommandLineClient::f_ColorEnabled() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_bColorEnabled;
+	}
+
 	aint CDistributedAppCommandLineClient::f_RunCommand(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
 		auto &Internal = *mp_pInternal;
 		auto &CommandLineSpec = *(Internal.m_pCommandLineSpecification->mp_pInternal);
+
+		Internal.m_bColorEnabled = _Params.f_GetMemberValue("Color", CDistributedAppActor::fs_ColorEnabledDefault()).f_Boolean();
+
+		enum EHelpCommand
+		{
+			EHelpCommand_None
+			, EHelpCommand_Normal
+			, EHelpCommand_Verbose
+		};
+
+		auto fCommandHelp = [&]() -> EHelpCommand
+			{
+				if (auto pValue = _Params.f_GetMember("HelpCurrentCommandVerbose"))
+				{
+					if (pValue->f_Boolean())
+						return EHelpCommand_Verbose;
+				}
+				if (auto pValue = _Params.f_GetMember("HelpCurrentCommand"))
+				{
+					if (pValue->f_Boolean())
+						return EHelpCommand_Normal;
+				}
+				return EHelpCommand_None;
+			}
+		;
+
+		if (auto HelpCommand = fCommandHelp())
+		{
+			TCVector<CStr> Params = {CFile::fs_GetFile(CFile::fs_GetProgramPath()), "--help", Internal.m_bColorEnabled ? "--color" : "--no-color", _Command};
+
+			if (HelpCommand == EHelpCommand_Verbose)
+				Params.f_Insert("-v");
+
+			return f_RunCommandLine(Params);
+		}
 
 		auto pFoundCommand = CommandLineSpec.m_CommandByName.f_FindEqual(_Command);
 		if (!pFoundCommand)
@@ -152,7 +197,7 @@ namespace NMib::NConcurrency
 		else if (Command.m_fActorRunCommand)
 		{
 			if (mp_fLazyStartApp)
-				mp_fLazyStartApp(_Params, Command.m_bRunLocalApp);
+				mp_fLazyStartApp(_Params, Command.m_Flags);
 			fp_Init();
 
 			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
@@ -165,6 +210,7 @@ namespace NMib::NConcurrency
 			auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 			CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
 			CommandLineControl.m_CommandLineHeight = ConsoleProperties.m_Height;
+			CommandLineControl.m_bColorEnabled = Internal.m_bColorEnabled;
 
 			aint Status = DMibCallActor
 				(

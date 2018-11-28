@@ -77,7 +77,7 @@ namespace NMib
 			fp_ValidateTemplate(m_TypeTemplate, m_Identifier, false);
 			
 			if (m_Default.f_IsValid())
-				m_Default = f_ConvertValue(m_Default); // This will do checking to make sure that the default value matches the template
+				m_Default = f_ConvertValue(m_Default, EColor_None); // This will do checking to make sure that the default value matches the template
 			
 			fg_ParseDescription(_Value, m_ShortDescription, m_LongDescription);
 		}
@@ -129,7 +129,7 @@ namespace NMib
 						pValue = *pOption;
 					if (!pValue)
 						DMibError(fg_Format("Unexpected parameter '{}' in command params", ParamName));
-					Params[ParamName] = pValue->f_ConvertValue(Param.f_Value());
+					Params[ParamName] = pValue->f_ConvertValue(Param.f_Value(), EColor_None);
 				}
 			}
 			
@@ -139,34 +139,34 @@ namespace NMib
 			return Params;
 		}
 		
-		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value) const
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, EColor _Color) const
 		{
-			return fp_ConvertValue(m_TypeTemplate, _Value, m_Identifier, false);
+			return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(m_Identifier, _Color), false, _Color != EColor_None);
 		}
 
-		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier) const
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const
 		{
-			return fp_ConvertValue(m_TypeTemplate, _Value, _Identifier, false);
+			return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(_Identifier, _Color), false, _Color != EColor_None);
 		}
 
-		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value) const
+		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value, bool _bColor) const
 		{
-			return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier);
+			return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier, _bColor);
 		}
 		
-		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value) const
+		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, EColor _Color) const
 		{
-			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, m_Identifier, false);
+			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(m_Identifier, _Color), false, _Color != EColor_None);
 			o_Value.f_Array().f_Insert(NewParams);
 		}
 		
-		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier) const
+		void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const
 		{
-			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, _Identifier, false);
+			CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(_Identifier, _Color), false, _Color != EColor_None);
 			o_Value.f_Array().f_Insert(NewParams);
 		}
 		
-		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ParseEJSON(CStr const &_Value, CStr const &_Error, CStr const &_Identifier) const
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ParseEJSON(CStr const &_Value, CStr const &_Error) const
 		{
 			try
 			{
@@ -174,7 +174,7 @@ namespace NMib
 			}
 			catch (NException::CException const &_Exception)
 			{
-				DMibError(fg_Format("[{}] {}: {}", _Identifier, _Error, _Exception.f_GetErrorStr())); 
+				DMibError(fg_Format("{}: {}", _Error, _Exception.f_GetErrorStr()));
 			}
 		}
 		
@@ -291,7 +291,14 @@ namespace NMib
 			}
 		}
 
-		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict) const
+		CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::fp_ConvertValue
+			(
+			 	CEJSON const &_Template
+			 	, CEJSON const &_Value
+			 	, CStr const &_Identifier
+			 	, bool _bStrict
+			 	, bool _bColor
+			) const
 		{
 			CEJSON Return;
 			try
@@ -313,12 +320,12 @@ namespace NMib
 						}
 						else if (_Value.f_IsString())
 						{
-							int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
+							int64 Value = _Value.f_String().f_ToIntExact(TCLimitsInt<int64>::mc_Max);
 							if (Value == TCLimitsInt<int64>::mc_Max)
 							{
-								Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Min);
+								Value = _Value.f_String().f_ToIntExact(TCLimitsInt<int64>::mc_Min);
 								if (Value == TCLimitsInt<int64>::mc_Min)
-									DMibError(fg_Format("Failed to parse '{}' as a integer value", _Value.f_String()));
+									DMibError(fg_Format("Failed to parse {} as a integer value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
 							}
 							Return = Value;
 						}
@@ -335,9 +342,9 @@ namespace NMib
 						}
 						else if (_Value.f_IsString())
 						{
-							fp64 Value = _Value.f_String().f_ToFloat(fp64::fs_Inf());
+							fp64 Value = _Value.f_String().f_ToFloatExact(fp64::fs_Inf());
 							if (Value == fp64::fs_Inf())
-								DMibError(fg_Format("Failed to parse '{}' as a float value", _Value.f_String()));
+								DMibError(fg_Format("Failed to parse {} as a float value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
 							Return = Value;
 						}
 						else
@@ -359,13 +366,13 @@ namespace NMib
 								Return = false;
 							else
 							{
-								int64 Value = _Value.f_String().f_ToInt(TCLimitsInt<int64>::mc_Max);
+								int64 Value = _Value.f_String().f_ToIntExact(TCLimitsInt<int64>::mc_Max);
 								if (Value == 1)
 									Return = true;
 								else if (Value == 0)
 									Return = false;
 								else
-									DMibError(fg_Format("Failed to parse '{}' as a boolean value", _Value.f_String()));
+									DMibError(fg_Format("Failed to parse {} as a boolean value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
 							}
 						}
 						else
@@ -398,7 +405,16 @@ namespace NMib
 						
 						auto fReportError = [&](CStr const &_Error)
 							{
-								DMibError(fg_Format("Failed to parse date: {}. Date format is: Year-Month-Day [Hour[:Minute[:Second[.Fraction]]]]", _Error));
+								DMibError
+									(
+									 	fg_Format
+									 	(
+										 	"Failed to parse {} as a date: {}. Date format is: Year-Month-Day [Hour[:Minute[:Second[.Fraction]]]]"
+										 	, fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)
+									 		, _Error
+									 	)
+									)
+								;
 							}
 						;
 						
@@ -407,7 +423,7 @@ namespace NMib
 								bool bFailed = false;
 								auto Return = fg_StrToIntParse(_pParse, _Type, _pTerminators, false, EStrToIntParseMode_Base10, &bFailed);
 								if (bFailed)
-									fReportError(fg_Format("Failed to parse '{}' as a integer", _pParse));
+									fReportError(fg_Format("Failed to parse {} as a integer", fs_Color("\"{}\""_f << _pParse, EColor_String, _bColor)));
 								if (*_pParse == _pTerminators[0])
 									++_pParse;
 								return Return;
@@ -447,7 +463,7 @@ namespace NMib
 							--pParse;
 							Fraction = fg_StrToFloatParse(pParse, fp64::fs_Inf(), (ch8 const *)nullptr, false, (ch8 const *)nullptr);
 							if (Fraction == fp64::fs_Inf())
-								fReportError(fg_Format("Failed to parse '{}' as a float", pParse));
+								fReportError(fg_Format("Failed to parse {} as a float", fs_Color("\"{}\""_f << pParse, EColor_String, _bColor)));
 						}
 						
 						if (*pParse)
@@ -492,7 +508,7 @@ namespace NMib
 								{
 									try
 									{
-										CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict);
+										CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict, _bColor);
 										if (bIsType)
 											return Value;
 										else if (Value == PossibleMatch)
@@ -532,7 +548,7 @@ namespace NMib
 							RawValue = _Value;
 						else if (_Value.f_IsString())
 						{
-							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing object parameter", _Identifier);
+							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing object parameter");
 							if (!RawValue.f_IsObject())
 								DMibError("Expected object");
 						}
@@ -579,7 +595,9 @@ namespace NMib
 									continue;
 								}
 								
-								OutputObject.f_CreateMember(Identifier) = fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true);
+								OutputObject.f_CreateMember(Identifier)
+									= fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true, _bColor)
+								;
 							}
 							
 							for (auto &InputMember : InputObject)
@@ -589,7 +607,7 @@ namespace NMib
 									if (!pWildcard)
 										DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
 									OutputObject.f_CreateMember(InputMember.f_Name()) 
-										= fp_ConvertValue(*pWildcard, InputMember.f_Value(), fg_Format("{}.{}", _Identifier, InputMember.f_Name()), true)
+										= fp_ConvertValue(*pWildcard, InputMember.f_Value(), fg_Format("{}.{}", _Identifier, InputMember.f_Name()), true, _bColor)
 									;
 								}
 							}
@@ -608,7 +626,7 @@ namespace NMib
 							RawValue = _Value;
 						else if (_Value.f_IsString())
 						{
-							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing array parameter", _Identifier);
+							RawValue = fp_ParseEJSON(_Value.f_String(), "Error parsing array parameter");
 							if (!RawValue.f_IsArray())
 								DMibError("Expected array");
 						}
@@ -631,7 +649,7 @@ namespace NMib
 							auto &Template = TemplateArray.f_GetFirst();
 							CStr Identifier = fg_Format("{}.[]", _Identifier);
 							for (auto &InputElement : InputArray)
-								OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true);
+								OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true, _bColor);
 						}
 
 						Return = RawValue;
@@ -657,7 +675,7 @@ namespace NMib
 							break;
 						}
 						else
-							DMibError(fg_Format("Failed to parse '{}' as a null value", _Value.f_String()));
+							DMibError(fg_Format("Failed to parse {} as a null value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
 					}
 					else
 						DMibError("Null can only be converted from string");
@@ -673,16 +691,30 @@ namespace NMib
 			}
 			catch (NException::CException const &_Exception)
 			{
-				DMibCommandLineConvertException(fg_Format("[{}] {}", _Identifier, _Exception.f_GetErrorStr()));
+				DMibCommandLineConvertException(fg_Format("{}: {}", _Identifier, _Exception.f_GetErrorStr()));
 			}			
 			
 			return Return;			
 		}
 
-
-		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier) const
+		CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bColor) const
 		{
 			CStr Return;
+
+			auto fToString = [&](CEJSON const &_Value)
+				{
+					return _Value.f_ToStringColored("    ", _bColor);
+				}
+			;
+			auto fColor = [&](CStr const &_Value, EColor _Color)
+				{
+					if (_bColor)
+						return fs_Color(_Value, _Color);
+					else
+						return _Value;
+				}
+			;
+
 			switch (_Template.f_EType())
 			{
 			case EEJSONType_String:
@@ -693,36 +725,36 @@ namespace NMib
 			case EEJSONType_Array:
 			case EEJSONType_Null:
 				{
-					Return = _Value.f_ToString("    ");
+					Return = fToString(_Value);
 				}
 				break;
 			case EEJSONType_Binary:
 				{
 					if (!_Value.f_IsBinary())
-						Return = _Value.f_ToString("    ");
+						Return = fToString(_Value);
 					else
-						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
+						Return = fColor(NDataProcessing::fg_Base64Encode(_Value.f_Binary()), EColor_Binary);
 				}
 				break;
 			case EEJSONType_Date:
 				{
 					if (!_Value.f_IsDate())
 					{
-						Return = _Value.f_ToString("    ");
+						Return = fToString(_Value);
 						break;
 					}
 					
-					Return = fg_Format("{}", _Value.f_Date()); 
+					Return = fColor("{}"_f << _Value.f_Date(), EColor_Date);
 				}
 				break;
 			case EEJSONType_UserType:
 				{
 					if (_Value.f_IsBinary())
-						Return = NDataProcessing::fg_Base64Encode(_Value.f_Binary());
+						Return = fColor(NDataProcessing::fg_Base64Encode(_Value.f_Binary()), EColor_Binary);
 					else if (_Value.f_IsDate())
-						Return = fg_Format("{}", _Value.f_Date());
+						Return = fColor("{}"_f << _Value.f_Date(), EColor_Date);
 					else
-						Return = _Value.f_ToString("    ");
+						Return = fToString(_Value);
 				}
 				break;
 			default:
@@ -732,17 +764,44 @@ namespace NMib
 			
 			return Return;			
 		}
-		
+
+		bool CDistributedAppCommandLineSpecification::CInternal::COption::f_IsEnabled(COptionSet const &_OptionSet, bool _bIsDirect) const
+		{
+			if (_OptionSet.m_Disallowed.f_FindEqual(m_Identifier))
+				return false;
+			if (m_bDefaultEnabled)
+			{
+				if (_OptionSet.m_bAllowedSpecified && !_OptionSet.m_Allowed.f_FindEqual(m_Identifier))
+					return false;
+			}
+			else
+			{
+				if (!_OptionSet.m_Allowed.f_FindEqual(m_Identifier))
+					return false;
+			}
+
+			if (!m_bValidForDirectCommand && _bIsDirect)
+				return false;
+
+			return true;
+		}
+
 		void CDistributedAppCommandLineSpecification::CInternal::COption::f_ParseOption(CEJSON const &_Option)
 		{
-			fs_CheckValidObject(_Option, {"Type", "Default", "Names", "Description", "DefaultEnabled", "Hidden"});
+			fs_CheckValidObject(_Option, {"Type", "Default", "Names", "Description", "DefaultEnabled", "Hidden", "CanNegate", "DisablesAllErrors", "ValidForDirectCommand"});
 			
 			CValue::f_Parse(_Option);
 			
-			if (auto *pDefaultEnabled = _Option.f_GetMember("DefaultEnabled"))
-				m_bDefaultEnabled = pDefaultEnabled->f_Boolean();
-			if (auto *pDefaultEnabled = _Option.f_GetMember("Hidden"))
-				m_bHidden = pDefaultEnabled->f_Boolean();
+			if (auto *pValue = _Option.f_GetMember("DefaultEnabled"))
+				m_bDefaultEnabled = pValue->f_Boolean();
+			if (auto *pValue = _Option.f_GetMember("Hidden"))
+				m_bHidden = pValue->f_Boolean();
+			if (auto *pValue = _Option.f_GetMember("CanNegate"))
+				m_bCanNegate = pValue->f_Boolean();
+			if (auto *pValue = _Option.f_GetMember("DisablesAllErrors"))
+				m_bDisablesAllErrors = pValue->f_Boolean();
+			if (auto *pValue = _Option.f_GetMember("ValidForDirectCommand"))
+				m_bValidForDirectCommand = pValue->f_Boolean();
 		}
 		
 		void CDistributedAppCommandLineSpecification::CInternal::CParameter::f_ParseParameter(CEJSON const &_Parameter)
@@ -762,6 +821,9 @@ namespace NMib
 
 		void CDistributedAppCommandLineSpecification::CInternal::fs_CheckValidObject(CEJSON const &_ToCheck, TCSet<CStr> const &_AllowedKeys)
 		{
+			if (!_ToCheck.f_IsObject())
+				DMibError("Command line description is not an object");
+
 			for (auto &Member : _ToCheck.f_Object())
 			{
 				if (!_AllowedKeys.f_FindEqual(Member.f_Name()))
@@ -1000,6 +1062,7 @@ namespace NMib
 						, "Status"
 						, "Output"
 						, "ErrorOnCommandAsParameter"
+						, "GreedyDefaultCommand"
 						, "ErrorOnOptionAsParameter"
 						, "AlwaysVerbose"
 						, "Parameters"
@@ -1007,6 +1070,10 @@ namespace NMib
 						, "SectionOptions"
 						, "DisableSectionOptions"
 						, "Category"
+						, "ShowOptionsInCommandEntry"
+						, "ShowParametersStart"
+						, "GlobalOptions"
+						, "DisableGlobalOptions"
 					}
 				)
 			;
@@ -1052,19 +1119,37 @@ namespace NMib
 				NewCommand.m_Category = pCategory->f_String();
 			if (auto *pErrorOnCommandAsParameter = _CommandDescription.f_GetMember("ErrorOnCommandAsParameter"))
 				NewCommand.m_bErrorOnCommandAsParameter = pErrorOnCommandAsParameter->f_Boolean();
+			if (auto *pShowOptionsInCommandEntry = _CommandDescription.f_GetMember("ShowOptionsInCommandEntry"))
+				NewCommand.m_bShowOptionsInCommandEntry = pShowOptionsInCommandEntry->f_Boolean();
+			if (auto *pShowParametersStart = _CommandDescription.f_GetMember("ShowParametersStart"))
+				NewCommand.m_bShowParametersStart = pShowParametersStart->f_Boolean();
+			if (auto *pGreedyDefaultCommand = _CommandDescription.f_GetMember("GreedyDefaultCommand"))
+				NewCommand.m_bGreedyDefaultCommand = pGreedyDefaultCommand->f_Boolean();
 			if (auto *pErrorOnOptionAsParameter = _CommandDescription.f_GetMember("ErrorOnOptionAsParameter"))
 				NewCommand.m_bErrorOnOptionAsParameter = pErrorOnOptionAsParameter->f_Boolean();
 			if (auto *pAlwaysVerbose = _CommandDescription.f_GetMember("AlwaysVerbose"))
 				NewCommand.m_bAlwaysVerbose = pAlwaysVerbose->f_Boolean();
-			if (auto *pSectionOptions = _CommandDescription.f_GetMember("SectionOptions"))
+			if (auto *pValue = _CommandDescription.f_GetMember("SectionOptions"))
 			{
-				for (auto &Option : pSectionOptions->f_Array())
-					NewCommand.m_AllowedSectionOptions[Option.f_String()];
+				NewCommand.m_SectionOptionSet.m_bAllowedSpecified = true;
+				for (auto &Option : pValue->f_Array())
+					NewCommand.m_SectionOptionSet.m_Allowed[Option.f_String()];
 			}
-			if (auto *pSectionOptions = _CommandDescription.f_GetMember("DisableSectionOptions"))
+			if (auto *pValue = _CommandDescription.f_GetMember("DisableSectionOptions"))
 			{
-				for (auto &Option : pSectionOptions->f_Array())
-					NewCommand.m_DisallowedSectionOptions[Option.f_String()];
+				for (auto &Option : pValue->f_Array())
+					NewCommand.m_SectionOptionSet.m_Disallowed[Option.f_String()];
+			}
+			if (auto *pValue = _CommandDescription.f_GetMember("GlobalOptions"))
+			{
+				NewCommand.m_GlobalOptionSet.m_bAllowedSpecified = true;
+				for (auto &Option : pValue->f_Array())
+					NewCommand.m_GlobalOptionSet.m_Allowed[Option.f_String()];
+			}
+			if (auto *pValue = _CommandDescription.f_GetMember("DisableGlobalOptions"))
+			{
+				for (auto &Option : pValue->f_Array())
+					NewCommand.m_GlobalOptionSet.m_Disallowed[Option.f_String()];
 			}
 
 			if (auto *pParameters = _CommandDescription.f_GetMember("Parameters"))
@@ -1113,7 +1198,7 @@ namespace NMib
 			(
 				NEncoding::CEJSON const &_CommandDescription
 				, NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Parameters, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> const &_fRunCommand
-				, bool _bRunLocalApp
+				, ECommandFlag _Flags
 			)
 			-> CCommand
 		{
@@ -1122,7 +1207,7 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
 			pCommand->m_fActorRunCommand = _fRunCommand;
-			pCommand->m_bRunLocalApp = _bRunLocalApp;
+			pCommand->m_Flags = _Flags;
 			return CCommand(mp_pInternal, pCommand);
 		}
 		
@@ -1145,7 +1230,6 @@ namespace NMib
 			: mp_pInternal(fg_Construct()) 
 		{
 			f_AddSection("", "");
-			fp_SetupDefaultCommands();
 		}
 		
 		CDistributedAppCommandLineSpecification::~CDistributedAppCommandLineSpecification() noexcept
@@ -1188,10 +1272,11 @@ namespace NMib
 				pNewSection = &Internal.m_Sections.f_Insert();
 			else
 			{
+				CStr SectionToFind = _AfterSection == "Default" ? "" : _AfterSection;
 				CInternal::CSection *pPreviousSection = nullptr;
 				for (auto &Section : Internal.m_Sections)
 				{
-					if (Section.m_Heading == _AfterSection)
+					if (Section.m_Heading == SectionToFind)
 					{
 						pPreviousSection = &Section;
 						break;
@@ -1214,10 +1299,5 @@ namespace NMib
 			auto &Internal = *mp_pInternal;
 			Internal.m_pDefaultCommand = fg_AutoStaticCast(_Command.mp_pCommand);
 		}
-		
-		void CDistributedAppCommandLineSpecification::fp_SetupDefaultCommands()
-		{
-			fp_SetupHelpCommand();
-		}
-	}		
+	}
 }

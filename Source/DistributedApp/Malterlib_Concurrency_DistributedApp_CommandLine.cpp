@@ -187,59 +187,68 @@ namespace NMib
 			{
 				return _Exception;
 			}
-			
-			CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 
-			int64 AuthenticationLifetime = ValidatedParams["AuthenticationLifetime"].f_Integer();
-			if (AuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet && _Command == "--trust-user-authenticate-pattern")
-				AuthenticationLifetime = CPermissionRequirements::mc_DefaultMaximumLifetime;
-
-			CStr UserID;
-			if (auto pValue = ValidatedParams.f_GetMember("AuthenticationUser"))
-				UserID = pValue->f_String();
+			TCContinuation<void> ConnectionWaitContinuation;
+			if ((*pCommand)->m_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes)
+				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection) > ConnectionWaitContinuation;
+			else
+				ConnectionWaitContinuation.f_SetResult();
 
 			TCContinuation<uint32> Continuation;
-			fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
+
+			ConnectionWaitContinuation > Continuation / [=]
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-					fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
+
+					int64 AuthenticationLifetime = ValidatedParams.f_GetMemberValue("AuthenticationLifetime", CPermissionRequirements::mc_OverrideLifetimeNotSet).f_Integer();
+					if (AuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet && _Command == "--trust-user-authenticate-pattern")
+						AuthenticationLifetime = CPermissionRequirements::mc_DefaultMaximumLifetime;
+
+					CStr UserID = ValidatedParams.f_GetMemberValue("AuthenticationUser", "").f_String();
+
+					fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
 						{
-							auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
-							
-							auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
-							if (!pCommand)
-							{
-								Continuation.f_SetException(DMibErrorInstance("Non-existant command line command"));
-								return;
-							}
-							
-							auto &Command = **pCommand;
-							if (!Command.m_fActorRunCommand)
-							{
-								Continuation.f_SetException(DMibErrorInstance("Non-actor cammand"));
-								return;
-							}
-		
-							try
-							{
-								CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-								Command.m_fActorRunCommand(ValidatedParams, _pCommandLine)
-									> Continuation / [Continuation, AuthenticationSubscription = fg_Move(AuthenticationSubscription)](uint32 &&_Result)
+							CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
+							fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
+								{
+									auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
+
+									auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
+									if (!pCommand)
 									{
-										Continuation.f_SetResult(_Result);
+										Continuation.f_SetException(DMibErrorInstance("Non-existant command line command"));
+										return;
 									}
-								;
-							}
-							catch (NException::CException const &_Exception)
-							{
-								Continuation.f_SetException(_Exception);
-								return;
-							}
+
+									auto &Command = **pCommand;
+									if (!Command.m_fActorRunCommand)
+									{
+										Continuation.f_SetException(DMibErrorInstance("Non-actor cammand"));
+										return;
+									}
+
+									try
+									{
+										CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
+										Command.m_fActorRunCommand(ValidatedParams, _pCommandLine)
+											> Continuation / [Continuation, AuthenticationSubscription = fg_Move(AuthenticationSubscription)](uint32 &&_Result)
+											{
+												Continuation.f_SetResult(_Result);
+											}
+										;
+									}
+									catch (NException::CException const &_Exception)
+									{
+										Continuation.f_SetException(_Exception);
+										return;
+									}
+								}
+							;
 						}
 					;
 				}
 			;
-			
+
 			return Continuation;
 		}
 
@@ -1505,65 +1514,106 @@ namespace NMib
 			
 			return Continuation;
 		}
-		
+
 		void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)
 		{
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"ConcurrentLogging?"_=
+		}
+
+		bool CDistributedAppActor::fs_ColorEnabledDefault()
+		{
+			bool bDefaultEnableColor = !NSys::fg_System_BeingDebugged();
+			return fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", bDefaultEnableColor ? "true" : "false") == "true";
+		}
+
+		void CDistributedAppActor::fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities)
+		{
+			if (_Functionalities & EDefaultCommandLineFunctionality_Color)
+			{
+
+				o_CommandLine.f_RegisterGlobalOptions
+					(
 						{
-							"Names"_= {"--log-on-thread"}
-							, "Default"_= true
-							, "Description"_= "Log on a separate thread to minimally affect application performance and behavior"
+							"Color?"_=
+							{
+								"Names"_= {"--color"}
+								, "Default"_= fs_ColorEnabledDefault()
+								, "Description"_= "Display text output with ansi colors where supported."
+							}
 						}
-						, "StdErrLogger?"_=
+					)
+				;
+			}
+
+			if (_Functionalities & EDefaultCommandLineFunctionality_Help)
+				o_CommandLine.f_AddHelpCommand();
+
+			if (_Functionalities & EDefaultCommandLineFunctionality_Logging)
+			{
+				o_CommandLine.f_RegisterGlobalOptions
+					(
 						{
-							"Names"_= {"--log-to-stderr"}
-							, "Default"_= false
-							, "Description"_= "Log to std error"
+							"ConcurrentLogging?"_=
+							{
+								"Names"_= {"--log-on-thread"}
+								, "Default"_= true
+								, "Description"_= "Log on a separate thread to minimally affect application performance and behavior."
+							}
+							, "StdErrLogger?"_=
+							{
+								"Names"_= {"--log-to-stderr"}
+								, "Default"_= false
+								, "Description"_= "Log to std error."
+							}
 						}
-					}
-				)
-			;
-#if DMibEnableTrace > 0
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"TraceLogger?"_=
+					)
+				;
+	#if DMibEnableTrace > 0
+				o_CommandLine.f_RegisterGlobalOptions
+					(
 						{
-							"Names"_= {"--log-to-trace"}
-							, "Default"_= bool(NSys::fg_System_BeingDebugged())
-							, "Description"_= "Log to trace"
+							"TraceLogger?"_=
+							{
+								"Names"_= {"--log-to-trace"}
+								, "Default"_= bool(NSys::fg_System_BeingDebugged())
+								, "Description"_= "Log to trace."
+							}
 						}
-					}
-				)
-			;
-#endif
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"AuthenticationLifetime?"_=
+					)
+				;
+	#endif
+			}
+
+			if (_Functionalities & EDefaultCommandLineFunctionality_Authentication)
+			{
+				o_CommandLine.f_RegisterGlobalOptions
+					(
 						{
-							"Names"_= {"--authentication-lifetime"}
-							,"Default"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
-							, "Description"_= "The number of minutes until the authentication expires when cached"
+							"AuthenticationLifetime?"_=
+							{
+								"Names"_= {"--authentication-lifetime"}
+								,"Default"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
+								, "Description"_= "The number of minutes until the authentication expires when cached."
+								, "ValidForDirectCommand"_= false
+							}
 						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"AuthenticationUser?"_=
+					)
+				;
+				o_CommandLine.f_RegisterGlobalOptions
+					(
 						{
-							"Names"_= {"--authentication-user"}
-							,"Type"_= ""
-							, "Description"_= "Override the default user ID used for authentication"
+							"AuthenticationUser?"_=
+							{
+								"Names"_= {"--authentication-user"}
+								,"Type"_= ""
+								, "Description"_= "Override the default user ID used for authentication."
+								, "ValidForDirectCommand"_= false
+							}
 						}
-					}
-				)
-			;
+					)
+				;
+			}
+
+			if (_Functionalities & EDefaultCommandLineFunctionality_DistributedComputing)
 			{
 				auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "Use these commands to manage connectability and trust between different hosts.");
 
@@ -1571,7 +1621,7 @@ namespace NMib
 					{
 						"Names"_= {"--include-friendly-name"}
 						, "Default"_= true
-						, "Description"_= "Include friendly host name in output"
+						, "Description"_= "Include friendly host name in output."
 					}
 				;
 
@@ -1593,6 +1643,41 @@ namespace NMib
 							"[[\"Factor1\"], [\"Factor2\"]]                       - must authenticate by Factor1 and Factor2\n"
 							"[[\"Factor1\", \"Factor2\"], [\"Factor1\", \"Factor3\"]] - must authenticate by Factor1 and either Factor2 or Factor3.\n"
 					}
+				;
+
+				Distributed.f_RegisterCommand
+					(
+						{
+							"Names"_= {"--trust-host-id"}
+							, "Description"_= "Get the host ID for this application.\n"
+							, "Output"_= "The host ID of this application."
+						}
+						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						{
+							return f_CommandLine_GetHostID(_pCommandLine);
+						}
+					)
+				;
+				Distributed.f_RegisterDirectCommand
+					(
+						{
+							"Names"_= {"--trust-remove-all-trust"}
+							, "Description"_= "Removes all certificates, clients, client connections and listen configs.\n"
+							, "Options"_=
+							{
+								"Confirm?"_=
+								{
+									"Names"_= {"--yes"}
+									, "Default"_= false
+									, "Description"_= "Confirm that you really want to remove all trust."
+								}
+							}
+						}
+						, [this](NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
+						{
+							return f_CommandLine_RemoveAllTrust(_Parameters["Confirm"].f_Boolean());
+						}
+					)
 				;
 
 				CStr Category = "Outgoing connections";
@@ -1626,6 +1711,7 @@ namespace NMib
 						{
 							return f_CommandLine_GetConnetionStatus(_pCommandLine);
 						}
+						, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 					)
 				;
 				Distributed.f_RegisterCommand
@@ -1682,6 +1768,7 @@ namespace NMib
 								)
 							;
 						}
+					 	, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 					)
 				;
 				Distributed.f_RegisterCommand
@@ -1695,7 +1782,7 @@ namespace NMib
 								"ConnectionConcurrency"_= 
 								{
 									"Type"_= -1
-									, "Description"_= "Specify ticket to use for adding the connection"
+									, "Description"_= "Specify ticket to use for adding the connection."
 								}
 							}
 							, "Options"_=
@@ -1740,7 +1827,7 @@ namespace NMib
 								"ConnectionURL"_= 
 								{
 									"Type"_= ""
-									, "Description"_= "The URL of the connection you want to add"
+									, "Description"_= "The URL of the connection you want to add."
 								}
 							}
 							, "Options"_=
@@ -1768,6 +1855,7 @@ namespace NMib
 								)
 							;
 						}
+					 	, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 					)
 				;
 				Distributed.f_RegisterCommand
@@ -1775,13 +1863,13 @@ namespace NMib
 						{
 							"Names"_= {"--trust-connection-remove"}
 							, "Category"_= Category
-							, "Description"_= "Remove an outgoing connection\n"
+							, "Description"_= "Remove an outgoing connection.\n"
 							, "Parameters"_=
 							{
 								"ConnectionURL"_= 
 								{
 									"Type"_= ""
-									, "Description"_= "The URL of the connection you want to remove"
+									, "Description"_= "The URL of the connection you want to remove."
 								}
 							}
 						}
@@ -1797,6 +1885,7 @@ namespace NMib
 								)
 							;
 						}
+						, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 					)
 				;
 				Category = "Incoming connections trust";
@@ -1829,7 +1918,7 @@ namespace NMib
 								"HostID"_= 
 								{
 									"Type"_= ""
-									, "Description"_= "The host ID of the host you want to remove trust for"
+									, "Description"_= "The host ID of the host you want to remove trust for."
 								}
 							}
 						}
@@ -2035,7 +2124,7 @@ namespace NMib
 								{
 									"Names"_= {"--include-hosts"}
 									, "Default"_= true
-									, "Description"_= "Include trusted and untrusted hosts in output"
+									, "Description"_= "Include trusted and untrusted hosts in output."
 								}
 							}
 						}
@@ -2121,7 +2210,7 @@ namespace NMib
 						}
 					)
 				;
-				Category = "Host permissions";
+				Category = "Host and user permissions";
 				Distributed.f_RegisterCommand
 					(
 						{
@@ -2135,7 +2224,7 @@ namespace NMib
 								{
 									"Names"_= {"--include-hosts"}
 									, "Default"_= true
-									, "Description"_= "Include the hosts that have the permissions in the output"
+									, "Description"_= "Include the hosts that have the permissions in the output."
 								}
 							}
 						}
@@ -2177,7 +2266,7 @@ namespace NMib
 								{
 									"Names"_= {"--max-lifetime"}
 									,"Default"_= CPermissionRequirements::mc_DefaultMaximumLifetime
-									, "Description"_= "The maximum number of minutes that a cached authentication can be used for this granted permission"
+									, "Description"_= "The maximum number of minutes that a cached authentication can be used for this granted permission."
 								}
 								, PermissionUserAuthenticationFactorsOption
 							}
@@ -2264,19 +2353,6 @@ namespace NMib
 						}
 					)
 				;
-				Distributed.f_RegisterCommand
-					(
-						{
-							"Names"_= {"--trust-host-id"}
-							, "Description"_= "Get the host ID for this application.\n"
-							, "Output"_= "The host ID of this application."
-						}
-						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
-						{
-							return f_CommandLine_GetHostID(_pCommandLine);
-						}
-					)
-				;
 				Category = "User management";
 				Distributed.f_RegisterCommand
 					(
@@ -2299,7 +2375,7 @@ namespace NMib
 								"UserName"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The name of the user being added to the database"
+									, "Description"_= "The name of the user being added to the database."
 								}
 							}
 					}
@@ -2321,7 +2397,7 @@ namespace NMib
 								"UserID"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The user ID to remove from the database"
+									, "Description"_= "The user ID to remove from the database."
 								}
 							}
 						}
@@ -2473,7 +2549,7 @@ namespace NMib
 								"UserID"_=
 								{
 									"Type"_= ""
-									, "Description"_= "The user ID of the user to export"
+									, "Description"_= "The user ID of the user to export."
 								}
 							}
 						}
@@ -2646,27 +2722,6 @@ namespace NMib
 						, [this](CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						{
 							return f_CommandLine_AuthenticatePermissionPattern(_pCommandLine, _Params);
-						}
-					)
-				;
-				Distributed.f_RegisterDirectCommand
-					(
-						{
-							"Names"_= {"--trust-remove-all-trust"}
-							, "Description"_= "Removes all certificates, clients, client connections and listen configs.\n"
-							, "Options"_=
-							{
-								"Confirm?"_= 
-								{
-									"Names"_= {"--yes"}
-									, "Default"_= false
-									, "Description"_= "Confirm that you really want to remove all trust."
-								}
-							}
-						}
-						, [this](NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
-						{
-							return f_CommandLine_RemoveAllTrust(_Parameters["Confirm"].f_Boolean());
 						}
 					)
 				;

@@ -194,10 +194,15 @@ namespace NMib::NConcurrency
 		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 #endif
 
+		static bool fs_ColorEnabledDefault();
+
 	protected:
 		virtual TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCContinuation<void> fp_StopApp() = 0;
+
+		void fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities);
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
+
 		virtual TCContinuation<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
@@ -255,6 +260,7 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 		void fp_CleanupOldExecutables();
 #endif
+
 		TCContinuation<void> fp_SetupListen();
 		TCContinuation<void> fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params);
 		TCContinuation<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params);

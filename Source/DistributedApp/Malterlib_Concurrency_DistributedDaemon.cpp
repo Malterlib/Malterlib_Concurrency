@@ -20,7 +20,8 @@ namespace NMib
 					m_bInstalledLogDispatcher = true;
 				
 				m_Actor = _Actor;
-				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor, EDistributedAppType_Daemon) > fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
+				m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor, EDistributedAppType_Daemon)
+					> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 					{
 						if (_Result)
 							return;
@@ -197,11 +198,11 @@ namespace NMib
 							"Names"_= {"--mode"}
 							, "Type"_= COneOf{"global", "user", "all-users"}
 							, "Default"_= DaemonSettings["Mode"].f_String()
-							, "Description"_= "Specify the mode of the daemon\n"
-							"@Indent=15\r"
-							"global:      Install the daemon as a system daemon. This daemon will start when the computer starts.\r"
-							"user:        Install the daemon as a user daemon. This daemon will start when the current user logs in.\r"
-							"all-users:   Install the daemon as a user daemon for all users. This daemon will start when a user logs in.\r"
+							, "Description"_= "Specify the mode of the daemon.\n"
+							"@Indent=16\r"
+							"   global:      Install the daemon as a system daemon. This daemon will start when the computer starts.\r"
+							"   user:        Install the daemon as a user daemon. This daemon will start when the current user logs in.\r"
+							"   all-users:   Install the daemon as a user daemon for all users. This daemon will start when a user logs in.\r"
 							, "DefaultEnabled"_= false
 						}
 					}
@@ -224,7 +225,7 @@ namespace NMib
 				{
 					"Names"_= {"--wait"}
 					, "Default"_= true
-					, "Description"_= "Wait for service to stop"
+					, "Description"_= "Wait for service to stop."
 				}
 			;
 			

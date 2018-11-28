@@ -22,18 +22,15 @@ namespace
 		CTestDistributedApp()
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings
-				(
-					"TestDistApp"
-					, false
-					, NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp"
-					, true
-					, NConcurrency::CDistributedActorTestKeySettings{}
-				)
+				CDistributedAppActor_Settings("TestDistApp")
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp")
+			 	.f_SeparateDistributionManager(true)
+			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{
 		}
-		
+
 		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override
 		{
 			auto Section = o_CommandLine.f_AddSection("Test1", "Testing test 2");

@@ -27,6 +27,28 @@ namespace NMib::NConcurrency
 		, EDistributedAppUpdateType_AllAtOnce
 	};
 
+	enum EDefaultCommandLineFunctionality
+	{
+		EDefaultCommandLineFunctionality_None = 0
+		, EDefaultCommandLineFunctionality_Help = DMibBit(0)
+		, EDefaultCommandLineFunctionality_Logging = DMibBit(1)
+		, EDefaultCommandLineFunctionality_DistributedComputing = DMibBit(2)
+		, EDefaultCommandLineFunctionality_Authentication = DMibBit(3)
+		, EDefaultCommandLineFunctionality_Color = DMibBit(4)
+
+		, EDefaultCommandLineFunctionality_AllNoDistributedComputing
+		= EDefaultCommandLineFunctionality_Help
+		| EDefaultCommandLineFunctionality_Logging
+		| EDefaultCommandLineFunctionality_Color
+
+		, EDefaultCommandLineFunctionality_All
+		= EDefaultCommandLineFunctionality_Help
+		| EDefaultCommandLineFunctionality_Logging
+		| EDefaultCommandLineFunctionality_DistributedComputing
+		| EDefaultCommandLineFunctionality_Authentication
+		| EDefaultCommandLineFunctionality_Color
+	};
+
 	struct CDistributedAppActor_InterfaceSettings
 	{
 		enum EOption
@@ -46,23 +68,6 @@ namespace NMib::NConcurrency
 	struct CDistributedAppActor_SettingsProperties
 	{
 		CDistributedAppActor_SettingsProperties() = default;
-		CDistributedAppActor_SettingsProperties
-			(
-				NStr::CStr const &_AppName
-				, bool _bRequireListen
-				, NStr::CStr const &_RootDirectory
-				, bool _bSeparateDistributionManager
-				, NNet::CSSLKeySetting _KeySetting
-				, NStr::CStr const &_FriendlyName
-				, NStr::CStr const &_Enclave
-				, EDistributedAppUpdateType _UpdateType
-				, NStr::CStr const &_AuditCategory
-				, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
-			 	, bool _bSupportUserAuthentication
-				, NStr::CStr const &_RunAsUser
-				, NStr::CStr const &_RunAsGroup
-			)
-		;
 
 		NStr::CStr m_AppName;
 		NStr::CStr m_RootDirectory = NFile::CFile::fs_GetProgramDirectory();
@@ -75,8 +80,10 @@ namespace NMib::NConcurrency
 		NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
 		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;
-		bool m_bRequireListen = false;
+		EDefaultCommandLineFunctionality m_DefaultCommandLineFunctionality = EDefaultCommandLineFunctionality_All;
+
 		bool m_bSeparateDistributionManager = false;
 		bool m_bSupportUserAuthentication = true;
+		bool m_bWaitForRemotes = true;
 	};
 }

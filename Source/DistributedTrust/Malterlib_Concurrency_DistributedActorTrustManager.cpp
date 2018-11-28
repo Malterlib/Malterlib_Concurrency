@@ -40,6 +40,7 @@ namespace NMib::NConcurrency
 		, m_InitialConnectionTimeout(_Options.m_InitialConnectionTimeout)
 		, m_DefaultConnectionConcurrency(_Options.m_DefaultConnectionConcurrency)
 		, m_bRetryOnListenFailureDuringInit(_Options.m_bRetryOnListenFailureDuringInit)
+		, m_bWaitForConnectionsDuringInit(_Options.m_bWaitForConnectionsDuringInit)
 		, m_bSupportAuthentication(_Options.m_bSupportAuthentication)
 	{
 	}

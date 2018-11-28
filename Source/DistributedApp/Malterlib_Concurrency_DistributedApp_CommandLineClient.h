@@ -26,8 +26,10 @@ namespace NMib
 				)
 			;
 			
-			void f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> const &_fLazyStartApp);
+			void f_SetLazyStartApp(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> const &_fLazyStartApp);
 			void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyPreRunDirectCommand);
+
+			bool f_ColorEnabled() const;
 
 			CDistributedAppCommandLineClient
 				(
@@ -49,7 +51,7 @@ namespace NMib
 			struct CInternal;
 			
 			NPtr::TCUniquePointer<CInternal> mp_pInternal;
-			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, bool _bForceStart)> mp_fLazyStartApp;
+			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> mp_fLazyStartApp;
 			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> mp_fLazyPreRunDirectCommand;
 		};
 	}

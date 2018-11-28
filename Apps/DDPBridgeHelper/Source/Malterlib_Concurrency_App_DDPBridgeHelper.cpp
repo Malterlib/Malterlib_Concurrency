@@ -12,7 +12,7 @@
 namespace NMib::NConcurrency::NDDPBridgeHelper
 {
 	CDDPBridgeHelperActor::CDDPBridgeHelperActor()
-		: CDistributedAppActor(CDistributedAppActor_Settings{"TrustDDPBridge", false})
+		: CDistributedAppActor(CDistributedAppActor_Settings{"TrustDDPBridge"})
 	{
 	}
 	

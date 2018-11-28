@@ -37,71 +37,11 @@ namespace NMib::NConcurrency
 		return OptionFlags;
 	}
 
-	CDistributedAppActor_SettingsProperties::CDistributedAppActor_SettingsProperties
-		(
-			NStr::CStr const &_AppName
-			, bool _bRequireListen
-			, NStr::CStr const &_RootDirectory
-			, bool _bSeparateDistributionManager
-			, NNet::CSSLKeySetting _KeySetting
-			, NStr::CStr const &_FriendlyName
-			, NStr::CStr const &_Enclave
-			, EDistributedAppUpdateType _UpdateType
-			, NStr::CStr const &_AuditCategory
-			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
-		 	, bool _bSupportUserAuthentication
-			, NStr::CStr const &_RunAsUser
-			, NStr::CStr const &_RunAsGroup
-		)
-		: m_AppName(_AppName)
-		, m_bRequireListen(_bRequireListen)
-		, m_RootDirectory(_RootDirectory)
-		, m_bSeparateDistributionManager(_bSeparateDistributionManager)
-		, m_KeySetting(_KeySetting)
-		, m_FriendlyName(_FriendlyName)
-		, m_Enclave(_Enclave)
-		, m_UpdateType(_UpdateType)
-		, m_AuditCategory(_AuditCategory)
-		, m_InterfaceSettings(_InterfaceSettings)
-		, m_bSupportUserAuthentication(_bSupportUserAuthentication)
-		, m_RunAsUser(_RunAsUser)
-		, m_RunAsGroup(_RunAsGroup)
+	CDistributedAppActor_Settings::CDistributedAppActor_Settings(NStr::CStr const &_AppName)
+		: CDistributedAppActor_SettingsProperties(fg_DistributedAppThreadLocal().m_DefaultSettings)
 	{
-	}
+		m_AppName = _AppName;
 
-	CDistributedAppActor_Settings::CDistributedAppActor_Settings
-		(
-			NStr::CStr const &_AppName
-			, bool _bRequireListen
-			, NStr::CStr const &_RootDirectory
-			, bool _bSeparateDistributionManager
-			, NNet::CSSLKeySetting _KeySetting
-			, NStr::CStr const &_FriendlyName
-			, NStr::CStr const &_Enclave
-			, EDistributedAppUpdateType _UpdateType
-			, NStr::CStr const &_AuditCategory
-			, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings
-		 	, bool _bSupportUserAuthentication
-			, NStr::CStr const &_RunAsUser
-			, NStr::CStr const &_RunAsGroup
-		)
-		: CDistributedAppActor_SettingsProperties
-		(
-			_AppName
-			, _bRequireListen
-			, _RootDirectory
-			, _bSeparateDistributionManager
-			, _KeySetting
-			, _FriendlyName
-			, _Enclave
-			, _UpdateType
-			, _AuditCategory
-		 	, _InterfaceSettings
-		 	, _bSupportUserAuthentication
-			, _RunAsUser
-			, _RunAsGroup
-		)
-	{
 		if (m_AuditCategory.f_IsEmpty())
 			m_AuditCategory = _AppName;
 #ifndef DPlatformFamily_Windows
@@ -216,6 +156,18 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&
 	{
 		m_bSupportUserAuthentication = _bSupportUserAuthentication;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_WaitForRemotes(bool _bWaitForRemotes) &&
+	{
+		m_bWaitForRemotes = _bWaitForRemotes;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&
+	{
+		m_DefaultCommandLineFunctionality = _DefaultCommandLineFunctionality;
 		return fg_Move(*this);
 	}
 

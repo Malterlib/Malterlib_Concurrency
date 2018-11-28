@@ -12,23 +12,8 @@ namespace NMib::NConcurrency
 	struct CDistributedAppActor_Settings : public CDistributedAppActor_SettingsProperties
 	{
 		CDistributedAppActor_Settings() = default;
-		CDistributedAppActor_Settings
-			(
-				NStr::CStr const &_AppName
-				, bool _bRequireListen
-				, NStr::CStr const &_RootDirectory = fg_DistributedAppThreadLocal().m_DefaultSettings.m_RootDirectory
-				, bool _bSeparateDistributionManager = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bSeparateDistributionManager
-				, NNet::CSSLKeySetting _KeySetting = fg_DistributedAppThreadLocal().m_DefaultSettings.m_KeySetting
-				, NStr::CStr const &_FriendlyName = fg_DistributedAppThreadLocal().m_DefaultSettings.m_FriendlyName
-				, NStr::CStr const &_Enclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave
-				, EDistributedAppUpdateType _UpdateType = fg_DistributedAppThreadLocal().m_DefaultSettings.m_UpdateType
-				, NStr::CStr const &_AuditCategory = fg_DistributedAppThreadLocal().m_DefaultSettings.m_AuditCategory
-			 	, CDistributedAppActor_InterfaceSettings const &_InterfaceSettings = fg_DistributedAppThreadLocal().m_DefaultSettings.m_InterfaceSettings
-			 	, bool _bSupportUserAuthentication = fg_DistributedAppThreadLocal().m_DefaultSettings.m_bSupportUserAuthentication
-				, NStr::CStr const &_RunAsUser = fg_DistributedAppThreadLocal().m_DefaultSettings.m_RunAsUser
-			 	, NStr::CStr const &_RunAsGroup = fg_DistributedAppThreadLocal().m_DefaultSettings.m_RunAsGroup
-			)
-		;
+		CDistributedAppActor_Settings(NStr::CStr const &_AppName);
+		
 		NStr::CStr f_GetCompositeFriendlyName() const;
 		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
 		NStr::CStr f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
@@ -45,6 +30,8 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
 		CDistributedAppActor_Settings &&f_InterfaceSettings(CDistributedAppActor_InterfaceSettings const &_InterfaceSettings) &&;
 		CDistributedAppActor_Settings &&f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&;
+		CDistributedAppActor_Settings &&f_WaitForRemotes(bool _bWaitForRemotes) &&;
+		CDistributedAppActor_Settings &&f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&;
 
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;

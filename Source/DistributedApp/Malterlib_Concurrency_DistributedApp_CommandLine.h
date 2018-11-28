@@ -14,8 +14,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x102
+			EMinProtocolVersion = 0x103
+			, EProtocolVersion = 0x103
 		};
 
 		ICCommandLineControl();
@@ -72,6 +72,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorInterfaceWithID<ICCommandLineControl, gc_SubscriptionNotRequired> m_ControlActor;
 		uint32 m_CommandLineWidth = 0;
 		uint32 m_CommandLineHeight = 0;
+		bool m_bColorEnabled = true;
 	};
 
 	struct ICCommandLine : public CActor
@@ -139,6 +140,13 @@ namespace NMib::NConcurrency
 			CInternal *mp_pInternal;
 		};
 
+		enum ECommandFlag
+		{
+			ECommandFlag_None = 0
+			, ECommandFlag_RunLocalApp = DMibBit(0)
+			, ECommandFlag_WaitForRemotes = DMibBit(1)
+		};
+
 		struct CSection
 		{
 			friend struct CDistributedAppCommandLineSpecification;
@@ -148,7 +156,7 @@ namespace NMib::NConcurrency
 				(
 					NEncoding::CEJSON const &_CommandDescription
 					, NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> const &_fRunCommand
-					, bool _bRunLocalApp = false
+					, ECommandFlag _Flags = ECommandFlag_None
 				)
 			;
 
@@ -179,6 +187,9 @@ namespace NMib::NConcurrency
 		CDistributedAppCommandLineSpecification &operator =(CDistributedAppCommandLineSpecification const &_Other);
 		CDistributedAppCommandLineSpecification &operator =(CDistributedAppCommandLineSpecification &&_Other);
 
+		void f_AddHelpCommand();
+		static NContainer::TCVector<NStr::CStr> fs_RelevantHelpGlobalOptions();
+
 		CSection f_GetDefaultSection();
 		CSection f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description, NStr::CStr const &_AfterSection = {});
 		void f_SetDefaultCommand(CCommand const &_Command);
@@ -187,8 +198,6 @@ namespace NMib::NConcurrency
 		CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params);
 
 	private:
-		void fp_SetupDefaultCommands();
-		void fp_SetupHelpCommand();
 
 		NPtr::TCUniquePointer<CInternal> mp_pInternal;
 	};

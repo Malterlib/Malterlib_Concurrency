@@ -215,7 +215,7 @@ namespace NMib
 			bool f_IsEmpty() const;
 		};
 
-		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &, tf_CType const &)>>
 		void fg_CombineResults
 			(
 				NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
@@ -223,7 +223,7 @@ namespace NMib
 			)
 		;
 
-		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &)>>
 		void fg_CombineResults
 			(
 				NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
@@ -231,7 +231,7 @@ namespace NMib
 			)
 		;
 
-		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &, tf_CType const &)>>
 		bool fg_CombineResults
 			(
 				TCContinuation<tf_CReturn> const &_Continuation
@@ -240,7 +240,7 @@ namespace NMib
 			)
 		;
 
-		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &)>>
 		bool fg_CombineResults
 			(
 				TCContinuation<tf_CReturn> const &_Continuation
@@ -249,7 +249,7 @@ namespace NMib
 			)
 		;
 
-		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CType const &)>>
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &, tf_CType const &)>>
 		bool fg_CombineResults
 			(
 				TCContinuation<void> const &_Continuation
@@ -258,11 +258,47 @@ namespace NMib
 			)
 		;
 
-		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void ()>>
+		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &)>>
 		bool fg_CombineResults
 			(
 				TCContinuation<void> const &_Continuation
 				, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &, tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<tf_CReturn> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_CType, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &, tf_CType const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
+				, tf_FOnResult &&_fOnResult = [](tf_CKey const &, tf_CType const &){}
+			)
+		;
+
+		template <typename tf_CKey, typename tf_FOnResult = NFunction::TCFunction<void (tf_CKey const &)>>
+		bool fg_CombineResults
+			(
+				TCContinuation<void> const &_Continuation
+				, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
 				, tf_FOnResult &&_fOnResult = [](tf_CKey const &){}
 			)
 		;

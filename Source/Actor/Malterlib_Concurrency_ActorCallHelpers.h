@@ -537,7 +537,7 @@ namespace NMib::NConcurrency
 #ifdef DMibContractConfigure_CheckEnabled			
 		~TCActorCall()
 		{
-			DMibCheck(mp_Actor.f_IsEmpty())("Actor call without result used");
+			DMibCheck(NException::fg_UncaughtExceptions() || mp_Actor.f_IsEmpty())("Actor call without result used");
 		}
 #endif
 		
@@ -612,10 +612,15 @@ namespace NMib::NConcurrency
 			;
 #endif
 			DMibFastCheck(!mp_Actor.f_IsEmpty() || t_CActor::CContainedActor::mc_bCanBeEmpty);
-			NPrivate::fg_CallActorInternal(*this, fg_Move(_ResultCall.mp_Actor), _ResultCall.mp_Functor);
 #ifdef DMibContractConfigure_CheckEnabled
-			mp_Actor.f_Clear();
+			auto Cleanup = g_OnScopeExit > [&]
+				{
+					mp_Actor.f_Clear();
+				}
+			;
+
 #endif
+			NPrivate::fg_CallActorInternal(*this, fg_Move(_ResultCall.mp_Actor), _ResultCall.mp_Functor);
 		}
 
 		template <typename tf_CResult>
@@ -852,6 +857,14 @@ namespace NMib::NConcurrency
 		;
 		typedef NPrivate::TCCallMutipleActorStorage<tf_CResultFunctor, tf_CResultActor, CTypeList> CStorage;
 
+#ifdef DMibContractConfigure_CheckEnabled
+		auto Cleanup = g_OnScopeExit > [&]
+			{
+				fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
+			}
+		;
+#endif
+
 		NPtr::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 		
 		auto &Actor = NPrivate::fg_DirectResultActor();
@@ -871,10 +884,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		(void)Dummy;
-#ifdef DMibContractConfigure_CheckEnabled
-		fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
-#endif
-	}	
+	}
 
 	template 
 	<

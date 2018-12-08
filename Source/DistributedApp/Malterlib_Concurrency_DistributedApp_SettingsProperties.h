@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 
 		static EOption fs_ParseEnvironmentOptions(NStr::CStr const &_Options);
 
-		NPtr::TCSharedPointer<TCActorFunctor<TCContinuation<CDistributedActorTrustManager::CTrustTicket> ()>> m_pRequestTicket;
+		NStorage::TCSharedPointer<TCActorFunctor<TCContinuation<CDistributedActorTrustManager::CTrustTicket> ()>> m_pRequestTicket;
 		NStr::CStr m_ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
 		NStr::CStr m_RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
 		EOption m_Options = fs_ParseEnvironmentOptions(fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerOptions"));
@@ -76,8 +76,8 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RunAsUser;
 		NStr::CStr m_RunAsGroup;
 		NStr::CStr m_Enclave;
-		NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
-		NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
+		NNetwork::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;
 		EDefaultCommandLineFunctionality m_DefaultCommandLineFunctionality = EDefaultCommandLineFunctionality_All;

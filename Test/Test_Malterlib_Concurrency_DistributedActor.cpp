@@ -23,7 +23,7 @@
 namespace
 {
 	using namespace NMib;
-	using namespace NMib::NPtr;
+	using namespace NMib::NStorage;
 	using namespace NMib::NMeta;
 	using namespace NMib::NContainer;
 	using namespace NMib::NConcurrency;
@@ -1383,11 +1383,11 @@ namespace
 			CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
 			ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), CDistributedActorTestKeySettings{});
 			
-			NHTTP::CURL ConnectAddress;
+			NWeb::NHTTP::CURL ConnectAddress;
 			
 			if (_Address == "localhost")
 			{
-				NNet::CNetAddressTCPv4 Address;
+				NNetwork::CNetAddressTCPv4 Address;
 				Address.m_Port = 31393;
 				ConnectAddress = fg_Format("wss://{}:31393/", _Address);
 			}
@@ -1399,7 +1399,7 @@ namespace
 			CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 			ListenSettings.f_SetCryptography(ServerCryptography);
 			ListenSettings.m_bRetryOnListenFailure = false;
-			ListenSettings.m_ListenFlags = NNet::ENetFlag_None;
+			ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
 			CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
 
 			TCDistributedActor<CDistributedActor> PublishedActor = ServerManager->f_ConstructActor<CDistributedActor>();
@@ -1603,7 +1603,7 @@ namespace
 				};
 				DMibTestSuite("Basics Unix Sockets")
 				{
-					fp_BasicTests("UNIX:" + NNet::fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
+					fp_BasicTests("UNIX:" + NNetwork::fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
 				};
 				DMibTestSuite("Anonymous client")
 				{

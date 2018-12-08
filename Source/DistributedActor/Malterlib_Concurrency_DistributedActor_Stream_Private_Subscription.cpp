@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 		if (_SubscriptionSequenceID != TCLimitsInt<uint32>::mc_Max)
 			*this >> _SubscriptionSequenceID;
 
-		NPtr::TCUniquePointer<NPrivate::CDistributedActorSubscriptionReference> pSubscription = fg_Construct();
+		NStorage::TCUniquePointer<NPrivate::CDistributedActorSubscriptionReference> pSubscription = fg_Construct();
 		auto &SubscriptionState = *(pSubscription->m_pState = fg_Construct());
 		SubscriptionState.m_pHost = State.m_pHost;
 		SubscriptionState.m_DistributionManager = State.m_DistributionManager;

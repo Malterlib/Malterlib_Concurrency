@@ -37,7 +37,7 @@
 namespace
 {
 	using namespace NMib;
-	using namespace NMib::NPtr;
+	using namespace NMib::NStorage;
 	using namespace NMib::NMeta;
 	using namespace NMib::NContainer;
 	using namespace NMib::NConcurrency;

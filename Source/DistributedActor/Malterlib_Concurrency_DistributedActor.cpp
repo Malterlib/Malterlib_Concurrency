@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
 			
-			NNet::CSSLContext::fs_RegisterExtension
+			NNetwork::CSSLContext::fs_RegisterExtension
 				(
 					"1.3.6.1.4.1.47722.1.1"
 					, "MalterlibHostID"
@@ -142,15 +142,15 @@ namespace NMib::NConcurrency
 			CConcurrencyManager *_pConcurrencyManager
 			, bool _bImmediateDelete
 			, EPriority _Priority
-			, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+			, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
 	}
 	
-	NNet::CSSLKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
+	NNetwork::CSSLKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
 	{
-		return NNet::CSSLKeySettings_EC_secp521r1{};
+		return NNetwork::CSSLKeySettings_EC_secp521r1{};
 	}
 	
 	void fg_InitDistributedActorSystem()
@@ -215,13 +215,13 @@ namespace NMib::NConcurrency
 	{
 	}		
 	
-	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NNet::CSSLKeySetting _KeySetting)
+	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NNetwork::CSSLKeySetting _KeySetting)
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 
 		m_Subject = fg_Format("Malterlib Distributed Actors - {}", NCryptography::fg_RandomID());
 		
-		NNet::CSSLContext::CCertificateOptions Options;
+		NNetwork::CSSLContext::CCertificateOptions Options;
 		Options.m_KeySetting = _KeySetting;
 		Options.m_Hostnames = _HostNames;
 		Options.m_CommonName = m_Subject;
@@ -229,11 +229,11 @@ namespace NMib::NConcurrency
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID;
 		
-		NNet::CSignOptions SignOptions;
+		NNetwork::CSignOptions SignOptions;
 		SignOptions.m_Serial = 1;
 		SignOptions.m_Days = 10*365;
 		
-		NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey
+		NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey
 			(
 				Options
 				, m_PublicCertificate
@@ -247,20 +247,20 @@ namespace NMib::NConcurrency
 		m_SignedClientCertificates.f_Clear();
 	}
 	
-	NContainer::TCVector<uint8> CActorDistributionCryptographySettings::f_GenerateRequest() const
+	NContainer::CByteVector CActorDistributionCryptographySettings::f_GenerateRequest() const
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 		
-		NContainer::TCVector<uint8> Return;
-		NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> KeyData = m_PrivateKey;
+		NContainer::CByteVector Return;
+		NContainer::CSecureByteVector KeyData = m_PrivateKey;
 		
-		NNet::CSSLContext::CCertificateOptions Options;
+		NNetwork::CSSLContext::CCertificateOptions Options;
 		Options.m_CommonName = m_Subject; 
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID; 
 		
-		NNet::CSSLContext::fs_GenerateClientCertificateRequest
+		NNetwork::CSSLContext::fs_GenerateClientCertificateRequest
 			(
 				Options
 				, Return
@@ -270,14 +270,14 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 	
-	NContainer::TCVector<uint8> CActorDistributionCryptographySettings::f_SignRequest(NContainer::TCVector<uint8> const &_Request)
+	NContainer::CByteVector CActorDistributionCryptographySettings::f_SignRequest(NContainer::CByteVector const &_Request)
 	{
-		NNet::CSignOptions SignOptions;
+		NNetwork::CSignOptions SignOptions;
 		SignOptions.m_Serial = ++m_Serial;
 		SignOptions.m_Days = 10*365;
 		
-		NContainer::TCVector<uint8> Return;
-		NNet::CSSLContext::fs_SignClientCertificate
+		NContainer::CByteVector Return;
+		NNetwork::CSSLContext::fs_SignClientCertificate
 			(
 				m_PublicCertificate
 				, m_PrivateKey
@@ -291,9 +291,9 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionCryptographySettings::f_AddRemoteServer
 		(
-			NHTTP::CURL const &_URL
-			, NContainer::TCVector<uint8> const &_ServerCert
-			, NContainer::TCVector<uint8> const &_ClientCert
+			NWeb::NHTTP::CURL const &_URL
+			, NContainer::CByteVector const &_ServerCert
+			, NContainer::CByteVector const &_ClientCert
 		)
 	{
 		auto &NewRemote = m_RemoteClientCertificates[_URL];
@@ -303,7 +303,7 @@ namespace NMib::NConcurrency
 	
 	NStr::CStr CActorDistributionCryptographySettings::f_GetHostID() const
 	{
-		return NNet::CSSLContext::fs_GetCertificateFingerprint(m_PublicCertificate);
+		return NNetwork::CSSLContext::fs_GetCertificateFingerprint(m_PublicCertificate);
 	}		
 	
 	CActorDistributionConnectionSettings::CActorDistributionConnectionSettings()
@@ -325,16 +325,16 @@ namespace NMib::NConcurrency
 		}
 	}
 	
-	CActorDistributionListenSettings::CActorDistributionListenSettings(uint16 _Port, NNet::ENetAddressType _AddressType)
+	CActorDistributionListenSettings::CActorDistributionListenSettings(uint16 _Port, NNetwork::ENetAddressType _AddressType)
 	{
-		if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv4)
+		if (_AddressType == NNetwork::ENetAddressType_None || _AddressType == NNetwork::ENetAddressType_TCPv4)
 		{
-			NHTTP::CURL URL{NStr::fg_Format("wss://[IPv4:0.0.0.0]:{}/", _Port)};
+			NWeb::NHTTP::CURL URL{NStr::fg_Format("wss://[IPv4:0.0.0.0]:{}/", _Port)};
 			m_ListenAddresses.f_Insert(URL);
 		}
-		if (_AddressType == NNet::ENetAddressType_None || _AddressType == NNet::ENetAddressType_TCPv6)
+		if (_AddressType == NNetwork::ENetAddressType_None || _AddressType == NNetwork::ENetAddressType_TCPv6)
 		{
-			NHTTP::CURL URL{NStr::fg_Format("wss://[IPv6:::]:{}/", _Port)};
+			NWeb::NHTTP::CURL URL{NStr::fg_Format("wss://[IPv6:::]:{}/", _Port)};
 			m_ListenAddresses.f_Insert(URL);
 		}
 	}
@@ -343,7 +343,7 @@ namespace NMib::NConcurrency
 	{
 	}
 	
-	CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NHTTP::CURL> const &_Addresses)
+	CActorDistributionListenSettings::CActorDistributionListenSettings(NContainer::TCVector<NWeb::NHTTP::CURL> const &_Addresses)
 		: m_ListenAddresses(_Addresses)
 	{
 	}
@@ -369,7 +369,7 @@ namespace NMib::NConcurrency
 			, uint32 _ProtocolVersion
 			, NStr::CStr const &_ClaimedUserID
 			, NStr::CStr const &_ClaimedUserName
-		 	, NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+		 	, NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 		)
 		: mp_DistributionManager(_DistributionManager)
 		, mp_AuthenticationHandler(_AuthenticationHandler)
@@ -420,15 +420,15 @@ namespace NMib::NConcurrency
 
 	bool CCallingHostInfo::operator ==(CCallingHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
-			== NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
+		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
+			== NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		; 
 	}		
 
 	bool CCallingHostInfo::operator <(CCallingHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
-			< NContainer::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
+		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
+			< NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		; 
 	}		
 	
@@ -442,7 +442,7 @@ namespace NMib::NConcurrency
 		return mp_AuthenticationHandler.f_Lock();
 	}
 
-	NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> CCallingHostInfo::f_GetHost() const
+	NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> CCallingHostInfo::f_GetHost() const
 	{
 		return mp_pHost.f_Lock();
 	}
@@ -511,12 +511,12 @@ namespace NMib::NConcurrency
 
 	bool CHostInfo::operator ==(CHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) == NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
+		return NStorage::fg_TupleReferences(m_HostID, m_FriendlyName) == NStorage::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 	}
 	
 	bool CHostInfo::operator <(CHostInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_HostID, m_FriendlyName) < NContainer::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
+		return NStorage::fg_TupleReferences(m_HostID, m_FriendlyName) < NStorage::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
 	}
 
 	NPrivate::CDistributedActorInterfaceInfo::CDistributedActorInterfaceInfo() = default;
@@ -549,12 +549,12 @@ namespace NMib::NConcurrency
 	
 	bool CDistributedActorProtocolVersions::operator == (CDistributedActorProtocolVersions const &_Other) const
 	{
-		return NContainer::fg_TupleReferences(m_MinSupported, m_MaxSupported) == NContainer::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
+		return NStorage::fg_TupleReferences(m_MinSupported, m_MaxSupported) == NStorage::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
 	}
 	
 	bool CDistributedActorProtocolVersions::operator < (CDistributedActorProtocolVersions const &_Other) const
 	{
-		return NContainer::fg_TupleReferences(m_MinSupported, m_MaxSupported) < NContainer::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
+		return NStorage::fg_TupleReferences(m_MinSupported, m_MaxSupported) < NStorage::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
 	}
 	
 	CDistributedActorIdentifier::CDistributedActorIdentifier()
@@ -562,7 +562,7 @@ namespace NMib::NConcurrency
 		
 	}
 	
-	CDistributedActorIdentifier::CDistributedActorIdentifier(NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID)
+	CDistributedActorIdentifier::CDistributedActorIdentifier(NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID)
 		: mp_pHost(_pHost)
 		, mp_ActorID(_ActorID)
 	{
@@ -570,12 +570,12 @@ namespace NMib::NConcurrency
 	
 	bool CDistributedActorIdentifier::operator == (CDistributedActorIdentifier const &_Other) const
 	{
-		return NContainer::fg_TupleReferences(mp_pHost, mp_ActorID) == NContainer::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
+		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) == NStorage::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
 	}
 	
 	bool CDistributedActorIdentifier::operator < (CDistributedActorIdentifier const &_Other) const
 	{
-		return NContainer::fg_TupleReferences(mp_pHost, mp_ActorID) < NContainer::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
+		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) < NStorage::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
 	}
 	
 	bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right)
@@ -588,7 +588,7 @@ namespace NMib::NConcurrency
 		NPrivate::CDistributedActorData const *pRightInternal 
 			= (NPrivate::CDistributedActorData const *)pRightData.f_Get()
 		;
-		return NContainer::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NContainer::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID); 
+		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID); 
 	}
 	
 	bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
@@ -601,7 +601,7 @@ namespace NMib::NConcurrency
 		NPrivate::CDistributedActorData const *pLeftInternal 
 			= (NPrivate::CDistributedActorData const *)pLeftData.f_Get()
 		;
-		return NContainer::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NContainer::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID); 
+		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID); 
 	}
 	
 	NPrivate::ICHost::~ICHost()
@@ -610,17 +610,17 @@ namespace NMib::NConcurrency
 	
 	bool CActorDistributionManager::fs_IsValidNamespaceName(NStr::CStr const &_String)
 	{
-		return NNet::fg_IsValidHostname(_String, "/");
+		return NNetwork::fg_IsValidHostname(_String, "/");
 	}
 	
 	bool CActorDistributionManager::fs_IsValidHostID(NStr::CStr const &_String)
 	{
-		return NNet::fg_IsValidHostname(_String);
+		return NNetwork::fg_IsValidHostname(_String);
 	}
 	
 	bool CActorDistributionManager::fs_IsValidUserID(NStr::CStr const &_String)
 	{
-		return NNet::fg_IsValidHostname(_String);
+		return NNetwork::fg_IsValidHostname(_String);
 	}
 
 	CDistributedActorInterfaceShare::CDistributedActorInterfaceShare()
@@ -647,7 +647,7 @@ namespace NMib::NConcurrency
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, NStr::CStr const &_ActorID
-			, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
+			, NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost
 			, uint32 _ProtocolVersion
 		)
 	;

@@ -11,308 +11,305 @@
 #include <Mib/Concurrency/DistributedActorAuthentication>
 #include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	struct CAuthenticationActorInfo;
+	using namespace NDistributedActorTrustManagerDatabase;
+
+	enum EInitialize
 	{
-		struct CAuthenticationActorInfo;
-		using namespace NDistributedActorTrustManagerDatabase;
-		
-		enum EInitialize
+		EInitialize_None
+		, EInitialize_Success
+		, EInitialize_Failure
+	};
+
+	struct CDistributedActorTrustManager::CInternal
+	{
+		struct CHostState;
+
+		struct CListenState
 		{
-			EInitialize_None
-			, EInitialize_Success
-			, EInitialize_Failure
+			CDistributedActorListenReference m_ListenReference;
 		};
-		
-		struct CDistributedActorTrustManager::CInternal
+
+		struct CConnectionState
 		{
-			struct CHostState;
-			
-			struct CListenState
-			{
-				CDistributedActorListenReference m_ListenReference;
-			};		
+			CClientConnection m_ClientConnection;
+			NContainer::TCVector<CDistributedActorConnectionReference> m_ConnectionReferences;
+			CHostState *m_pHost = nullptr;
+			bool m_bRemoving = false;
 
-			struct CConnectionState
+			DMibListLinkDS_Link(CConnectionState, m_Link);
+
+			inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
+		};
+
+		struct CTicketState
+		{
+			NTime::CTimer m_CreationTime;
+			TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> m_fOnUseTicket;
+			TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
+		};
+
+		struct CHostState
+		{
+			DMibListLinkDS_List(CConnectionState, m_Link) m_ClientConnections;
+			NStr::CStr m_FriendlyName;
+
+			inline NStr::CStr const &f_GetHostID() const;
+		};
+
+		struct CTypedHost;
+
+		struct CTypedActor
+		{
+			CDistributedActorIdentifier const &f_GetIdentifier() const
 			{
-				CClientConnection m_ClientConnection;
-				NContainer::TCVector<CDistributedActorConnectionReference> m_ConnectionReferences;
-				CHostState *m_pHost = nullptr;
-				bool m_bRemoving = false;
-				
-				DMibListLinkDS_Link(CConnectionState, m_Link);
-				
-				inline CDistributedActorTrustManager_Address const &f_GetAddress() const;
-			};
-			
-			struct CTicketState
+				return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
+			}
+			CAbstractDistributedActor m_AbstractActor;
+			CTrustedActorInfo m_TrustedInfo;
+			CTypedHost *m_pHost = nullptr;
+
+			NIntrusive::TCAVLLink<> m_LinkAllowed;
+			NIntrusive::TCAVLLink<> m_LinkHost;
+
+			struct CCompareIdentifier
 			{
-				NTime::CTimer m_CreationTime;
-				TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)> m_fOnUseTicket;
-				TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
-			};
-			
-			struct CHostState
-			{
-				DMibListLinkDS_List(CConnectionState, m_Link) m_ClientConnections;
-				NStr::CStr m_FriendlyName;
-				
-				inline NStr::CStr const &f_GetHostID() const;
-			};
-			
-			struct CTypedHost;
-			
-			struct CTypedActor
-			{
-				CDistributedActorIdentifier const &f_GetIdentifier() const
+				auto &operator()(CTypedActor const &_Actor)
 				{
-					return NContainer::TCMap<CDistributedActorIdentifier, CTypedActor>::fs_GetKey(*this);
+					return _Actor.f_GetIdentifier();
 				}
-				CAbstractDistributedActor m_AbstractActor;
-				CTrustedActorInfo m_TrustedInfo;
-				CTypedHost *m_pHost = nullptr;
-				
-				DMibIntrusiveLink(CTypedActor, NIntrusive::TCAVLLink<>, m_LinkAllowed);
-				DMibIntrusiveLink(CTypedActor, NIntrusive::TCAVLLink<>, m_LinkHost);
-				
-				struct CCompareIdentifier
-				{
-					auto &operator()(CTypedActor const &_Actor)
-					{
-						return _Actor.f_GetIdentifier();
-					}
-				};
 			};
+		};
 
-			struct CTypedHost
+		struct CTypedHost
+		{
+			NStr::CStr const &f_GetHostID() const
 			{
-				NStr::CStr const &f_GetHostID() const
-				{
-					return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
-				}
-				NIntrusive::TCAVLTree<CTypedActor::CLinkTraits_m_LinkHost, CTypedActor::CCompareIdentifier> m_Actors;
-			};
-			
-			struct CNamespaceTypeState
+				return NContainer::TCMap<NStr::CStr, CTypedHost>::fs_GetKey(*this);
+			}
+			NIntrusive::TCAVLTree<&CTypedActor::m_LinkHost, CTypedActor::CCompareIdentifier> m_Actors;
+		};
+
+		struct CNamespaceTypeState
+		{
+			uint32 f_GetTypeHash() const
 			{
-				uint32 f_GetTypeHash() const
-				{
-					return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);					
-				}
-				NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State);
-				
-				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
-				
-				NContainer::TCMap<CDistributedActorIdentifier, CTypedActor> m_Actors;
-				NContainer::TCMap<NStr::CStr, CTypedHost> m_Hosts;
-				NIntrusive::TCAVLTree<CTypedActor::CLinkTraits_m_LinkAllowed, CTypedActor::CCompareIdentifier> m_AllowedActors;
-				
-			};
-			
-			struct CNamespaceState
+				return NContainer::TCMap<uint32, CNamespaceTypeState>::fs_GetKey(*this);
+			}
+			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State);
+
+			NContainer::TCSet<NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState>> m_Subscriptions;
+
+			NContainer::TCMap<CDistributedActorIdentifier, CTypedActor> m_Actors;
+			NContainer::TCMap<NStr::CStr, CTypedHost> m_Hosts;
+			NIntrusive::TCAVLTree<&CTypedActor::m_LinkAllowed, CTypedActor::CCompareIdentifier> m_AllowedActors;
+
+		};
+
+		struct CNamespaceState
+		{
+			CNamespace m_Namespace;
+			CActorSubscription m_Subscription;
+			NContainer::TCMap<uint32, CNamespaceTypeState> m_Types;
+			mint m_nSubscriptions = 0;
+			bool m_bExistsInDatabase = false;
+			bool m_bSubscribing = false;
+			NContainer::TCVector<NFunction::TCFunction<bool (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
+
+			inline NStr::CStr const &f_GetNamespaceName() const;
+		};
+
+		struct CPermissionState
+		{
+			NDistributedActorTrustManagerDatabase::CPermissions m_Permissions;
+			bool m_bExistsInDatabase = false;
+
+			inline CPermissionIdentifiers const &f_GetIdentity() const;
+		};
+
+		struct CPermissionSubscriptionState
+		{
+			NContainer::TCSet<NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
+			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_PermissionsPerIdentity;
+
+			inline NStr::CStr const &f_GetPermission() const;
+		};
+
+		struct CUserState
+		{
+			NDistributedActorTrustManagerDatabase::CUserInfo m_UserInfo;
+			bool m_bExistsInDatabase = false;
+		};
+
+		struct CUserAuthenticationFactorState
+		{
+			NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor m_AuthenticationFactor;
+			bool m_bExistsInDatabase = false;
+		};
+
+		struct CTicketInterface : public CActor
+		{
+			enum : uint32
 			{
-				CNamespace m_Namespace;
-				CActorSubscription m_Subscription;
-				NContainer::TCMap<uint32, CNamespaceTypeState> m_Types;
-				mint m_nSubscriptions = 0;
-				bool m_bExistsInDatabase = false;
-				bool m_bSubscribing = false;
-				NContainer::TCVector<NFunction::TCFunction<bool (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
-				
-				inline NStr::CStr const &f_GetNamespaceName() const;
+				EMinProtocolVersion = 0x101
+				, EProtocolVersion = 0x101
 			};
 
-			struct CPermissionState
-			{
-				NDistributedActorTrustManagerDatabase::CPermissions m_Permissions;
-				bool m_bExistsInDatabase = false;
-				
-				inline CPermissionIdentifiers const &f_GetIdentity() const;
-			};
-			
-			struct CPermissionSubscriptionState
-			{
-				NContainer::TCSet<NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>> m_Subscriptions;
-				NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_PermissionsPerIdentity;
+			TCContinuation<NContainer::CByteVector> f_SignCertificate(NStr::CStr const &_Token, NContainer::CByteVector const &_CertificateRequest);
+			CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
+		private:
+			CDistributedActorTrustManager::CInternal *mp_pInternal;
+			TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;
+		};
 
-				inline NStr::CStr const &f_GetPermission() const;
-			};
-			
-			struct CUserState
-			{
-				NDistributedActorTrustManagerDatabase::CUserInfo m_UserInfo;
-				bool m_bExistsInDatabase = false;
-			};
+		struct CDistributedActorAuthenticationImplementation : public ICDistributedActorAuthentication
+		{
+			CDistributedActorAuthenticationImplementation();
 
-			struct CUserAuthenticationFactorState
-			{
-				NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor m_AuthenticationFactor;
-				bool m_bExistsInDatabase = false;
-			};
-
-			struct CTicketInterface : public CActor
-			{
-				enum : uint32
-				{
-					EMinProtocolVersion = 0x101
-					, EProtocolVersion = 0x101
-				};
-				
-				TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate(NStr::CStr const &_Token, NContainer::TCVector<uint8> const &_CertificateRequest);
-				CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
-			private:
-				CDistributedActorTrustManager::CInternal *mp_pInternal;
-				TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;
-			};
-
-			struct CDistributedActorAuthenticationImplementation : public ICDistributedActorAuthentication
-			{
-				CDistributedActorAuthenticationImplementation();
-
-				auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
-					-> TCContinuation<TCActorSubscriptionWithID<>> override
-				;
-				TCContinuation<bool> f_AuthenticatePermissionPattern
-					(
-						NStr::CStr const &_Pattern
-						, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-					 	, NStr::CStr const &_RequestID
-					) override
-				;
-
-				CDistributedActorTrustManager *m_pThis;
-			};
-			
-			struct CActorDistributionManagerAccessHandler : public ICActorDistributionManagerAccessHandler
-			{
-				using CActorHolder = CDelegatedActorHolder;
-				
-				TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain) override;
-
-				CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
-
-				CDistributedActorTrustManager::CInternal *m_pThis;
-			};
-
-			CInternal
-				(
-					CDistributedActorTrustManager *_pThis
-					, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
-					, COptions &&_Options
-				)
+			auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
+				-> TCContinuation<TCActorSubscriptionWithID<>> override
 			;
-			~CInternal();
-			
-			TCContinuation<NStr::CStr> f_InitAttempt();
-			void f_Init
-				(
-					TCContinuation<NStr::CStr> &_Continuation
-					, CBasicConfig const &_Basic
-					, CDefaultUser const &_DefaultUser
-					, NContainer::TCSet<CListenConfig> const &_Listen
-					, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
-					, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
-					, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
-					, NContainer::TCMap<CPermissionIdentifiers, CPermissions> const &_Permissions
-					, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
-				 	, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> &_AuthenticationFactors
-				)
-			;
-			
-			template <typename tf_CReturn>
-			void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunctionMovable<void ()> &&_fToRun);
-			
-			void f_RemoveClientConnection(CConnectionState *_pClientConnection);
-			
-			TCContinuation<NContainer::TCVector<uint8>> f_SignCertificate
-				(
-					NStr::CStr const &_Token
-					, NContainer::TCVector<uint8> const &_CertificateRequest
-					, CCallingHostInfo const &_HostInfo
-				)
-			;
-			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::TCVector<uint8>> const &_CertificateChain);
-			
-			NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
-			
-			void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
-
 			TCContinuation<bool> f_AuthenticatePermissionPattern
 				(
 					NStr::CStr const &_Pattern
-					, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactor
-				 	, CCallingHostInfo const &_CallingHostInfo
+					, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
 					, NStr::CStr const &_RequestID
-				)
+				) override
 			;
 
-			NPtr::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			CDistributedActorTrustManager *m_pThis;
-			TCActor<ICDistributedActorTrustManagerDatabase> m_Database;
-			NFunction::TCFunctionMovable<TCActor<CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> m_fDistributionManagerFactory;
-			
-			TCActor<CActorDistributionManager> m_ActorDistributionManager;
-			TCActor<CActorDistributionManagerAccessHandler> m_AccessHandler;
-			
-			TCDistributedActor<CTicketInterface> m_TicketInterface;
-			CDistributedActorPublication m_TicketInterfacePublication;
-
-			TCDelegatedActorInterface<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
-
-			NPtr::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
-			
-			CActorSubscription m_HostInfoChangedSubscription;
-			
-			NStr::CStr m_FriendlyName;
-			NStr::CStr m_Enclave;
-			
-			CBasicConfig m_BasicConfig;
-			CDefaultUser m_DefaultUser;
-
-			NContainer::TCMap<CListenConfig, CListenState> m_Listen;
-			NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
-			
-			NContainer::TCMap<NStr::CStr, CHostState> m_Hosts;
-			NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState> m_ClientConnections;
-			NContainer::TCSet<CDistributedActorTrustManager_Address> m_ClientConnectionsInDatabase;
-			
-			NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
-			
-			NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
-			
-			NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
-			NContainer::TCMap<CPermissionIdentifiers, CPermissionState> m_Permissions;
-			NContainer::TCMap<NStr::CStr, CPermissionSubscriptionState> m_PermissionsSubscriptions;
-			CDistributedActorTrustManagerAuthenticationCache m_AuthenticationCache;
-			
-			NContainer::TCMap<NStr::CStr, CUserState> m_Users;
-				
-			// The outer map uses the UserID as index, the inner uses the FactorID
-			NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactorState>> m_UserAuthenticationFactors;
-			NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> m_AuthenticationActors;
-
-			NTime::CTimer m_TicketTimer;
-			
-			NNet::CSSLKeySetting const m_KeySetting;
-			NNet::ENetFlag const m_ListenFlags;
-			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
-			
-			EInitialize m_Initialize = EInitialize_None;
-			NStr::CStr m_InitializeError;
-
-			NContainer::TCVector<TCContinuation<void>> m_AwaitingConnection;
-			
-			fp64 m_InitialConnectionTimeout = 5.0;
-			
-			int32 m_DefaultConnectionConcurrency = 1;
-
-			bool m_bRetryOnListenFailureDuringInit = true;
-			bool m_bWaitForConnectionsDuringInit = true;
-			bool m_bSupportAuthentication = true;
-			bool m_bConnectionsInitialized = false;
 		};
-	}
+
+		struct CActorDistributionManagerAccessHandler : public ICActorDistributionManagerAccessHandler
+		{
+			using CActorHolder = CDelegatedActorHolder;
+
+			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) override;
+
+			CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
+
+			CDistributedActorTrustManager::CInternal *m_pThis;
+		};
+
+		CInternal
+			(
+				CDistributedActorTrustManager *_pThis
+				, TCActor<ICDistributedActorTrustManagerDatabase> const &_Database
+				, COptions &&_Options
+			)
+		;
+		~CInternal();
+
+		TCContinuation<NStr::CStr> f_InitAttempt();
+		void f_Init
+			(
+				TCContinuation<NStr::CStr> &_Continuation
+				, CBasicConfig const &_Basic
+				, CDefaultUser const &_DefaultUser
+				, NContainer::TCSet<CListenConfig> const &_Listen
+				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
+				, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
+				, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
+				, NContainer::TCMap<CPermissionIdentifiers, CPermissions> const &_Permissions
+				, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
+				, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> &_AuthenticationFactors
+			)
+		;
+
+		template <typename tf_CReturn>
+		void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunctionMovable<void ()> &&_fToRun);
+
+		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
+
+		TCContinuation<NContainer::CByteVector> f_SignCertificate
+			(
+				NStr::CStr const &_Token
+				, NContainer::CByteVector const &_CertificateRequest
+				, CCallingHostInfo const &_HostInfo
+			)
+		;
+		TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain);
+
+		NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
+
+		void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
+
+		TCContinuation<bool> f_AuthenticatePermissionPattern
+			(
+				NStr::CStr const &_Pattern
+				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactor
+				, CCallingHostInfo const &_CallingHostInfo
+				, NStr::CStr const &_RequestID
+			)
+		;
+
+		NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
+		CDistributedActorTrustManager *m_pThis;
+		TCActor<ICDistributedActorTrustManagerDatabase> m_Database;
+		NFunction::TCFunctionMovable<TCActor<CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> m_fDistributionManagerFactory;
+
+		TCActor<CActorDistributionManager> m_ActorDistributionManager;
+		TCActor<CActorDistributionManagerAccessHandler> m_AccessHandler;
+
+		TCDistributedActor<CTicketInterface> m_TicketInterface;
+		CDistributedActorPublication m_TicketInterfacePublication;
+
+		TCDelegatedActorInterface<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
+
+		NStorage::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
+
+		CActorSubscription m_HostInfoChangedSubscription;
+
+		NStr::CStr m_FriendlyName;
+		NStr::CStr m_Enclave;
+
+		CBasicConfig m_BasicConfig;
+		CDefaultUser m_DefaultUser;
+
+		NContainer::TCMap<CListenConfig, CListenState> m_Listen;
+		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
+
+		NContainer::TCMap<NStr::CStr, CHostState> m_Hosts;
+		NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState> m_ClientConnections;
+		NContainer::TCSet<CDistributedActorTrustManager_Address> m_ClientConnectionsInDatabase;
+
+		NContainer::TCMap<NStr::CStr, CTicketState> m_Tickets;
+
+		NContainer::TCMap<NStr::CStr, CNamespaceState> m_Namespaces;
+
+		NContainer::TCSet<NStr::CStr> m_RegisteredPermissions;
+		NContainer::TCMap<CPermissionIdentifiers, CPermissionState> m_Permissions;
+		NContainer::TCMap<NStr::CStr, CPermissionSubscriptionState> m_PermissionsSubscriptions;
+		CDistributedActorTrustManagerAuthenticationCache m_AuthenticationCache;
+
+		NContainer::TCMap<NStr::CStr, CUserState> m_Users;
+
+		// The outer map uses the UserID as index, the inner uses the FactorID
+		NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactorState>> m_UserAuthenticationFactors;
+		NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> m_AuthenticationActors;
+
+		NTime::CTimer m_TicketTimer;
+
+		NNetwork::CSSLKeySetting const m_KeySetting;
+		NNetwork::ENetFlag const m_ListenFlags;
+		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
+
+		EInitialize m_Initialize = EInitialize_None;
+		NStr::CStr m_InitializeError;
+
+		NContainer::TCVector<TCContinuation<void>> m_AwaitingConnection;
+
+		fp64 m_InitialConnectionTimeout = 5.0;
+
+		int32 m_DefaultConnectionConcurrency = 1;
+
+		bool m_bRetryOnListenFailureDuringInit = true;
+		bool m_bWaitForConnectionsDuringInit = true;
+		bool m_bSupportAuthentication = true;
+		bool m_bConnectionsInitialized = false;
+	};
 }
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.hpp"

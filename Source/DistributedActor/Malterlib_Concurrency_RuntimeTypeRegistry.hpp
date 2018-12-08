@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -6,19 +6,16 @@
 #include "../Actor/Malterlib_Concurrency_AsyncResult.h"
 #include "../Actor/Malterlib_Concurrency_Continuation.h"
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortMemberFunction_Hash::operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry)
 	{
-		uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortMemberFunction_Hash::operator ()(CRuntimeTypeRegistryEntry_MemberFunction const &_Entry)
-		{
-			return _Entry.m_Hash;
-		}
+		return _Entry.m_Hash;
+	}
 
-		uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortException_Hash::operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry)
-		{
-			return _Entry.m_Hash;
-		}
+	uint32 CSubSystem_Concurrency_RuntimeTypeRegistry::CSortException_Hash::operator ()(CRuntimeTypeRegistryEntry_Exception const &_Entry)
+	{
+		return _Entry.m_Hash;
 	}
 }
 		

@@ -18,14 +18,14 @@ namespace NMib::NConcurrency
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo
-					, NContainer::TCVector<uint8> const &_CertificateRequest
+					, NContainer::CByteVector const &_CertificateRequest
 				)
 			>
 		;
 
 		CDistributedAppInterfaceLaunchActor
 			(
-				NHTTP::CURL const &_Address
+				NWeb::NHTTP::CURL const &_Address
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
 			 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		};
 		
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
-		NHTTP::CURL mp_Address;
+		NWeb::NHTTP::CURL mp_Address;
 		NStr::CStrSecure mp_RequestTicketMagic;
 		NStr::CStr mp_Description;
 		FOnUseTicket mp_fOnUseTicket;

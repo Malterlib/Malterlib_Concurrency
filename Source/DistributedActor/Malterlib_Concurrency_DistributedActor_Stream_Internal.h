@@ -7,14 +7,14 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CDistributedActorSubscriptionReferenceState : public NPtr::TCSharedPointerIntrusiveBase<>
+	struct CDistributedActorSubscriptionReferenceState : public NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		CDistributedActorSubscriptionReferenceState();
 		~CDistributedActorSubscriptionReferenceState();
 
 		TCContinuation<void> f_Destroy();
 
-		NPtr::TCSharedPointerSupportWeak<ICHost> m_pHost;
+		NStorage::TCSharedPointerSupportWeak<ICHost> m_pHost;
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_SubscriptionID;
 		NStr::CStr m_LastExecutionID;
@@ -27,10 +27,10 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCContinuation<void> f_Destroy() override;
 
-		NPtr::TCSharedPointer<CDistributedActorSubscriptionReferenceState> m_pState;
+		NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState> m_pState;
 	};
 	
-	struct CDistributedActorStreamContextState : NPtr::TCSharedPointerIntrusiveBase<>
+	struct CDistributedActorStreamContextState : NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		struct CSubscriptionInfo
 		{
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency::NPrivate
 			{
 				NStr::CStr m_ActorID;
 				TCWeakActor<CActor> m_Actor;
-				NContainer::TCMap<NStr::CStr, NPtr::TCSharedPointer<CStreamingFunction>> m_Functions;
+				NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointer<CStreamingFunction>> m_Functions;
 				
 				CActorFunctors();
 				~CActorFunctors();
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency::NPrivate
 			
 			NContainer::TCVector<CActorFunctors> m_ActorFunctors;
 			NContainer::TCVector<CActorInterface> m_Interfaces;
-			NContainer::TCLinkedList<NPtr::TCSharedPointer<CDistributedActorSubscriptionReferenceState>> m_PendingSubscriptions;
+			NContainer::TCLinkedList<NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState>> m_PendingSubscriptions;
 			
 			NContainer::TCSet<NStr::CStr> m_ImplicitlyPublishedFunctions;
 			NContainer::TCSet<NStr::CStr> m_ImplicitlyPublishedActors;
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency::NPrivate
 		
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_LastExecutionID;
-		NPtr::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
+		NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
 		
 		uint32 m_ActorProtocolVersion;
 		bool m_bCallInitiator;

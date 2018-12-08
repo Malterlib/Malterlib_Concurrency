@@ -11,10 +11,9 @@ namespace NMib::NConcurrency::NPrivate
 		
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_ActorID;
-		NPtr::TCWeakPointer<NPrivate::ICHost> m_pHost;		
+		NStorage::TCWeakPointer<NPrivate::ICHost> m_pHost;		
 		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
 		bool m_bWasDestroyed = false;
 		bool m_bRemote = false;
 	};
-	
 }

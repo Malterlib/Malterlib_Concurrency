@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NEncoding;
 	using namespace NStr;
-	using namespace NHTTP;
+	using namespace NWeb::NHTTP;
 	using namespace NProcess;
 	using namespace NContainer;
 	
@@ -234,7 +234,7 @@ namespace NMib::NConcurrency
 			}
 		};
 		
-		NPtr::TCSharedPointer<CState> pState = fg_Construct();
+		NStorage::TCSharedPointer<CState> pState = fg_Construct();
 		
 		mp_pStdInCleanup = g_OnScopeExitActor > [pState]
 			{

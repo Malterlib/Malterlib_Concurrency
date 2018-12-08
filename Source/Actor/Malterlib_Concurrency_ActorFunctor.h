@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 
 	protected:
 		TCActor<CActor> mp_Actor;
-		NPtr::TCSharedPointer<NFunction::TCFunctionMovable<t_CFunction>> mp_pFunctor = fg_Construct();
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<t_CFunction>> mp_pFunctor = fg_Construct();
 		CActorSubscription mp_Subscription;
 	};
 	

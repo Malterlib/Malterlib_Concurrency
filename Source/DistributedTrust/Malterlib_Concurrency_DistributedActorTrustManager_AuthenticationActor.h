@@ -35,10 +35,10 @@ namespace NMib::NConcurrency
 		ICDistributedActorTrustManagerAuthenticationActor();
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
-		virtual TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
+		virtual TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
 		virtual TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors

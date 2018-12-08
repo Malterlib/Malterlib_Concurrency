@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 						
 						TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, pActorDataRaw->m_ProtocolVersion, fg_Forward<tp_CParams>(p_Params)...);
 						
-						auto pActorData = NPtr::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
+						auto pActorData = NStorage::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
 						
 						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
 						
@@ -84,7 +84,8 @@ namespace NMib::NConcurrency
 						}
 
 						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
-							> [Continuation, Context, Version = pActorDataRaw->m_ProtocolVersion](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+							> [Continuation, Context, Version = pActorDataRaw->m_ProtocolVersion]
+							(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 							{
 								if (!_Result)
 								{
@@ -108,14 +109,14 @@ namespace NMib::NConcurrency
 			}
 			
 			template <typename tf_FFunction, mint... tfp_Indices>
-			static NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> fs_Call
+			static NConcurrency::TCContinuation<NContainer::CSecureByteVector> fs_Call
 				(
 					CDistributedActorReadStream &_Stream
 					, tf_FFunction &_fFunction
 					, NMeta::TCIndices<tfp_Indices...> const &_Indices
 				)
 			{
-				NContainer::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
+				NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
 				
@@ -128,9 +129,9 @@ namespace NMib::NConcurrency
 					return _Exception;
 				}
 				
-				auto Continuation = _fFunction(fg_Forward<tp_CParams>(NContainer::fg_Get<tfp_Indices>(ParamList))...);
+				auto Continuation = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
 			
-				NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Return;
+				NConcurrency::TCContinuation<NContainer::CSecureByteVector> Return;
 				
 				Continuation.f_OnResultSet
 					(
@@ -183,7 +184,7 @@ namespace NMib::NConcurrency::NPrivate
 	
 	template <typename t_FFunction, typename t_FFunctionSignature>
 	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream)
-		-> NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> 
+		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector> 
 	{
 		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
 			(

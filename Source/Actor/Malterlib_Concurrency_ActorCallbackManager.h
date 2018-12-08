@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -7,107 +7,104 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/WeakActor>
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	template <typename t_CCallbackSignature, bool t_bSupportMultiple = false, typename t_CExtraData = CEmpty>
+	class TCActorSubscriptionManager;
+
+	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+	class TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
 	{
-		template <typename t_CCallbackSignature, bool t_bSupportMultiple = false, typename t_CExtraData = CEmpty>
-		class TCActorSubscriptionManager;
-		
-		template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-		class TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
+	public:
+		struct CCallbackHandle : public t_CExtraData
 		{
-		public:
-			struct CCallbackHandle : public t_CExtraData
-			{
-				template <typename ...tfp_CParam>
-				CCallbackHandle(tfp_CParam && ...p_ExtraData);
-				TCWeakActor<CActor> m_Actor;
-				NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> m_fCallback;
-			};
-			using CReturn = typename NPrivate::TCRemoveContinuation<t_CReturn>::CType;
-		public:
-			TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks);
-			~TCActorSubscriptionManager();
-
 			template <typename ...tfp_CParam>
-			CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
-			
-			bool f_IsEmpty();
-			void f_StopDeferring();
-			void f_Clear();
-
-			template <bool tf_bSupportMultiple = t_bSupportMultiple>
-			typename TCEnableIf<tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
-			
-			template <bool tf_bSupportMultiple = t_bSupportMultiple>
-			typename TCEnableIf<!tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
-
-			template <bool tf_bSupportMultiple = t_bSupportMultiple>
-			typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);
-			
-			template <bool tf_bSupportMultiple = t_bSupportMultiple>
-			typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
-
-			template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
-			typename TCEnableIf<tf_bSupportMultiple>::CType f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params);
-			
-		private:
-			struct CInternal
-			{
-				CInternal(CActor *_pActor, bool _bDeferrCallbacks);
-
-				NContainer::TCLinkedList<CCallbackHandle> mp_Callbacks;
-				NContainer::TCLinkedList<NFunction::TCFunctionMovable<void ()>> mp_DeferredCallbacks;
-				CActor *mp_pActor;
-				bool mp_bDeferrCallbacks;
-				bool mp_bDestroyed = false;
-			};
-
-			class CCallbackReference : public CActorSubscriptionReference
-			{
-				CCallbackHandle *m_pHandle;
-				NPtr::TCSharedPointer<CInternal> m_pCallbackManager;
-				TCWeakActor<CActor> m_Actor;
-
-				CCallbackReference(CCallbackReference const &_Other);
-				CCallbackReference &operator =(CCallbackReference const &_Other);
-				
-				TCContinuation<void> fp_RemoveCallback();
-				void fp_RemoveCurrent();
-			public:
-				CCallbackReference(CCallbackHandle *_pHandle, NPtr::TCSharedPointer<CInternal> const &_pManager, TCWeakActor<CActor> const &_Actor);
-				CCallbackReference();
-				CCallbackReference(CCallbackReference &&_Other);
-				CCallbackReference &operator =(CCallbackReference &&_Other);
-				~CCallbackReference();
-				TCContinuation<void> f_Destroy() override;
-				bool f_IsValid();
-			};
-		private:
-			
-		private:
-
-			NPtr::TCSharedPointer<CInternal> mp_pInternal;
+			CCallbackHandle(tfp_CParam && ...p_ExtraData);
+			TCWeakActor<CActor> m_Actor;
+			NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> m_fCallback;
 		};
-		
-		class CCombinedCallbackReference : public CActorSubscriptionReference
+		using CReturn = typename NPrivate::TCRemoveContinuation<t_CReturn>::CType;
+	public:
+		TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks);
+		~TCActorSubscriptionManager();
+
+		template <typename ...tfp_CParam>
+		CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+
+		bool f_IsEmpty();
+		void f_StopDeferring();
+		void f_Clear();
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple>
+		typename TCEnableIf<tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple>
+		typename TCEnableIf<!tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple>
+		typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple>
+		typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
+		typename TCEnableIf<tf_bSupportMultiple>::CType f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params);
+
+	private:
+		struct CInternal
 		{
+			CInternal(CActor *_pActor, bool _bDeferrCallbacks);
+
+			NContainer::TCLinkedList<CCallbackHandle> mp_Callbacks;
+			NContainer::TCLinkedList<NFunction::TCFunctionMovable<void ()>> mp_DeferredCallbacks;
+			CActor *mp_pActor;
+			bool mp_bDeferrCallbacks;
+			bool mp_bDestroyed = false;
+		};
+
+		class CCallbackReference : public CActorSubscriptionReference
+		{
+			CCallbackHandle *m_pHandle;
+			NStorage::TCSharedPointer<CInternal> m_pCallbackManager;
+			TCWeakActor<CActor> m_Actor;
+
+			CCallbackReference(CCallbackReference const &_Other);
+			CCallbackReference &operator =(CCallbackReference const &_Other);
+
+			TCContinuation<void> fp_RemoveCallback();
+			void fp_RemoveCurrent();
 		public:
-			CCombinedCallbackReference();
-			~CCombinedCallbackReference();
+			CCallbackReference(CCallbackHandle *_pHandle, NStorage::TCSharedPointer<CInternal> const &_pManager, TCWeakActor<CActor> const &_Actor);
+			CCallbackReference();
+			CCallbackReference(CCallbackReference &&_Other);
+			CCallbackReference &operator =(CCallbackReference &&_Other);
+			~CCallbackReference();
 			TCContinuation<void> f_Destroy() override;
-
-			NContainer::TCVector<CActorSubscription> m_References;
+			bool f_IsValid();
 		};
-		
-		template <typename... tf_CParam>
-		CActorSubscription fg_CombinedCallbackReference(tf_CParam &&...p_Params)
-		{
-			NPtr::TCUniquePointer<CCombinedCallbackReference> pCombinedReference = fg_Construct();
-			fg_Swallow(pCombinedReference->m_References.f_Insert(fg_Move(p_Params))...);
-			return fg_Move(pCombinedReference);
-		}		
+	private:
+
+	private:
+
+		NStorage::TCSharedPointer<CInternal> mp_pInternal;
+	};
+
+	class CCombinedCallbackReference : public CActorSubscriptionReference
+	{
+	public:
+		CCombinedCallbackReference();
+		~CCombinedCallbackReference();
+		TCContinuation<void> f_Destroy() override;
+
+		NContainer::TCVector<CActorSubscription> m_References;
+	};
+
+	template <typename... tf_CParam>
+	CActorSubscription fg_CombinedCallbackReference(tf_CParam &&...p_Params)
+	{
+		NStorage::TCUniquePointer<CCombinedCallbackReference> pCombinedReference = fg_Construct();
+		fg_Swallow(pCombinedReference->m_References.f_Insert(fg_Move(p_Params))...);
+		return fg_Move(pCombinedReference);
 	}
 }
 

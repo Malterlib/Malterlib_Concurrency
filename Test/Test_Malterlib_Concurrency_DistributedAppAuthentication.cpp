@@ -28,11 +28,11 @@ using namespace NMib::NStr;
 using namespace NMib::NProcess;
 using namespace NMib::NContainer;
 using namespace NMib::NCryptography;
-using namespace NMib::NPtr;
+using namespace NMib::NStorage;
 using namespace NMib::NAtomic;
 using namespace NMib::NEncoding;
 using namespace NMib::NStorage;
-using namespace NMib::NNet;
+using namespace NMib::NNetwork;
 using namespace NMib::NStr;
 using namespace NMib::NContainer;
 
@@ -647,7 +647,7 @@ namespace
 
 		TCContinuation<CActorSubscription> fp_SetupAuthentication
 			(
-			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, int64 _AuthenticationLifetime
 			 	, CStr const &_UserID
 			) override
@@ -768,7 +768,7 @@ namespace
 						, "Description"_= "Test 3."
 
 					}
-					, [](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						return fg_Explicit(0);
 					}
@@ -791,7 +791,7 @@ namespace
 
 			struct CTestCommandOutput
 			{
-				CTestCommandOutput(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				CTestCommandOutput(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 					: m_pCommandLine(_pCommandLine)
 
 				{
@@ -806,13 +806,13 @@ namespace
 
 				CEJSON m_Results;
 				TCContinuation<uint32> m_Continuation;
-				NPtr::TCSharedPointer<CCommandLineControl> m_pCommandLine;
+				NStorage::TCSharedPointer<CCommandLineControl> m_pCommandLine;
 			};
 
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -836,7 +836,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -864,7 +864,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Object)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -897,7 +897,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -921,7 +921,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -945,7 +945,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -969,7 +969,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-4"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -993,7 +993,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-slow-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -1173,7 +1173,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = m_Category;
@@ -1184,7 +1184,7 @@ namespace
 
 		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 				, TCMap<CStr, CAuthenticationData> const &_Factors
@@ -1234,7 +1234,7 @@ namespace
 
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -1245,7 +1245,7 @@ namespace
 
 		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 				, TCMap<CStr, CAuthenticationData> const &_Factors
@@ -1607,7 +1607,7 @@ public:
 		// Now that we have a default user in the client and a command line control we will run a dummy command. That is the usual way the authentication handler is registered
 		// on the server side. We will perform all the tests after the command has returned.
 		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(g_Timeout).f_String();
-		NPtr::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
+		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
 		NEncoding::CEJSON JSON =
 			{
 				"Command"_= "--test-actor"
@@ -1660,7 +1660,7 @@ public:
 		// Add a permissions to Server that requires authentication
 		auto fAddHostUserPermission = [HostID = ClientHostID, UserID = DefaultUserID]
 			(
-				NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
+				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
 				, CStr const &_Permission
 				, CPermissionRequirements const &_Methods
 			)
@@ -2444,7 +2444,7 @@ public:
 		// Now that we have a default user in the client and a command line control we will run a dummy command. That is the usual way the authentication handler is registered
 		// on the server side. We will perform all the tests after the command has returned.
 		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(g_Timeout).f_String();
-		NPtr::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
+		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
 		NEncoding::CEJSON JSON =
 			{
 				"Command"_= "--test-actor"
@@ -2487,7 +2487,7 @@ public:
 		// Add a permissions to Server that requires authentication
 		auto fAddHostUserPermission = [HostID = ClientHostID, UserID = DefaultUserID]
 			(
-				NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
+				NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> _pServerTrust
 				, CStr const &_Permission
 				, CPermissionRequirements const &_Methods
 			)

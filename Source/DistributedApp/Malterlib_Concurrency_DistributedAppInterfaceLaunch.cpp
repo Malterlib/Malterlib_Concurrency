@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 	CDistributedAppInterfaceLaunchActor::CDistributedAppInterfaceLaunchActor
 		(
-			NHTTP::CURL const &_Address
+			NWeb::NHTTP::CURL const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
 		 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
@@ -138,7 +138,7 @@ namespace NMib::NConcurrency
 						return Continuation;
 					}
 				)
-				> [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>
+				> [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
 				{
 					TCContinuation<void> Continuation;
 					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Continuation](TCAsyncResult<void> &&_Result)

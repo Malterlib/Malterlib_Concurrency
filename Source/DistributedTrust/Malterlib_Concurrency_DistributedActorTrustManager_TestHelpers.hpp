@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 				{
 					TCTrustedActorSubscription<tf_CActor> m_Subscription;
 				};
-				NPtr::TCUniquePointer<CSubscriptionImpl> pSubscription = fg_Construct<CSubscriptionImpl>();
+				NStorage::TCUniquePointer<CSubscriptionImpl> pSubscription = fg_Construct<CSubscriptionImpl>();
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor
 					(

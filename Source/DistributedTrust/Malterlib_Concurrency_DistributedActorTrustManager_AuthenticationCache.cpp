@@ -9,7 +9,7 @@
 namespace NMib::NConcurrency
 {
 	using namespace NStr;
-	using namespace NPtr;
+	using namespace NStorage;
 	using namespace NContainer;
 
 	void CDistributedActorTrustManagerAuthenticationCache::f_AddAuthenticatedPermission

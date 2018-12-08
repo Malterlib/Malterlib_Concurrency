@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NContainer;
 	using namespace NStr;
-	using namespace NPtr;
+	using namespace NStorage;
 	using namespace NCryptography;
 
 	TCContinuation<TCMap<CStr, CAuthenticationData>> CDistributedActorTrustManager::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const

@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 			CCallingHostInfo const &_CallingHost
 			, NStr::CStr const &_Command
 			, NEncoding::CEJSON const &_Params
-			, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
 		if (!m_InProcess)
@@ -217,7 +217,7 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor
-				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>
+				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor 
-				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) -> TCContinuation<void>
+				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);

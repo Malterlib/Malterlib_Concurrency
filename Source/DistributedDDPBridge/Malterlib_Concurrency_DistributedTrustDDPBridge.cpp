@@ -14,9 +14,9 @@
 using namespace NMib::NStr;
 using namespace NMib::NContainer;
 using namespace NMib::NWeb;
-using namespace NMib::NNet;
+using namespace NMib::NNetwork;
 using namespace NMib::NFunction;
-using namespace NMib::NPtr;
+using namespace NMib::NStorage;
 using namespace NMib::NEncoding;
 using namespace NMib::NException;
 
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 			CStr m_AddressDesc;
 		};
 
-		void fp_TryToListen(NHTTP::CURL const &_Address, bool _bFirstTry);
+		void fp_TryToListen(NWeb::NHTTP::CURL const &_Address, bool _bFirstTry);
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
 		CEJSON fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
 		void fp_StartupFailed(CException const &_Exception);
@@ -133,7 +133,7 @@ namespace NMib::NConcurrency
 							&CActorDistributionManager::f_RegisterWebsocketHandler
 							, "/ActorDDPBridge"
 							, fg_ThisActor(this)
-							, [this](NPtr::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCContinuation<void>
+							, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCContinuation<void>
 							{
 								auto &Internal = *mp_pInternal;
 								Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);

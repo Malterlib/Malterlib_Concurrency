@@ -16,7 +16,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor_U2F_HID.h"
 
 extern "C" void fg_Malterlib_UseSSL();
-namespace NMib::NNet
+namespace NMib::NNetwork
 {
 	NStr::CStr fg_SSL_GetExceptionStr(NStr::CStr const &_Description);
 }
@@ -74,10 +74,10 @@ extern "C"
 namespace
 {
 	using namespace NMib;
-	using namespace NPtr;
+	using namespace NStorage;
 	using namespace NContainer;
 	using namespace NConcurrency;
-	using namespace NDataProcessing;
+	using namespace NCryptography;
 	using namespace NStr;
 	using namespace NFunction;
 
@@ -147,12 +147,12 @@ namespace
 
 		ERR_clear_error();
 		if (EC_POINT_oct2point(pECGroup, pPoint, _Data.f_GetArray(), U2F_PUBLIC_KEY_LEN, nullptr) == 0)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed decode user key (EC_POINT_oct2point)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed decode user key (EC_POINT_oct2point)"));
 
 
 		ERR_clear_error();
 		if (EC_KEY_set_public_key(pKey, pPoint) == 0)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed decode user key (EC_KEY_set_public_key)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed decode user key (EC_KEY_set_public_key)"));
 
 		return pKey.f_StealPointer();
 	}
@@ -162,13 +162,13 @@ namespace
 		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
 		if (!pECGroup)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
 
 		CByteVector Buffer;
 		EC_POINT const *pPoint = EC_KEY_get0_public_key(_pKey);
 		ERR_clear_error();
 		if (EC_POINT_point2oct(pECGroup, pPoint, POINT_CONVERSION_UNCOMPRESSED, Buffer.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN, nullptr) != U2F_PUBLIC_KEY_LEN)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed dump user key (EC_POINT_point2oct)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump user key (EC_POINT_point2oct)"));
 
 		// For some reason the libraries from Yubico produces U2F_PUBLIC_KEY_LEN + 1 bytes from its dump_user_key function.
 		// The buffer also contains a zero termination, so we add one as well to get identical results.
@@ -181,16 +181,16 @@ namespace
 		ERR_clear_error();
 		CSSLPointer<BIO *, BIO_free> pBio = BIO_new(BIO_s_mem());
 		if (!pBio)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_new)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_new)"));
 
 		ERR_clear_error();
 		if (!PEM_write_bio_X509(pBio, _pCert))
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed dump x509 cert (PEM_write_bio_X509)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (PEM_write_bio_X509)"));
 
 		char *pData = nullptr;
 		auto Length = BIO_get_mem_data(pBio, &pData);
 		if (Length < 0)
-			DMibError(NNet::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_get_mem_data)"));
+			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_get_mem_data)"));
 
 		return CStr(pData, Length);
 	}
@@ -205,9 +205,9 @@ namespace
 			m_InitialFrame.m_Command = _Command;
 			m_InitialFrame.m_ByteCountHigh = _ByteCount >> 8;
 			m_InitialFrame.m_ByteCountLow = _ByteCount;
-			NMem::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
+			NMemory::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
 			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 7)
-				NMem::fg_MemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 7) - _Length);
+				NMemory::fg_MemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 7) - _Length);
 
 			return _Length;
 		}
@@ -217,9 +217,9 @@ namespace
 			_Length = fg_Min(_Length, uint32(CHumanInterfaceDevicesActor::EReportSize - 5));
 			m_ChannelID = _ChannelID;
 			m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
-			NMem::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
+			NMemory::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
 			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 5)
-				NMem::fg_MemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 5) - _Length);
+				NMemory::fg_MemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 5) - _Length);
 
 			return _Length;
 		}
@@ -288,8 +288,8 @@ namespace
 							return Continuation.f_SetException(DMibErrorInstance("Invalid U2FHID_INIT response length"));
 
 						CInitResponse Resonse;
-						NMem::fg_MemCopy(&Resonse, _Response.f_GetArray(), c_InitNonceSize + 4 + 5);
-						if (NMem::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
+						NMemory::fg_MemCopy(&Resonse, _Response.f_GetArray(), c_InitNonceSize + 4 + 5);
+						if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
 							return Continuation.f_SetException(DMibErrorInstance("U2FHID_INIT response contains invalid nounce"));
 
 						Continuation.f_SetResult(CDevice{_Device, Resonse.m_ChannelID});
@@ -323,7 +323,7 @@ namespace
 									if (_Result.f_GetLen() != sizeof(Frame))
 										return Continuation.f_SetException(DMibErrorInstance("U2F transport error: Frame size wrong"));
 
-									NMem::fg_MemCopy((uint8 *)&Frame, _Result.f_GetArray(), sizeof(Frame));
+									NMemory::fg_MemCopy((uint8 *)&Frame, _Result.f_GetArray(), sizeof(Frame));
 
 									Continuation.f_SetResult(fg_Move(Frame));
 									return;
@@ -719,7 +719,7 @@ namespace
 		struct CRegistrationResult
 		{
 			CByteVector m_KeyHandle;
-			NContainer::TCVector<uint8> m_PublicKey;
+			NContainer::CByteVector m_PublicKey;
 			CStr m_AttestationCertificatePEM;
 			CStr m_AppID;
 		};
@@ -1034,7 +1034,7 @@ namespace
 						pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
 						if (!pCertificate)
 						{
-							Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
+							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
 							return Continuation;
 						}
 					}
@@ -1050,7 +1050,7 @@ namespace
 						pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
 						if (!pSig)
 						{
-							Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
+							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
 							return Continuation;
 						}
 					}
@@ -1058,14 +1058,14 @@ namespace
 					CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
 					if (!pKey)
 					{
-						Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
+						Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
 						return Continuation;
 					}
 
 					CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
 					if (!pECKey)
 					{
-						Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
+						Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
 						return Continuation;
 					}
 
@@ -1089,7 +1089,7 @@ namespace
 					if (VerifyResult != 1)
 					{
 						if (VerifyResult == -1)
-							Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
+							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
 						else
 							Continuation.f_SetException(DMibErrorInstance("Invalid signature"));;
 						return Continuation;
@@ -1192,14 +1192,14 @@ namespace
 
 			auto *pData = _Response.m_Signature.f_GetArray();
 			Result.m_UserPresence = *pData++;
-			NMem::fg_MemCopy((uint8 *)&Result.m_Counter, pData, U2F_COUNTER_LEN);
+			NMemory::fg_MemCopy((uint8 *)&Result.m_Counter, pData, U2F_COUNTER_LEN);
 			pData += U2F_COUNTER_LEN;
 
 			ERR_clear_error();
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
 			{
-				Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
+				Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
 				return Continuation;
 			}
 
@@ -1219,7 +1219,7 @@ namespace
 			if (Verified != 1)
 			{
 				if (Verified == -1)
-					Continuation.f_SetException(DMibErrorInstance(NNet::fg_SSL_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
+					Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
 				else
 					Continuation.f_SetException(DMibErrorInstance("Invalid signature"));;
 				return Continuation;

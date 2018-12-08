@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance("Invalid namespace name");
 		if (!_Actor)
 			return DMibErrorInstance("Invalid destination actor");
-		NPtr::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
+		NStorage::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				m_DispatchActor
-				, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
+				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
 				{
 					if (!m_pSubscription)
 						return;
@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				m_DispatchActor
-				, [this, _Actors, pThis = NPtr::TCSharedPointer<CState>{fg_Explicit(this)}]
+				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
 				{
 					if (!m_pSubscription)
 						return;

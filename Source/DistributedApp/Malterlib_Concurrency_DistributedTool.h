@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 		struct CTool
 		{
-			NPtr::TCUniquePointer<CDistributedTool> m_pRuntimeClass;
+			NStorage::TCUniquePointer<CDistributedTool> m_pRuntimeClass;
 			NStr::CStr m_ClassName;
 		};
 

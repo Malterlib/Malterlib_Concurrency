@@ -467,7 +467,7 @@ namespace NMib::NConcurrency
 		if (!_Actor)
 			return DMibErrorInstance("Invalid destination actor");
 		
-		NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> pState = fg_Construct();
+		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
@@ -503,7 +503,7 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Identity, _PermissionsAdded, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
+					, [this, _Identity, _PermissionsAdded, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;
@@ -534,7 +534,7 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					m_DispatchActor
-					, [this, _Identity, _PermissionsRemoved, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
+					, [this, _Identity, _PermissionsRemoved, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}]
 					{
 						if (!m_pSubscription)
 							return;
@@ -577,7 +577,7 @@ namespace NMib::NConcurrency
 					, AuthenticationFactors = fg_Move(_AuthenticationFactors)
 					, _ExpirationTime
 					, _CacheTime
-					, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
+					, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
 				] () mutable
 				{
 					if (!m_pSubscription)
@@ -603,7 +603,7 @@ namespace NMib::NConcurrency
 					, _Permission
 					, _ExpirationTime
 					, _CacheTime
-					, pThis = NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
+					, pThis = NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState>{fg_Explicit(this)}
 				] () mutable
 				{
 					if (!m_pSubscription)
@@ -1312,7 +1312,7 @@ namespace NMib::NConcurrency
 
 	NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> CDistributedActorTrustManager::fp_SubscribeToPermissions
 		(
-			NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+			NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -1349,7 +1349,7 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationCache CDistributedActorTrustManager::fp_FilterCachedAuthentications
 		(
-			NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+			NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 		)
 	{
 		auto Now = NTime::CTime::fs_NowUTC();
@@ -1403,7 +1403,7 @@ namespace NMib::NConcurrency
 		return fg_Move(ReturnCache);
 	}
 
-	void CDistributedActorTrustManager::fp_UnsubscribeToPermissions(NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
+	void CDistributedActorTrustManager::fp_UnsubscribeToPermissions(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState)
 	{
 		_pState->m_DispatchActor.f_Clear();
 

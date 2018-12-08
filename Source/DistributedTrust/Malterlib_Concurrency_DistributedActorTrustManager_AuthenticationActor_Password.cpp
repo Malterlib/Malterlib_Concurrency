@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCryptography;
 	using namespace NStream;
-	using namespace NNet;
+	using namespace NNetwork;
 	using namespace NContainer;
 
 	class CDistributedActorTrustManagerAuthenticationActorPassword : public ICDistributedActorTrustManagerAuthenticationActor
@@ -27,10 +27,10 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationActorPassword(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
+		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
 		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 			 	, TCMap<CStr, CAuthenticationData> const &_Factors
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 	TCContinuation<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor
 		(
 			CStr const &_UserID
-			, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
 		TCContinuation<CAuthenticationData> Continuation;
@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 
 	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
 		(
-			NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
 		 	, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 			, TCMap<CStr, CAuthenticationData> const &_Factors

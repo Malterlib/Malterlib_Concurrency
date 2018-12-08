@@ -226,7 +226,7 @@ namespace NMib::NConcurrency
 
 								Stream << _Factors;
 
-								return NDataProcessing::fg_Base64Encode(Stream.f_GetVector());
+								return NEncoding::fg_Base64Encode(Stream.f_GetVector());
 							}
 							> Continuation
 						;
@@ -254,9 +254,9 @@ namespace NMib::NConcurrency
 			[&]() -> CResult
 			{
 				CResult Result;
-				NContainer::TCVector<uint8> Data;
+				NContainer::CByteVector Data;
 
-				NDataProcessing::fg_Base64Decode(_UserData, Data);
+				NEncoding::fg_Base64Decode(_UserData, Data);
 				NStream::CBinaryStreamMemoryPtr<> Stream;
 				Stream.f_OpenRead(Data);
 

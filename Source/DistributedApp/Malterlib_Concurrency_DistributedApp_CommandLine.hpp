@@ -3,83 +3,80 @@
 
 #pragma once
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	template <typename tf_CStream>
+	void CCommandLineControl::f_Stream(tf_CStream &_Stream)
 	{
-		template <typename tf_CStream>
-		void CCommandLineControl::f_Stream(tf_CStream &_Stream)
-		{
-			_Stream % fg_Move(m_ControlActor);
-			_Stream % m_CommandLineWidth;
-			_Stream % m_CommandLineHeight;
-			_Stream % m_bColorEnabled;
-		}
+		_Stream % fg_Move(m_ControlActor);
+		_Stream % m_CommandLineWidth;
+		_Stream % m_CommandLineHeight;
+		_Stream % m_bColorEnabled;
+	}
 
-		COneOf::COneOf(NEncoding::CEJSON const &_Config)
-		{
-			m_Config.f_Array().f_Insert(_Config);
-		}
+	COneOf::COneOf(NEncoding::CEJSON const &_Config)
+	{
+		m_Config.f_Array().f_Insert(_Config);
+	}
 
-		template <typename ...tfp_CParams>
-		COneOf::COneOf(tfp_CParams const &...p_Config)
-		{
-			auto &Array = m_Config.f_Array();
+	template <typename ...tfp_CParams>
+	COneOf::COneOf(tfp_CParams const &...p_Config)
+	{
+		auto &Array = m_Config.f_Array();
 
-			TCInitializerList<bool> Dummy = 
+		TCInitializerList<bool> Dummy =
+			{
+				[&]
 				{
-					[&]
-					{
-						Array.f_Insert(NEncoding::CEJSON(p_Config));
-						return false;
-					}
-					()...
+					Array.f_Insert(NEncoding::CEJSON(p_Config));
+					return false;
 				}
-			;
-			(void)Dummy;
-		}
-		
-		COneOf::operator NEncoding::CEJSON () &&
-		{
-			return NEncoding::fg_UserType("$OneOf", m_Config.f_ToJSON());
-		}
+				()...
+			}
+		;
+		(void)Dummy;
+	}
 
-		COneOf::operator NEncoding::CEJSON () const &
-		{
-			return NEncoding::fg_UserType("$OneOf", m_Config.f_ToJSON());
-		}
-	
-		COneOfType::COneOfType(NEncoding::CEJSON const &_Config)
-		{
-			m_Config.f_Array().f_Insert(_Config);
-		}
+	COneOf::operator NEncoding::CEJSON () &&
+	{
+		return NEncoding::fg_UserType("$OneOf", m_Config.f_ToJSON());
+	}
 
-		template <typename ...tfp_CParams>
-		COneOfType::COneOfType(tfp_CParams const &...p_Config)
-		{
-			auto &Array = m_Config.f_Array();
+	COneOf::operator NEncoding::CEJSON () const &
+	{
+		return NEncoding::fg_UserType("$OneOf", m_Config.f_ToJSON());
+	}
 
-			TCInitializerList<bool> Dummy = 
+	COneOfType::COneOfType(NEncoding::CEJSON const &_Config)
+	{
+		m_Config.f_Array().f_Insert(_Config);
+	}
+
+	template <typename ...tfp_CParams>
+	COneOfType::COneOfType(tfp_CParams const &...p_Config)
+	{
+		auto &Array = m_Config.f_Array();
+
+		TCInitializerList<bool> Dummy =
+			{
+				[&]
 				{
-					[&]
-					{
-						Array.f_Insert(NEncoding::CEJSON(p_Config));
-						return false;
-					}
-					()...
+					Array.f_Insert(NEncoding::CEJSON(p_Config));
+					return false;
 				}
-			;
-			(void)Dummy;
-		}
-		
-		COneOfType::operator NEncoding::CEJSON () &&
-		{
-			return NEncoding::fg_UserType("$OneOfType", m_Config.f_ToJSON());
-		}
+				()...
+			}
+		;
+		(void)Dummy;
+	}
 
-		COneOfType::operator NEncoding::CEJSON () const &
-		{
-			return NEncoding::fg_UserType("$OneOfType", m_Config.f_ToJSON());
-		}
+	COneOfType::operator NEncoding::CEJSON () &&
+	{
+		return NEncoding::fg_UserType("$OneOfType", m_Config.f_ToJSON());
+	}
+
+	COneOfType::operator NEncoding::CEJSON () const &
+	{
+		return NEncoding::fg_UserType("$OneOfType", m_Config.f_ToJSON());
 	}
 }

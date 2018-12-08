@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CTrustedActorSubscriptionState : public NPtr::TCSharedPointerIntrusiveBase<>
+	struct CTrustedActorSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		friend class CDistributedActorTrustManager;
 		TCWeakActor<CActor> m_DispatchActor;
@@ -30,7 +30,7 @@ namespace NMib::NConcurrency::NPrivate
 		virtual TCDispatchedWeakActorCall<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
 	};
 	
-	struct CTrustedPermissionSubscriptionState : public NPtr::TCSharedPointerIntrusiveBase<>
+	struct CTrustedPermissionSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		friend class CDistributedActorTrustManager;
 	

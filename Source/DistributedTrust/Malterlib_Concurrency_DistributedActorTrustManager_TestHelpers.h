@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 		TCContinuation<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override;
 		TCContinuation<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 		TCContinuation<CClient> f_GetClient(NStr::CStr const &_HostID) override;
-		TCContinuation<NPtr::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) override;
+		TCContinuation<NStorage::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) override;
 		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
 		TCContinuation<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 			
 		private:
 			TCActor<CDistributedActorTrustManager> mp_TrustManager;
-			NContainer::TCVector<NPtr::TCUniquePointer<CSubscription>> mp_Subscriptions;
+			NContainer::TCVector<NStorage::TCUniquePointer<CSubscription>> mp_Subscriptions;
 		};
 		
 		TCActor<CInternal> mp_Internal;		

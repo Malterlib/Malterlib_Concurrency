@@ -116,17 +116,17 @@ namespace NMib::NConcurrency
 
 	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator == (CClientConnectionInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) == NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
+		return NStorage::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) == NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
 	}
 		
 	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator < (CClientConnectionInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) < NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
+		return NStorage::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) < NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
 	}
 
 	bool CDistributedActorTrustManagerInterface::CUserInfo::operator == (CDistributedActorTrustManagerInterface::CUserInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_UserName, m_Metadata) == NContainer::fg_TupleReferences(_Right.m_UserName, _Right.m_Metadata);
+		return NStorage::fg_TupleReferences(m_UserName, m_Metadata) == NStorage::fg_TupleReferences(_Right.m_UserName, _Right.m_Metadata);
 	}
 
 	template <typename tf_CStream>
@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 
 	bool CDistributedActorTrustManagerInterface::CPermissionInfo::operator == (CPermissionInfo const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_HostInfo, m_UserInfo) == NContainer::fg_TupleReferences(_Right.m_HostInfo, _Right.m_UserInfo);
+		return NStorage::fg_TupleReferences(m_HostInfo, m_UserInfo) == NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_UserInfo);
 	}
 
 	template <typename tf_CStream>

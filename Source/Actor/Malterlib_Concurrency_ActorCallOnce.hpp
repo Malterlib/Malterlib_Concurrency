@@ -1,86 +1,83 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	template <typename t_CResult, typename ...tp_CParams>
+	TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
+		(
+			TCActor<CActor> const &_Actor
+			, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
+			, bool _bSupportRetry
+			, NStr::CStr const &_ErrorOnRunning
+		)
+		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_Actor), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
 	{
-		template <typename t_CResult, typename ...tp_CParams>
-		TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
-			(
-				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
-				, bool _bSupportRetry
-				, NStr::CStr const &_ErrorOnRunning
-			)
-			: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_Actor), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry)) 
+	}
+
+	template <typename t_CResult, typename ...tp_CParams>
+	TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
+	{
+	}
+
+	template <typename t_CResult, typename ...tp_CParams>
+	TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
+	{
+		return m_CallState.f_CallByValue(&CCallState::f_Call, p_Params...);
+	}
+
+	template <typename t_CResult, typename ...tp_CParams>
+	TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
+		(
+			NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
+			, NStr::CStr const &_ErrorOnRunning
+			, bool _bSupportRetry
+		)
+		: m_fToPerform(fg_Move(_fToPerform))
+		, m_ErrorOnRunning(_ErrorOnRunning)
+		, m_bSupportRetry(_bSupportRetry)
+	{
+	}
+
+	template <typename t_CResult, typename ...tp_CParams>
+	TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
+	{
+		if (m_Result.f_IsSet())
+			return m_Result;
+
+		if (m_bRunning)
 		{
+			if (m_ErrorOnRunning.f_IsEmpty())
+				return m_Continuations.f_Insert();
+			else
+				return DMibErrorInstance(m_ErrorOnRunning);
 		}
-		
-		template <typename t_CResult, typename ...tp_CParams>
-		TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
-		{
-		}
-		
-		template <typename t_CResult, typename ...tp_CParams>
-		TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
-		{
-			return m_CallState.f_CallByValue(&CCallState::f_Call, p_Params...);
-		}
-	
-		template <typename t_CResult, typename ...tp_CParams>
-		TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
-			(
-				NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
-				, NStr::CStr const &_ErrorOnRunning
-				, bool _bSupportRetry
-			)
-			: m_fToPerform(fg_Move(_fToPerform))
-			, m_ErrorOnRunning(_ErrorOnRunning)
-			, m_bSupportRetry(_bSupportRetry)
-		{
-		}
-		
-		template <typename t_CResult, typename ...tp_CParams>
-		TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
-		{
-			if (m_Result.f_IsSet())
-				return m_Result;
-			
-			if (m_bRunning)
+
+		m_bRunning = true;
+
+		TCContinuation<t_CResult> Continuation;
+
+		m_fToPerform(p_Params...) > [this, Continuation](TCAsyncResult<t_CResult> const &_Result)
 			{
-				if (m_ErrorOnRunning.f_IsEmpty())
-					return m_Continuations.f_Insert();
-				else
-					return DMibErrorInstance(m_ErrorOnRunning);
-			}
-			
-			m_bRunning = true;
+				Continuation.f_SetResult(_Result);
 
-			TCContinuation<t_CResult> Continuation;
+				for (auto &DeferredContinuation : m_Continuations)
+					DeferredContinuation.f_SetResult(_Result);
+				m_Continuations.f_Clear();
 
-			m_fToPerform(p_Params...) > [this, Continuation](TCAsyncResult<t_CResult> const &_Result)
+				if (_Result || !m_bSupportRetry)
 				{
-					Continuation.f_SetResult(_Result);
-					
-					for (auto &DeferredContinuation : m_Continuations)
-						DeferredContinuation.f_SetResult(_Result);
-					m_Continuations.f_Clear();
-					
-					if (_Result || !m_bSupportRetry)
-					{
-						m_Result = _Result;
-						m_fToPerform.f_Clear();
-					}
-					
-					m_bRunning = false;
+					m_Result = _Result;
+					m_fToPerform.f_Clear();
 				}
-			;
-			
-			return Continuation;
-			
-		}
+
+				m_bRunning = false;
+			}
+		;
+
+		return Continuation;
+
 	}
 }

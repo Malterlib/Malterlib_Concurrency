@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(*pClient);
 	}
 	
-	TCContinuation<NPtr::TCUniquePointer<CClient>> CTrustManagerDatabaseTestHelper::f_TryGetClient(CStr const &_HostID)
+	TCContinuation<NStorage::TCUniquePointer<CClient>> CTrustManagerDatabaseTestHelper::f_TryGetClient(CStr const &_HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
 		if (!pClient)
@@ -420,7 +420,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		Options.m_KeySetting = CDistributedActorTestKeySettings{};
-		Options.m_ListenFlags = NNet::ENetFlag_None;
+		Options.m_ListenFlags = NNetwork::ENetFlag_None;
 		Options.m_FriendlyName = _FriendlyName;
 		Options.m_Enclave = _SessionID;
 		Options.m_TranslateHostnames = {};

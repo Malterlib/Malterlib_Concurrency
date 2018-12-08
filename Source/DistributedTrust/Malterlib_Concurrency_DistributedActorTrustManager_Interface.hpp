@@ -65,12 +65,12 @@ namespace NMib::NConcurrency
 	
 	bool CDistributedActorTrustManagerInterface::CNamespacePermissions::operator ==(CNamespacePermissions const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_AllowedHosts, m_DisallowedHosts) == NContainer::fg_TupleReferences(_Right.m_AllowedHosts, _Right.m_DisallowedHosts); 
+		return NStorage::fg_TupleReferences(m_AllowedHosts, m_DisallowedHosts) == NStorage::fg_TupleReferences(_Right.m_AllowedHosts, _Right.m_DisallowedHosts); 
 	}
 	
 	bool CDistributedActorTrustManagerInterface::CNamespacePermissions::operator <(CNamespacePermissions const &_Right) const
 	{
-		return NContainer::fg_TupleReferences(m_AllowedHosts, m_DisallowedHosts) < NContainer::fg_TupleReferences(_Right.m_AllowedHosts, _Right.m_DisallowedHosts); 
+		return NStorage::fg_TupleReferences(m_AllowedHosts, m_DisallowedHosts) < NStorage::fg_TupleReferences(_Right.m_AllowedHosts, _Right.m_DisallowedHosts); 
 	}
 
 	template <typename tf_CString>

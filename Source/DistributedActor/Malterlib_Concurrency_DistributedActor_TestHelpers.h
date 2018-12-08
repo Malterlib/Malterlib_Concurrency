@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
 	
-	using CDistributedActorTestKeySettings = NNet::CSSLKeySettings_EC_secp256r1;
+	using CDistributedActorTestKeySettings = NNetwork::CSSLKeySettings_EC_secp256r1;
 		
 	struct CDistributedActorTestHelper
 	{
@@ -46,17 +46,17 @@ namespace NMib::NConcurrency
 			{
 				m_pDeleted->f_Exchange(true);
 			}
-			NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pDeleted = fg_Construct(false);
+			NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pDeleted = fg_Construct(false);
 			CActorSubscription m_Subscription;
 			NContainer::TCVector<CAbstractDistributedActor> m_RemoteActors;
 		};
 		
 		NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
 		
-		NPtr::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
+		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
 		NStr::CStr mp_HostID;
 		TCActor<CActorDistributionManager> mp_Manager;
-		NPtr::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
+		NStorage::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
 		NThread::CEventAutoReset mp_RemoteEvent;
 		
 		NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;
@@ -92,8 +92,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTestHelper &f_GetClient();
 		
 	private:
-		NPtr::TCUniquePointer<CDistributedActorTestHelper> mp_pServer;
-		NPtr::TCUniquePointer<CDistributedActorTestHelper> mp_pClient;
+		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pServer;
+		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pClient;
 		
 		CActorDistributionCryptographySettings mp_ServerCryptography;
 		CActorDistributionListenSettings mp_ListenSettings;

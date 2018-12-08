@@ -5,12 +5,12 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CStreamingFunction : public NPtr::TCSharedPointerIntrusiveBase<>
+	struct CStreamingFunction : public NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		CStreamingFunction();
 		
 		virtual ~CStreamingFunction();
-		virtual NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CDistributedActorReadStream &_Stream) = 0;
+		virtual NConcurrency::TCContinuation<NContainer::CSecureByteVector> f_Call(CDistributedActorReadStream &_Stream) = 0;
 		virtual bool f_IsEmpty() const = 0;
 		virtual void const *f_GetFunctionPointer() const = 0;
 	};
@@ -21,7 +21,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCStreamingFunction(t_FFunction const &_fFunction);
 		TCStreamingFunction(t_FFunction &&_fFunction);
 		
-		NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> f_Call(CDistributedActorReadStream &_Stream) override;
+		NConcurrency::TCContinuation<NContainer::CSecureByteVector> f_Call(CDistributedActorReadStream &_Stream) override;
 		bool f_IsEmpty() const override;
 		void const *f_GetFunctionPointer() const override;
 

@@ -17,7 +17,7 @@ using namespace NMib::NEncoding;
 using namespace NMib::NStr;
 using namespace NMib::NFunction;
 using namespace NMib::NWeb;
-using namespace NMib::NNet;
+using namespace NMib::NNetwork;
 
 namespace
 {
@@ -89,7 +89,7 @@ namespace
 				ClientSettings.m_PrivateKeyData = ClientDatabase.m_BasicConfig.m_CAPrivateKey;
 				ClientSettings.m_PublicCertificateData = pClientConnection->m_PublicClientCertificate; 
 				
-				NPtr::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
+				NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
 						
 				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURLString, "", fg_Default(), "", CSocket_SSL::fs_GetFactory(pClientContext));
 			

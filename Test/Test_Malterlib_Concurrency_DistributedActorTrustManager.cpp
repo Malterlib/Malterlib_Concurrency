@@ -32,7 +32,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -45,7 +45,7 @@ namespace
 
 		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 				, TCMap<CStr, CAuthenticationData> const &_Factors
@@ -87,7 +87,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -100,7 +100,7 @@ namespace
 
 		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 				, TCMap<CStr, CAuthenticationData> const &_Factors
@@ -227,7 +227,7 @@ namespace
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
-				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestServer";
 				Options.m_Enclave = _SessionID;
 				Options.m_InitialConnectionTimeout = 30.0;
@@ -245,7 +245,7 @@ namespace
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
-				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestClient";
 				Options.m_Enclave = _SessionID;
 				Options.m_InitialConnectionTimeout = 30.0;
@@ -786,17 +786,17 @@ namespace
 					NDistributedActorTrustManagerDatabase::CBasicConfig BasicConfig;
 					BasicConfig.m_HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 					
-					NNet::CSSLContext::CCertificateOptions Options;
+					NNetwork::CSSLContext::CCertificateOptions Options;
 					Options.m_KeySetting = CDistributedActorTestKeySettings{};
 					Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", BasicConfig.m_HostID).f_Left(64); 
 					auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 					Extension.m_bCritical = false; 
 					Extension.m_Value = BasicConfig.m_HostID;
 					
-					NNet::CSignOptions SignOptions;
+					NNetwork::CSignOptions SignOptions;
 					SignOptions.m_Days = 100*365;
 					
-					NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
+					NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
 						
 					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(60.0);
 				}
@@ -808,7 +808,7 @@ namespace
 					}
 				;
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
-				Options.m_ListenFlags = NNet::ENetFlag_None;
+				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "ClientTrustManager2";
 				
 				TCActor<CDistributedActorTrustManager> Client2TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Client2Database, fg_Move(Options));
@@ -1538,7 +1538,7 @@ namespace
 			{
 				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
 				using CKeys = TCSet<CStr>;
-				NPtr::TCSharedPointer<CCommandLineControl> pCommandLine;
+				NStorage::TCSharedPointer<CCommandLineControl> pCommandLine;
 				CState State{_fDatabaseFactory, _fCleanup};
 				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
 				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
@@ -1843,7 +1843,7 @@ namespace
 				{
 					DMibTestPath("Unregister Authentication");
 					CPermissionTestState TestState{State, 31407};
-					NPtr::TCSharedPointer<CCommandLineControl> pCommandLine;
+					NStorage::TCSharedPointer<CCommandLineControl> pCommandLine;
 
 					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(60.0);
 					for (auto &Factor : Factors)

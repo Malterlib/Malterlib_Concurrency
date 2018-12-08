@@ -22,12 +22,12 @@ namespace NMib::NConcurrency
 		bool operator == (CDistributedActorTrustManager_Address const &_Right) const;
 		bool operator < (CDistributedActorTrustManager_Address const &_Right) const;
 		
-		NHTTP::CURL m_URL;
+		NWeb::NHTTP::CURL m_URL;
 		
 		CDistributedActorTrustManager_Address();
 		~CDistributedActorTrustManager_Address();
-		CDistributedActorTrustManager_Address(NHTTP::CURL const &_URL);
-		CDistributedActorTrustManager_Address(NHTTP::CURL &&_URL);
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL);
+		CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL);
 		
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_IntoStr) const;

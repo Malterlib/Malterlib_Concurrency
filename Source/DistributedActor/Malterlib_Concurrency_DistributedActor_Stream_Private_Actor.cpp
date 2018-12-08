@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 				CConcurrencyManager *_pConcurrencyManager
 				, bool _bImmediateDelete
 				, EPriority _Priority
-				, NPtr::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+				, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
 			)
 			: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		{

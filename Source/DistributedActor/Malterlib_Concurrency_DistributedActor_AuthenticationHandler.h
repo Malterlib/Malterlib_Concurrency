@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 			void f_Format(tf_CStr &o_Str) const;
 			inline bool operator == (CChallenge const &_Other) const;
 
-			NContainer::TCVector<uint8> m_ChallengeData;
+			NContainer::CByteVector m_ChallengeData;
 			NStr::CStr m_UserID;
 		};
 

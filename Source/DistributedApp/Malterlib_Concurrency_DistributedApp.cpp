@@ -18,9 +18,9 @@ namespace NMib::NConcurrency
 	using namespace NFile;
 	using namespace NStr;
 	using namespace NContainer;
-	using namespace NPtr;
-	using namespace NNet;
-	using namespace NDataProcessing;
+	using namespace NStorage;
+	using namespace NNetwork;
+	using namespace NCryptography;
 
 	namespace NPrivate
 	{
@@ -144,9 +144,9 @@ namespace NMib::NConcurrency
 		return mp_Settings.f_GetLocalSocketHostname(_bEnclaveSpecific);
 	}
 	
-	NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
+	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
 	{
-		return NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
+		return NWeb::NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
 	}
 	
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const
@@ -260,8 +260,8 @@ namespace NMib::NConcurrency
 						{
 							try
 							{
-								NNet::CNetAddress Address = NNet::CSocket::fs_ResolveAddress(fg_Format("UNIX:{}", File));
-								NNet::CSocket Socket;
+								NNetwork::CNetAddress Address = NNetwork::CSocket::fs_ResolveAddress(fg_Format("UNIX:{}", File));
+								NNetwork::CSocket Socket;
 								Socket.f_Connect(Address);
 							}
 							catch (NException::CException const &)

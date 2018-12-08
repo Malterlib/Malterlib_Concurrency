@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -23,13 +23,10 @@
 #include <Mib/Container/LinkedList>
 #endif
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
-	{
 #if DMibConfig_Concurrency_DebugActorCallstacks
-		using CAsyncCallstacks = NContainer::TCLinkedList<NException::CCallstack>;
-		//using CAsyncCallstacks = NContainer::TCVector<NException::CCallstack>;
+	using CAsyncCallstacks = NContainer::TCLinkedList<NException::CCallstack>;
+	//using CAsyncCallstacks = NContainer::TCVector<NException::CCallstack>;
 #endif
-	}
 }

@@ -3,17 +3,13 @@
 
 #pragma once
 
-
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	template <typename tf_CCommand>
+	void CActorDistributionManagerInternal::fp_QueueCommand(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, tf_CCommand const &_Command)
 	{
-		template <typename tf_CCommand>
-		void CActorDistributionManagerInternal::fp_QueueCommand(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, tf_CCommand const &_Command)
-		{
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
-			Stream << _Command;
-			fp_QueuePacket(_pHost, Stream.f_MoveVector());
-		}
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+		Stream << _Command;
+		fp_QueuePacket(_pHost, Stream.f_MoveVector());
 	}
 }

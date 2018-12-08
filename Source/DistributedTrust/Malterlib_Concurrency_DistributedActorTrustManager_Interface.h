@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 			static CTrustTicket fs_FromStringTicket(NStr::CStrSecure const &_StringTicket);
 
 			CDistributedActorTrustManager_Address m_ServerAddress;
-			NContainer::TCVector<uint8> m_ServerPublicCert;
+			NContainer::CByteVector m_ServerPublicCert;
 			NStr::CStrSecure m_Token;
 		};
 		
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 					(
 						NStr::CStr const &_HostID
 						, CLocalCallingHostInfo const &_HostInfo
-						, NContainer::TCVector<uint8> const &_CertificateRequest
+						, NContainer::CByteVector const &_CertificateRequest
 					)
 					, 0
 				>

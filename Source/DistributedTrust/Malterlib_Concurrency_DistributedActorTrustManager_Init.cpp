@@ -181,20 +181,20 @@ namespace NMib::NConcurrency
 			if (m_BasicConfig.m_HostID.f_IsEmpty())
 				m_BasicConfig.m_HostID = NCryptography::fg_HighEntropyRandomID();
 			
-			NNet::CSSLContext::CCertificateOptions Options;
+			NNetwork::CSSLContext::CCertificateOptions Options;
 			Options.m_KeySetting = m_KeySetting;
 			Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64); 
 			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 			Extension.m_bCritical = false; 
 			Extension.m_Value = m_BasicConfig.m_HostID;
 			
-			NNet::CSignOptions SignOptions;
+			NNetwork::CSignOptions SignOptions;
 			SignOptions.m_Serial = 1;
 			SignOptions.m_Days = 100*365;
 			
 			try
 			{
-				NNet::CSSLContext::fs_GenerateSelfSignedCertAndKey
+				NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey
 					(
 						Options
 						, m_BasicConfig.m_CACertificate
@@ -286,7 +286,7 @@ namespace NMib::NConcurrency
 							&ICDistributedActorTrustManagerDatabase::f_TryGetClient
 							, _HostInfo.m_HostID
 						)
-						> [this, _HostInfo](TCAsyncResult<NPtr::TCUniquePointer<CClient>> &&_Client)
+						> [this, _HostInfo](TCAsyncResult<NStorage::TCUniquePointer<CClient>> &&_Client)
 						{
 							if (!_Client)
 							{
@@ -459,7 +459,7 @@ namespace NMib::NConcurrency
 				for (auto iListen = m_Listen.f_GetIterator(); iListen; ++iListen)
 				{
 					auto &Listen = iListen.f_GetKey();
-					CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NHTTP::CURL>(Listen.m_Address.m_URL));
+					CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(Listen.m_Address.m_URL));
 					
 					auto *pServerCert = m_ServerCertificates.f_FindEqual(Listen.m_Address.m_URL.f_GetHost());
 					if (!pServerCert)
@@ -669,5 +669,5 @@ namespace NMib::NConcurrency
 }
 
 #ifndef DMibPNoShortCuts
-using namespace NMib::NConcurrency;
+	using namespace NMib::NConcurrency;
 #endif

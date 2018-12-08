@@ -15,10 +15,9 @@
 
 namespace NMib::NConcurrency
 {
-	using namespace NPtr;
+	using namespace NStorage;
 	using namespace NStr;
 	using namespace NContainer;
-
 
 	struct CDistributedAppAuthenticationHandler : public ICDistributedActorAuthenticationHandler
 	{

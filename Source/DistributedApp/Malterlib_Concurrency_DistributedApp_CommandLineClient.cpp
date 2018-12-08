@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCActor<TCDistributedActorSingleSubscription<ICCommandLine>> m_CommandLineSubscription;
-		NPtr::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpecification;
+		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpecification;
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		bool m_bInitialized = false;
@@ -241,7 +241,7 @@ namespace NMib::NConcurrency
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient
 		(
 			CDistributedAppActor_Settings const &_Settings
-			, NPtr::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
+			, NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> &&_TranslateHostnames
 		)
 		: mp_pInternal(fg_Construct())

@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		CStreamingFunction::~CStreamingFunction() = default;
 	}
 	
-	void CDistributedActorWriteStream::f_FeedFunction(NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction)
+	void CDistributedActorWriteStream::f_FeedFunction(NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction)
 	{
 		auto &State = f_GetState();
 		

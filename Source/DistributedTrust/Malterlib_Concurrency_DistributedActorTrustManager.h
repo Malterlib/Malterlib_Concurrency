@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 			TCTrustedActorSubscription *m_pSubscription;
 		};
 		
-		NPtr::TCSharedPointer<CState> mp_pState;
+		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 
 	struct CPermissionQuery
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 		friend class CDistributedActorTrustManager;
 		friend struct NPrivate::CTrustedPermissionSubscriptionState;
 		
-		NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
+		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> mp_pState;
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> mp_Permissions;
 		mutable CDistributedActorTrustManagerAuthenticationCache mp_AuthenticationCache;
 	};
@@ -240,8 +240,8 @@ namespace NMib::NConcurrency
 				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
 			> m_fConstructManager = nullptr;
 			
-			NNet::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
-			NNet::ENetFlag m_ListenFlags = NNet::ENetFlag_None;
+			NNetwork::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+			NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 			NStr::CStr m_FriendlyName;
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
@@ -280,7 +280,7 @@ namespace NMib::NConcurrency
 					(
 						NStr::CStr const &_HostID
 						, CCallingHostInfo const &_HostInfo
-						, NContainer::TCVector<uint8> const &_CertificateRequest
+						, NContainer::CByteVector const &_CertificateRequest
 					)
 				> 
 				&&_fOnUseTicket
@@ -355,7 +355,13 @@ namespace NMib::NConcurrency
 		TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
 		TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
 		TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID);
-		TCContinuation<NStr::CStr> f_RegisterUserAuthenticationFactor(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Factor);
+		TCContinuation<NStr::CStr> f_RegisterUserAuthenticationFactor
+			(
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_UserID
+			 	, NStr::CStr const &_Factor
+			)
+		;
 
 		TCContinuation<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
 		
@@ -394,24 +400,24 @@ namespace NMib::NConcurrency
 		
 		TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 		
-		auto fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
+		auto fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 			-> TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
 		;
-		void fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
+		void fp_UnsubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> fp_SubscribeToPermissions
 			(
-				NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+				NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 			)
 		;
 		CDistributedActorTrustManagerAuthenticationCache fp_FilterCachedAuthentications
 			(
-				NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
+				NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState
 			)
 		;
-		void fp_UnsubscribeToPermissions(NPtr::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
+		void fp_UnsubscribeToPermissions(NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState);
 		
 		struct CInternal;
-		NPtr::TCUniquePointer<CInternal> mp_pInternal;			
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;			
 	};
 
 	class CDistributedActorTrustManagerProxy;

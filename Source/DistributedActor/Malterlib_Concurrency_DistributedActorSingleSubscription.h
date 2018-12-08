@@ -3,28 +3,25 @@
 
 #pragma once
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	template <typename t_CActor>
+	struct TCDistributedActorSingleSubscription : public CActor
 	{
-		template <typename t_CActor>
-		struct TCDistributedActorSingleSubscription : public CActor
-		{
-			TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager = fg_GetDistributionManager());
-			void f_Construct();
-			
-			TCContinuation<TCDistributedActor<t_CActor>> f_GetActor();
-			
-		private:
-			void fp_ResultAvailable();
-			
-			TCAsyncResult<TCDistributedActor<t_CActor>> mp_DistributedActor;
-			TCActor<CActorDistributionManager> mp_DistributionManager;
-			CActorSubscription mp_DistributedActorSubscription;
-			NStr::CStr mp_Namespace;
-			NContainer::TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
-		};
-	}
+		TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager = fg_GetDistributionManager());
+		void f_Construct();
+
+		TCContinuation<TCDistributedActor<t_CActor>> f_GetActor();
+
+	private:
+		void fp_ResultAvailable();
+
+		TCAsyncResult<TCDistributedActor<t_CActor>> mp_DistributedActor;
+		TCActor<CActorDistributionManager> mp_DistributionManager;
+		CActorSubscription mp_DistributedActorSubscription;
+		NStr::CStr mp_Namespace;
+		NContainer::TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
+	};
 }
 
 #ifndef DMibPNoShortCuts

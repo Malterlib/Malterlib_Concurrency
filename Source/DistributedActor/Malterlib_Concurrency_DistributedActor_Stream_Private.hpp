@@ -19,14 +19,14 @@ namespace NMib::NConcurrency
 		return *pContext->m_pState;
 	}
 	
-	inline_always NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &CDistributedActorWriteStream::f_GetStatePtr()
+	inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &CDistributedActorWriteStream::f_GetStatePtr()
 	{
 		auto *pContext = (NPrivate::CDistributedActorStreamContext *)f_GetContext();
 		DMibFastCheck(pContext && pContext->f_CorrectMagic());
 		return pContext->m_pState;
 	}
 
-	inline_always NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &CDistributedActorReadStream::f_GetStatePtr()
+	inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &CDistributedActorReadStream::f_GetStatePtr()
 	{
 		auto *pContext = (NPrivate::CDistributedActorStreamContext *)f_GetContext();
 		DMibFastCheck(pContext && pContext->f_CorrectMagic());
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToContinuation
 		(
 			TCContinuation<tf_CResult> &_Continuation
-			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version 
 		)
@@ -95,7 +95,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToContinuation
 		(
 			TCContinuation<void> &_Continuation
-			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)

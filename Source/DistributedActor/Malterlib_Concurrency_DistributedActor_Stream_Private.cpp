@@ -9,7 +9,12 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <>
-	void fg_CopyReplyToContinuation(TCContinuation<void> &_Continuation, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data, CDistributedActorStreamContext &_Context, uint32 _Version)
+	void fg_CopyReplyToContinuation
+		(
+		 	TCContinuation<void> &_Continuation
+		 	, NContainer::CSecureByteVector const &_Data
+		 	, CDistributedActorStreamContext &_Context, uint32 _Version
+		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);

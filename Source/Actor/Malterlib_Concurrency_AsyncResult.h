@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 		template <typename t_CType2>
 		friend class TCAsyncResult;
 
-		NAggregate::TCAggregateSimple<t_CType> m_ResultAggregate;
+		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
 	public:
 		TCAsyncResult() = default;
 		~TCAsyncResult();

@@ -4,19 +4,19 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 
-namespace NMib::NConcurrency
+namespace NMib::NConcurrency::NPrivate
 {
-	namespace NPrivate
- 	{
-		CTrustedActorSubscriptionState::CTrustedActorSubscriptionState()
-		{
-		}
-
-		CTrustedActorSubscriptionState::~CTrustedActorSubscriptionState()
-		{
-		}
+	CTrustedActorSubscriptionState::CTrustedActorSubscriptionState()
+	{
 	}
 
+	CTrustedActorSubscriptionState::~CTrustedActorSubscriptionState()
+	{
+	}
+}
+
+namespace NMib::NConcurrency
+{
 	auto CDistributedActorTrustManager::f_EnumNamespacePermissions(bool _bIncludeHostInfo) -> TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 		return Actors;
 	}
 
-	auto CDistributedActorTrustManager::fp_SubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
+	auto CDistributedActorTrustManager::fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 		-> TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>> 
 	{
 		auto &Internal = *mp_pInternal;
@@ -471,7 +471,7 @@ namespace NMib::NConcurrency
 		return Continuation;
 	}
 	
-	void CDistributedActorTrustManager::fp_UnsubscribeTrustedActors(NPtr::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
+	void CDistributedActorTrustManager::fp_UnsubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 	{
 		_pState->m_DispatchActor.f_Clear();
 

@@ -13,9 +13,9 @@ namespace NMib::NConcurrency
 	using namespace NFile;
 	using namespace NStr;
 	using namespace NContainer;
-	using namespace NPtr;
-	using namespace NNet;
-	using namespace NDataProcessing;
+	using namespace NStorage;
+	using namespace NNetwork;
+	using namespace NCryptography;
 
 	namespace
 	{
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 		DMibRequire
 			(
 				fp_GetLocalSocketPath(fg_Format("/tmp/{}", g_HostnameRootUUID.f_GetAsString(EUniversallyUniqueIdentifierFormat_AlphaNum)), true, m_Enclave).f_GetLen()
-				<= aint(NSys::NNet::fg_GetMaxUnixSocketNameLength())
+				<= aint(NSys::NNetwork::fg_GetMaxUnixSocketNameLength())
 			)
 		;
 #else
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CDistributedAppActor_Settings::f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const
 	{
-		mint MaxLength = NSys::NNet::fg_GetMaxUnixSocketNameLength();
+		mint MaxLength = NSys::NNetwork::fg_GetMaxUnixSocketNameLength();
 		if (fp_GetLocalSocketPath(m_RootDirectory, true, m_Enclave).f_GetLen() <= aint(MaxLength))
 			return fp_GetLocalSocketPath(m_RootDirectory, _bEnclaveSpecific, _Enclave);
 		
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NNet::CSSLKeySetting _KeySetting) &&
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NNetwork::CSSLKeySetting _KeySetting) &&
 	{
 		m_KeySetting = _KeySetting;
 		return fg_Move(*this);

@@ -6,6 +6,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NStorage;
+
 	ICDistributedActorAuthenticationHandler::ICDistributedActorAuthenticationHandler()
 	{
 		DMibPublishActorFunction(ICDistributedActorAuthenticationHandler::f_RequestAuthentication);

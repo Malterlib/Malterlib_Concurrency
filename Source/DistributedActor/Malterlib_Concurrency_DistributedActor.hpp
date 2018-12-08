@@ -10,354 +10,408 @@
 
 #include "Malterlib_Concurrency_DistributedActor_Private.hpp"
 
-namespace NMib
+namespace NMib::NStorage::NPrivate
 {
-	namespace NPtr
+	template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
+	struct TCIsValidConversion<NConcurrency::TCDistributedActorWrapper<t_CActor0>, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
 	{
-		namespace NPrivate
+		enum
 		{
-			template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
-			struct TCIsValidConversion<NConcurrency::TCDistributedActorWrapper<t_CActor0>, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
-			{
-				enum
-				{
-					mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
-				};
-			};
-		}
-	}
+			mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
+		};
+	};
 }
-namespace NMib
+
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	namespace NPrivate
 	{
-		namespace NPrivate
+		template <typename t_CActor>
+		struct TCIsDistributedActor
 		{
-			template <typename t_CActor>
-			struct TCIsDistributedActor
+			enum
 			{
-				enum
-				{
-					mc_Value = false
-				};
+				mc_Value = false
 			};
+		};
 
-			template <typename t_CActor>
-			struct TCIsDistributedActor<NConcurrency::TCDistributedActorWrapper<t_CActor>>
+		template <typename t_CActor>
+		struct TCIsDistributedActor<NConcurrency::TCDistributedActorWrapper<t_CActor>>
+		{
+			enum
 			{
-				enum
-				{
-					mc_Value = true
-				};
+				mc_Value = true
 			};
-			
-			struct CDistributedActorInterfaceInfo
-			{
-				template <typename ...tfp_CInterface>
-				static CDistributedActorInterfaceInfo fs_GenerateInfo();
+		};
 
-				template <typename ...tfp_CInterface>
-				static CDistributedActorInterfaceInfo fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions);
-
-				inline_always NContainer::TCVector<uint32> const &f_GetInterfaceHashes() const;
-				inline_always CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
-				
-			private:
-				CDistributedActorInterfaceInfo();
-				NContainer::TCVector<uint32> mp_InterfaceHashes;
-				CDistributedActorProtocolVersions mp_ProtocolVersions;
-			};
-		}
-
-		template <typename t_CActor>
-		template <typename ...tfp_CInterface>
-		auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
+		struct CDistributedActorInterfaceInfo
 		{
-			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+			template <typename ...tfp_CInterface>
+			static CDistributedActorInterfaceInfo fs_GenerateInfo();
 
-			return NPrivate::fg_PublishActor
-				(
-					this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
-					, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>()
-					, _Namespace
-				)
-			;
-		}
+			template <typename ...tfp_CInterface>
+			static CDistributedActorInterfaceInfo fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions);
 
-		template <typename t_CActor>
-		template <typename ...tfp_CInterface>
-		auto TCActorInternal<t_CActor>::f_ShareInterface()
-		{
-			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+			inline_always NContainer::TCVector<uint32> const &f_GetInterfaceHashes() const;
+			inline_always CDistributedActorProtocolVersions const &f_GetProtocolVersions() const;
 
-			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
+		private:
+			CDistributedActorInterfaceInfo();
+			NContainer::TCVector<uint32> mp_InterfaceHashes;
+			CDistributedActorProtocolVersions mp_ProtocolVersions;
+		};
+	}
 
-			return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
-				{
-					InterfaceInfo.f_GetInterfaceHashes()
-					, InterfaceInfo.f_GetProtocolVersions()
-					, this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
-				}
-			;
-		}
+	template <typename t_CActor>
+	template <typename ...tfp_CInterface>
+	auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
+	{
+		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
 
-		template <typename t_CActor>
-		template <typename ...tfp_CInterface>
-		auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions)
-		{
-			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
-
-			return NPrivate::fg_PublishActor
-				(
-					this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
-					, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions)
-					, _Namespace
-				)
-			;
-		}
-
-		template <typename t_CActor>
-		template <typename ...tfp_CInterface>
-		auto TCActorInternal<t_CActor>::f_ShareInterfaceWithVersion(CDistributedActorProtocolVersions const &_Versions)
-		{
-			static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-			static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
-
-			auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions);
-
-			return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
-				{
-					InterfaceInfo.f_GetInterfaceHashes()
-					, InterfaceInfo.f_GetProtocolVersions()
-					, this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
-				}
-			;
-		}
-
-		template <typename t_CActor>
-		uint32 TCActorInternal<t_CActor>::f_InterfaceVersion()
-		{
-			auto pDistributedData = static_cast<NPrivate::CDistributedActorData *>(this->mp_pDistributedActorData.f_Get());
-			if (!pDistributedData)
-				DMibError("Not a distributed actor");
-			return pDistributedData->m_ProtocolVersion;
-		}
-		
-		template <typename t_CType>
-		TCDistributedActorInterfaceShare<t_CType>::TCDistributedActorInterfaceShare
+		return NPrivate::fg_PublishActor
 			(
-				NContainer::TCVector<uint32> const &_Hierarchy
-				, CDistributedActorProtocolVersions const &_ProtocolVersions
-				, TCDistributedActor<CActor> &&_Actor
+				this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+				, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>()
+				, _Namespace
 			)
-			: CDistributedActorInterfaceShare(_Hierarchy, _ProtocolVersions, fg_Move(_Actor))
-		{
-		}
-		
-		template <typename t_CType>
-		TCDistributedActor<t_CType> TCDistributedActorInterfaceShare<t_CType>::f_GetActor() const
-		{
-			return fg_StaticCast<t_CType>(m_Actor);
-		}
-		
-		template <typename tf_CActor, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> CActorDistributionManagerHolder::f_ConstructActor(tfp_CParams &&...p_Params)
-		{
-			return fg_ConstructDistributedActor<tf_CActor>(fp_GetAsActor<CActorDistributionManager>(), fg_Forward<tfp_CParams>(p_Params)...);
-		}
-		
-		template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> CActorDistributionManagerHolder::f_ConstructInterface
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename ...tfp_CInterface>
+	auto TCActorInternal<t_CActor>::f_ShareInterface()
+	{
+		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+
+		auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
+
+		return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
+			{
+				InterfaceInfo.f_GetInterfaceHashes()
+				, InterfaceInfo.f_GetProtocolVersions()
+				, this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+			}
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename ...tfp_CInterface>
+	auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions)
+	{
+		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+
+		return NPrivate::fg_PublishActor
 			(
-				tf_CDelegateTo *_pDelegateTo
+				this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+				, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions)
+				, _Namespace
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename ...tfp_CInterface>
+	auto TCActorInternal<t_CActor>::f_ShareInterfaceWithVersion(CDistributedActorProtocolVersions const &_Versions)
+	{
+		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
+		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+
+		auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions);
+
+		return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
+			{
+				InterfaceInfo.f_GetInterfaceHashes()
+				, InterfaceInfo.f_GetProtocolVersions()
+				, this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
+			}
+		;
+	}
+
+	template <typename t_CActor>
+	uint32 TCActorInternal<t_CActor>::f_InterfaceVersion()
+	{
+		auto pDistributedData = static_cast<NPrivate::CDistributedActorData *>(this->mp_pDistributedActorData.f_Get());
+		if (!pDistributedData)
+			DMibError("Not a distributed actor");
+		return pDistributedData->m_ProtocolVersion;
+	}
+
+	template <typename t_CType>
+	TCDistributedActorInterfaceShare<t_CType>::TCDistributedActorInterfaceShare
+		(
+			NContainer::TCVector<uint32> const &_Hierarchy
+			, CDistributedActorProtocolVersions const &_ProtocolVersions
+			, TCDistributedActor<CActor> &&_Actor
+		)
+		: CDistributedActorInterfaceShare(_Hierarchy, _ProtocolVersions, fg_Move(_Actor))
+	{
+	}
+
+	template <typename t_CType>
+	TCDistributedActor<t_CType> TCDistributedActorInterfaceShare<t_CType>::f_GetActor() const
+	{
+		return fg_StaticCast<t_CType>(m_Actor);
+	}
+
+	template <typename tf_CActor, typename... tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> CActorDistributionManagerHolder::f_ConstructActor(tfp_CParams &&...p_Params)
+	{
+		return fg_ConstructDistributedActor<tf_CActor>(fp_GetAsActor<CActorDistributionManager>(), fg_Forward<tfp_CParams>(p_Params)...);
+	}
+
+	template <typename tf_CActor, typename tf_CDelegateTo, typename... tfp_CParams>
+	TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> CActorDistributionManagerHolder::f_ConstructInterface
+		(
+			tf_CDelegateTo *_pDelegateTo
+			, tfp_CParams &&...p_Params
+		)
+	{
+		return fg_ConstructDistributedActor<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>
+			(
+				fp_GetAsActor<CActorDistributionManager>()
+				, fg_Construct(fg_ThisActor(_pDelegateTo))
+				, _pDelegateTo
+				, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
+	}
+
+	template <typename t_CInterface, typename t_CDelegateTo>
+	template <typename ...tfp_CParams>
+	TCDistributedInterfaceDelegator<t_CInterface, t_CDelegateTo>::TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params)
+		: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
+	{
+		t_CInterface::m_pThis = _pDelegateTo;
+	}
+
+	template <typename t_CImplementation>
+	void TCDelegatedActorInterface<t_CImplementation>::f_Clear()
+	{
+		m_Publication.f_Clear();
+		m_Actor.f_Clear();
+		m_pActor = nullptr;
+	}
+
+	template <typename t_CImplementation>
+	TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
+	{
+		m_pActor = nullptr;
+		return g_Dispatch > [this]() -> TCContinuation<void>
+			{
+				m_Publication.f_Clear();
+				if (m_Actor.f_IsEmpty())
+					return fg_Explicit();
+				auto Return = m_Actor->f_Destroy();
+				m_Actor.f_Clear();
+				return Return;
+			}
+		;
+	}
+
+	template <typename t_CImplementation>
+	template <typename ...tfp_CInterfaces, typename tf_CThis>
+	TCContinuation<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
+		(
+			TCActor<CActorDistributionManager> const &_DistributionManager
+			, tf_CThis *_pThis
+			, NStr::CStr const &_Namespace
+		)
+	{
+		f_Construct(_DistributionManager, _pThis);
+
+		TCContinuation<void> Continuation;
+		m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
+			> Continuation / [this, Continuation] (CDistributedActorPublication &&_Publication)
+			{
+				m_Publication = fg_Move(_Publication);
+				Continuation.f_SetResult();
+			}
+		;
+		return Continuation;
+	}
+
+	template <typename t_CImplementation>
+	template <typename tf_CThis>
+	void TCDelegatedActorInterface<t_CImplementation>::f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis)
+	{
+		auto Interface = _DistributionManager->f_ConstructInterface<t_CImplementation>(_pThis);
+		m_pActor = &Interface->f_AccessInternal();
+		m_Actor = fg_Move(Interface);
+	}
+
+	template <typename ...tfp_CInterface>
+	NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions)
+	{
+		CDistributedActorInterfaceInfo Ret;
+
+		TCInitializerList<bool> Dummy =
+			{
+				[&]
+				{
+					Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
+					return true;
+				}
+				()...
+			}
+		;
+		(void)Dummy;
+
+		Ret.mp_ProtocolVersions = _Versions;
+
+		return Ret;
+	}
+
+	template <typename ...tfp_CInterface>
+	NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo()
+	{
+		CDistributedActorInterfaceInfo Ret;
+
+		CDistributedActorProtocolVersions Versions;
+
+#if DMibEnableSafeCheck > 0
+		bool bMultipleVersions = false;
+#endif
+
+		TCInitializerList<bool> Dummy =
+			{
+				[&]
+				{
+					CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EMinProtocolVersion, tfp_CInterface::EProtocolVersion};
+					if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
+						Versions = ThisVersions;
+#if DMibEnableSafeCheck > 0
+					else if (ThisVersions != Versions)
+						bMultipleVersions = true;
+#endif
+
+					Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
+					return true;
+				}
+				()...
+			}
+		;
+		(void)Dummy;
+
+		DMibFastCheck(!bMultipleVersions); // Can only publish one protocol version
+
+		Ret.mp_ProtocolVersions = Versions;
+
+		return Ret;
+	}
+
+	NContainer::TCVector<uint32> const &NPrivate::CDistributedActorInterfaceInfo::f_GetInterfaceHashes() const
+	{
+		return mp_InterfaceHashes;
+	}
+
+	CDistributedActorProtocolVersions const &NPrivate::CDistributedActorInterfaceInfo::f_GetProtocolVersions() const
+	{
+		return mp_ProtocolVersions;
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_StaticCast(TCActor<TCDistributedActorWrapper<tf_CActorSource>> const &_Actor)
+	{
+		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		return reinterpret_cast<TCActor<TCDistributedActorWrapper<tf_CActor>> const &>(_Actor);
+	}
+
+	template <typename tf_CFirst>
+	NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy()
+	{
+		NContainer::TCVector<uint32> Return;
+
+		NPrivate::fg_GetDistributedActorInheritanceHierarchy<tf_CFirst>(Return);
+
+		return Return;
+	}
+
+	template <typename t_CActor>
+	template <typename... tf_CActor>
+	TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tf_CActor &&...p_Params)
+		: t_CActor(fg_Forward<tf_CActor>(p_Params)...)
+	{
+	}
+
+	template <typename tf_CActor, typename... tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams &&...p_Params)
+	{
+		auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
+
+		NStorage::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
+		pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
+		pDistributedActorData->m_DistributionManager = _DistributionManager;
+
+		TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor
+			= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+		;
+
+		return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
+			(
+				fg_Move(pActor)
+				, fg_Construct<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...)
+			)
+		;
+	}
+
+	template <typename tf_CActor, typename... tfp_CParams>
+	TCDistributedActor<tf_CActor> fg_ConstructRemoteDistributedActor
+		(
+			TCActor<CActorDistributionManager> const &_DistributionManager
+			, NStr::CStr const &_ActorID
+			, NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost
+			, uint32 _ProtocolVersion
+			, tfp_CParams &&...p_Params
+		)
+	{
+		NStorage::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
+		pDistributedActorData->m_DistributionManager = _DistributionManager;
+		pDistributedActorData->m_ActorID = _ActorID;
+		pDistributedActorData->m_pHost = _pHost;
+		pDistributedActorData->m_ProtocolVersion = _ProtocolVersion;
+		pDistributedActorData->m_bRemote = true;
+		DMibFastCheck(_ProtocolVersion != TCLimitsInt<uint32>::mc_Max);
+
+		auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
+		TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor = fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData));
+		return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>(fg_Move(pActor), fg_Construct<TCDistributedActorWrapper<tf_CActor>>());
+	}
+
+	extern template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>
+		(
+			TCActor<CActorDistributionManager> const &_DistributionManager
+			, NStr::CStr const &_ActorID
+			, NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost
+			, uint32 _ProtocolVersion
+		)
+	;
+
+	namespace NPrivate
+	{
+		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, mint... tfp_Indidies>
+		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActorHelper
+			(
+				TCActor<CActorDistributionManager> const &_DistributionManager
+				, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
+				, NMeta::TCIndices<tfp_Indidies...> const &
 				, tfp_CParams &&...p_Params
 			)
 		{
-			return fg_ConstructDistributedActor<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>
-				(
-					fp_GetAsActor<CActorDistributionManager>()
-					, fg_Construct(fg_ThisActor(_pDelegateTo))
-					, _pDelegateTo
-					, fg_Forward<tfp_CParams>(p_Params)...
-				)
-			;
-		}
-		
-		template <typename t_CInterface, typename t_CDelegateTo>
-		template <typename ...tfp_CParams>
-		TCDistributedInterfaceDelegator<t_CInterface, t_CDelegateTo>::TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params)
-			: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
-		{
-			t_CInterface::m_pThis = _pDelegateTo;
-		}		
-		
-		template <typename t_CImplementation>
-		void TCDelegatedActorInterface<t_CImplementation>::f_Clear()
-		{
-			m_Publication.f_Clear();
-			m_Actor.f_Clear();
-			m_pActor = nullptr;
-		}
-		
-		template <typename t_CImplementation>
-		TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
-		{
-			m_pActor = nullptr;
-			return g_Dispatch > [this]() -> TCContinuation<void>
-				{
-					m_Publication.f_Clear();
-					if (m_Actor.f_IsEmpty())
-						return fg_Explicit();
-					auto Return = m_Actor->f_Destroy();
-					m_Actor.f_Clear();
-					return Return;
-				}
-			;
-		}
-		
-		template <typename t_CImplementation>
-		template <typename ...tfp_CInterfaces, typename tf_CThis>
-		TCContinuation<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
-			(
-				TCActor<CActorDistributionManager> const &_DistributionManager
-				, tf_CThis *_pThis
-				, NStr::CStr const &_Namespace
-			)
-		{
-			f_Construct(_DistributionManager, _pThis);
-			
-			TCContinuation<void> Continuation;
-			m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
-				> Continuation / [this, Continuation] (CDistributedActorPublication &&_Publication)
-				{
-					m_Publication = fg_Move(_Publication);
-					Continuation.f_SetResult();
-				}
-			;
-			return Continuation;
-		}
-		
-		template <typename t_CImplementation>
-		template <typename tf_CThis>
-		void TCDelegatedActorInterface<t_CImplementation>::f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis)
-		{
-			auto Interface = _DistributionManager->f_ConstructInterface<t_CImplementation>(_pThis);
-			m_pActor = &Interface->f_AccessInternal();
-			m_Actor = fg_Move(Interface);
-		}
-
-		template <typename ...tfp_CInterface>
-		NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo(CDistributedActorProtocolVersions const &_Versions)
-		{
-			CDistributedActorInterfaceInfo Ret;
-
-			TCInitializerList<bool> Dummy =
-				{
-					[&]
-					{
-						Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
-						return true;
-					}
-					()...
-				}
-			;
-			(void)Dummy;
-
-			Ret.mp_ProtocolVersions = _Versions;
-
-			return Ret;
-		}
-
-		template <typename ...tfp_CInterface>
-		NPrivate::CDistributedActorInterfaceInfo NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo()
-		{
-			CDistributedActorInterfaceInfo Ret;
-			
-			CDistributedActorProtocolVersions Versions;
-
-#if DMibEnableSafeCheck > 0
-			bool bMultipleVersions = false;
-#endif
-			
-			TCInitializerList<bool> Dummy = 
-				{
-					[&]
-					{
-						CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EMinProtocolVersion, tfp_CInterface::EProtocolVersion};
-						if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
-							Versions = ThisVersions;
-#if DMibEnableSafeCheck > 0
-						else if (ThisVersions != Versions)
-							bMultipleVersions = true;
-#endif
-							
-						Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
-						return true;
-					}
-					()...
-				}
-			;
-			(void)Dummy;
-
-			DMibFastCheck(!bMultipleVersions); // Can only publish one protocol version
-
-			Ret.mp_ProtocolVersions = Versions;
-			
-			return Ret;
-		}
-
-		NContainer::TCVector<uint32> const &NPrivate::CDistributedActorInterfaceInfo::f_GetInterfaceHashes() const
-		{
-			return mp_InterfaceHashes;
-		}
-		
-		CDistributedActorProtocolVersions const &NPrivate::CDistributedActorInterfaceInfo::f_GetProtocolVersions() const
-		{
-			return mp_ProtocolVersions;
-		}
-		
-		template <typename tf_CActor, typename tf_CActorSource>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_StaticCast(TCActor<TCDistributedActorWrapper<tf_CActorSource>> const &_Actor)
-		{
-			auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
-			(void)pDummy;
-
-			return reinterpret_cast<TCActor<TCDistributedActorWrapper<tf_CActor>> const &>(_Actor);
-		}
-
-		template <typename tf_CFirst>
-		NContainer::TCVector<uint32> fg_GetDistributedActorInheritanceHierarchy()
-		{
-			NContainer::TCVector<uint32> Return;
-			
-			NPrivate::fg_GetDistributedActorInheritanceHierarchy<tf_CFirst>(Return);
-			
-			return Return;
-		}
-		
-		template <typename t_CActor>
-		template <typename... tf_CActor>
-		TCDistributedActorWrapper<t_CActor>::TCDistributedActorWrapper(tf_CActor &&...p_Params)
-			: t_CActor(fg_Forward<tf_CActor>(p_Params)...)
-		{
-		}
-		
-		template <typename tf_CActor, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor(TCActor<CActorDistributionManager> const &_DistributionManager, tfp_CParams &&...p_Params)
-		{
 			auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
 
-			NPtr::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
+			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
 			pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
 			pDistributedActorData->m_DistributionManager = _DistributionManager;
-			
-			TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor 
-				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData))
+
+			TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor
+				= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData), fg_Forward<tfp_CHolderParams>(fg_Get<tfp_Indidies>(_HolderParams.m_Params))...)
 			;
-			
+
 			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
 				(
 					fg_Move(pActor)
@@ -365,192 +419,130 @@ namespace NMib
 				)
 			;
 		}
-		
-		template <typename tf_CActor, typename... tfp_CParams>
-		TCDistributedActor<tf_CActor> fg_ConstructRemoteDistributedActor
+	}
+
+	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
+	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor
+		(
+			TCActor<CActorDistributionManager> const &_DistributionManager
+			, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
+			, tfp_CParams &&...p_Params
+		)
+	{
+		return NPrivate::fg_ConstructDistributedActorHelper<tf_CActor>
 			(
-				TCActor<CActorDistributionManager> const &_DistributionManager
-				, NStr::CStr const &_ActorID
-				, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
-				, uint32 _ProtocolVersion
-				, tfp_CParams &&...p_Params
-			)
-		{
-			NPtr::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
-			pDistributedActorData->m_DistributionManager = _DistributionManager;
-			pDistributedActorData->m_ActorID = _ActorID;
-			pDistributedActorData->m_pHost = _pHost;
-			pDistributedActorData->m_ProtocolVersion = _ProtocolVersion;
-			pDistributedActorData->m_bRemote = true;
-			DMibFastCheck(_ProtocolVersion != TCLimitsInt<uint32>::mc_Max);
-			
-			auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager(); 
-			TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor = fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData));
-			return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>(fg_Move(pActor), fg_Construct<TCDistributedActorWrapper<tf_CActor>>());
-		}
-		
-		extern template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>
-			(
-				TCActor<CActorDistributionManager> const &_DistributionManager
-				, NStr::CStr const &_ActorID
-				, NPtr::TCWeakPointer<NPrivate::ICHost> const &_pHost
-				, uint32 _ProtocolVersion
+				_DistributionManager
+				, fg_Move(_HolderParams)
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams)>::CType()
+				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
-		
-		namespace NPrivate
-		{
-			template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams, mint... tfp_Indidies>
-			TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActorHelper
-				(
-					TCActor<CActorDistributionManager> const &_DistributionManager
-					, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
-					, NMeta::TCIndices<tfp_Indidies...> const &
-					, tfp_CParams &&...p_Params
-				)
-			{
-				auto &ConcurrencyManager = _DistributionManager->f_ConcurrencyManager();
-				
-				NPtr::TCSharedPointer<NPrivate::CDistributedActorData> pDistributedActorData = fg_Construct();
-				pDistributedActorData->m_ActorID = NCryptography::fg_RandomID();
-				pDistributedActorData->m_DistributionManager = _DistributionManager; 
-				
-				TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActor>>> pActor 
-					= fg_Construct(&ConcurrencyManager, fg_Move(pDistributedActorData), fg_Forward<tfp_CHolderParams>(NContainer::fg_Get<tfp_Indidies>(_HolderParams.m_Params))...)
-				;
-				
-				return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>
-					(
-						fg_Move(pActor)
-						, fg_Construct<TCDistributedActorWrapper<tf_CActor>>(fg_Forward<tfp_CParams>(p_Params)...)
-					)
-				;
-			}
-		}
-		
-		template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
-		TCActor<TCDistributedActorWrapper<tf_CActor>> fg_ConstructDistributedActor
-			(
-				TCActor<CActorDistributionManager> const &_DistributionManager
-				, TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams
-				, tfp_CParams &&...p_Params
-			)
-		{
-			return NPrivate::fg_ConstructDistributedActorHelper<tf_CActor>
-				(
-					_DistributionManager
-					, fg_Move(_HolderParams)
-					, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams)>::CType()
-					, fg_Forward<tfp_CParams>(p_Params)...
-				)
-			;
-		}
-		
-		template <typename tf_CStream>
-		void CActorDistributionCryptographySettings::f_Feed(tf_CStream &_Stream) const
-		{
-			_Stream << m_PrivateKey;
-			_Stream << m_PublicCertificate;
-			_Stream << m_RemoteClientCertificates;
-			_Stream << m_SignedClientCertificates;
-			_Stream << m_Serial;
-			_Stream << m_Subject;
-		}
-		
-		template <typename tf_CStream>
-		void CActorDistributionCryptographySettings::f_Consume(tf_CStream &_Stream)
-		{
-			_Stream >> m_PrivateKey;
-			_Stream >> m_PublicCertificate;
-			_Stream >> m_RemoteClientCertificates;
-			_Stream >> m_SignedClientCertificates;
-			_Stream >> m_Serial;
-			_Stream >> m_Subject;
-		}
-	
-		template <typename tf_CStream>
-		void CActorDistributionCryptographyRemoteServer::f_Feed(tf_CStream &_Stream) const
-		{
-			_Stream << m_PublicServerCertificate;
-			_Stream << m_PublicClientCertificate;
-		}
-		
-		template <typename tf_CStream>
-		void CActorDistributionCryptographyRemoteServer::f_Consume(tf_CStream &_Stream)
-		{
-			_Stream >> m_PublicServerCertificate;
-			_Stream >> m_PublicClientCertificate;
-		}
-		
-		template <typename tf_CType>
-		TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
-		{
-			auto Actor = f_GetActor(fg_GetTypeHash<tf_CType>(), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
-			return fg_Move(reinterpret_cast<TCDistributedActor<tf_CType> &>(Actor));
-		}
+	}
 
-		inline NStr::CStr const &CAbstractDistributedActor::f_GetUniqueHostID() const
-		{
-			return mp_UniqueHostID;
-		}
-		
-		inline NStr::CStr const &CAbstractDistributedActor::f_GetRealHostID() const
-		{
-			return mp_HostInfo.m_HostID;
-		}
-		
-		inline CHostInfo const &CAbstractDistributedActor::f_GetHostInfo() const
-		{
-			return mp_HostInfo;
-		}
-		
-		inline bool CAbstractDistributedActor::f_IsEmpty() const
-		{
-			return mp_ActorID.f_IsEmpty();
-		}
-		
-		CDistributedActorProtocolVersions const &CAbstractDistributedActor::f_GetProtocolVersions() const
-		{
-			return mp_ProtocolVersions;
-		}
-		
-		template <typename tf_CString>
-		void CHostInfo::f_Format(tf_CString &o_String) const
-		{
-			o_String += f_GetDesc();
-		}
-		
-		template <typename tf_CType>
-		CDistributedActorProtocolVersions fg_SubscribeVersions()
-		{
-			return CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion};
-		}
-		
-		template <typename t_CActor>
-		bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right)
-		{
-			return _Left == (TCActor<> const &)_Right;
-		}
-		
-		template <typename t_CActor>
-		bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right)
-		{
-			return (TCActor<> const &)_Left == _Right;
-		}
-	
-		template <typename tf_CStream>
-		void CDistributedActorProtocolVersions::f_Feed(tf_CStream &_Stream) const
-		{
-			_Stream << m_MinSupported;
-			_Stream << m_MaxSupported;
-		}
+	template <typename tf_CStream>
+	void CActorDistributionCryptographySettings::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << m_PrivateKey;
+		_Stream << m_PublicCertificate;
+		_Stream << m_RemoteClientCertificates;
+		_Stream << m_SignedClientCertificates;
+		_Stream << m_Serial;
+		_Stream << m_Subject;
+	}
 
-		template <typename tf_CStream>
-		void CDistributedActorProtocolVersions::f_Consume(tf_CStream &_Stream)
-		{
-			_Stream >> m_MinSupported;
-			_Stream >> m_MaxSupported;
-		}
+	template <typename tf_CStream>
+	void CActorDistributionCryptographySettings::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_PrivateKey;
+		_Stream >> m_PublicCertificate;
+		_Stream >> m_RemoteClientCertificates;
+		_Stream >> m_SignedClientCertificates;
+		_Stream >> m_Serial;
+		_Stream >> m_Subject;
+	}
+
+	template <typename tf_CStream>
+	void CActorDistributionCryptographyRemoteServer::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << m_PublicServerCertificate;
+		_Stream << m_PublicClientCertificate;
+	}
+
+	template <typename tf_CStream>
+	void CActorDistributionCryptographyRemoteServer::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_PublicServerCertificate;
+		_Stream >> m_PublicClientCertificate;
+	}
+
+	template <typename tf_CType>
+	TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
+	{
+		auto Actor = f_GetActor(fg_GetTypeHash<tf_CType>(), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
+		return fg_Move(reinterpret_cast<TCDistributedActor<tf_CType> &>(Actor));
+	}
+
+	inline NStr::CStr const &CAbstractDistributedActor::f_GetUniqueHostID() const
+	{
+		return mp_UniqueHostID;
+	}
+
+	inline NStr::CStr const &CAbstractDistributedActor::f_GetRealHostID() const
+	{
+		return mp_HostInfo.m_HostID;
+	}
+
+	inline CHostInfo const &CAbstractDistributedActor::f_GetHostInfo() const
+	{
+		return mp_HostInfo;
+	}
+
+	inline bool CAbstractDistributedActor::f_IsEmpty() const
+	{
+		return mp_ActorID.f_IsEmpty();
+	}
+
+	CDistributedActorProtocolVersions const &CAbstractDistributedActor::f_GetProtocolVersions() const
+	{
+		return mp_ProtocolVersions;
+	}
+
+	template <typename tf_CString>
+	void CHostInfo::f_Format(tf_CString &o_String) const
+	{
+		o_String += f_GetDesc();
+	}
+
+	template <typename tf_CType>
+	CDistributedActorProtocolVersions fg_SubscribeVersions()
+	{
+		return CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion};
+	}
+
+	template <typename t_CActor>
+	bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right)
+	{
+		return _Left == (TCActor<> const &)_Right;
+	}
+
+	template <typename t_CActor>
+	bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right)
+	{
+		return (TCActor<> const &)_Left == _Right;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorProtocolVersions::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << m_MinSupported;
+		_Stream << m_MaxSupported;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorProtocolVersions::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_MinSupported;
+		_Stream >> m_MaxSupported;
 	}
 }
 

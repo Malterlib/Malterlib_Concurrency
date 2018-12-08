@@ -50,7 +50,7 @@ namespace
 							}
 						}
 					}
-					, [](NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
 					{
 						return fg_Explicit(_Params["Integer"].f_Integer());
 					}

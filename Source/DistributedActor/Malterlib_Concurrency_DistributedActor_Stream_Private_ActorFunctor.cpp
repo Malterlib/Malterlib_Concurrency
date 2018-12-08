@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorWriteStream::f_FeedActorFunctor
 		(
 			TCActor<> &&_Actor
-			, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction
+			, NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction
 			, uint32 _SequenceID
 			, CActorSubscription &&_Subscription
 		)

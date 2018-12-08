@@ -4,14 +4,11 @@
 #pragma once
 #include <Mib/Core/Core>
 
-namespace NMib::NConcurrency
+namespace NMib::NConcurrency::NPrivate
 {
-	namespace NPrivate
-	{
-		struct CDistributedActorStreamContextState;
-		struct CDistributedActorSubscriptionReferenceState;
-	}
-};
+	struct CDistributedActorStreamContextState;
+	struct CDistributedActorSubscriptionReferenceState;
+}
 
 DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::CDistributedActorSubscriptionReferenceState, true, false);
 
@@ -38,16 +35,16 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		uint64 m_Magic = constant_uint64(0x5541e982e952851c);
 #endif
-		NPtr::TCSharedPointer<CDistributedActorStreamContextState> m_pState;
+		NStorage::TCSharedPointer<CDistributedActorStreamContextState> m_pState;
 	};
 }
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>
+	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
-		inline_always NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
+		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
 		
 		DMibStreamImplementOperators(CDistributedActorWriteStream);
 
@@ -56,8 +53,8 @@ namespace NMib::NConcurrency
 		void f_Feed(TCActorSubscriptionWithID<tf_SubscriptionID> &&_Subscription);
 
 		void f_FeedActor(TCActor<> const &_Actor);
-		void f_FeedFunction(NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction);
-		void f_FeedActorFunctor(TCActor<> &&_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction, uint32 _SequenceID, CActorSubscription &&_Subscription);
+		void f_FeedFunction(NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction);
+		void f_FeedActorFunctor(TCActor<> &&_Actor, NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &&_pFunction, uint32 _SequenceID, CActorSubscription &&_Subscription);
 		void f_FeedInterface
 			(
 				uint32 _SequenceID
@@ -90,7 +87,7 @@ namespace NMib::NConcurrency
 	struct CDistributedActorReadStream : public NStream::CBinaryStreamMemoryPtr<>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
-		inline_always NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
+		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();
 
 		DMibStreamImplementOperators(CDistributedActorReadStream);
 

@@ -16,8 +16,8 @@ namespace NMib::NConcurrency
 		, mp_ClientCryptography(NCryptography::fg_RandomID())
 		, mp_ListenPort(_TestPort)
 	{
-		NHTTP::CURL URLv4{NStr::fg_Format("wss://[IPv4:127.0.0.1]:{}/", _TestPort)};
-		NHTTP::CURL URLv6{NStr::fg_Format("wss://[IPv6:::1]:{}/", _TestPort)};
+		NWeb::NHTTP::CURL URLv4{NStr::fg_Format("wss://[IPv4:127.0.0.1]:{}/", _TestPort)};
+		NWeb::NHTTP::CURL URLv6{NStr::fg_Format("wss://[IPv6:::1]:{}/", _TestPort)};
 		mp_ListenSettings.m_ListenAddresses = {URLv4, URLv6};
 	}
 
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 		
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
-		mp_ListenSettings.m_ListenFlags = NNet::ENetFlag_None;
+		mp_ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
 		mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(60.0);
 	}
 

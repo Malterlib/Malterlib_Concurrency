@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 					)
 				;
 				
-				auto pActorData = NPtr::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
+				auto pActorData = NStorage::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 
 				TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
 
@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 						}
 						auto *pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
 						pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context)
-							> [Continuation, Context, Version](TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+							> [Continuation, Context, Version](TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 							{
 								if (!_Result)
 								{
@@ -162,9 +162,9 @@ namespace NMib::NConcurrency
 			else // When local
 			{
 				DispatchActor = _Actor;
-				ToDispatch = [_Actor, Params = NContainer::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
+				ToDispatch = [_Actor, Params = NStorage::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
-						return NContainer::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
+						return NStorage::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
 							(
 								[&](auto &&..._Params) mutable -> TCContinuation<CReturn>
 								{

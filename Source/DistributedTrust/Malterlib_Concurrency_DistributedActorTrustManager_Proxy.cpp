@@ -103,12 +103,12 @@ namespace NMib::NConcurrency
 			 	&CDistributedActorTrustManager::f_GenerateConnectionTicket
 			 	, _Command.m_Address
 			 	, _Command.m_fOnUseTicket
-			 	? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest)>
+			 	? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)>
 			 	{
 					g_ActorFunctor(fg_Move(_Command.m_fOnUseTicket.f_GetSubscription()))
 					(fg_Move(_Command.m_fOnUseTicket.f_GetActor()))
 					> [fOnUseTicket = fg_Move(_Command.m_fOnUseTicket.f_GetFunctor())]
-					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::TCVector<uint8> const &_CertificateRequest) mutable -> TCContinuation<void>
+					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) mutable -> TCContinuation<void>
 					{
 						return fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
 					}

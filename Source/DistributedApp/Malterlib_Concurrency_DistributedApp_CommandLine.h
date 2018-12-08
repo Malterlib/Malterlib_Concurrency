@@ -155,7 +155,10 @@ namespace NMib::NConcurrency
 			CCommand f_RegisterCommand
 				(
 					NEncoding::CEJSON const &_CommandDescription
-					, NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> const &_fRunCommand
+					, NFunction::TCFunction
+				 	<
+				 		TCContinuation<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				 	> const &_fRunCommand
 					, ECommandFlag _Flags = ECommandFlag_None
 				)
 			;
@@ -198,8 +201,7 @@ namespace NMib::NConcurrency
 		CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params);
 
 	private:
-
-		NPtr::TCUniquePointer<CInternal> mp_pInternal;
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 }
 

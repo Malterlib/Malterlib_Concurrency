@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	inline_never static void fg_DestroyStreamedFunctionOnActor(TCActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	inline_never static void fg_DestroyStreamedFunctionOnActor(TCActor<CActor> const &_Actor, NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
 		g_Dispatch(_Actor) > [pFunction = fg_Move(o_pFunction)]
 			{
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	inline_never static void fg_DestroyStreamedFunctionWithoutActor(NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	inline_never static void fg_DestroyStreamedFunctionWithoutActor(NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
 #if defined DMibContractConfigure_CheckEnabled
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	static void fg_DestroyStreamedFunction(TCWeakActor<CActor> const &_Actor, NPtr::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
+	static void fg_DestroyStreamedFunction(TCWeakActor<CActor> const &_Actor, NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
 		auto Actor = _Actor.f_Lock();
 		if (Actor)
@@ -206,17 +206,17 @@ namespace NMib::NConcurrency
 		return fg_RegisterActorFunctorsForCall(_State, _Host, _Continuation);
 	}
 	
-	TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> CActorDistributionManager::f_CallRemote
+	TCContinuation<NContainer::CSecureByteVector> CActorDistributionManager::f_CallRemote
 		(
-			NPtr::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
-			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> &&_CallData 
+			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
+			, NContainer::CSecureByteVector &&_CallData 
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
 		auto &State = *_Context.m_pState; 
 		auto &DistributedData = *_pDistributedActorData.f_Get();
 
-		TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Continuation;
+		TCContinuation<NContainer::CSecureByteVector> Continuation;
 
 		if (DistributedData.m_bWasDestroyed)
 		{
@@ -232,7 +232,7 @@ namespace NMib::NConcurrency
 			return Continuation;
 		}
 
-		auto pHost = reinterpret_cast<NPtr::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
+		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
 
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
 		{
@@ -278,7 +278,7 @@ namespace NMib::NConcurrency
 		
 		mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 		
-		NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> Data;
+		NContainer::CSecureByteVector Data;
 		Data.f_SetLen(nBytes);
 		_Stream.f_ConsumeBytes(Data.f_GetArray(), nBytes);
 		fp_RegisterImplicitSubscriptions(Host, *pCall->m_pState, &RemoteCallResult.m_SubscriptionData);
@@ -299,7 +299,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
 		(
-			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
+			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
 			, NException::CExceptionBase const &_Exception
 			, NPrivate::CDistributedActorStreamContext const &_Context
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
 		(
-			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
+			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
 			, CAsyncResult const &_Exception
 			, NPrivate::CDistributedActorStreamContext const &_Context
@@ -321,9 +321,9 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCall
 		(
-			NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost
+			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
-			, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> const &_Data
+			, NContainer::CSecureByteVector const &_Data
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
@@ -343,7 +343,7 @@ namespace NMib::NConcurrency
 			fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
 		}
 		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
 		DMibFastCheck(ProtocolVersion != 0);
 		DMibBinaryStreamVersion(Stream, ProtocolVersion);
@@ -396,7 +396,7 @@ namespace NMib::NConcurrency
 		ContextState.m_DistributionManager = fg_ThisActor(m_pThis);
 		ContextState.m_LastExecutionID = Host.m_LastExecutionID;
 		
-		NFunction::TCFunctionMovable<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> (CDistributedActorReadStream &_Stream)> fCall;
+		NFunction::TCFunctionMovable<NConcurrency::TCContinuation<NContainer::CSecureByteVector> (CDistributedActorReadStream &_Stream)> fCall;
 		
 		TCActor<> Actor;
 		if (FunctionHash == 0)
@@ -519,7 +519,7 @@ namespace NMib::NConcurrency
 				;
 		}
 		
-		NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure> ParamData;
+		NContainer::CSecureByteVector ParamData;
 		{
 			mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 			ParamData.f_SetLen(nBytes);
@@ -528,7 +528,7 @@ namespace NMib::NConcurrency
 
 		Actor
 			(
-				&CActor::f_DispatchWithReturn<NConcurrency::TCContinuation<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>>>
+				&CActor::f_DispatchWithReturn<NConcurrency::TCContinuation<NContainer::CSecureByteVector>>
 				, 
 				[
 					Actor
@@ -569,7 +569,7 @@ namespace NMib::NConcurrency
 				, Context
 				, LastExecutionID = Host.m_LastExecutionID
 			]
-			(TCAsyncResult<NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> &&_Result) mutable
+			(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 			{
 				if (LastExecutionID != pHost->m_LastExecutionID)
 					return;
@@ -656,7 +656,7 @@ namespace NMib::NConcurrency
 	
 	void CActorDistributionManager::fp_RegisterRemoteSubscription
 		(
-			NPtr::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &_pContextState
+			NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &_pContextState
 			, NStr::CStr const &_SubscriptionID 
 			, uint32 _SubscriptionSequenceID
 		)
@@ -682,7 +682,7 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CActorDistributionManager::fp_DestroyRemoteSubscription
 		(
-			NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 			, NStr::CStr const &_SubscriptionID
 			, NStr::CStr const &_LastExecutionID
 		)
@@ -716,7 +716,7 @@ namespace NMib::NConcurrency
 		
 		auto &Internal = *mp_pInternal;
 		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::TCVector<uint8, NMem::CAllocator_HeapSecure>> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 		Stream << Result;
 		Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
 

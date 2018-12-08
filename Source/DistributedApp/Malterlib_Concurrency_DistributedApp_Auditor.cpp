@@ -12,9 +12,9 @@ namespace NMib::NConcurrency
 	using namespace NFile;
 	using namespace NStr;
 	using namespace NContainer;
-	using namespace NPtr;
-	using namespace NNet;
-	using namespace NDataProcessing;
+	using namespace NStorage;
+	using namespace NNetwork;
+	using namespace NCryptography;
 
 	CDistributedAppAuditorWithError::CDistributedAppAuditorWithError
 		(

@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		{
 			t_CMemberPointer m_pMemberPointer;
 
-			NContainer::TCTuple<tp_CTupleParams...> m_Params;
+			NStorage::TCTuple<tp_CTupleParams...> m_Params;
 
 			template <typename... tfp_CParams>
 			TCActorCallWithParams(t_CMemberPointer _pMemberPointer, tfp_CParams &&...p_Params)
@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CActor>
 			typename NTraits::TCMemberFunctionPointerTraits<t_CMemberPointer>::CReturn operator() (tf_CActor &_Actor)
 			{
-				return (_Actor.*m_pMemberPointer)(fg_Promote<tp_COriginalParams>(NContainer::fg_Get<tp_Indices>(m_Params))...);
+				return (_Actor.*m_pMemberPointer)(fg_Promote<tp_COriginalParams>(fg_Get<tp_Indices>(m_Params))...);
 			}
 		private:
 			TCActorCallWithParams(TCActorCallWithParams const&);
@@ -106,24 +106,24 @@ namespace NMib::NConcurrency
 		};
 
 		template <typename tf_CToBind, typename... tfp_CParams, mint... tfp_Indicies, typename tf_CRawParams>
-		auto fg_BindTupleHelper(tf_CToBind &&_ToBind, NContainer::TCTuple<tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...>, tf_CRawParams)
+		auto fg_BindTupleHelper(tf_CToBind &&_ToBind, NStorage::TCTuple<tfp_CParams...> const &_Params, NMeta::TCIndices<tfp_Indicies...>, tf_CRawParams)
 		{
 			return TCActorCallWithParams
 				<
 					typename NTraits::TCRemoveReference<tf_CToBind>::CType
-					, decltype(NContainer::fg_Tuple(fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...))
+					, decltype(NStorage::fg_Tuple(fg_Forward<tfp_CParams>(fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...))
 					, NMeta::TCIndices<tfp_Indicies...>
 					, tf_CRawParams
 				>
 				(
 					fg_Forward<tf_CToBind>(_ToBind)
-					, fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...
+					, fg_Forward<tfp_CParams>(fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params)))...
 				)
 			;
 		}
 		
 		template <typename tf_CTypeList, typename tf_CToBind, typename... tfp_CParams>
-		auto fg_BindHelper(tf_CToBind &&_ToBind, NContainer::TCTuple<tfp_CParams...> const &_Params)
+		auto fg_BindHelper(tf_CToBind &&_ToBind, NStorage::TCTuple<tfp_CParams...> const &_Params)
 		{
 			return fg_BindTupleHelper
 				(
@@ -141,13 +141,13 @@ namespace NMib::NConcurrency
 			return TCActorCallWithParams
 				<
 					typename NTraits::TCRemoveReference<tf_CToBind>::CType
-					, decltype(NContainer::fg_Tuple(fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params.m_Params)))...))
+					, decltype(NStorage::fg_Tuple(fg_Forward<tfp_CParams>(fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params.m_Params)))...))
 					, NMeta::TCIndices<tfp_Indicies...>
 					, NMeta::TCTypeList<tfp_CParams...>
 				>
 				(
 					fg_Forward<tf_CToBind>(_ToBind)
-					, fg_Forward<tfp_CParams>(NContainer::fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params.m_Params)))...
+					, fg_Forward<tfp_CParams>(fg_Get<tfp_Indicies>(fg_RemoveQualifiers(_Params.m_Params)))...
 				)
 			;
 		}
@@ -165,7 +165,7 @@ namespace NMib::NConcurrency
 		}
 		
 		template <typename... tfp_CParams>
-		auto fg_ToTupleByValue(NContainer::TCTuple<tfp_CParams...> &&_Params)
+		auto fg_ToTupleByValue(NStorage::TCTuple<tfp_CParams...> &&_Params)
 		{
 			return fg_Move(_Params);
 		}
@@ -173,9 +173,9 @@ namespace NMib::NConcurrency
 		template <typename... tfp_CParams, mint... tfp_Indicies>
 		auto fg_ToTupleByValueHelper(TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
-			return NContainer::fg_Tuple
+			return NStorage::fg_Tuple
 				(
-					NContainer::fg_Get<tfp_Indicies>(fg_Move(_Params.m_Params))...
+					fg_Get<tfp_Indicies>(fg_Move(_Params.m_Params))...
 				)
 			;
 		}
@@ -268,7 +268,7 @@ namespace NMib::NConcurrency
 									m_Result.f_SetException(p_Results);
 							}
 							else
-								NContainer::fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
+								fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
 							return false;
 						}
 						()...
@@ -299,9 +299,9 @@ namespace NMib::NConcurrency
 	template <typename... tp_CCalls>
 	struct TCActorCallPack
 	{
-		NContainer::TCTuple<tp_CCalls...> m_Calls;
+		NStorage::TCTuple<tp_CCalls...> m_Calls;
 		
-		TCActorCallPack(NContainer::TCTuple<tp_CCalls...> &&_Tuple)
+		TCActorCallPack(NStorage::TCTuple<tp_CCalls...> &&_Tuple)
 			: m_Calls(fg_Move(_Tuple))
 		{
 		}
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 		TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>> 
 		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
 		{
-			return NContainer::fg_TupleConcatenate(fg_Move(m_Calls), NContainer::fg_Tuple(fg_Move(_OtherCall)));
+			return NStorage::fg_TupleConcatenate(fg_Move(m_Calls), NStorage::fg_Tuple(fg_Move(_OtherCall)));
 		}
 
 		template <typename tf_CType>
@@ -336,10 +336,10 @@ namespace NMib::NConcurrency
 		}
 		
 	private:
-		NContainer::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout)
+		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout)
 		{
-			using CReturnType = NContainer::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
-			NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
+			using CReturnType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
+			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 			*this > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{
 					pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(p_Results)>::CType(), fg_Forward<decltype(p_Results)>(p_Results)...);
@@ -576,7 +576,7 @@ namespace NMib::NConcurrency
 			-> TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>> 
 		{
 			return TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>>
-				(NContainer::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
+				(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
 			;
 		}
 
@@ -678,7 +678,7 @@ namespace NMib::NConcurrency
 
 		auto f_CallSync(fp64 _Timeout)
 		{
-			NPtr::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
+			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 			*this > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
 					pResult->m_Result = fg_Move(_Result);
@@ -719,13 +719,13 @@ namespace NMib::NConcurrency
 				, typename... tp_CResultTypes
 				, mint... tp_ResultIndices
 			>
-		struct TCCallMutipleActorStorage<t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NPtr::TCSharedPointerIntrusiveBase<>
+		struct TCCallMutipleActorStorage<t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NStorage::TCSharedPointerIntrusiveBase<>
 		{
 			enum
 			{
 				mc_nResults = sizeof...(tp_CResultTypes)
 			};
-			NContainer::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
+			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
 			t_CActor m_Actor;
 			t_CHandler m_Handler;
@@ -745,7 +745,7 @@ namespace NMib::NConcurrency
 			void f_ReportResult()
 			{
 				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value);
-				NPtr::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
+				NStorage::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 				m_Actor.f_GetActor()->f_QueueProcess
 					(
 						[pThis, Handler = fg_Move(m_Handler)]() mutable
@@ -755,7 +755,7 @@ namespace NMib::NConcurrency
 							CCurrentActorScope CurrentActor(&Internal);
 							Handler
 								(
-									fg_Move(NContainer::fg_Get<tp_ResultIndices>(This.m_Results))...
+									fg_Move(fg_Get<tp_ResultIndices>(This.m_Results))...
 								)
 							;
 						}
@@ -775,13 +775,14 @@ namespace NMib::NConcurrency
 				, typename... tp_CResultTypes
 				, mint... tp_ResultIndices
 			>
-		struct TCCallMutipleActorStorage<t_CHandler, TCActor<NPrivate::CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NPtr::TCSharedPointerIntrusiveBase<>
+		struct TCCallMutipleActorStorage<t_CHandler, TCActor<NPrivate::CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
+			: public NStorage::TCSharedPointerIntrusiveBase<>
 		{
 			enum
 			{
 				mc_nResults = sizeof...(tp_CResultTypes)
 			};
-			NContainer::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
+			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
 			TCActor<NPrivate::CDirectResultActor> m_Actor;
 			t_CHandler m_Handler;
@@ -805,7 +806,7 @@ namespace NMib::NConcurrency
 				auto Handler = fg_Move(m_Handler);
 				Handler
 					(
-						fg_Move(NContainer::fg_Get<tp_ResultIndices>(This.m_Results))...
+						fg_Move(fg_Get<tp_ResultIndices>(This.m_Results))...
 					)
 				;
 			}
@@ -860,24 +861,24 @@ namespace NMib::NConcurrency
 #ifdef DMibContractConfigure_CheckEnabled
 		auto Cleanup = g_OnScopeExit > [&]
 			{
-				fg_Swallow([this]{NContainer::fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
+				fg_Swallow([this]{fg_Get<tfp_Indices>(m_Calls).mp_Actor.f_Clear(); return 0;}()...);
 			}
 		;
 #endif
 
-		NPtr::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
+		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 		
 		auto &Actor = NPrivate::fg_DirectResultActor();
 		TCInitializerList<bool> Dummy =
 			{
 				NPrivate::fg_CallActorInternal
 				(
-					NContainer::fg_Get<tfp_Indices>(m_Calls)
+					fg_Get<tfp_Indices>(m_Calls)
 					, fg_TempCopy(Actor)
 					, [pStorage](TCAsyncResult<typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType> &&_Result)
 					{
 						auto &Internal = *pStorage;
-						NContainer::fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
+						fg_Get<tfp_Indices>(Internal.m_Results) = fg_Move(_Result);
 						Internal.f_Finished();
 					}
 				)...
@@ -962,7 +963,7 @@ namespace NMib::NConcurrency
 #	else
 			mint nFramesToRemove = 0; // We don't know what inlining will do
 #	endif
-			NMem::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
+			NMemory::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
 			Callstack.m_CallstackLen -= nFramesToRemove;
 			
 			if (m_Result.m_Callstacks.f_GetLen() > 16)

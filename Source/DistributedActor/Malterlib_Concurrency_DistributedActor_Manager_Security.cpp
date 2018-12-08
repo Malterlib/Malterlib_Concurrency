@@ -6,97 +6,94 @@
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
-namespace NMib
+namespace NMib::NConcurrency
 {
-	namespace NConcurrency
+	void CActorDistributionManager::f_SetSecurity(CDistributedActorSecurity const &_Security)
 	{
-		void CActorDistributionManager::f_SetSecurity(CDistributedActorSecurity const &_Security)
+		auto &Internal = *mp_pInternal;
+
+		for (auto const &Namespace : _Security.m_AllowedIncomingConnectionNamespaces)
 		{
-			auto &Internal = *mp_pInternal;
-			
-			for (auto const &Namespace : _Security.m_AllowedIncomingConnectionNamespaces)
-			{
-				Internal.m_AllowedIncomingConnectionNamespaces[Namespace];
-				Internal.m_AllowedBothNamespaces[Namespace];
-			}
-			for (auto const &Namespace : _Security.m_AllowedOutgoingConnectionNamespaces)
-			{
-				Internal.m_AllowedOutgoingConnectionNamespaces[Namespace];
-				Internal.m_AllowedBothNamespaces[Namespace];
-			}
+			Internal.m_AllowedIncomingConnectionNamespaces[Namespace];
+			Internal.m_AllowedBothNamespaces[Namespace];
 		}
-		
-		NContainer::TCSet<NStr::CStr> const &CActorDistributionManagerInternal::fp_GetAllowedNamespacesForHost(NPtr::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll)
+		for (auto const &Namespace : _Security.m_AllowedOutgoingConnectionNamespaces)
 		{
-			if (_pHost->m_bIncoming && _pHost->m_bOutgoing)
-			{
-				if (m_AllowedOutgoingConnectionNamespaces.f_IsEmpty())
-					o_bAllowAll = true;
-				return m_AllowedBothNamespaces;
-			}
-			else if (_pHost->m_bIncoming)
-				return m_AllowedIncomingConnectionNamespaces;
-			else if (_pHost->m_bOutgoing)
-			{
-				if (m_AllowedOutgoingConnectionNamespaces.f_IsEmpty())
-					o_bAllowAll = true;
-				return m_AllowedOutgoingConnectionNamespaces;
-			}
-			
-			DMibNeverGetHere;
+			Internal.m_AllowedOutgoingConnectionNamespaces[Namespace];
+			Internal.m_AllowedBothNamespaces[Namespace];
+		}
+	}
+
+	NContainer::TCSet<NStr::CStr> const &CActorDistributionManagerInternal::fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll)
+	{
+		if (_pHost->m_bIncoming && _pHost->m_bOutgoing)
+		{
+			if (m_AllowedOutgoingConnectionNamespaces.f_IsEmpty())
+				o_bAllowAll = true;
+			return m_AllowedBothNamespaces;
+		}
+		else if (_pHost->m_bIncoming)
+			return m_AllowedIncomingConnectionNamespaces;
+		else if (_pHost->m_bOutgoing)
+		{
+			if (m_AllowedOutgoingConnectionNamespaces.f_IsEmpty())
+				o_bAllowAll = true;
 			return m_AllowedOutgoingConnectionNamespaces;
-		}		
-
-		void CActorDistributionManager::f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler)
-		{
-			auto &Internal = *mp_pInternal;
-			Internal.m_AccessHandler = _AccessHandler;		
-		}
-		
-		void CActorDistributionManager::f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames)
-		{
-			auto &Internal = *mp_pInternal;
-			Internal.m_TranslateHostnames = _TranslateHostnames;		
 		}
 
-		TCContinuation<void> CActorDistributionManager::f_SetAuthenticationHandler
-			(
-				NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
-			 	, NStr::CStr const &_LastExecutionID
-				, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
-				, NStr::CStr const &_UserID
-				, NStr::CStr const &_UserName
-			)
-		{
-			auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-			if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
-				return fg_Explicit();
+		DMibNeverGetHere;
+		return m_AllowedOutgoingConnectionNamespaces;
+	}
 
-			Host.m_AuthenticationHandler = _AuthenticationHandler;
-			Host.m_ClaimedUserID = _UserID;
-			Host.m_ClaimedUserName = _UserName;
+	void CActorDistributionManager::f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler)
+	{
+		auto &Internal = *mp_pInternal;
+		Internal.m_AccessHandler = _AccessHandler;
+	}
 
+	void CActorDistributionManager::f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames)
+	{
+		auto &Internal = *mp_pInternal;
+		Internal.m_TranslateHostnames = _TranslateHostnames;
+	}
+
+	TCContinuation<void> CActorDistributionManager::f_SetAuthenticationHandler
+		(
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			, NStr::CStr const &_LastExecutionID
+			, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+			, NStr::CStr const &_UserID
+			, NStr::CStr const &_UserName
+		)
+	{
+		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
 			return fg_Explicit();
-		}
 
-		TCContinuation<void> CActorDistributionManager::f_RemoveAuthenticationHandler
-			(
-				NPtr::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
-				, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
-			)
-		{
-			auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-			if (Host.m_bDeleted)
-				return fg_Explicit();
+		Host.m_AuthenticationHandler = _AuthenticationHandler;
+		Host.m_ClaimedUserID = _UserID;
+		Host.m_ClaimedUserName = _UserName;
 
-			if (Host.m_AuthenticationHandler == _AuthenticationHandler)
-			{
-				Host.m_AuthenticationHandler.f_Clear();
-				Host.m_ClaimedUserID.f_Clear();
-				Host.m_ClaimedUserName.f_Clear();
-			}
+		return fg_Explicit();
+	}
 
+	TCContinuation<void> CActorDistributionManager::f_RemoveAuthenticationHandler
+		(
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+		)
+	{
+		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
+		if (Host.m_bDeleted)
 			return fg_Explicit();
+
+		if (Host.m_AuthenticationHandler == _AuthenticationHandler)
+		{
+			Host.m_AuthenticationHandler.f_Clear();
+			Host.m_ClaimedUserID.f_Clear();
+			Host.m_ClaimedUserName.f_Clear();
 		}
+
+		return fg_Explicit();
 	}
 }

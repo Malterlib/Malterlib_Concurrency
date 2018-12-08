@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&) = default;
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &) = default;
 	
-	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NPtr::TCSharedPointer<CCanDestroyTracker> &&_pThis)
+	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NStorage::TCSharedPointer<CCanDestroyTracker> &&_pThis)
 		: m_pThis(fg_Move(_pThis))
 	{
 	}

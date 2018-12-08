@@ -17,14 +17,14 @@ namespace NMib::NConcurrency
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo
-					, NContainer::TCVector<uint8> const &_CertificateRequest
+					, NContainer::CByteVector const &_CertificateRequest
 				)
 			>
 		;
 		
 		CDistributedAppInProcessActor
 			(
-				NHTTP::CURL const &_Address
+				NWeb::NHTTP::CURL const &_Address
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
 				, NStr::CStr const &_Description
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
 				, NEncoding::CEJSON const &_Params
-				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;
 #endif
@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 		};
 		
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
-		NHTTP::CURL mp_Address;
+		NWeb::NHTTP::CURL mp_Address;
 		NStr::CStr mp_Description;
 		FOnUseTicket mp_fOnUseTicket;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;

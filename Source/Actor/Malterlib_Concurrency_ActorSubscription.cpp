@@ -57,13 +57,13 @@ namespace NMib::NConcurrency
 
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)
 	{
-		NPtr::TCUniquePointer<TCActorSubscriptionCleanupFunctor<void>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
+		NStorage::TCUniquePointer<TCActorSubscriptionCleanupFunctor<void>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
 		return fg_Move(pFunctorRef);
 	}
 
 	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCContinuation<void> ()> &&_fCleanup)
 	{
-		NPtr::TCUniquePointer<TCActorSubscriptionCleanupFunctor<TCContinuation<void>>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
+		NStorage::TCUniquePointer<TCActorSubscriptionCleanupFunctor<TCContinuation<void>>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
 		return fg_Move(pFunctorRef);
 	}
 }

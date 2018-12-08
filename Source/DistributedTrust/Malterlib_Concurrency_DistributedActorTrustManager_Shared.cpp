@@ -12,12 +12,12 @@ namespace NMib::NConcurrency
 	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address() = default;
 	CDistributedActorTrustManager_Address::~CDistributedActorTrustManager_Address() = default;
 	
-	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NHTTP::CURL const &_URL)
+	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL const &_URL)
 		: m_URL{_URL}
 	{
 	}
 	
-	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NHTTP::CURL &&_URL)
+	CDistributedActorTrustManager_Address::CDistributedActorTrustManager_Address(NWeb::NHTTP::CURL &&_URL)
 		: m_URL{fg_Move(_URL)}
 	{
 	}

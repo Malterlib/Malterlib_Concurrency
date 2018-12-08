@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 		
 		void fp_ProcessSequence();
 		
-		NPtr::TCSharedPointer<CState> mp_pState;
+		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 }
 

@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 	using namespace NFile;
-	using namespace NPtr;
+	using namespace NStorage;
 	using namespace NEncoding;
 	using namespace NContainer;
 
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 			COptionSet m_SectionOptionSet;
 			COptionSet m_GlobalOptionSet;
 
-			NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Parameters, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> m_fActorRunCommand;
+			NFunction::TCFunction<TCContinuation<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> m_fActorRunCommand;
 			NFunction::TCFunction<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> m_fDirectRunCommand;
 
 			ECommandFlag m_Flags = ECommandFlag_None;

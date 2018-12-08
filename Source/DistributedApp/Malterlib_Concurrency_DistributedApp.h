@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer;
 		TCActor<CActor> m_LogActor;
-		NHTTP::CURL m_LocalAddress;
+		NWeb::NHTTP::CURL m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_HostID;
 		NStr::CStr m_CommandLineHostID;
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
 				, NEncoding::CEJSON const &_Params
-				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;
 
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 
 		TCContinuation<uint32> f_CommandLine_AddConnection
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Ticket
 				, bool _bIncludeFriendlyHostName
 				, int32 _ConnectionConcurrency
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency
 		;
 		TCContinuation<uint32> f_CommandLine_GenerateTrustTicket
 			(
-			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, NStr::CStr const &_ForListen
 			 	, NContainer::TCSet<NStr::CStr> const &_Permissions
 				, NStr::CStr const &_UserID
@@ -109,38 +109,56 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<uint32> f_CommandLine_ListTrustedHosts(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
-		TCContinuation<uint32> f_CommandLine_RemoveTrustedHost(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID);
+		TCContinuation<uint32> f_CommandLine_ListTrustedHosts(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
+		TCContinuation<uint32> f_CommandLine_RemoveTrustedHost(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID);
 
-		TCContinuation<uint32> f_CommandLine_GetHostID(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_GetHostID(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
-		TCContinuation<uint32> f_CommandLine_GetConnetionStatus(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_GetConnetionStatus(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
-		TCContinuation<uint32> f_CommandLine_ListConnections(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
-		TCContinuation<uint32> f_CommandLine_RemoveConnection(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_ListConnections(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName);
+		TCContinuation<uint32> f_CommandLine_RemoveConnection(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
 		TCContinuation<uint32> f_CommandLine_AddAdditionalConnection
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_URL
 				, bool _bIncludeFriendlyHostName
 				, int32 _ConnectionConcurrency
 			)
 		;
-		TCContinuation<uint32> f_CommandLine_SetConnectionConcurrency(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL, int32 _ConnectionConcurrency);
+		TCContinuation<uint32> f_CommandLine_SetConnectionConcurrency
+			(
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_URL
+			 	, int32 _ConnectionConcurrency
+			)
+		;
 
-		TCContinuation<uint32> f_CommandLine_AddListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
-		TCContinuation<uint32> f_CommandLine_RemoveListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
-		TCContinuation<uint32> f_CommandLine_SetPrimaryListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
-		TCContinuation<uint32> f_CommandLine_ListListen(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_AddListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_RemoveListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_SetPrimaryListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);
+		TCContinuation<uint32> f_CommandLine_ListListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
-		TCContinuation<uint32> f_CommandLine_ListNamespaces(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts);
-		TCContinuation<uint32> f_CommandLine_TrustHostForNamespace(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_Namespace, NStr::CStr const &_Host);
-		TCContinuation<uint32> f_CommandLine_UntrustHostForNamespace(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_Namespace, NStr::CStr const &_Host);
+		TCContinuation<uint32> f_CommandLine_ListNamespaces(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts);
+		TCContinuation<uint32> f_CommandLine_TrustHostForNamespace
+			(
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_Namespace
+			 	, NStr::CStr const &_Host
+			)
+		;
+		TCContinuation<uint32> f_CommandLine_UntrustHostForNamespace
+			(
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, NStr::CStr const &_Namespace
+			 	, NStr::CStr const &_Host
+			)
+		;
 
-		TCContinuation<uint32> f_CommandLine_ListPermissions(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts);
+		TCContinuation<uint32> f_CommandLine_ListPermissions(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts);
 		TCContinuation<uint32> f_CommandLine_AddPermission
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_HostID
 				, NStr::CStr const &_UserID
 				, NStr::CStr const &_Permission
@@ -150,26 +168,26 @@ namespace NMib::NConcurrency
 		;
 		TCContinuation<uint32> f_CommandLine_RemovePermission
 			(
-				NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_HostID
 				, NStr::CStr const &_UserID
 				, NStr::CStr const &_Permission
 			)
 		;
 
-		TCContinuation<uint32> f_CommandLine_ListUsers(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
-		TCContinuation<uint32> f_CommandLine_AddUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
-		TCContinuation<uint32> f_CommandLine_RemoveUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
-		TCContinuation<uint32> f_CommandLine_SetUserInfo(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
-		TCContinuation<uint32> f_CommandLine_RemoveMetadata(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Key);
-		TCContinuation<uint32> f_CommandLine_ExportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, bool _bIncludePrivate);
-		TCContinuation<uint32> f_CommandLine_ImportUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserData);
-		TCContinuation<uint32> f_CommandLine_GetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
-		TCContinuation<uint32> f_CommandLine_SetDefaultUser(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
+		TCContinuation<uint32> f_CommandLine_ListUsers(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_AddUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCContinuation<uint32> f_CommandLine_RemoveUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
+		TCContinuation<uint32> f_CommandLine_SetUserInfo(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCContinuation<uint32> f_CommandLine_RemoveMetadata(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Key);
+		TCContinuation<uint32> f_CommandLine_ExportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, bool _bIncludePrivate);
+		TCContinuation<uint32> f_CommandLine_ImportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserData);
+		TCContinuation<uint32> f_CommandLine_GetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_SetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
 
 		TCContinuation<uint32> f_CommandLine_RegisterAuthenticationFactor
 			(
-			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, NStr::CStr const &_UserID
 			 	, NStr::CStr const &_Factor
 			 	, bool _bQuiet
@@ -177,14 +195,14 @@ namespace NMib::NConcurrency
 		;
 		TCContinuation<uint32> f_CommandLine_UnregisterAuthenticationFactor
 			(
-			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, NStr::CStr const &_UserID
 			 	, NStr::CStr const &_Factor
 			)
 		;
-		TCContinuation<uint32> f_CommandLine_EnumUserAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
-		TCContinuation<uint32> f_CommandLine_EnumAuthenticationFactors(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
-		TCContinuation<uint32> f_CommandLine_AuthenticatePermissionPattern(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCContinuation<uint32> f_CommandLine_EnumUserAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
+		TCContinuation<uint32> f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		TCContinuation<uint32> f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
 
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 
@@ -203,7 +221,7 @@ namespace NMib::NConcurrency
 		void fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities);
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
 
-		virtual TCContinuation<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		virtual TCContinuation<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
 
 		virtual TCContinuation<void> fp_PreUpdate();
@@ -219,12 +237,18 @@ namespace NMib::NConcurrency
 		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
         virtual TCContinuation<CActorSubscription> fp_SetupAuthentication
 			(
-			 	NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, int64 _AuthenticationLifetime
 			 	, NStr::CStr const &_UserID
 			)
 		;
-        TCContinuation<CActorSubscription> fp_EnableAuthentication(NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine, int64 _AuthenticationLifetime, NStr::CStr const &_UserID);
+        TCContinuation<CActorSubscription> fp_EnableAuthentication
+			(
+			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	, int64 _AuthenticationLifetime
+			 	, NStr::CStr const &_UserID
+			)
+		;
 
 #if DMibConfig_Tests_Enable
 		virtual TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
@@ -281,7 +305,7 @@ namespace NMib::NConcurrency
 
 		bool fp_HasCommandLineAccess(NStr::CStr const &_HostID);
 
-		NHTTP::CURL fp_GetLocalAddress() const;
+		NWeb::NHTTP::CURL fp_GetLocalAddress() const;
 		NStr::CStr fp_GetLocalHostname(bool _bEnclaveSpecific) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();
@@ -292,8 +316,8 @@ namespace NMib::NConcurrency
 		TCDistributedActor<CCommandLine> mp_CommandLine;
 		CDistributedActorPublication mp_CommandLinePublication;
 		CDistributedActorTrustManager_Address mp_PrimaryListen;
-		NPtr::TCSharedPointer<CDistributedAppCommandLineSpecification> mp_pCommandLineSpec;
-		NPtr::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce;
+		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> mp_pCommandLineSpec;
+		NStorage::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce;
 		COnScopeExitShared mp_pStdInCleanup;
 
 		TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;

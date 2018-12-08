@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		<
 			TCActor<CActor>
 			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
-			, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 		>
 	;
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 		<
 			TCWeakActor<CActor>
 			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
-			, NContainer::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
 		>
 	;
@@ -82,7 +82,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCContinuationReceiveAnyFunctor;
 
 	template <typename t_CReturnValue>
-	struct TCContinuationData : public NPtr::TCSharedPointerIntrusiveBase<>
+	struct TCContinuationData : public NStorage::TCSharedPointerIntrusiveBase<>
 	{
 		TCAsyncResult<t_CReturnValue> m_Result;
 		NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> m_OnResult;
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency::NPrivate
 }
 
 template <typename t_CReturnValue>
-struct NMib::NPtr::TCHasIntrusiveRefcount<NMib::NConcurrency::NPrivate::TCContinuationData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::NPrivate::TCContinuationData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 {
 };
 
@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
 		
 	public:
-		NPtr::TCSharedPointer<NPrivate::TCContinuationData<t_CReturnValue>> m_pData;
+		NStorage::TCSharedPointer<NPrivate::TCContinuationData<t_CReturnValue>> m_pData;
 	};
 	
 	template <typename t_CReturnValue>

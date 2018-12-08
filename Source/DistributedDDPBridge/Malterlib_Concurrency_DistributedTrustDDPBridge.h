@@ -33,6 +33,6 @@ namespace NMib::NConcurrency
 	private:
 		struct CInternal;
 		
-		NPtr::TCUniquePointer<CInternal> mp_pInternal;
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 }

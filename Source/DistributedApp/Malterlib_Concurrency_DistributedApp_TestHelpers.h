@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	{
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
-		NHTTP::CURL m_Address;
+		NWeb::NHTTP::CURL m_Address;
 	};
 
 	struct CDistributedApp_LaunchInfoData
@@ -36,20 +36,20 @@ namespace NMib::NConcurrency
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
 				, NEncoding::CEJSON const &_Params
-				, NPtr::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;
 #endif
 		
 		TCActor<CDistributedAppInterfaceLaunchActor> m_Launch;
-		NPtr::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;
+		NStorage::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;
 
 		TCActor<CDistributedAppInProcessActor> m_InProcess;
 
 		NStr::CStr m_HostID;
 		NStr::CStr m_LaunchID;
-		NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
-		NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
+		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
+		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 	};
 	
 	struct CDistributedApp_LaunchInfo : public CDistributedApp_LaunchInfoData
@@ -88,8 +88,8 @@ namespace NMib::NConcurrency
 		
 		struct CPendingLaunch
 		{
-			NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
-			NPtr::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
+			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
+			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 		};
 	
 		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr);

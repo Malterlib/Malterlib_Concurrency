@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 				[_TimeoutMessage, _Timeout, _bFireAtExit, This = f_ByValue()]() mutable -> TCContinuation<CReturnType>
 				{
 					TCContinuation<CReturnType> Continuation;
-					NPtr::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
+					NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
 					This > [pReplied, Continuation](TCAsyncResult<CReturnType> &&_Result)
 						{
 							if (!pReplied->f_TestAndSet())

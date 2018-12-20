@@ -31,12 +31,12 @@ namespace NMib::NConcurrency
 	private:
 		struct align_cacheline CQueueEntry
 		{
-			DMibListLinkD_Trans(CQueueEntry, m_Link);
 			union
 			{
 				NAtomic::TCAtomic<CQueueEntry *> m_pNextQueued;
 				DMibListLinkDSA_LinkType m_Link;
 			};
+			DMibListLinkD_Trans(CQueueEntry, m_Link);
 			FActorQueueDispatch m_fToCall;
 			CQueueEntry(FActorQueueDispatch &&_fToCall);
 			~CQueueEntry();

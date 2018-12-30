@@ -1525,6 +1525,20 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities)
 	{
+		o_CommandLine.f_RegisterGlobalOptions
+			(
+				{
+					"MalterlibCommand?"_=
+					{
+						"Names"_= {"--malterlib-command-BA49ADC8-6CAA-4E8C-BA13-3A9273859D89"}
+						, "Type"_= ""
+						, "Description"_= "Override the command to run anywhere on the command line."
+						, "Hidden"_= true
+					}
+				}
+			)
+		;
+
 		if (_Functionalities & EDefaultCommandLineFunctionality_Color)
 		{
 

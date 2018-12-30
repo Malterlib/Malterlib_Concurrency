@@ -88,6 +88,26 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		NContainer::TCVector<NStr::CStr> Params;
+
+		for (auto iParameter = _Params.f_GetIterator(); iParameter; ++iParameter)
+		{
+			if (*iParameter == "--malterlib-command-BA49ADC8-6CAA-4E8C-BA13-3A9273859D89")
+			{
+				++iParameter;
+				if (!iParameter)
+					DMibError("--malterlib-command-BA49ADC8-6CAA-4E8C-BA13-3A9273859D89 specified without specifying command");
+
+				auto *pCommand = CommandLineSpec.m_CommandByName.f_FindEqual(*iParameter);
+				if (!pCommand)
+					DMibError("Command '{}' specified for --malterlib-command-BA49ADC8-6CAA-4E8C-BA13-3A9273859D89 could not be found"_f << *iParameter);
+
+				fFoundCommand(*pCommand, *iParameter);
+			}
+			else
+				Params.f_Insert(*iParameter);
+		}
+
 		if (pCurrentCommand && pCurrentCommand->m_bGreedyDefaultCommand)
 			fFoundCommand(pCurrentCommand, pCurrentCommand->m_Names.f_GetFirst());
 		else if (pCurrentCommand)
@@ -111,7 +131,7 @@ namespace NMib::NConcurrency
 
 		NContainer::TCVector<NException::CException> Exceptions;
 
-		for (auto &Parameter : _Params)
+		for (auto &Parameter : Params)
 		{
 			if (ProgramName.f_IsEmpty())
 			{

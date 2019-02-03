@@ -108,45 +108,45 @@ namespace NMib::NConcurrency
 	{
 		if (!_Result)
 		{
-			f_StdErr(fg_Format<CStrSecure>("{}\n", _Result.f_GetExceptionStr()));
+			(void)f_StdErr(fg_Format<CStrSecure>("{}\n", _Result.f_GetExceptionStr()));
 			return 1;
 		}
 		return 0;
 	}
 
-	TCContinuation<void> CCommandLineControl::operator +=(NStr::CStrSecure const &_StdOut) const
+	void CCommandLineControl::operator +=(NStr::CStrSecure const &_StdOut) const
 	{
-		return f_StdOut(_StdOut);
+		(void)f_StdOut(_StdOut);
 	}
 
-	TCContinuation<void> CCommandLineControl::operator %=(NStr::CStrSecure const &_StdErr) const
+	void CCommandLineControl::operator %=(NStr::CStrSecure const &_StdErr) const
 	{
-		return f_StdErr(_StdErr);
+		(void)f_StdErr(_StdErr);
 	}
 
-	TCContinuation<void> CCommandLineControl::operator +=(NStr::CStr::CFormat const &_StdOut) const
+	void CCommandLineControl::operator +=(NStr::CStr::CFormat const &_StdOut) const
 	{
-		return f_StdOut(CStr{_StdOut});
+		(void)f_StdOut(CStr{_StdOut});
 	}
 
-	TCContinuation<void> CCommandLineControl::operator %=(NStr::CStr::CFormat const &_StdErr) const
+	void CCommandLineControl::operator %=(NStr::CStr::CFormat const &_StdErr) const
 	{
-		return f_StdErr(CStr{_StdErr});
+		(void)f_StdErr(CStr{_StdErr});
 	}
 
-	TCContinuation<void> CCommandLineControl::operator +=(NStr::CStrSecure::CFormat const &_StdOut) const
+	void CCommandLineControl::operator +=(NStr::CStrSecure::CFormat const &_StdOut) const
 	{
-		return f_StdOut(_StdOut);
+		(void)f_StdOut(_StdOut);
 	}
 
-	TCContinuation<void> CCommandLineControl::operator %=(NStr::CStrSecure::CFormat const &_StdErr) const
+	void CCommandLineControl::operator %=(NStr::CStrSecure::CFormat const &_StdErr) const
 	{
-		return f_StdErr(_StdErr);
+		(void)f_StdErr(_StdErr);
 	}
 
-	TCContinuation<void> CCommandLineControl::operator +=(NContainer::CSecureByteVector const &_StdOut) const
+	void CCommandLineControl::operator +=(NContainer::CSecureByteVector const &_StdOut) const
 	{
-		return f_StdOutBinary(_StdOut);
+		(void)f_StdOutBinary(_StdOut);
 	}
 
 	TCContinuation<void> CDistributedAppActor::fp_PreRunCommandLine
@@ -451,7 +451,7 @@ namespace NMib::NConcurrency
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				, ForListen
 				, nullptr
-				, bHasPermissions ? g_ActorFunctor > [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements]
+				, bHasPermissions ? g_ActorFunctor / [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements]
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo

@@ -208,8 +208,7 @@ namespace NMib::NConcurrency
 					> Continuation / [Continuation, _UserID, UserInfo = *_UserInfo, _bIncludePrivate]
 					(NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> _Factors) mutable
 					{
-						TCContinuation<NStr::CStr>::fs_RunProtected<NException::CException>() >
-							[&]() -> NStr::CStr
+						TCContinuation<NStr::CStr>::fs_RunProtected<NException::CException>() / [&]() -> NStr::CStr
 							{
 								NStream::CBinaryStreamMemory<> Stream;
 								uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion;
@@ -250,8 +249,7 @@ namespace NMib::NConcurrency
 
 		TCContinuation<NStr::CStr> Continuation;
 
-		TCContinuation<CResult>::template fs_RunProtected<NException::CException>() >
-			[&]() -> CResult
+		TCContinuation<CResult>::template fs_RunProtected<NException::CException>() / [&]() -> CResult
 			{
 				CResult Result;
 				NContainer::CByteVector Data;

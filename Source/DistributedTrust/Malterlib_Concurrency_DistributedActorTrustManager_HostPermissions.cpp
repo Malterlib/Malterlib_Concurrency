@@ -569,7 +569,7 @@ namespace NMib::NConcurrency
 			 	, NTime::CTime const &_CacheTime
 			)
 		{
-			return g_Dispatch(m_DispatchActor) >
+			return g_Dispatch(m_DispatchActor) /
 				[
 					this
 					, _Identity
@@ -596,7 +596,7 @@ namespace NMib::NConcurrency
 			 	, NTime::CTime const &_CacheTime
 			)
 		{
-			return g_Dispatch(m_DispatchActor) >
+			return g_Dispatch(m_DispatchActor) /
 				[
 					this
 					, _Identity

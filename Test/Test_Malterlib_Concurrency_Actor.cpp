@@ -143,6 +143,10 @@ namespace
 		{
 			return fg_Explicit();
 		}
+		virtual TCContinuation<void> f_GetResultWasNotSet()
+		{
+			return {};
+		}
 	};
 	
 	class CBaseActor : public CActor
@@ -172,7 +176,7 @@ namespace
 		
 		virtual TCContinuation<void> fp_Destroy() override
 		{
-			return TCContinuation<void>::fs_Finished(); 
+			return fg_Explicit();
 		}
 	};
 	
@@ -193,7 +197,7 @@ namespace
 		
 		void f_CallCallback(int32 _Value)
 		{
-			m_CallbackManager(_Value);
+			m_CallbackManager(_Value) > NConcurrency::fg_DiscardResult();
 		}
 	};
 	
@@ -851,7 +855,13 @@ namespace
 						}
 					;
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-				}				
+				}
+				{
+					DMibTestPath("Result was not set");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					DMibExpectException(TestActor(&CExceptionActor::f_GetResultWasNotSet).f_CallSync(), DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+				}
 			};
 			
 			DMibTestSuite("Inheritance")
@@ -867,12 +877,12 @@ namespace
 						FinishedEvent.f_Signal();
 					}
 				;
-				
+
 				FinishedEvent.f_Wait();
-				
+
 				DMibExpect(Value, ==, 2);
 			};
-			
+
 			DMibTestSuite("Callbacks")
 			{
 				TCActor<CCallbackActor> TestActor = fg_ConstructActor<CCallbackActor>();
@@ -1322,7 +1332,7 @@ namespace
 					Actor = [&Actor](uint32 _Start, uint32 _End) -> TCContinuation<uint32>
 						{
 							if ((_End - _Start) == 1)
-								return TCContinuation<uint32>::fs_Finished(1);
+								return fg_Explicit(1);
 							
 							TCContinuation<uint32> Continuation;
 							

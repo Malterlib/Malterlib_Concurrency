@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	struct CDistributedAppActor;
-	struct CDistributedAppAuditorWithError;
+	struct [[nodiscard]] CDistributedAppAuditorWithError;
 
 	struct CDistributedAppAuditor
 	{
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 		TCWeakActor<CDistributedAppActor> mp_AppActor;
 	};
 
-	struct CDistributedAppAuditorWithError
+	struct [[nodiscard]] CDistributedAppAuditorWithError
 	{
 		CDistributedAppAuditorWithError(CDistributedAppAuditor const &_Auditor, NStr::CStr const &_UserError, NStr::CStr const &_InternalError, NStr::CStr const &_Category);
 
@@ -54,8 +54,14 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct TCContinuationWithAppAuditor
+	struct [[nodiscard]] TCContinuationWithAppAuditor
 	{
+		struct CNoUnwrapAsyncResult
+		{
+			TCContinuationWithAppAuditor const *m_pWrapped;
+			auto operator co_await();
+		};
+
 		TCContinuationWithAppAuditor(TCContinuation<t_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor);
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
@@ -64,13 +70,22 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
+		auto operator co_await() const;
+		CNoUnwrapAsyncResult f_Wrap() const;
+
 		TCContinuation<t_CReturnValue> m_Continuation;
 		CDistributedAppAuditor m_Auditor;
 	};
 
 	template <typename t_CReturnValue>
-	struct TCContinuationWithErrorWithAppAuditor
+	struct [[nodiscard]] TCContinuationWithErrorWithAppAuditor
 	{
+		struct CNoUnwrapAsyncResult
+		{
+			TCContinuationWithErrorWithAppAuditor const *m_pWrapped;
+			auto operator co_await();
+		};
+
 		TCContinuationWithErrorWithAppAuditor(TCContinuationWithError<t_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor);
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
@@ -79,13 +94,22 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
+		auto operator co_await() const;
+		CNoUnwrapAsyncResult f_Wrap() const;
+
 		TCContinuationWithError<t_CReturnValue> m_Continuation;
 		CDistributedAppAuditor m_Auditor;
 	};
 
 	template <typename t_CReturnValue>
-	struct TCContinuationWithAppAuditorWithError
+	struct [[nodiscard]] TCContinuationWithAppAuditorWithError
 	{
+		struct CNoUnwrapAsyncResult
+		{
+			TCContinuationWithAppAuditorWithError const *m_pWrapped;
+			auto operator co_await();
+		};
+
 		TCContinuationWithAppAuditorWithError(TCContinuation<t_CReturnValue> const &_Continuation, CDistributedAppAuditorWithError const &_Auditor);
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
@@ -94,13 +118,22 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
+		auto operator co_await() const;
+		CNoUnwrapAsyncResult f_Wrap() const;
+
 		TCContinuation<t_CReturnValue> m_Continuation;
 		CDistributedAppAuditorWithError m_Auditor;
 	};
 
 	template <typename t_CReturnValue>
-	struct TCContinuationWithErrorWithAppAuditorWithError
+	struct [[nodiscard]] TCContinuationWithErrorWithAppAuditorWithError
 	{
+		struct CNoUnwrapAsyncResult
+		{
+			TCContinuationWithErrorWithAppAuditorWithError const *m_pWrapped;
+			auto operator co_await();
+		};
+
 		TCContinuationWithErrorWithAppAuditorWithError(TCContinuationWithError<t_CReturnValue> const &_Continuation, CDistributedAppAuditorWithError const &_Auditor);
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
@@ -108,6 +141,9 @@ namespace NMib::NConcurrency
 
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
+
+		auto operator co_await() const;
+		CNoUnwrapAsyncResult f_Wrap() const;
 
 		TCContinuationWithError<t_CReturnValue> m_Continuation;
 		CDistributedAppAuditorWithError m_Auditor;

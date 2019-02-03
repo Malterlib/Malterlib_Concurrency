@@ -164,6 +164,7 @@ namespace NMib::NConcurrency
 	}
 	
 	CCallingHostInfoScope::CCallingHostInfoScope(CCallingHostInfo &&_NewInfo)
+		: mp_NewInfo(_NewInfo)
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
@@ -174,6 +175,19 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
+	}
+
+	void CCallingHostInfoScope::f_Suspend()
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
+	}
+
+	void CCallingHostInfoScope::f_Resume()
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
+		ThreadLocal.m_CallingHostInfo = mp_NewInfo;
 	}
 	
 	CCallingHostInfo const &fg_GetCallingHostInfo()

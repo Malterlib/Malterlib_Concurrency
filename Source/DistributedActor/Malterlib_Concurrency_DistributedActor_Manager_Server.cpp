@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 
 		return fg_Explicit
 			(
-				g_ActorSubscription > [this, _Path]
+				g_ActorSubscription / [this, _Path]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_WebsocketHandlers.f_Remove(_Path);

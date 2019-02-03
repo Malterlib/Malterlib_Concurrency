@@ -16,7 +16,7 @@ extern "C"
 
 namespace NMib::NConcurrency
 {
-	DMibImpErrorClass(CExceptionHidapiUSB, NException::CException);
+	DMibImpErrorClassDefine(CExceptionHidapiUSB, NException::CException);
 #	define DMibErrorHID(d_Description) DMibImpError(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
 #	define DMibErrorInstanceHID(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionHidapiUSB, d_Description)
 

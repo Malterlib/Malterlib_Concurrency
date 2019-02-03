@@ -601,7 +601,7 @@ namespace
 
 		static TCContinuation<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
-			return g_Dispatch(_pDevices->f_FileActor()) > [=]() -> CUsageResult
+			return g_Dispatch(_pDevices->f_FileActor()) / [=]() -> CUsageResult
 				{
 					CUsageResult Result;
 					int DescriptorSize;
@@ -956,8 +956,7 @@ namespace
 			 	, CStr const &_AppID
 			) const
 		{
-			return TCContinuation<CRegistrationResult>::fs_RunProtected<NException::CException>()
-				> [&]()
+			return TCContinuation<CRegistrationResult>::fs_RunProtected<NException::CException>() / [&]()
 				{
 					// Verify that the registration data is genuine
 
@@ -1383,7 +1382,7 @@ namespace NMib::NConcurrency
 		AuthenticationResponse.m_Signature = _Response.m_Signature;
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-		return g_ConcurrentDispatch > [=]
+		return g_ConcurrentDispatch / [=]
 			{
 				TCContinuation<CVerifyAuthenticationReturn> Continuation;
 				CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");

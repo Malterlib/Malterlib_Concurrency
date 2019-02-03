@@ -137,21 +137,26 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			return fg_Explicit(g_ActorSubscription > []{});
+			return fg_Explicit(g_ActorSubscription / []{});
 		}
 		auto &PendingLaunch = pThis->m_PendingLaunches[HostID];
 		PendingLaunch.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
 		if (_TrustInterface)
 			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 		
-		return fg_Explicit(g_ActorSubscription > []{});
+		return fg_Explicit(g_ActorSubscription / []{});
 	}
 
 	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
 		: m_Dependencies(_Dependencies)
 		, m_bLogToStderr(_bLogToStderr)
 	{
-		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this, CDistributedAppInterfaceServer::mc_pDefaultNamespace);
+		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this, CDistributedAppInterfaceServer::mc_pDefaultNamespace)
+			> [](TCAsyncResult<void> &&_Result)
+			{
+				DMibLog(Info, "Failed to publish app interface server: {}", _Result.f_GetExceptionStr());
+			}
+		;
 	}
 	
 	CDistributedApp_LaunchHelper::~CDistributedApp_LaunchHelper() = default;
@@ -179,7 +184,7 @@ namespace NMib::NConcurrency
 	
 	CActorSubscription CDistributedApp_LaunchHelper::fp_GetLaunchSubscription(NStr::CStr const &_LaunchID)
 	{
-		return g_ActorSubscription > [this, _LaunchID]() -> TCContinuation<void>
+		return g_ActorSubscription / [this, _LaunchID]() -> TCContinuation<void>
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(_LaunchID);
 				if (!pLaunch)
@@ -217,7 +222,7 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor
-				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
+				/ [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
@@ -277,14 +282,14 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor 
-				> [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
+				/ [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
 					pLaunch->m_HostID = _HostID;
 					return fg_Explicit();
 				}
-				, g_ActorFunctor > [](NStr::CStr const &_Error) -> TCContinuation<void>
+				, g_ActorFunctor / [](NStr::CStr const &_Error) -> TCContinuation<void>
 				{
 					return fg_Explicit();
 				}

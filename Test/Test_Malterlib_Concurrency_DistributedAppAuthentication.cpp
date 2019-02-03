@@ -137,7 +137,12 @@ namespace
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this, CServerInterface::mc_pDefaultNamespace);
+				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this, CServerInterface::mc_pDefaultNamespace) > [](TCAsyncResult<void> &&_Result)
+					{
+						if (!_Result)
+							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
+					}
+				;
 			}
 
 			struct CServerInterfaceImplementation : public CServerInterface
@@ -317,7 +322,12 @@ namespace
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this, CManyServerInterface::mc_pDefaultNamespace);
+				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this, CManyServerInterface::mc_pDefaultNamespace) > [](TCAsyncResult<void> &&_Result)
+					{
+						if (!_Result)
+							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
+					}
+				;
 			}
 
 			struct CServerInterfaceImplementation : public CManyServerInterface
@@ -546,7 +556,12 @@ namespace
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this, CSlowServerInterface::mc_pDefaultNamespace);
+				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this, CSlowServerInterface::mc_pDefaultNamespace) > [](TCAsyncResult<void> &&_Result)
+					{
+						if (!_Result)
+							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
+					}
+				;
 			}
 
 			struct CServerInterfaceImplementation : public CSlowServerInterface

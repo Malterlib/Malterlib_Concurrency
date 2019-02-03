@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 		~TCActorSequencer();
 		
 		template <typename tf_FToSequence>
-		TCContinuation<t_CReturnType> operator > (tf_FToSequence &&_fToSequence);
+		TCContinuation<t_CReturnType> operator / (tf_FToSequence &&_fToSequence);
 		
 		TCContinuation<void> f_Abort();
 		

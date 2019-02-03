@@ -93,6 +93,8 @@ namespace NMib::NConcurrency
 
 		void operator > (NFunction::TCFunctionMutable<void ()> &&_fOnTimeout) const;
 
+		TCContinuationAwaiter<void, true, void *> operator co_await();
+
 	private:
 		fp64 mp_Period;
 		TCActor<CActor> mp_DispatchActor;

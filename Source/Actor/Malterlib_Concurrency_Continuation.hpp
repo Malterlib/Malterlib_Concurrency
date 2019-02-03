@@ -86,28 +86,12 @@ namespace NMib::NConcurrency
 		_ActorCall > *this;
 	}
 	
-	template <typename t_CReturnValue>
-	template <typename tf_CResult>
-	TCContinuation<t_CReturnValue> TCContinuation<t_CReturnValue>::fs_Finished(tf_CResult &&_Result)
-	{
-		TCContinuation Ret;
-		Ret.f_SetResult(fg_Forward<tf_CResult>(_Result));
-		return Ret;
-	}
-	template <typename t_CReturnValue>
-	TCContinuation<t_CReturnValue> TCContinuation<t_CReturnValue>::fs_Finished()
-	{
-		TCContinuation Ret;
-		Ret.f_SetResult();
-		return Ret;
-	}
-	
 	enum EContinuationResultFlag
 	{
 		EContinuationResultFlag_DataSet = DMibBit(0)
 		, EContinuationResultFlag_ResultFunctorSet = DMibBit(1)
+		, EContinuationResultFlag_DiscardResult = DMibBit(2)
 	};
-
 
 	template <typename t_CReturnValue>
 	TCContinuation<t_CReturnValue>::operator bool () const
@@ -250,7 +234,7 @@ namespace NMib::NConcurrency
 	{
 		template <typename t_CReturnValue, typename t_CException>
 		template <typename tf_FToRun>
-		TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, t_CException>::operator > (tf_FToRun &&_ToRun) const
+		TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, t_CException>::operator / (tf_FToRun &&_ToRun) const
 		{
 			NException::CDisableExceptionTraceScope DisableTrace;
 			TCContinuation<t_CReturnValue> Continuation;
@@ -267,7 +251,7 @@ namespace NMib::NConcurrency
 
 		template <typename t_CReturnValue>
 		template <typename tf_FToRun>
-		TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, void>::operator > (tf_FToRun &&_ToRun) const
+		TCContinuation<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, void>::operator / (tf_FToRun &&_ToRun) const
 		{
 			NException::CDisableExceptionTraceScope DisableTrace;
 			TCContinuation<t_CReturnValue> Continuation;
@@ -284,7 +268,7 @@ namespace NMib::NConcurrency
 
 		template <typename t_CException>
 		template <typename tf_FToRun>
-		TCContinuation<void> TCRunProtectedHelper<void, t_CException>::operator > (tf_FToRun &&_ToRun) const
+		TCContinuation<void> TCRunProtectedHelper<void, t_CException>::operator / (tf_FToRun &&_ToRun) const
 		{
 			NException::CDisableExceptionTraceScope DisableTrace;
 			TCContinuation<void> Continuation;
@@ -301,7 +285,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_FToRun>
-		TCContinuation<void> TCRunProtectedHelper<void, void>::operator > (tf_FToRun &&_ToRun) const
+		TCContinuation<void> TCRunProtectedHelper<void, void>::operator / (tf_FToRun &&_ToRun) const
 		{
 			NException::CDisableExceptionTraceScope DisableTrace;
 			TCContinuation<void> Continuation;
@@ -443,11 +427,11 @@ namespace NMib::NConcurrency
 	{
 		return TCContinuationWithError<t_CReturnValue>(*this, _ErrorString);
 	}
-	
+
 	template <typename t_CReturnValue>
 	TCContinuationWithError<t_CReturnValue>::TCContinuationWithError(TCContinuation<t_CReturnValue> const &_Continuation, NStr::CStr const &_Error)
-		: m_Continuation(_Continuation)
-		, m_Error(_Error)
+		: CActorWithErrorBase{_Error}
+		, m_Continuation(_Continuation)
 	{
 	}
 
@@ -455,7 +439,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 	auto TCContinuationWithError<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
+		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = this->m_Error]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -485,7 +469,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 	auto TCContinuationWithError<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = m_Error]
+		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Error = this->m_Error]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -515,12 +499,44 @@ namespace NMib::NConcurrency
 	void TCContinuation<t_CReturnValue>::f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
 	{
 		auto pData = m_pData.f_Get();
-		pData->m_OnResult = fg_Move(_fOnResult);
-		if (pData->m_OnResultSet.f_FetchOr(EContinuationResultFlag_ResultFunctorSet) & EContinuationResultFlag_DataSet)
+		pData->m_fOnResult = fg_Move(_fOnResult);
+
+		EContinuationResultFlag PreviousFlags = (EContinuationResultFlag)pData->m_OnResultSet.f_FetchOr(EContinuationResultFlag_ResultFunctorSet);
+		DMibFastCheck(!(PreviousFlags & EContinuationResultFlag_ResultFunctorSet)); // You can only observe the result once
+
+		if (PreviousFlags & EContinuationResultFlag_DataSet)
 		{
-			pData->m_OnResult(fg_Move(pData->m_Result));
-			pData->m_OnResult.f_Clear();
+			pData->m_fOnResult(fg_Move(pData->m_Result));
+			pData->m_fOnResult.f_Clear();
 		}
+	}
+
+	template <typename t_CReturnValue>
+	bool TCContinuation<t_CReturnValue>::f_IsCoroutine() const
+	{
+		return !!m_pData->m_Coroutine;
+	}
+
+	template <typename t_CReturnValue>
+	EContinuationCoroutineContextFlag TCContinuation<t_CReturnValue>::f_CoroutineFlags() const
+	{
+		if (!m_pData->m_Coroutine)
+			return EContinuationCoroutineContextFlag_None;
+
+		return m_pData->m_Coroutine.promise().m_Flags;
+	}
+
+	template <typename t_CReturnValue>
+	void TCContinuation<t_CReturnValue>::f_DiscardResult()
+	{
+		auto pData = m_pData.f_Get();
+		pData->m_OnResultSet.f_FetchOr(EContinuationResultFlag_DiscardResult);
+	}
+
+	template <typename t_CReturnValue>
+	TCContinuation<t_CReturnValue> &&TCContinuation<t_CReturnValue>::f_Move()
+	{
+		return fg_Move(*this);
 	}
 }
 
@@ -529,17 +545,16 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::fp_ReportNothingSet()
 	{
-		if 
-			(
-				(
-					m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet) 
-					& (EContinuationResultFlag_DataSet | EContinuationResultFlag_ResultFunctorSet)
-				) 
-				== EContinuationResultFlag_ResultFunctorSet
-			)
+		EContinuationResultFlag PreviousFlags = (EContinuationResultFlag)m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet | EContinuationResultFlag_ResultFunctorSet);
+		if ((PreviousFlags & (EContinuationResultFlag_DataSet | EContinuationResultFlag_ResultFunctorSet)) == EContinuationResultFlag_ResultFunctorSet)
 		{
-			m_OnResult(fg_Move(m_Result)); // Report nothing set
-			m_OnResult.f_Clear();
+			m_fOnResult(fg_Move(m_Result)); // Report nothing set
+			m_fOnResult.f_Clear();
+		}
+		else if ((PreviousFlags & (EContinuationResultFlag_DataSet | EContinuationResultFlag_ResultFunctorSet | EContinuationResultFlag_DiscardResult)) == EContinuationResultFlag_DataSet)
+		{
+			if (!m_Result)
+				fg_ReportUnobservedException(m_Result.f_GetException());
 		}
 	}
 	
@@ -553,15 +568,21 @@ namespace NMib::NConcurrency::NPrivate
 		catch (...)
 		{
 		}
+		if (m_Coroutine)
+			m_Coroutine.destroy();
 	}
 
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::fp_OnResult()
 	{
-		if (m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet) & EContinuationResultFlag_ResultFunctorSet)
+		EContinuationResultFlag PreviousFlags = (EContinuationResultFlag)m_OnResultSet.f_FetchOr(EContinuationResultFlag_DataSet);
+		DMibFastCheck(!(PreviousFlags & EContinuationResultFlag_DataSet)); // You can only set result once
+		DMibFastCheck(m_Result.f_IsSet());
+
+		if (PreviousFlags & EContinuationResultFlag_ResultFunctorSet)
 		{
-			m_OnResult(fg_Move(m_Result));
-			m_OnResult.f_Clear();
+			m_fOnResult(fg_Move(m_Result));
+			m_fOnResult.f_Clear();
 		}
 	}
 	
@@ -610,21 +631,27 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> const &_Result)
 	{
+		DMibFastCheck(_Result.f_IsSet());
 		m_Result = _Result.m_pData->m_Result;
+		_Result.f_DiscardResult();
 		fp_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> &_Result)
 	{
+		DMibFastCheck(_Result.f_IsSet());
 		m_Result = _Result.m_pData->m_Result;
+		_Result.f_DiscardResult();
 		fp_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCContinuationData<t_CReturnValue>::f_SetResult(TCContinuation<t_CReturnValue> &&_Result)
 	{
+		DMibFastCheck(_Result.f_IsSet());
 		m_Result = fg_Move(_Result.m_pData->m_Result);
+		_Result.f_DiscardResult();
 		fp_OnResult();
 	}
 

@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 		
 		(TCDistributedActor<> &)_ActorInterface = f_ConsumeInterface
 			(
-				fg_GetTypeHash<tf_CActor>()
+				DMibConstantTypeHash(tf_CActor)
 				, fg_SubscribeVersions<tf_CActor>()
 				, _ActorInterface.f_GetHierarchy()
 				, _ActorInterface.f_GetProtocolVersions()

@@ -250,7 +250,7 @@ namespace NMib::NConcurrency
 		if (!mp_CleanupFilesActor)
 			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
 
-		g_Dispatch(mp_CleanupFilesActor) > [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+		g_Dispatch(mp_CleanupFilesActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
 			{
 				try
 				{
@@ -288,7 +288,7 @@ namespace NMib::NConcurrency
 		if (!mp_CleanupFilesActor)
 			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
 
-		g_Dispatch(mp_CleanupFilesActor) > []
+		g_Dispatch(mp_CleanupFilesActor) / []
 			{
 				try
 				{
@@ -532,7 +532,7 @@ namespace NMib::NConcurrency
 		}				
 			
 		TCContinuation<NStr::CStr> Continuation;
-		g_Dispatch > [this, _Params]()
+		g_Dispatch / [this, _Params]()
 			{
 				TCContinuation<void> Continuation;
 				(*mp_pInitOnce)() > Continuation % "Failed to initialize" / [this, Continuation, _Params]()
@@ -595,7 +595,7 @@ namespace NMib::NConcurrency
 
 		mp_State.m_bStoppingApp = true;
 		
-		g_Dispatch > [this]() -> TCContinuation<void>
+		g_Dispatch / [this]() -> TCContinuation<void>
 			{
 				if (mp_CommandLine)
 				{

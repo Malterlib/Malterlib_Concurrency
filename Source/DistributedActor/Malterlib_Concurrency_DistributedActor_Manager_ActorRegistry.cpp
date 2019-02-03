@@ -281,22 +281,22 @@ namespace NMib::NConcurrency
 		;
 		auto pAll = m_SubscribedActors.f_FindEqual("");
 		if (pAll)
-			pAll->m_fOnNewActor(fg_TempCopy(AbstractActor));
+			pAll->m_fOnNewActor(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
 
 		auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 		if (pSpecific)
-			pSpecific->m_fOnNewActor(fg_TempCopy(AbstractActor));
+			pSpecific->m_fOnNewActor(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
 	}
 
 	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
 	{
 		auto pAll = m_SubscribedActors.f_FindEqual("");
 		if (pAll)
-			pAll->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()});
+			pAll->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()}) > fg_DiscardResult();
 
 		auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 		if (pSpecific)
-			pSpecific->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()});
+			pSpecific->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()}) > fg_DiscardResult();
 	}
 
 	bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)

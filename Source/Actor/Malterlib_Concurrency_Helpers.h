@@ -9,29 +9,28 @@ namespace NMib::NConcurrency
 	|	Class:				A memory exception										|
 	\*_____________________________________________________________________________*/
 
-	DMibImpErrorClass(CExceptionActorDeleted, NMib::NException::CException);
+	DMibImpErrorClassDefine(CExceptionActorDeleted, NMib::NException::CException);
 #		define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NException::CExceptionActorDeleted, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorDeleted(_Description) DMibErrorActorDeleted(_Description)
 #		endif
 
-
-	DMibImpErrorClass(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
+	DMibImpErrorClassDefine(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
 #		define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorAlreadyDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorAlreadyDestroyed(_Description) DMibErrorActorAlreadyDestroyed(_Description)
 #		endif
 
-	DMibImpErrorClass(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
+	DMibImpErrorClassDefine(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
 #		define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorIsBeingDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorIsBeingDestroyed(_Description) DMibErrorActorIsBeingDestroyed(_Description)
 #		endif
 
-	DMibImpErrorClass(CExceptionActorResultWasNotSet, NMib::NException::CException);
+	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
 #		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description)
 
 #		ifndef DMibPNoShortCuts
@@ -94,18 +93,19 @@ namespace NMib::NConcurrency
 		
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks);
-		
+
 		struct CAsyncCallstacksScope
 		{
 			CAsyncCallstacks *m_pOld;
 			CAsyncCallstacksScope(CAsyncCallstacks &_New)
 				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New))
 			{
-				
+				DMibThreadLocalScopeEnter;
 			}
 			~CAsyncCallstacksScope()
 			{
 				NPrivate::fg_SetConcurrentCallstacks(m_pOld);
+				DMibThreadLocalScopeExit;
 			}
 		};
 #endif

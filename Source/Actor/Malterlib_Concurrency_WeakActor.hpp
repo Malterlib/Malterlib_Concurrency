@@ -317,7 +317,7 @@ namespace NMib::NConcurrency
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
 					{
-						return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
+						return TCContinuation<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
 					}
 				)
 			)

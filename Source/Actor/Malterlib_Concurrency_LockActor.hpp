@@ -107,6 +107,6 @@ namespace NMib::NConcurrency
 	TCContinuation<void> TCLockActor<t_CType, t_CLock>::fp_Destroy()
 	{
 		DMibCheck(!m_Locked.f_Load())("Someone still owns this lock");
-		return TCContinuation<void>::fs_Finished();
+		return fg_Explicit();
 	}
 }

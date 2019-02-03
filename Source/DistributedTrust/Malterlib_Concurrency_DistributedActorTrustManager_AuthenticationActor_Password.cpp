@@ -153,7 +153,7 @@ namespace NMib::NConcurrency
 				{
 					for (auto const &Factor : _Factors)
 					{
-						g_ConcurrentDispatch > [Factor, _Password, FactorID = _Factors.fs_GetKey(Factor), _SignedProperties]
+						g_ConcurrentDispatch / [Factor, _Password, FactorID = _Factors.fs_GetKey(Factor), _SignedProperties]
 							() mutable -> ICDistributedActorAuthenticationHandler::CResponse
 							{
 								auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");

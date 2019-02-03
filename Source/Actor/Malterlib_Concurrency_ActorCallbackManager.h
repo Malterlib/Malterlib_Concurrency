@@ -35,11 +35,7 @@ namespace NMib::NConcurrency
 		void f_StopDeferring();
 		void f_Clear();
 
-		template <bool tf_bSupportMultiple = t_bSupportMultiple>
-		typename TCEnableIf<tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
-
-		template <bool tf_bSupportMultiple = t_bSupportMultiple>
-		typename TCEnableIf<!tf_bSupportMultiple>::CType operator () (tp_CCallbackParams... p_Params);
+		auto operator () (tp_CCallbackParams... p_Params);
 
 		template <bool tf_bSupportMultiple = t_bSupportMultiple>
 		typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);

@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	
 	template <typename t_CReturnType>
 	template <typename tf_FToSequence>
-	TCContinuation<t_CReturnType> TCActorSequencer<t_CReturnType>::operator > (tf_FToSequence &&_fToSequence)
+	TCContinuation<t_CReturnType> TCActorSequencer<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
 	{
 		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCContinuation<t_CReturnType>
 			{
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 		;
 		if (fg_CurrentActorRunning())
 			return fQueueSequence();
-		return g_Dispatch > fg_Move(fQueueSequence);
+		return g_Dispatch / fg_Move(fQueueSequence);
 	}
 	
 	template <typename t_CReturnType>
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 		;
 		if (fg_CurrentActorRunning())
 			return fDoAbort();
-		return g_Dispatch > fg_Move(fDoAbort);
+		return g_Dispatch / fg_Move(fDoAbort);
 	}
 	
 	template <typename t_CReturnType>
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 		++State.m_nRunning;
 		
 		auto ToSequence = State.m_ToSequence.f_Pop();
-		g_Dispatch > fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Continuation = ToSequence.m_Continuation](TCAsyncResult<t_CReturnType> &&_Result)
+		g_Dispatch / fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Continuation = ToSequence.m_Continuation](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				Continuation.f_SetResult(_Result);
 				

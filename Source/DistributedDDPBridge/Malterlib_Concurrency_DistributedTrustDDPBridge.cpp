@@ -195,7 +195,7 @@ namespace NMib::NConcurrency
 			NewHandler.m_Actor = _Actor;
 		}
 		
-		auto Subscription = g_ActorSubscription > [this, MethodNames]
+		auto Subscription = g_ActorSubscription / [this, MethodNames]
 			{
 				auto &Internal = *mp_pInternal;
 				for (auto &MethodName : MethodNames)

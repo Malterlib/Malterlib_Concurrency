@@ -878,7 +878,7 @@ namespace NMib::NConcurrency
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
 					{
-						return TCContinuation<CReturnType>::fs_RunProtected() > fg_Forward<tf_FToDispatch>(fDispatch);
+						return TCContinuation<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
 					}
 				)
 			)
@@ -917,6 +917,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
+	TCDispatchedActorCall<t_CReturnValue> TCContinuation<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
+	{
+		return f_Dispatch().f_Timeout(_Timeout, _TimeoutMessage, _bFireAtExit);
+	}
+
+	template <typename t_CReturnValue>
 	auto TCContinuation<t_CReturnValue>::f_CallSync(fp64 _Timeout) const
 	{
 		return f_Dispatch().f_CallSync(_Timeout);
@@ -930,7 +936,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const
+		inline auto operator / (tf_FFunction &&_fFunction) const
 		{
 			return fg_Dispatch(m_Actor, fg_Forward<tf_FFunction>(_fFunction));
 		}
@@ -946,7 +952,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const
+		inline auto operator / (tf_FFunction &&_fFunction) const
 		{
 			return fg_Dispatch(m_Actor, fg_Forward<tf_FFunction>(_fFunction));
 		}
@@ -957,7 +963,7 @@ namespace NMib::NConcurrency
 	struct CDispatchHelper
 	{
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const
+		inline auto operator / (tf_FFunction &&_fFunction) const
 		{
 			return fg_Dispatch(fg_Forward<tf_FFunction>(_fFunction));
 		}
@@ -978,7 +984,7 @@ namespace NMib::NConcurrency
 	struct CConcurrentDispatchHelper
 	{
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const
+		inline auto operator / (tf_FFunction &&_fFunction) const
 		{
 			return fg_ConcurrentDispatch(fg_Forward<tf_FFunction>(_fFunction));
 		}
@@ -989,7 +995,7 @@ namespace NMib::NConcurrency
 	struct CDirectDispatchHelper
 	{
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const
+		inline auto operator / (tf_FFunction &&_fFunction) const
 		{
 			return fg_DirectDispatch(fg_Forward<tf_FFunction>(_fFunction));
 		}
@@ -1001,7 +1007,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler>
 	void TCContinuation<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
 	{
-		fg_Dispatch
+		fg_DirectDispatch
 			(
 				[Continuation = *this]() mutable
 				{
@@ -1016,7 +1022,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturnValue>
 	void TCContinuation<t_CReturnValue>::operator > (TCContinuation<tf_CReturnValue> const &_Continuation) const
 	{
-		fg_Dispatch
+		fg_DirectDispatch
 			(
 				[Continuation = *this]() mutable
 				{

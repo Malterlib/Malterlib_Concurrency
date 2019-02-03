@@ -10,7 +10,8 @@ namespace NMib::NConcurrency
 		struct CThisActor;
 		template
 			<
-				typename t_CHandler
+				bool t_bUnwrapTuple
+				, typename t_CHandler
 				, typename t_CActor
 				, typename t_CResultTypes
 				, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
@@ -65,63 +66,13 @@ namespace NMib::NConcurrency
 
 		template
 			<
-				typename t_CHandler2
+				bool t_bUnwrapTuple
+				, typename t_CHandler2
 				, typename t_CActor2
 				, typename t_CResultTypes2
 				, typename t_CResultIndicies2
 			>
 		friend struct NPrivate::TCCallMutipleActorStorage;
-
-
-		template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
-			friend typename TCEnableIf
-			<
-				!NPrivate::TCIsContinuation
-				<
-					typename NTraits::TCIsCallableWith
-					<
-						typename NTraits::TCRemoveReference<tf_CToCall>::CType
-						, void (tf_CArgument &&)
-					>::CReturnType
-				>::mc_Value
-				&& !NTraits::TCIsSame<tf_CResult, TCAsyncResult<void>>::mc_Value
-				, void
-			>::CType
-			NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
-		;
-
-		template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
-			friend typename TCEnableIf
-			<
-				NPrivate::TCIsContinuation
-				<
-					typename NTraits::TCIsCallableWith
-					<
-						typename NTraits::TCRemoveReference<tf_CToCall>::CType
-						, void (tf_CArgument &&)
-					>::CReturnType
-				>::mc_Value
-				, void
-			>::CType
-			NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
-		;
-
-		template <typename tf_CResult, typename tf_CToCall, typename tf_CArgument, typename tf_CLocal>
-			friend typename TCEnableIf
-			<
-				!NPrivate::TCIsContinuation
-				<
-					typename NTraits::TCIsCallableWith
-					<
-						typename NTraits::TCRemoveReference<tf_CToCall>::CType
-						, void (tf_CArgument &&)
-					>::CReturnType
-				>::mc_Value
-				&& NTraits::TCIsSame<tf_CResult, TCAsyncResult<void>>::mc_Value
-				, void
-			>::CType
-			NPrivate::fg_CallWithAsyncResult(tf_CLocal &_Local)
-		;
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
 			friend bool NPrivate::fg_CallActorInternal

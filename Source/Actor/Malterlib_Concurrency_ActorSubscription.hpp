@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		>
 		*
 	>
-	inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const
+	inline CActorSubscription CActorSubscriptionHelperWithActor::operator / (tf_FCleanup &&_fCleanup) const
 	{ 
 		return fg_ActorSubscriptionAsync(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup));
 	}
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 		>
 		*
 	>
-	inline CActorSubscription CActorSubscriptionHelperWithActor::operator > (tf_FCleanup &&_fCleanup) const
+	inline CActorSubscription CActorSubscriptionHelperWithActor::operator / (tf_FCleanup &&_fCleanup) const
 	{ 
 		return fg_ActorSubscription(mp_Actor, fg_Forward<tf_FCleanup>(_fCleanup)); 
 	}
@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 		>
 		*
 	>
-	inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const
+	inline CActorSubscription CActorSubscriptionHelper::operator / (tf_FCleanup &&_fCleanup) const
 	{ 
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 		>
 		*
 	>
-	inline CActorSubscription CActorSubscriptionHelper::operator > (tf_FCleanup &&_fCleanup) const
+	inline CActorSubscription CActorSubscriptionHelper::operator / (tf_FCleanup &&_fCleanup) const
 	{ 
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);

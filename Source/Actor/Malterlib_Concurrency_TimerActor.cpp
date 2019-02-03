@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Concurrency/Coroutine>
 
 namespace NMib::NConcurrency
 {
@@ -54,7 +55,7 @@ namespace NMib::NConcurrency
 		if (_bOnlyMissed)
 			return;
 
-		_Timer.m_OneshotCallbacks();
+		_Timer.m_OneshotCallbacks() > fg_DiscardResult();
 	}
 
 	void CTimerActor::fp_ProcessTimers()
@@ -183,7 +184,7 @@ namespace NMib::NConcurrency
 
 		m_OneshotTimers.f_Clear();
 
-		return TCContinuation<void>::fs_Finished();
+		return fg_Explicit();
 	}
 
 	CTimerActor::~CTimerActor()
@@ -433,6 +434,25 @@ namespace NMib::NConcurrency
 			)
 			> fg_DiscardResult();
 		;
+	}
+
+	TCContinuationAwaiter<void, true, void *> CTimeoutHelper::operator co_await()
+	{
+		TCContinuation<void> Continuation;
+		fg_TimerActor()
+			(
+				&CTimerActor::f_OneshotTimer
+				, mp_Period
+				, fg_CurrentActor()
+				, [Continuation]
+			 	{
+					Continuation.f_SetResult();
+				}
+				, mp_bFireAtExit
+			)
+			> fg_DiscardResult();
+		;
+		return Continuation.operator co_await();
 	}
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)

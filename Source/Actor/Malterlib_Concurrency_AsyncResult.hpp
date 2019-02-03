@@ -5,14 +5,13 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename tf_CException, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CException>::mc_Value> *>
+	template <typename tf_CException, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CExceptionBase>::mc_Value> *>
 	void CAsyncResult::f_SetException(tf_CException &&_Exception)
 	{
 		DMibRequire(!m_bHasBeenSet);
 		DMibRequire(!m_pException);
 		m_pException = NException::fg_ExceptionPointer(fg_Forward<tf_CException>(_Exception));
 	}
-
 	
 	template <typename t_CType>
 	TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult const &_Other)

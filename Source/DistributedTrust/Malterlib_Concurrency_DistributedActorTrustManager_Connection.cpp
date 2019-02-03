@@ -292,7 +292,7 @@ namespace NMib::NConcurrency
 					Result.m_Ticket = fg_Move(TrustTicket);
 					if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
 					{
-						Result.m_NotificationsSubscription = g_ActorSubscription > [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
+						Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
 							{
 								auto &Internal = *mp_pInternal;
 
@@ -487,7 +487,20 @@ namespace NMib::NConcurrency
 											CStr TypeName(TypeNameHelper.m_pString, TypeNameHelper.m_Len);
 
 											pConnectionState->f_Replied();
-											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to get ticket interface: {} [{nfh}] from available hashes: {}", TypeName, fg_GetTypeHash<CInternal::CTicketInterface>(), AvailableHashes)));
+											Continuation.f_SetException
+												(
+													DMibErrorInstance
+													(
+													 	fg_Format
+													 	(
+															"Failed to get ticket interface: {} [{nfh}] from available hashes: {}"
+															, TypeName
+															, TCGetTypeHash<CInternal::CTicketInterface>::mc_Value
+															, AvailableHashes
+														)
+													)
+												)
+											;
 											return;
 										}
 

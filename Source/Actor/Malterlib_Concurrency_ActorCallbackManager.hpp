@@ -114,143 +114,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-	template <bool tf_bSupportMultiple>
-	typename TCEnableIf<tf_bSupportMultiple>::CType TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
+	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
 	{
-		auto &Internal = *mp_pInternal;
-		if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
-		{
-			auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
-
-			Internal.mp_DeferredCallbacks.f_Insert
-				(
-					[this, Params = fg_Move(Params)]() mutable
-					{
-						auto &Internal = *mp_pInternal;
-						for (auto &Callback : Internal.mp_Callbacks)
-						{
-							auto Actor = Callback.m_Actor.f_Lock();
-							if (!Actor)
-								continue;
-							Actor
-								(
-									&CActor::fp_DisptachInternal
-									, [fCallback = Callback.m_fCallback, Params]() mutable
-									{
-										 NPrivate::fg_CallCallback
-											(
-												fg_Move(fCallback)
-												, fg_Move(Params)
-												,
-												typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
-												, NMeta::TCTypeList<tp_CCallbackParams...>()
-											)
-										;
-									}
-								)
-								> fg_DiscardResult()
-							;
-						}
-					}
-				)
-			;
-			return;
-		}
-		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
-		for (auto &Callback : Internal.mp_Callbacks)
-		{
-			auto Actor = Callback.m_Actor.f_Lock();
-			if (!Actor)
-				continue;
-			Actor
-				(
-					&CActor::fp_DisptachInternal
-					, [fCallback = Callback.m_fCallback, Params]() mutable
-					{
-						 NPrivate::fg_CallCallback
-							(
-								fg_Move(fCallback)
-								, fg_Move(Params)
-								,
-								typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
-								, NMeta::TCTypeList<tp_CCallbackParams...>()
-							)
-						;
-					}
-				)
-				> fg_DiscardResult()
-			;
-		}
-	}
-
-	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-	template <bool tf_bSupportMultiple>
-	typename TCEnableIf<!tf_bSupportMultiple>::CType TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
-	{
-		auto &Internal = *mp_pInternal;
-		if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
-		{
-			auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
-
-			Internal.mp_DeferredCallbacks.f_Insert
-				(
-					[this, LambdaParams = fg_Move(Params)]() mutable
-					{
-						auto &Internal = *mp_pInternal;
-						for (auto &Callback : Internal.mp_Callbacks)
-						{
-							auto Actor = Callback.m_Actor.f_Lock();
-							if (!Actor)
-								continue;
-							Actor
-								(
-									&CActor::fp_DisptachInternal
-									, [fCallback = Callback.m_fCallback, LambdaParams = fg_Move(LambdaParams)]() mutable
-									{
-										 NPrivate::fg_CallCallback
-											(
-												fg_Move(fCallback)
-												, fg_Move(LambdaParams)
-												,
-												typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
-												, NMeta::TCTypeList<tp_CCallbackParams...>()
-											)
-										;
-									}
-								)
-								> fg_DiscardResult()
-							;
-						}
-					}
-				)
-			;
-			return;
-		}
-		for (auto &Callback : Internal.mp_Callbacks)
-		{
-			auto Actor = Callback.m_Actor.f_Lock();
-			if (!Actor)
-				continue;
-			auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);;
-			Actor
-				(
-					&CActor::fp_DisptachInternal
-					, [fCallback = Callback.m_fCallback, Params = fg_Move(Params)]() mutable
-					{
-						 NPrivate::fg_CallCallback
-							(
-								fg_Move(fCallback)
-								, fg_Move(Params)
-								,
-								typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
-								, NMeta::TCTypeList<tp_CCallbackParams...>()
-							)
-						;
-					}
-				)
-				> fg_DiscardResult()
-			;
-		}
+		return f_Call(fg_Forward<tp_CCallbackParams>(p_Params)...);
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -313,8 +179,7 @@ namespace NMib::NConcurrency
 							(
 								fg_Move(fCallback)
 								, fg_Move(Params)
-								,
-								typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+								, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 								, NMeta::TCTypeList<tp_CCallbackParams...>()
 							)
 						;
@@ -391,8 +256,7 @@ namespace NMib::NConcurrency
 							(
 								fg_Move(fCallback)
 								, fg_Move(Params)
-								,
-								typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+								, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 								, NMeta::TCTypeList<tp_CCallbackParams...>()
 							)
 						;

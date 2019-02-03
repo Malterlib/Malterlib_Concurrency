@@ -47,13 +47,13 @@ namespace NMib::NConcurrency
 		NConcurrency::TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) const;
 		NConcurrency::TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) const;
 
-		NConcurrency::TCContinuation<void> operator += (NStr::CStrSecure const &_StdOut) const;
-		NConcurrency::TCContinuation<void> operator %= (NStr::CStrSecure const &_StdErr) const;
-		NConcurrency::TCContinuation<void> operator += (NStr::CStr::CFormat const &_StdOut) const;
-		NConcurrency::TCContinuation<void> operator %= (NStr::CStr::CFormat const &_StdErr) const;
-		NConcurrency::TCContinuation<void> operator += (NStr::CStrSecure::CFormat const &_StdOut) const;
-		NConcurrency::TCContinuation<void> operator %= (NStr::CStrSecure::CFormat const &_StdErr) const;
-		NConcurrency::TCContinuation<void> operator += (NContainer::CSecureByteVector const &_StdOut) const;
+		void operator += (NStr::CStrSecure const &_StdOut) const;
+		void operator %= (NStr::CStrSecure const &_StdErr) const;
+		void operator += (NStr::CStr::CFormat const &_StdOut) const;
+		void operator %= (NStr::CStr::CFormat const &_StdErr) const;
+		void operator += (NStr::CStrSecure::CFormat const &_StdOut) const;
+		void operator %= (NStr::CStrSecure::CFormat const &_StdErr) const;
+		void operator += (NContainer::CSecureByteVector const &_StdOut) const;
 
 		NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
 		NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>>

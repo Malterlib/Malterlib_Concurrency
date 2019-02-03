@@ -567,7 +567,7 @@ namespace NMib::NConcurrency
 		auto &Info = *(mp_PreauthenticationInfos[MultipleRequestID] = fg_Construct());
 		Info.m_nHosts = _nHosts;
 
-		TCActorSubscriptionWithID<> Subscription = g_ActorSubscription > [this, MultipleRequestID]() -> TCContinuation<void>
+		TCActorSubscriptionWithID<> Subscription = g_ActorSubscription / [this, MultipleRequestID]() -> TCContinuation<void>
 			{
 				if (auto pInfo = mp_PreauthenticationInfos.f_FindEqual(MultipleRequestID))
 				{
@@ -613,7 +613,7 @@ namespace NMib::NConcurrency
 			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
 		;
 
-		auto Subscription = g_ActorSubscription > [=]() -> TCContinuation<void>
+		auto Subscription = g_ActorSubscription / [=]() -> TCContinuation<void>
 			{
 				mp_AuthenticationRemotes.f_Clear();
 				mp_AuthenticationRegistrationSubscriptions.f_Clear();
@@ -692,7 +692,7 @@ namespace NMib::NConcurrency
 							(
 								[fOnActor](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
 								{
-									fOnActor(_NewActor, _ActorInfo);
+									fOnActor(_NewActor, _ActorInfo) > fg_DiscardResult();
 								}
 								, false
 							)

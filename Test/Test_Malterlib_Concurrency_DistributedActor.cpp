@@ -18,8 +18,6 @@
 #include <Mib/Log/Destinations>
 #include <Mib/File/File>
 
-#include <type_traits>
-
 namespace
 {
 	using namespace NMib;
@@ -278,7 +276,7 @@ namespace
 			return 
 				{
 					m_Interface->f_ShareInterface<CDistributedActorInterface>()
-					, g_ActorSubscription > [this]
+					, g_ActorSubscription / [this]
 					{
 						m_bGetInterfaceSubscriptionCalled = true;
 					}
@@ -296,7 +294,7 @@ namespace
 		TCActorSubscriptionWithID<> f_SetInterface(TCDistributedActorInterfaceWithID<CDistributedActorInterface> &&_Interface)
 		{
 			m_SetDistributedActorInterface = fg_Move(_Interface);
-			return g_ActorSubscription > [this]
+			return g_ActorSubscription / [this]
 				{
 					m_bSetInterfaceSubscriptionCalled = true;
 				}
@@ -324,7 +322,7 @@ namespace
 		{
 			return fg_Explicit
 				(
-					g_ActorSubscription > []
+					g_ActorSubscription / []
 					{
 						g_TestValueGetSubscription.f_Exchange(1);
 					}
@@ -351,12 +349,12 @@ namespace
 			m_ActorFunctors[0].m_ActorFunctor = fg_Move(_Callback0);
 			m_ActorFunctors[1].m_ActorFunctor = fg_Move(_Callback1);
 			
-			Subscriptions.m_Subscription0 = g_ActorSubscription > [this]
+			Subscriptions.m_Subscription0 = g_ActorSubscription / [this]
 				{
 					m_ActorFunctors[0].m_bCleared = true;
 				}
 			;
-			Subscriptions.m_Subscription1 = g_ActorSubscription > [this]
+			Subscriptions.m_Subscription1 = g_ActorSubscription / [this]
 				{
 					m_ActorFunctors[1].m_bCleared = true;
 				}
@@ -379,7 +377,7 @@ namespace
 					(
 						fg_Construct
 						(
-							g_ActorSubscription > [this, iFunctor]
+							g_ActorSubscription / [this, iFunctor]
 							{
 								m_ActorFunctors[iFunctor].m_bCleared = true;
 							}
@@ -415,7 +413,7 @@ namespace
 		
 		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctorWithoutSubscription()
 		{
-			return g_ActorFunctor > [] (CStr const &_Test) -> TCContinuation<CStr>
+			return g_ActorFunctor / [] (CStr const &_Test) -> TCContinuation<CStr>
 				{
 					return fg_Explicit(_Test + "WithoutSubscription");
 				}
@@ -424,14 +422,14 @@ namespace
 		
 		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctor()
 		{
-			return g_ActorFunctor 
+			return g_ActorFunctor
 				(
-					g_ActorSubscription > [this]
+					g_ActorSubscription / [this]
 					{
 						m_bReturnedFunctionActorSubscriptionCalled = true;
 					}
 				) 
-				> [] (CStr const &_Test) -> TCContinuation<CStr>
+				/ [] (CStr const &_Test) -> TCContinuation<CStr>
 				{
 					return fg_Explicit(_Test + "WithSubscription");
 				}
@@ -591,7 +589,7 @@ namespace
 		
 		void f_CallRegisteredCallback(CStr const &_Message)
 		{
-			m_CallbackManager(_Message);
+			m_CallbackManager(_Message) > NConcurrency::fg_DiscardResult();
 		}
 
 		TCContinuation<CStr> f_CallRegisteredCallbackWithReturn(CStr const &_Message)
@@ -818,8 +816,7 @@ namespace
 
 				auto fSubscription = [&]() -> CActorSubscription
 					{
-						return g_ActorSubscription(TestActor) >
-							[pTestValue]
+						return g_ActorSubscription(TestActor) / [pTestValue]
 							{
 								pTestValue->f_Exchange(1);
 							}
@@ -904,12 +901,12 @@ namespace
 							, CDistributedActor::f_RegisterActorFunctors
 							, g_ActorFunctor(_TestActor) 
 							(
-								g_ActorSubscription(_TestActor) > [_pSubscription0Called]
+								g_ActorSubscription(_TestActor) / [_pSubscription0Called]
 								{
 									_pSubscription0Called->f_Exchange(1);
 								}
-							) 
-							> [](CStr const &_Message) -> TCContinuation<CStr>
+							)
+							/ [](CStr const &_Message) -> TCContinuation<CStr>
 							{
 								if (_Message == "TestMessageException")
 									return DMibErrorInstance("Test exception 0");
@@ -917,12 +914,12 @@ namespace
 							}
 							, g_ActorFunctor(_TestActor) 
 							(
-								g_ActorSubscription(_TestActor) > [_pSubscription1Called]
+								g_ActorSubscription(_TestActor) / [_pSubscription1Called]
 								{
 									_pSubscription1Called->f_Exchange(1);
 								}
 							) 
-							> [](CStr const &_Message) -> TCContinuation<CStr>
+							/ [](CStr const &_Message) -> TCContinuation<CStr>
 							{
 								if (_Message == "TestMessageException")
 									return DMibErrorInstance("Test exception 1");
@@ -943,12 +940,12 @@ namespace
 					TCVector<TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)>> Functors;
 					Functors.f_Insert() = g_ActorFunctor(_TestActor)
 						(
-							g_ActorSubscription(_TestActor) > [_pSubscription0Called]
+							g_ActorSubscription(_TestActor) / [_pSubscription0Called]
 							{
 								_pSubscription0Called->f_Exchange(1);
 							}
 						) 
-						> [](CStr const &_Message) -> TCContinuation<CStr>
+						/ [](CStr const &_Message) -> TCContinuation<CStr>
 						{
 							if (_Message == "TestMessageException")
 								return DMibErrorInstance("Test exception 0");
@@ -957,12 +954,12 @@ namespace
 					;
 					Functors.f_Insert() = g_ActorFunctor(_TestActor)
 						(
-							g_ActorSubscription(_TestActor) > [_pSubscription1Called]
+							g_ActorSubscription(_TestActor) / [_pSubscription1Called]
 							{
 								_pSubscription1Called->f_Exchange(1);
 							}
 						) 
-						> [](CStr const &_Message) -> TCContinuation<CStr>
+						/ [](CStr const &_Message) -> TCContinuation<CStr>
 						{
 							if (_Message == "TestMessageException")
 								return DMibErrorInstance("Test exception 1");
@@ -1075,8 +1072,7 @@ namespace
 				
 				[[maybe_unused]] auto fSubscription = [&]() -> CActorSubscription
 					{
-						return g_ActorSubscription(TestActor) >
-							[pTestValue]
+						return g_ActorSubscription(TestActor) / [pTestValue]
 							{
 								pTestValue->f_Exchange(1);
 							}
@@ -1152,7 +1148,7 @@ namespace
 				TCDistributedActorInterfaceWithID<CDistributedActorInterface> Interface 
 					{
 						InterfaceActor->f_ShareInterface<CDistributedActorInterface>()
-						, g_ActorSubscription(TestActor) > [pSubscriptionCalled]
+						, g_ActorSubscription(TestActor) / [pSubscriptionCalled]
 						{
 							pSubscriptionCalled->f_Exchange(1);
 						}

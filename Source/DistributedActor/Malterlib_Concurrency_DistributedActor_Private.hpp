@@ -8,7 +8,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tf_CFirst>
 	void fg_GetDistributedActorInheritanceHierarchy(NContainer::TCVector<uint32> &_Settings)
 	{
-		_Settings.f_Insert(fg_GetTypeHash<tf_CFirst>());
+		_Settings.f_Insert(TCGetTypeHash<tf_CFirst>::mc_Value);
 		fg_GetDistributedActorInheritanceHierarchy<typename NTraits::TCGetBase<tf_CFirst>::CType>(_Settings);
 	}
 	

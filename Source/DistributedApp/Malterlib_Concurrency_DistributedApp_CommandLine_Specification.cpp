@@ -258,7 +258,8 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	DMibImpErrorClass(CCommandLineConvertException, NMib::NException::CException);
+	DMibImpErrorClassDefine(CCommandLineConvertException, NMib::NException::CException);
+	DMibImpErrorClassImplement(CCommandLineConvertException);
 
 #	define DMibCommandLineConvertException(_Description) DMibImpError(CCommandLineConvertException, _Description)
 

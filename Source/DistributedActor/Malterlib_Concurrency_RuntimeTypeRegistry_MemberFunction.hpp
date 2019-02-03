@@ -29,7 +29,7 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+			, TCGetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>::mc_Value
 			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 		)
 	{
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+			, TCGetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>::mc_Value
 			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 		)
 	{
@@ -284,7 +284,7 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, fg_GetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>()
+			, TCGetTypeHash<typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass>::mc_Value
 			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
 		)
 	{

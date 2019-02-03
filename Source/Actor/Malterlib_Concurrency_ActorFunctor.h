@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 		inline CActorFunctorHelperWithProperties(TCActor<> const &_Actor, CActorSubscription &&_Subscription);
 		
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) &&;
+		inline auto operator / (tf_FFunction &&_fFunction) &&;
 		inline CActorFunctorHelperWithProperties &&operator () (TCActor<> const &_Actor) &&;
 		inline CActorFunctorHelperWithProperties &&operator () (CActorSubscription &&_Subscription) &&;
 		
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 	struct CActorFunctorHelper
 	{
 		template <typename tf_FFunction>
-		inline auto operator > (tf_FFunction &&_fFunction) const;
+		inline auto operator / (tf_FFunction &&_fFunction) const;
 		inline CActorFunctorHelperWithProperties operator () (TCActor<> const &_Actor) const;
 		inline CActorFunctorHelperWithProperties operator () (CActorSubscription &&_Subscription) const;
 	};

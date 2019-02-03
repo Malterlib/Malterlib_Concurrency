@@ -10,6 +10,8 @@
 
 namespace NMib::NConcurrency
 {
+	DMibImpErrorClassImplement(CExceptionHidapiUSB);
+
 	using namespace NContainer;
 	using namespace NStr;
 
@@ -79,7 +81,7 @@ namespace NMib::NConcurrency
 	CHumanInterfaceDevicesActor::CHumanInterfaceDevicesActor()
 	{
 		// Dispatch to self so init is run on our thread
-		g_Dispatch > [this]
+		g_Dispatch / [this]
 			{
 				if (hid_init())
 					mp_InitError = "HID initalization failed (hid_init)";

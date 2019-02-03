@@ -7,6 +7,11 @@
 
 namespace NMib::NConcurrency
 {
+	DMibImpErrorClassImplement(CExceptionActorDeleted);
+	DMibImpErrorClassImplement(CExceptionActorAlreadyDestroyed);
+	DMibImpErrorClassImplement(CExceptionActorIsBeingDestroyed);
+	DMibImpErrorClassImplement(CExceptionActorResultWasNotSet);
+
 	namespace NPrivate
 	{
 		struct CSubSystem_Concurrency : public CSubSystem

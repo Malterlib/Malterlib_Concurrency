@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 			>
 			* = nullptr
 		>
-		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 		
 		template
 		<
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 			>
 			* = nullptr
 		>
-		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 		
 	private:
 		TCActor<> const &mp_Actor;
@@ -65,8 +65,8 @@ namespace NMib::NConcurrency
 			>
 			* = nullptr
 		>
-		
-		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
+
 		template
 		<
 			typename tf_FCleanup
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 			>
 			* = nullptr
 		>
-		inline CActorSubscription operator > (tf_FCleanup &&_fCleanup) const;
+		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
 		
 		inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
 	};

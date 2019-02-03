@@ -157,3 +157,5 @@ namespace NMib::NConcurrency
 		;
 	}
 }
+
+#include "Malterlib_Concurrency_DistributedApp_Auditor_Coroutine.hpp"

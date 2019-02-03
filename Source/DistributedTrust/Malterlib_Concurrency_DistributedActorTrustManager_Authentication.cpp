@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 			)
 			> Continuation / [pThis = m_pThis, Continuation, UniqueHostID, pWeakHost, pWeakHandler = _Handler.f_Weak()]
 			{
-				auto ActorSubscription = g_ActorSubscription > [pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCContinuation<void>
+				auto ActorSubscription = g_ActorSubscription / [pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCContinuation<void>
 					{
 						DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler for {}", UniqueHostID);
 						auto pHost = pWeakHost.f_Lock();
@@ -153,7 +153,15 @@ namespace NMib::NConcurrency
 			auto pAuthenticationActor = Internal.m_AuthenticationActors.f_FindEqual(pRegisteredFactor->m_AuthenticationFactor.m_Name);
 			if (!pAuthenticationActor)
 			{
-				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Factor of type '{}' not supported", pRegisteredFactor->m_AuthenticationFactor.m_Name);
+				DMibLogWithCategory
+					(
+					 	Mib/Concurrency/Trust
+					 	, Info
+					 	, "Verify authentication response failed for user '{}': Factor of type '{}' not supported"
+					 	, _Challenge.m_UserID
+					 	,  pRegisteredFactor->m_AuthenticationFactor.m_Name
+					)
+				;
 				fAddFalseResult();
 				continue;
 			}
@@ -162,9 +170,9 @@ namespace NMib::NConcurrency
 			if (!pThisChallenge || *pThisChallenge != _Challenge)
 			{
 				if (!pThisChallenge)
-					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Challenge for this host not found");
+					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed for user '{}': Challenge for this host not found", _Challenge.m_UserID);
 				else
-					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed: Challenge does not match signed challenge");
+					DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Verify authentication response failed for user '{}': Challenge does not match signed challenge", _Challenge.m_UserID);
 				fAddFalseResult();
 				continue;
 			}
@@ -206,7 +214,19 @@ namespace NMib::NConcurrency
 								for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
 									NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
 
-								f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData));
+								f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData)) > [UserID = _Challenge.m_UserID](TCAsyncResult<void> &&_Result)
+									{
+										DMibLogWithCategory
+											(
+											 	Mib/Concurrency/Trust
+											 	, Error
+											 	, "Failed to update authentication factor after verifying responses for user '{}': {}"
+											 	, UserID
+											 	, _Result.f_GetExceptionStr()
+											)
+										;
+									}
+								;
 							}
 						}
 					}

@@ -138,7 +138,7 @@ namespace NMib::NConcurrency
 
 		DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
 
-		Host.m_OnDisconnect();
+		Host.m_OnDisconnect() > fg_DiscardResult();
 		Host.m_OnDisconnect.f_Clear();
 
 		for (auto &RemoteActor : Host.m_RemoteActors)

@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 	}
 		
 	template <typename tf_FFunction>
-	inline auto CActorFunctorHelperWithProperties::operator > (tf_FFunction &&_fFunction) &&
+	inline auto CActorFunctorHelperWithProperties::operator / (tf_FFunction &&_fFunction) &&
 	{
 		return fg_ActorFunctor(fg_Move(mp_Actor), fg_Forward<tf_FFunction>(_fFunction), fg_Move(mp_Subscription));
 	}
@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename tf_FFunction>
-	inline auto CActorFunctorHelper::operator > (tf_FFunction &&_fFunction) const
+	inline auto CActorFunctorHelper::operator / (tf_FFunction &&_fFunction) const
 	{
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);

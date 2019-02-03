@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	
 	TCContinuation<void> CActor::fp_Destroy()
 	{
-		return TCContinuation<void>::fs_Finished();
+		return fg_Explicit();
 	}
 	
 	NPrivate::CThisActor::operator TCActor<> () const

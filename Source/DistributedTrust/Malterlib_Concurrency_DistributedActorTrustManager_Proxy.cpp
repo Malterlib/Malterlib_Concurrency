@@ -105,9 +105,10 @@ namespace NMib::NConcurrency
 			 	, _Command.m_fOnUseTicket
 			 	? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)>
 			 	{
-					g_ActorFunctor(fg_Move(_Command.m_fOnUseTicket.f_GetSubscription()))
+					g_ActorFunctor
+					(fg_Move(_Command.m_fOnUseTicket.f_GetSubscription()))
 					(fg_Move(_Command.m_fOnUseTicket.f_GetActor()))
-					> [fOnUseTicket = fg_Move(_Command.m_fOnUseTicket.f_GetFunctor())]
+					/ [fOnUseTicket = fg_Move(_Command.m_fOnUseTicket.f_GetFunctor())]
 					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) mutable -> TCContinuation<void>
 					{
 						return fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
@@ -116,9 +117,10 @@ namespace NMib::NConcurrency
 			 	: nullptr
 			 	, _Command.m_fOnCertificateSigned ? TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)>
 			 	{
-					g_ActorFunctor(fg_Move(_Command.m_fOnCertificateSigned.f_GetSubscription()))
+					g_ActorFunctor
+					(fg_Move(_Command.m_fOnCertificateSigned.f_GetSubscription()))
 					(fg_Move(_Command.m_fOnCertificateSigned.f_GetActor()))
-					> [fOnCertificateSigned = fg_Move(_Command.m_fOnCertificateSigned.f_GetFunctor())]
+					/ [fOnCertificateSigned = fg_Move(_Command.m_fOnCertificateSigned.f_GetFunctor())]
 					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo) mutable -> TCContinuation<void>
 					{
 						return fOnCertificateSigned(_HostID, _HostInfo);

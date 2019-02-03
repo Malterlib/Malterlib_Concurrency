@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 
 	inline_never static void fg_DestroyStreamedFunctionOnActor(TCActor<CActor> const &_Actor, NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
-		g_Dispatch(_Actor) > [pFunction = fg_Move(o_pFunction)]
+		g_Dispatch(_Actor) / [pFunction = fg_Move(o_pFunction)]
 			{
 			}
 			> fg_DiscardResult()

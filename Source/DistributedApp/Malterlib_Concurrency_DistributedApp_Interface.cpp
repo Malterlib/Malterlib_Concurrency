@@ -248,7 +248,7 @@ namespace NMib::NConcurrency
 		pState->m_StdInActor
 			(
 				&CStdInActor::f_RegisterForInput
-				, g_ActorFunctor > 
+				, g_ActorFunctor /
 				[
 					=
 					, Buffer = CStrSecure{}

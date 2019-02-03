@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 	TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
 	{
 		m_pActor = nullptr;
-		return g_Dispatch > [this]() -> TCContinuation<void>
+		return g_Dispatch / [this]() -> TCContinuation<void>
 			{
 				m_Publication.f_Clear();
 				if (m_Actor.f_IsEmpty())
@@ -251,7 +251,7 @@ namespace NMib::NConcurrency
 			{
 				[&]
 				{
-					Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
+					Ret.mp_InterfaceHashes.f_Insert(TCGetTypeHash<tfp_CInterface>::mc_Value);
 					return true;
 				}
 				()...
@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 						bMultipleVersions = true;
 #endif
 
-					Ret.mp_InterfaceHashes.f_Insert(fg_GetTypeHash<tfp_CInterface>());
+					Ret.mp_InterfaceHashes.f_Insert(TCGetTypeHash<tfp_CInterface>::mc_Value);
 					return true;
 				}
 				()...
@@ -478,7 +478,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CType>
 	TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
 	{
-		auto Actor = f_GetActor(fg_GetTypeHash<tf_CType>(), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
+		auto Actor = f_GetActor(TCGetTypeHash<tf_CType>::mc_Value, CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
 		return fg_Move(reinterpret_cast<TCDistributedActor<tf_CType> &>(Actor));
 	}
 

@@ -111,14 +111,14 @@ namespace NMib::NConcurrency
 	{
 		if (_pObject->f_ImmediateDelete())
 		{
-			mint Size = NStorage::fg_DeleteWeakObjectGetSize(_pObject);
-			_pObject->f_WeakRefCountSetSize(Size);
+			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
+			_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
 			if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 			{
-				if (Size)
-					_Allocator.f_Free(_pObject, Size);
+				if (CapturedDelete.m_Size)
+					_Allocator.f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 				else
-					_Allocator.f_FreeNoSize(_pObject);
+					_Allocator.f_FreeNoSize(CapturedDelete.m_pMemory);
 			}
 		}
 		else
@@ -130,14 +130,14 @@ namespace NMib::NConcurrency
 					_pObject->f_GetPriority()
 					, [_pObject, pAllocator]
 					{
-						mint Size = NStorage::fg_DeleteWeakObjectGetSize(_pObject);
-						_pObject->f_WeakRefCountSetSize(Size);
+						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
+						_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
 						if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 						{
-							if (Size)
-								pAllocator->f_Free(_pObject, Size);
+							if (CapturedDelete.m_Size)
+								pAllocator->f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 							else
-								pAllocator->f_FreeNoSize(_pObject);
+								pAllocator->f_FreeNoSize(CapturedDelete.m_pMemory);
 						}
 					}
 				)

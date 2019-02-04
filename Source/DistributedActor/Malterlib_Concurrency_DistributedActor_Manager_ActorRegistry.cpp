@@ -231,6 +231,8 @@ namespace NMib::NConcurrency
 		, mp_HostInfo(_HostInfo)
 		, mp_ProtocolVersions(_ProtocolVersions)
 	{
+		for (auto &TypeID : _InheritanceHierarchy)
+			DMibFastCheck(TypeID != 0);
 	}
 
 	CDistributedActorIdentifier CAbstractDistributedActor::f_GetIdentifier() const

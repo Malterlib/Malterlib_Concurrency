@@ -62,12 +62,14 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	TCContinuationCoroutineContextValue<t_CReturnType>::~TCContinuationCoroutineContextValue() noexcept
 	{
-		m_pContinuationData->m_Coroutine = nullptr;
+		if (m_pContinuationData)
+			m_pContinuationData->m_Coroutine = nullptr;
 	}
 
 	inline_always TCContinuationCoroutineContextValue<void>::~TCContinuationCoroutineContextValue() noexcept
 	{
-		m_pContinuationData->m_Coroutine = nullptr;
+		if (m_pContinuationData)
+			m_pContinuationData->m_Coroutine = nullptr;
 	}
 
 	template <typename t_CReturnType>
@@ -327,7 +329,7 @@ namespace NMib::NConcurrency::NPrivate
 				? NMib::NConcurrency::EContinuationCoroutineContextFlag_UnsafeReferenceParameters
 				: NMib::NConcurrency::EContinuationCoroutineContextFlag_None
 			)
-			| TCCoroutineContextFlagsFromParams_This<tp_CFirstParam>::mc_Value;
+			| TCCoroutineContextFlagsFromParams_This<typename TCChooseType<NTraits::TCIsPointer<tp_CFirstParam>::mc_Value, typename NTraits::TCAddLValueReference<typename NTraits::TCRemovePointer<tp_CFirstParam>::CType>::CType, tp_CFirstParam>::CType>::mc_Value;
 		;
 	};
 #else

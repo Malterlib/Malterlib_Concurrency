@@ -655,6 +655,8 @@ namespace NMib::NConcurrency
 		, m_ProtocolVersions(_ProtocolVersions)
 		, m_Actor(fg_Move(_Actor))
 	{
+		for (auto &TypeID : _Hierarchy)
+			DMibFastCheck(TypeID != 0);
 	}
 	
 	template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>

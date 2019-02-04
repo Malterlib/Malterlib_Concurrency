@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
-		State.m_TypeHash = TCGetTypeHash<t_CActor>::mc_Value;
+		State.m_TypeHash = DMibConstantTypeHash(t_CActor);
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
 		

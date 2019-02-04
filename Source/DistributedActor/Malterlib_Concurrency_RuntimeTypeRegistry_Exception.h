@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename t_CException, uint32 t_NameHash = TCGetTypeHash<t_CException>::mc_Value>
+	template <typename t_CException, uint32 t_NameHash = DMibConstantTypeHash(t_CException)>
 	struct TCRuntimeTypeRegistryEntry_Exception final : public CRuntimeTypeRegistryEntry_Exception
 	{
 		TCRuntimeTypeRegistryEntry_Exception ();

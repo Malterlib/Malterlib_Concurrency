@@ -495,7 +495,7 @@ namespace NMib::NConcurrency
 													 	(
 															"Failed to get ticket interface: {} [{nfh}] from available hashes: {}"
 															, TypeName
-															, TCGetTypeHash<CInternal::CTicketInterface>::mc_Value
+															, DMibConstantTypeHash(CInternal::CTicketInterface)
 															, AvailableHashes
 														)
 													)

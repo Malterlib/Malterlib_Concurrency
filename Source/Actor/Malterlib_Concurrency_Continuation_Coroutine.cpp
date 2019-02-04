@@ -56,8 +56,13 @@ namespace NMib::NConcurrency
 				, sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack) / sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[0])
 			)
 		;
+#ifdef DCompiler_MSVC
+		mint DequeueCallstackLocation = 10;
+#else
+		mint DequeueCallstackLocation = 9;
+#endif
 
-		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall && ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[9] == ThreadLocal.m_CurrentActorCallParent;
+		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall && ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == ThreadLocal.m_CurrentActorCallParent;
 
 		if (!bSafeCall)
 		{
@@ -127,11 +132,17 @@ namespace NMib::NConcurrency
 			;
 		}
 
+#ifdef DCompiler_MSVC
+		mint DequeueCallstackLocation = 13;
+#else
+		mint DequeueCallstackLocation = 12;
+#endif
+
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall
 			&&
 			(
-				ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[12] == ThreadLocal.m_CurrentActorCallParent
-				|| ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[13] == ThreadLocal.m_CurrentActorCallParent
+				ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == ThreadLocal.m_CurrentActorCallParent
+				|| ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation+1] == ThreadLocal.m_CurrentActorCallParent
 			)
 		;
 

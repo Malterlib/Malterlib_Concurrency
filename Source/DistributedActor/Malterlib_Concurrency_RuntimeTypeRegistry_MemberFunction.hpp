@@ -85,7 +85,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 
@@ -132,7 +132,7 @@ namespace NMib::NConcurrency::NPrivate
 			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 		return fp_Call
@@ -200,7 +200,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency::NPrivate
 			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 		return fp_Call
@@ -279,7 +279,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-			, NConcurrency::TCContinuation<t_CResult>
+			, NConcurrency::TCFuture<t_CResult>
 		>::TCRuntimeTypeRegistryEntry_MemberFunction()
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
@@ -309,7 +309,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-			, NConcurrency::TCContinuation<t_CResult>
+			, NConcurrency::TCFuture<t_CResult>
 		>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
@@ -317,7 +317,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
 
@@ -333,11 +333,11 @@ namespace NMib::NConcurrency::NPrivate
 			return _Exception;
 		}
 
-		auto Continuation = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
+		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
 
-		NConcurrency::TCContinuation<NContainer::CSecureByteVector> Return;
+		NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
 
-		Continuation.f_OnResultSet
+		Future.f_OnResultSet
 			(
 				[Return, Context = *pContext, Version = _ParamsStream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
 				{
@@ -346,7 +346,7 @@ namespace NMib::NConcurrency::NPrivate
 			)
 		;
 
-		return Return;
+		return Return.f_MoveFuture();
 	}
 
 	template
@@ -367,13 +367,13 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-			, NConcurrency::TCContinuation<t_CResult>
+			, NConcurrency::TCFuture<t_CResult>
 		>::f_Call
 		(
 			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 			, void *_pObject
 		)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector>
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
 		return fp_Call

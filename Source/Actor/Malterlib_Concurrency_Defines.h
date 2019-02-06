@@ -33,16 +33,16 @@ namespace NMib::NConcurrency
 	class TCActor;
 
 	template <typename t_CReturnValue>
-	struct TCContinuation;
+	struct TCPromise;
 
 	template <typename t_CReturn>
 	using TCDispatchedActorCall =
 		TCActorCall
 		<
 			TCActor<CActor>
-			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
+			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
 		>
 	;
 
@@ -51,9 +51,9 @@ namespace NMib::NConcurrency
 		TCActorCall
 		<
 			TCWeakActor<CActor>
-			, TCContinuation<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<t_CReturn> ()>>
+			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
+			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
 		>
 	;
 
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 	{
 	public:
 		virtual ~CActorSubscriptionReference();
-		virtual TCContinuation<void> f_Destroy() = 0;
+		virtual TCFuture<void> f_Destroy() = 0;
 	};
 
 	typedef NStorage::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;

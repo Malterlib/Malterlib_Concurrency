@@ -5,7 +5,7 @@
 
 #include "../Actor/Malterlib_Concurrency_Defines.h"
 #include "../Actor/Malterlib_Concurrency_AsyncResult.h"
-#include "../Actor/Malterlib_Concurrency_Continuation.h"
+#include "../Actor/Malterlib_Concurrency_Promise.h"
 #include "../Actor/Malterlib_Concurrency_Actor.h"
 #include "../Actor/Malterlib_Concurrency_ActorHolder.h"
 
@@ -350,7 +350,7 @@ namespace NMib::NConcurrency
 		TCDispatchedActorCall<void> f_Destroy();
 
 		template <typename ...tfp_CInterfaces, typename tf_CThis>
-		TCContinuation<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
+		TCFuture<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
 		template <typename tf_CThis>
 		void f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis);
 
@@ -378,9 +378,9 @@ namespace NMib::NConcurrency
 			TCActorCall
 			<
 				TCActor<CConcurrentActor>
-				, TCContinuation<void> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<void> ()> &&)
-				, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
-				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
+				, TCFuture<void> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<void> ()> &&)
+				, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<void> ()>>
+				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<void> ()>>
 			>
 		;
 
@@ -435,7 +435,7 @@ namespace NMib::NConcurrency
 
 	struct ICActorDistributionManagerAccessHandler : public CActor
 	{
-		virtual TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) = 0;
+		virtual TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) = 0;
 	};
 
 	struct CCallingHostInfo
@@ -560,7 +560,7 @@ namespace NMib::NConcurrency
 		void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
 		void f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames);
 
-		TCContinuation<void> f_SetAuthenticationHandler
+		TCFuture<void> f_SetAuthenticationHandler
 			(
 				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 				, NStr::CStr const &_LastExecutionID
@@ -569,17 +569,17 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_UserName
 			)
 		;
-		TCContinuation<void> f_RemoveAuthenticationHandler
+		TCFuture<void> f_RemoveAuthenticationHandler
 			(
 				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 				, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 			)
 		;
 
-		TCContinuation<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings const &_Settings);
-		TCContinuation<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings);
+		TCFuture<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings const &_Settings);
+		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings);
 
-		TCContinuation<NContainer::CSecureByteVector> f_CallRemote
+		TCFuture<NContainer::CSecureByteVector> f_CallRemote
 			(
 				NStorage::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
 				, NContainer::CSecureByteVector &&_CallData
@@ -587,9 +587,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<void> f_KickHost(NStr::CStr const &_HostID);
+		TCFuture<void> f_KickHost(NStr::CStr const &_HostID);
 
-		TCContinuation<CActorSubscription> f_SubscribeActors
+		TCFuture<CActorSubscription> f_SubscribeActors
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 				, TCActor<CActor> const &_Actor
@@ -605,13 +605,13 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<CActorSubscription> f_RegisterWebsocketHandler
+		TCFuture<CActorSubscription> f_RegisterWebsocketHandler
 			(
 				NStr::CStr const &_Path
 				, TCActor<> const &_Actor
 				, NFunction::TCFunctionMutable
 				<
-					TCContinuation<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+					TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
 				>
 				&&_fNewWebsocketConnection
 			)
@@ -626,9 +626,9 @@ namespace NMib::NConcurrency
 		static bool fs_IsValidUserID(NStr::CStr const &_String);
 
 	private:
-		TCContinuation<void> fp_Destroy() override;
+		TCFuture<void> fp_Destroy() override;
 
-		TCContinuation<CDistributedActorPublication> fp_PublishActor
+		TCFuture<CDistributedActorPublication> fp_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, NStr::CStr const &_Namespace
@@ -643,7 +643,7 @@ namespace NMib::NConcurrency
 				, uint32 _SubscriptionSequenceID
 			)
 		;
-		TCContinuation<void> fp_DestroyRemoteSubscription
+		TCFuture<void> fp_DestroyRemoteSubscription
 			(
 				NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 				, NStr::CStr const &_SubscriptionID
@@ -651,12 +651,12 @@ namespace NMib::NConcurrency
 			)
 		;
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
-		TCContinuation<void> fp_RemoveListen(NStr::CStr const &_ListenID);
+		TCFuture<void> fp_RemoveListen(NStr::CStr const &_ListenID);
 		void fp_RemoveConnection(NStr::CStr const &_ConnectionID);
-		TCContinuation<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
+		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 		void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
 		void fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID);
-		TCContinuation<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
+		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
 		CActorSubscription fp_OnRemoteDisconnect
 			(
 				TCActor<CActor> const &_Actor

@@ -57,7 +57,7 @@ namespace
 						(
 							{
 								"testMethod"
-								, [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCContinuation<NEncoding::CEJSON> 
+								, [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCFuture<NEncoding::CEJSON> 
 								{
 									if (_Params[0].f_GetMember("Invalid"))
 										return DMibErrorInstance("Invalid params");

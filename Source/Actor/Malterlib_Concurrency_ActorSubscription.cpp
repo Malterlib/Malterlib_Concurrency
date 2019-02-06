@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 		TCActorSubscriptionCleanupFunctor(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<t_CReturnValue ()> &&_fCleanup);
 		~TCActorSubscriptionCleanupFunctor();
 		
-		TCContinuation<void> f_Destroy() override;
+		TCFuture<void> f_Destroy() override;
 
 	private:
 		TCWeakActor<> mp_DispatchActor;
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCContinuation<void> TCActorSubscriptionCleanupFunctor<t_CReturnValue>::f_Destroy()
+	TCFuture<void> TCActorSubscriptionCleanupFunctor<t_CReturnValue>::f_Destroy()
 	{
 		if (!mp_DispatchActor)
 			return fg_Explicit();
@@ -61,9 +61,9 @@ namespace NMib::NConcurrency
 		return fg_Move(pFunctorRef);
 	}
 
-	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCContinuation<void> ()> &&_fCleanup)
+	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCFuture<void> ()> &&_fCleanup)
 	{
-		NStorage::TCUniquePointer<TCActorSubscriptionCleanupFunctor<TCContinuation<void>>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
+		NStorage::TCUniquePointer<TCActorSubscriptionCleanupFunctor<TCFuture<void>>> pFunctorRef = fg_Construct(_DispatchActor, fg_Move(_fCleanup));
 		return fg_Move(pFunctorRef);
 	}
 }

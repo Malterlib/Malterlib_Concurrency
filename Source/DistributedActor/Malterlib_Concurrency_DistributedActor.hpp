@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 	TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
 	{
 		m_pActor = nullptr;
-		return g_Dispatch / [this]() -> TCContinuation<void>
+		return g_Dispatch / [this]() -> TCFuture<void>
 			{
 				m_Publication.f_Clear();
 				if (m_Actor.f_IsEmpty())
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CImplementation>
 	template <typename ...tfp_CInterfaces, typename tf_CThis>
-	TCContinuation<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
+	TCFuture<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, tf_CThis *_pThis
@@ -222,15 +222,15 @@ namespace NMib::NConcurrency
 	{
 		f_Construct(_DistributionManager, _pThis);
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
-			> Continuation / [this, Continuation] (CDistributedActorPublication &&_Publication)
+			> Promise / [this, Promise] (CDistributedActorPublication &&_Publication)
 			{
 				m_Publication = fg_Move(_Publication);
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CImplementation>

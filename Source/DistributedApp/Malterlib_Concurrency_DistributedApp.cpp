@@ -157,10 +157,10 @@ namespace NMib::NConcurrency
 		return TranslateHostnames;
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SetupListen()
+	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Setting up listen config");
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 		
@@ -201,7 +201,7 @@ namespace NMib::NConcurrency
 		WantedListens[LocalListen];
 		
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens) 
-			> Continuation % "Failed to enum current listen" / [this, Continuation, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)
+			> Promise % "Failed to enum current listen" / [this, Promise, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)
 			{
 				TCActorResultVector<void> ChangesResults;
 				bool bChanged = false;
@@ -224,22 +224,22 @@ namespace NMib::NConcurrency
 				if (!bChanged)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "No listen config changes needed");
-					Continuation.f_SetResult();
+					Promise.f_SetResult();
 					return;
 				}
-				ChangesResults.f_GetResults() > [Continuation](TCAsyncResult<TCVector<TCAsyncResult<void>>> &&_Results)
+				ChangesResults.f_GetResults() > [Promise](TCAsyncResult<TCVector<TCAsyncResult<void>>> &&_Results)
 					{
-						if (!fg_CombineResults(Continuation, fg_Move(_Results)))
+						if (!fg_CombineResults(Promise, fg_Move(_Results)))
 							return;
 						
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished changing listen config");
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CDistributedAppActor::fp_CleanupEnclaveSockets()
@@ -312,9 +312,9 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	TCContinuation<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
 		
 		fp_CleanupEnclaveSockets();
@@ -324,10 +324,10 @@ namespace NMib::NConcurrency
 		
 		mp_State.m_StateDatabase.f_Load()
 			+ mp_State.m_ConfigDatabase.f_Load()
-			> Continuation / [this, Continuation, _Params]()
+			> Promise / [this, Promise, _Params]()
 			{
 				if (mp_State.m_bStoppingApp)
-					return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+					return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
 				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> 
 					fManagerFactor
@@ -370,41 +370,41 @@ namespace NMib::NConcurrency
 				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(mp_TrustManagerDatabase, fg_Move(Options));
 				
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
-					> Continuation % "Failed to initialize trust manager" / [this, Continuation, _Params]()
+					> Promise % "Failed to initialize trust manager" / [this, Promise, _Params]()
 					{
 						if (mp_State.m_bStoppingApp)
-							return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+							return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 						
 						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
 							+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
-							> Continuation % "Failed to initialize trust manager"
-							/ [this, Continuation, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager, CStr &&_HostID)
+							> Promise % "Failed to initialize trust manager"
+							/ [this, Promise, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager, CStr &&_HostID)
 							{
 								if (mp_State.m_bStoppingApp)
 								{
 									if (mp_Settings.m_bSeparateDistributionManager)
 									{
-										_DistributionManager->f_Destroy() > [Continuation](TCAsyncResult<void> &&)
+										_DistributionManager->f_Destroy() > [Promise](TCAsyncResult<void> &&)
 											{
-												Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+												Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 											}
 										;
 										return;
 									}
-									return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+									return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 								}
 								mp_State.m_DistributionManager = fg_Move(_DistributionManager);
 								mp_State.m_HostID = fg_Move(_HostID);
 								fp_SetupListen()
 									+ fp_SetupAppServerInterface(_Params)
-									> Continuation % "Failed to setup listen config or app server interface" / [this, Continuation]()
+									> Promise % "Failed to setup listen config or app server interface" / [this, Promise]()
 									{
 										if (mp_State.m_bStoppingApp)
-											return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+											return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 										fp_SetupCommandLineTrust()
-											> Continuation % "Failed to setup commmand line trust" / [Continuation]()
+											> Promise % "Failed to setup commmand line trust" / [Promise]()
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
 									}
@@ -416,7 +416,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		
-		return Continuation;				
+		return Promise.f_MoveFuture();				
 	}
 
 	namespace
@@ -498,7 +498,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 	}
 
-	TCContinuation<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType)
+	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType)
 	{
 		f_SetAppType(_AppType);
 
@@ -522,7 +522,7 @@ namespace NMib::NConcurrency
 			mp_pInitOnce = fg_Construct
 				(
 					self
-					, [this, _Params]() -> TCContinuation<void>
+					, [this, _Params]() -> TCFuture<void>
 					{
 						return fp_Initialize(_Params);
 					}
@@ -531,33 +531,33 @@ namespace NMib::NConcurrency
 			;
 		}				
 			
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 		g_Dispatch / [this, _Params]()
 			{
-				TCContinuation<void> Continuation;
-				(*mp_pInitOnce)() > Continuation % "Failed to initialize" / [this, Continuation, _Params]()
+				TCPromise<void> Promise;
+				(*mp_pInitOnce)() > Promise % "Failed to initialize" / [this, Promise, _Params]()
 					{
 						if (mp_State.m_bStoppingApp)
-							return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+							return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
-						fp_StartApp(_Params) > Continuation % "Failed to start app" / [this, Continuation]
+						fp_StartApp(_Params) > Promise % "Failed to start app" / [this, Promise]
 							{
 								if (mp_State.m_bStoppingApp)
-									return Continuation.f_SetException(DMibErrorInstance("Startup aborted"));
+									return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
-								fp_PublishCommandLine() > Continuation % "Failed to publish command line" / [Continuation] 
+								fp_PublishCommandLine() > Promise % "Failed to publish command line" / [Promise] 
 									{
-										Continuation.f_SetResult();
+										Promise.f_SetResult();
 									}
 								;
 							}
 						;
 					}
 				 ;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
-			> [this, Continuation](TCAsyncResult<void> &&_Result)
+			> [this, Promise](TCAsyncResult<void> &&_Result)
 			{
 				mp_AppStartupResult = _Result;
 				
@@ -569,15 +569,15 @@ namespace NMib::NConcurrency
 				if (!_Result)
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", _Result.f_GetExceptionStr());
-					Continuation.f_SetException(fg_Move(_Result));
+					Promise.f_SetException(fg_Move(_Result));
 					return;
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished: {}", mp_Settings.m_AppName);
-				Continuation.f_SetResult(mp_State.m_HostID);
+				Promise.f_SetResult(mp_State.m_HostID);
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CDistributedAppActor::fp_Construct()
@@ -588,41 +588,41 @@ namespace NMib::NConcurrency
 		fp_BuildCommandLine(*mp_pCommandLineSpec);
 	}
 
-	TCContinuation<void> CDistributedAppActor::f_StopApp()
+	TCFuture<void> CDistributedAppActor::f_StopApp()
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App shutting down");
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 
 		mp_State.m_bStoppingApp = true;
 		
-		g_Dispatch / [this]() -> TCContinuation<void>
+		g_Dispatch / [this]() -> TCFuture<void>
 			{
 				if (mp_CommandLine)
 				{
-					TCContinuation<void> Continuation;
-					mp_CommandLine->f_Destroy() > Continuation;
+					TCPromise<void> Promise;
+					mp_CommandLine->f_Destroy() > Promise;
 					mp_CommandLine = nullptr;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 				mp_pStdInCleanup.f_Clear();
 				return fg_Explicit();
 			}
-			> Continuation % "Failed to stop command line interface" / [this, Continuation]
+			> Promise % "Failed to stop command line interface" / [this, Promise]
 			{
-				fp_StopApp() > Continuation % "Failed to stop app" / [Continuation]
+				fp_StopApp() > Promise % "Failed to stop app" / [Promise]
 					{
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped");
 						
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_Destroy()
+	TCFuture<void> CDistributedAppActor::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
@@ -630,9 +630,9 @@ namespace NMib::NConcurrency
 		if (mp_State.m_TrustManager)
 			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
 	
-		TCContinuation<void> Continuation;
-		Destroys.f_GetResults() > Continuation.f_ReceiveAny(); 
-		return Continuation;
+		TCPromise<void> Promise;
+		Destroys.f_GetResults() > Promise.f_ReceiveAny(); 
+		return Promise.f_MoveFuture();
 	}
 	
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
@@ -791,12 +791,12 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCContinuation<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
 		return fp_Test_Command(_Command, _Params);
 	}
 
-	TCContinuation<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
 		return fg_Explicit();
 	}

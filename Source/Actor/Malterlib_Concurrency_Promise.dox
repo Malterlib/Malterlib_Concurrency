@@ -1,0 +1,14 @@
+// Copyright © 2015 Hansoft AB 
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+/**
+
+\struct NMib::NConcurrency::TCPromise
+
+ A promise can be resolved only once
+
+\struct NMib::NConcurrency::TCFuture
+
+ A future can be observed only once
+
+*/

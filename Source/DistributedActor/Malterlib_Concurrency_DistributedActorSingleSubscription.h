@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorSingleSubscription(NStr::CStr const &_Namespace, TCActor<CActorDistributionManager> const &_DistributionManager = fg_GetDistributionManager());
 		void f_Construct();
 
-		TCContinuation<TCDistributedActor<t_CActor>> f_GetActor();
+		TCFuture<TCDistributedActor<t_CActor>> f_GetActor();
 
 	private:
 		void fp_ResultAvailable();
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> mp_DistributionManager;
 		CActorSubscription mp_DistributedActorSubscription;
 		NStr::CStr mp_Namespace;
-		NContainer::TCLinkedList<TCContinuation<TCDistributedActor<t_CActor>>> mp_GetActorContinuations;
+		NContainer::TCLinkedList<TCPromise<TCDistributedActor<t_CActor>>> mp_GetActorPromises;
 	};
 }
 

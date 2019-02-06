@@ -18,17 +18,17 @@ namespace NMib::NConcurrency
 		struct CMethod
 		{
 			NStr::CStr m_Name;
-			NFunction::TCFunctionMutable<TCContinuation<NEncoding::CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandler;
+			NFunction::TCFunctionMutable<TCFuture<NEncoding::CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandler;
 		};
 		
-		TCContinuation<CActorSubscription> f_RegisterMethods
+		TCFuture<CActorSubscription> f_RegisterMethods
 			(
 				TCWeakActor<> const &_Actor
 				, NContainer::TCVector<CMethod> &&_Methods
 			)
 		;
 
-		TCContinuation<void> f_Startup();
+		TCFuture<void> f_Startup();
 		
 	private:
 		struct CInternal;

@@ -2,19 +2,19 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_Manager.h"
-#include "Malterlib_Concurrency_Continuation.h"
+#include "Malterlib_Concurrency_Promise.h"
 
 namespace NMib::NConcurrency::NPrivate
 {
-	void TCContinuationCoroutineContextValue<void>::return_value(CVoidSentinel &&_Value)
+	void TCFutureCoroutineContextValue<void>::return_value(CVoidSentinel &&_Value)
 	{
-		m_pContinuationData->f_SetResult();
+		m_pPromiseData->f_SetResult();
 	}
 }
 
 namespace NMib::NConcurrency
 {
-	void CContinuationCoroutineContext::f_Suspend()
+	void CFutureCoroutineContext::f_Suspend()
 	{
 		DMibFastCheck(this->m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		this->m_pPreviousCoroutineHandler = this;
 	}
 
-	void CContinuationCoroutineContext::f_Resume()
+	void CFutureCoroutineContext::f_Resume()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		DMibFastCheck(this->m_pPreviousCoroutineHandler == this);
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibEnableSafeCheck > 0
-	void CContinuationCoroutineContext::fp_CheckUnsafeReferenceParams()
+	void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -81,9 +81,9 @@ namespace NMib::NConcurrency
 		// Instead of calling coroutine directly do it through self:
 
 		#if 0
-			TCContinuation<void> f_MyOtherCoroutineFunction(uint32 const &);
+			TCFuture<void> f_MyOtherCoroutineFunction(uint32 const &);
 
-			TCContinuation<void> f_MyCoroutineFunction()
+			TCFuture<void> f_MyCoroutineFunction()
 			{
 				uint32 ByReference = 5;
 				co_await self(&CMyActor::f_MyOtherCoroutineFunction, ByReference);
@@ -91,12 +91,12 @@ namespace NMib::NConcurrency
 			}
 		#endif
 
-		// If you are sure that the reference usage is safe you can instead use TCContinuationAllowReferences:
+		// If you are sure that the reference usage is safe you can instead use TCFutureAllowReferences:
 
 		#if 0
-			TCContinuationAllowReferences<void> f_MyOtherCoroutineFunction(uint32 const &);
+			TCFutureAllowReferences<void> f_MyOtherCoroutineFunction(uint32 const &);
 
-			TCContinuation<void> f_MyCoroutineFunction()
+			TCFuture<void> f_MyCoroutineFunction()
 			{
 				uint32 ByReference = 5;
 				co_await f_MyOtherCoroutineFunction(ByReference);
@@ -107,9 +107,9 @@ namespace NMib::NConcurrency
 		// Or change the parameter to be non reference:
 
 		#if 0
-			TCContinuationAllowReferences<void> f_MyOtherCoroutineFunction(uint32);
+			TCFutureAllowReferences<void> f_MyOtherCoroutineFunction(uint32);
 
-			TCContinuation<void> f_MyCoroutineFunction()
+			TCFuture<void> f_MyCoroutineFunction()
 			{
 				uint32 ByReference = 5;
 				co_await f_MyOtherCoroutineFunction(ByReference);
@@ -118,11 +118,11 @@ namespace NMib::NConcurrency
 		#endif
 	}
 
-	void CContinuationCoroutineContext::fp_CheckUnsafeThisPointer()
+	void CFutureCoroutineContext::fp_CheckUnsafeThisPointer()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
-		if (!(m_Flags & EContinuationCoroutineContextFlag_UnsafeReferenceParameters))
+		if (!(m_Flags & EFutureCoroutineContextFlag_UnsafeReferenceParameters))
 		{
 			ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace
 				(
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 		// If you hit this assert you have called a coroutine (probably a lamdba) in an unsafe way.
 		// Instead of calling coroutine directly, dispatch it instead:
 		#if 0
-			g_Dispatch / [=] () -> TCContinuation<void>
+			g_Dispatch / [=] () -> TCFuture<void>
 				{
 					co_await self(&CMyActor::f_MyOtherCoroutineFunction);
 					co_return {};
@@ -176,7 +176,7 @@ namespace NMib::NConcurrency
 			// Or
 			co_await
 				(
-					g_Dispatch / [=] () -> TCContinuation<void>
+					g_Dispatch / [=] () -> TCFuture<void>
 					{
 						co_await self(&CMyActor::f_MyOtherCoroutineFunction);
 						co_return {};

@@ -35,8 +35,8 @@ namespace NMib::NConcurrency
 		ICDistributedActorTrustManagerAuthenticationActor();
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
-		virtual TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
-		virtual TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		virtual TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
+		virtual TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors
 			) = 0
 		;
-		virtual TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		virtual TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

@@ -10,7 +10,7 @@
 namespace NMib::NConcurrency
 {
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup);
-	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCContinuation<void> ()> &&_fCleanup);
+	CActorSubscription fg_ActorSubscriptionAsync(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<TCFuture<void> ()> &&_fCleanup);
 
 	struct CActorSubscriptionHelperWithActor
 	{
@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 				NTraits::TCIsSame
 				<
 					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-					, TCContinuation<void>
+					, TCFuture<void>
 				>::mc_Value
 			>
 			* = nullptr
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 				!NTraits::TCIsSame
 				<
 					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-					, TCContinuation<void>
+					, TCFuture<void>
 				>::mc_Value
 			>
 			* = nullptr
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 				NTraits::TCIsSame
 				<
 					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-					, TCContinuation<void>
+					, TCFuture<void>
 				>::mc_Value
 			>
 			* = nullptr
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 				!NTraits::TCIsSame
 				<
 					typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-					, TCContinuation<void>
+					, TCFuture<void>
 				>::mc_Value
 			>
 			* = nullptr

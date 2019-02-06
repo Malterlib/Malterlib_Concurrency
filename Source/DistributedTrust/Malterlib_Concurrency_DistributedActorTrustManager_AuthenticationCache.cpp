@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 		return Result;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerAuthenticationCache::f_CleanupExpired()
+	TCFuture<void> CDistributedActorTrustManagerAuthenticationCache::f_CleanupExpired()
 	{
 		auto Now = NTime::CTime::fs_NowUTC();
 

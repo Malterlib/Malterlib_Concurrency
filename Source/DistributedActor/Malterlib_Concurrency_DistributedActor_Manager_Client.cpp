@@ -56,23 +56,23 @@ namespace NMib::NConcurrency
 			(
 				[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID]
 				{
-					TCContinuation<CDistributedActorConnectionStatus> Continuation;
+					TCPromise<CDistributedActorConnectionStatus> Promise;
 					if (DistributionManager)
 					{
 						DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, ConnectionID)
-							> [Continuation](TCAsyncResult<CDistributedActorConnectionStatus> &&_ConnectionStatus)
+							> [Promise](TCAsyncResult<CDistributedActorConnectionStatus> &&_ConnectionStatus)
 							{
-								Continuation.f_SetResult(fg_Move(_ConnectionStatus));
+								Promise.f_SetResult(fg_Move(_ConnectionStatus));
 							}
 						;
-						return Continuation;
+						return Promise.f_MoveFuture();
 					}
 					if (bAlreadyRemoved)
-						Continuation.f_SetException(DMibErrorInstance("Connection has been disconnected"));
+						Promise.f_SetException(DMibErrorInstance("Connection has been disconnected"));
 					else
-						Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+						Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
 
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;
@@ -87,22 +87,22 @@ namespace NMib::NConcurrency
 			(
 				[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID]
 				{
-					TCContinuation<void> Continuation;
+					TCPromise<void> Promise;
 					if (DistributionManager)
 					{
-						DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID) > [Continuation](TCAsyncResult<void> &&_Result)
+						DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID) > [Promise](TCAsyncResult<void> &&_Result)
 							{
-								Continuation.f_SetResult(fg_Move(_Result));
+								Promise.f_SetResult(fg_Move(_Result));
 							}
 						;
-						return Continuation;
+						return Promise.f_MoveFuture();
 					}
 					if (bAlreadyRemoved)
-						Continuation.f_SetException(DMibErrorInstance("Connection has already been disconnected"));
+						Promise.f_SetException(DMibErrorInstance("Connection has already been disconnected"));
 					else
-						Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+						Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
 
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;
@@ -115,15 +115,15 @@ namespace NMib::NConcurrency
 			(
 				[DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID, _Settings]
 				{
-					TCContinuation<void> Continuation;
+					TCPromise<void> Promise;
 
 					if (!DistributionManager)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Conection disconnected"));
-						return Continuation;
+						Promise.f_SetException(DMibErrorInstance("Conection disconnected"));
+						return Promise.f_MoveFuture();
 					}
-					DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, ConnectionID, _Settings) > Continuation;
-					return Continuation;
+					DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, ConnectionID, _Settings) > Promise;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;
@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_ScheduleReconnect
 		(
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-			, NStorage::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
+			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
 			, mint _Sequence
 			, NStr::CStr const &_ConnectionError
@@ -146,13 +146,13 @@ namespace NMib::NConcurrency
 				&CTimerActor::f_OneshotTimer
 				, 0.5
 				, fg_ThisActor(m_pThis)
-				, [this, _pConnection, _Sequence, _pContinuation, _bRetry]() mutable
+				, [this, _pConnection, _Sequence, _pPromise, _bRetry]() mutable
 				{
 					if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
 						return;
 					if (_Sequence != _pConnection->m_ConnectionSequence)
 						return;
-					fp_Reconnect(_pConnection, _pContinuation, _bRetry);
+					fp_Reconnect(_pConnection, _pPromise, _bRetry);
 				}
 				, true
 			)
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_Reconnect
 		(
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-			, NStorage::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
+			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
 		)
 	{
@@ -220,34 +220,34 @@ namespace NMib::NConcurrency
 				, fg_Move(Request)
 				, NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
 			)
-			> [this, pConnectionWeak = _pConnection.f_Weak(), _pContinuation, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
+			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 			{
 				auto pConnection = pConnectionWeak.f_Lock();
 				if (!pConnection)
 				{
-					if (_pContinuation)
-						_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+					if (_pPromise)
+						_pPromise->f_SetException(DMibErrorInstance("Connection deleted"));
 					return;
 				}
 
-				auto fReportError = [this, _bRetry, _pContinuation, pConnectionWeak, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
+				auto fReportError = [this, _bRetry, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
 						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+							if (_pPromise)
+								_pPromise->f_SetException(DMibErrorInstance("Connection deleted"));
 							return;
 						}
 
 						if (!_bRetry)
 						{
-							if (_pContinuation)
-								_pContinuation->f_SetException(_Exception);
+							if (_pPromise)
+								_pPromise->f_SetException(_Exception);
 							return;
 						}
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), pConnection->m_ConnectionID));
+						if (_pPromise)
+							_pPromise->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), pConnection->m_ConnectionID));
 						fp_ScheduleReconnect(pConnection, nullptr, _bRetry, Sequence, _Error);
 					}
 				;
@@ -270,8 +270,8 @@ namespace NMib::NConcurrency
 
 				if (Sequence != Connection.m_ConnectionSequence)
 				{
-					if (_pContinuation)
-						_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
+					if (_pPromise)
+						_pPromise->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 					return;
 				}
 
@@ -422,7 +422,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				pConnection->m_IdentifyContinuation = TCContinuation<void>();
+				pConnection->m_IdentifyPromise = TCPromise<void>();
 				pConnection->m_Connection = Result.f_Accept
 					(
 						fg_ThisActor(m_pThis)
@@ -430,7 +430,7 @@ namespace NMib::NConcurrency
 						[
 							this
 							, pConnectionWeak
-							, _pContinuation
+							, _pPromise
 							, Sequence
 							, RealHostID
 							, UniqueHostID
@@ -443,15 +443,15 @@ namespace NMib::NConcurrency
 							auto pConnection = pConnectionWeak.f_Lock();
 							if (!pConnection)
 							{
-								if (_pContinuation)
-									_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+								if (_pPromise)
+									_pPromise->f_SetException(DMibErrorInstance("Connection deleted"));
 								return;
 							}
 
 							if (Sequence != pConnection->m_ConnectionSequence)
 							{
-								if (_pContinuation)
-									_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
+								if (_pPromise)
+									_pPromise->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 								return;
 							}
 
@@ -482,7 +482,7 @@ namespace NMib::NConcurrency
 
 							pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
-							pConnection->m_IdentifyContinuation.f_Dispatch()
+							pConnection->m_IdentifyPromise.f_Dispatch()
 								>
 								[
 									this
@@ -490,7 +490,7 @@ namespace NMib::NConcurrency
 									, UniqueHostID
 									, Sequence
 									, pConnectionWeak
-									, _pContinuation
+									, _pPromise
 									, CertificateChain = fg_Move(CertificateChain)
 									, bFirstConnection
 									, fReportError
@@ -500,14 +500,14 @@ namespace NMib::NConcurrency
 									auto pConnection = pConnectionWeak.f_Lock();
 									if (!pConnection)
 									{
-										if (_pContinuation)
-											_pContinuation->f_SetException(DMibErrorInstance("Connection deleted"));
+										if (_pPromise)
+											_pPromise->f_SetException(DMibErrorInstance("Connection deleted"));
 										return;
 									}
 									if (Sequence != pConnection->m_ConnectionSequence)
 									{
-										if (_pContinuation)
-											_pContinuation->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
+										if (_pPromise)
+											_pPromise->f_SetException(DMibErrorInstance("Connection sequence mismatch"));
 										return;
 									}
 									if (!_Result)
@@ -534,7 +534,7 @@ namespace NMib::NConcurrency
 									else
 										DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
 
-									if (_pContinuation)
+									if (_pPromise)
 									{
 										CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), pConnection->m_ConnectionID};
 										ConnectionResult.m_CertificateChain = fg_Move(CertificateChain);
@@ -542,7 +542,7 @@ namespace NMib::NConcurrency
 										ConnectionResult.m_UniqueHostID = UniqueHostID;
 										ConnectionResult.m_HostInfo.m_HostID = RealHostID;
 										ConnectionResult.m_HostInfo.m_FriendlyName = pConnection->m_pHost->m_FriendlyName;
-										_pContinuation->f_SetResult(fg_Move(ConnectionResult));
+										_pPromise->f_SetResult(fg_Move(ConnectionResult));
 									}
 									pConnection->m_bConnected = true;
 								}
@@ -560,7 +560,7 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings
 		(
 			CActorDistributionConnectionSettings const &_Settings
-			, TCContinuation<tf_CReturnType> &_Continuation
+			, TCPromise<tf_CReturnType> &_Promise
 			, CDecodedClientConnectionSetting &o_DecodedSettings
 		)
 	{
@@ -572,7 +572,7 @@ namespace NMib::NConcurrency
 
 		if (_Settings.m_bRetryConnectOnFailure && bAnonymous)
 		{
-			_Continuation = DMibErrorInstance("Anonymous connections cannot reconnect on failure");
+			_Promise = DMibErrorInstance("Anonymous connections cannot reconnect on failure");
 			return false;
 		}
 
@@ -592,13 +592,13 @@ namespace NMib::NConcurrency
 			}
 			catch (NException::CException const &_Exception)
 			{
-				_Continuation = DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr()));
+				_Promise = DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr()));
 				return false;
 			}
 
 			if (RealHostID.f_IsEmpty())
 			{
-				_Continuation = DMibErrorInstance("Server certifate has no host ID");
+				_Promise = DMibErrorInstance("Server certifate has no host ID");
 				return false;
 			}
 		}
@@ -610,15 +610,15 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	TCContinuation<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
+	TCFuture<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
 	{
 		auto &Internal = *mp_pInternal;
 
-		TCContinuation<CActorDistributionManager::CConnectionResult> Continuation;
+		TCPromise<CActorDistributionManager::CConnectionResult> Promise;
 
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
-			return Continuation;
+		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
+			return Promise.f_MoveFuture();
 
 		if (!Internal.m_WebsocketClientConnector)
 			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>();
@@ -641,12 +641,12 @@ namespace NMib::NConcurrency
 		}
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
-		Internal.fp_Reconnect(pConnection, fg_Construct(Continuation), _Settings.m_bRetryConnectOnFailure);
+		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure);
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<CDistributedActorConnectionStatus> CActorDistributionManager::fp_GetConnectionStatus(NStr::CStr const &_ConnectionID)
+	TCFuture<CDistributedActorConnectionStatus> CActorDistributionManager::fp_GetConnectionStatus(NStr::CStr const &_ConnectionID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
@@ -674,7 +674,7 @@ namespace NMib::NConcurrency
 			Internal.fp_DestroyClientConnection(**pConnection, false, "Remove connection");
 	}
 
-	TCContinuation<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)
+	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
@@ -687,10 +687,10 @@ namespace NMib::NConcurrency
 
 		auto &Host = *Connection.m_pHost;
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Continuation, DecodedSettings))
-			return Continuation;
+		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
+			return Promise.f_MoveFuture();
 
 		if (DecodedSettings.m_bAnonymous != Host.m_bAnonymous)
 			return DMibErrorInstance("You cannot change the anonymous status of the connection");
@@ -710,6 +710,6 @@ namespace NMib::NConcurrency
 		Connection.m_pSSLContext = fg_Move(pNewSSLContext);
 		Connection.m_ServerURL = _Settings.m_ServerURL;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

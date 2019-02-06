@@ -56,17 +56,17 @@ namespace NMib::NConcurrency
 			CDevice(hid_device *_Device);
 			~CDevice();
 
-			TCContinuation<aint> f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
-			TCContinuation<NContainer::CByteVector> f_Read(size_t _Length);
-			TCContinuation<NContainer::CByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
+			TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
+			TCFuture<NContainer::CByteVector> f_Read(size_t _Length);
+			TCFuture<NContainer::CByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
 
-			TCContinuation<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
-			TCContinuation<NContainer::CByteVector> f_GetFeatureReport(uint8 _ReportID);
+			TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
+			TCFuture<NContainer::CByteVector> f_GetFeatureReport(uint8 _ReportID);
 
-			TCContinuation<NStr::CStr> f_GetManufacturerString() const;
-			TCContinuation<NStr::CStr> f_GetProductString() const;
-			TCContinuation<NStr::CStr> f_GetSerialNumberString() const;
-			TCContinuation<NStr::CStr> f_GetIndexedString(aint _StringIndex) const;
+			TCFuture<NStr::CStr> f_GetManufacturerString() const;
+			TCFuture<NStr::CStr> f_GetProductString() const;
+			TCFuture<NStr::CStr> f_GetSerialNumberString() const;
+			TCFuture<NStr::CStr> f_GetIndexedString(aint _StringIndex) const;
 
 		private:
 
@@ -77,13 +77,13 @@ namespace NMib::NConcurrency
 		CHumanInterfaceDevicesActor();
 		~CHumanInterfaceDevicesActor();
 
-		TCContinuation<NContainer::TCVector<CDeviceInfo>> f_Enumerate(uint16 _VendorID, uint16 _ProductID);
-		TCContinuation<TCActor<CDevice>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber = "");
-		TCContinuation<TCActor<CDevice>> f_OpenPath(NStr::CStr const &_Path);
+		TCFuture<NContainer::TCVector<CDeviceInfo>> f_Enumerate(uint16 _VendorID, uint16 _ProductID);
+		TCFuture<TCActor<CDevice>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber = "");
+		TCFuture<TCActor<CDevice>> f_OpenPath(NStr::CStr const &_Path);
 
 	private:
 		template <typename tf_CReturn>
-		bool fp_CheckInit(TCContinuation<tf_CReturn> &_Continuation);
+		bool fp_CheckInit(TCPromise<tf_CReturn> &_Promise);
 
 		NStr::CStr mp_InitError;
 	};

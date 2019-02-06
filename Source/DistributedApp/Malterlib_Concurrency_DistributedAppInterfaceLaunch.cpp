@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			NWeb::NHTTP::CURL const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
-		 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
+		 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 			, NStr::CStr const &_Description
 			, bool _bDelegateTrust
 		)
@@ -121,33 +121,33 @@ namespace NMib::NConcurrency
 				, mp_Address
 				, g_ActorFunctor
 				(
-					g_ActorSubscription / [this, HandleRequestID]() -> TCContinuation<void>
+					g_ActorSubscription / [this, HandleRequestID]() -> TCFuture<void>
 					{
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
 							return fg_Explicit();
 						
-						TCContinuation<void> Continuation;
+						TCFuture<void> DestroyFuture;
 						if (pHandleRequest->m_NotificationsSubscription)
-							Continuation = pHandleRequest->m_NotificationsSubscription->f_Destroy();
+							DestroyFuture = pHandleRequest->m_NotificationsSubscription->f_Destroy();
 						else
-							Continuation.f_SetResult();
+							DestroyFuture = fg_Explicit();
 						
 						mp_HandleRequests.f_Remove(HandleRequestID);
 						
-						return Continuation;
+						return DestroyFuture;
 					}
 				)
-				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
+				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
 				{
-					TCContinuation<void> Continuation;
-					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Continuation](TCAsyncResult<void> &&_Result)
+					TCPromise<void> Promise;
+					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Promise](TCAsyncResult<void> &&_Result)
 						{
 							mp_HandleRequests.f_Remove(HandleRequestID);
-							Continuation.f_SetResult(fg_Move(_Result));
+							Promise.f_SetResult(fg_Move(_Result));
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			 	, nullptr
 			)

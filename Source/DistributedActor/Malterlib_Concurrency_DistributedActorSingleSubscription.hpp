@@ -49,22 +49,22 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCContinuation<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
+	TCFuture<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
 	{
 		if (mp_DistributedActor.f_IsSet())
 			return mp_DistributedActor;
 
-		TCContinuation<TCDistributedActor<t_CActor>> Continuation;
-		mp_GetActorContinuations.f_Insert(Continuation);
-		return Continuation;
+		TCPromise<TCDistributedActor<t_CActor>> Promise;
+		mp_GetActorPromises.f_Insert(Promise);
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CActor>
 	void TCDistributedActorSingleSubscription<t_CActor>::fp_ResultAvailable()
 	{
-		for (auto &Continuation : mp_GetActorContinuations)
-			Continuation.f_SetResult(mp_DistributedActor);
+		for (auto &Promise : mp_GetActorPromises)
+			Promise.f_SetResult(mp_DistributedActor);
 
-		mp_GetActorContinuations.f_Clear();
+		mp_GetActorPromises.f_Clear();
 	}
 }

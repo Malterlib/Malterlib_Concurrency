@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<void> CActorDistributionManager::f_KickHost(NStr::CStr const &_HostID)
+	TCFuture<void> CActorDistributionManager::f_KickHost(NStr::CStr const &_HostID)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -85,14 +85,14 @@ namespace NMib::NConcurrency
 			Internal.fp_DestroyHost(Host, nullptr);
 		}
 
-		TCContinuation<void> Continuation;
-		Results.f_GetResults() > fg_ConcurrentActor() / [Continuation](auto &&_Results)
+		TCPromise<void> Promise;
+		Results.f_GetResults() > fg_ConcurrentActor() / [Promise](auto &&_Results)
 			{
 				// Ignore errors
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
@@ -169,7 +169,7 @@ namespace NMib::NConcurrency
 		Host.m_Outgoing_CurrentPacketID = 0;
 
 		for (auto &Call : Host.m_OutstandingCalls)
-			Call.m_Continuation.f_SetException(DMibErrorInstance("Remote host no longer running"));
+			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host no longer running"));
 		Host.m_OutstandingCalls.f_Clear();
 
 		Host.m_ImplicitlyPublishedActors.f_Clear();

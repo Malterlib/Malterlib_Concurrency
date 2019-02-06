@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 
 		static EOption fs_ParseEnvironmentOptions(NStr::CStr const &_Options);
 
-		NStorage::TCSharedPointer<TCActorFunctor<TCContinuation<CDistributedActorTrustManager::CTrustTicket> ()>> m_pRequestTicket;
+		NStorage::TCSharedPointer<TCActorFunctor<TCFuture<CDistributedActorTrustManager::CTrustTicket> ()>> m_pRequestTicket;
 		NStr::CStr m_ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
 		NStr::CStr m_RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
 		EOption m_Options = fs_ParseEnvironmentOptions(fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerOptions"));

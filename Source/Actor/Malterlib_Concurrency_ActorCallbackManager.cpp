@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	CCombinedCallbackReference::CCombinedCallbackReference() = default;
 	CCombinedCallbackReference::~CCombinedCallbackReference() = default;
 	
-	TCContinuation<void> CCombinedCallbackReference::f_Destroy()
+	TCFuture<void> CCombinedCallbackReference::f_Destroy()
 	{
 		TCActorResultVector<void> Results;
 		for (auto &Reference : m_References)
@@ -16,15 +16,15 @@ namespace NMib::NConcurrency
 		
 		m_References.f_Clear();
 	
-		TCContinuation<void> Continuation;
-		Results.f_GetResults() > [Continuation](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+		TCPromise<void> Promise;
+		Results.f_GetResults() > [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
 			{
-				if (!fg_CombineResults(Continuation, fg_Move(_Results)))
+				if (!fg_CombineResults(Promise, fg_Move(_Results)))
 					return;
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

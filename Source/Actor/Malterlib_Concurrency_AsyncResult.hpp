@@ -112,6 +112,24 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
+	void TCAsyncResult<t_CType>::f_SetResult(TCAsyncResult const &_Result)
+	{
+		*this = _Result;
+	}
+
+	template <typename t_CType>
+	void TCAsyncResult<t_CType>::f_SetResult(TCAsyncResult &_Result)
+	{
+		*this = _Result;
+	}
+
+	template <typename t_CType>
+	void TCAsyncResult<t_CType>::f_SetResult(TCAsyncResult &&_Result)
+	{
+		*this = fg_Move(_Result);
+	}
+
+	template <typename t_CType>
 	template <typename ...tfp_CType>
 	void TCAsyncResult<t_CType>::f_SetResult(tfp_CType && ...p_Result)
 	{

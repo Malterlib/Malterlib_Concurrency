@@ -14,9 +14,9 @@ namespace NMib::NConcurrency
 	
 	template <typename t_CReturnType>
 	template <typename tf_FToSequence>
-	TCContinuation<t_CReturnType> TCActorSequencer<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
+	TCFuture<t_CReturnType> TCActorSequencer<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
 	{
-		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCContinuation<t_CReturnType>
+		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCFuture<t_CReturnType>
 			{
 				auto &State = *mp_pState;
 				if (State.m_bDestroyed)
@@ -25,11 +25,11 @@ namespace NMib::NConcurrency
 				auto &ToSequence = State.m_ToSequence.f_Insert();
 				ToSequence.m_fToSequence = fg_Move(fToSequence);
 
-				auto Continuation = ToSequence.m_Continuation;
+				auto Promise = ToSequence.m_Promise;
 
 				fp_ProcessSequence();
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 		;
 		if (fg_CurrentActorRunning())
@@ -43,27 +43,27 @@ namespace NMib::NConcurrency
 		auto &State = *mp_pState;
 		
 		for (auto &ToSequence : State.m_ToSequence)
-			ToSequence.m_Continuation.f_SetException(DMibErrorInstance("Actor sequencer went out of scope"));
+			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer went out of scope"));
 		
 		State.m_ToSequence.f_Clear();
 		State.m_bDestroyed = true;
 	}
 	
 	template <typename t_CReturnType>
-	TCContinuation<void> TCActorSequencer<t_CReturnType>::f_Abort()
+	TCFuture<void> TCActorSequencer<t_CReturnType>::f_Abort()
 	{
-		auto fDoAbort = [this]() -> TCContinuation<void>
+		auto fDoAbort = [this]() -> TCFuture<void>
 			{
 				auto &State = *mp_pState;
 
 				for (auto &ToSequence : State.m_ToSequence)
-					ToSequence.m_Continuation.f_SetException(DMibErrorInstance("Actor sequencer aborted"));
+					ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer aborted"));
 
 				State.m_ToSequence.f_Clear();
 				State.m_bDestroyed = true;
 
 				if (State.m_nRunning)
-					return State.m_AbortContinuation;
+					return State.m_AbortPromise;
 				else
 					return fg_Explicit();
 			}
@@ -84,9 +84,9 @@ namespace NMib::NConcurrency
 		++State.m_nRunning;
 		
 		auto ToSequence = State.m_ToSequence.f_Pop();
-		g_Dispatch / fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Continuation = ToSequence.m_Continuation](TCAsyncResult<t_CReturnType> &&_Result)
+		g_Dispatch / fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
 			{
-				Continuation.f_SetResult(_Result);
+				Promise.f_SetResult(_Result);
 				
 				auto &State = *pState;
 				
@@ -96,8 +96,8 @@ namespace NMib::NConcurrency
 				{
 					if (State.m_nRunning == 0)
 					{
-						if (!State.m_AbortContinuation.f_IsSet())
-							State.m_AbortContinuation.f_SetResult();
+						if (!State.m_AbortPromise.f_IsSet())
+							State.m_AbortPromise.f_SetResult();
 					}
 					return;
 				}

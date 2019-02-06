@@ -112,14 +112,14 @@ namespace NMib::NConcurrency
 			NStr::CStr m_ID;
 		};
 
-		virtual TCContinuation<NContainer::TCVector<CResponse>> f_RequestAuthentication
+		virtual TCFuture<NContainer::TCVector<CResponse>> f_RequestAuthentication
 			(
 				CRequest const &_Request
 				, CChallenge const &_Challenge
 				, NStr::CStr const &_MultipleRequestID
 			) = 0
 		;
-		virtual TCContinuation<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;
+		virtual TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;
 	};
 }
 

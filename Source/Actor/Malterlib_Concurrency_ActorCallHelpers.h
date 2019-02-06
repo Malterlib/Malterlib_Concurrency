@@ -366,7 +366,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CType>
-		auto operator + (TCContinuation<tf_CType> const &_Continuation);
+		auto operator + (TCFuture<tf_CType> const &_Future);
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
@@ -697,7 +697,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CType>
-		auto operator + (TCContinuation<tf_CType> const &_Continuation);
+		auto operator + (TCFuture<tf_CType> const &_Future);
 
 		template
 		<
@@ -705,8 +705,8 @@ namespace NMib::NConcurrency
 			, TCEnableIfType
 			<
 				!TCIsActorResultCall<tf_CFunctor>::mc_Value 
-				&& !NPrivate::TCIsContinuation<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
-				&& !NPrivate::TCIsContinuationWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
+				&& !NPrivate::TCIsPromise<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
+				&& !NPrivate::TCIsPromiseWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
 			> * = nullptr
 		>
 		void operator > (tf_CFunctor &&_Functor)
@@ -740,35 +740,35 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CResult>
-		void operator > (TCContinuation<tf_CResult> const &_Continuation)
+		void operator > (TCPromise<tf_CResult> const &_Promise)
 		{
-			*this > NPrivate::fg_DirectResultActor() / [_Continuation](TCAsyncResult<tf_CResult> &&_Result)
+			*this > NPrivate::fg_DirectResultActor() / [_Promise](TCAsyncResult<tf_CResult> &&_Result)
 				{
-					_Continuation.f_SetResult(fg_Move(_Result));
+					_Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
 		}
 		
 		template <typename tf_CResult>
-		void operator > (TCContinuationWithError<tf_CResult> const &_ContinuationWithError)
+		void operator > (TCPromiseWithError<tf_CResult> const &_PromiseWithError)
 		{
 			*this > NPrivate::fg_DirectResultActor() / 
 				(
-					_ContinuationWithError / [Continuation = _ContinuationWithError.m_Continuation](tf_CResult &&_Result)
+					_PromiseWithError / [Promise = _PromiseWithError.m_Promise](tf_CResult &&_Result)
 					{
-						Continuation.f_SetResult(fg_Move(_Result));
+						Promise.f_SetResult(fg_Move(_Result));
 					}
 				)
 			;
 		}
 
-		void operator > (TCContinuationWithError<void> const &_ContinuationWithError)
+		void operator > (TCPromiseWithError<void> const &_PromiseWithError)
 		{
 			*this > NPrivate::fg_DirectResultActor() / 
 				(
-					_ContinuationWithError / [Continuation = _ContinuationWithError.m_Continuation]()
+					_PromiseWithError / [Promise = _PromiseWithError.m_Promise]()
 					{
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				)
 			;
@@ -842,18 +842,24 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-
 		template <typename t_CType, typename t_CStrippedType = typename NTraits::TCMemberFunctionPointerTraits<t_CType>::CReturn>
 		struct TCGetResultType
 		{
 			typedef t_CStrippedType CType;
 		};
-		template <typename t_CType, typename t_CContinuationType>
-		struct TCGetResultType<t_CType, TCContinuation<t_CContinuationType>>
+
+		template <typename t_CType, typename t_CReturnType>
+		struct TCGetResultType<t_CType, TCPromise<t_CReturnType>>
 		{
-			typedef t_CContinuationType CType;
+			typedef t_CReturnType CType;
 		};
-		
+
+		template <typename t_CType, typename t_CReturnType>
+		struct TCGetResultType<t_CType, TCFuture<t_CReturnType>>
+		{
+			typedef t_CReturnType CType;
+		};
+
 		template 
 			<
 				bool t_bUnwrapTuple
@@ -1168,7 +1174,7 @@ namespace NMib::NConcurrency
 
 			using CRealActor = decltype(*(m_pActorInternal->fp_GetActor()));
 
-			if constexpr (NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<t_CFunctor, void (CRealActor &)>::CReturnType>::mc_Value)
+			if constexpr (NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<t_CFunctor, void (CRealActor &)>::CReturnType>::mc_Value)
 			{
 				auto &State = *m_pState;
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -1202,7 +1208,7 @@ namespace NMib::NConcurrency
 
 
 #if DMibEnableSafeCheck > 0
-				auto fCallActor = [&]() -> TCContinuation<CReturnType>
+				auto fCallActor = [&]() -> TCFuture<CReturnType>
 					{
 						try
 						{
@@ -1215,9 +1221,9 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				TCContinuation<CReturnType> Continuation = fCallActor();
+				TCFuture<CReturnType> Future = fCallActor();
 #else
-				TCContinuation<CReturnType> Continuation = State.m_ToCall(*pActor);
+				TCFuture<CReturnType> Future = State.m_ToCall(*pActor);
 #endif
 
 #if DMibEnableSafeCheck > 0
@@ -1227,15 +1233,15 @@ namespace NMib::NConcurrency
 
 				if constexpr (mc_ShouldDiscardResults)
 				{
-					if (!Continuation.f_IsCoroutine())
+					if (!Future.f_IsCoroutine())
 					{
-						Continuation.f_DiscardResult();
+						Future.f_DiscardResult();
 						return;
 					}
 					// Coroutine param state needs to be kept alive until coroutine has resloved
 				}
 
-				Continuation.f_OnResultSet
+				Future.f_OnResultSet
 					(
 						[Local = fg_Move(fg_RemoveQualifiers(*this))](auto &&_Result) mutable
 						{

@@ -110,10 +110,10 @@ namespace
 			DMibPublishActorFunction(CServerInterface::f_CheckPermissions3);
 		}
 
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) = 0;
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permission) = 0;
-		virtual NConcurrency::TCContinuation<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permission) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permission) = 0;
+		virtual NConcurrency::TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permission) = 0;
 	};
 
 	struct CServerActor : public CDistributedAppActor
@@ -147,21 +147,21 @@ namespace
 
 			struct CServerInterfaceImplementation : public CServerInterface
 			{
-				TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) override
+				TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 					auto const &Info = fg_GetCallingHostInfo();
 					auto CallingHostInfo =  CCallingHostInfo
 						(
@@ -177,61 +177,61 @@ namespace
 						)
 					;
 
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions, CallingHostInfo) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions, CallingHostInfo) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permissions) override
+				TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permissions) override
 				{
-					TCContinuation<TCMap<CStr, bool>> Continuation;
+					TCPromise<TCMap<CStr, bool>> Promise;
 
-					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Continuation / [Continuation](NContainer::TCMap<NStr::CStr, bool> _Result)
+					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Promise / [Promise](NContainer::TCMap<NStr::CStr, bool> _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
 				CServer *m_pThis;
 			};
 
-			TCContinuation<void> f_SubscribePermissions()
+			TCFuture<void> f_SubscribePermissions()
 			{
-				TCContinuation<void> Continuation;
+				TCPromise<void> Promise;
 
 				mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.malterlib/*")
 						 , fg_ThisActor(this)
-					) > Continuation / [this, Continuation](CTrustedPermissionSubscription &&_TrustedSubscription)
+					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
 					{
 						mp_Permissions = fg_Move(_TrustedSubscription);
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
 		private:
-			TCContinuation<void> fp_Destroy() override
+			TCFuture<void> fp_Destroy() override
 			{
 				mp_ProtocolInterface.m_Publication.f_Clear();
 
@@ -244,13 +244,13 @@ namespace
 		};
 
 	private:
-		TCContinuation<void> fp_StartApp(CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CServerActor::CServer>(fg_Construct(self), mp_State);
 			return mp_ServerActor(&CServer::f_SubscribePermissions);
 		}
 
-		TCContinuation<void> fp_StopApp() override
+		TCFuture<void> fp_StopApp() override
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 
@@ -265,7 +265,7 @@ namespace
 					}
 				;
 			}
-			return pCanDestroy->m_Continuation;
+			return pCanDestroy->f_Future();
 		}
 
 		TCActor<CServerActor::CServer> mp_ServerActor;
@@ -294,10 +294,10 @@ namespace
 			DMibPublishActorFunction(CManyServerInterface::f_CheckPermissions4);
 		}
 
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) = 0;
 	};
 
 	// This server is used to test the behavior multiple multiple permission subscriptions
@@ -332,60 +332,60 @@ namespace
 
 			struct CServerInterfaceImplementation : public CManyServerInterface
 			{
-				TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions1.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions1.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions2.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions2.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions3.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions3.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
-				TCContinuation<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions4.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions4.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
 				CServer *m_pThis;
 			};
 
-			TCContinuation<void> f_SubscribePermissions()
+			TCFuture<void> f_SubscribePermissions()
 			{
-				TCContinuation<void> Continuation;
+				TCPromise<void> Promise;
 
 				mp_AppState.m_TrustManager
 					(
@@ -398,54 +398,54 @@ namespace
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Continuation / [this, Continuation](CTrustedPermissionSubscription &&_TrustedSubscription1, CTrustedPermissionSubscription &&_TrustedSubscription2)
+					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription1, CTrustedPermissionSubscription &&_TrustedSubscription2)
 					{
 						mp_Permissions1 = fg_Move(_TrustedSubscription1);
 						mp_Permissions2 = fg_Move(_TrustedSubscription2);
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<void> f_SubscribePermissions3()
+			TCFuture<void> f_SubscribePermissions3()
 			{
-				TCContinuation<void> Continuation;
+				TCPromise<void> Promise;
 
 				mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Continuation / [this, Continuation](CTrustedPermissionSubscription &&_TrustedSubscription3)
+					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription3)
 					{
 						mp_Permissions3 = fg_Move(_TrustedSubscription3);
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<void> f_SubscribePermissions4()
+			TCFuture<void> f_SubscribePermissions4()
 			{
-				TCContinuation<void> Continuation;
+				TCPromise<void> Promise;
 
 				mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Continuation / [this, Continuation](CTrustedPermissionSubscription &&_TrustedSubscription4)
+					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription4)
 					{
 						mp_Permissions4 = fg_Move(_TrustedSubscription4);
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
 		private:
-			TCContinuation<void> fp_Destroy() override
+			TCFuture<void> fp_Destroy() override
 			{
 				mp_ProtocolInterface.m_Publication.f_Clear();
 
@@ -461,37 +461,37 @@ namespace
 		};
 
 	private:
-		TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override
+		TCFuture<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override
 		{
-			TCContinuation<NEncoding::CEJSON> Continuation;
+			TCPromise<NEncoding::CEJSON> Promise;
 			if (_Command == "SubscribePermissions3")
 			{
-				mp_ServerActor(&CServer::f_SubscribePermissions3) > Continuation / [Continuation]
+				mp_ServerActor(&CServer::f_SubscribePermissions3) > Promise / [Promise]
 					{
-						Continuation.f_SetResult(CEJSON{});
+						Promise.f_SetResult(CEJSON{});
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 			if (_Command == "SubscribePermissions4")
 			{
-				mp_ServerActor(&CServer::f_SubscribePermissions4) > Continuation / [Continuation]
+				mp_ServerActor(&CServer::f_SubscribePermissions4) > Promise / [Promise]
 					{
-						Continuation.f_SetResult(CEJSON{});
+						Promise.f_SetResult(CEJSON{});
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 			return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
-		TCContinuation<void> fp_StartApp(CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CManyServerActor::CServer>(fg_Construct(self), mp_State);
 			return mp_ServerActor(&CServer::f_SubscribePermissions);
 		}
 
-		TCContinuation<void> fp_StopApp() override
+		TCFuture<void> fp_StopApp() override
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 
@@ -506,7 +506,7 @@ namespace
 					}
 				;
 			}
-			return pCanDestroy->m_Continuation;
+			return pCanDestroy->f_Future();
 		}
 
 		TCActor<CManyServerActor::CServer> mp_ServerActor;
@@ -532,7 +532,7 @@ namespace
 			DMibPublishActorFunction(CSlowServerInterface::f_CheckPermissions1);
 		}
 
-		virtual NConcurrency::TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
 	};
 
 	struct CSlowServerActor : public CDistributedAppActor
@@ -566,41 +566,41 @@ namespace
 
 			struct CServerInterfaceImplementation : public CSlowServerInterface
 			{
-				TCContinuation<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
 				{
-					TCContinuation<bool> Continuation;
+					TCPromise<bool> Promise;
 
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Continuation / [Continuation](bool _Result)
+					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
 						{
-							Continuation.f_SetResult(_Result);
+							Promise.f_SetResult(_Result);
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 
 				CServer *m_pThis;
 			};
 
-			TCContinuation<void> f_SubscribePermissions()
+			TCFuture<void> f_SubscribePermissions()
 			{
-				TCContinuation<void> Continuation;
+				TCPromise<void> Promise;
 
 				mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.slowmalterlib/*")
 						 , fg_ThisActor(this)
-					) > Continuation / [this, Continuation](CTrustedPermissionSubscription &&_TrustedSubscription)
+					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
 					{
 						mp_Permissions = fg_Move(_TrustedSubscription);
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
 		private:
-			TCContinuation<void> fp_Destroy() override
+			TCFuture<void> fp_Destroy() override
 			{
 				mp_ProtocolInterface.m_Publication.f_Clear();
 
@@ -613,13 +613,13 @@ namespace
 		};
 
 	private:
-		TCContinuation<void> fp_StartApp(CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CSlowServerActor::CServer>(fg_Construct(self), mp_State);
 			return mp_ServerActor(&CServer::f_SubscribePermissions);
 		}
 
-		TCContinuation<void> fp_StopApp() override
+		TCFuture<void> fp_StopApp() override
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 
@@ -634,7 +634,7 @@ namespace
 					}
 				;
 			}
-			return pCanDestroy->m_Continuation;
+			return pCanDestroy->f_Future();
 		}
 
 		TCActor<CSlowServerActor::CServer> mp_ServerActor;
@@ -660,7 +660,7 @@ namespace
 		{
 		}
 
-		TCContinuation<CActorSubscription> fp_SetupAuthentication
+		TCFuture<CActorSubscription> fp_SetupAuthentication
 			(
 			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, int64 _AuthenticationLifetime
@@ -670,26 +670,26 @@ namespace
 			return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 		}
 
-		TCContinuation<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override
+		TCFuture<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override
 		{
-			TCContinuation<NEncoding::CEJSON> Continuation;
+			TCPromise<NEncoding::CEJSON> Promise;
 			if (_Command == "CommandLineHostID")
 			{
-				Continuation.f_SetResult(mp_State.m_CommandLineHostID);
-				return Continuation;
+				Promise.f_SetResult(mp_State.m_CommandLineHostID);
+				return Promise.f_MoveFuture();
 			}
 			return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
 	private:
-		TCContinuation<void> fp_StartApp(CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 
 			// Have to create the user and set it as default user before registering the authentication handler.
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User") > Continuation / [this, Continuation]
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User") > Promise / [this, Promise]
 				{
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID)  > Continuation / [this, Continuation]
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID)  > Promise / [this, Promise]
 						{
 							mp_State.m_TrustManager
 								(
@@ -709,7 +709,7 @@ namespace
 									, CSlowServerInterface::mc_pDefaultNamespace
 									, fg_ThisActor(this)
 								)
-								> [this, Continuation]
+								> [this, Promise]
 								(
 									TCAsyncResult<TCTrustedActorSubscription<CServerInterface>> &&_Subscription
 									, TCAsyncResult<TCTrustedActorSubscription<CManyServerInterface>> &&_ManySubscription
@@ -719,7 +719,7 @@ namespace
 									if (!_Subscription)
 									{
 										DMibLogWithCategory(Malterlib/Concurrency/TestDistAppAuthentication, Error, "Failed to subscribe to server: {}", _Subscription.f_GetExceptionStr());
-										Continuation.f_SetException(_Subscription);
+										Promise.f_SetException(_Subscription);
 										return;
 									}
 									if (!_ManySubscription)
@@ -731,7 +731,7 @@ namespace
 											 	, _ManySubscription.f_GetExceptionStr()
 											)
 										;
-										Continuation.f_SetException(_ManySubscription);
+										Promise.f_SetException(_ManySubscription);
 										return;
 									}
 									if (!_SlowSubscription)
@@ -744,7 +744,7 @@ namespace
 											 	, _SlowSubscription.f_GetExceptionStr()
 											)
 										;
-										Continuation.f_SetException(_SlowSubscription);
+										Promise.f_SetException(_SlowSubscription);
 										return;
 									}
 
@@ -752,7 +752,7 @@ namespace
 									mp_ManyTestServers = fg_Move(*_ManySubscription);
 									mp_SlowTestServers = fg_Move(*_SlowSubscription);
 
-									Continuation.f_SetResult();
+									Promise.f_SetResult();
 								}
 							;
 						}
@@ -783,7 +783,7 @@ namespace
 						, "Description"_= "Test 3."
 
 					}
-					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						return fg_Explicit(0);
 					}
@@ -815,19 +815,19 @@ namespace
 				~CTestCommandOutput()
 				{
 					*m_pCommandLine += m_Results.f_ToString();
-					if (!m_Continuation.f_IsSet())
-						m_Continuation.f_SetResult(0);
+					if (!m_Promise.f_IsSet())
+						m_Promise.f_SetResult(0);
 				}
 
 				CEJSON m_Results;
-				TCContinuation<uint32> m_Continuation;
+				TCPromise<uint32> m_Promise;
 				NStorage::TCSharedPointer<CCommandLineControl> m_pCommandLine;
 			};
 
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -837,13 +837,13 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -851,7 +851,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -865,13 +865,13 @@ namespace
 							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
 
 						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions2, Permissions)
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -879,7 +879,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Object)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -897,14 +897,14 @@ namespace
 						}
 
 						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions3, Permissions)
-							> pOutput->m_Continuation / [=](TCMap<CStr, bool> &&_Results)
+							> pOutput->m_Promise / [=](TCMap<CStr, bool> &&_Results)
 							{
 								for (auto &Result : _Results)
 									pOutput->m_Results[_Results.fs_GetKey(Result)] = Result;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -912,7 +912,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -922,13 +922,13 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -936,7 +936,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -946,13 +946,13 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions2, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -960,7 +960,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -970,13 +970,13 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions3, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -984,7 +984,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-many-call-4"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -994,13 +994,13 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions4, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
@@ -1008,7 +1008,7 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-slow-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
 
@@ -1018,23 +1018,23 @@ namespace
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						DMibCallActor(pSlowTestServer->m_Actor, CSlowServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Continuation / [=](bool _bSuccess)
+							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
 							}
 						;
 
-						return pOutput->m_Continuation;
+						return pOutput->m_Promise;
 					}
 				)
 			;
 		}
 
-		TCContinuation<void> fp_StopApp() override
+		TCFuture<void> fp_StopApp() override
 		{
 			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 
-			return pCanDestroy->m_Continuation;
+			return pCanDestroy->f_Future();
 		}
 
 		TCTrustedActorSubscription<CServerInterface> mp_TestServers;
@@ -1060,54 +1060,54 @@ namespace
 		{
 		}
 
-		TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() override
+		TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<NStr::CStrSecure> f_ReadLine() override
+		TCFuture<NStr::CStrSecure> f_ReadLine() override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
+		TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
 		{
 			return fg_Explicit(m_ReturnValues.f_PopBack());
 		}
 
-		TCContinuation<void> f_AbortReads() override
+		TCFuture<void> f_AbortReads() override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) override
+		TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
 		{
 			m_StdOut += _Output;
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
+		TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
 		{
 			DMibNeverGetHere;
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) override
+		TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
 		{
 			if (m_bEchoStdErr)
 				DMibConOut("{}", _Output);
@@ -1117,7 +1117,7 @@ namespace
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> f_ReturnString(NStr::CStrSecure const &_String)
+		TCFuture<void> f_ReturnString(NStr::CStrSecure const &_String)
 		{
 			m_ReturnValues.f_InsertLast(_String);
 			return fg_Explicit();
@@ -1140,7 +1140,7 @@ namespace
 		}
 
 	private:
-		TCContinuation<void> fp_Destroy() override
+		TCFuture<void> fp_Destroy() override
 		{
 			return fg_Explicit();
 		}
@@ -1188,7 +1188,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = m_Category;
@@ -1197,7 +1197,7 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -1205,7 +1205,7 @@ namespace
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -1215,15 +1215,15 @@ namespace
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			g_CallCount(&CCallCount::f_AddCall, m_Name) > Continuation / [Continuation, Response = fg_Move(Response)]() mutable
+			g_CallCount(&CCallCount::f_AddCall, m_Name) > Promise / [Promise, Response = fg_Move(Response)]() mutable
 				{
-					Continuation.f_SetResult(fg_Move(Response));
+					Promise.f_SetResult(fg_Move(Response));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		};
 
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse const &_Response
 				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -1249,7 +1249,7 @@ namespace
 
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -1258,7 +1258,7 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -1266,7 +1266,7 @@ namespace
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -1276,15 +1276,15 @@ namespace
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			g_CallCount(&CCallCount::f_AddCall, m_Name) > Continuation / [Continuation, Response = fg_Move(Response)]() mutable
+			g_CallCount(&CCallCount::f_AddCall, m_Name) > Promise / [Promise, Response = fg_Move(Response)]() mutable
 				{
-					Continuation.f_SetResult(fg_Move(Response));
+					Promise.f_SetResult(fg_Move(Response));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		};
 
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse const &_Response
 				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -1562,52 +1562,52 @@ public:
 		CCurrentActorScope CurrentActor{HelperActor};
 
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 			DMibCallActor
 				(
 					ServerTrust
 					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
 					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
 				)
-				> Continuation / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
+				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Continuation.f_ReceiveAny();
+					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Continuation.f_CallSync(g_Timeout);
+			Promise.f_CallSync(g_Timeout);
 		}
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 			DMibCallActor
 				(
 					ManyServerTrust
 					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
 					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ManyServerAddress}
 				)
-				> Continuation / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
+				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Continuation.f_ReceiveAny();
+					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Continuation.f_CallSync(g_Timeout);
+			Promise.f_CallSync(g_Timeout);
 		}
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 			DMibCallActor
 				(
 					SlowServerTrust
 					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
 					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{SlowServerAddress}
 				)
-				> Continuation / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
+				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Continuation.f_ReceiveAny();
+					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Continuation.f_CallSync(g_Timeout);
+			Promise.f_CallSync(g_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object
@@ -2431,20 +2431,20 @@ public:
 		CCurrentActorScope CurrentActor{HelperActor};
 
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 			DMibCallActor
 				(
 					ServerTrust
 					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
 					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
 				)
-				> Continuation / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
+				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Continuation.f_ReceiveAny();
+					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Continuation.f_CallSync(g_Timeout);
+			Promise.f_CallSync(g_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object

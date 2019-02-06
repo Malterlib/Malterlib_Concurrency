@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	using namespace NEncoding;
 	using namespace NContainer;
 
-	TCContinuation<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_EnumUsers(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_EnumUsers(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo> Return;
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(fg_Move(Return));
 	}
 
-	TCContinuation<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_TryGetUser(CStr const &_UserID)
+	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_TryGetUser(CStr const &_UserID)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 			return fg_Explicit();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_AddUser(CStr const &_UserID, CStr const &_UserName)
+	TCFuture<void> CDistributedActorTrustManager::f_AddUser(CStr const &_UserID, CStr const &_UserName)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -49,20 +49,20 @@ namespace NMib::NConcurrency
 		if (Users.f_FindEqual(_UserID))
 			return DMibErrorInstance("User '{}' already exists"_f << _UserID);
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		auto &UserState = Internal.m_Users[_UserID];
 		UserState.m_UserInfo = CUserInfo{_UserName};
 		if (UserState.m_bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetUserInfo, _UserID, UserState.m_UserInfo) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetUserInfo, _UserID, UserState.m_UserInfo) > Promise;
 		else
 		{
 			UserState.m_bExistsInDatabase = true;
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUser, _UserID, UserState.m_UserInfo) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUser, _UserID, UserState.m_UserInfo) > Promise;
 		}
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveUser(NStr::CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveUser(NStr::CStr const &_UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -93,18 +93,18 @@ namespace NMib::NConcurrency
 			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUser, _UserID) > Results.f_AddResult();
 		Internal.m_Users.f_Remove(_UserID);
 
-		TCContinuation<void> Continuation;
-		Results.f_GetResults() > Continuation / [Continuation](TCVector<TCAsyncResult<void>> &&_Results)
+		TCPromise<void> Promise;
+		Results.f_GetResults() > Promise / [Promise](TCVector<TCAsyncResult<void>> &&_Results)
 			{
-				if (!fg_CombineResults(Continuation, fg_Move(_Results)))
+				if (!fg_CombineResults(Promise, fg_Move(_Results)))
 					return;
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_SetUserInfo
+	TCFuture<void> CDistributedActorTrustManager::f_SetUserInfo
 		(
 			CStr const &_UserID
 			, TCOptional<CStr> const &_UserName
@@ -153,24 +153,24 @@ namespace NMib::NConcurrency
 
 		UserState.m_UserInfo = fg_Move(UserInfo);
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		if (UserState.m_bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetUserInfo, _UserID, UserState.m_UserInfo) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetUserInfo, _UserID, UserState.m_UserInfo) > Promise;
 		else
 		{
 			UserState.m_bExistsInDatabase = true;
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUser, _UserID, UserState.m_UserInfo) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUser, _UserID, UserState.m_UserInfo) > Promise;
 		}
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_GetDefaultUser()
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetDefaultUser()
 	{
 		auto &Internal = *mp_pInternal;
 		return fg_Explicit(Internal.m_DefaultUser.m_UserID);
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_SetDefaultUser(NStr::CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManager::f_SetDefaultUser(NStr::CStr const &_UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -181,34 +181,34 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance("No user with ID '{}'"_f << _UserID);
 
 		Internal.m_DefaultUser.m_UserID = _UserID;
-		TCContinuation<void> Continuation;
-		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetDefaultUser, CDefaultUser{_UserID}) > Continuation / [Continuation]
+		TCPromise<void> Promise;
+		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetDefaultUser, CDefaultUser{_UserID}) > Promise / [Promise]
 			{
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	template<typename t_CType>
-	TCContinuation<CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, CStr const &_UserID, bool _bIncludePrivate)
+	TCFuture<CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, CStr const &_UserID, bool _bIncludePrivate)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
 
-		TCContinuation<CStr> Continuation;
-		DMibCallActor(_TrustManager, t_CType::f_TryGetUser, _UserID) > Continuation
-			/ [Continuation, _TrustManager, _UserID, _bIncludePrivate](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo) mutable
+		TCPromise<CStr> Promise;
+		DMibCallActor(_TrustManager, t_CType::f_TryGetUser, _UserID) > Promise
+			/ [Promise, _TrustManager, _UserID, _bIncludePrivate](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo) mutable
 			{
 				if (!_UserInfo)
-					return Continuation.f_SetException(DMibErrorInstance("User {} does not exist"_f << _UserID));
+					return Promise.f_SetException(DMibErrorInstance("User {} does not exist"_f << _UserID));
 
 				DMibCallActor(_TrustManager, t_CType::f_EnumUserAuthenticationFactors, _UserID)
-					> Continuation / [Continuation, _UserID, UserInfo = *_UserInfo, _bIncludePrivate]
+					> Promise / [Promise, _UserID, UserInfo = *_UserInfo, _bIncludePrivate]
 					(NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> _Factors) mutable
 					{
-						TCContinuation<NStr::CStr>::fs_RunProtected<NException::CException>() / [&]() -> NStr::CStr
+						TCFuture<NStr::CStr>::fs_RunProtected<NException::CException>() / [&]() -> NStr::CStr
 							{
 								NStream::CBinaryStreamMemory<> Stream;
 								uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion;
@@ -227,18 +227,18 @@ namespace NMib::NConcurrency
 
 								return NEncoding::fg_Base64Encode(Stream.f_GetVector());
 							}
-							> Continuation
+							> Promise
 						;
 					}
 				;
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	template<typename t_CType>
-	TCContinuation<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData)
+	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData)
 	{
 		struct CResult
 		{
@@ -247,9 +247,9 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> m_AuthenticationData;
 		};
 
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 
-		TCContinuation<CResult>::template fs_RunProtected<NException::CException>() / [&]() -> CResult
+		TCFuture<CResult>::template fs_RunProtected<NException::CException>() / [&]() -> CResult
 			{
 				CResult Result;
 				NContainer::CByteVector Data;
@@ -300,25 +300,25 @@ namespace NMib::NConcurrency
 				}
 				return Result;
 			}
-			> Continuation / [Continuation, _TrustManager] (CResult &&_Result)
+			> Promise / [Promise, _TrustManager] (CResult &&_Result)
 			{
 				NStr::CStr UserID = _Result.m_UserID;
 				DMibCallActor(_TrustManager, t_CType::f_TryGetUser, UserID)
-					> Continuation / [Continuation, _TrustManager, Result = fg_Move(_Result)](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo)
+					> Promise / [Promise, _TrustManager, Result = fg_Move(_Result)](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo)
 					{
-						TCContinuation<void> AddContinuation;
+						TCPromise<void> AddPromise;
 						if (!_UserInfo)
-							DMibCallActor(_TrustManager, t_CType::f_AddUser, Result.m_UserID, Result.m_UserInfo.m_UserName) > AddContinuation;
+							DMibCallActor(_TrustManager, t_CType::f_AddUser, Result.m_UserID, Result.m_UserInfo.m_UserName) > AddPromise;
 						else
-							AddContinuation.f_SetResult();
+							AddPromise.f_SetResult();
 
-						AddContinuation > Continuation / [Continuation, _TrustManager, Result]
+						AddPromise > Promise / [Promise, _TrustManager, Result]
 							{
 								DMibCallActor(_TrustManager, t_CType::f_SetUserInfo, Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata)
-									> Continuation / [Continuation, _TrustManager, Result]
+									> Promise / [Promise, _TrustManager, Result]
 									{
 										DMibCallActor(_TrustManager, t_CType::f_EnumUserAuthenticationFactors, Result.m_UserID)
-											> Continuation / [Continuation, _TrustManager, Result](NContainer::TCMap<CStr, CAuthenticationData> &&_Factors)
+											> Promise / [Promise, _TrustManager, Result](NContainer::TCMap<CStr, CAuthenticationData> &&_Factors)
 											{
 												TCActorResultVector<void> Results;
 
@@ -344,11 +344,11 @@ namespace NMib::NConcurrency
 													}
 												}
 
-												Results.f_GetResults() > Continuation / [Continuation, UserID = Result.m_UserID](NContainer::TCVector<TCAsyncResult<void>> &&_Results)
+												Results.f_GetResults() > Promise / [Promise, UserID = Result.m_UserID](NContainer::TCVector<TCAsyncResult<void>> &&_Results)
 													{
-														if (!fg_CombineResults(Continuation, fg_Move(_Results)))
+														if (!fg_CombineResults(Promise, fg_Move(_Results)))
 															return;
-														Continuation.f_SetResult(UserID);
+														Promise.f_SetResult(UserID);
 													}
 												;
 											}
@@ -361,13 +361,13 @@ namespace NMib::NConcurrency
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
-	template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	template TCContinuation<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
-	template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
-	template TCContinuation<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
+	template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
 }

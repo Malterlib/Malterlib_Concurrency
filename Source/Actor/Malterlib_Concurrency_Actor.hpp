@@ -325,11 +325,11 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType>
-	bool CActor::fp_CheckDestroyed(TCContinuation<tf_CType> const &o_Continuation)
+	bool CActor::fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise)
 	{
 		if (mp_bDestroyed)
 		{
-			o_Continuation.f_SetException(fp_CheckDestroyed());
+			o_Promise.f_SetException(fp_CheckDestroyed());
 			return true;
 		}
 		return false;
@@ -370,7 +370,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCContinuation<void> TCRoundRobinActors<t_CActor>::f_Destroy()
+	TCFuture<void> TCRoundRobinActors<t_CActor>::f_Destroy()
 	{
 		TCActorResultVector<void> Results;
 		for (auto &Actor : mp_Actors)
@@ -379,9 +379,9 @@ namespace NMib::NConcurrency
 				Actor->f_Destroy() > Results.f_AddResult();
 		}
 
-		TCContinuation<void> Continuation;
-		Results.f_GetResults() > Continuation.f_ReceiveAny();
-		return Continuation;
+		TCPromise<void> Promise;
+		Results.f_GetResults() > Promise.f_ReceiveAny();
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CActor>

@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NCryptography;
 
-	TCContinuation<TCMap<CStr, CAuthenticationData>> CDistributedActorTrustManager::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const
+	TCFuture<TCMap<CStr, CAuthenticationData>> CDistributedActorTrustManager::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Result);
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_AddUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManager::f_AddUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 		return Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUserAuthenticationFactor, _UserID, _FactorID, AuthenticationFactorState.m_AuthenticationFactor);
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_SetUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManager::f_SetUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 		return Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetUserAuthenticationFactor, _UserID, _FactorID, pAuthenticationFactorState->m_AuthenticationFactor);
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			return DMibErrorInstance("Invalid user ID");
@@ -88,20 +88,20 @@ namespace NMib::NConcurrency
 				return DMibErrorInstance("User '{}' does not have an authentication factor of type '{}' registered"_f << _UserID << _FactorID);
 		}
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		auto &AuthenticationFactorState = Internal.m_UserAuthenticationFactors[_UserID][_FactorID];
 		if (AuthenticationFactorState.m_bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUserAuthenticationFactor, _UserID, _FactorID) > Continuation;
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUserAuthenticationFactor, _UserID, _FactorID) > Promise;
 		else
-			Continuation.f_SetResult();
+			Promise.f_SetResult();
 
 		Internal.m_UserAuthenticationFactors[_UserID].f_Remove(_FactorID);
 		if (Internal.m_UserAuthenticationFactors[_UserID].f_IsEmpty())
 			Internal.m_UserAuthenticationFactors.f_Remove(_UserID);
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<CStr> CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor
+	TCFuture<CStr> CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_UserID
@@ -120,22 +120,22 @@ namespace NMib::NConcurrency
 		if (!pActorInfo)
 			return DMibErrorInstance("No authentication factor matching '{}'"_f << _Factor);
 
-		TCContinuation<CStr> Continuation;
+		TCPromise<CStr> Promise;
 		auto &Actor = pActorInfo->m_Actor;
-		Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_RegisterFactor, _UserID, _pCommandLine) > Continuation / [this, Continuation, _UserID]
+		Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_RegisterFactor, _UserID, _pCommandLine) > Promise / [this, Promise, _UserID]
 			(
 				CAuthenticationData &&_Result
 			)
 			{
 				CStr ID = fg_RandomID();
-				fg_ThisActor(this)(&CDistributedActorTrustManager::f_AddUserAuthenticationFactor, _UserID, ID, fg_Move(_Result)) > Continuation / [Continuation, ID]
+				fg_ThisActor(this)(&CDistributedActorTrustManager::f_AddUserAuthenticationFactor, _UserID, ID, fg_Move(_Result)) > Promise / [Promise, ID]
 					{
-						Continuation.f_SetResult(ID);
+						Promise.f_SetResult(ID);
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }
 

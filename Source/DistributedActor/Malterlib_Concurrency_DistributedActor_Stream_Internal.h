@@ -12,7 +12,7 @@ namespace NMib::NConcurrency::NPrivate
 		CDistributedActorSubscriptionReferenceState();
 		~CDistributedActorSubscriptionReferenceState();
 
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 
 		NStorage::TCSharedPointerSupportWeak<ICHost> m_pHost;
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency::NPrivate
 		CDistributedActorSubscriptionReference();
 		~CDistributedActorSubscriptionReference();
 
-		TCContinuation<void> f_Destroy() override;
+		TCFuture<void> f_Destroy() override;
 
 		NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState> m_pState;
 	};

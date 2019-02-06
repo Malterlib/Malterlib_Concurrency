@@ -718,7 +718,7 @@ namespace NMib::NConcurrency
 
 	CActorSubscriptionReference::~CActorSubscriptionReference() = default;
 
-	TCContinuation<void> CActorSubscriptionReference::f_Destroy()
+	TCFuture<void> CActorSubscriptionReference::f_Destroy()
 	{
 		return fg_Explicit();
 	}

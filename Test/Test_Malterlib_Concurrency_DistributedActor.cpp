@@ -48,7 +48,7 @@ namespace
 	class CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
 	{
 	public:
-		TCContinuation<void> f_Destroy() override
+		TCFuture<void> f_Destroy() override
 		{
 			return fg_Explicit();
 		}
@@ -83,7 +83,7 @@ namespace
 			DMibPublishActorFunction(CDistributedActorNonPublished::f_SetSubscriptionNonPublished);
 		}
 		
-		TCContinuation<> f_SetSubscriptionNonPublished(CActorSubscription &&_Subscription, bool _bError)
+		TCFuture<> f_SetSubscriptionNonPublished(CActorSubscription &&_Subscription, bool _bError)
 		{
 			if (_bError)
 				return DMibErrorInstance("Error");
@@ -168,13 +168,13 @@ namespace
 	public:
 		uint32 m_Value = 0;
 		TCMap<CStr, CActorSubscription> m_CallingHostTests;
-		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), false> m_CallbackManager;
-		TCActorSubscriptionManager<TCContinuation<CStr> (CStr const &_Test), true> m_CallbacksManager;
+		TCActorSubscriptionManager<TCFuture<CStr> (CStr const &_Test), false> m_CallbackManager;
+		TCActorSubscriptionManager<TCFuture<CStr> (CStr const &_Test), true> m_CallbacksManager;
 		
-		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_Callback[2]; 
+		TCFunction<TCFuture<CStr> (CStr const &_Test)> m_Callback[2];
 		TCActor<CActor> m_Actor[2];
 
-		TCFunction<TCContinuation<CStr> (CStr const &_Test)> m_CallbackNoSub; 
+		TCFunction<TCFuture<CStr> (CStr const &_Test)> m_CallbackNoSub;
 		TCActor<CActor> m_ActorNoSub;
 		
 		TCDistributedActor<CDistributedActorInterface> m_Interface;
@@ -183,7 +183,7 @@ namespace
 		
 		struct CActorFunctor
 		{
-			TCActorFunctor<TCContinuation<CStr> (CStr const &_Test)> m_ActorFunctor;
+			TCActorFunctor<TCFuture<CStr> (CStr const &_Test)> m_ActorFunctor;
 			bool m_bCleared = false;
 		};
 		
@@ -313,12 +313,12 @@ namespace
 			return bRet;
 		}
 		
-		TCContinuation<uint32> f_CallSetInterface()
+		TCFuture<uint32> f_CallSetInterface()
 		{
 			return DMibCallActor(m_SetDistributedActorInterface, CDistributedActorInterface::f_Test);
 		}
 		
-		TCContinuation<CActorSubscription> f_GetSubscription()
+		TCFuture<CActorSubscription> f_GetSubscription()
 		{
 			return fg_Explicit
 				(
@@ -330,7 +330,7 @@ namespace
 			;
 		}
 		
-		TCContinuation<> f_SetSubscription(CActorSubscription &&_Subscription, bool _bError)
+		TCFuture<> f_SetSubscription(CActorSubscription &&_Subscription, bool _bError)
 		{
 			if (_bError)
 				return DMibErrorInstance("Error");
@@ -340,8 +340,8 @@ namespace
 
 		CMultipleSubscriptions f_RegisterActorFunctors
 			(
-				TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 0> &&_Callback0
-				, TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 1> &&_Callback1
+				TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test), 0> &&_Callback0
+				, TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test), 1> &&_Callback1
 			)
 		{
 			CMultipleSubscriptions Subscriptions;
@@ -364,7 +364,7 @@ namespace
 
 		CMultipleSubscriptionsVector f_RegisterActorFunctorsVector
 			(
-				TCVector<TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test), 0>> &&_Callbacks
+				TCVector<TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test), 0>> &&_Callbacks
 			)
 		{
 			CMultipleSubscriptionsVector Subscriptions;
@@ -406,21 +406,21 @@ namespace
 			m_ActorFunctors.f_Clear();
 		}
 		
-		TCContinuation<CStr> f_CallActorFunctor(uint32 _iCallback, CStr const &_Message)
+		TCFuture<CStr> f_CallActorFunctor(uint32 _iCallback, CStr const &_Message)
 		{
 			return m_ActorFunctors[_iCallback].m_ActorFunctor(_Message);
 		}
 		
-		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctorWithoutSubscription()
+		TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> f_GetActorFunctorWithoutSubscription()
 		{
-			return g_ActorFunctor / [] (CStr const &_Test) -> TCContinuation<CStr>
+			return g_ActorFunctor / [] (CStr const &_Test) -> TCFuture<CStr>
 				{
 					return fg_Explicit(_Test + "WithoutSubscription");
 				}
 			;
 		}
 		
-		TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)> f_GetActorFunctor()
+		TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> f_GetActorFunctor()
 		{
 			return g_ActorFunctor
 				(
@@ -429,7 +429,7 @@ namespace
 						m_bReturnedFunctionActorSubscriptionCalled = true;
 					}
 				) 
-				/ [] (CStr const &_Test) -> TCContinuation<CStr>
+				/ [] (CStr const &_Test) -> TCFuture<CStr>
 				{
 					return fg_Explicit(_Test + "WithSubscription");
 				}
@@ -448,17 +448,17 @@ namespace
 			m_Subscription.f_Clear(); 
 		}
 		
-		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			return m_CallbackManager.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
 		}
 		
-		CActorSubscription f_RegisterCallbacks(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		CActorSubscription f_RegisterCallbacks(TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			return m_CallbacksManager.f_Register(fg_TempCopy(_Actor), fg_TempCopy(_Callback));
 		}
 
-		CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			m_Callback[_iCallback] = _Callback;
 			m_Actor[_iCallback] = _Actor;
@@ -468,8 +468,8 @@ namespace
 		CActorSubscription f_RegisterDual
 			(
 				TCActor<CActor> const &_Actor
-				, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback0
-				, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback1
+				, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback0
+				, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback1
 			)
 		{
 			m_Callback[0] = _Callback0;
@@ -478,9 +478,9 @@ namespace
 			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
-		TCContinuation<CStr> f_CallDual(CStr const &_Message)
+		TCFuture<CStr> f_CallDual(CStr const &_Message)
 		{
-			TCContinuation<CStr> Result;
+			TCPromise<CStr> Result;
 			fg_Dispatch
 				(
 					m_Actor[0]
@@ -502,21 +502,21 @@ namespace
 					Result.f_SetResult(_Result0 + _Result1);
 				}	
 			;
-			return Result;
+			return Result.f_MoveFuture();
 		}
 		
-		TCContinuation<CActorSubscription> f_RegisterWithError(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		TCFuture<CActorSubscription> f_RegisterWithError(TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			return DMibErrorInstance("Register failed");			
 		}
 
-		void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			m_CallbackNoSub = _Callback;
 			m_ActorNoSub = _Actor;
 		}
 
-		CActorSubscription f_RegisterNoActor(TCFunction<TCContinuation<CStr> (CStr const &_Test)> const &_Callback)
+		CActorSubscription f_RegisterNoActor(TCFunction<TCFuture<CStr> (CStr const &_Test)> const &_Callback)
 		{
 			m_CallbackNoSub = _Callback;
 			return fg_Construct<CActorSubscriptionReferenceDummy>();
@@ -528,9 +528,9 @@ namespace
 			return fg_Construct<CActorSubscriptionReferenceDummy>();
 		}
 
-		TCContinuation<CStr> f_CallNoSubscription(CStr const &_Message)
+		TCFuture<CStr> f_CallNoSubscription(CStr const &_Message)
 		{
-			TCContinuation<CStr> Result;
+			TCPromise<CStr> Result;
 			fg_Dispatch
 				(
 					m_ActorNoSub
@@ -541,12 +541,12 @@ namespace
 				)
 				> Result
 			;
-			return Result;
+			return Result.f_MoveFuture();
 		}
 		
-		TCContinuation<CStr> f_CallCallback(uint32 _iCallback, CStr const &_Message)
+		TCFuture<CStr> f_CallCallback(uint32 _iCallback, CStr const &_Message)
 		{
-			TCContinuation<CStr> Result;
+			TCPromise<CStr> Result;
 			fg_Dispatch
 				(
 					m_Actor[_iCallback]
@@ -557,17 +557,17 @@ namespace
 				)
 				> Result
 			;
-			return Result;
+			return Result.f_MoveFuture();
 		}
 
-		TCContinuation<CStr> f_CallCallbackWithoutDispatch(uint32 _iCallback, CStr const &_Message)
+		TCFuture<CStr> f_CallCallbackWithoutDispatch(uint32 _iCallback, CStr const &_Message)
 		{
 			return m_Callback[_iCallback](_Message);
 		}
 
-		TCContinuation<CStr> f_CallWrong(CStr const &_Message)
+		TCFuture<CStr> f_CallWrong(CStr const &_Message)
 		{
-			TCContinuation<CStr> Result;
+			TCPromise<CStr> Result;
 			fg_Dispatch
 				(
 					m_Actor[0]
@@ -578,7 +578,7 @@ namespace
 				)
 				> Result
 			;
-			return Result;
+			return Result.f_MoveFuture();
 		}
 		
 		void f_ClearCallback(uint32 _iCallback)
@@ -592,12 +592,12 @@ namespace
 			m_CallbackManager(_Message) > NConcurrency::fg_DiscardResult();
 		}
 
-		TCContinuation<CStr> f_CallRegisteredCallbackWithReturn(CStr const &_Message)
+		TCFuture<CStr> f_CallRegisteredCallbackWithReturn(CStr const &_Message)
 		{
 			return m_CallbackManager.f_Call(_Message);
 		}
 
-		TCContinuation<TCVector<TCAsyncResult<CStr>>> f_CallRegisteredCallbacksWithReturn(CStr const &_Message)
+		TCFuture<TCVector<TCAsyncResult<CStr>>> f_CallRegisteredCallbacksWithReturn(CStr const &_Message)
 		{
 			return m_CallbacksManager.f_Call(_Message);
 		}
@@ -619,7 +619,7 @@ namespace
 			return CActorDistributionManager::fs_GetCallingHostInfo().f_GetRealHostID();
 		}
 		
-		TCContinuation<CStr> f_TestOnDisconnect() 
+		TCFuture<CStr> f_TestOnDisconnect()
 		{
 			auto &HostInfo = CActorDistributionManager::fs_GetCallingHostInfo();
 			CStr HostID = HostInfo.f_GetRealHostID();
@@ -627,7 +627,7 @@ namespace
 			if (HostID.f_IsEmpty())
 				return fg_Explicit(CStr());
 			
-			TCContinuation<CStr> Continuation;
+			TCPromise<CStr> Promise;
 			HostInfo.f_OnDisconnect
 				(
 					fg_ThisActor(this)
@@ -636,20 +636,20 @@ namespace
 						m_CallingHostTests.f_Remove(HostID);
 					}
 				)
-				> Continuation / [this, Continuation, HostID](CActorSubscription &&_Subscription)
+				> Promise / [this, Promise, HostID](CActorSubscription &&_Subscription)
 				{
 					if (!_Subscription)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Subscription failed"));
+						Promise.f_SetException(DMibErrorInstance("Subscription failed"));
 						return;
 					}
 					m_CallingHostTests[HostID] = fg_Move(_Subscription);
 					
-					Continuation.f_SetResult(HostID);
+					Promise.f_SetResult(HostID);
 				}
 			;
 			
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 		
 		uint8 f_HasOnDisconnect(CStr const &_HostID) const
@@ -665,62 +665,62 @@ namespace
 			return Ret;
 		}
 		
-		TCContinuation<uint32> f_GetResultDeferred()
+		TCFuture<uint32> f_GetResultDeferred()
 		{
-			TCContinuation<uint32> Continuation;
-			fg_ThisActor(this)(&CDistributedActor::f_GetResult) > [Continuation](TCAsyncResult<uint32> &&_Result)
+			TCPromise<uint32> Promise;
+			fg_ThisActor(this)(&CDistributedActor::f_GetResult) > [Promise](TCAsyncResult<uint32> &&_Result)
 				{
-					Continuation.f_SetResult(fg_Move(_Result));
+					Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 		
-		TCContinuation<void> f_AddIntDeferred(uint32 _Value)
+		TCFuture<void> f_AddIntDeferred(uint32 _Value)
 		{
-			TCContinuation<void> Continuation;
-			fg_ThisActor(this)(&CDistributedActor::f_AddInt, _Value) > [Continuation](TCAsyncResult<void> &&_Result)
+			TCPromise<void> Promise;
+			fg_ThisActor(this)(&CDistributedActor::f_AddInt, _Value) > [Promise](TCAsyncResult<void> &&_Result)
 				{
-					Continuation.f_SetResult(fg_Move(_Result));
+					Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_GetResultException()
+		TCFuture<uint32> f_GetResultException()
 		{
-			TCContinuation<uint32> Continuation;
-			Continuation.f_SetException(DMibErrorInstance("Test"));
-			return Continuation;
+			TCPromise<uint32> Promise;
+			Promise.f_SetException(DMibErrorInstance("Test"));
+			return Promise.f_MoveFuture();
 		}
 		
-		TCContinuation<void> f_AddIntException(uint32 _Value)
+		TCFuture<void> f_AddIntException(uint32 _Value)
 		{
-			TCContinuation<void> Continuation;
-			Continuation.f_SetException(DMibErrorInstance("Test"));
-			return Continuation;
+			TCPromise<void> Promise;
+			Promise.f_SetException(DMibErrorInstance("Test"));
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_GetResultDeferredException()
+		TCFuture<uint32> f_GetResultDeferredException()
 		{
-			TCContinuation<uint32> Continuation;
-			fg_ThisActor(this)(&CDistributedActor::f_GetResult) > [Continuation](TCAsyncResult<uint32> &&_Result)
+			TCPromise<uint32> Promise;
+			fg_ThisActor(this)(&CDistributedActor::f_GetResult) > [Promise](TCAsyncResult<uint32> &&_Result)
 				{
-					Continuation.f_SetException(DMibErrorInstance("Test"));
+					Promise.f_SetException(DMibErrorInstance("Test"));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 		
-		TCContinuation<void> f_AddIntDeferredException(uint32 _Value)
+		TCFuture<void> f_AddIntDeferredException(uint32 _Value)
 		{
-			TCContinuation<void> Continuation;
-			fg_ThisActor(this)(&CDistributedActor::f_AddInt, _Value) > [Continuation](TCAsyncResult<void> &&_Result)
+			TCPromise<void> Promise;
+			fg_ThisActor(this)(&CDistributedActor::f_AddInt, _Value) > [Promise](TCAsyncResult<void> &&_Result)
 				{
-					Continuation.f_SetException(DMibErrorInstance("Test"));
+					Promise.f_SetException(DMibErrorInstance("Test"));
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 	};
 	
@@ -906,7 +906,7 @@ namespace
 									_pSubscription0Called->f_Exchange(1);
 								}
 							)
-							/ [](CStr const &_Message) -> TCContinuation<CStr>
+							/ [](CStr const &_Message) -> TCFuture<CStr>
 							{
 								if (_Message == "TestMessageException")
 									return DMibErrorInstance("Test exception 0");
@@ -919,7 +919,7 @@ namespace
 									_pSubscription1Called->f_Exchange(1);
 								}
 							) 
-							/ [](CStr const &_Message) -> TCContinuation<CStr>
+							/ [](CStr const &_Message) -> TCFuture<CStr>
 							{
 								if (_Message == "TestMessageException")
 									return DMibErrorInstance("Test exception 1");
@@ -937,7 +937,7 @@ namespace
 					, TCSharedPointer<TCAtomic<mint>> const &_pSubscription1Called
 				)
 				{
-					TCVector<TCActorFunctorWithID<TCContinuation<CStr> (CStr const &_Test)>> Functors;
+					TCVector<TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)>> Functors;
 					Functors.f_Insert() = g_ActorFunctor(_TestActor)
 						(
 							g_ActorSubscription(_TestActor) / [_pSubscription0Called]
@@ -945,7 +945,7 @@ namespace
 								_pSubscription0Called->f_Exchange(1);
 							}
 						) 
-						/ [](CStr const &_Message) -> TCContinuation<CStr>
+						/ [](CStr const &_Message) -> TCFuture<CStr>
 						{
 							if (_Message == "TestMessageException")
 								return DMibErrorInstance("Test exception 0");
@@ -959,7 +959,7 @@ namespace
 								_pSubscription1Called->f_Exchange(1);
 							}
 						) 
-						/ [](CStr const &_Message) -> TCContinuation<CStr>
+						/ [](CStr const &_Message) -> TCFuture<CStr>
 						{
 							if (_Message == "TestMessageException")
 								return DMibErrorInstance("Test exception 1");
@@ -1188,7 +1188,7 @@ namespace
 				CMutual Lock;
 				CEventAutoReset Event;
 				CStr Message;
-				auto fCallBack = [&](CStr const &_Message) -> TCContinuation<CStr>
+				auto fCallBack = [&](CStr const &_Message) -> TCFuture<CStr>
 					{
 						DMibLock(Lock);
 						Message = _Message;
@@ -1238,7 +1238,7 @@ namespace
 				bCallbacksEmpty = DMibCallActor(Actor, CDistributedActor::f_CallbacksEmpty).f_CallSync(60.0);
 				DMibExpectTrue(bCallbacksEmpty);
 				
-				auto fCallback0 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCContinuation<CStr>
+				auto fCallback0 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCFuture<CStr>
 					{
 						if (_Message == "TestMessageException")
 							return DMibErrorInstance("Test exception 0");
@@ -1246,7 +1246,7 @@ namespace
 					}
 				;
 
-				auto fCallback1 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCContinuation<CStr>
+				auto fCallback1 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCFuture<CStr>
 					{
 						if (_Message == "TestMessageException")
 							return DMibErrorInstance("Test exception 1");

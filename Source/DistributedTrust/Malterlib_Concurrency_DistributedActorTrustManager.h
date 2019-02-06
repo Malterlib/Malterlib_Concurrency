@@ -116,21 +116,21 @@ namespace NMib::NConcurrency
 		CTrustedPermissionSubscription() = default;
 		~CTrustedPermissionSubscription();
 
-		TCContinuation<bool> f_HasPermission
+		TCFuture<bool> f_HasPermission
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<NStr::CStr> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCContinuation<bool> f_HasPermissions
+		TCFuture<bool> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<CPermissionQuery> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCContinuation<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
+		TCFuture<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 		
 		
 	private:
-		TCContinuation<bool> fp_AuthenticatePermissions
+		TCFuture<bool> fp_AuthenticatePermissions
 			(
 			 	NContainer::TCVector<CPermissionQuery> const &_PermissionsQueries
 			 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
@@ -262,21 +262,21 @@ namespace NMib::NConcurrency
 		~CDistributedActorTrustManager();
 		
 		
-		TCContinuation<NStr::CStr> f_Initialize();
-		TCContinuation<void> f_WaitForInitialConnection();
+		TCFuture<NStr::CStr> f_Initialize();
+		TCFuture<void> f_WaitForInitialConnection();
 		
-		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens();
-		TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
-		TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
-		TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens();
+		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
-		TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
+		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
+		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
 			(
 				CDistributedActorTrustManager_Address const &_Address
 				, TCActorFunctor
 				<
-					TCContinuation<void> 
+					TCFuture<void>
 					(
 						NStr::CStr const &_HostID
 						, CCallingHostInfo const &_HostInfo
@@ -284,31 +284,31 @@ namespace NMib::NConcurrency
 					)
 				> 
 				&&_fOnUseTicket
-			 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
+			 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 			)
 		;
-		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID);
-		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID);
+		TCFuture<void> f_RemoveClient(NStr::CStr const &_HostID);
+		TCFuture<bool> f_HasClient(NStr::CStr const &_HostID);
 		
-		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections();
-		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
-		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
-		TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
-		TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
-		TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections();
+		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
+		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
+		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
+		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 
-		TCContinuation<CConnectionState> f_GetConnectionState();
+		TCFuture<CConnectionState> f_GetConnectionState();
 		
-		TCContinuation<NStr::CStr> f_GetHostID() const; 
-		TCContinuation<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> f_GetDistributionManager() const;
+		TCFuture<NStr::CStr> f_GetHostID() const;
+		TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> f_GetDistributionManager() const;
 		
-		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo);
-		TCContinuation<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
-		TCContinuation<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
+		TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo);
+		TCFuture<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
+		TCFuture<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		template <typename tf_CActor>
-		TCContinuation<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors(NStr::CStr const &_Namespace, TCActor<CActor> const &_Actor);
+		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors(NStr::CStr const &_Namespace, TCActor<CActor> const &_Actor);
 		template <typename tf_CActor>
-		TCContinuation<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActorsWithVersion
+		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActorsWithVersion
 			(
 			 	NStr::CStr const &_Namespace
 			 	, TCActor<CActor> const &_Actor
@@ -316,29 +316,29 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<CDistributedActorTrustManagerInterface::CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo);
-		TCContinuation<void> f_AddPermissions
+		TCFuture<CDistributedActorTrustManagerInterface::CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo);
+		TCFuture<void> f_AddPermissions
 			(
 				CPermissionIdentifiers const &_Identity
 				, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 				, EDistributedActorTrustManagerOrderingFlag _OrderingFlags
 			)
 		;
-		TCContinuation<void> f_RemovePermissions
+		TCFuture<void> f_RemovePermissions
 			(
 				CPermissionIdentifiers const &_Identity
 				, NContainer::TCSet<NStr::CStr> const &_Permissions
 				, EDistributedActorTrustManagerOrderingFlag _OrderingFlags
 			)
 		;
-		TCContinuation<void> f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
-		TCContinuation<void> f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
+		TCFuture<void> f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
+		TCFuture<void> f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions);
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo);
-		TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID);
-		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName);
-		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID);
-		TCContinuation<void> f_SetUserInfo
+		TCFuture<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo);
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID);
+		TCFuture<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName);
+		TCFuture<void> f_RemoveUser(NStr::CStr const &_UserID);
+		TCFuture<void> f_SetUserInfo
 			(
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
@@ -346,16 +346,16 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			)
 		;
-		TCContinuation<NStr::CStr> f_GetDefaultUser();
-		TCContinuation<void> f_SetDefaultUser(NStr::CStr const &_UserID);
+		TCFuture<NStr::CStr> f_GetDefaultUser();
+		TCFuture<void> f_SetDefaultUser(NStr::CStr const &_UserID);
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo>> f_EnumAuthenticationActors() const;
+		TCFuture<NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo>> f_EnumAuthenticationActors() const;
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const;
-		TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
-		TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
-		TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID);
-		TCContinuation<NStr::CStr> f_RegisterUserAuthenticationFactor
+		TCFuture<NContainer::TCMap<NStr::CStr, CAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const;
+		TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
+		TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CAuthenticationData &&_Data);
+		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID);
+		TCFuture<NStr::CStr> f_RegisterUserAuthenticationFactor
 			(
 			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 	, NStr::CStr const &_UserID
@@ -363,14 +363,14 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
+		TCFuture<CTrustedPermissionSubscription> f_SubscribeToPermissions(NContainer::TCVector<NStr::CStr> const &_Wildcards, TCActor<CActor> const &_Actor);
 		
-		TCContinuation<CActorDistributionListenSettings> f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const; 
+		TCFuture<CActorDistributionListenSettings> f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const;
 		
 		TCActor<ICActorDistributionManagerAccessHandler> f_GetAccessHandler() const;
 		TCActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
 		static ICDistributedActorAuthenticationHandler::CChallenge fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID);
-		TCContinuation<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses
+		TCFuture<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses
 			(
 				ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 			 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
@@ -378,7 +378,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<void> f_UpdateAuthenticationCache
+		TCFuture<void> f_UpdateAuthenticationCache
 			(
 				CPermissionIdentifiers const &_Identify
 				, NContainer::TCSet<NStr::CStr> &&_AuthenticatedPermissions
@@ -394,14 +394,14 @@ namespace NMib::NConcurrency
 		friend struct TCTrustedActorSubscription;
 		friend struct CTrustedPermissionSubscription;
 
-		TCContinuation<void> fp_Destroy() override;
+		TCFuture<void> fp_Destroy() override;
 		
 		void fp_Init();
 		
-		TCContinuation<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
+		TCFuture<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 		
 		auto fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
-			-> TCContinuation<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
+			-> TCFuture<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
 		;
 		void fp_UnsubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> fp_SubscribeToPermissions
@@ -423,15 +423,15 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManagerProxy;
 
 	template<typename t_CType>
-	TCContinuation<NStr::CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	TCFuture<NStr::CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
 	template<typename t_CType>
-	TCContinuation<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCContinuation<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
-	extern template TCContinuation<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
-	extern template TCContinuation<NStr::CStr> fg_ExportUser
+	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
+	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	extern template TCFuture<NStr::CStr> fg_ExportUser
 		(
 		 	TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager
 		 	, NStr::CStr const &_UserID

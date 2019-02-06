@@ -56,32 +56,32 @@ namespace
 			return _Value0 + _Value1 + _Value2 + _Value3 + _Value4 + _Value5 + _Value6 + _Value7;
 		}
 
-		TCContinuation<void> f_TestContinuation()
+		TCFuture<void> f_TestPromise()
 		{
-			TCContinuation<void> Continuation;
+			TCPromise<void> Promise;
 
 			self(&CTestActor::f_TestValue)
-				> [Continuation](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
+				> [Promise](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
 				{
-					Continuation.f_SetResult(fg_Move(_Result));
+					Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
-		TCContinuation<int> f_TestContinuationRet()
+		TCFuture<int> f_TestPromiseRet()
 		{
-			TCContinuation<int> Continuation;
+			TCPromise<int> Promise;
 
 			self(&CTestActor::f_TestValue1, 4)
-				> [Continuation](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
+				> [Promise](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 				{
-					Continuation.f_SetResult(fg_Move(_Result));
+					Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
 
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 	};
 
@@ -292,7 +292,7 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 1000000.0
 								, pLocalActor
-								, [&]() -> TCContinuation<void>
+								, [&]() -> TCFuture<void>
 								{
 									DMibNeverGetHere;
 									
@@ -315,7 +315,7 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, pLocalActor
-								, [&]() -> TCContinuation<void>
+								, [&]() -> TCFuture<void>
 								{
 									if (!bHandledTimer1.f_Exchange(true))
 									{
@@ -341,7 +341,7 @@ namespace
 								&CTimerActor::f_RegisterTimer
 								, 0.5
 								, pLocalActor
-								, [&]() -> TCContinuation<void>
+								, [&]() -> TCFuture<void>
 								{
 									if (!bHandledTimer2.f_Exchange(true))
 									{
@@ -382,7 +382,7 @@ namespace
 						}
 					;
 					++nExpectedHandlers;
-					pActor(&CTestActor::f_TestContinuation)
+					pActor(&CTestActor::f_TestPromise)
 						> pLocalActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
 						{
 							_Result.f_Get();
@@ -391,7 +391,7 @@ namespace
 						}
 					;
 					++nExpectedHandlers;
-					pActor(&CTestActor::f_TestContinuationRet)
+					pActor(&CTestActor::f_TestPromiseRet)
 						> pLocalActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 						{
 							DMibCheck(_Result);

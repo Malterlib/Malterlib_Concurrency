@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>> TCActorResultVector<t_CType>::CInternal::f_GetResults()
+	TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> TCActorResultVector<t_CType>::CInternal::f_GetResults()
 	{
 		mint nAdded = mp_nAdded.f_Load();
 
@@ -44,9 +44,9 @@ namespace NMib::NConcurrency
 		if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)
 		{
 			fp_TransferResults();
-			mp_GetResultsContinuation.f_SetResult(fg_Move(mp_Results));
+			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
 		}
-		return mp_GetResultsContinuation;
+		return mp_GetResultsPromise;
 	}
 
 	template <typename t_CType>
@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 		if ((nFinished & NPrivate::gc_ActorResultResultsGottenMask) && (nFinished & NPrivate::gc_ActorResultFinishedMask) == Internal.mp_nAdded.f_Load(NAtomic::EMemoryOrder_Relaxed))
 		{
 			Internal.fp_TransferResults();
-			Internal.mp_GetResultsContinuation.f_SetResult(fg_Move(Internal.mp_Results));
+			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
 		}
 	}
 
@@ -157,8 +157,8 @@ namespace NMib::NConcurrency
 	{
 		return fg_AnyConcurrentActor().f_CallByValue
 			(
-				&CActor::f_DispatchWithReturn<TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>>>
-				, [pInternal = mp_pInternal]() mutable -> TCContinuation<NContainer::TCVector<TCAsyncResult<t_CType>>>
+				&CActor::f_DispatchWithReturn<TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>>
+				, [pInternal = mp_pInternal]() mutable -> TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>
 				{
 					return pInternal->f_GetResults();
 				}
@@ -171,15 +171,15 @@ namespace NMib::NConcurrency
 	//
 
 	template <typename t_CKey, typename t_CValue>
-	TCContinuation<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> TCActorResultMap<t_CKey, t_CValue>::CInternalActor::f_GetResults()
+	TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> TCActorResultMap<t_CKey, t_CValue>::CInternalActor::f_GetResults()
 	{
 		if (mp_bResultsGotten)
 			DMibError("You have already gotten the results from this result vector once");
 
 		mp_bResultsGotten = true;
 		if (mp_nFinished.f_Get() == mp_nAdded.f_Load())
-			mp_GetResultsContinuation.f_SetResult(fg_Move(mp_Results));
-		return mp_GetResultsContinuation;
+			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
+		return mp_GetResultsPromise;
 	}
 
 	template <typename t_CKey, typename t_CValue>
@@ -197,7 +197,7 @@ namespace NMib::NConcurrency
 		Internal.mp_Results[m_Key] = fg_Move(_Result);
 		mint nFinished = ++Internal.mp_nFinished;
 		if (Internal.mp_bResultsGotten && nFinished == Internal.mp_nAdded.f_Load())
-			Internal.mp_GetResultsContinuation.f_SetResult(fg_Move(Internal.mp_Results));
+			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
 
 	}
 
@@ -285,7 +285,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturn, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -348,7 +348,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -357,7 +357,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -384,7 +384,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -393,7 +393,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -420,7 +420,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -430,7 +430,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -449,7 +449,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -458,7 +458,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturn, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -477,7 +477,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -486,7 +486,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<tf_CType>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -505,7 +505,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -514,7 +514,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, NContainer::TCVector<TCAsyncResult<void>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -533,7 +533,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -590,7 +590,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -617,7 +617,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -626,7 +626,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -653,7 +653,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -662,7 +662,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -689,7 +689,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -698,7 +698,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -725,7 +725,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -735,7 +735,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -754,7 +754,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -763,7 +763,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CReturn, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<tf_CReturn> const &_Continuation
+			TCPromise<tf_CReturn> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -782,7 +782,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -791,7 +791,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CType>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -810,7 +810,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -819,7 +819,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_FOnResult>
 	bool fg_CombineResults
 		(
-			TCContinuation<void> const &_Continuation
+			TCPromise<void> const &_Promise
 			, NContainer::TCMap<tf_CKey, TCAsyncResult<void>> &&_Results
 			, tf_FOnResult &&_fOnResult
 		)
@@ -838,7 +838,7 @@ namespace NMib::NConcurrency
 		}
 		if (bIsError)
 		{
-			_Continuation.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(DMibErrorInstance(Errors));
 			return false;
 		}
 		return true;
@@ -846,7 +846,7 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FToDispatch
-		, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+		, TCEnableIfType<NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 		= nullptr
 	>
 	auto fg_Dispatch(TCActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
@@ -864,21 +864,22 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FToDispatch
-		, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+		, TCEnableIfType<!NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 		= nullptr
 	>
 	auto fg_Dispatch(TCActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 	{
+		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
 		return _Actor.f_CallByValue
 			(
-				&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
-				, NFunction::TCFunctionMovable<TCContinuation<CReturnType> ()>
+				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
+				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
-					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
+					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{
-						return TCContinuation<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
+						return TCFuture<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
 					}
 				)
 			)
@@ -904,26 +905,26 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCDispatchedActorCall<t_CReturnValue> TCContinuation<t_CReturnValue>::f_Dispatch() const
+	TCDispatchedActorCall<t_CReturnValue> TCFuture<t_CReturnValue>::f_Dispatch() const
 	{
 		return fg_DirectDispatch
 			(
-				[Continuation = *this]
+				[Future = *this]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
 		;
 	}
 
 	template <typename t_CReturnValue>
-	TCDispatchedActorCall<t_CReturnValue> TCContinuation<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
+	TCDispatchedActorCall<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
 	{
 		return f_Dispatch().f_Timeout(_Timeout, _TimeoutMessage, _bFireAtExit);
 	}
 
 	template <typename t_CReturnValue>
-	auto TCContinuation<t_CReturnValue>::f_CallSync(fp64 _Timeout) const
+	auto TCFuture<t_CReturnValue>::f_CallSync(fp64 _Timeout) const
 	{
 		return f_Dispatch().f_CallSync(_Timeout);
 	}
@@ -1005,13 +1006,13 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler>
-	void TCContinuation<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
+	void TCFuture<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
 	{
 		fg_DirectDispatch
 			(
-				[Continuation = *this]() mutable
+				[Future = *this]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
 			> fg_Forward<tf_FResultHandler>(_fResultHandler)
@@ -1020,28 +1021,28 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CReturnValue>
-	void TCContinuation<t_CReturnValue>::operator > (TCContinuation<tf_CReturnValue> const &_Continuation) const
+	void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> const &_Promise) const
 	{
 		fg_DirectDispatch
 			(
-				[Continuation = *this]() mutable
+				[Future = *this]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
-			> _Continuation
+			> _Promise
 		;
 	}
 
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
 	template <typename tf_CType>
-	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::operator + (TCContinuation<tf_CType> const &_Continuation)
+	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::operator + (TCFuture<tf_CType> const &_Future)
 	{
 		return *this + fg_DirectDispatch
 			(
-				[_Continuation]
+				[Future = _Future]() mutable
 				{
-					return _Continuation;
+					return fg_Move(Future);
 				}
 			)
 		;
@@ -1049,13 +1050,13 @@ namespace NMib::NConcurrency
 
 	template <typename... tp_CCalls>
 	template <typename tf_CType>
-	auto TCActorCallPack<tp_CCalls...>::operator + (TCContinuation<tf_CType> const &_Continuation)
+	auto TCActorCallPack<tp_CCalls...>::operator + (TCFuture<tf_CType> const &_Future)
 	{
 		return *this + fg_DirectDispatch
 			(
-				[_Continuation]
+				[Future = _Future]() mutable
 				{
-					return _Continuation;
+					return fg_Move(Future);
 				}
 			)
 		;
@@ -1063,13 +1064,13 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CType>
-	auto TCContinuation<t_CReturnValue>::operator + (TCContinuation<tf_CType> const &_Other) const
+	auto TCFuture<t_CReturnValue>::operator + (TCFuture<tf_CType> const &_Other) const
 	{
 		return fg_DirectDispatch
 			(
-				[Continuation = *this]
+				[Future = *this]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
 			+ _Other;
@@ -1078,13 +1079,13 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-	auto TCContinuation<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
+	auto TCFuture<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
 	{
 		return fg_DirectDispatch
 			(
-				[Continuation = *this]
+				[Future = *this]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
 			+ fg_Move(_ActorCall)

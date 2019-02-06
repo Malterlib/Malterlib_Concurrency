@@ -47,16 +47,16 @@ namespace NMib::NConcurrency
 
 		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 
-		TCContinuation<void> fp_DestroyInternal();
+		TCFuture<void> fp_DestroyInternal();
 
 	protected:
 		virtual void fp_Construct();
-		virtual TCContinuation<void> fp_Destroy();
+		virtual TCFuture<void> fp_Destroy();
 
 		NException::CExceptionPointer fp_CheckDestroyed();
 
 		template <typename tf_CType>
-		bool fp_CheckDestroyed(TCContinuation<tf_CType> const &o_Continuation);
+		bool fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise);
 	public:
 
 		typedef CDefaultActorHolder CActorHolder;
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CParam>
 		void f_ConstructFunctor(tf_CParam &&_fConstruct);
 
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 
 		TCActor<t_CActor> const &operator *() const;
 

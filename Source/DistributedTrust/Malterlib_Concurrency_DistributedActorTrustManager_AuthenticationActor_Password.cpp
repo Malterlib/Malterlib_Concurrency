@@ -27,8 +27,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationActorPassword(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 			 	, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		;
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -54,13 +54,13 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationActorPassword::~CDistributedActorTrustManagerAuthenticationActorPassword() = default;
 
-	TCContinuation<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor
+	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor
 		(
 			CStr const &_UserID
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		TCContinuation<CAuthenticationData> Continuation;
+		TCPromise<CAuthenticationData> Promise;
 
 		CStdInReaderPromptParams NewPasswordPrompt1;
 		NewPasswordPrompt1.m_bPassword = true;
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
 			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 		;
-		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Continuation / [=](CStrSecure &&_NewPassword1) mutable
+		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Promise / [=](CStrSecure &&_NewPassword1) mutable
 			{
 				CStdInReaderPromptParams NewPasswordPrompt2;
 				NewPasswordPrompt2.m_bPassword = true;
@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 					<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
 				;
 
-				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Continuation / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
+				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Promise / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
 					{
 						if (NewPassword1 == _NewPassword2)
 						{
@@ -113,19 +113,19 @@ namespace NMib::NConcurrency
 
 										return Result;
 									}
-								) > Continuation;
+								) > Promise;
 							;
 						}
 						else
-							Continuation.f_SetException(DMibErrorInstance("Password mismatch"));
+							Promise.f_SetException(DMibErrorInstance("Password mismatch"));
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
+	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
@@ -133,7 +133,7 @@ namespace NMib::NConcurrency
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+		TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
@@ -146,7 +146,7 @@ namespace NMib::NConcurrency
 		if (!TrustManager)
 			return DMibErrorInstance("No trust manager");
 
-		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Continuation / [=](CStrSecure &&_Password) mutable
+		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Promise / [=](CStrSecure &&_Password) mutable
 			{
 				TCActorResultMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
@@ -206,13 +206,13 @@ namespace NMib::NConcurrency
 					}
 				}
 				AuthenticationResults.f_GetResults()
-					> Continuation / [Continuation, _pCommandLine](TCMap<CStr, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
+					> Promise / [Promise, _pCommandLine](TCMap<CStr, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
 					{
 						for (auto const &Response : _Results)
 						{
 							if (!Response || Response->m_Signature.f_IsEmpty())
 								continue;
-							Continuation.f_SetResult(*Response);
+							Promise.f_SetResult(*Response);
 							return;
 						}
 
@@ -226,14 +226,14 @@ namespace NMib::NConcurrency
 						}
 
 						if (Exceptions.f_IsEmpty())
-							Continuation.f_SetException(DMibErrorInstance("Wrong password"));
+							Promise.f_SetException(DMibErrorInstance("Wrong password"));
 						else
-							Continuation.f_SetException(DMibErrorInstance(CStr::fs_Join(Exceptions, "\n")));
+							Promise.f_SetException(DMibErrorInstance(CStr::fs_Join(Exceptions, "\n")));
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	};
 
 	auto CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
@@ -242,7 +242,7 @@ namespace NMib::NConcurrency
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 			, CAuthenticationData const &_AuthenticationData
 		)
-		-> TCContinuation<CVerifyAuthenticationReturn>
+		-> TCFuture<CVerifyAuthenticationReturn>
 	{
 		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 		if (!pValue || !pValue->f_IsBinary())
@@ -250,7 +250,7 @@ namespace NMib::NConcurrency
 
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-		TCContinuation<CVerifyAuthenticationReturn> Continuation;
+		TCPromise<CVerifyAuthenticationReturn> Promise;
 		
 		fg_ConcurrentDispatch
 			(
@@ -260,10 +260,10 @@ namespace NMib::NConcurrency
 					Return.m_bVerified = CSSLContext::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);
 					return Return;
 				}
-			) > Continuation;
+			) > Promise;
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	class CDistributedActorTrustManagerAuthenticationActorFactoryPassword : public ICDistributedActorTrustManagerAuthenticationActorFactory

@@ -50,7 +50,6 @@ struct CMyActor
 							[this, _HandlerFunctor](int _Error)
 							{
 								// _fHandler will never be called if fg_DisptachOnSomethingElse does not call this function
-
 								// this pointer might be invalid if CMyActor has gone out of scope
 
 								if (_Error)
@@ -100,14 +99,14 @@ struct CMyOtherActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCContinuation<int32> f_MyFunction()
+	TCFuture<int32> f_MyFunction()
 	{
-		TCContinuation<int32> Continuation;	// When this variable goes out of scope it will automatically reply
-											// with an CExceptionActorResultWasNotSet exception if no other result was set
+		TCPromise<int32> Promise;	// When this variable goes out of scope it will automatically reply
+									// with an CExceptionActorResultWasNotSet exception if no other result was set
 
-		fg_DoSomethingElseAsync() > [this, Continuation](TCAsyncResult<void> &&_Result)
+		fg_DoSomethingElseAsync() > [this, Promise](TCAsyncResult<void> &&_Result)
 			{
-				// If this CMyActor has been deleted this function will not be called at all and Continuation
+				// If this CMyActor has been deleted this function will not be called at all and Promise
 				// will go out of scope, returning an exception to the caller of f_MyFunction.
 
 				// TCAsyncResult wraps the result so either you get an exception or a result. No dummy value
@@ -117,15 +116,15 @@ struct CMyActor : public CActor
 				{
 					// This catches all the error conditions, such as the actor in fg_DoSomethingElseAsync being
 					// deleted.
-					Continuation.f_SetException(_Result); // Forward exception
+					Promise.f_SetException(_Result); // Forward exception
 					return;
 				}
 
-				Continuation.f_SetResult(m_Value + 5);	// When the result is set we schedule the result functor
+				Promise.f_SetResult(m_Value + 5);	// When the result is set we schedule the result functor
 														// to run on the calling actors queue automatically.
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	int32 m_Value = 6;
@@ -163,12 +162,12 @@ struct CMyOtherActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCContinuation<int32> f_MyFunction()
+	TCFuture<int32> f_MyFunction()
 	{
 		co_await fg_DoSomethingElseAsync();
 
 		// If this CMyActor has been deleted when the coroutine is resumed this coroutine will not
-		// be called at all and the returned continuation will go out of scope, returning an
+		// be called at all and the returned Promise will go out of scope, returning an
 		// exception to the caller of f_MyFunction.
 
 		// The co_await catches all the error conditions, such as the actor in fg_DoSomethingElseAsync being
@@ -183,7 +182,7 @@ struct CMyActor : public CActor
 
 struct CMyOtherActor
 {
-	TCContinuation<void> f_AskForValue()
+	TCFuture<void> f_AskForValue()
 	{
 		TCAsyncResult<int32> Value = co_await m_MyActor(&CMyActor::f_MyFunction).f_Wrap();
 		// The coroutine is is automatically resumed on the the right thread/queue.
@@ -275,8 +274,8 @@ co_await m_MyActor(&CMyActor::f_MyFunction);
  Coroutine function parameters are captured by reference for coroutines if the function parameter is defined as a reference. This can easily result in
  dangling references if the function parameter is accessed after the first suspension point.
 
- Because of this when you call `TCContinuation` coroutines in non-release builds checks are done at runtime to detect unsafe usages. It also detects
- some usages that are safe, in this case you can use `TCContinuationAllowReferences` to opt out of the safety checks.
+ Because of this when you call `TCFuture` coroutines in non-release builds checks are done at runtime to detect unsafe usages. It also detects
+ some usages that are safe, in this case you can use `TCFutureAllowReferences` to opt out of the safety checks.
 
  Action												| Actor call			| Direct call
  ---------------------------------------------------|-----------------------|---------------
@@ -293,16 +292,18 @@ co_await m_MyActor(&CMyActor::f_MyFunction);
 ~~~+incorrect
 struct CMyActor : public CActor
 {
-	TCContinuation<uint32> f_MyFunction(uint32 const &_Value)
+	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
 		co_await f_OtherFunction();
 		co_return _Value; // Here _Value will have gone out of scope if f_OtherFunction takes more than 1 second
 	}
 
-	TCContinuation<void> f_MyFunction2()
+	TCFuture<void> f_MyFunction2()
 	{
 		uint32 Value = 5;
-		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out"); // Contract violation here when f_MyFunction coroutine is called
+
+		// Contract violation here when f_MyFunction coroutine is called
+		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
 		co_return {};
 	}
 };
@@ -312,16 +313,18 @@ struct CMyActor : public CActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCContinuation<uint32> f_MyFunction(uint32 const &_Value)
+	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
 		co_await f_OtherFunction();
 		co_return _Value;
 	}
 
-	TCContinuation<void> f_MyFunction2()
+	TCFuture<void> f_MyFunction2()
 	{
 		uint32 Value = 5;
-		uint32 ReturnValue = co_await self(&CMyActor::f_MyFunction, Value).f_Timeout(1.0, "Timed out"); // Convert direct call to actor call using self(...) actor call
+
+		// Convert direct call to actor call using self(...) actor call
+		uint32 ReturnValue = co_await self(&CMyActor::f_MyFunction, Value).f_Timeout(1.0, "Timed out");
 		co_return {};
 	}
 };
@@ -333,17 +336,19 @@ struct CMyActor : public CActor
 ~~~+incorrect
 struct CMyActor : public CActor
 {
-	TCContinuation<uint32> f_MyFunction(uint32 const &_Value)
+	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
 		uint32 Value = _Value; // Store value before first suspenion point
 		co_await f_OtherFunction();
 		co_return Value;
 	}
 
-	TCContinuation<void> f_MyFunction2()
+	TCFuture<void> f_MyFunction2()
 	{
 		uint32 Value = 5;
-		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out"); // Contract violation here when f_MyFunction coroutine is called
+
+		// Contract violation here when f_MyFunction coroutine is called
+		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
 		co_return {};
 	}
 };
@@ -353,14 +358,14 @@ struct CMyActor : public CActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCContinuationAllowReferences<uint32> f_MyFunction(uint32 const &_Value)
+	TCFutureAllowReferences<uint32> f_MyFunction(uint32 const &_Value)
 	{
 		uint32 Value = _Value; // Store value before first suspension point
 		co_await f_OtherFunction();
 		co_return Value;
 	}
 
-	TCContinuation<void> f_MyFunction2()
+	TCFuture<void> f_MyFunction2()
 	{
 		uint32 Value = 5;
 		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
@@ -375,7 +380,7 @@ struct CMyActor : public CActor
 ~~~+incorrect
 struct CMyActor : public CActor
 {
-	TCContinuation<void> f_MyFunction()
+	TCFuture<void> f_MyFunction()
 	{
 		uint32 Value = 5;
 
@@ -395,7 +400,7 @@ struct CMyActor : public CActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCContinuation<void> f_MyFunction()
+	TCFuture<void> f_MyFunction()
 	{
 		uint32 Value = 5;
 
@@ -422,13 +427,13 @@ struct CMyActor : public CActor
  to the actor in the first place.
 
 ~~~
-TCContinuation<uint32> fg_MyFunction(CMyActor const &_Actor)
+TCFuture<uint32> fg_MyFunction(CMyActor const &_Actor)
 {
 	co_await fg_OtherFunction(); // If actor is destroyed execution of coroutine will never be resumed
 	co_return _Actor.m_State;
 }
 
-TCContinuation<void> f_MyActorFunction()
+TCFuture<void> f_MyActorFunction()
 {
 	uint32 Value = 5;
 	uint32 ReturnValue = co_await fg_MyFunction(*this).f_Timeout(1.0, "Timed out");
@@ -439,35 +444,35 @@ TCContinuation<void> f_MyActorFunction()
 \subsection s_Malterlib_Concurrency_DesignGoals_AlwaysGetResult Always get a result
 
  To maximize the chance that all calls get a result back, all interfaces and default concepts are designed with RAII principles. The only
- way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCContinuation "TCContinuation" in persistent
+ way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCFuture "TCFuture" in persistent
  state.
 
  The following code will return a \ref NMib::NConcurrency::CExceptionActorResultWasNotSet "CExceptionActorResultWasNotSet" exception since setting a
- result on the continuation was forgotten:
+ result on the promise was forgotten:
 
 ~~~
-TCContinuation<void> f_MyBrokenFunction()
+TCFuture<void> f_MyBrokenFunction()
 {
-	TCContinuation<void> Continuation;
-	m_MyActor(&CMyActor::f_MyFunction) > [this, Continuation](TCAsyncResult<int32> &&_Result)
+	TCPromise<void> Promise;
+	m_MyActor(&CMyActor::f_MyFunction) > [this, Promise](TCAsyncResult<int32> &&_Result)
 		{
 			if (!_Result)
 			{
-				Continuation.f_SetException(_Result);
+				Promise.f_SetException(_Result);
 				return;
 			}
-			// Continuation goes out of scope when this functor returns,
+			// Promise goes out of scope when this functor returns,
 			// and a CExceptionActorResultWasNotSet exception will be returned
 		}
 	;
-	return Continuation;
+	return Promise.f_MoveFuture();
 }
 ~~~
 
- When you use coroutines it's not possible to forget to set the result of the continuation:
+ When you use coroutines it's not possible to forget to set the result of the promise:
 
 ~~~
-TCContinuation<void> f_MyBrokenFunction()
+TCFuture<void> f_MyBrokenFunction()
 {
 	co_await m_MyActor(&CMyActor::f_MyFunction);
  	co_return {};
@@ -485,35 +490,35 @@ TCContinuation<void> f_MyBrokenFunction()
 struct CMyActor : public CActor
 {
 protected:
-	TCContinuation<void> fp_Destroy() override
+	TCFuture<void> fp_Destroy() override
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 
-		fp_DestroyAsyncThings() > Continuation / [Continuation]
+		fp_DestroyAsyncThings() > Promise / [Promise]
 			{
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 };
 
-TCContinuation<void> f_DestroyActor()
+TCFuture<void> f_DestroyActor()
 {
-	TCContinuation<void> Continuation;
-	m_MyActor->f_Destroy() > [this, Continuation](TCAsyncResult<> &&_Result)
+	TCPromise<void> Promise;
+	m_MyActor->f_Destroy() > [this, Promise](TCAsyncResult<> &&_Result)
 		{
 			if (!_Result)
 			{
 				DMibLog(Error, "Failed to destroy actor: {}", _Result.f_GetExceptionStr());
-				Continuation.f_SetException(_Result);
+				Promise.f_SetException(_Result);
 				return;
 			}
-			Continuation.f_SetResult();
+			Promise.f_SetResult();
 		}
 	;
-	return Continuation;
+	return Promise.f_MoveFuture();
 }
 ~~~
  The same thing using coroutines:
@@ -521,14 +526,14 @@ TCContinuation<void> f_DestroyActor()
 struct CMyActor : public CActor
 {
 protected:
-	TCContinuation<void> fp_Destroy() override
+	TCFuture<void> fp_Destroy() override
 	{
 		co_await fp_DestroyAsyncThings();
 		co_return {};
 	}
 };
 
-TCContinuation<void> f_DestroyActor()
+TCFuture<void> f_DestroyActor()
 {
 	auto Result = co_await m_MyActor->f_Destroy().f_Wrap();
 	if (!Result)
@@ -562,38 +567,38 @@ TCContinuation<void> f_DestroyActor()
 \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_ReceiveResult Receiving result and error handling
 
 ~~~
-TCContinuation<void> Continuation;
+TCPromise<void> Promise;
 
-fg_DoGlobalThing() > [Continuation](TCAsyncResult<int32> &&_Result)
+fg_DoGlobalThing() > [Promise](TCAsyncResult<int32> &&_Result)
 	{
 		if (!_Result)
 		{
-			Continuation.f_SetException(fg_Move(_Result));
+			Promise.f_SetException(fg_Move(_Result));
 			return ;
 		}
-		Continuation.f_SetResult();
+		Promise.f_SetResult();
 	}
 ;
 
-return Continuation;
+return Promise.f_MoveFuture();
 ~~~
  Is equivalent to
 ~~~
-TCContinuation<void> Continuation;
+TCPromise<void> Promise;
 
-fg_DoGlobalThing() > Continuation / [Continuation](TCAsyncResult<int32> &&_Result)
+fg_DoGlobalThing() > Promise / [Promise](TCAsyncResult<int32> &&_Result)
 	{
-		Continuation.f_SetResult();
+		Promise.f_SetResult();
 	}
 ;
 
-return Continuation;
+return Promise.f_MoveFuture();
 ~~~
  Is equivalent to
 ~~~
-TCContinuation<void> Continuation;
-fg_DoGlobalThing() > Continuation.f_ReceiveAny();
-return Continuation;
+TCPromise<void> Promise;
+fg_DoGlobalThing() > Promise.f_ReceiveAny();
+return Promise.f_MoveFuture();
 ~~~
  Is equivalent to
 ~~~
@@ -623,10 +628,10 @@ auto Cleanup = g_OnScopeExitActor > [this]
 \subsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_CoroutinesTS Minimize boilerplate (Coroutines TS)
 
  The Coroutines TS does not allow mixing non-void and void `co_return` statements. To allow direct return of execptions similar to how non-coroutine
- `TCContinuation<void>` async functions work in Malterlib we have to adopt a non-void return value even for void functions:
+ `TCFuture<void>` async functions work in Malterlib we have to adopt a non-void return value even for void functions:
 ~~~
 // Optimal way
-TCContinuation<void> f_MyFunction()
+TCFuture<void> f_MyFunction()
 {
  	if (ErrorCondition)
  		co_return DMibErrorInstance("Error encountered");
@@ -634,7 +639,7 @@ TCContinuation<void> f_MyFunction()
 }
 
 // Workaround way
-TCContinuation<void> f_MyFunction()
+TCFuture<void> f_MyFunction()
 {
  	if (ErrorCondition)
  		co_return DMibErrorInstance("Error encountered");
@@ -681,7 +686,7 @@ struct CMyActorInterface : public CActor
 		DPublishActorFunction(CMyActorInterface::f_MyFunction);
 	}
 
-	virtual TCContinuation<int32> f_MyFunction() = 0;
+	virtual TCFuture<int32> f_MyFunction() = 0;
 };
 ~~~
 
@@ -696,7 +701,7 @@ struct CMyActor : public CActor
 	{
 		CMyActor *m_pThis;
 
-		TCContinuation<int32> f_MyFunction() override
+		TCFuture<int32> f_MyFunction() override
 		{
 			co_return m_pThis->f_CalcResult();
 		}
@@ -725,7 +730,7 @@ void CMyActor::f_Publish()
 
  In the remote process we can then subscribe to the actor we just published.
 ~~~
-TCContinuation<void> f_SubscribeToInterface()
+TCFuture<void> f_SubscribeToInterface()
 {
 	mp_RemoteActors = TCTrustedActorSubscription<CMyActorInterface> Subscription = co_await m_TrustManager
 		(
@@ -812,14 +817,14 @@ CActorSubscription Subscription = co_await DActorCall
 	 	, CMyActor::f_RegisterCallback
 		, g_ActorFunctor
 		(
-			g_ActorSubscription / [this]() -> TCContinuation<void>
+			g_ActorSubscription / [this]() -> TCFuture<void>
 			{
 				// Called when the remote site lets the actor functor go out of scope
 				co_await fp_Cleanup();
 				co_return {};
 			}
 		)
-		/ [this](uint32 _Value) -> TCContinuation<void>
+		/ [this](uint32 _Value) -> TCFuture<void>
 		{
 			// Remote site calls actor functor to notify you
 			co_await fp_HandleCallbackCall(_Value);

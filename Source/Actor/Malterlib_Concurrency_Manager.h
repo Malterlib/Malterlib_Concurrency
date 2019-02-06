@@ -14,7 +14,7 @@
 
 #include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_Helpers.h"
-#include "Malterlib_Concurrency_Continuation.h"
+#include "Malterlib_Concurrency_Promise.h"
 #include "Malterlib_Concurrency_Actor.h"
 #include "Malterlib_Concurrency_DefaultActors.h"
 #include "Malterlib_Concurrency_ActorHolder.h"
@@ -24,7 +24,7 @@
 namespace NMib::NConcurrency
 {
 	struct CConcurrencyThreadLocal;
-	struct CContinuationCoroutineContext;
+	struct CFutureCoroutineContext;
 
 	/// \brief Manages scheduling of running actors in a thread pool
 	class CConcurrencyManager
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_ActorHolder.hpp"
 #include "Malterlib_Concurrency_ActorInternal.hpp"
 #include "Malterlib_Concurrency_Manager.hpp"
-#include "Malterlib_Concurrency_Continuation_Coroutine.hpp"
+#include "Malterlib_Concurrency_Promise_Coroutine.hpp"
 
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;

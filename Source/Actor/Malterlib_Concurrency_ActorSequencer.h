@@ -14,21 +14,21 @@ namespace NMib::NConcurrency
 		~TCActorSequencer();
 		
 		template <typename tf_FToSequence>
-		TCContinuation<t_CReturnType> operator / (tf_FToSequence &&_fToSequence);
+		TCFuture<t_CReturnType> operator / (tf_FToSequence &&_fToSequence);
 		
-		TCContinuation<void> f_Abort();
+		TCFuture<void> f_Abort();
 		
 	private:
 		struct CToSequenceEntry
 		{
-			NFunction::TCFunctionMovable<TCContinuation<t_CReturnType> ()> m_fToSequence;
-			TCContinuation<t_CReturnType> m_Continuation;
+			NFunction::TCFunctionMovable<TCFuture<t_CReturnType> ()> m_fToSequence;
+			TCPromise<t_CReturnType> m_Promise;
 		};
 		
 		struct CState
 		{
 			NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
-			TCContinuation<void> m_AbortContinuation;
+			TCPromise<void> m_AbortPromise;
 			mint m_MaxConcurrency = 1;
 			mint m_nRunning = 0;
 			bool m_bDestroyed = false;

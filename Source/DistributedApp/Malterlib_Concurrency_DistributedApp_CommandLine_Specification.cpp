@@ -1198,7 +1198,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJSON const &_CommandDescription
 			, NFunction::TCFunction
 			<
-				TCContinuation<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 			> const &_fRunCommand
 			, ECommandFlag _Flags
 		)

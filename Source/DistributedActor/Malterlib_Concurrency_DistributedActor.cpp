@@ -95,34 +95,34 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_Namespace
 			)
 		{
-			TCContinuation<CDistributedActorPublication> Continuation;
+			TCPromise<CDistributedActorPublication> Promise;
 			NPrivate::CDistributedActorData *pDistributedData = (NPrivate::CDistributedActorData *)_Actor->f_GetDistributedActorData().f_Get();
 			TCActor<CActorDistributionManager> DistributionManager;
 			
 			if (!pDistributedData)
-				Continuation.f_SetException(DMibErrorInstance("Not a distributed actor"));
+				Promise.f_SetException(DMibErrorInstance("Not a distributed actor"));
 			else if (pDistributedData->m_bRemote)
-				Continuation.f_SetException(DMibErrorInstance("You cannot publish a remote actor"));
+				Promise.f_SetException(DMibErrorInstance("You cannot publish a remote actor"));
 			else
 			{
 				DistributionManager = pDistributedData->m_DistributionManager.f_Lock();
 				if (!DistributionManager)
-					Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+					Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
 			}
 			
 			return fg_ConcurrentDispatch
 				(
 					[
 						DistributionManager = fg_Move(DistributionManager)
-						, Continuation = fg_Move(Continuation)
+						, Promise = fg_Move(Promise)
 						, Actor = fg_Move(_Actor)
 						, InterfaceInfo = fg_Move(_InterfaceInfo)
 						, _Namespace
 					]
-					() mutable -> TCContinuation<CDistributedActorPublication> 
+					() mutable -> TCFuture<CDistributedActorPublication>
 					{
-						if (Continuation.f_IsSet())
-							return fg_Move(Continuation);
+						if (Promise.f_IsSet())
+							return Promise.f_MoveFuture();
 						return DistributionManager
 							(
 								&CActorDistributionManager::fp_PublishActor
@@ -472,15 +472,15 @@ namespace NMib::NConcurrency
 					, LastExecutionID = mp_LastExecutionID
 					, _Actor
 				]
-				() mutable -> TCContinuation<CActorSubscription>
+				() mutable -> TCFuture<CActorSubscription>
 				{
 					auto DistributionManager = WeakDistributionManager.f_Lock();
 					if (!DistributionManager)
 						return DMibErrorInstance("Distribution manager was deleted");
 					
-					TCContinuation<CActorSubscription> Continuation;
-					DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Continuation;
-					return Continuation;
+					TCPromise<CActorSubscription> Promise;
+					DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Promise;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;

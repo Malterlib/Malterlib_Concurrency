@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 
 		void fp_Unlock(aint _LockSequence);
 		void f_Unlock(aint _LockSequence);
-		TCContinuation<void> fp_Destroy() override;
+		TCFuture<void> fp_Destroy() override;
 	public:
 		typedef CSeparateThreadActorHolder CActorHolder;
 

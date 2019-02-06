@@ -7,7 +7,7 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToContinuationOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_ContinuationOrAsyncResult);
+	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult);
 }
 
 namespace NMib::NConcurrency
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void TCAsyncResult<t_CType>::f_Consume(tf_CStream &_Stream)
 	{
-		if (NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, *this))
+		if (NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, *this))
 			return;
 		t_CType Result;
 		_Stream >> Result;
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void TCAsyncResult<void>::f_Consume(tf_CStream &_Stream)
 	{
-		if (NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, *this))
+		if (NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, *this))
 			return;
 		f_SetResult();
 	}

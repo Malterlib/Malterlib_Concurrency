@@ -76,38 +76,38 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerProxy(TCActor<CDistributedActorTrustManager> const &_Actor, CPermissions const &_Permissions);
 		~CDistributedActorTrustManagerProxy();
 
-		TCContinuation<NStr::CStr> f_GetHostID() const override;
+		TCFuture<NStr::CStr> f_GetHostID() const override;
 
-		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() override;
-		TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) override;
-		TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) override;
-		TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() override;
+		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) override;
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() override;
-		TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) override;
-		TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) override;
-		TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) override;
+		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() override;
+		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) override;
+		TCFuture<void> f_RemoveClient(NStr::CStr const &_HostID) override;
+		TCFuture<bool> f_HasClient(NStr::CStr const &_HostID) override;
 
-		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() override;
-		TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) override;
-		TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
-		TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
-		TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
-		TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() override;
+		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) override;
+		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
+		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
+		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) override;
-		TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
-		TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
+		TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) override;
+		TCFuture<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
+		TCFuture<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) override;
 
-		TCContinuation<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) override;
-		TCContinuation<void> f_AddPermissions(CAddPermissions const &_Command) override;
-		TCContinuation<void> f_RemovePermissions(CRemovePermissions const &_Command) override;
+		TCFuture<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) override;
+		TCFuture<void> f_AddPermissions(CAddPermissions const &_Command) override;
+		TCFuture<void> f_RemovePermissions(CRemovePermissions const &_Command) override;
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
-		TCContinuation<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) override;
-		TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) override;
-		TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) override;
-		TCContinuation<void> f_SetUserInfo
+		TCFuture<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) override;
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) override;
+		TCFuture<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) override;
+		TCFuture<void> f_RemoveUser(NStr::CStr const &_UserID) override;
+		TCFuture<void> f_SetUserInfo
 			(
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
@@ -115,14 +115,14 @@ namespace NMib::NConcurrency
 			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			) override
 		;
-		TCContinuation<NStr::CStr> f_ExportUser(NStr::CStr const &_UserID, bool _bIncludePrivate);
-		TCContinuation<NStr::CStr> f_ImportUser(NStr::CStr const &_UserData);
+		TCFuture<NStr::CStr> f_ExportUser(NStr::CStr const &_UserID, bool _bIncludePrivate);
+		TCFuture<NStr::CStr> f_ImportUser(NStr::CStr const &_UserData);
 
-		TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const override;
-		TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const override;
-		TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
-		TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
-		TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
+		TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const override;
+		TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const override;
+		TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
+		TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
+		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
 
 	private:
 		NException::CException fp_AccessDenied() const;

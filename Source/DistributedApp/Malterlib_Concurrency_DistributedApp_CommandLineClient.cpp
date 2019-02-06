@@ -47,71 +47,71 @@ namespace NMib::NConcurrency
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
-			TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				fp_CreateInputActor();
 
-				TCContinuation<TCActorSubscriptionWithID<>> Continuation;
-				m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags) > Continuation / [=](NConcurrency::CActorSubscription &&_Subscription)
+				TCPromise<TCActorSubscriptionWithID<>> Promise;
+				m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags) > Promise / [=](NConcurrency::CActorSubscription &&_Subscription)
 					{
-						Continuation.f_SetResult(fg_Move(_Subscription));
+						Promise.f_SetResult(fg_Move(_Subscription));
 					}
 				;
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				fp_CreateInputActor();
 
-				TCContinuation<TCActorSubscriptionWithID<>> Continuation;
-				m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags) > Continuation / [=](NConcurrency::CActorSubscription &&_Subscription)
+				TCPromise<TCActorSubscriptionWithID<>> Promise;
+				m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags) > Promise / [=](NConcurrency::CActorSubscription &&_Subscription)
 					{
-						Continuation.f_SetResult(fg_Move(_Subscription));
+						Promise.f_SetResult(fg_Move(_Subscription));
 					}
 				;
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<NContainer::CSecureByteVector> f_ReadBinary() override
+			TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
 			{
 				fp_CreateInputActor();
 				return m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
 			}
 
-			TCContinuation<NStr::CStrSecure> f_ReadLine() override
+			TCFuture<NStr::CStrSecure> f_ReadLine() override
 			{
 				fp_CreateInputActor();
 				return m_InputActor(&NProcess::CStdInActor::f_ReadLine);
 			}
 
-			TCContinuation<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
+			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
 			{
 				fp_CreateInputActor();
 				return m_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
 			}
 
-			TCContinuation<void> f_AbortReads() override
+			TCFuture<void> f_AbortReads() override
 			{
 				fp_CreateInputActor();
 				return m_InputActor(&NProcess::CStdInActor::f_AbortReads);
 			}
 
-			TCContinuation<void> f_StdOut(NStr::CStrSecure const &_Output) override
+			TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
 			{
 				DMibConOutRaw(_Output);
 				return fg_Explicit();
 			}
 
-			TCContinuation<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
+			TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
 			{
 				NSys::fg_ConsoleOutputBinary(_Output);
 				return fg_Explicit();
 			}
 
-			TCContinuation<void> f_StdErr(NStr::CStrSecure const &_Output) override
+			TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
 			{
 				DMibConErrOutRaw(_Output);
 				return fg_Explicit();
@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 		private:
 			TCActor<NProcess::CStdInActor> m_InputActor;
 
-			TCContinuation<void> fp_Destroy() override
+			TCFuture<void> fp_Destroy() override
 			{
 				if (!m_InputActor)
 					return fg_Explicit();
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient()
+	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient()
 	{
 		return fg_Explicit(CDistributedAppCommandLineClient(mp_Settings, mp_pCommandLineSpec, fp_GetTranslateHostnames()));
 	}

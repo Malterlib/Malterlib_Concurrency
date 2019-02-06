@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 	using namespace NProcess;
 	using namespace NContainer;
 	
-	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
+	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
 		auto pThis = m_pThis;
 		
@@ -28,46 +28,46 @@ namespace NMib::NConcurrency
 		return pThis->mp_DeferredAppStartupResults.f_Insert();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
+	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
 	{
 		return m_pThis->fp_PreUpdate();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreStop()
+	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreStop()
 	{
 		return m_pThis->fp_PreStop();
 	}
 	
-	TCContinuation<TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
+	TCFuture<TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
 		(
 			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
 			, CActorSubscription &&_ManifestFinished
 			, CStr const &_BackupRoot
 		)
 	{
-		TCContinuation<TCActorSubscriptionWithID<>> Continuation;
+		TCPromise<TCActorSubscriptionWithID<>> Promise;
 
 		m_pThis->fp_StartBackup(fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot)
-			> Continuation / [Continuation](CActorSubscription &&_Subscription)
+			> Promise / [Promise](CActorSubscription &&_Subscription)
 			{
-				Continuation.f_SetResult(fg_Move(_Subscription));
+				Promise.f_SetResult(fg_Move(_Subscription));
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_PreUpdate()
+	TCFuture<void> CDistributedAppActor::fp_PreUpdate()
 	{
 		return fg_Explicit();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_PreStop()
+	TCFuture<void> CDistributedAppActor::fp_PreStop()
 	{
 		return fg_Explicit();
 	}
 	
-	TCContinuation<CActorSubscription> CDistributedAppActor::fp_StartBackup
+	TCFuture<CActorSubscription> CDistributedAppActor::fp_StartBackup
 		(
 			TCDistributedActorInterface<CDistributedAppInterfaceBackup> &&_BackupInterface
 			, CActorSubscription &&_ManifestFinished
@@ -83,30 +83,30 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<void> CDistributedAppState::f_SaveStateDatabase()
+	TCFuture<void> CDistributedAppState::f_SaveStateDatabase()
 	{
 		return DMibErrorInstance("Copied app state does not support this");
 	}
 
-	TCContinuation<void> CDistributedAppState::f_SaveConfigDatabase()
+	TCFuture<void> CDistributedAppState::f_SaveConfigDatabase()
 	{
 		return DMibErrorInstance("Copied app state does not support this");
 	}
 	
-	TCContinuation<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase() 
+	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase()
 	{
 		return mp_AppActor.fp_SaveStateDatabase();
 	}
 
-	TCContinuation<void> CDistributedAppActor::CLocalAppState::f_SaveConfigDatabase() 
+	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveConfigDatabase()
 	{
 		return mp_AppActor.fp_SaveConfigDatabase();
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_SaveStateDatabase()
+	TCFuture<void> CDistributedAppActor::fp_SaveStateDatabase()
 	{
-		TCContinuation<void> Continuation;
-		mp_State.m_StateDatabase.f_Save() > [this, Continuation](TCAsyncResult<void> &&_Result)
+		TCPromise<void> Promise;
+		mp_State.m_StateDatabase.f_Save() > [this, Promise](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
 				{
@@ -115,16 +115,16 @@ namespace NMib::NConcurrency
 					DMibLog(Error, "Failed to save state database: {}", _Result.f_GetExceptionStr());
 #endif
 				}
-				Continuation.f_SetResult(fg_Move(_Result));
+				Promise.f_SetResult(fg_Move(_Result));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SaveConfigDatabase()
+	TCFuture<void> CDistributedAppActor::fp_SaveConfigDatabase()
 	{
-		TCContinuation<void> Continuation;
-		mp_State.m_ConfigDatabase.f_Save() > [this, Continuation](TCAsyncResult<void> &&_Result)
+		TCPromise<void> Promise;
+		mp_State.m_ConfigDatabase.f_Save() > [this, Promise](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
 				{
@@ -133,17 +133,17 @@ namespace NMib::NConcurrency
 					DMibLog(Error, "Failed to save config database: {}", _Result.f_GetExceptionStr());
 #endif
 				}
-				Continuation.f_SetResult(fg_Move(_Result));
+				Promise.f_SetResult(fg_Move(_Result));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
 	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
 	{
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
 		mp_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
 		
@@ -158,14 +158,14 @@ namespace NMib::NConcurrency
 		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
 		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
 		
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		mp_State.m_TrustManager
 			(
 				&CDistributedActorTrustManager::f_SubscribeTrustedActors<CDistributedAppInterfaceServer>
 				, CDistributedAppInterfaceServer::mc_pDefaultNamespace
 				, fg_ThisActor(this)
 			)
-			> Continuation / [=, RegisterInfo = fg_Move(RegisterInfo)](TCTrustedActorSubscription<CDistributedAppInterfaceServer> &&_Subscription) mutable
+			> Promise / [=, RegisterInfo = fg_Move(RegisterInfo)](TCTrustedActorSubscription<CDistributedAppInterfaceServer> &&_Subscription) mutable
 			{
 				mp_AppInteraceServerSubscription = fg_Move(_Subscription);
 				mp_AppInteraceServerSubscription.f_OnActor
@@ -208,18 +208,18 @@ namespace NMib::NConcurrency
 						}
 					)
 				;
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedAppActor::fp_GetTicketThroughStdIn(NStr::CStr const &_RequestMagic)
+	TCFuture<CDistributedActorTrustManager::CTrustTicket> CDistributedAppActor::fp_GetTicketThroughStdIn(NStr::CStr const &_RequestMagic)
 	{
 		if (mp_pStdInCleanup)
 			return DMibErrorInstance("A ticket is already being requested");
 		
-		TCContinuation<CDistributedActorTrustManager::CTrustTicket> Continuation;
+		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
 		
 		struct CState
 		{
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 					, Buffer = CStrSecure{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]
-				(EStdInReaderOutputType _Type, const NStr::CStrSecure &_Input) mutable -> TCContinuation<void>
+				(EStdInReaderOutputType _Type, const NStr::CStrSecure &_Input) mutable -> TCFuture<void>
 				{
 					if (_Type != EStdInReaderOutputType_StdIn)
 						return fg_Explicit();
@@ -266,11 +266,11 @@ namespace NMib::NConcurrency
 						{
 							try
 							{
-								Continuation.f_SetResult(CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(Line.f_Extract(RequestMagicPrefix.f_GetLen())));
+								Promise.f_SetResult(CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(Line.f_Extract(RequestMagicPrefix.f_GetLen())));
 							}
 							catch (NException::CException const &_Exception)
 							{
-								Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to parse trust ticket: {}", _Exception)));
+								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to parse trust ticket: {}", _Exception)));
 							}
 							pState->f_Clear();
 							mp_pStdInCleanup->f_Clear();
@@ -281,17 +281,17 @@ namespace NMib::NConcurrency
 				}
 				, EStdInReaderFlag_None
 			)
-			> Continuation / [=](CActorSubscription &&_Subscription)
+			> Promise / [=](CActorSubscription &&_Subscription)
 			{
 				DMibConErrOut("{}\n", _RequestMagic);
 				pState->m_StdInSubscription = fg_Move(_Subscription);
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params)
 	{
 
 		CStr ServerAddress = mp_Settings.m_InterfaceSettings.m_ServerAddress;
@@ -302,7 +302,7 @@ namespace NMib::NConcurrency
 		if (ServerAddress.f_IsEmpty() || (RequestTicketMagic.f_IsEmpty() && pRequestTicket.f_IsEmpty()))
 			return fp_SubscribeAppServerInterface(_Params);
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		
 		CStr CurrentServerAddress;
 		if (auto pValue = mp_State.m_StateDatabase.m_Data.f_GetMember("DistributedAppInterfaceServerAddress", EJSONType_String))
@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 		
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClientConnection, CURL(CurrentServerAddress.f_IsEmpty() ? ServerAddress: CurrentServerAddress))
 			+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClientConnection, CURL(ServerAddress))
-			> Continuation / [=](bool _bHasCurrent, bool _bHasExpected)
+			> Promise / [=](bool _bHasCurrent, bool _bHasExpected)
 			{
 				TCActorResultVector<void> ClientConnectionChanges;
 				if (_bHasCurrent && ServerAddress != CurrentServerAddress && !CurrentServerAddress.f_IsEmpty())
@@ -319,13 +319,13 @@ namespace NMib::NConcurrency
 					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, CURL(CurrentServerAddress)) > ClientConnectionChanges.f_AddResult();
 				}
 				
-				ClientConnectionChanges.f_GetResults() > Continuation / [=](TCVector<TCAsyncResult<void>> &&_Results)
+				ClientConnectionChanges.f_GetResults() > Promise / [=](TCVector<TCAsyncResult<void>> &&_Results)
 					{
 						for (auto &Result : _Results)
 						{
 							if (!Result)
 							{
-								Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to remove old app interface client connection: {}\n", Result.f_GetExceptionStr())));
+								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to remove old app interface client connection: {}\n", Result.f_GetExceptionStr())));
 								return;
 							}
 						}
@@ -335,38 +335,38 @@ namespace NMib::NConcurrency
 								if (ServerAddress != CurrentServerAddress)
 								{
 									mp_State.m_StateDatabase.m_Data["DistributedAppInterfaceServerAddress"] = ServerAddress;
-									fp_SaveStateDatabase() > Continuation / [=]
+									fp_SaveStateDatabase() > Promise / [=]
 										{
-											fp_SubscribeAppServerInterface(_Params) > Continuation;
+											fp_SubscribeAppServerInterface(_Params) > Promise;
 										}
 									;
 								}
 								else
-									fp_SubscribeAppServerInterface(_Params) > Continuation;
+									fp_SubscribeAppServerInterface(_Params) > Promise;
 							}
 						;
 
 						if (_bHasExpected)
 							return fSaveAndSubscribe();
 
-						TCContinuation<CDistributedActorTrustManager::CTrustTicket> RequestTicketContinuation;
+						TCFuture<CDistributedActorTrustManager::CTrustTicket> RequestTicketFuture;
 						if (pRequestTicket)
 						{
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket with provided functor");
-							RequestTicketContinuation = (*pRequestTicket)();
+							RequestTicketFuture = (*pRequestTicket)();
 						}
 						else
 						{
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket from parent process");
-							RequestTicketContinuation = CDistributedAppActor::fp_GetTicketThroughStdIn(RequestTicketMagic);
+							RequestTicketFuture = CDistributedAppActor::fp_GetTicketThroughStdIn(RequestTicketMagic);
 						}
 						
-						RequestTicketContinuation.f_Dispatch().f_Timeout(60.0, "Timed out getting trust ticket through stdin")
-							> Continuation % "Failed to get ticket through stdin" / [=](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
+						RequestTicketFuture.f_Timeout(60.0, "Timed out getting trust ticket through stdin")
+							> Promise % "Failed to get ticket through stdin" / [=](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 							{
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Got trust ticket, adding client connection");
 								mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, fg_Move(_TrustTicket), 60.0, -1)
-									> Continuation % "Failed to add client connection" / [=](CHostInfo &&_HostInfo)
+									> Promise % "Failed to add client connection" / [=](CHostInfo &&_HostInfo)
 									{
 										DMibLogWithCategory(Mib/Concurrency/App, Info, "Added client connection, trusting host '{}' for app interface namespace", _HostInfo.f_GetDesc());
 								
@@ -377,7 +377,7 @@ namespace NMib::NConcurrency
 												, fg_CreateSet(_HostInfo.m_HostID)
 												, EDistributedActorTrustManagerOrderingFlag_None
 											)
-											> Continuation % "Failed to allow host for namespace" / fSaveAndSubscribe
+											> Promise % "Failed to allow host for namespace" / fSaveAndSubscribe
 										;
 									}
 								;
@@ -388,6 +388,6 @@ namespace NMib::NConcurrency
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

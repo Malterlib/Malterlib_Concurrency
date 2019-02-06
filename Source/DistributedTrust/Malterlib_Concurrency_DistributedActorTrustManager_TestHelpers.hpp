@@ -19,11 +19,11 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename tf_CActor>
-	TCContinuation<NContainer::TCVector<TCDistributedActor<tf_CActor>>> CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace)
+	TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace)
 	{
-		TCContinuation<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Continuation;
+		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this)) 
-			> Continuation / [this, Continuation, _nActors](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
+			> Promise / [this, Promise, _nActors](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
 			{
 				struct CSubscriptionImpl : CSubscription
 				{
@@ -33,18 +33,18 @@ namespace NMib::NConcurrency
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor
 					(
-						[Continuation, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>()]
+						[Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>()]
 						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
 						{
 							Actors.f_Insert(_NewActor);
-							if (Actors.f_GetLen() == _nActors && !Continuation.f_IsSet())
-								Continuation.f_SetResult(fg_Move(Actors));
+							if (Actors.f_GetLen() == _nActors && !Promise.f_IsSet())
+								Promise.f_SetResult(fg_Move(Actors));
 						}
 					)
 				;
 				mp_Subscriptions.f_Insert(fg_Move(pSubscription));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

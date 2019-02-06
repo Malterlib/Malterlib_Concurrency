@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CTicketInterface::f_SignCertificate);
 	}
 
-	TCContinuation<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::f_SignCertificate
+	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::f_SignCertificate
 		(
 			NStr::CStr const &_Token
 			, NContainer::CByteVector const &_CertificateRequest
@@ -49,10 +49,10 @@ namespace NMib::NConcurrency
 		if (HostID.f_IsEmpty())
 			return DMibErrorInstance("Certificate request has no host ID");
 
-		TCContinuation<NContainer::CByteVector> Continuation;
+		TCPromise<NContainer::CByteVector> Promise;
 
 		m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
-			> Continuation % "Failed to check for existing client" /
+			> Promise % "Failed to check for existing client" /
 			[
 				=
 				, fOnUseTicket = fg_Move(fOnUseTicket)
@@ -70,19 +70,19 @@ namespace NMib::NConcurrency
 					}
 					catch (NException::CException const &_Exception)
 					{
-						Continuation.f_SetException(DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr())));
+						Promise.f_SetException(DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr())));
 						return;
 					}
 				}
 
-				TCContinuation<void> ValidateSignRequestContinuation;
+				TCFuture<void> ValidateSignRequestFuture;
 
 				if (fOnUseTicket)
-					fOnUseTicket(HostID, _HostInfo, _CertificateRequest) > ValidateSignRequestContinuation;
+					ValidateSignRequestFuture = fOnUseTicket(HostID, _HostInfo, _CertificateRequest);
 				else
-					ValidateSignRequestContinuation.f_SetResult();
+					ValidateSignRequestFuture = fg_Explicit();
 
-				ValidateSignRequestContinuation
+				ValidateSignRequestFuture
 					>
 					[
 						=
@@ -93,12 +93,12 @@ namespace NMib::NConcurrency
 					{
 						if (!_ValidationResult)
 						{
-							Continuation.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", _ValidationResult.f_GetExceptionStr())));
+							Promise.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", _ValidationResult.f_GetExceptionStr())));
 							return;
 						}
 
 						m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial)
-							> Continuation % "Failed to get new certificate serial" /
+							> Promise % "Failed to get new certificate serial" /
 							[
 								=
 								, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 											return Results;
 										}
 									)
-									> Continuation / [=, fOnCertificateSigned = fg_Move(fOnCertificateSigned)](CResults &&_Results) mutable
+									> Promise / [=, fOnCertificateSigned = fg_Move(fOnCertificateSigned)](CResults &&_Results) mutable
 									{
 										ICDistributedActorTrustManagerDatabase::CClient Client;
 										Client.m_PublicCertificate = _Results.m_SignedCertificate;
@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 												, _Results.m_HostID
 												, Client
 											)
-											> Continuation % "Failed to add client to trust database" /
+											> Promise % "Failed to add client to trust database" /
 											[
 												=
 												, Certificate = fg_Move(_Results.m_SignedCertificate)
@@ -169,12 +169,9 @@ namespace NMib::NConcurrency
 											() mutable
 											{
 												if (!fOnCertificateSigned)
-													return Continuation.f_SetResult(fg_Move(Certificate));
+													return Promise.f_SetResult(fg_Move(Certificate));
 
-												TCContinuation<void> OnCertificateSignedContinuation;
-												fOnCertificateSigned(HostID, _HostInfo) > OnCertificateSignedContinuation;
-
-												OnCertificateSignedContinuation >
+												fOnCertificateSigned(HostID, _HostInfo) >
 													[
 														=
 														, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
@@ -194,7 +191,7 @@ namespace NMib::NConcurrency
 															;
 														}
 
-														return Continuation.f_SetResult(fg_Move(Certificate));
+														return Promise.f_SetResult(fg_Move(Certificate));
 													}
 												;
 											}
@@ -208,10 +205,10 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate
+	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate
 		(
 			NStr::CStr const &_Token
 			, NContainer::CByteVector const &_CertificateRequest
@@ -236,7 +233,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::f_ValidateClientAccess
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::f_ValidateClientAccess
 		(
 			NStr::CStr const &_HostID
 			, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain
@@ -245,19 +242,19 @@ namespace NMib::NConcurrency
 		return m_pThis->f_ValidateClientAccess(_HostID, _CertificateChain);
 	}
 
-	TCContinuation<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> CDistributedActorTrustManager::f_GenerateConnectionTicket
+	TCFuture<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> CDistributedActorTrustManager::f_GenerateConnectionTicket
 		(
 			CDistributedActorTrustManager_Address const &_Address
-			, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> &&_fOnUseTicket
-			, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
+			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> &&_fOnUseTicket
+			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 		)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> Continuation;
+		TCPromise<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address, fOnUseTicket = fg_Move(_fOnUseTicket), fOnCertificateSigned = fg_Move(_fOnCertificateSigned)]() mutable
+				Promise
+				, [this, Promise, _Address, fOnUseTicket = fg_Move(_fOnUseTicket), fOnCertificateSigned = fg_Move(_fOnCertificateSigned)]() mutable
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -266,14 +263,14 @@ namespace NMib::NConcurrency
 					auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
 					if (!pListen)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Could not find listen with this address"));
+						Promise.f_SetException(DMibErrorInstance("Could not find listen with this address"));
 						return;
 					}
 
 					auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
 					if (!pServerCertificate)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Could not find and server certificate for this address"));
+						Promise.f_SetException(DMibErrorInstance("Could not find and server certificate for this address"));
 						return;
 					}
 
@@ -292,7 +289,7 @@ namespace NMib::NConcurrency
 					Result.m_Ticket = fg_Move(TrustTicket);
 					if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
 					{
-						Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCContinuation<void>
+						Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCFuture<void>
 							{
 								auto &Internal = *mp_pInternal;
 
@@ -306,18 +303,18 @@ namespace NMib::NConcurrency
 
 								Internal.m_Tickets.f_Remove(Token);
 
-								TCContinuation<void> Continuation;
-								Destroys.f_GetResults() > Continuation.f_ReceiveAny();
-								return Continuation;
+								TCPromise<void> Promise;
+								Destroys.f_GetResults() > Promise.f_ReceiveAny();
+								return Promise.f_MoveFuture();
 							}
 						;
 					}
 
-					Continuation.f_SetResult(fg_Move(Result));
+					Promise.f_SetResult(fg_Move(Result));
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CDistributedActorTrustManager::CInternal::f_RemoveClientConnection(CConnectionState *_pClientConnection)
@@ -384,7 +381,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
 	{
 		// Connect to remote host with anonymous connection
 		// Subscribe to internal interface (time out if no publication arrives)
@@ -393,11 +390,11 @@ namespace NMib::NConcurrency
 		// Connect again to remote host with signed client certificate (if failure, remove from database again)
 
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CHostInfo> Continuation;
+		TCPromise<CHostInfo> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _TrustTicket, _Timeout, _ConnectionConcurrency]
+				Promise
+				, [this, Promise, _TrustTicket, _Timeout, _ConnectionConcurrency]
 				{
 					NStr::CStr ServerHostID;
 					try
@@ -407,13 +404,13 @@ namespace NMib::NConcurrency
 					}
 					catch (NException::CException const &_Exception)
 					{
-						Continuation.f_SetException(DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr())));
+						Promise.f_SetException(DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr())));
 						return;
 					}
 
 					if (ServerHostID.f_IsEmpty())
 					{
-						Continuation.f_SetException(DMibErrorInstance("Trust ticket server certificate does not include Host ID or Host ID is invalid"));
+						Promise.f_SetException(DMibErrorInstance("Trust ticket server certificate does not include Host ID or Host ID is invalid"));
 						return;
 					}
 
@@ -429,12 +426,12 @@ namespace NMib::NConcurrency
 					ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 
 					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
-						> [this, Continuation, _Timeout, _TrustTicket, ServerHostID, _ConnectionConcurrency]
+						> [this, Promise, _Timeout, _TrustTicket, ServerHostID, _ConnectionConcurrency]
 						(TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 						{
 							if (!_ConnectionResult)
 							{
-								Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to connect to server: {}", _ConnectionResult.f_GetExceptionStr())));
+								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to connect to server: {}", _ConnectionResult.f_GetExceptionStr())));
 								return;
 							}
 							auto &Internal = *mp_pInternal;
@@ -466,7 +463,7 @@ namespace NMib::NConcurrency
 									&CActorDistributionManager::f_SubscribeActors
 									, NContainer::fg_CreateVector<NStr::CStr>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
 									, fg_ThisActor(this)
-									, [this, Continuation, pConnectionState, _TrustTicket, ServerHostID, UniqueHostID, _ConnectionConcurrency](CAbstractDistributedActor &&_NewActor)
+									, [this, Promise, pConnectionState, _TrustTicket, ServerHostID, UniqueHostID, _ConnectionConcurrency](CAbstractDistributedActor &&_NewActor)
 									{
 										if (_NewActor.f_GetUniqueHostID() != UniqueHostID)
 											return;
@@ -487,7 +484,7 @@ namespace NMib::NConcurrency
 											CStr TypeName(TypeNameHelper.m_pString, TypeNameHelper.m_Len);
 
 											pConnectionState->f_Replied();
-											Continuation.f_SetException
+											Promise.f_SetException
 												(
 													DMibErrorInstance
 													(
@@ -528,12 +525,12 @@ namespace NMib::NConcurrency
 										catch (NException::CException const &_Exception)
 										{
 											pConnectionState->f_Replied();
-											Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to generate certificate request for trust: {}", _Exception.f_GetErrorStr())));
+											Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to generate certificate request for trust: {}", _Exception.f_GetErrorStr())));
 											return;
 										}
 
 										DMibCallActor(pConnectionState->m_TicketInterface, CInternal::CTicketInterface::f_SignCertificate, _TrustTicket.m_Token, CertificateRequest)
-											> [this, Continuation, pConnectionState, _TrustTicket, ServerHostID, _ConnectionConcurrency]
+											> [this, Promise, pConnectionState, _TrustTicket, ServerHostID, _ConnectionConcurrency]
 											(TCAsyncResult<NContainer::CByteVector> &&_PublicCertificate)
 											{
 												if (pConnectionState->m_bReplied)
@@ -541,7 +538,7 @@ namespace NMib::NConcurrency
 												if (!_PublicCertificate)
 												{
 													pConnectionState->f_Replied();
-													Continuation.f_SetException
+													Promise.f_SetException
 														(
 															DMibErrorInstance(fg_Format("Failed to subscribe to remote ticket management: {}", _PublicCertificate.f_GetExceptionStr()))
 														)
@@ -600,7 +597,7 @@ namespace NMib::NConcurrency
 													[
 														this
 														, pConnectionState
-														, Continuation
+														, Promise
 														, Address = _TrustTicket.m_ServerAddress
 														, ClientConnection
 														, ServerHostID
@@ -612,7 +609,7 @@ namespace NMib::NConcurrency
 														if (!_Result)
 														{
 															pConnectionState->f_Replied();
-															Continuation.f_SetException
+															Promise.f_SetException
 																(
 																	DMibErrorInstance(fg_Format("Failed to save new client connection to database: {}", _Result.f_GetExceptionStr()))
 																)
@@ -661,7 +658,7 @@ namespace NMib::NConcurrency
 															>
 															[
 																this
-																, Continuation
+																, Promise
 																, pConnectionState
 																, Address
 																, ClientConnection
@@ -684,7 +681,7 @@ namespace NMib::NConcurrency
 																		> fg_DiscardResult();
 																	;
 
-																	Continuation.f_SetException
+																	Promise.f_SetException
 																		(
 																			DMibErrorInstance
 																			(
@@ -712,7 +709,7 @@ namespace NMib::NConcurrency
 																Host.m_FriendlyName = ConnectionResult.m_HostInfo.m_FriendlyName;
 																pConnectionState->f_Replied();
 
-																Continuation.f_SetResult(ConnectionResult.m_HostInfo);
+																Promise.f_SetResult(ConnectionResult.m_HostInfo);
 
 																Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
 															}
@@ -726,14 +723,14 @@ namespace NMib::NConcurrency
 									{
 									}
 								)
-								> [pConnectionState, Continuation](auto &&_Subscription)
+								> [pConnectionState, Promise](auto &&_Subscription)
 								{
 									if (pConnectionState->m_bReplied)
 										return;
 									if (!_Subscription)
 									{
 										pConnectionState->f_Replied();
-										Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to subscribe to remote ticket management: {}", _Subscription.f_GetExceptionStr())));
+										Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to subscribe to remote ticket management: {}", _Subscription.f_GetExceptionStr())));
 									}
 									pConnectionState->m_Subscription = fg_Move(*_Subscription);
 								}
@@ -744,13 +741,13 @@ namespace NMib::NConcurrency
 									&CTimerActor::f_OneshotTimer
 									, _Timeout
 									, fg_ThisActor(this)
-									, [pConnectionState, Continuation]
+									, [pConnectionState, Promise]
 									{
 										if (pConnectionState->m_bReplied || pConnectionState->m_bDisableTimeout)
 											return;
 										pConnectionState->f_Replied();
 
-										Continuation.f_SetException(DMibErrorInstance("Timed out waiting for remote trust manager"));
+										Promise.f_SetException(DMibErrorInstance("Timed out waiting for remote trust manager"));
 									}
 									, true
 								)
@@ -762,30 +759,30 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address, _ConnectionConcurrency]
+				Promise
+				, [this, Promise, _Address, _ConnectionConcurrency]
 				{
 					auto &Internal = *mp_pInternal;
 
 					auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
 					if (!pClientConnectionState)
 					{
-						Continuation.f_SetException(DMibErrorInstance("No such client connection"));
+						Promise.f_SetException(DMibErrorInstance("No such client connection"));
 						return;
 					}
 
 					if (_ConnectionConcurrency == pClientConnectionState->m_ClientConnection.m_ConnectionConcurrency)
 					{
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 						return;
 					}
 
@@ -798,11 +795,11 @@ namespace NMib::NConcurrency
 							, _Address
 							, NewClientConnection
 						)
-						> Continuation % "Failed to save client connection to database"
+						> Promise % "Failed to save client connection to database"
 						/
 						[
 							this
-							, Continuation
+							, Promise
 							, _Address
 							, _ConnectionConcurrency
 						]
@@ -813,33 +810,33 @@ namespace NMib::NConcurrency
 							auto &LocalClientConnection = Internal.m_ClientConnections[_Address];
 							LocalClientConnection.m_ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
 							Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
-							Continuation.f_SetResult();
+							Promise.f_SetResult();
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
 		// Connect with insecure connection to server to get server certificate
 		// Connect with server certificate to verify that trust is correct
 		// Connect with server certificate and client certificate at the end
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CHostInfo> Continuation;
+		TCPromise<CHostInfo> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address, _ConnectionConcurrency]
+				Promise
+				, [this, Promise, _Address, _ConnectionConcurrency]
 				{
 					auto &Internal = *mp_pInternal;
 
 					auto *pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 					if (pClientConnection)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Address already exists"));
+						Promise.f_SetException(DMibErrorInstance("Address already exists"));
 						return;
 					}
 
@@ -849,15 +846,15 @@ namespace NMib::NConcurrency
 					ConnectionSettings.m_bAllowInsecureConnection = true;
 
 					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
-						> Continuation % "Failed to connect to server"
-						/ [this, Continuation, _Address, _ConnectionConcurrency](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
+						> Promise % "Failed to connect to server"
+						/ [this, Promise, _Address, _ConnectionConcurrency](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 						{
 							auto &Internal = *mp_pInternal;
 
 							auto &ConnectionResult = _ConnectionResult;
 							if (ConnectionResult.m_CertificateChain.f_IsEmpty())
 							{
-								Continuation.f_SetException(DMibErrorInstance("Missing certificate chain in connection result"));
+								Promise.f_SetException(DMibErrorInstance("Missing certificate chain in connection result"));
 								return;
 							}
 
@@ -883,7 +880,7 @@ namespace NMib::NConcurrency
 
 							if (!bFoundCertificate)
 							{
-								Continuation.f_SetException(DMibErrorInstance("No existing connection found that matches the remote certificate"));
+								Promise.f_SetException(DMibErrorInstance("No existing connection found that matches the remote certificate"));
 								return;
 							}
 
@@ -895,8 +892,8 @@ namespace NMib::NConcurrency
 							ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
-								> Continuation % "Failed to verify connection to server"
-								/ [this, Continuation, _Address, NewClientConnection, ServerHostID](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
+								> Promise % "Failed to verify connection to server"
+								/ [this, Promise, _Address, NewClientConnection, ServerHostID](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 								{
 									auto &Internal = *mp_pInternal;
 
@@ -908,11 +905,11 @@ namespace NMib::NConcurrency
 									ConnectionSettings.m_bRetryConnectOnFailure = true;
 
 									Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
-										> Continuation % "Failed to connect to server"
+										> Promise % "Failed to connect to server"
 										/
 										[
 											this
-											, Continuation
+											, Promise
 											, _Address
 											, NewClientConnection
 											, ServerHostID
@@ -932,11 +929,11 @@ namespace NMib::NConcurrency
 													, _Address
 													, NewClientConnection
 												)
-												> Continuation % "Failed to save new client connection to database"
+												> Promise % "Failed to save new client connection to database"
 												/
 												[
 													this
-													, Continuation
+													, Promise
 													, _Address
 													, NewClientConnection
 													, ServerHostID
@@ -955,7 +952,7 @@ namespace NMib::NConcurrency
 													LocalClientConnection.m_pHost = &Host;
 													LocalClientConnection.m_ConnectionReferences.f_Insert(fg_Move(ConnectionReference));
 													Host.m_FriendlyName = HostInfo.m_FriendlyName;
-													Continuation.f_SetResult(HostInfo);
+													Promise.f_SetResult(HostInfo);
 
 													Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
 												}
@@ -969,27 +966,27 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]
+				Promise
+				, [this, Promise, _Address]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_ClientConnectionsInDatabase.f_Remove(_Address);
 					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address)
-						> Continuation % "Failed to remove client connection from database" / [this, Continuation, _Address]
+						> Promise % "Failed to remove client connection from database" / [this, Promise, _Address]
 						{
 							auto &Internal = *mp_pInternal;
 							auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 							if (!pClientConnection)
-								return Continuation.f_SetResult();
+								return Promise.f_SetResult();
 
 							pClientConnection->m_bRemoving = true;
 
@@ -997,8 +994,8 @@ namespace NMib::NConcurrency
 							for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
 								ConnectionReference.f_Disconnect() > DisconnectResults.f_AddResult();
 
-							DisconnectResults.f_GetResults() > Continuation % "Failed to disconnect client connection"
-								/ [this, _Address, Continuation](NContainer::TCVector<TCAsyncResult<void>> &&_Results)
+							DisconnectResults.f_GetResults() > Promise % "Failed to disconnect client connection"
+								/ [this, _Address, Promise](NContainer::TCVector<TCAsyncResult<void>> &&_Results)
 								{
 									for (auto &Result : _Results)
 									{
@@ -1018,7 +1015,7 @@ namespace NMib::NConcurrency
 									auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 									if (pConnection)
 										Internal.f_RemoveClientConnection(pConnection);
-									Continuation.f_SetResult();
+									Promise.f_SetResult();
 								}
 							;
 						}
@@ -1026,17 +1023,17 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	auto CDistributedActorTrustManager::f_EnumClientConnections() -> TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>>
+	auto CDistributedActorTrustManager::f_EnumClientConnections() -> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>>
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> Continuation;
+		TCPromise<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
 					NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo> Addresses;
@@ -1057,13 +1054,13 @@ namespace NMib::NConcurrency
 
 					if (!bMissingHost)
 					{
-						Continuation.f_SetResult(fg_Move(Addresses));
+						Promise.f_SetResult(fg_Move(Addresses));
 						return;
 					}
 
 					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
-						> (Continuation % "Failed to enum client connections in database")
-						/ [Continuation, Addresses = fg_Move(Addresses)](NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> &&_ClientConnections) mutable
+						> (Promise % "Failed to enum client connections in database")
+						/ [Promise, Addresses = fg_Move(Addresses)](NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> &&_ClientConnections) mutable
 						{
 							for (auto iClientConnection = _ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
 							{
@@ -1081,40 +1078,40 @@ namespace NMib::NConcurrency
 									Client.m_ConnectionConcurrency = iClientConnection->m_ConnectionConcurrency;
 								}
 							}
-							Continuation.f_SetResult(fg_Move(Addresses));
+							Promise.f_SetResult(fg_Move(Addresses));
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<bool> Continuation;
+		TCPromise<bool> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]
+				Promise
+				, [this, Promise, _Address]
 				{
 					auto &Internal = *mp_pInternal;
-					Continuation.f_SetResult(Internal.m_ClientConnections.f_FindEqual(_Address) != nullptr);
+					Promise.f_SetResult(Internal.m_ClientConnections.f_FindEqual(_Address) != nullptr);
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState()
+	TCFuture<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState()
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CDistributedActorTrustManager::CConnectionState> Continuation;
+		TCPromise<CDistributedActorTrustManager::CConnectionState> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
 					TCActorResultMap<CDistributedActorTrustManager_Address, NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>> ConnectionResults;
@@ -1131,7 +1128,7 @@ namespace NMib::NConcurrency
 					}
 
 					ConnectionResults.f_GetResults()
-						> Continuation / [Continuation, FriendlyNames = fg_Move(FriendlyNames)]
+						> Promise / [Promise, FriendlyNames = fg_Move(FriendlyNames)]
 						(NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>>> &&_Results)
 						{
 							CDistributedActorTrustManager::CConnectionState ConnectionState;
@@ -1175,12 +1172,12 @@ namespace NMib::NConcurrency
 									OutStatus.m_ErrorTime = Status.m_ErrorTime;
 								}
 							}
-							Continuation.f_SetResult(ConnectionState);
+							Promise.f_SetResult(ConnectionState);
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

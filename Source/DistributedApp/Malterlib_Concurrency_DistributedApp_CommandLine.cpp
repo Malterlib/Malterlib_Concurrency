@@ -39,21 +39,21 @@ namespace NMib::NConcurrency
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
 
-	TCContinuation<void> CCommandLineControl::f_StdOut(NStr::CStrSecure const &_Output) const
+	TCFuture<void> CCommandLineControl::f_StdOut(NStr::CStrSecure const &_Output) const
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOut, _Output);
 	}
 
-	TCContinuation<void> CCommandLineControl::f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const
+	TCFuture<void> CCommandLineControl::f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOutBinary, _Output);
 	}
 
-	TCContinuation<void> CCommandLineControl::f_StdErr(NStr::CStrSecure const &_Output) const
+	TCFuture<void> CCommandLineControl::f_StdErr(NStr::CStrSecure const &_Output) const
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency
 	}
 
 	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, NProcess::EStdInReaderFlag _Flags) const
-		-> TCContinuation<TCActorSubscriptionWithID<>>
+		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
@@ -69,35 +69,35 @@ namespace NMib::NConcurrency
 	}
 
 	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
-		-> TCContinuation<TCActorSubscriptionWithID<>>
+		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdIn, fg_Move(_fOnInput), _Flags);
 	}
 
-	TCContinuation<NContainer::CSecureByteVector> CCommandLineControl::f_ReadBinary() const
+	TCFuture<NContainer::CSecureByteVector> CCommandLineControl::f_ReadBinary() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadBinary);
 	}
 
-	TCContinuation<NStr::CStrSecure> CCommandLineControl::f_ReadLine() const
+	TCFuture<NStr::CStrSecure> CCommandLineControl::f_ReadLine() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadLine);
 	}
 
-	TCContinuation<NStr::CStrSecure> CCommandLineControl::f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const
+	TCFuture<NStr::CStrSecure> CCommandLineControl::f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadPrompt, _Params);
 	}
 
-	TCContinuation<void> CCommandLineControl::f_AbortReads() const
+	TCFuture<void> CCommandLineControl::f_AbortReads() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency
 		(void)f_StdOutBinary(_StdOut);
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_PreRunCommandLine
+	TCFuture<void> CDistributedAppActor::fp_PreRunCommandLine
 		(
 			 CStr const &_Command
 			 , NEncoding::CEJSON const &_Params
@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_RunCommandLine
+	TCFuture<uint32> CDistributedAppActor::f_RunCommandLine
 		(
 			CCallingHostInfo const &_CallingHost
 			, NStr::CStr const &_Command
@@ -186,15 +186,15 @@ namespace NMib::NConcurrency
 			return _Exception;
 		}
 
-		TCContinuation<void> ConnectionWaitContinuation;
+		TCPromise<void> ConnectionWaitPromise;
 		if ((*pCommand)->m_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes)
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection) > ConnectionWaitContinuation;
+			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection) > ConnectionWaitPromise;
 		else
-			ConnectionWaitContinuation.f_SetResult();
+			ConnectionWaitPromise.f_SetResult();
 
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 
-		ConnectionWaitContinuation > Continuation / [=]
+		ConnectionWaitPromise > Promise / [=]
 			{
 				CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 
@@ -204,24 +204,24 @@ namespace NMib::NConcurrency
 
 				CStr UserID = ValidatedParams.f_GetMemberValue("AuthenticationUser", "").f_String();
 
-				fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Continuation / [=](CActorSubscription &&_AuthenticationSubscription)
+				fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Promise / [=](CActorSubscription &&_AuthenticationSubscription)
 					{
 						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-						fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Continuation / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
+						fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Promise / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
 							{
 								auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
 
 								auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 								if (!pCommand)
 								{
-									Continuation.f_SetException(DMibErrorInstance("Non-existant command line command"));
+									Promise.f_SetException(DMibErrorInstance("Non-existant command line command"));
 									return;
 								}
 
 								auto &Command = **pCommand;
 								if (!Command.m_fActorRunCommand)
 								{
-									Continuation.f_SetException(DMibErrorInstance("Non-actor cammand"));
+									Promise.f_SetException(DMibErrorInstance("Non-actor cammand"));
 									return;
 								}
 
@@ -229,15 +229,15 @@ namespace NMib::NConcurrency
 								{
 									CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
 									Command.m_fActorRunCommand(ValidatedParams, _pCommandLine)
-										> Continuation / [Continuation, AuthenticationSubscription = fg_Move(AuthenticationSubscription)](uint32 &&_Result)
+										> Promise / [Promise, AuthenticationSubscription = fg_Move(AuthenticationSubscription)](uint32 &&_Result)
 										{
-											Continuation.f_SetResult(_Result);
+											Promise.f_SetResult(_Result);
 										}
 									;
 								}
 								catch (NException::CException const &_Exception)
 								{
-									Continuation.f_SetException(_Exception);
+									Promise.f_SetException(_Exception);
 									return;
 								}
 							}
@@ -247,15 +247,15 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	static bool fg_ValidateConnectionConcurrency(int32 _Concurrency, TCContinuation<uint32> &o_Continuation)
+	static bool fg_ValidateConnectionConcurrency(int32 _Concurrency, TCPromise<uint32> &o_Promise)
 	{
 		if (_Concurrency == -1 || (_Concurrency >= 1 && _Concurrency <= 128))
 			return true;
 
-		o_Continuation.f_SetException(DMibErrorInstance("Connection concurrency must be between 1 and 128 or -1"));
+		o_Promise.f_SetException(DMibErrorInstance("Connection concurrency must be between 1 and 128 or -1"));
 		return false;
 	}
 
@@ -267,7 +267,7 @@ namespace NMib::NConcurrency
 			, int32 _ConnectionConcurrency
 			, NContainer::TCSet<NStr::CStr> &&_TrustedNamespaces
 		)
-		-> TCContinuation<uint32>
+		-> TCFuture<uint32>
 	{
 		for (auto &Namespace : _TrustedNamespaces)
 		{
@@ -275,17 +275,17 @@ namespace NMib::NConcurrency
 				return DMibErrorInstance("'{}' is not a valid namespace name"_f << Namespace);
 		}
 
-		TCContinuation<uint32> Continuation;
-		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
-			return Continuation;
+		TCPromise<uint32> Promise;
+		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Promise))
+			return Promise.f_MoveFuture();
 
-		TCContinuation<CStrSecure> TicketContinuation;
+		TCFuture<CStrSecure> TicketFuture;
 		if (_Ticket.f_IsEmpty())
-			TicketContinuation = _pCommandLine->f_ReadPrompt({"Please paste connection ticket: ", false});
+			TicketFuture = _pCommandLine->f_ReadPrompt({"Please paste connection ticket: ", false});
 		else
-			TicketContinuation.f_SetResult(_Ticket);
+			TicketFuture = fg_Explicit(_Ticket);
 
-		TicketContinuation > Continuation / [=](CStrSecure &&_TicketStr) mutable
+		TicketFuture > Promise / [=](CStrSecure &&_TicketStr) mutable
 			{
 				CDistributedActorTrustManager::CTrustTicket Ticket;
 				try
@@ -295,15 +295,15 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
-					return Continuation.f_SetException(DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr())));
+					return Promise.f_SetException(DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr())));
 				}
 
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency)
-					> Continuation / [=](CHostInfo &&_HostInfo)
+					> Promise / [=](CHostInfo &&_HostInfo)
 					{
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Add connection to host '{}' from command line", _HostInfo.f_GetDesc());
 
-						TCContinuation<void> TrustNamespaceContination;
+						TCPromise<void> TrustNamespaceContination;
 						if (!_TrustedNamespaces.f_IsEmpty())
 						{
 							TCActorResultMap<CStr, void> TrustResults;
@@ -368,7 +368,7 @@ namespace NMib::NConcurrency
 									*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
 								else
 									*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
-								Continuation.f_SetResult(0);
+								Promise.f_SetResult(0);
 							}
 						;
 					}
@@ -376,7 +376,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	namespace
@@ -410,7 +410,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_ForListen
@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 		}
 		auto Requirements = fg_ParsePermissionRequirements(_AuthenticationFactors);
 
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager
 			(
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
@@ -455,7 +455,7 @@ namespace NMib::NConcurrency
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo
-				) mutable -> TCContinuation<void>
+				) mutable -> TCFuture<void>
 				{
 					if (_Permissions.f_IsEmpty())
 						return fg_Explicit();
@@ -464,7 +464,7 @@ namespace NMib::NConcurrency
 					for (auto const &Permission : _Permissions)
 						Permissions[Permission] = Requirements;
 
-					TCContinuation<void> Continuation;
+					TCPromise<void> Promise;
 					mp_State.m_TrustManager
 						(
 							&CDistributedActorTrustManager::f_AddPermissions
@@ -472,48 +472,48 @@ namespace NMib::NConcurrency
 							, Permissions
 							, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 						)
-						> Continuation / [Continuation, _HostID, _Permissions, pCleanup = fg_Move(pCleanup), _UserID]()
+						> Promise / [Promise, _HostID, _Permissions, pCleanup = fg_Move(pCleanup), _UserID]()
 						{
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Add permissions {vs} to host '{}' for user '{}' as part of ticket usage", _Permissions, _HostID, _UserID);
-							Continuation.f_SetResult();
+							Promise.f_SetResult();
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 				: nullptr
 			)
-			> Continuation / [=](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
+			> Promise / [=](CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_Ticket)
 			{
 				if (bHasPermissions)
 					mp_TicketPermissionSubscriptions[TicketPermissionRequestID] = fg_Move(_Ticket.m_NotificationsSubscription);
 
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", _Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
 				*_pCommandLine += CStrSecure::CFormat("{}\n") << _Ticket.m_Ticket.f_ToStringTicket();
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetHostID(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetHostID(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
-			> Continuation / [=](CStr &&_HostID)
+			> Promise / [=](CStr &&_HostID)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported host id '{}' to command line", _HostID);
 				*_pCommandLine += "{}\n"_f << _HostID;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListTrustedHosts(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListTrustedHosts(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClients)
-			> Continuation / [=](NContainer::TCMap<NStr::CStr, CHostInfo> &&_TrustedHosts)
+			> Promise / [=](NContainer::TCMap<NStr::CStr, CHostInfo> &&_TrustedHosts)
 			{
 				CStr Result;
 				for (auto &Host : _TrustedHosts)
@@ -526,30 +526,30 @@ namespace NMib::NConcurrency
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported trusted hosts to command line");
 
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_HostID)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID)
-			> Continuation / [Continuation, _HostID]()
+			> Promise / [Promise, _HostID]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove trusted host '{}' from command line", _HostID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetConnetionStatus(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetConnetionStatus(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetConnectionState)
-			> Continuation / [=](CDistributedActorTrustManager::CConnectionState &&_ConnectionState)
+			> Promise / [=](CDistributedActorTrustManager::CConnectionState &&_ConnectionState)
 			{
 				mint LongestAddress = fg_StrLen("URL");
 				mint LongestHostInfo = fg_StrLen("Host");
@@ -617,17 +617,17 @@ namespace NMib::NConcurrency
 					}
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connection status to command line");
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListConnections(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListConnections(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections)
-			> Continuation / [=]
+			> Promise / [=]
 			(NContainer::TCMap<CDistributedActorTrustManager_Address, CDistributedActorTrustManager::CClientConnectionInfo> &&_ClientConnections)
 			{
 				CStr Result;
@@ -644,25 +644,25 @@ namespace NMib::NConcurrency
 					*_pCommandLine += "{}     {}     {}\n"_f << Address.m_URL.f_Encode() << HostInfo << ConnectionInfo.m_ConnectionConcurrency;
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported connections to command line");
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveConnection(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveConnection(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, Address)
-			> Continuation / [Continuation, _URL]()
+			> Promise / [Promise, _URL]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove connection '{}' from command line", _URL);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection
@@ -672,45 +672,45 @@ namespace NMib::NConcurrency
 			 , bool _bIncludeFriendlyHostName
 			 , int32 _ConnectionConcurrency
 		)
-		-> TCContinuation<uint32>
+		-> TCFuture<uint32>
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 
-		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
-			return Continuation;
+		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Promise))
+			return Promise.f_MoveFuture();
 
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, Address, _ConnectionConcurrency)
-			> Continuation / [=](CHostInfo &&_HostInfo)
+			> Promise / [=](CHostInfo &&_HostInfo)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Add additional connection to host '{}' from command line", _HostInfo.f_GetDesc());
 				if (_bIncludeFriendlyHostName)
 					*_pCommandLine += "{}\n"_f << _HostInfo.f_GetDesc();
 				else
 					*_pCommandLine += "{}\n"_f << _HostInfo.m_HostID;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency
 		(
 			 NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			 , NStr::CStr const &_URL
 			 , int32 _ConnectionConcurrency
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 
-		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Continuation))
-			return Continuation;
+		if (!fg_ValidateConnectionConcurrency(_ConnectionConcurrency, Promise))
+			return Promise.f_MoveFuture();
 
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, Address, _ConnectionConcurrency)
-			> Continuation / [Continuation, Address, _ConnectionConcurrency]()
+			> Promise / [Promise, Address, _ConnectionConcurrency]()
 			{
 				(void)_ConnectionConcurrency;
 
@@ -723,10 +723,10 @@ namespace NMib::NConcurrency
 						, Address.m_URL.f_Encode()
 					)
 				;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	namespace
@@ -789,13 +789,13 @@ namespace NMib::NConcurrency
 			}
 		}
 	}
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, Address)
-			> Continuation / [this, Continuation, _URL, Address]()
+			> Promise / [this, Promise, _URL, Address]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Add primary listen '{}' from command line", _URL);
 
@@ -803,7 +803,7 @@ namespace NMib::NConcurrency
 
 				bool bPrimary = fg_AddListen(mp_State.m_ConfigDatabase.m_Data, EncodedURL, false);
 
-				mp_State.m_ConfigDatabase.f_Save() > Continuation / [this, Continuation, Address, bPrimary, _URL]
+				mp_State.m_ConfigDatabase.f_Save() > Promise / [this, Promise, Address, bPrimary, _URL]
 					{
 						if (bPrimary)
 						{
@@ -812,21 +812,21 @@ namespace NMib::NConcurrency
 						}
 						else
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Add listen '{}' saved to database from command line", _URL);
-						Continuation.f_SetResult(0);
+						Promise.f_SetResult(0);
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, Address)
-			> Continuation / [this, Continuation, _URL, Address]()
+			> Promise / [this, Promise, _URL, Address]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove listen '{}' from command line", _URL);
 
@@ -834,7 +834,7 @@ namespace NMib::NConcurrency
 
 				CStr NewPrimary = fg_RemoveListen(mp_State.m_ConfigDatabase.m_Data, EncodedURL);
 
-				mp_State.m_ConfigDatabase.f_Save() > Continuation / [this, Continuation, Address, NewPrimary, _URL]
+				mp_State.m_ConfigDatabase.f_Save() > Promise / [this, Promise, Address, NewPrimary, _URL]
 					{
 						if (NewPrimary != mp_PrimaryListen.m_URL.f_Encode())
 						{
@@ -843,25 +843,25 @@ namespace NMib::NConcurrency
 						}
 						else
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove listen '{}' saved to database from command line", _URL);
-						Continuation.f_SetResult(0);
+						Promise.f_SetResult(0);
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, Address)
-			> Continuation / [this, Continuation, _URL, Address](bool _bHasListen)
+			> Promise / [this, Promise, _URL, Address](bool _bHasListen)
 			{
 				if (!_bHasListen)
 				{
-					Continuation.f_SetException(DMibErrorInstance("Not listening to this address, so can't sett as primary listen."));
+					Promise.f_SetException(DMibErrorInstance("Not listening to this address, so can't sett as primary listen."));
 					return;
 				}
 
@@ -870,40 +870,40 @@ namespace NMib::NConcurrency
 				fg_RemoveListen(mp_State.m_ConfigDatabase.m_Data, EncodedURL);
 				fg_AddListen(mp_State.m_ConfigDatabase.m_Data, EncodedURL, true);
 
-				mp_State.m_ConfigDatabase.f_Save() > Continuation / [this, Continuation, Address, EncodedURL]
+				mp_State.m_ConfigDatabase.f_Save() > Promise / [this, Promise, Address, EncodedURL]
 					{
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Set primary listen '{}' from command line", EncodedURL);
 						mp_PrimaryListen = Address;
-						Continuation.f_SetResult(0);
+						Promise.f_SetResult(0);
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListListen(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens)
-			> Continuation / [=](NContainer::TCSet<CDistributedActorTrustManager_Address> &&_Listens)
+			> Promise / [=](NContainer::TCSet<CDistributedActorTrustManager_Address> &&_Listens)
 			{
 				CStr Result;
 				for (auto &Listen : _Listens)
 					Result += "{}\n"_f << Listen.m_URL.f_Encode();
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeTrustedHosts)
-			> Continuation / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
+			> Promise / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManager::CNamespacePermissions> &&_Namespaces)
 			{
 				CStr Result;
 				for (auto &Permissions : _Namespaces)
@@ -922,58 +922,58 @@ namespace NMib::NConcurrency
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported namespaces to command line");
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, NStr::CStr const &_Namespace
 			, NStr::CStr const &_Host
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		NContainer::TCSet<NStr::CStr> Hosts;
 		Hosts[_Host];
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Namespace, Hosts, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-			> Continuation / [Continuation, _Namespace, _Host]()
+			> Promise / [Promise, _Namespace, _Host]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Trusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, NStr::CStr const &_Namespace
 			, NStr::CStr const &_Host
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		NContainer::TCSet<NStr::CStr> Hosts;
 		Hosts[_Host];
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, _Namespace, Hosts, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-			> Continuation / [Continuation, _Namespace, _Host]()
+			> Promise / [Promise, _Namespace, _Host]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Untrusted host '{}' for namespace '{}' from command line", _Host, _Namespace);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListPermissions(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListPermissions(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeHosts)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumPermissions, _bIncludeHosts)
-			> Continuation / [=](CDistributedActorTrustManagerInterface::CEnumPermissionsResult &&_Permissions)
+			> Promise / [=](CDistributedActorTrustManagerInterface::CEnumPermissionsResult &&_Permissions)
 			{
 				CStr Result;
 				for (auto &Permission : _Permissions.m_Permissions)
@@ -988,13 +988,13 @@ namespace NMib::NConcurrency
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported permissions to command line {}", Result);
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddPermission
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddPermission
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, NStr::CStr const &_HostID
@@ -1007,7 +1007,7 @@ namespace NMib::NConcurrency
 		if (_HostID.f_IsEmpty() && _UserID.f_IsEmpty())
 			return DMibErrorInstance("You need to specify at least one of --host or --user");
 
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		NContainer::TCMap<NStr::CStr, CPermissionRequirements> Permissions;
 		Permissions[_Permission] = fg_ParsePermissionRequirements(_AuthenticationFactors);
 
@@ -1018,7 +1018,7 @@ namespace NMib::NConcurrency
 				, Permissions
 				, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 			)
-			> Continuation / [Continuation, _HostID, _UserID, _Permission, _AuthenticationFactors]()
+			> Promise / [Promise, _HostID, _UserID, _Permission, _AuthenticationFactors]()
 			{
 				DMibLogWithCategory
 					(
@@ -1031,13 +1031,13 @@ namespace NMib::NConcurrency
 						, _AuthenticationFactors
 					)
 				;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemovePermission
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemovePermission
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, NStr::CStr const &_HostID
@@ -1045,7 +1045,7 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_Permission
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		NContainer::TCSet<NStr::CStr> Permissions;
 		Permissions[_Permission];
 		mp_State.m_TrustManager
@@ -1055,13 +1055,13 @@ namespace NMib::NConcurrency
 				, Permissions
 				, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 			)
-			> Continuation / [Continuation, _HostID, _UserID, _Permission]()
+			> Promise / [Promise, _HostID, _UserID, _Permission]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove permission '{}' from host '{}' user '{}' from command line", _Permission, _HostID, _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	uint32 CDistributedAppActor::f_CommandLine_RemoveAllTrust(bool _bConfirm)
@@ -1139,42 +1139,42 @@ namespace NMib::NConcurrency
 		return 0;
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AddUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		bool bQuiet = _Params["Quiet"].f_Boolean();
 		CStr const &_UserName = _Params["UserName"].f_String();
 		CStr const &UserID = NCryptography::fg_RandomID();
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, UserID, _UserName)
-			> Continuation / [=]()
+			> Promise / [=]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Add user ID '{}' ({}) to host from command line", UserID, _UserName);
 				if (!bQuiet)
 					*_pCommandLine += "{}\n"_f << UserID;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUser, _UserID)
-			> Continuation / [Continuation, _UserID]()
+			> Promise / [Promise, _UserID]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove user '{}' from command line", _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ListUsers(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListUsers(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, false)
-			> Continuation / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo> &&_Users)
+			> Promise / [=](NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo> &&_Users)
 			{
 				CStr Result;
 				for (auto &UserInfo : _Users)
@@ -1184,15 +1184,15 @@ namespace NMib::NConcurrency
 				}
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported users to command line {}", Result);
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		CStr const &UserID = _Params["UserID"].f_String();
 		TCOptional<CStr> UserName;
 		TCMap<CStr, CEJSON> AddMetadata;
@@ -1208,84 +1208,84 @@ namespace NMib::NConcurrency
 				AddMetadata[iMetadata->f_Name()] = iMetadata->f_Value();
 		}
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo,  UserID, UserName, RemoveMetadata, AddMetadata)
-			> Continuation / [Continuation, UserID]()
+			> Promise / [Promise, UserID]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Set metadata for user '{}' from command line", UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_Key)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_Key)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		TCOptional<CStr> UserName;
 		TCMap<CStr, CEJSON> AddMetadata;
 		TCSet<CStr> RemoveMetadata;
 		RemoveMetadata[_Key];
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, UserName, AddMetadata, RemoveMetadata)
-			> Continuation / [Continuation, _UserID, _Key]()
+			> Promise / [Promise, _UserID, _Key]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove metadata '{}' from user '{}' from command line", _Key, _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ExportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, bool _bIncludePrivate)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ExportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, bool _bIncludePrivate)
 	{
-		TCContinuation<uint32> Continuation;
-		fg_ExportUser(mp_State.m_TrustManager, _UserID, _bIncludePrivate) > Continuation / [Continuation, _UserID, _pCommandLine](CStr const &_UserData)
+		TCPromise<uint32> Promise;
+		fg_ExportUser(mp_State.m_TrustManager, _UserID, _bIncludePrivate) > Promise / [Promise, _UserID, _pCommandLine](CStr const &_UserData)
 			{
 				*_pCommandLine += "{}\n"_f << _UserData;
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Exported user ID '{}' from command line", _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_ImportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserData)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ImportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserData)
 	{
-		TCContinuation<uint32> Continuation;
-		fg_ImportUser(mp_State.m_TrustManager, _UserData) > Continuation / [Continuation](CStr const &_UserID)
+		TCPromise<uint32> Promise;
+		fg_ImportUser(mp_State.m_TrustManager, _UserData) > Promise / [Promise](CStr const &_UserID)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Import user ID '{}' from command line", _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_GetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser)
-			> Continuation / [Continuation, _pCommandLine](CStr const &_UserID)
+			> Promise / [Promise, _pCommandLine](CStr const &_UserID)
 			{
 				*_pCommandLine += "{}\n"_f << _UserID;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_SetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetDefaultUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, _UserID)
-			> Continuation / [Continuation]()
+			> Promise / [Promise]()
 			{
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_UserID
@@ -1293,72 +1293,72 @@ namespace NMib::NConcurrency
 			, bool _bQuiet
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, _pCommandLine, _UserID, _Factor)
-			> Continuation / [=](CStr const &_FactorID)
+			> Promise / [=](CStr const &_FactorID)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Added authentication factor '{}' of type '{}' to user '{}' from command line", _FactorID, _Factor, _UserID);
 				if (!_bQuiet)
 					*_pCommandLine += "{}\n"_f << _FactorID;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_UserID
 			, CStr const &_Factor
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, _Factor)
-			> Continuation / [Continuation, _UserID, _Factor]()
+			> Promise / [Promise, _UserID, _Factor]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Removed authentication factor '{}' from user '{}' from command line", _Factor, _UserID);
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_EnumUserAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumUserAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _UserID)
-			> Continuation / [Continuation, _UserID, _pCommandLine](TCMap<CStr, CAuthenticationData> &&_Factors)
+			> Promise / [Promise, _UserID, _pCommandLine](TCMap<CStr, CAuthenticationData> &&_Factors)
 			{
 				CStr Result;
 				for (auto &Factor : _Factors)
 					Result += "{} {}\n"_f << _Factors.fs_GetKey(Factor) << Factor.m_Name;
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
-			> Continuation / [Continuation, _pCommandLine](NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> &&_Factors)
+			> Promise / [Promise, _pCommandLine](NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> &&_Factors)
 			{
 				CStr Result;
 				for (auto &Factor : _Factors)
 					Result += "{}\n"_f << _Factors.fs_GetKey(Factor);
 				*_pCommandLine += Result;
-				Continuation.f_SetResult(0);
+				Promise.f_SetResult(0);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 
 		CStr Pattern = _Params["Pattern"].f_String();
 		bool bJSONOutput = _Params["JSONOutput"].f_Boolean();
@@ -1400,14 +1400,14 @@ namespace NMib::NConcurrency
 			) mutable
 			{
 				if (!_MultipleRequestData)
-					return Continuation.f_SetException(_MultipleRequestData.f_GetException());
+					return Promise.f_SetException(_MultipleRequestData.f_GetException());
 				if (!_Factors)
-					return Continuation.f_SetException(_Factors.f_GetException());
+					return Promise.f_SetException(_Factors.f_GetException());
 
 				for (auto const &Factor : Factors)
 				{
 					if (!_Factors->f_FindEqual(Factor))
-						return Continuation.f_SetException(DMibErrorInstance("No authentication factor named '{}'"_f << Factor));
+						return Promise.f_SetException(DMibErrorInstance("No authentication factor named '{}'"_f << Factor));
 				}
 
 				TCActorResultVector<bool> Results;
@@ -1426,7 +1426,7 @@ namespace NMib::NConcurrency
 					;
 				}
 
-				Results.f_GetResults() > Continuation / [=, MultipleRequestSubscription = fg_Move(_MultipleRequestData->m_Subscription)](TCVector<TCAsyncResult<bool>> &&_Results)
+				Results.f_GetResults() > Promise / [=, MultipleRequestSubscription = fg_Move(_MultipleRequestData->m_Subscription)](TCVector<TCAsyncResult<bool>> &&_Results)
 					{
 						aint ReturnValue = 0;
 						DMibCheck(AuthenticationActors.f_GetLen() == _Results.f_GetLen());
@@ -1480,21 +1480,21 @@ namespace NMib::NConcurrency
 						if (bJSONOutput)
 							*_pCommandLine += JSONOutput.f_ToString();
 
-						Continuation.f_SetResult(ReturnValue);
+						Promise.f_SetResult(ReturnValue);
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
+	TCFuture<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 		(
 			CStr const &_Description
-			, NFunction::TCFunction<TCContinuation<uint32> ()> &&_fCommand
+			, NFunction::TCFunction<TCFuture<uint32> ()> &&_fCommand
 		)
 	{
-		TCContinuation<uint32> Continuation;
+		TCPromise<uint32> Promise;
 		fg_Dispatch
 			(
 				[fCommand = fg_Move(_fCommand)]
@@ -1502,15 +1502,15 @@ namespace NMib::NConcurrency
 					return fCommand();
 				}
 			)
-			> [Continuation, _Description](TCAsyncResult<uint32> &&_Other)
+			> [Promise, _Description](TCAsyncResult<uint32> &&_Other)
 			{
 				if (!_Other)
 					DMibLogWithCategory(Mib/Concurrency/App, Error, "{} failed from command line: {}", _Description, _Other.f_GetExceptionStr());
-				Continuation.f_SetResult(fg_Move(_Other));
+				Promise.f_SetResult(fg_Move(_Other));
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)

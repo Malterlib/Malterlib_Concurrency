@@ -256,12 +256,12 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				pActor
-				, [this, pActor]() -> TCContinuation<void>
+				, [this, pActor]() -> TCFuture<void>
 				{
-					TCContinuation<void> Continuation;
+					TCPromise<void> Promise;
 
 					mp_pActor->fp_DestroyInternal()
-						> fg_AnyConcurrentActor() / [pActor, Continuation](TCAsyncResult<void> &&_Result) mutable
+						> fg_AnyConcurrentActor() / [pActor, Promise](TCAsyncResult<void> &&_Result) mutable
 						{
 							if
 								(
@@ -271,9 +271,9 @@ namespace NMib::NConcurrency
 										NFunction::TCFunctionSmallMutable<void ()>
 										(
 #endif
-											[Continuation, Result = _Result]() mutable
+											[Promise, Result = _Result]() mutable
 											{
-												Continuation.f_SetResult(fg_Move(Result));
+												Promise.f_SetResult(fg_Move(Result));
 											}
 #if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging
 										)
@@ -281,12 +281,12 @@ namespace NMib::NConcurrency
 									)
 								)
 							{
-								Continuation.f_SetResult(fg_Move(_Result));
+								Promise.f_SetResult(fg_Move(_Result));
 							}
 						}
 					;
 
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;

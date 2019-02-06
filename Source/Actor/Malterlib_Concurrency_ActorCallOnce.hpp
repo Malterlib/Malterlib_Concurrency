@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 	TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
 		(
 			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
+			, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
 			, bool _bSupportRetry
 			, NStr::CStr const &_ErrorOnRunning
 		)
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
 	{
 		return m_CallState.f_CallByValue(&CCallState::f_Call, p_Params...);
 	}
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
 		(
-			NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
+			NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 			, NStr::CStr const &_ErrorOnRunning
 			, bool _bSupportRetry
 		)
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCContinuation<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
 	{
 		if (m_Result.f_IsSet())
 			return m_Result;
@@ -50,22 +50,22 @@ namespace NMib::NConcurrency
 		if (m_bRunning)
 		{
 			if (m_ErrorOnRunning.f_IsEmpty())
-				return m_Continuations.f_Insert();
+				return m_Promises.f_Insert();
 			else
 				return DMibErrorInstance(m_ErrorOnRunning);
 		}
 
 		m_bRunning = true;
 
-		TCContinuation<t_CResult> Continuation;
+		TCPromise<t_CResult> Promise;
 
-		m_fToPerform(p_Params...) > [this, Continuation](TCAsyncResult<t_CResult> const &_Result)
+		m_fToPerform(p_Params...) > [this, Promise](TCAsyncResult<t_CResult> const &_Result)
 			{
-				Continuation.f_SetResult(_Result);
+				Promise.f_SetResult(_Result);
 
-				for (auto &DeferredContinuation : m_Continuations)
-					DeferredContinuation.f_SetResult(_Result);
-				m_Continuations.f_Clear();
+				for (auto &DeferredPromise : m_Promises)
+					DeferredPromise.f_SetResult(_Result);
+				m_Promises.f_Clear();
 
 				if (_Result || !m_bSupportRetry)
 				{
@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 
 	}
 }

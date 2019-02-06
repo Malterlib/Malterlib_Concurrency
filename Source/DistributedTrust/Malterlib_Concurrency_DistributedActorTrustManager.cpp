@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 		*m_pDestroyed = true;
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::fp_Destroy()
+	TCFuture<void> CDistributedActorTrustManager::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
 		TCActorResultVector<void> Stops;
@@ -63,9 +63,9 @@ namespace NMib::NConcurrency
 		for (auto &Listen : Internal.m_Listen)
 			Listen.m_ListenReference.f_Stop() > Stops.f_AddResult();
 		
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		
-		Stops.f_GetResults() > Continuation / [Continuation](NContainer::TCVector<TCAsyncResult<void>> &&_StopResults)
+		Stops.f_GetResults() > Promise / [Promise](NContainer::TCVector<TCAsyncResult<void>> &&_StopResults)
 			{
 				for (auto &Result : _StopResults)
 				{
@@ -81,11 +81,11 @@ namespace NMib::NConcurrency
 						;
 					}
 				}
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
 	bool CDistributedActorTrustManager_Address::operator == (CDistributedActorTrustManager_Address const &_Right) const
@@ -98,14 +98,14 @@ namespace NMib::NConcurrency
 		return m_URL < _Right.m_URL; 
 	}
 	
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _HostID]
+				Promise
+				, [this, Promise, _HostID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_Database
@@ -113,30 +113,30 @@ namespace NMib::NConcurrency
 							&ICDistributedActorTrustManagerDatabase::f_RemoveClient
 							, _HostID
 						)
-						> Continuation % "Failed to remove client from trust database" / [this, Continuation, _HostID]()
+						> Promise % "Failed to remove client from trust database" / [this, Promise, _HostID]()
 						{
 							auto &Internal = *mp_pInternal;
-							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) > Continuation % "Failed to kick host from distribution manager";
+							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) > Promise % "Failed to kick host from distribution manager";
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	auto CDistributedActorTrustManager::f_EnumClients() -> TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>>
+	auto CDistributedActorTrustManager::f_EnumClients() -> TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>>
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> Continuation;
+		TCPromise<NContainer::TCMap<NStr::CStr, CHostInfo>> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients, true) 
-						> (Continuation % "Failed to enum clients in database") / [Continuation](NContainer::TCMap<NStr::CStr, CClient> &&_Info)
+						> (Promise % "Failed to enum clients in database") / [Promise](NContainer::TCMap<NStr::CStr, CClient> &&_Info)
 						{
 							NContainer::TCMap<NStr::CStr, CHostInfo> Clients;
 							for (auto iClient = _Info.f_GetIterator(); iClient; ++iClient)
@@ -145,23 +145,23 @@ namespace NMib::NConcurrency
 								Client.m_HostID = iClient.f_GetKey();
 								Client.m_FriendlyName = iClient->m_LastFriendlyName;
 							}
-							Continuation.f_SetResult(fg_Move(Clients));
+							Promise.f_SetResult(fg_Move(Clients));
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<bool> Continuation;
+		TCPromise<bool> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _HostID]
+				Promise
+				, [this, Promise, _HostID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_Database
@@ -169,49 +169,49 @@ namespace NMib::NConcurrency
 							&ICDistributedActorTrustManagerDatabase::f_HasClient
 							, _HostID
 						)
-						> Continuation % "Failed to check for client existence" / [Continuation, _HostID](bool _bExists)
+						> Promise % "Failed to check for client existence" / [Promise, _HostID](bool _bExists)
 						{
-							Continuation.f_SetResult(_bExists);
+							Promise.f_SetResult(_bExists);
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> CDistributedActorTrustManager::f_GetDistributionManager() const
+	TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> CDistributedActorTrustManager::f_GetDistributionManager() const
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> Continuation;
+		TCPromise<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
-					Continuation.f_SetResult(Internal.m_ActorDistributionManager);
+					Promise.f_SetResult(Internal.m_ActorDistributionManager);
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_GetHostID() const
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostID() const
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
-					Continuation.f_SetResult(Internal.m_BasicConfig.m_HostID);
+					Promise.f_SetResult(Internal.m_BasicConfig.m_HostID);
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
 	CHostInfo NDistributedActorTrustManagerDatabase::CClientConnection::f_GetHostInfo() const
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 		return fg_Clamp(ConnectionConcurrency, 1, 128);
 	}
 	
-	TCContinuation<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)
 	{
 		CHostInfo HostInfo;
 		HostInfo.m_HostID = _HostID;
@@ -256,16 +256,16 @@ namespace NMib::NConcurrency
 				continue;
 			return fg_Explicit(ClientHostInfo);
 		}
-		TCContinuation<CHostInfo> Continuation;
+		TCPromise<CHostInfo> Promise;
 		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) 
-			> [Continuation, HostInfo = fg_Move(HostInfo)](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CClient> &&_Client) mutable
+			> [Promise, HostInfo = fg_Move(HostInfo)](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CClient> &&_Client) mutable
 			{
 				if (_Client)
 					HostInfo.m_FriendlyName = _Client->m_LastFriendlyName;
-				Continuation.f_SetResult(fg_Move(HostInfo));
+				Promise.f_SetResult(fg_Move(HostInfo));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
 	TCActor<ICActorDistributionManagerAccessHandler> CDistributedActorTrustManager::f_GetAccessHandler() const

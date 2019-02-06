@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType, typename t_CLock>
-	TCContinuation<void> TCLockActor<t_CType, t_CLock>::fp_Destroy()
+	TCFuture<void> TCLockActor<t_CType, t_CLock>::fp_Destroy()
 	{
 		DMibCheck(!m_Locked.f_Load())("Someone still owns this lock");
 		return fg_Explicit();

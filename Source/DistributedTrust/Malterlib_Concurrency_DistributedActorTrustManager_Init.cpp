@@ -39,24 +39,24 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::f_Initialize()
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_Initialize()
 	{
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 
 		auto &Internal = *mp_pInternal;
 		
-		(*Internal.m_pInitOnce)() > [Continuation](TCAsyncResult<NStr::CStr> &&_Result)
+		(*Internal.m_pInitOnce)() > [Promise](TCAsyncResult<NStr::CStr> &&_Result)
 			{
-				Continuation.f_SetResult(fg_Move(_Result));
+				Promise.f_SetResult(fg_Move(_Result));
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::CInternal::f_InitAttempt()
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_InitAttempt()
 	{
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 		
 		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumUsers, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumAuthenticationFactor, true)
-			> [this, Continuation]
+			> [this, Promise]
 			(
 				TCAsyncResult<CBasicConfig> &&_BasicConfig
 				, TCAsyncResult<CDefaultUser> &&_DefaultUser
@@ -82,27 +82,27 @@ namespace NMib::NConcurrency
 			) mutable
 			{
 				if (!_BasicConfig)
-					return Continuation.f_SetException(fg_Move(_BasicConfig));
+					return Promise.f_SetException(fg_Move(_BasicConfig));
 				if (!_DefaultUser)
-					return Continuation.f_SetException(fg_Move(_DefaultUser));
+					return Promise.f_SetException(fg_Move(_DefaultUser));
 				if (!_ServerCertificates)
-					return Continuation.f_SetException(fg_Move(_ServerCertificates));
+					return Promise.f_SetException(fg_Move(_ServerCertificates));
 				if (!_ListenConfigs)
-					return Continuation.f_SetException(fg_Move(_ListenConfigs));
+					return Promise.f_SetException(fg_Move(_ListenConfigs));
 				if (!_ClientConnections)
-					return Continuation.f_SetException(fg_Move(_ClientConnections));
+					return Promise.f_SetException(fg_Move(_ClientConnections));
 				if (!_Namespaces)
-					return Continuation.f_SetException(fg_Move(_Namespaces));
+					return Promise.f_SetException(fg_Move(_Namespaces));
 				if (!_Permissions)
-					return Continuation.f_SetException(fg_Move(_Permissions));
+					return Promise.f_SetException(fg_Move(_Permissions));
 				if (!_Users)
-					return Continuation.f_SetException(fg_Move(_Users));
+					return Promise.f_SetException(fg_Move(_Users));
 				if (!_AuthenticationFactors)
-					return Continuation.f_SetException(fg_Move(_AuthenticationFactors));
+					return Promise.f_SetException(fg_Move(_AuthenticationFactors));
 
 				f_Init
 					(
-						Continuation
+						Promise
 						, *_BasicConfig
 						, *_DefaultUser
 						, *_ListenConfigs
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	CActorDistributionConnectionSettings CDistributedActorTrustManager::CInternal::f_GetConnectionSettings(CConnectionState const &_State)
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 		return ConnectionSettings;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_WaitForInitialConnection()
+	TCFuture<void> CDistributedActorTrustManager::f_WaitForInitialConnection()
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_bConnectionsInitialized)
@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedActorTrustManager::CInternal::f_Init
 		(
-			TCContinuation<NStr::CStr> &_Continuation
+			TCPromise<NStr::CStr> &_Promise
 			, CBasicConfig const &_Basic
 			, CDefaultUser const &_DefaultUser
 			, NContainer::TCSet<CListenConfig> const &_Listen
@@ -205,7 +205,7 @@ namespace NMib::NConcurrency
 			}
 			catch (NException::CException const &_Exception)
 			{
-				_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to generate root CA: {}", _Exception.f_GetErrorStr())));
+				_Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to generate root CA: {}", _Exception.f_GetErrorStr())));
 				return;
 			}
 				
@@ -214,7 +214,7 @@ namespace NMib::NConcurrency
 		
 		if (m_BasicConfig.m_CACertificate.f_IsEmpty() || m_BasicConfig.m_CAPrivateKey.f_IsEmpty())
 		{
-			_Continuation.f_SetException(DMibErrorInstance("Invalid trust manager basic config. Broken database?"));
+			_Promise.f_SetException(DMibErrorInstance("Invalid trust manager basic config. Broken database?"));
 			return;
 		}
 
@@ -227,12 +227,12 @@ namespace NMib::NConcurrency
 			;
 			if (ResultingSettings.m_HostID != m_BasicConfig.m_HostID)
 			{
-				_Continuation.f_SetException(DMibErrorInstance("Default distribution manager already initialized with the wrong host ID"));
+				_Promise.f_SetException(DMibErrorInstance("Default distribution manager already initialized with the wrong host ID"));
 				return;
 			}
 			if (ResultingSettings.m_Enclave != m_Enclave)
 			{
-				_Continuation.f_SetException(DMibErrorInstance("Default distribution manager already initialized with another enclave"));
+				_Promise.f_SetException(DMibErrorInstance("Default distribution manager already initialized with another enclave"));
 				return;
 			}
 			m_ActorDistributionManager = fg_GetDistributionManager();
@@ -337,7 +337,7 @@ namespace NMib::NConcurrency
 			> 
 			[
 				this
-				,_Continuation
+				,_Promise
 				, _Listen
 				, _ServerCertificates
 				, _ClientConnections
@@ -356,19 +356,19 @@ namespace NMib::NConcurrency
 			{
 				if (!_ResultSetAccessHandler)
 				{
-					_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to set access handler: {}", _ResultSetAccessHandler.f_GetExceptionStr())));
+					_Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to set access handler: {}", _ResultSetAccessHandler.f_GetExceptionStr())));
 					return;
 				}
 				if (!_ResultSetTranslateHostnames)
 				{
-					_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to set translate hostnames: {}", _ResultSetTranslateHostnames.f_GetExceptionStr())));
+					_Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to set translate hostnames: {}", _ResultSetTranslateHostnames.f_GetExceptionStr())));
 					return;
 				}
 				if 
 					(
 						!fg_CombineResults
 						(
-							_Continuation
+							_Promise
 							, fg_Move(_WriteDatabaseResults)
 						)
 					)
@@ -378,7 +378,7 @@ namespace NMib::NConcurrency
 				
 				if (!_HostInfoChangedSubscription)
 				{
-					_Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to subscribe to info changes: {}", _HostInfoChangedSubscription.f_GetExceptionStr())));
+					_Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to subscribe to info changes: {}", _HostInfoChangedSubscription.f_GetExceptionStr())));
 					return;
 				}					
 
@@ -434,12 +434,12 @@ namespace NMib::NConcurrency
 					}
 					catch (NException::CException const &_Exception)
 					{
-						_Continuation.f_SetException(DMibErrorInstance(fg_Format("Error getting host ID from certificate. Broken database? :{}", _Exception.f_GetErrorStr())));
+						_Promise.f_SetException(DMibErrorInstance(fg_Format("Error getting host ID from certificate. Broken database? :{}", _Exception.f_GetErrorStr())));
 						return;
 					}
 					if (HostID.f_IsEmpty())
 					{
-						_Continuation.f_SetException(DMibErrorInstance("Client connection has certificate with missing host id. Broken database?"));
+						_Promise.f_SetException(DMibErrorInstance("Client connection has certificate with missing host id. Broken database?"));
 						return;
 					}
 
@@ -464,7 +464,7 @@ namespace NMib::NConcurrency
 					auto *pServerCert = m_ServerCertificates.f_FindEqual(Listen.m_Address.m_URL.f_GetHost());
 					if (!pServerCert)
 					{
-						_Continuation.f_SetException(DMibErrorInstance("Invalid trust manager address in listen. No server certificate found. Broken database?"));
+						_Promise.f_SetException(DMibErrorInstance("Invalid trust manager address in listen. No server certificate found. Broken database?"));
 						return;
 					}
 					
@@ -479,15 +479,15 @@ namespace NMib::NConcurrency
 
 				TCActorResultMap<CDistributedActorTrustManager_Address, void> ConnectResults;
 				
-				NContainer::TCMap<CDistributedActorTrustManager_Address, TCContinuation<void>> ConnectionsToTimeout;
+				NContainer::TCMap<CDistributedActorTrustManager_Address, TCPromise<void>> ConnectionsToTimeout;
 				
 				for (auto iClientConnection = m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
 				{
 					auto &Address = iClientConnection.f_GetKey();
-					TCContinuation<void> ConnectContinuation;
+					TCPromise<void> ConnectPromise;
 					
 					m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(*iClientConnection))
-						> [this, Address, ConnectContinuation](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+						> [this, Address, ConnectPromise](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 						{
 							if (!_ConnectionResult)
 							{
@@ -500,8 +500,8 @@ namespace NMib::NConcurrency
 										, _ConnectionResult.f_GetExceptionStr()
 									)
 								;
-								if (!ConnectContinuation.f_IsSet())
-									ConnectContinuation.f_SetResult();
+								if (!ConnectPromise.f_IsSet())
+									ConnectPromise.f_SetResult();
 								return;
 							}
 							
@@ -512,35 +512,35 @@ namespace NMib::NConcurrency
 							ClientConnection.m_ConnectionReferences.f_Insert(fg_Move(_ConnectionResult->m_ConnectionReference));
 							f_ApplyConnectionConcurrency(ClientConnection);
 
-							if (!ConnectContinuation.f_IsSet())
-								ConnectContinuation.f_SetResult();
+							if (!ConnectPromise.f_IsSet())
+								ConnectPromise.f_SetResult();
 						}
 					;
 					
-					ConnectionsToTimeout[Address] = ConnectContinuation;
-					ConnectContinuation > ConnectResults.f_AddResult(Address);
+					ConnectionsToTimeout[Address] = ConnectPromise;
+					ConnectPromise > ConnectResults.f_AddResult(Address);
 				}
 
 				fg_Timeout(m_InitialConnectionTimeout) > [this, ConnectionsToTimeout = fg_Move(ConnectionsToTimeout)]
 					{
-						for (auto &ConnectionContinuation : ConnectionsToTimeout)
+						for (auto &ConnectionPromise : ConnectionsToTimeout)
 						{
-							if (ConnectionContinuation.f_IsSet())
+							if (ConnectionPromise.f_IsSet())
 								continue;
 
-							ConnectionContinuation.f_SetException(DMibErrorInstance(NStr::fg_Format("Abandonned wait for initial connection after {} seconds", m_InitialConnectionTimeout)));
+							ConnectionPromise.f_SetException(DMibErrorInstance(NStr::fg_Format("Abandonned wait for initial connection after {} seconds", m_InitialConnectionTimeout)));
 						}
 					}
 				;
 
-				TCContinuation<void> WaitForConnectionsContinuation;
+				TCPromise<void> WaitForConnectionsPromise;
 
 				if (m_bWaitForConnectionsDuringInit)
-					m_AwaitingConnection.f_Insert(WaitForConnectionsContinuation);
+					m_AwaitingConnection.f_Insert(WaitForConnectionsPromise);
 				else
-					WaitForConnectionsContinuation.f_SetResult();
+					WaitForConnectionsPromise.f_SetResult();
 
-				ConnectResults.f_GetResults() > [this, _Continuation, pCleanup]
+				ConnectResults.f_GetResults() > [this, _Promise, pCleanup]
 					(
 						TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult
 					)
@@ -582,8 +582,8 @@ namespace NMib::NConcurrency
 				;
 
 				ListenResults.f_GetResults()
-					+ WaitForConnectionsContinuation
-					> [this, _Continuation, pCleanup]
+					+ WaitForConnectionsPromise
+					> [this, _Promise, pCleanup]
 					(
 						TCAsyncResult<NContainer::TCMap<CListenConfig, TCAsyncResult<CDistributedActorListenReference>>> &&_ListenResults
 					 	, TCAsyncResult<void> &&_ConnectionsResults
@@ -591,13 +591,13 @@ namespace NMib::NConcurrency
 					{
 						if (!_ListenResults)
 						{
-							_Continuation.f_SetException(_ListenResults);
+							_Promise.f_SetException(_ListenResults);
 							return;
 						}
 
 						if (!_ConnectionsResults)
 						{
-							_Continuation.f_SetException(_ConnectionsResults);
+							_Promise.f_SetException(_ConnectionsResults);
 							return;
 						}
 
@@ -605,7 +605,7 @@ namespace NMib::NConcurrency
 							(
 								!fg_CombineResults
 								(
-									_Continuation
+									_Promise
 									, fg_Move(_ListenResults)
 									, [&](CListenConfig const &_Config, CDistributedActorListenReference &&_ListenReference)
 									{
@@ -625,26 +625,25 @@ namespace NMib::NConcurrency
 
 						m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 
-						TCContinuation<void> PublishContinuation;
+						TCFuture<void> PublishFuture;
 						if (m_bSupportAuthentication)
 						{
-							m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
+							PublishFuture = m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
 								(
 								 	m_ActorDistributionManager
 								 	, m_pThis
 								 	, ICDistributedActorAuthentication::mc_pDefaultNamespace
 								)
-								> PublishContinuation;
 							;
 						}
 						else
-							PublishContinuation.f_SetResult();
+							PublishFuture = fg_Explicit();
 
 						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 						
 						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
-							+ PublishContinuation
-							> [this, _Continuation]
+							+ PublishFuture
+							> [this, _Promise]
 							(TCAsyncResult<CDistributedActorPublication> &&_Result, TCAsyncResult<void> &&_Published)
 							{
 								if (!_Published)
@@ -652,7 +651,7 @@ namespace NMib::NConcurrency
 								else if (m_bSupportAuthentication)
 									DMibLogWithCategory(Mib/Concurrency/App, Info, "Authentication interface published successfully");
 
-								_Continuation.f_SetResult(m_BasicConfig.m_HostID);
+								_Promise.f_SetResult(m_BasicConfig.m_HostID);
 								if (!_Result)
 								{
 									DMibLogWithCategory(Mib/Concurrency/App, Error, "Publishing ticket interface failed: {}", _Published.f_GetExceptionStr());

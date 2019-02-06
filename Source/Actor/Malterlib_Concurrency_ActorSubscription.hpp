@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 			NTraits::TCIsSame
 			<
 				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-				, TCContinuation<void>
+				, TCFuture<void>
 			>::mc_Value
 		>
 		*
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 			!NTraits::TCIsSame
 			<
 				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-				, TCContinuation<void>
+				, TCFuture<void>
 			>::mc_Value
 		>
 		*
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 			NTraits::TCIsSame
 			<
 				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-				, TCContinuation<void>
+				, TCFuture<void>
 			>::mc_Value
 		>
 		*
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 			!NTraits::TCIsSame
 			<
 				typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>::CReturnType
-				, TCContinuation<void>
+				, TCFuture<void>
 			>::mc_Value
 		>
 		*

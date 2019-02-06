@@ -127,23 +127,23 @@ namespace
 	class CExceptionActor : public CActor
 	{
 	public:
-		virtual TCContinuation<uint32> f_GetError()
+		virtual TCFuture<uint32> f_GetError()
 		{
 			return DMibErrorInstance("Error");
 		}
-		virtual TCContinuation<uint32> f_GetNoError()
+		virtual TCFuture<uint32> f_GetNoError()
 		{
 			return fg_Explicit(5);
 		}
-		virtual TCContinuation<void> f_GetErrorVoid()
+		virtual TCFuture<void> f_GetErrorVoid()
 		{
 			return DMibErrorInstance("Error");
 		}
-		virtual TCContinuation<void> f_GetNoErrorVoid()
+		virtual TCFuture<void> f_GetNoErrorVoid()
 		{
 			return fg_Explicit();
 		}
-		virtual TCContinuation<void> f_GetResultWasNotSet()
+		virtual TCFuture<void> f_GetResultWasNotSet()
 		{
 			return {};
 		}
@@ -174,7 +174,7 @@ namespace
 			return _Value;
 		}
 		
-		virtual TCContinuation<void> fp_Destroy() override
+		virtual TCFuture<void> fp_Destroy() override
 		{
 			return fg_Explicit();
 		}
@@ -451,20 +451,20 @@ namespace
 					}
 				;
 				{
-					DMibTestPath("Forward errors to continuation");
+					DMibTestPath("Forward errors to promise");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					uint32 Value = fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<uint32> Continuation;
-								TestActor(&CExceptionActor::f_GetNoError) > Continuation / [Continuation](uint32 _Result)
+								TCPromise<uint32> Promise;
+								TestActor(&CExceptionActor::f_GetNoError) > Promise / [Promise](uint32 _Result)
 									{
-										Continuation.f_SetResult(_Result);
+										Promise.f_SetResult(_Result);
 									}
 								;
-								return Continuation;
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -476,13 +476,13 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<uint32> Continuation;
-										TestActor(&CExceptionActor::f_GetError) > Continuation / [Continuation](uint32 _Result)
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise / [Promise](uint32 _Result)
 											{
-												Continuation.f_SetResult(_Result);
+												Promise.f_SetResult(_Result);
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -496,13 +496,13 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<uint32> Continuation;
-										TestActor(&CExceptionActor::f_GetError) > Continuation % _Error / [Continuation](uint32 _Result)
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise % _Error / [Promise](uint32 _Result)
 											{
-												Continuation.f_SetResult(_Result);
+												Promise.f_SetResult(_Result);
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -512,20 +512,20 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
-					DMibTestPath("Forward errors to continuation void");
+					DMibTestPath("Forward errors to promise void");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<void> Continuation;
-								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Continuation / [Continuation]()
+								TCPromise<void> Promise;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Promise / [Promise]()
 									{
-										Continuation.f_SetResult();
+										Promise.f_SetResult();
 									}
 								;
-								return Continuation;
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -536,13 +536,13 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<void> Continuation;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Continuation / [Continuation]()
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise / [Promise]()
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -556,13 +556,13 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<void> Continuation;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Continuation % _Error / [Continuation]()
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error / [Promise]()
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -572,22 +572,22 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
-					DMibTestPath("Forward call pack errors to continuation");
+					DMibTestPath("Forward call pack errors to promise");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					uint32 Value = fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<uint32> Continuation;
+								TCPromise<uint32> Promise;
 								TestActor(&CExceptionActor::f_GetNoError)
 									+ TestActor(&CExceptionActor::f_GetNoError)
-									> Continuation / [Continuation](uint32 _Result0, uint32 _Result1)
+									> Promise / [Promise](uint32 _Result0, uint32 _Result1)
 									{
-										Continuation.f_SetResult(_Result0);
+										Promise.f_SetResult(_Result0);
 									}
 								;
-								return Continuation;
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -599,15 +599,15 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<uint32> Continuation;
+										TCPromise<uint32> Promise;
 										TestActor(&CExceptionActor::f_GetError) 
 											+ TestActor(&CExceptionActor::f_GetError)
-											> Continuation / [Continuation](uint32 _Result0, uint32 _Result1)
+											> Promise / [Promise](uint32 _Result0, uint32 _Result1)
 											{
-												Continuation.f_SetResult(_Result0);
+												Promise.f_SetResult(_Result0);
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -621,15 +621,15 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<uint32> Continuation;
+										TCPromise<uint32> Promise;
 										TestActor(&CExceptionActor::f_GetNoError) 
 											+ TestActor(&CExceptionActor::f_GetError)
-											> Continuation % _Error / [Continuation](uint32 _Result0, uint32 _Result1)
+											> Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
 											{
-												Continuation.f_SetResult(_Result0);
+												Promise.f_SetResult(_Result0);
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -639,22 +639,22 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
-					DMibTestPath("Forward call pack errors to continuation void");
+					DMibTestPath("Forward call pack errors to promise void");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<void> Continuation;
+								TCPromise<void> Promise;
 								TestActor(&CExceptionActor::f_GetNoErrorVoid)
 									+ TestActor(&CExceptionActor::f_GetNoErrorVoid)
-									> Continuation / [Continuation]()
+									> Promise / [Promise]()
 									{
-										Continuation.f_SetResult();
+										Promise.f_SetResult();
 									}
 								;
-								return Continuation;
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -665,15 +665,15 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<void> Continuation;
+										TCPromise<void> Promise;
 										TestActor(&CExceptionActor::f_GetErrorVoid) 
 											+ TestActor(&CExceptionActor::f_GetError)
-											> Continuation / [Continuation](CVoidTag, uint32 _Value)
+											> Promise / [Promise](CVoidTag, uint32 _Value)
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -687,15 +687,15 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<void> Continuation;
+										TCPromise<void> Promise;
 										TestActor(&CExceptionActor::f_GetNoErrorVoid) 
 											+ TestActor(&CExceptionActor::f_GetErrorVoid)
-											> Continuation % _Error / [Continuation]()
+											> Promise % _Error / [Promise]()
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -705,16 +705,16 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}				
 				{
-					DMibTestPath("Forward result to continuation");
+					DMibTestPath("Forward result to promise");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					uint32 Value = fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<uint32> Continuation;
-								TestActor(&CExceptionActor::f_GetNoError) > Continuation;								
-								return Continuation;
+								TCPromise<uint32> Promise;
+								TestActor(&CExceptionActor::f_GetNoError) > Promise;								
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -726,9 +726,9 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<uint32> Continuation;
-										TestActor(&CExceptionActor::f_GetError) > Continuation;
-										return Continuation;
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -742,9 +742,9 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<uint32> Continuation;
-										TestActor(&CExceptionActor::f_GetError) > Continuation % _Error;
-										return Continuation;
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise % _Error;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -754,16 +754,16 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
-					DMibTestPath("Forward result to continuation void");
+					DMibTestPath("Forward result to promise void");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					fDispatchBoilerplate
 						(
 							[TestActor]
 							{
-								TCContinuation<void> Continuation;
-								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Continuation;
-								return Continuation;
+								TCPromise<void> Promise;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Promise;
+								return Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -774,9 +774,9 @@ namespace
 								(
 									[TestActor]
 									{
-										TCContinuation<void> Continuation;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Continuation;
-										return Continuation;
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -790,9 +790,9 @@ namespace
 								(
 									[TestActor, _Error]
 									{
-										TCContinuation<void> Continuation;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Continuation % _Error;
-										return Continuation;
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error;
+										return Promise.f_MoveFuture();
 									}
 								)
 							;
@@ -802,12 +802,12 @@ namespace
 					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
 				}
 				{
-					DMibTestPath("Return actor call to continuation");
+					DMibTestPath("Return actor call to promise");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					uint32 Value = fDispatchBoilerplate
 						(
-							[TestActor]() -> TCContinuation<uint32>
+							[TestActor]() -> TCFuture<uint32>
 							{
 								return TestActor(&CExceptionActor::f_GetNoError);								
 							}
@@ -819,7 +819,7 @@ namespace
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor]() -> TCContinuation<uint32>
+									[TestActor]() -> TCFuture<uint32>
 									{
 										return TestActor(&CExceptionActor::f_GetError);
 									}
@@ -830,12 +830,12 @@ namespace
 					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
 				}
 				{
-					DMibTestPath("Return actor call to continuation void");
+					DMibTestPath("Return actor call to promise void");
 					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
 					
 					fDispatchBoilerplate
 						(
-							[TestActor]() -> TCContinuation<void>
+							[TestActor]() -> TCFuture<void>
 							{
 								return TestActor(&CExceptionActor::f_GetNoErrorVoid);
 							}
@@ -846,7 +846,7 @@ namespace
 						{
 							fDispatchBoilerplate
 								(
-									[TestActor]() -> TCContinuation<void>
+									[TestActor]() -> TCFuture<void>
 									{
 										return TestActor(&CExceptionActor::f_GetErrorVoid);
 									}
@@ -1328,17 +1328,17 @@ namespace
 					mint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched Concurrent Actor");
 					CTestPerformanceMeasure ActorMeasure("Branched Concurrent Actor");
-					TCFunction<TCContinuation<uint32> (uint32 _Start, uint32 _End)> Actor;
-					Actor = [&Actor](uint32 _Start, uint32 _End) -> TCContinuation<uint32>
+					TCFunction<TCFuture<uint32> (uint32 _Start, uint32 _End)> Actor;
+					Actor = [&Actor](uint32 _Start, uint32 _End) -> TCFuture<uint32>
 						{
 							if ((_End - _Start) == 1)
 								return fg_Explicit(1);
 							
-							TCContinuation<uint32> Continuation;
+							TCPromise<uint32> Promise;
 							
 							fg_ConcurrentActor()
 								(
-									&CActor::f_DispatchWithReturn<TCContinuation<uint32>>
+									&CActor::f_DispatchWithReturn<TCFuture<uint32>>
 									, [&Actor, Start = _Start, End = _Start + (_End - _Start) / 2]
 									{
 										return Actor(Start, End);
@@ -1346,18 +1346,18 @@ namespace
 								)
 								+ fg_ConcurrentActor()
 								(
-									&CActor::f_DispatchWithReturn<TCContinuation<uint32>>
+									&CActor::f_DispatchWithReturn<TCFuture<uint32>>
 									, [&Actor, Start = _Start + (_End - _Start) / 2, End = _End]
 									{
 										return Actor(Start, End);
 									}
 								)
-								> fg_AnyConcurrentActor() / [Continuation](TCAsyncResult<uint32> &&_Result0, TCAsyncResult<uint32> &&_Result1)
+								> fg_AnyConcurrentActor() / [Promise](TCAsyncResult<uint32> &&_Result0, TCAsyncResult<uint32> &&_Result1)
 								{
-									Continuation.f_SetResult(*_Result0 + *_Result1);
+									Promise.f_SetResult(*_Result0 + *_Result1);
 								}
 							;
-							return Continuation;
+							return Promise.f_MoveFuture();
 						}
 					;
 					
@@ -1371,7 +1371,7 @@ namespace
 						
 						Result += fg_ConcurrentActor()
 							(
-								&CActor::f_DispatchWithReturn<TCContinuation<uint32>>
+								&CActor::f_DispatchWithReturn<TCFuture<uint32>>
 								, [&]
 								{
 									return Actor(0, nIterations);
@@ -1594,7 +1594,7 @@ namespace
 								fg_Dispatch
 									(
 										ConcurrentActors[iThread]
-										, [&, iStart = iThread * nIterationsPerThread]() -> TCContinuation<void>
+										, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
 										{
 											auto pArray = PerfTestActors.f_GetArray();
 											auto pEnd = pArray + iStart + nIterationsPerThread;
@@ -1603,13 +1603,13 @@ namespace
 											
 											TCActorResultVector<void> Results;
 											fp_BlockOnAllThreads(Results, false);
-											TCContinuation<void> Continuation;
-											Results.f_GetResults() > Continuation / [Continuation](TCVector<TCAsyncResult<void>> &&)
+											TCPromise<void> Promise;
+											Results.f_GetResults() > Promise / [Promise](TCVector<TCAsyncResult<void>> &&)
 												{
-													Continuation.f_SetResult();
+													Promise.f_SetResult();
 												}
 											;
-											return Continuation;
+											return Promise.f_MoveFuture();
 										}
 									)
 									> ThreadResults.f_AddResult()
@@ -1626,7 +1626,7 @@ namespace
 								fg_Dispatch
 									(
 										ConcurrentActors[iThread]
-										, [&, iStart = iThread * nIterationsPerThread]() -> TCContinuation<void>
+										, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
 										{
 											auto pArray = PerfTestActors.f_GetArray();
 											auto pEnd = pArray + iStart + nIterationsPerThread;
@@ -1636,19 +1636,19 @@ namespace
 												(*pPerfTestActor)->f_Destroy() > Results.f_AddResult();
 												pPerfTestActor->f_Clear();
 											}
-											TCContinuation<void> Continuation;
-											Results.f_GetResults() > Continuation / [this, Continuation, nThreads](TCVector<TCAsyncResult<void>> &&)
+											TCPromise<void> Promise;
+											Results.f_GetResults() > Promise / [this, Promise, nThreads](TCVector<TCAsyncResult<void>> &&)
 												{
 													TCActorResultVector<void> Results{nThreads};
 													fp_BlockOnAllThreads(Results, false);
-													Results.f_GetResults() > Continuation / [Continuation](TCVector<TCAsyncResult<void>> &&)
+													Results.f_GetResults() > Promise / [Promise](TCVector<TCAsyncResult<void>> &&)
 														{
-															Continuation.f_SetResult();
+															Promise.f_SetResult();
 														}
 													;
 												}
 											;
-											return Continuation;
+											return Promise.f_MoveFuture();
 										}
 									)
 									> ThreadResults.f_AddResult()
@@ -1705,13 +1705,13 @@ namespace
 											PerfTestActor.f_Clear();
 										}
 										
-										TCContinuation<void> Continuation;
-										Results.f_GetResults() > [Continuation](auto &&)
+										TCPromise<void> Promise;
+										Results.f_GetResults() > [Promise](auto &&)
 											{
-												Continuation.f_SetResult();
+												Promise.f_SetResult();
 											}
 										;
-										return Continuation;
+										return Promise.f_MoveFuture();
 									}
 								).f_CallSync()
 							;

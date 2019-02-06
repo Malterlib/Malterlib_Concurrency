@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	{
 		using FOnUseTicket = TCActorFunctor
 			<
-				TCContinuation<void>
+				TCFuture<void>
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 				NWeb::NHTTP::CURL const &_Address
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
-			 	, TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
+			 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 				, NStr::CStr const &_Description
 				, bool _bDelegateTrust 
 			)
@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 		NStr::CStrSecure mp_RequestTicketMagic;
 		NStr::CStr mp_Description;
 		FOnUseTicket mp_fOnUseTicket;
-		TCActorFunctor<TCContinuation<void> (NStr::CStr const &_Error)> mp_fOnLaunchError;
+		TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> mp_fOnLaunchError;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;
 		bool mp_bDelegateTrust = false;
 	};

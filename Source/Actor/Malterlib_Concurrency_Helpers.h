@@ -80,13 +80,13 @@ namespace NMib::NConcurrency
 		};
 		
 		template <typename t_CType>
-		struct TCRemoveContinuation
+		struct TCRemoveFuture
 		{
 			using CType = t_CType;
 		};
 		
 		template <typename t_CType>
-		struct TCRemoveContinuation<TCContinuation<t_CType>>
+		struct TCRemoveFuture<TCFuture<t_CType>>
 		{
 			using CType = t_CType;
 		};

@@ -40,8 +40,8 @@ namespace NMib::NConcurrency
 					if (Identify.m_ProtocolVersion < 0x102)
 					{
 						DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
-						if (!_pConnection->m_IdentifyContinuation.f_IsSet())
-							_pConnection->m_IdentifyContinuation.f_SetException(DMibErrorInstance("Invalid protocol version"));
+						if (!_pConnection->m_IdentifyPromise.f_IsSet())
+							_pConnection->m_IdentifyPromise.f_SetException(DMibErrorInstance("Invalid protocol version"));
 						return false;
 					}
 
@@ -90,8 +90,8 @@ namespace NMib::NConcurrency
 									, Identify.m_ProtocolVersion
 									, HostActorProtocolVersion
 								);
-							if (!_pConnection->m_IdentifyContinuation.f_IsSet())
-								_pConnection->m_IdentifyContinuation.f_SetException(DMibErrorInstance("Inconsistent protocol version"));
+							if (!_pConnection->m_IdentifyPromise.f_IsSet())
+								_pConnection->m_IdentifyPromise.f_SetException(DMibErrorInstance("Inconsistent protocol version"));
 							return false;
 						}
 					}
@@ -183,8 +183,8 @@ namespace NMib::NConcurrency
 					}
 					else
 					{
-						if (!_pConnection->m_IdentifyContinuation.f_IsSet())
-							_pConnection->m_IdentifyContinuation.f_SetResult();
+						if (!_pConnection->m_IdentifyPromise.f_IsSet())
+							_pConnection->m_IdentifyPromise.f_SetResult();
 					}
 				}
 				break;
@@ -202,8 +202,8 @@ namespace NMib::NConcurrency
 					CDistributedActorCommand_InitialPublishFinished InitialPublishFinished;
 					Stream >> InitialPublishFinished;
 
-					if (!_pConnection->m_IdentifyContinuation.f_IsSet())
-						_pConnection->m_IdentifyContinuation.f_SetResult();
+					if (!_pConnection->m_IdentifyPromise.f_IsSet())
+						_pConnection->m_IdentifyPromise.f_SetResult();
 				}
 				break;
 			case EDistributedActorCommand_Acknowledge:

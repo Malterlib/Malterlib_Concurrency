@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 		m_Clock.f_Start();
 	}
 
-	TCContinuation<void> CTimerActor::fp_Destroy()
+	TCFuture<void> CTimerActor::fp_Destroy()
 	{
 		m_pTimerThread.f_Clear();
 #if DMibEnableSafeCheck > 0
@@ -339,7 +339,7 @@ namespace NMib::NConcurrency
 		return fg_Move(pCallbackHandle);
 	}
 
-	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibRequire(_Period > 0.0);
 		auto &Timer = *m_RegisteredTimers(_Period, this);
@@ -376,7 +376,7 @@ namespace NMib::NConcurrency
 		return fg_Move(pCallbackHandle);
 	}
 
-	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibRequire(_Period > 0.0);
 		CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));
@@ -436,23 +436,23 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuationAwaiter<void, true, void *> CTimeoutHelper::operator co_await()
+	TCFutureAwaiter<void, true, void *> CTimeoutHelper::operator co_await()
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		fg_TimerActor()
 			(
 				&CTimerActor::f_OneshotTimer
 				, mp_Period
 				, fg_CurrentActor()
-				, [Continuation]
+				, [Promise]
 			 	{
-					Continuation.f_SetResult();
+					Promise.f_SetResult();
 				}
 				, mp_bFireAtExit
 			)
 			> fg_DiscardResult();
 		;
-		return Continuation.operator co_await();
+		return Promise.operator co_await();
 	}
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)
@@ -481,9 +481,9 @@ namespace NMib::NConcurrency
 	{
 		return fg_DirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
+				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
-					TCContinuation<CActorSubscription> Continuation;
+					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_OneshotTimerAbortable
@@ -491,21 +491,21 @@ namespace NMib::NConcurrency
 							, _pActor
 							, fg_Move(fCallback)
 						)
-						> Continuation;
+						> Promise;
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		return fg_DirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
+				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
-					TCContinuation<CActorSubscription> Continuation;
+					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_RegisterTimer
@@ -513,21 +513,21 @@ namespace NMib::NConcurrency
 							, _pActor
 							, fg_Move(fCallback)
 						)
-						> Continuation;
+						> Promise;
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCContinuation<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		return fg_DirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable
+				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
-					TCContinuation<CActorSubscription> Continuation;
+					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_RegisterExactTimer
@@ -535,9 +535,9 @@ namespace NMib::NConcurrency
 							, _pActor
 							, fg_Move(fCallback)
 						)
-						> Continuation;
+						> Promise;
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;

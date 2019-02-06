@@ -10,127 +10,6 @@
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Encoding/JSONShortcuts>
-#include <type_traits>
-
-#if 0
-	using namespace NMib;
-	using namespace NMib::NStorage;
-	using namespace NMib::NMeta;
-	using namespace NMib::NContainer;
-	using namespace NMib::NConcurrency;
-	using namespace NMib::NThread;
-	using namespace NMib::NFunction;
-	using namespace NMib::NMemory;
-
-TCContinuation<void> fg_OtherFunction();
-TCContinuation<void> f_OtherFunction();
-
-
-//~~~+incorrect
-struct CMyActor : public CActor
-{
-	TCContinuation<uint32> f_MyFunction(uint32 &_Value) // This will fail to compile with static_assert for reference types
-	{
-		co_await f_OtherFunction();
-		co_return _Value; // Here _Value will have gone out of scope if f_OtherFunction takes more than 1 second
-	}
-	TCContinuation<void> f_MyFunction2()
-	{
-		uint32 Value = 5;
-		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
-		co_return {};
-	}
-};
-//~~~
-
-//~~~+incorrect
-TCContinuation<uint32> fg_MyFunction(uint32 &_Value) // This will NOT fail to compile due to inability to recognize member function calls in Coroutines TS
-{
-	co_await fg_OtherFunction();
-	co_return _Value; // Here _Value will have gone out of scope if f_OtherFunction takes more than 1 second
-}
-
-TCContinuation<void> fg_MyFunction2()
-{
-	uint32 Value = 5;
-	uint32 ReturnValue = co_await fg_MyFunction(Value).f_Timeout(1.0, "Timed out");
-	co_return {};
-}
-//~~~
-
-
-#endif
-
-#if 1
-
-template <typename T>
-struct safe_promise
-{
-	//...
-
-	template <typename U, std::enable_if_t<!std::is_reference_v<U>> * = nullptr>
-	decltype(auto) capture_transform(U &&value)
-	{
-		return std::forward<U>(value);
-	}
-
-	template <typename U, std::enable_if_t<std::is_reference_v<U>> * = nullptr>
-	auto capture_transform(U &&value)
-	{
-		return value;
-	}
-};
-
-template <typename T>
-struct safe_task
-{
-	std::experimental::suspend_never initial_suspend()
-	{
-		return {};
-	}
-	std::experimental::suspend_always final_suspend()
-	{
-		return {};
-	}
-	void return_void()
-	{
-	}
-
-	void unhandled_exception()
-	{
-	}
-
-	safe_task<T> get_return_object()
-	{
-		return {};
-	}
-};
-
-
-namespace std::experimental
-{
-	template <typename T, typename ...params>
-	struct coroutine_traits<safe_task<T>, params...>
-	{
-		using promise_type = safe_task<T>;
-
-		template <typename source_type, bool used_after_first_suspension_point>
-		struct capture_type
-		{
-			using type = std::remove_reference_t<source_type>;
-			static constexpr bool do_capture = used_after_first_suspension_point || !std::is_reference_v<source_type>;
-			static constexpr bool defer_capture = std::is_reference_v<source_type>; // Defers capture until after first suspension point
-		};
-	};
-}
-
-/*
-
- If initial_suspend returns a type in which await_ready returns true in a constexpr, capture of variables must be deferred
-
- */
-
-#endif
 
 namespace
 {
@@ -146,12 +25,6 @@ namespace
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
 
-		safe_task<void> f_Testing123()
-		{
-			co_return;
-		}
-
-
 		CTestDistributedApp()
 			: CDistributedAppActor
 			(
@@ -162,58 +35,50 @@ namespace
 			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{
-
-			safe_promise<void> Test;
-
-			auto Test2 = f_Testing123();
-
-			int TestValue = 0;
-			auto Value = Test.capture_transform(fg_TempCopy(TestValue));
-			++TestValue;
 		}
 
-		TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
 		{
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> fp_StopApp() override
+		TCFuture<void> fp_StopApp() override
 		{
 			return fg_Explicit();
 		}
 
-		TCContinuation<uint32> f_Test()
+		TCFuture<uint32> f_Test()
 		{
 			co_return 32;
 		}
 
-		TCContinuation<uint32> f_TestException()
+		TCFuture<uint32> f_TestException()
 		{
 			co_return DMibErrorInstance("Test Exception");
 		}
 
-		TCContinuation<uint32> f_TestContinuationWithAuditor()
+		TCFuture<uint32> f_TestFutureWithAuditor()
 		{
 			auto Auditor = mp_State.f_Auditor();
 			uint32 Value = co_await (f_TestException() % Auditor);
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestContinuationWithErrorWithAuditorWith()
+		TCFuture<uint32> f_TestFutureWithErrorWithAuditorWith()
 		{
 			auto Auditor = mp_State.f_Auditor();
 			uint32 Value = co_await (f_TestException() % "Extra error" % Auditor);
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestContinuationWithAuditorWithError()
+		TCFuture<uint32> f_TestFutureWithAuditorWithError()
 		{
 			auto Auditor = mp_State.f_Auditor();
 			uint32 Value = co_await (f_TestException() % Auditor("Auditor exception"));
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestContinuationWithErrorWithAuditorWithError()
+		TCFuture<uint32> f_TestFutureWithErrorWithAuditorWithError()
 		{
 			auto Auditor = mp_State.f_Auditor();
 			uint32 Value = co_await (f_TestException() % "Extra error" % Auditor("Auditor exception"));
@@ -225,7 +90,7 @@ namespace
 	{
 	public:
 
-		TCContinuation<uint32> f_Test()
+		TCFuture<uint32> f_Test()
 		{
 			return fg_Explicit(5);
 		}
@@ -233,7 +98,7 @@ namespace
 
 	struct CTestActor : public CActor
 	{
-		TCContinuation<uint32> f_Test()
+		TCFuture<uint32> f_Test()
 		{
 			auto ValueResult = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap();
 			uint32 Value = *ValueResult;
@@ -246,65 +111,65 @@ namespace
 			co_return Value + 5;
 		}
 
-		TCContinuation<uint32> f_TestValue(uint32 _Value)
+		TCFuture<uint32> f_TestValue(uint32 _Value)
 		{
 			co_return _Value;
 		}
 
-		TCContinuation<uint32> f_TestContinuation()
+		TCFuture<uint32> f_TestFuture()
 		{
-			auto Continuation = f_Test();
-			auto Value = co_await Continuation;
+			auto Promise = f_Test();
+			auto Value = co_await Promise;
 			co_return 5 + Value;
 		}
 
-		TCContinuation<uint32> f_TestForwardAsyncResult()
+		TCFuture<uint32> f_TestForwardAsyncResult()
 		{
 			auto WrappedValue = co_await f_Test().f_Wrap();
 			co_return WrappedValue;
 		}
 
-		TCContinuation<void> f_TestForwardVoidAsyncResult()
+		TCFuture<void> f_TestForwardVoidAsyncResult()
 		{
 			auto WrappedValue = co_await f_TestVoid().f_Wrap();
 			co_return WrappedValue;
 		}
 
-		TCContinuation<uint32> f_TestReturnContinuation()
+		TCFuture<uint32> f_TestReturnPromise()
 		{
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 
-			TCContinuation<uint32> Continuation;
-			Continuation.f_SetResult(Value);
-			co_return Continuation;
+			TCPromise<uint32> Promise;
+			Promise.f_SetResult(Value);
+			co_return Promise;
 		}
 
-		TCContinuation<uint32> f_TestException()
+		TCFuture<uint32> f_TestException()
 		{
 			co_return DMibErrorInstance("Test Exception");
 		}
 
-		TCContinuation<uint32> f_TestExceptionAfterSuspend()
-		{
-			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-			(void)Value;
-			co_return DMibErrorInstance("Test Exception");
-		}
-
-		TCContinuation<void> f_TestExceptionAfterSuspendVoid()
+		TCFuture<uint32> f_TestExceptionAfterSuspend()
 		{
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 			(void)Value;
 			co_return DMibErrorInstance("Test Exception");
 		}
 
-		TCContinuation<uint32> f_TestRecursiveException()
+		TCFuture<void> f_TestExceptionAfterSuspendVoid()
+		{
+			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+			(void)Value;
+			co_return DMibErrorInstance("Test Exception");
+		}
+
+		TCFuture<uint32> f_TestRecursiveException()
 		{
 			uint32 Value = co_await f_TestExceptionAfterSuspend();
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestRecursiveWrappedException()
+		TCFuture<uint32> f_TestRecursiveWrappedException()
 		{
 			auto Value = co_await f_TestExceptionAfterSuspend().f_Wrap();
 			if (!Value)
@@ -312,25 +177,25 @@ namespace
 			co_return *Value;
 		}
 
-		TCContinuation<uint32> f_TestRecursiveWrappedExceptionAsyncResult()
+		TCFuture<uint32> f_TestRecursiveWrappedExceptionAsyncResult()
 		{
 			auto Value = co_await f_TestExceptionAfterSuspend().f_Wrap();
 			co_return fg_Move(Value);
 		}
 
-		TCContinuation<uint32> f_TestRecursiveWrappedExceptionAsyncResultVoid()
+		TCFuture<uint32> f_TestRecursiveWrappedExceptionAsyncResultVoid()
 		{
 			auto Value = co_await f_TestExceptionAfterSuspendVoid().f_Wrap();
 			co_return Value.f_GetException();
 		}
 
-		TCContinuation<uint32> f_TestContinuationWithError()
+		TCFuture<uint32> f_TestFutureWithError()
 		{
 			uint32 Value = co_await (f_TestExceptionAfterSuspend() % "Extra error");
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestCleanup()
+		TCFuture<uint32> f_TestCleanup()
 		{
 			auto Cleanup = g_OnScopeExitActor > [this]
 				{
@@ -342,30 +207,30 @@ namespace
 			co_return 5 + Value;
 		}
 
-		TCContinuation<void> f_WaitCleanupScope()
+		TCFuture<void> f_WaitCleanupScope()
 		{
 			return m_WaitForCleanupScopeExit;
 		}
 
-		TCContinuationCaptureExceptions<uint32> f_TestContinuationWithErrorWrapped()
+		TCFutureCaptureExceptions<uint32> f_TestFutureWithErrorWrapped()
 		{
 			uint32 Value = *(co_await (f_TestExceptionAfterSuspend() % "Extra error").f_Wrap());
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestActorCallWithError()
+		TCFuture<uint32> f_TestActorCallWithError()
 		{
 			uint32 Value = co_await (fg_ThisActor(this)(&CTestActor::f_TestExceptionAfterSuspend) % "Extra error");
 			co_return Value;
 		}
 
-		TCContinuationCaptureExceptions<uint32> f_TestActorCallWithErrorWrapped()
+		TCFutureCaptureExceptions<uint32> f_TestActorCallWithErrorWrapped()
 		{
 			auto Value = co_await (fg_ThisActor(this)(&CTestActor::f_TestExceptionAfterSuspend) % "Extra error").f_Wrap();
 			co_return *Value;
 		}
 
-		TCContinuation<uint32> f_TestActorCallPackWithError()
+		TCFuture<uint32> f_TestActorCallPackWithError()
 		{
 			auto Results = co_await (f_TestExceptionAfterSuspend() + f_TestExceptionAfterSuspend() ^ "Extra error");
 
@@ -373,7 +238,7 @@ namespace
 			co_return Result0 + Result1;
 		}
 
-		TCContinuationCaptureExceptions<uint32> f_TestActorCallPackWithErrorWrapped()
+		TCFutureCaptureExceptions<uint32> f_TestActorCallPackWithErrorWrapped()
 		{
 			auto Results = co_await (f_TestExceptionAfterSuspend() + f_TestExceptionAfterSuspend() ^ "Extra error").f_Wrap();
 
@@ -381,14 +246,14 @@ namespace
 			co_return *Result0 + *Result1;
 		}
 
-		TCContinuationCaptureExceptions<uint32> f_TestThrowException()
+		TCFutureCaptureExceptions<uint32> f_TestThrowException()
 		{
 			DMibError("Test Exception");
 
 			co_return 5;
 		}
 
-		TCContinuationCaptureExceptions<uint32> f_TestThrowExceptionAfterSuspend()
+		TCFutureCaptureExceptions<uint32> f_TestThrowExceptionAfterSuspend()
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 
@@ -399,12 +264,12 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<void> f_TestVoid()
+		TCFuture<void> f_TestVoid()
 		{
 			co_return {};
 		}
 
-		TCContinuation<uint32> f_TestMultiCall()
+		TCFuture<uint32> f_TestMultiCall()
 		{
 			auto Results = co_await (m_TestActor(&CTestActor2::f_Test) + m_TestActor(&CTestActor2::f_Test));
 			auto &[Result0, Result1] = Results;
@@ -414,7 +279,7 @@ namespace
 			co_return Result0 + Result1 + *Result10 + *Result11;
 		}
 
-		TCContinuation<uint32> f_TestActorResultVector()
+		TCFuture<uint32> f_TestActorResultVector()
 		{
 			TCActorResultVector<uint32> AsyncResults;
 
@@ -429,16 +294,16 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestParameter(uint32 _Value)
+		TCFuture<uint32> f_TestParameter(uint32 _Value)
 		{
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 
 			co_return Value + _Value;
 		}
 
-		TCContinuation<uint32> f_TestLambdaReference()
+		TCFuture<uint32> f_TestLambdaReference()
 		{
-			uint32 Value = co_await [=, Value2 = 20]() -> TCContinuation<uint32>
+			uint32 Value = co_await [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -449,11 +314,11 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceCorrected()
+		TCFuture<uint32> f_TestLambdaReferenceCorrected()
 		{
 			uint32 Value = co_await
 				(
-					g_Dispatch / [=, Value2 = 20]() -> TCContinuation<uint32>
+					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
 					{
 						uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 						co_return Value + Value2;
@@ -464,9 +329,9 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoroDirectReturn()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturn()
 		{
-			return [=, Value2 = 20]() -> TCContinuation<uint32>
+			return [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -475,9 +340,9 @@ namespace
 			;
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return g_Dispatch / [=, Value2 = 20]() -> TCContinuation<uint32>
+			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -485,74 +350,74 @@ namespace
 			;
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoroDispatched()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDispatched()
 		{
-			TCContinuation<uint32> Continuation;
+			TCPromise<uint32> Promise;
 
-			[=, Value2 = 20]() -> TCContinuation<uint32>
+			[=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	() > Continuation
+			 	() > Promise
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoroDispatchedCorrected()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDispatchedCorrected()
 		{
-			TCContinuation<uint32> Continuation;
+			TCPromise<uint32> Promise;
 
-			g_Dispatch / [=, Value2 = 20]() -> TCContinuation<uint32>
+			g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	> Continuation
+			 	> Promise
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoro()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoro()
 		{
-			TCContinuation<uint32> Continuation;
+			TCPromise<uint32> Promise;
 
-			[=, Value2 = 20]() -> TCContinuation<uint32>
+			[=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	() > Continuation
+			 	() > Promise
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestLambdaReferenceNoCoroCorrected()
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroCorrected()
 		{
-			TCContinuation<uint32> Continuation;
+			TCPromise<uint32> Promise;
 
-			g_Dispatch / [=, Value2 = 20]() -> TCContinuation<uint32>
+			g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	> Continuation
+			 	> Promise
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestParameterReference(uint32 const &_Value)
+		TCFuture<uint32> f_TestParameterReference(uint32 const &_Value)
 		{
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 
 			co_return Value + _Value;
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursive()
+		TCFuture<uint32> f_TestParameterReferenceRecursive()
 		{
 			uint32 RefValue = 20;
 			uint32 Value = co_await f_TestParameterReference(RefValue);
@@ -560,7 +425,7 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveCorrected()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveCorrected()
 		{
 			uint32 RefValue = 20;
 			uint32 Value = co_await self(&CTestActor::f_TestParameterReference, RefValue);
@@ -568,7 +433,7 @@ namespace
 			co_return Value;
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursivePack()
+		TCFuture<uint32> f_TestParameterReferenceRecursivePack()
 		{
 			uint32 RefValue = 20;
 			auto [Value0, Value1] = co_await (f_TestParameterReference(RefValue) + f_TestParameterReference(RefValue));
@@ -576,7 +441,7 @@ namespace
 			co_return Value0 + Value1;
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursivePackCorrected()
+		TCFuture<uint32> f_TestParameterReferenceRecursivePackCorrected()
 		{
 			uint32 RefValue = 20;
 			auto [Value0, Value1] = co_await (self(&CTestActor::f_TestParameterReference, RefValue) + self(&CTestActor::f_TestParameterReference, RefValue));
@@ -584,77 +449,77 @@ namespace
 			co_return Value0 + Value1;
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoro()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoro()
 		{
 			uint32 RefValue = 20;
-			TCContinuation<uint32> Continuation;
-			f_TestParameterReference(RefValue) > Continuation;
-			return Continuation;
+			TCPromise<uint32> Promise;
+			f_TestParameterReference(RefValue) > Promise;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroCorrected()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroCorrected()
 		{
 			uint32 RefValue = 20;
-			TCContinuation<uint32> Continuation;
-			self(&CTestActor::f_TestParameterReference, RefValue) > Continuation;
-			return Continuation;
+			TCPromise<uint32> Promise;
+			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturn()
-		{
-			uint32 RefValue = 20;
-			return f_TestParameterReference(RefValue);
-		}
-
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnCorrected()
-		{
-			uint32 RefValue = 20;
-			return self(&CTestActor::f_TestParameterReference, RefValue);
-		}
-
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams(uint32 const &_Param)
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturn()
 		{
 			uint32 RefValue = 20;
 			return f_TestParameterReference(RefValue);
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParamsCorrected(uint32 const &_Param)
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnCorrected()
 		{
 			uint32 RefValue = 20;
 			return self(&CTestActor::f_TestParameterReference, RefValue);
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDispatched()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams(uint32 const &_Param)
 		{
 			uint32 RefValue = 20;
-			TCContinuation<uint32> Continuation;
-			f_TestParameterReference(RefValue) > Continuation;
-			return Continuation;
+			return f_TestParameterReference(RefValue);
 		}
 
-		TCContinuation<uint32> f_TestParameterReferenceRecursiveNoCoroDispatchedCorrected()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParamsCorrected(uint32 const &_Param)
 		{
 			uint32 RefValue = 20;
-			TCContinuation<uint32> Continuation;
-			self(&CTestActor::f_TestParameterReference, RefValue) > Continuation;
-			return Continuation;
+			return self(&CTestActor::f_TestParameterReference, RefValue);
 		}
 
-		TCContinuation<uint32> f_TestParameterNonReferenceRecursiveNoCoro()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatched()
 		{
 			uint32 RefValue = 20;
-			TCContinuation<uint32> Continuation;
-			f_TestParameter(RefValue) > Continuation;
-			return Continuation;
+			TCPromise<uint32> Promise;
+			f_TestParameterReference(RefValue) > Promise;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<uint32> f_TestParameterNonReferenceRecursiveNoCoroDirectReturn()
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatchedCorrected()
+		{
+			uint32 RefValue = 20;
+			TCPromise<uint32> Promise;
+			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
+			return Promise.f_MoveFuture();
+		}
+
+		TCFuture<uint32> f_TestParameterNonReferenceRecursiveNoCoro()
+		{
+			uint32 RefValue = 20;
+			TCPromise<uint32> Promise;
+			f_TestParameter(RefValue) > Promise;
+			return Promise.f_MoveFuture();
+		}
+
+		TCFuture<uint32> f_TestParameterNonReferenceRecursiveNoCoroDirectReturn()
 		{
 			uint32 RefValue = 20;
 			return f_TestParameter(RefValue);
 		}
 
-		TCContinuation<uint32> f_TestConcurrentDispatch(uint32 _Value)
+		TCFuture<uint32> f_TestConcurrentDispatch(uint32 _Value)
 		{
 			auto [Value0, Value1] = co_await
 				(
@@ -673,7 +538,7 @@ namespace
 			co_return Value0 + Value1;
 		}
 
-		TCContinuation<void> f_TestCoroutineInResultCall(uint32 _Value)
+		TCFuture<void> f_TestCoroutineInResultCall(uint32 _Value)
 		{
 			g_ConcurrentDispatch / [_Value]
 				{
@@ -681,7 +546,7 @@ namespace
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					g_Dispatch / [=]() mutable -> TCContinuation<void>
+					g_Dispatch / [=]() mutable -> TCFuture<void>
 						{
 							if (!_Value)
 							{
@@ -702,12 +567,12 @@ namespace
 			co_return {};
 		}
 
-		TCContinuation<uint32> f_WaitCleanupResultCall()
+		TCFuture<uint32> f_WaitCleanupResultCall()
 		{
 			return m_WaitForResultCallToFinish;
 		}
 
-		TCContinuation<uint32> f_TestActorResultVectorUnwrapped(uint32 _Value)
+		TCFuture<uint32> f_TestActorResultVectorUnwrapped(uint32 _Value)
 		{
 			TCActorResultVector<uint32> Results;
 			for (mint i = 0; i < 10; ++i)
@@ -722,7 +587,7 @@ namespace
 			co_return Value + _Value;
 		}
 
-		TCContinuation<void> f_TestCoroutineInResultCallUnobservedError(uint32 _Value)
+		TCFuture<void> f_TestCoroutineInResultCallUnobservedError(uint32 _Value)
 		{
 			g_ConcurrentDispatch / [_Value]
 				{
@@ -730,7 +595,7 @@ namespace
 				}
 				> [](TCAsyncResult<uint32> _Value) mutable
 				{
-					g_Dispatch / [] () -> TCContinuation<void>
+					g_Dispatch / [] () -> TCFuture<void>
 	 					{
 							co_return DMibErrorInstance("Observed");
 						}
@@ -745,8 +610,8 @@ namespace
 		}
 
 		TCActor<CTestActor2> m_TestActor = fg_Construct();
-		TCContinuation<void> m_WaitForCleanupScopeExit;
-		TCContinuation<uint32> m_WaitForResultCallToFinish;
+		TCPromise<void> m_WaitForCleanupScopeExit;
+		TCPromise<uint32> m_WaitForResultCallToFinish;
 	};
 
 	class CCoroutines_Tests : public NMib::NTest::CTest
@@ -769,8 +634,8 @@ namespace
 
 				TestActor(&CTestActor::f_TestVoid).f_CallSync();
 
-				DMibExpect(TestActor(&CTestActor::f_TestReturnContinuation).f_CallSync(), ==, 5);
-				DMibExpect(TestActor(&CTestActor::f_TestContinuation).f_CallSync(), ==, 45);
+				DMibExpect(TestActor(&CTestActor::f_TestReturnPromise).f_CallSync(), ==, 5);
+				DMibExpect(TestActor(&CTestActor::f_TestFuture).f_CallSync(), ==, 45);
 
 				DMibExpectException(TestActor(&CTestActor::f_TestException).f_CallSync(), DMibErrorInstance("Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestExceptionAfterSuspend).f_CallSync(), DMibErrorInstance("Test Exception"));
@@ -780,24 +645,26 @@ namespace
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedException).f_CallSync(), DMibErrorInstance("Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedExceptionAsyncResult).f_CallSync(), DMibErrorInstance("Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedExceptionAsyncResultVoid).f_CallSync(), DMibErrorInstance("Test Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestContinuationWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
- 				DMibExpectException(TestActor(&CTestActor::f_TestContinuationWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
+				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
+ 				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception\nTest Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
 
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference this pointer'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoro).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference this pointer'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturn).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference this pointer'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference this pointer'");
+				NStr::CStr ReferenceThisError = "bSafeCall 'Unsafe call to coroutine with reference this pointer'";
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), );
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoro).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturn).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), ReferenceThisError);
 
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursive).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoro).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturn).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), "bSafeCall 'Unsafe call to coroutine with reference parameters'");
+				NStr::CStr ReferenceParamError = "bSafeCall 'Unsafe call to coroutine with reference parameters'";
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursive).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoro).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturn).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), ReferenceParamError);
 
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReference, 25).f_CallSync(), ==, 30);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceCorrected).f_CallSync(), ==, 25);
@@ -836,10 +703,10 @@ namespace
 				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<>{}, EDistributedAppType_InProcess).f_CallSync();
 
 				DMibExpect(AppActor(&CTestDistributedApp::f_Test).f_CallSync(), ==, 32);
-				DMibExpectException(AppActor(&CTestDistributedApp::f_TestContinuationWithAuditor).f_CallSync(), DMibErrorInstance("Test Exception"));
-				DMibExpectException(AppActor(&CTestDistributedApp::f_TestContinuationWithErrorWithAuditorWith).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
-				DMibExpectException(AppActor(&CTestDistributedApp::f_TestContinuationWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
-				DMibExpectException(AppActor(&CTestDistributedApp::f_TestContinuationWithErrorWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
+				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithAuditor).f_CallSync(), DMibErrorInstance("Test Exception"));
+				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithErrorWithAuditorWith).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
+				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
+				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithErrorWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
 
 				AppActor->f_BlockDestroy();
 			};

@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<NStr::CStr> CDistributedAppInProcessActor::f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
+	TCFuture<NStr::CStr> CDistributedAppInProcessActor::f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
 	{
 		auto &ThreadLocal = fg_DistributedAppThreadLocal();
 		auto OldSettings = ThreadLocal.m_DefaultSettings;
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		else
 			InterfaceSettings.m_Options = CDistributedAppActor_InterfaceSettings::EOption_None;
 		InterfaceSettings.m_ServerAddress = mp_Address.f_Encode();
-		*(InterfaceSettings.m_pRequestTicket = fg_Construct()) = g_ActorFunctor / [this]() -> TCContinuation<CDistributedActorTrustManager::CTrustTicket>
+		*(InterfaceSettings.m_pRequestTicket = fg_Construct()) = g_ActorFunctor / [this]() -> TCFuture<CDistributedActorTrustManager::CTrustTicket>
 			{
 				return fp_HandleTicketRequest();
 			}
@@ -59,37 +59,37 @@ namespace NMib::NConcurrency
 
 		mp_DistributedApp = _fDistributedAppFactory();
 
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 
-		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr, EDistributedAppType_InProcess) > Continuation;
+		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr, EDistributedAppType_InProcess) > Promise;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedAppInProcessActor::fp_Destroy()
+	TCFuture<void> CDistributedAppInProcessActor::fp_Destroy()
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		if (mp_DistributedApp)
 		{
-			mp_DistributedApp(&CDistributedAppActor::f_StopApp) > [Continuation, this](auto &&)
+			mp_DistributedApp(&CDistributedAppActor::f_StopApp) > [Promise, this](auto &&)
 				{
-					mp_DistributedApp->f_Destroy() > Continuation;
+					mp_DistributedApp->f_Destroy() > Promise;
 					mp_DistributedApp.f_Clear();
 				}
 			;
 		}
 		else
-			Continuation.f_SetResult();
-		return Continuation;
+			Promise.f_SetResult();
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<CDistributedActorTrustManager::CTrustTicket> CDistributedAppInProcessActor::fp_HandleTicketRequest()
+	TCFuture<CDistributedActorTrustManager::CTrustTicket> CDistributedAppInProcessActor::fp_HandleTicketRequest()
 	{
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 		
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID();
 
-		TCContinuation<CDistributedActorTrustManager::CTrustTicket> Continuation;
+		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
 		
 		mp_TrustManager
 			(
@@ -97,37 +97,37 @@ namespace NMib::NConcurrency
 				, mp_Address
 				, g_ActorFunctor
 				(
-					g_ActorSubscription / [this, HandleRequestID]() -> TCContinuation<void>
+					g_ActorSubscription / [this, HandleRequestID]() -> TCFuture<void>
 					{
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
 							return fg_Explicit();
 						
-						TCContinuation<void> Continuation;
+						TCFuture<void> DestroyFuture;
 						if (pHandleRequest->m_NotificationsSubscription)
-							Continuation = pHandleRequest->m_NotificationsSubscription->f_Destroy();
+							DestroyFuture = pHandleRequest->m_NotificationsSubscription->f_Destroy();
 						else
-							Continuation.f_SetResult();
+							DestroyFuture = fg_Explicit();
 						
 						mp_HandleRequests.f_Remove(HandleRequestID);
 						
-						return Continuation;
+						return DestroyFuture;
 					}
 				)
-				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCContinuation<void>
+				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
 				{
-					TCContinuation<void> Continuation;
-					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Continuation](TCAsyncResult<void> &&_Result)
+					TCPromise<void> Promise;
+					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Promise](TCAsyncResult<void> &&_Result)
 						{
 							mp_HandleRequests.f_Remove(HandleRequestID);
-							Continuation.f_SetResult(fg_Move(_Result));
+							Promise.f_SetResult(fg_Move(_Result));
 						}
 					;
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			 	, nullptr
 			)
-			> [this, HandleRequestID, Continuation](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
+			> [this, HandleRequestID, Promise](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
 			{
 				if (!_Ticket)
 				{
@@ -140,22 +140,22 @@ namespace NMib::NConcurrency
 							, _Ticket.f_GetExceptionStr()
 						)
 					;
-					Continuation.f_SetException(_Ticket);
+					Promise.f_SetException(_Ticket);
 					return;
 				}
 
 				auto &Request = mp_HandleRequests[HandleRequestID];
 				Request.m_NotificationsSubscription = fg_Move(_Ticket->m_NotificationsSubscription);
 				DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
-				Continuation.f_SetResult(fg_Move(_Ticket->m_Ticket));
+				Promise.f_SetResult(fg_Move(_Ticket->m_Ticket));
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 #if DMibConfig_Tests_Enable
-	TCContinuation<NEncoding::CEJSON> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<NEncoding::CEJSON> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
 		if (!mp_DistributedApp)
 			DMibError("No distributed app");
@@ -163,7 +163,7 @@ namespace NMib::NConcurrency
 		return mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
 	}
 
-	TCContinuation<uint32> CDistributedAppInProcessActor::f_RunCommandLine
+	TCFuture<uint32> CDistributedAppInProcessActor::f_RunCommandLine
 		(
 			CCallingHostInfo const &_CallingHost
 			, NStr::CStr const &_Command

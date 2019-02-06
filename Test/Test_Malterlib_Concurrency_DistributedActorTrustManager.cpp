@@ -32,7 +32,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -43,7 +43,7 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -51,7 +51,7 @@ namespace
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -60,11 +60,11 @@ namespace
 				Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 				Response.m_FactorName = RegisteredFactor.m_Name;
 			}
-			Continuation.f_SetResult(fg_Move(Response));
-			return Continuation;
+			Promise.f_SetResult(fg_Move(Response));
+			return Promise.f_MoveFuture();
 		};
 
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse const &_Response
 				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -87,7 +87,7 @@ namespace
 		}
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -98,7 +98,7 @@ namespace
 			return fg_Explicit(Result);
 		}
 
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -106,7 +106,7 @@ namespace
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -116,11 +116,11 @@ namespace
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			Continuation.f_SetResult(fg_Move(Response));
-			return Continuation;
+			Promise.f_SetResult(fg_Move(Response));
+			return Promise.f_MoveFuture();
 		};
 
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 				ICDistributedActorAuthenticationHandler::CResponse const &_Response
 				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge

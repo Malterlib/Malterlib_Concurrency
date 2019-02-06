@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 			CRequest m_Request;
 			CStr m_UserID;
 			TCMap<CStr, CChallenge> m_Challenges;
-			TCMap<CStr, TCContinuation<TCVector<CResponse>>> m_Continuations;
+			TCMap<CStr, TCPromise<TCVector<CResponse>>> m_Promises;
 			mint m_nHosts = 1;
 			bool m_bInitialized = false;
 			bool m_bTimerIsSet = false;
@@ -42,7 +42,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		TCContinuation<TCVector<CResponse>> f_RequestAuthentication
+		TCFuture<TCVector<CResponse>> f_RequestAuthentication
 			(
 				CRequest const &_Request
 				, CChallenge const &_Challenge
@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 
 		struct CAuthenticationState
 		{
-			TCContinuation<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> m_Continuation;
+			TCPromise<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> m_Promise;
 			TCVector<ICDistributedActorAuthenticationHandler::CResponse> m_Responses;
 			TCMap<CStr, bool> m_Tested;
 			TCVector<CStr> m_FactorOrder;
@@ -67,13 +67,13 @@ namespace NMib::NConcurrency
 			NStr::CStr m_LastPrompt;
 		};
 
-		TCContinuation<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) override;
+		TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) override;
 
 	private:
 		void fp_TryOneFactorAtATime(TCSharedPointer<CAuthenticationState> const &_pState);
-		TCContinuation<TCVector<CResponse>> fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> const &_pInfo);
+		TCFuture<TCVector<CResponse>> fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> const &_pInfo);
 		void fp_RequestCollected(TCSharedPointer<CPreauthenticationInfo> const &_pInfo);
-		TCContinuation<void> fp_Destroy() override;
+		TCFuture<void> fp_Destroy() override;
 
 		TCSharedPointer<CCommandLineControl> const mp_pCommandLine;
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<void> CDistributedAppAuthenticationHandler::fp_Destroy()
+	TCFuture<void> CDistributedAppAuthenticationHandler::fp_Destroy()
 	{
 		for (auto &pAuthenticationInfo : mp_PreauthenticationInfos)
 		{
@@ -101,8 +101,8 @@ namespace NMib::NConcurrency
 				continue;
 			pAuthenticationInfo->m_bResultsSet = true;
 
-			for (auto &Continuation : pAuthenticationInfo->m_Continuations)
-				Continuation.f_SetException(DMibErrorInstance("Authentication handler destroyed"));
+			for (auto &Promise : pAuthenticationInfo->m_Promises)
+				Promise.f_SetException(DMibErrorInstance("Authentication handler destroyed"));
 		}
 		mp_PreauthenticationInfos.f_Clear();
 		return fg_Explicit();
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 		auto &State = *_pState;
 		if (!State.m_iCurrentFactor)
 		{
-			State.m_Continuation.f_SetResult(State.m_Responses);
+			State.m_Promise.f_SetResult(State.m_Responses);
 			return;
 		}
 
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 		auto Actor = State.m_ActorInfo[*State.m_iCurrentFactor].m_Actor;
 		if (!Actor)
 		{
-			State.m_Continuation.f_SetResult(State.m_Responses);
+			State.m_Promise.f_SetResult(State.m_Responses);
 			return;
 		}
 
@@ -226,7 +226,7 @@ namespace NMib::NConcurrency
 					}
 					if (Fulfilled.f_GetLen() == State.m_nRequirements)
 					{
-						State.m_Continuation.f_SetResult(State.m_Responses);
+						State.m_Promise.f_SetResult(State.m_Responses);
 						return;
 					}
 				}
@@ -280,7 +280,7 @@ namespace NMib::NConcurrency
 	}
 
 	auto CDistributedAppAuthenticationHandler::fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> const &_pInfo)
-		-> TCContinuation<TCVector<ICDistributedActorAuthenticationHandler::CResponse>>
+		-> TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>>
 	{
 		TCSharedPointer<CAuthenticationState> pState = fg_Construct();
 		auto &State = *pState;
@@ -298,12 +298,12 @@ namespace NMib::NConcurrency
 				auto &State = *pState;
 				if (!_ActorInfo)
 				{
-					State.m_Continuation.f_SetException(_ActorInfo.f_GetException());
+					State.m_Promise.f_SetException(_ActorInfo.f_GetException());
 					return;
 				}
 				if (!_RegisteredFactors)
 				{
-					State.m_Continuation.f_SetException(_RegisteredFactors.f_GetException());
+					State.m_Promise.f_SetException(_RegisteredFactors.f_GetException());
 					return;
 				}
 				auto &Info = *_pInfo;
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 							}
 						}
 						if (!bCanHandleAtLeastOne)
-							return State.m_Continuation.f_SetResult(TCVector<ICDistributedActorAuthenticationHandler::CResponse>{});	// This permission will never be authenticated
+							return State.m_Promise.f_SetResult(TCVector<ICDistributedActorAuthenticationHandler::CResponse>{});	// This permission will never be authenticated
 					}
 				}
 				State.m_nRequirements = nRequirement;
@@ -376,7 +376,7 @@ namespace NMib::NConcurrency
 					{
 						if (nFactors > 16)
 						{
-							State.m_Continuation.f_SetException(DMibErrorInstance("Too many factors"));
+							State.m_Promise.f_SetException(DMibErrorInstance("Too many factors"));
 							return;
 						}
 
@@ -462,7 +462,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return pState->m_Continuation;
+		return pState->m_Promise;
 	}
 
 	void CDistributedAppAuthenticationHandler::fp_RequestCollected(TCSharedPointer<CPreauthenticationInfo> const &_pInfo)
@@ -478,18 +478,18 @@ namespace NMib::NConcurrency
 
 				if (!_Results)
 				{
-					for (auto &Continuation : Info.m_Continuations)
-						Continuation.f_SetException(_Results.f_GetException());
+					for (auto &Promise : Info.m_Promises)
+						Promise.f_SetException(_Results.f_GetException());
 					return;
 				}
-				for (auto &Continuation : Info.m_Continuations)
-					Continuation.f_SetResult(_Results);
-				Info.m_Continuations.f_Clear();
+				for (auto &Promise : Info.m_Promises)
+					Promise.f_SetResult(_Results);
+				Info.m_Promises.f_Clear();
 			}
 		;
 	}
 
-	TCContinuation<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> CDistributedAppAuthenticationHandler::f_RequestAuthentication
+	TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> CDistributedAppAuthenticationHandler::f_RequestAuthentication
 		(
 			CRequest const &_Request
 			, CChallenge const &_Challenge
@@ -553,10 +553,10 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		return Info.m_Continuations[HostID];
+		return Info.m_Promises[HostID];
 	}
 
-	TCContinuation<CDistributedAppAuthenticationHandler::CMultipleRequestData> CDistributedAppAuthenticationHandler::f_GetMultipleRequestSubscription(uint32 _nHosts)
+	TCFuture<CDistributedAppAuthenticationHandler::CMultipleRequestData> CDistributedAppAuthenticationHandler::f_GetMultipleRequestSubscription(uint32 _nHosts)
 	{
 		if (_nHosts == 0)
 			return DMibErrorInstance("You have to have at least one host to request subscription for");
@@ -567,7 +567,7 @@ namespace NMib::NConcurrency
 		auto &Info = *(mp_PreauthenticationInfos[MultipleRequestID] = fg_Construct());
 		Info.m_nHosts = _nHosts;
 
-		TCActorSubscriptionWithID<> Subscription = g_ActorSubscription / [this, MultipleRequestID]() -> TCContinuation<void>
+		TCActorSubscriptionWithID<> Subscription = g_ActorSubscription / [this, MultipleRequestID]() -> TCFuture<void>
 			{
 				if (auto pInfo = mp_PreauthenticationInfos.f_FindEqual(MultipleRequestID))
 				{
@@ -575,8 +575,8 @@ namespace NMib::NConcurrency
 					if (!Info.m_bResultsSet)
 					{
 						Info.m_bResultsSet = true;
-						for (auto &Continuation : Info.m_Continuations)
-							Continuation.f_SetException(DMibErrorInstance("Multiple authentication request abandoned"));
+						for (auto &Promise : Info.m_Promises)
+							Promise.f_SetException(DMibErrorInstance("Multiple authentication request abandoned"));
 					}
 					mp_PreauthenticationInfos.f_Remove(pInfo);
 				}
@@ -586,7 +586,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(CMultipleRequestData{fg_Move(Subscription), fg_Move(MultipleRequestID)});
 	}
 
-	TCContinuation<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
+	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
 		(
 		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		 	, int64 _AuthenticationLifetime
@@ -599,7 +599,7 @@ namespace NMib::NConcurrency
 		return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 	}
 
-	TCContinuation<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
+	TCFuture<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
 		(
 		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		 	, int64 _AuthenticationLifetime
@@ -613,7 +613,7 @@ namespace NMib::NConcurrency
 			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
 		;
 
-		auto Subscription = g_ActorSubscription / [=]() -> TCContinuation<void>
+		auto Subscription = g_ActorSubscription / [=]() -> TCFuture<void>
 			{
 				mp_AuthenticationRemotes.f_Clear();
 				mp_AuthenticationRegistrationSubscriptions.f_Clear();
@@ -623,9 +623,9 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		TCContinuation<CActorSubscription> Continuation;
+		TCPromise<CActorSubscription> Promise;
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser)
-			> Continuation / [this, Continuation, Subscription = fg_Move(Subscription), _UserID](CStr &&_DefaultUserID) mutable
+			> Promise / [this, Promise, Subscription = fg_Move(Subscription), _UserID](CStr &&_DefaultUserID) mutable
 			{
 				CStr UserID = _UserID;
 				if (UserID.f_IsEmpty())
@@ -633,7 +633,7 @@ namespace NMib::NConcurrency
 
 				if (!UserID)	// No use setting up authentication without a default user
 				{
-					Continuation.f_SetResult();
+					Promise.f_SetResult();
 					return;
 				}
 				mp_State.m_TrustManager
@@ -642,13 +642,13 @@ namespace NMib::NConcurrency
 						, ICDistributedActorAuthentication::mc_pDefaultNamespace
 						, fg_ThisActor(this)
 					)
-					> Continuation /[=, Subscription = fg_Move(Subscription)](TCTrustedActorSubscription<ICDistributedActorAuthentication> &&_Subscription) mutable
+					> Promise /[=, Subscription = fg_Move(Subscription)](TCTrustedActorSubscription<ICDistributedActorAuthentication> &&_Subscription) mutable
 					{
 						mp_AuthenticationRemotes = fg_Move(_Subscription);
 
 						auto fOnActor = [=, UserID = fg_Move(UserID)](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
 							{
-								TCContinuation<void> Continuation;
+								TCPromise<void> Promise;
 
 								mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
 
@@ -662,7 +662,7 @@ namespace NMib::NConcurrency
 									{
 										if (!_Subscription)
 										{
-											Continuation.f_SetException(_Subscription);
+											Promise.f_SetException(_Subscription);
 											DMibLogWithCategory
 												(
 													Mib/Concurrency/App
@@ -680,11 +680,11 @@ namespace NMib::NConcurrency
 										if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
 											pSubscription->m_Subscription = fg_Move(*_Subscription);
 
-										Continuation.f_SetResult();
+										Promise.f_SetResult();
 									}
 								;
 
-								return Continuation;
+								return Promise.f_MoveFuture();
 							}
 						;
 
@@ -710,12 +710,12 @@ namespace NMib::NConcurrency
 						for (auto &Actor : mp_AuthenticationRemotes.m_Actors)
 							fOnActor(Actor.m_Actor, Actor.m_TrustInfo) > SubscribeResults.f_AddResult();
 
-						SubscribeResults.f_GetResults() > Continuation / [Continuation, Subscription = fg_Move(Subscription)](TCVector<TCAsyncResult<void>> &&_SubscribeResults) mutable
+						SubscribeResults.f_GetResults() > Promise / [Promise, Subscription = fg_Move(Subscription)](TCVector<TCAsyncResult<void>> &&_SubscribeResults) mutable
 							{
-								if (!fg_CombineResults(Continuation, fg_Move(_SubscribeResults)))
+								if (!fg_CombineResults(Promise, fg_Move(_SubscribeResults)))
 									return;
 
-								Continuation.f_SetResult(fg_Move(Subscription));
+								Promise.f_SetResult(fg_Move(Subscription));
 							}
 						;
 					}
@@ -723,7 +723,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }
 

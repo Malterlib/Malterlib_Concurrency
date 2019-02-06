@@ -20,17 +20,17 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 	}
 
-	TCContinuation<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJSON const &_Params)
 	{
-		TCContinuation<void> Continuation;
-		Continuation.f_SetResult();
-		return Continuation;				
+		TCPromise<void> Promise;
+		Promise.f_SetResult();
+		return Promise.f_MoveFuture();				
 	}
 	
-	TCContinuation<void> CDDPBridgeHelperActor::fp_StopApp()
+	TCFuture<void> CDDPBridgeHelperActor::fp_StopApp()
 	{	
 		TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
 		
-		return pCanDestroy->m_Continuation;
+		return pCanDestroy->f_Future();
 	}
 }

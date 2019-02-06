@@ -12,19 +12,19 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CReturn>
-	struct TCGetReturnType<TCContinuation<t_CReturn>>
+	struct TCGetReturnType<TCFuture<t_CReturn>>
 	{
 		typedef t_CReturn CType;
 	};
 
-	template <typename t_CReturn, EContinuationOption t_Options>
-	struct TCGetReturnType<TCContinuationWithOptions<t_CReturn, t_Options>>
+	template <typename t_CReturn, EFutureOption t_Options>
+	struct TCGetReturnType<TCFutureWithOptions<t_CReturn, t_Options>>
 	{
 		typedef t_CReturn CType;
 	};
 
 	template <typename t_CType>
-	struct TCIsContinuation
+	struct TCIsPromise
 	{
 		enum
 		{
@@ -33,17 +33,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CType>
-	struct TCIsContinuation<TCContinuation<t_CType>>
-	{
-		using CType = t_CType;
-		enum
-		{
-			mc_Value = true
-		};
-	};
-
-	template <typename t_CType, EContinuationOption t_Options>
-	struct TCIsContinuation<TCContinuationWithOptions<t_CType, t_Options>>
+	struct TCIsPromise<TCPromise<t_CType>>
 	{
 		using CType = t_CType;
 		enum
@@ -53,7 +43,36 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CType>
-	struct TCIsContinuationWithError
+	struct TCIsFuture
+	{
+		enum
+		{
+			mc_Value = false
+		};
+	};
+
+	template <typename t_CType>
+	struct TCIsFuture<TCFuture<t_CType>>
+	{
+		using CType = t_CType;
+		enum
+		{
+			mc_Value = true
+		};
+	};
+
+	template <typename t_CType, EFutureOption t_Options>
+	struct TCIsFuture<TCFutureWithOptions<t_CType, t_Options>>
+	{
+		using CType = t_CType;
+		enum
+		{
+			mc_Value = true
+		};
+	};
+
+	template <typename t_CType>
+	struct TCIsPromiseWithError
 	{
 		enum
 		{
@@ -62,7 +81,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CReturnValue>
-	struct TCIsContinuationWithError<TCContinuationWithError<t_CReturnValue>>
+	struct TCIsPromiseWithError<TCPromiseWithError<t_CReturnValue>>
 	{
 		enum
 		{

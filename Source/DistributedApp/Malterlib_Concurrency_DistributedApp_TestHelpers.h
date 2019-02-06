@@ -26,12 +26,12 @@ namespace NMib::NConcurrency
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&) = default;
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
 	
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 
 #if DMibConfig_Tests_Enable
-		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 
-		TCContinuation<uint32> f_RunCommandLine
+		TCFuture<uint32> f_RunCommandLine
 			(
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 		~CDistributedApp_LaunchInfo();
 		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo const &_Other) = delete;
 
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 
 		CActorSubscription m_Subscription;
 	};
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 	{
 		struct CDistributedAppInterfaceServerImplementation : public CDistributedAppInterfaceServer
 		{
-			NConcurrency::TCContinuation<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterDistributedApp
+			NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 				(
 					NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
 					, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 		{
 			void f_Abort();
 			
-			TCContinuation<CDistributedApp_LaunchInfo> m_Continuation;
+			TCPromise<CDistributedApp_LaunchInfo> m_Promise;
 		};
 		
 		struct CPendingLaunch
@@ -97,15 +97,15 @@ namespace NMib::NConcurrency
 		
 		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
 		
-		TCContinuation<void> fp_Destroy() override;
-		TCContinuation<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
-		TCContinuation<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
-		TCContinuation<CDistributedApp_LaunchInfo> f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
+		TCFuture<void> fp_Destroy() override;
+		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
 		CDistributedApp_LaunchHelperDependencies m_Dependencies;
 		NContainer::TCMap<NStr::CStr, CLaunchInfo> m_Launches;
 		NContainer::TCMap<NStr::CStr, CPendingLaunch> m_PendingLaunches;
-		NContainer::TCMap<NStr::CStr, TCContinuation<void>> m_PendingDestroys;
+		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingDestroys;
 		TCDelegatedActorInterface<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
 		bool m_bLogToStderr = false;
 	};

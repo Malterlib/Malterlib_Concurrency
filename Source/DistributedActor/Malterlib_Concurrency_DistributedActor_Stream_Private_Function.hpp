@@ -11,11 +11,11 @@ namespace NMib::NConcurrency
 		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
 			(
-				NPrivate::TCIsContinuation
+				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
 				>::mc_Value
-				, "Only functions that return a continuation is supported"
+				, "Only functions that return a future are supported"
 			)
 		;
 		
@@ -34,13 +34,13 @@ namespace NMib::NConcurrency
 		struct TCStreamingFunctionHelper;
 		
 		template <typename t_CReturn, typename ...tp_CParams>
-		struct TCStreamingFunctionHelper<TCContinuation<t_CReturn> (tp_CParams...)>
+		struct TCStreamingFunctionHelper<TCFuture<t_CReturn> (tp_CParams...)>
 		{
 			static constexpr mint mc_nParams = sizeof...(tp_CParams);
 			
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
 			{
-				return [_FunctionID](tp_CParams ...p_Params) -> TCContinuation<t_CReturn>
+				return [_FunctionID](tp_CParams ...p_Params) -> TCFuture<t_CReturn>
 					{
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
@@ -52,13 +52,13 @@ namespace NMib::NConcurrency
 						if (!pActorDataRaw->m_bRemote)
 							return DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
 
-						TCContinuation<t_CReturn> Continuation;
+						TCPromise<t_CReturn> Promise;
 						
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
 						if (!pHost || pHost->m_bDeleted)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
-							return Continuation;
+							Promise.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
+							return Promise.f_MoveFuture();
 						}
 						
 						CDistributedActorWriteStream Stream;
@@ -79,37 +79,37 @@ namespace NMib::NConcurrency
 						
 						if (!DistributionManager)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
-							return Continuation;
+							Promise.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
+							return Promise.f_MoveFuture();
 						}
 
 						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
-							> [Continuation, Context, Version = pActorDataRaw->m_ProtocolVersion]
+							> [Promise, Context, Version = pActorDataRaw->m_ProtocolVersion]
 							(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 							{
 								if (!_Result)
 								{
-									Continuation.f_SetException(fg_Move(_Result));
+									Promise.f_SetException(fg_Move(_Result));
 									return;
 								}
 								try
 								{
 									NException::CDisableExceptionTraceScope DisableTrace;
-									fg_CopyReplyToContinuation(Continuation, *_Result, Context, Version);
+									fg_CopyReplyToPromise(Promise, *_Result, Context, Version);
 								}
 								catch (NException::CException const &_Exception)
 								{
-									Continuation.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+									Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
 								}								
 							}
 						;
-						return Continuation;
+						return Promise.f_MoveFuture();
 					}
 				;
 			}
 			
 			template <typename tf_FFunction, mint... tfp_Indices>
-			static NConcurrency::TCContinuation<NContainer::CSecureByteVector> fs_Call
+			static NConcurrency::TCFuture<NContainer::CSecureByteVector> fs_Call
 				(
 					CDistributedActorReadStream &_Stream
 					, tf_FFunction &_fFunction
@@ -129,11 +129,11 @@ namespace NMib::NConcurrency
 					return _Exception;
 				}
 				
-				auto Continuation = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
+				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
 			
-				NConcurrency::TCContinuation<NContainer::CSecureByteVector> Return;
+				NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
 				
-				Continuation.f_OnResultSet
+				Future.f_OnResultSet
 					(
 						[Return, Context = *pContext, Version = _Stream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
 						{
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 					)
 				;
 				
-				return Return;
+				return fg_Move(Return);
 			}
 		};
 	}
@@ -153,11 +153,11 @@ namespace NMib::NConcurrency
 		static_assert(NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::mc_nCalls == 1, "Only supports functions with one signature");
 		static_assert
 			(
-				NPrivate::TCIsContinuation
+				NPrivate::TCIsFuture
 				<
 					typename NTraits::TCFunctionTraits<typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>>::CReturn
 				>::mc_Value
-				, "Only functions that return a continuation is supported"
+				, "Only functions that return a future are supported"
 			)
 		;
 		using FFunctionSignature = typename NFunction::TCFunctionInfo<NFunction::TCFunction<tf_CFunctionOptions...>>::template TCCallType<0>;
@@ -184,7 +184,7 @@ namespace NMib::NConcurrency::NPrivate
 	
 	template <typename t_FFunction, typename t_FFunctionSignature>
 	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream)
-		-> NConcurrency::TCContinuation<NContainer::CSecureByteVector> 
+		-> NConcurrency::TCFuture<NContainer::CSecureByteVector> 
 	{
 		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
 			(

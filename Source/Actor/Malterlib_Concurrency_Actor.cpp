@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		return nullptr;
 	}
 
-	TCContinuation<void> CActor::fp_DestroyInternal()
+	TCFuture<void> CActor::fp_DestroyInternal()
 	{
 		if (mp_bDestroyed)
 			return DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 		return fp_Destroy();
 	}
 	
-	TCContinuation<void> CActor::fp_Destroy()
+	TCFuture<void> CActor::fp_Destroy()
 	{
 		return fg_Explicit();
 	}
@@ -74,15 +74,20 @@ namespace NMib::NConcurrency
 		
 	CCanDestroyTracker::~CCanDestroyTracker()
 	{
-		if (!m_Continuation.f_IsSet())
-			m_Continuation.f_SetResult();
+		if (!m_Promise.f_IsSet())
+			m_Promise.f_SetResult();
 	}
 	
 	CCanDestroyTracker::CCanDestroyResultFunctor CCanDestroyTracker::f_Track()
 	{
 		return CCanDestroyResultFunctor{fg_Explicit(this)};
 	}
-		
+
+	TCFuture<void> CCanDestroyTracker::f_Future() const
+	{
+		return m_Promise.f_Future();
+	}
+
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&) = default;
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &) = default;
 	
@@ -96,9 +101,9 @@ namespace NMib::NConcurrency
 	}
 	
 	template <>
-	auto TCContinuation<void>::f_ReceiveAny() const -> NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<void>>
+	auto TCPromise<void>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>
 	{
-		return NPrivate::TCContinuationReceiveAnyFunctor<TCContinuation<void>>{*this};
+		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>{*this};
 	}
 
 	constexpr CDispatchHelper g_DispatchInit{};

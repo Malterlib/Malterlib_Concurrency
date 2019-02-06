@@ -31,18 +31,18 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
 		CExceptionPointer f_GetException() const; ///< Returns the contained exception as a exception pointer
 		
-		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCContinuation implementation
+		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCPromise implementation
 		template 
 		<
 			typename tf_CException
 			, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CExceptionBase>::mc_Value> * = nullptr
 		>
 		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent. 
-														 ///< Usually only used from TCContinuation implementation
-		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCContinuation implementation
-		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCContinuation implementation
-		void f_SetException(CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCContinuation implementation
-		void f_SetException(CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCContinuation implementation
+														 ///< Usually only used from TCPromise implementation
+		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
+		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
+		void f_SetException(CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
+		void f_SetException(CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
 
 		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
 		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`
@@ -77,7 +77,10 @@ namespace NMib::NConcurrency
 		
 		template <typename ...tfp_CType>
 		void f_SetResult(tfp_CType && ...p_Result);
-		
+		void f_SetResult(TCAsyncResult const &_Result);
+		void f_SetResult(TCAsyncResult &_Result);
+		void f_SetResult(TCAsyncResult &&_Result);
+
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>

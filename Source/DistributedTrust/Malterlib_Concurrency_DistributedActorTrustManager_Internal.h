@@ -47,8 +47,8 @@ namespace NMib::NConcurrency
 		struct CTicketState
 		{
 			NTime::CTimer m_CreationTime;
-			TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> m_fOnUseTicket;
-			TCActorFunctor<TCContinuation<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
+			TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> m_fOnUseTicket;
+			TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
 		};
 
 		struct CHostState
@@ -157,7 +157,7 @@ namespace NMib::NConcurrency
 				, EProtocolVersion = 0x101
 			};
 
-			TCContinuation<NContainer::CByteVector> f_SignCertificate(NStr::CStr const &_Token, NContainer::CByteVector const &_CertificateRequest);
+			TCFuture<NContainer::CByteVector> f_SignCertificate(NStr::CStr const &_Token, NContainer::CByteVector const &_CertificateRequest);
 			CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
 		private:
 			CDistributedActorTrustManager::CInternal *mp_pInternal;
@@ -169,9 +169,9 @@ namespace NMib::NConcurrency
 			CDistributedActorAuthenticationImplementation();
 
 			auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
-				-> TCContinuation<TCActorSubscriptionWithID<>> override
+				-> TCFuture<TCActorSubscriptionWithID<>> override
 			;
-			TCContinuation<bool> f_AuthenticatePermissionPattern
+			TCFuture<bool> f_AuthenticatePermissionPattern
 				(
 					NStr::CStr const &_Pattern
 					, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 		{
 			using CActorHolder = CDelegatedActorHolder;
 
-			TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) override;
+			TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) override;
 
 			CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
 
@@ -202,10 +202,10 @@ namespace NMib::NConcurrency
 		;
 		~CInternal();
 
-		TCContinuation<NStr::CStr> f_InitAttempt();
+		TCFuture<NStr::CStr> f_InitAttempt();
 		void f_Init
 			(
-				TCContinuation<NStr::CStr> &_Continuation
+				TCPromise<NStr::CStr> &_Promise
 				, CBasicConfig const &_Basic
 				, CDefaultUser const &_DefaultUser
 				, NContainer::TCSet<CListenConfig> const &_Listen
@@ -219,24 +219,24 @@ namespace NMib::NConcurrency
 		;
 
 		template <typename tf_CReturn>
-		void f_RunAfterInit(TCContinuation<tf_CReturn> const &_Continuation, NFunction::TCFunctionMovable<void ()> &&_fToRun);
+		void f_RunAfterInit(TCPromise<tf_CReturn> const &_Promise, NFunction::TCFunctionMovable<void ()> &&_fToRun);
 
 		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 
-		TCContinuation<NContainer::CByteVector> f_SignCertificate
+		TCFuture<NContainer::CByteVector> f_SignCertificate
 			(
 				NStr::CStr const &_Token
 				, NContainer::CByteVector const &_CertificateRequest
 				, CCallingHostInfo const &_HostInfo
 			)
 		;
-		TCContinuation<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain);
+		TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain);
 
 		NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
 
 		void f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState);
 
-		TCContinuation<bool> f_AuthenticatePermissionPattern
+		TCFuture<bool> f_AuthenticatePermissionPattern
 			(
 				NStr::CStr const &_Pattern
 				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactor
@@ -299,7 +299,7 @@ namespace NMib::NConcurrency
 		EInitialize m_Initialize = EInitialize_None;
 		NStr::CStr m_InitializeError;
 
-		NContainer::TCVector<TCContinuation<void>> m_AwaitingConnection;
+		NContainer::TCVector<TCPromise<void>> m_AwaitingConnection;
 
 		fp64 m_InitialConnectionTimeout = 5.0;
 

@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCContinuation<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
+	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
 		(
 			 NStr::CStr const &_Command
 			 , NEncoding::CEJSON const &_Params
@@ -37,18 +37,18 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_CreateCommandLineTrust()
+	TCFuture<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 	{
 		CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 
 		auto ExpectedAddress = fp_GetLocalAddress();
 
 		fg_Dispatch
 			(
 				mp_FileOperationsActor
-				, [Continuation, CommandLineTrustPath, ExpectedAddress]()
+				, [Promise, CommandLineTrustPath, ExpectedAddress]()
 				{
 					if (!CFile::fs_FileExists(CommandLineTrustPath))
 						return false;
@@ -84,12 +84,12 @@ namespace NMib::NConcurrency
 					return false;
 				}
 			)
-			> Continuation / [this, Continuation, CommandLineTrustPath](bool _bAlreadySetup)
+			> Promise / [this, Promise, CommandLineTrustPath](bool _bAlreadySetup)
 			{
 				if (_bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 				{
 					// Already setup
-					Continuation.f_SetResult();
+					Promise.f_SetResult();
 					return;
 				}
 
@@ -140,32 +140,32 @@ namespace NMib::NConcurrency
 
 					State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(State.m_TrustManagerDatabase, fg_Move(Options));
 
-					State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Continuation / [this, Continuation, pState, pCleanup](CStr const &_HostID)
+					State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Promise / [this, Promise, pState, pCleanup](CStr const &_HostID)
 						{
-							mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Continuation / [this, Continuation, pState, _HostID, pCleanup](bool _bHasClient)
+							mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Promise / [this, Promise, pState, _HostID, pCleanup](bool _bHasClient)
 								{
-									auto fContinue = [this, Continuation, pState, _HostID, pCleanup]
+									auto fContinue = [this, Promise, pState, _HostID, pCleanup]
 										{
 											CDistributedActorTrustManager_Address LocalListenAddress;
 											LocalListenAddress.m_URL = fp_GetLocalAddress();
 
 											mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr, nullptr)
-												> Continuation / [this, Continuation, pState, _HostID, pCleanup]
+												> Promise / [this, Promise, pState, _HostID, pCleanup]
 												(CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_TrustTicket)
 												{
 													auto &State = *pState;
 													State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket.m_Ticket, 60.0, -1)
-														> Continuation / [this, Continuation, _HostID, pCleanup, pState]
+														> Promise / [this, Promise, _HostID, pCleanup, pState]
 														{
 															pCleanup->f_Clear();
 															auto &Setting = mp_State.m_StateDatabase.m_Data["CommandLineHostID"];
 															if (!Setting.f_IsString() || Setting.f_String() != _HostID)
 															{
 																mp_State.m_StateDatabase.m_Data["CommandLineHostID"] = _HostID;
-																mp_State.m_StateDatabase.f_Save() > Continuation % "Failed to save state database";
+																mp_State.m_StateDatabase.f_Save() > Promise % "Failed to save state database";
 															}
 															else
-																Continuation.f_SetResult();
+																Promise.f_SetResult();
 														}
 													;
 												}
@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 										fContinue();
 									else
 									{
-										mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID) > Continuation / [fContinue = fg_Move(fContinue)]()
+										mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID) > Promise / [fContinue = fg_Move(fContinue)]()
 											{
 												fContinue();
 											}
@@ -190,71 +190,71 @@ namespace NMib::NConcurrency
 				}
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_SetupCommandLineListen()
+	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 
 		CDistributedActorTrustManager_Address LocalListenAddress;
 		LocalListenAddress.m_URL = fp_GetLocalAddress();
 
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress) > Continuation / [this, Continuation, LocalListenAddress](bool _bHasListen)
+		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress) > Promise / [this, Promise, LocalListenAddress](bool _bHasListen)
 			{
 				if (_bHasListen)
 				{
-					Continuation.f_SetResult();
+					Promise.f_SetResult();
 					return;
 				}
-				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Continuation / [Continuation]()
+				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Promise / [Promise]()
 					{
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_PublishCommandLine()
+	TCFuture<void> CDistributedAppActor::fp_PublishCommandLine()
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
 
 		mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline")
-			> Continuation / [this, Continuation](CDistributedActorPublication &&_Publication)
+			> Promise / [this, Promise](CDistributedActorPublication &&_Publication)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Command line published");
 				mp_CommandLinePublication = fg_Move(_Publication);
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedAppActor::fp_SetupCommandLineTrust()
+	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Setting up command line trust");
 
-		fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Continuation / [this, Continuation]()
+		fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Promise / [this, Promise]()
 			{
-				fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Continuation / [this, Continuation]
+				fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Promise / [this, Promise]
 					{
 						if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 							mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
 
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished setting up command line trust");
-						Continuation.f_SetResult();
+						Promise.f_SetResult();
 					}
 				;
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)

@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 			TCWeakActor<CActor> m_Actor;
 			NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> m_fCallback;
 		};
-		using CReturn = typename NPrivate::TCRemoveContinuation<t_CReturn>::CType;
+		using CReturn = typename NPrivate::TCRemoveFuture<t_CReturn>::CType;
 	public:
 		TCActorSubscriptionManager(CActor *_pActor, bool _bDeferrCallbacks);
 		~TCActorSubscriptionManager();
@@ -38,10 +38,10 @@ namespace NMib::NConcurrency
 		auto operator () (tp_CCallbackParams... p_Params);
 
 		template <bool tf_bSupportMultiple = t_bSupportMultiple>
-		typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);
+		typename TCEnableIf<!tf_bSupportMultiple, TCFuture<CReturn>>::CType f_Call(tp_CCallbackParams... p_Params);
 
 		template <bool tf_bSupportMultiple = t_bSupportMultiple>
-		typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
+		typename TCEnableIf<tf_bSupportMultiple, TCFuture<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType f_Call(tp_CCallbackParams... p_Params);
 
 		template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
 		typename TCEnableIf<tf_bSupportMultiple>::CType f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params);
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 			CCallbackReference(CCallbackReference const &_Other);
 			CCallbackReference &operator =(CCallbackReference const &_Other);
 
-			TCContinuation<void> fp_RemoveCallback();
+			TCFuture<void> fp_RemoveCallback();
 			void fp_RemoveCurrent();
 		public:
 			CCallbackReference(CCallbackHandle *_pHandle, NStorage::TCSharedPointer<CInternal> const &_pManager, TCWeakActor<CActor> const &_Actor);
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 			CCallbackReference(CCallbackReference &&_Other);
 			CCallbackReference &operator =(CCallbackReference &&_Other);
 			~CCallbackReference();
-			TCContinuation<void> f_Destroy() override;
+			TCFuture<void> f_Destroy() override;
 			bool f_IsValid();
 		};
 	private:
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 	public:
 		CCombinedCallbackReference();
 		~CCombinedCallbackReference();
-		TCContinuation<void> f_Destroy() override;
+		TCFuture<void> f_Destroy() override;
 
 		NContainer::TCVector<CActorSubscription> m_References;
 	};

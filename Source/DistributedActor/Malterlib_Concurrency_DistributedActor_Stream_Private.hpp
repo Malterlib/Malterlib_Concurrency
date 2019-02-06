@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToContinuationOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_ContinuationOrAsyncResult)
+	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult)
 	{
 		uint8 bException;
 		_Stream >> bException;
@@ -52,11 +52,11 @@ namespace NMib::NConcurrency::NPrivate
 			
 			if (!pEntry)
 			{
-				_ContinuationOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
+				_PromiseOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;
 			}
 			
-			_ContinuationOrAsyncResult.f_SetException(pEntry->f_Consume(_Stream));
+			_PromiseOrAsyncResult.f_SetException(pEntry->f_Consume(_Stream));
 			
 			return true;
 		}
@@ -64,9 +64,9 @@ namespace NMib::NConcurrency::NPrivate
 	}
 	
 	template <typename tf_CResult>
-	void fg_CopyReplyToContinuation
+	void fg_CopyReplyToPromise
 		(
-			TCContinuation<tf_CResult> &_Continuation
+			TCPromise<tf_CResult> &_Promise
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version 
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		CDistributedActorReadStream ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
+		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise))
 			return;
 		DMibBinaryStreamContext(ReplyStream, &_Context);
 		DMibBinaryStreamVersion(ReplyStream, _Version);
@@ -85,16 +85,16 @@ namespace NMib::NConcurrency::NPrivate
 		NStr::CStr Error;
 		if (!_Context.f_ValidateContext(Error))
 		{
-			_Continuation.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+			_Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
 			return;
 		}
-		_Continuation.f_SetResult(fg_Move(Result));
+		_Promise.f_SetResult(fg_Move(Result));
 	}
 
 	template <>
-	void fg_CopyReplyToContinuation
+	void fg_CopyReplyToPromise
 		(
-			TCContinuation<void> &_Continuation
+			TCPromise<void> &_Promise
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version

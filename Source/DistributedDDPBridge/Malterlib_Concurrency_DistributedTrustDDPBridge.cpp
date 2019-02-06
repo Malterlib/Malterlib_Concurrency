@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 			TCWeakActor<> m_Actor;
 			struct CHandlerFunction
 			{
-				TCFunctionMutable<TCContinuation<CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandler;
+				TCFunctionMutable<TCFuture<CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandler;
 			};
 			
 			TCSharedPointer<CHandlerFunction> m_pHandlerFunction;
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 		mint m_LastConnectionID = 0;
 		bool m_bStartedUp = false;
 		TCUniquePointer<CException> m_pStartupFailedException;
-		TCVector<TCContinuation<void>> m_OnStartup;
+		TCVector<TCPromise<void>> m_OnStartup;
 		
 		TCMap<mint, CConnection> m_Connections;
 	};
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 		m_OnStartup.f_Clear();
 	}
 	
-	TCContinuation<void> CDistributedTrustDDPBridge::f_Startup()
+	TCFuture<void> CDistributedTrustDDPBridge::f_Startup()
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_bStartedUp)
@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 			return fg_Explicit();
 		}
 		
-		auto Continuation = Internal.m_OnStartup.f_Insert();
+		auto Promise = Internal.m_OnStartup.f_Insert();
 		
 		if (!Internal.m_bStartedUp)
 		{
@@ -133,7 +133,7 @@ namespace NMib::NConcurrency
 							&CActorDistributionManager::f_RegisterWebsocketHandler
 							, "/ActorDDPBridge"
 							, fg_ThisActor(this)
-							, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCContinuation<void>
+							, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCFuture<void>
 							{
 								auto &Internal = *mp_pInternal;
 								Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
@@ -167,10 +167,10 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 	
-	TCContinuation<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods
+	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods
 		(
 			TCWeakActor<> const &_Actor
 			, NContainer::TCVector<CMethod> &&_Methods
@@ -313,7 +313,7 @@ namespace NMib::NConcurrency
 								, ThisActor = fg_ThisActor(pThis)
 								, ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)
 							]
-							() -> TCContinuation<void>
+							() -> TCFuture<void>
 							{
 								auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 								auto OldInfo = CallingHostInfo;

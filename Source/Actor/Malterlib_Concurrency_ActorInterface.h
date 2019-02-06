@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 
 		CActorSubscription const &f_GetSubscription() const;
 		CActorSubscription &f_GetSubscription();
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 		
 		TCActor<t_CInterface> const &f_GetActor() const;
 		TCActor<t_CInterface> &f_GetActor();

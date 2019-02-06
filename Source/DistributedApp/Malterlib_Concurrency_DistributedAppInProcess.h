@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 	{
 		using FOnUseTicket = TCActorFunctor
 			<
-				TCContinuation<void> 
+				TCFuture<void>
 				(
 					NStr::CStr const &_HostID
 					, CCallingHostInfo const &_HostInfo
@@ -33,11 +33,11 @@ namespace NMib::NConcurrency
 		;
 		~CDistributedAppInProcessActor();
 
-		TCContinuation<NStr::CStr> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
+		TCFuture<NStr::CStr> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
 
 #if DMibConfig_Tests_Enable
-		TCContinuation<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
-		TCContinuation<uint32> f_RunCommandLine
+		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCFuture<uint32> f_RunCommandLine
 			(
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
@@ -48,9 +48,9 @@ namespace NMib::NConcurrency
 #endif
 
 	private:
-		TCContinuation<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();
+		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_HandleTicketRequest();
 
-		TCContinuation<void> fp_Destroy();
+		TCFuture<void> fp_Destroy();
 
 		struct CHandleRequest
 		{

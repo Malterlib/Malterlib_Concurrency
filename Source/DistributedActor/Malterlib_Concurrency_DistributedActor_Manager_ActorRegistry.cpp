@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 		return _Namespace.f_StartsWith("Anonymous/");
 	}
 
-	TCContinuation<CDistributedActorPublication> CActorDistributionManager::fp_PublishActor
+	TCFuture<CDistributedActorPublication> CActorDistributionManager::fp_PublishActor
 		(
 			TCDistributedActor<CActor> &&_Actor
 			, NStr::CStr const &_Namespace
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			return DMibErrorInstance("Invalid namespace name");
 
-		TCContinuation<CDistributedActorPublication> Continuation;
+		TCPromise<CDistributedActorPublication> Promise;
 		auto &Internal = *mp_pInternal;
 		auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
 		auto pDistributedActorData = static_cast<NPrivate::CDistributedActorData const *>(_Actor->f_GetDistributedActorData().f_Get());
@@ -78,8 +78,8 @@ namespace NMib::NConcurrency
 
 		if (PublishedActor.m_Actor)
 		{
-			Continuation.f_SetException(DMibErrorInstance("This actor has already been published in this namespace"));
-			return Continuation;
+			Promise.f_SetException(DMibErrorInstance("This actor has already been published in this namespace"));
+			return Promise.f_MoveFuture();
 		}
 
 		PublishedActor.m_pNamespace = &LocalNamespace;
@@ -112,14 +112,14 @@ namespace NMib::NConcurrency
 			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
 		}
 
-		Continuation.f_SetResult(CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID));
+		Promise.f_SetResult(CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID));
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID)
 	{
-		TCContinuation<CDistributedActorPublication> Continuation;
+		TCPromise<CDistributedActorPublication> Promise;
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_NamespaceID);
 		if (!pLocalNamespace)
@@ -377,7 +377,7 @@ namespace NMib::NConcurrency
 		return Internal.m_OnHostInfoChanged.f_Register(_Actor, fg_Move(_fHostInfoChanged));
 	}
 
-	TCContinuation<CActorSubscription> CActorDistributionManager::f_SubscribeActors
+	TCFuture<CActorSubscription> CActorDistributionManager::f_SubscribeActors
 		(
 			NContainer::TCVector<NStr::CStr> const &_NameSpaces
 			, TCActor<CActor> const &_Actor

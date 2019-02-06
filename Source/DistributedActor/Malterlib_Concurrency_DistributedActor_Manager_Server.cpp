@@ -43,9 +43,9 @@ namespace NMib::NConcurrency
 		-> TCActorCall
 		<
 			TCActor<CConcurrentActor>
-			, TCContinuation<void> (CActor::*)(NFunction::TCFunctionMovable<TCContinuation<void> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCContinuation<void> ()>>
+			, TCFuture<void> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<void> ()> &&)
+			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<void> ()>>
+			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<void> ()>>
 		>
 	{
 		bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
@@ -53,27 +53,27 @@ namespace NMib::NConcurrency
 		mp_DistributionManager.f_Clear();
 		return fg_ConcurrentActor().f_CallByValue
 			(
-				&CActor::f_DispatchWithReturn<TCContinuation<void>>
-				, NFunction::TCFunctionMovable<TCContinuation<void> ()>
+				&CActor::f_DispatchWithReturn<TCFuture<void>>
+				, NFunction::TCFunctionMovable<TCFuture<void> ()>
 				(
 					[bAlreadyStopped, DistributionManager = fg_Move(DistributionManager), ListenID = fg_Move(mp_ListenID)]
 					{
-						TCContinuation<void> Continuation;
+						TCPromise<void> Promise;
 						if (DistributionManager)
 						{
-							DistributionManager(&CActorDistributionManager::fp_RemoveListen, ListenID) > [Continuation](TCAsyncResult<void> &&_Result)
+							DistributionManager(&CActorDistributionManager::fp_RemoveListen, ListenID) > [Promise](TCAsyncResult<void> &&_Result)
 								{
-									Continuation.f_SetResult(fg_Move(_Result));
+									Promise.f_SetResult(fg_Move(_Result));
 								}
 							;
-							return Continuation;
+							return Promise.f_MoveFuture();
 						}
 						if (bAlreadyStopped)
-							Continuation.f_SetException(DMibErrorInstance("Listen has already been stopped"));
+							Promise.f_SetException(DMibErrorInstance("Listen has already been stopped"));
 						else
-							Continuation.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+							Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
 
-						return Continuation;
+						return Promise.f_MoveFuture();
 					}
 				)
 			)
@@ -97,13 +97,13 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<CActorSubscription> CActorDistributionManager::f_RegisterWebsocketHandler
+	TCFuture<CActorSubscription> CActorDistributionManager::f_RegisterWebsocketHandler
 		(
 			NStr::CStr const &_Path
 			, TCActor<> const &_Actor
 			, NFunction::TCFunctionMutable
 			<
-				TCContinuation<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+				TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
 			>
 			&&_fNewWebsocketConnection
 		)
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr const &_ListenID
 			, CActorDistributionListenSettings const &_Settings
-			, NStorage::TCSharedPointer<TCContinuation<CDistributedActorListenReference>> const &_pContinuation
+			, NStorage::TCSharedPointer<TCPromise<CDistributedActorListenReference>> const &_pPromise
 		)
 	{
 		TCActorResultVector<NMib::NNetwork::CNetAddress> ResolvedAddresses;
@@ -139,16 +139,16 @@ namespace NMib::NConcurrency
 			auto TranslatedAddress = fp_TranslateHostname(Address.f_GetHost());
 			if (TranslatedAddress.f_IsEmpty())
 			{
-				if (_pContinuation)
-					_pContinuation->f_SetException(DMibErrorInstance("Listen address is empty"));
+				if (_pPromise)
+					_pPromise->f_SetException(DMibErrorInstance("Listen address is empty"));
 				return;
 			}
 			m_ResolveActor(&NNetwork::CResolveActor::f_Resolve, TranslatedAddress, NNetwork::ENetAddressType_None) > ResolvedAddresses.f_AddResult();
 		}
 
-		ResolvedAddresses.f_GetResults() > [this, _Settings, _pContinuation, _ListenID](TCAsyncResult<NContainer::TCVector<TCAsyncResult<NMib::NNetwork::CNetAddress>>> &&_Results)
+		ResolvedAddresses.f_GetResults() > [this, _Settings, _pPromise, _ListenID](TCAsyncResult<NContainer::TCVector<TCAsyncResult<NMib::NNetwork::CNetAddress>>> &&_Results)
 			{
-				auto fReportListenFailure = [this, _Settings, _pContinuation, _ListenID](CExceptionPointer _Error, NStr::CStr const &_ErrorString)
+				auto fReportListenFailure = [this, _Settings, _pPromise, _ListenID](CExceptionPointer _Error, NStr::CStr const &_ErrorString)
 					{
 						bool bReportError = true;
 						if (_Settings.m_bRetryOnListenFailure)
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 							else
 								bReportError = false;
 
-							fg_Timeout(0.5) > [this, _pContinuation, _Settings, _ListenID]() mutable
+							fg_Timeout(0.5) > [this, _pPromise, _Settings, _ListenID]() mutable
 								{
 									if (!m_Listens.f_FindEqual(_ListenID))
 										return; // Removed already
@@ -170,11 +170,11 @@ namespace NMib::NConcurrency
 								}
 							;
 
-							if (_pContinuation)
-								_pContinuation->f_SetResult(CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID));
+							if (_pPromise)
+								_pPromise->f_SetResult(CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID));
 						}
-						else if (_pContinuation)
-							_pContinuation->f_SetException(fg_Move(_Error));
+						else if (_pPromise)
+							_pPromise->f_SetException(fg_Move(_Error));
 
 						if (bReportError)
 						{
@@ -229,10 +229,8 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
-					if (_pContinuation)
-					{
-						_pContinuation->f_SetException(DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr())));
-					}
+					if (_pPromise)
+						_pPromise->f_SetException(DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr())));
 					return;
 				}
 
@@ -450,7 +448,7 @@ namespace NMib::NConcurrency
 										}
 									;
 
-									pConnection->m_IdentifyContinuation = TCContinuation<void>();
+									pConnection->m_IdentifyPromise = TCPromise<void>();
 									NWeb::NHTTP::CResponseHeader ResponseHeader;
 									ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);
 									auto &EntityFields = ResponseHeader.f_GetEntityFields();
@@ -471,7 +469,7 @@ namespace NMib::NConcurrency
 														return;
 													if (!pConnection->m_Connection)
 														return;
-													pConnection->m_IdentifyContinuation.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<void> &&_Result) mutable
+													pConnection->m_IdentifyPromise.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<void> &&_Result) mutable
 														{
 															auto pConnection = pConnectionWeak.f_Lock();
 															if (!pConnection)
@@ -573,7 +571,7 @@ namespace NMib::NConcurrency
 						}
 						, NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
 					)
-					> [this, _ListenID, _pContinuation, _Settings, pListenState, fReportListenFailure](TCAsyncResult<CActorSubscription> &&_Result) mutable
+					> [this, _ListenID, _pPromise, _Settings, pListenState, fReportListenFailure](TCAsyncResult<CActorSubscription> &&_Result) mutable
 					{
 						if (!_Result)
 						{
@@ -591,27 +589,27 @@ namespace NMib::NConcurrency
 						}
 
 						Listen.m_ListenCallbackSubscription = fg_Move(*_Result);
-						if (_pContinuation)
-							_pContinuation->f_SetResult(CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID));
+						if (_pPromise)
+							_pPromise->f_SetResult(CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID));
 					}
 				;
 			}
 		;
 	}
 
-	TCContinuation<CDistributedActorListenReference> CActorDistributionManager::f_Listen(CActorDistributionListenSettings const &_Settings)
+	TCFuture<CDistributedActorListenReference> CActorDistributionManager::f_Listen(CActorDistributionListenSettings const &_Settings)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CDistributedActorListenReference> Continuation;
+		TCPromise<CDistributedActorListenReference> Promise;
 
-		Internal.fp_Listen(NCryptography::fg_RandomID(), _Settings, fg_Construct(Continuation));
+		Internal.fp_Listen(NCryptography::fg_RandomID(), _Settings, fg_Construct(Promise));
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CActorDistributionManager::fp_RemoveListen(NStr::CStr const &_ListenID)
+	TCFuture<void> CActorDistributionManager::fp_RemoveListen(NStr::CStr const &_ListenID)
 	{
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
 		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
 		if (pListen)
@@ -619,16 +617,16 @@ namespace NMib::NConcurrency
 			pListen->m_ListenCallbackSubscription.f_Clear();
 			if (pListen->m_WebsocketServer)
 			{
-				pListen->m_WebsocketServer->f_Destroy() > Continuation;
+				pListen->m_WebsocketServer->f_Destroy() > Promise;
 				pListen->m_WebsocketServer.f_Clear();
 			}
 			else
-				Continuation.f_SetResult();
+				Promise.f_SetResult();
 			Internal.m_Listens.f_Remove(pListen);
 		}
 		else
-			Continuation.f_SetResult();
+			Promise.f_SetResult();
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

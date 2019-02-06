@@ -123,9 +123,9 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCContinuation<CBasicConfig> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetBasicConfig()
+	TCFuture<CBasicConfig> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetBasicConfig()
 	{
-		return TCContinuation<CBasicConfig>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CBasicConfig>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -150,9 +150,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig const &_BasicConfig)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig const &_BasicConfig)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -162,9 +162,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<int32> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNewCertificateSerial()
+	TCFuture<int32> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNewCertificateSerial()
 	{
-		return TCContinuation<int32>::fs_RunProtected<NException::CException>() /
+		return TCFuture<int32>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -178,9 +178,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CDefaultUser> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetDefaultUser()
+	TCFuture<CDefaultUser> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetDefaultUser()
 	{
-		return TCContinuation<CDefaultUser>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CDefaultUser>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -192,9 +192,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -204,9 +204,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCMap<CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
 	{
-		return TCContinuation<NContainer::TCMap<CStr, CServerCertificate>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CStr, CServerCertificate>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -221,9 +221,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr const &_HostName)
+	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr const &_HostName)
 	{
-		return TCContinuation<CServerCertificate>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CServerCertificate>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -237,9 +237,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -252,9 +252,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -267,9 +267,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr const &_HostName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr const &_HostName)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -281,9 +281,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumListenConfigs()
+	TCFuture<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumListenConfigs()
 	{
-		return TCContinuation<NContainer::TCSet<CListenConfig>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCSet<CListenConfig>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -304,9 +304,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig const &_Config)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -319,9 +319,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig const &_Config)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -333,9 +333,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCMap<CStr, CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients(bool _bIncludeFullInfo)
 	{
-		return TCContinuation<NContainer::TCMap<CStr, CClient>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CStr, CClient>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -353,9 +353,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr const &_HostID)
+	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr const &_HostID)
 	{
-		return TCContinuation<CClient>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CClient>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -369,9 +369,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr const &_HostID)
+	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr const &_HostID)
 	{
-		return TCContinuation<NStorage::TCUniquePointer<CClient>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NStorage::TCUniquePointer<CClient>>::fs_RunProtected<NException::CException>() /
 			[&]() -> NStorage::TCUniquePointer<CClient>
 			{
 				auto &Internal = *mp_pInternal;
@@ -385,9 +385,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr const &_HostID)
+	TCFuture<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr const &_HostID)
 	{
-		return TCContinuation<bool>::fs_RunProtected<NException::CException>() / [&]
+		return TCFuture<bool>::fs_RunProtected<NException::CException>() / [&]
 			{
 				auto &Internal = *mp_pInternal;
 				Internal.f_CheckState();
@@ -396,9 +396,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr const &_HostID, CClient const &_Client)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -410,9 +410,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr const &_HostID, CClient const &_Client)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -424,9 +424,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr const &_HostID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr const &_HostID)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -438,9 +438,9 @@ namespace NMib::NConcurrency
 	}
 
 	auto CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClientConnections(bool _bIncludeFullInfo)
-		-> TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>
+		-> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>
 	{
-		return TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -463,9 +463,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		return TCContinuation<CClientConnection>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CClientConnection>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -478,13 +478,13 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClientConnection
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClientConnection
 		(
 			CDistributedActorTrustManager_Address const &_Address
 			, CClientConnection const &_ClientConnection
 		)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -500,13 +500,13 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClientConnection
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClientConnection
 		(
 			CDistributedActorTrustManager_Address const &_Address
 			, CClientConnection const &_ClientConnection
 		)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -524,9 +524,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -537,9 +537,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCMap<CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
 	{
-		return TCContinuation<NContainer::TCMap<CStr, CNamespace>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CStr, CNamespace>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -558,9 +558,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr const &_NamespaceName)
+	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr const &_NamespaceName)
 	{
-		return TCContinuation<CNamespace>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CNamespace>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -578,9 +578,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
@@ -596,9 +596,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
@@ -614,9 +614,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr const &_NamespaceName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr const &_NamespaceName)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
@@ -631,9 +631,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumPermissions(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumPermissions(bool _bIncludeFullInfo)
 	{
-		return TCContinuation<NContainer::TCMap<CPermissionIdentifiers, CPermissions>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -651,9 +651,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers const &_Identity)
 	{
-		return TCContinuation<CPermissions>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CPermissions>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				CStr FileName = _Identity.f_GetStr();
@@ -668,9 +668,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				CStr FileName = _Identity.f_GetStr();
@@ -683,9 +683,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				CStr FileName = _Identity.f_GetStr();
@@ -698,9 +698,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				CStr FileName = _Identity.f_GetStr();
@@ -712,9 +712,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<NContainer::TCMap<CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumUsers(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumUsers(bool _bIncludeFullInfo)
 	{
-		return TCContinuation<NContainer::TCMap<CStr, CUserInfo>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CStr, CUserInfo>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -731,9 +731,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr const &_UserID)
+	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr const &_UserID)
 	{
-		return TCContinuation<CUserInfo>::fs_RunProtected<NException::CException>() /
+		return TCFuture<CUserInfo>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -746,9 +746,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -760,9 +760,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -774,9 +774,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr const &_UserID)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -791,9 +791,9 @@ namespace NMib::NConcurrency
 		(
 			bool _bIncludeFullInfo
 		)
-		-> TCContinuation<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>
+		-> TCFuture<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>
 	{
-		return TCContinuation<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>::fs_RunProtected<NException::CException>() /
+		return TCFuture<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -812,14 +812,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUserAuthenticationFactor
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUserAuthenticationFactor
 		(
 			CStr const &_UserID
 			, CStr const &_FactorID
 			, CUserAuthenticationFactor const &_Factor
 		)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -833,14 +833,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserAuthenticationFactor
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserAuthenticationFactor
 		(
 			CStr const &_UserID
 			, CStr const &_FactorID
 			, CUserAuthenticationFactor const &_Factor
 		)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;
@@ -854,9 +854,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCContinuation<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
 	{
-		return TCContinuation<void>::fs_RunProtected<NException::CException>() /
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
 			[&]
 			{
 				auto &Internal = *mp_pInternal;

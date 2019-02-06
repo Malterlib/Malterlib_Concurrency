@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 			 	, NTime::CTime const &_CacheTime
 			)
 		;
-		TCContinuation<void> f_CleanupExpired();
+		TCFuture<void> f_CleanupExpired();
 		void f_StartPeriodicCleanup();
 
 	private:

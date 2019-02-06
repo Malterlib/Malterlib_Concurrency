@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 		Internal.m_TranslateHostnames = _TranslateHostnames;
 	}
 
-	TCContinuation<void> CActorDistributionManager::f_SetAuthenticationHandler
+	TCFuture<void> CActorDistributionManager::f_SetAuthenticationHandler
 		(
 			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 			, NStr::CStr const &_LastExecutionID
@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CActorDistributionManager::f_RemoveAuthenticationHandler
+	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler
 		(
 			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 			, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler

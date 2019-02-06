@@ -122,15 +122,15 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 	template <bool tf_bSupportMultiple>
 	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Call(tp_CCallbackParams... p_Params)
-		-> typename TCEnableIf<!tf_bSupportMultiple, TCContinuation<CReturn>>::CType
+		-> typename TCEnableIf<!tf_bSupportMultiple, TCFuture<CReturn>>::CType
 	{
-		TCContinuation<CReturn> Continuation;
+		TCPromise<CReturn> Promise;
 		auto &Internal = *mp_pInternal;
 		if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
-					[this, Continuation, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
+					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						bool bFound = false;
 						auto &Internal = *mp_pInternal;
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 										;
 									}
 								)
-								> Continuation;
+								> Promise;
 							;
 							bFound = true;
 							break;
@@ -163,7 +163,7 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 		for (auto &Callback : Internal.mp_Callbacks)
 		{
@@ -185,9 +185,9 @@ namespace NMib::NConcurrency
 						;
 					}
 				)
-				> Continuation
+				> Promise
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 		return DMibErrorInstance("No callback registered");
 	}
@@ -195,15 +195,15 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 	template <bool tf_bSupportMultiple>
 	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Call(tp_CCallbackParams... p_Params)
-		-> typename TCEnableIf<tf_bSupportMultiple, TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType
+		-> typename TCEnableIf<tf_bSupportMultiple, TCFuture<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType
 	{
-		TCContinuation<NContainer::TCVector<TCAsyncResult<CReturn>>> Continuation;
+		TCPromise<NContainer::TCVector<TCAsyncResult<CReturn>>> Promise;
 		auto &Internal = *mp_pInternal;
 		if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
-					[this, Continuation, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
+					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						auto &Internal = *mp_pInternal;
 						TCActorResultVector<CReturn> Results;
@@ -231,11 +231,11 @@ namespace NMib::NConcurrency
 								> Results.f_AddResult();
 							;
 						}
-						Results.f_GetResults() > Continuation;
+						Results.f_GetResults() > Promise;
 					}
 				)
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
 		TCActorResultVector<CReturn> Results;
@@ -266,8 +266,8 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		Results.f_GetResults() > Continuation;
-		return Continuation;
+		Results.f_GetResults() > Promise;
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -311,7 +311,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-	TCContinuation<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
+	TCFuture<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
 	{
 		if (!m_pHandle)
 			return fg_Explicit();
@@ -367,10 +367,10 @@ namespace NMib::NConcurrency
 			return;
 		fg_AnyConcurrentActor().f_CallByValue
 			(
-				&CActor::f_DispatchWithReturn<TCContinuation<void>>
-				, [Continuation = fp_RemoveCallback()]
+				&CActor::f_DispatchWithReturn<TCFuture<void>>
+				, [Future = fp_RemoveCallback()]() mutable
 				{
-					return Continuation;
+					return fg_Move(Future);
 				}
 			)
 			> NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&_Result)
@@ -417,7 +417,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
-	TCContinuation<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::f_Destroy()
+	TCFuture<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::f_Destroy()
 	{
 		return fp_RemoveCallback();
 	}

@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 	{
 		_Stream >> m_PacketID;
 		_Stream >> m_SubscriptionID;
-		if (!NPrivate::fg_CopyReplyToContinuationOrAsyncResultShared(_Stream, m_Result))
+		if (!NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, m_Result))
 			m_Result.f_SetResult();
 	}
 }

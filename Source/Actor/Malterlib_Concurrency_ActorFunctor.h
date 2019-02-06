@@ -10,8 +10,8 @@ namespace NMib::NConcurrency
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
 		using CFunction = NFunction::TCFunctionMovable<t_CFunction>;
-		static_assert(NPrivate::TCIsContinuation<CReturn>::mc_Value, "You need to return a continuation");
-		
+		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value, "You need to return a future");
+
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&) = default;
 		TCActorFunctor & operator = (TCActorFunctor &&) = default;
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		TCActor<CActor> &f_GetActor();
 		NFunction::TCFunctionMovable<t_CFunction> &f_GetFunctor();
 		CActorSubscription &f_GetSubscription();
-		TCContinuation<void> f_Destroy();
+		TCFuture<void> f_Destroy();
 		
 		void f_Clear();
 		

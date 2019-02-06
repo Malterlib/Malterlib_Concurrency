@@ -10,31 +10,31 @@ namespace NMib::NConcurrency
 	{
 		return fg_DirectDispatch
 			(
-				[_TimeoutMessage, _Timeout, _bFireAtExit, This = f_ByValue()]() mutable -> TCContinuation<CReturnType>
+				[_TimeoutMessage, _Timeout, _bFireAtExit, This = f_ByValue()]() mutable -> TCFuture<CReturnType>
 				{
-					TCContinuation<CReturnType> Continuation;
+					TCPromise<CReturnType> Promise;
 					NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
-					This > [pReplied, Continuation](TCAsyncResult<CReturnType> &&_Result)
+					This > [pReplied, Promise](TCAsyncResult<CReturnType> &&_Result)
 						{
 							if (!pReplied->f_TestAndSet())
-								Continuation.f_SetResult(fg_Move(_Result));
+								Promise.f_SetResult(fg_Move(_Result));
 						}
 					;
 					
 					fg_OneshotTimer
 						(
 							_Timeout
-							, [pReplied, Continuation, _TimeoutMessage]
+							, [pReplied, Promise, _TimeoutMessage]
 							{
 								if (!pReplied->f_TestAndSet())
-									Continuation.f_SetException(DMibErrorInstance(_TimeoutMessage));
+									Promise.f_SetException(DMibErrorInstance(_TimeoutMessage));
 							}
 							, fg_DirectCallActor()
 							, _bFireAtExit
 						)
 					;
 					
-					return Continuation;
+					return Promise.f_MoveFuture();
 				}
 			)
 		;

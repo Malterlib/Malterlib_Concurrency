@@ -68,11 +68,11 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CReturn>
-	bool CHumanInterfaceDevicesActor::fp_CheckInit(TCContinuation<tf_CReturn> &_Continuation)
+	bool CHumanInterfaceDevicesActor::fp_CheckInit(TCPromise<tf_CReturn> &_Promise)
 	{
 		if (mp_InitError)
 		{
-			_Continuation.f_SetException(DMibErrorInstanceHID(mp_InitError));
+			_Promise.f_SetException(DMibErrorInstanceHID(mp_InitError));
 			return false;
 		}
 		return true;
@@ -95,11 +95,11 @@ namespace NMib::NConcurrency
 		hid_exit();
 	}
 
-	TCContinuation<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> CHumanInterfaceDevicesActor::f_Enumerate(uint16 _VendorID, uint16 _ProductID)
+	TCFuture<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> CHumanInterfaceDevicesActor::f_Enumerate(uint16 _VendorID, uint16 _ProductID)
 	{
-		TCContinuation<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> Continuation;
-		if (!fp_CheckInit(Continuation))
-			return Continuation;
+		TCPromise<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> Promise;
+		if (!fp_CheckInit(Promise))
+			return Promise.f_MoveFuture();
 
 		TCVector<CDeviceInfo> Result;
 		auto *pStartofEnumeration = hid_enumerate(_VendorID, _ProductID);
@@ -130,11 +130,11 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Result);
 	}
 
-	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCContinuation<TCActor<CDevice>>
+	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCFuture<TCActor<CDevice>>
 	{
-		TCContinuation<TCActor<CDevice>> Continuation;
-		if (!fp_CheckInit(Continuation))
-			return Continuation;
+		TCPromise<TCActor<CDevice>> Promise;
+		if (!fp_CheckInit(Promise))
+			return Promise.f_MoveFuture();
 
 		auto SerialNumber = fg_ToHidAPIStr(_SerialNumber);
 		auto pDevice = hid_open(_VendorID, _ProductID, (wchar_t const *)(SerialNumber ? SerialNumber.f_GetStr() : nullptr));
@@ -145,11 +145,11 @@ namespace NMib::NConcurrency
 		return fg_Explicit(fg_Move(DeviceActor));
 	}
 
-	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCContinuation<TCActor<CDevice>>
+	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCFuture<TCActor<CDevice>>
 	{
-		TCContinuation<TCActor<CDevice>> Continuation;
-		if (!fp_CheckInit(Continuation))
-			return Continuation;
+		TCPromise<TCActor<CDevice>> Promise;
+		if (!fp_CheckInit(Promise))
+			return Promise.f_MoveFuture();
 
 		auto pDevice = hid_open_path(_Path.f_GetStr());
 		if (!pDevice)
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 		m_pDevice = nullptr;
 	}
 
-	TCContinuation<aint> CHumanInterfaceDevicesActor::CDevice::f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
+	TCFuture<aint> CHumanInterfaceDevicesActor::CDevice::f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_write(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(nBytes);
 	}
 
-	TCContinuation<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
+	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
 	{
 		NContainer::CByteVector Buffer;
 		int nBytes = hid_read(m_pDevice, Buffer.f_GetArray(_Length), _Length);
@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Buffer);
 	}
 
-	TCContinuation<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
+	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
 	{
 		NContainer::CByteVector Buffer;
 		int nBytes = hid_read_timeout(m_pDevice, Buffer.f_GetArray(_Length), _Length, _TimeoutMilliseconds);
@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Buffer);
 	}
 
-	TCContinuation<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
+	TCFuture<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_send_feature_report(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
-	TCContinuation<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
+	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
 	{
 		NContainer::CByteVector Buffer;
 		Buffer.f_SetLen(1024);
@@ -227,7 +227,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Buffer);
 	}
 
-	TCContinuation<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetManufacturerString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetManufacturerString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_manufacturer_string(m_pDevice, Buffer, 1024);
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(fg_FromHidAPIStr(Buffer));
 	}
 
-	TCContinuation<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetProductString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetProductString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_product_string(m_pDevice, Buffer, 1024);
@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(fg_FromHidAPIStr(Buffer));
 	}
 
-	TCContinuation<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetSerialNumberString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetSerialNumberString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_serial_number_string(m_pDevice, Buffer, 1024);
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(fg_FromHidAPIStr(Buffer));
 	}
 
-	TCContinuation<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetIndexedString(aint _StringIndex) const
+	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetIndexedString(aint _StringIndex) const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_indexed_string(m_pDevice, _StringIndex, Buffer, 1024);

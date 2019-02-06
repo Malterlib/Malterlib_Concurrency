@@ -9,18 +9,18 @@
 
 namespace NMib::NConcurrency
 {
-	TCContinuation<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const
+	TCFuture<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<CActorDistributionListenSettings> Continuation;
+		TCPromise<CActorDistributionListenSettings> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]()
+				Promise
+				, [this, Promise, _Address]()
 				{
 					auto &Internal = *mp_pInternal;
 
-					auto fDoReturn = [this, Continuation, _Address](CServerCertificate const *_pServerCert)
+					auto fDoReturn = [this, Promise, _Address](CServerCertificate const *_pServerCert)
 						{
 							auto &Internal = *mp_pInternal;
 
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 							ListenSettings.m_bRetryOnListenFailure = false;
 							ListenSettings.m_ListenFlags = Internal.m_ListenFlags;
 
-							Continuation.f_SetResult(fg_Move(ListenSettings));
+							Promise.f_SetResult(fg_Move(ListenSettings));
 						}
 					;
 
@@ -44,13 +44,13 @@ namespace NMib::NConcurrency
 						return;
 					}
 
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) > [this, Continuation, Host, fDoReturn](TCAsyncResult<int32> &&_Serial)
+					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) > [this, Promise, Host, fDoReturn](TCAsyncResult<int32> &&_Serial)
 						{
 							auto &Internal = *mp_pInternal;
 
 							if (!_Serial)
 							{
-								Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to get new certificate serial: {}", _Serial.f_GetExceptionStr())));
+								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to get new certificate serial: {}", _Serial.f_GetExceptionStr())));
 								return;
 							}
 
@@ -115,23 +115,23 @@ namespace NMib::NConcurrency
 										return ServerCert;
 									}
 								)
-								> [this, Continuation, Host, fDoReturn](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CServerCertificate> &&_ServerCert)
+								> [this, Promise, Host, fDoReturn](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CServerCertificate> &&_ServerCert)
 								{
 									auto &Internal = *mp_pInternal;
 
 									if (!_ServerCert)
 									{
-										Continuation.f_SetException(fg_Move(_ServerCert));
+										Promise.f_SetException(fg_Move(_ServerCert));
 										return;
 									}
 
 									auto &ServerCert = *_ServerCert;
 									Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddServerCertificate, Host, ServerCert)
-										> [this, Continuation, ServerCert, Host, fDoReturn](TCAsyncResult<void> &&_Result)
+										> [this, Promise, ServerCert, Host, fDoReturn](TCAsyncResult<void> &&_Result)
 										{
 											if (!_Result)
 											{
-												Continuation.f_SetException
+												Promise.f_SetException
 													(
 														DMibErrorInstance
 														(
@@ -156,17 +156,17 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]()
+				Promise
+				, [this, Promise, _Address]()
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -176,29 +176,29 @@ namespace NMib::NConcurrency
 					auto pOld = Internal.m_Listen.f_FindEqual(ListenConfig);
 					if (pOld)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Already listening to address"));
+						Promise.f_SetException(DMibErrorInstance("Already listening to address"));
 						return;
 					}
 
-					f_GetCertificateData(_Address) > Continuation / [this, Continuation, _Address, ListenConfig](CActorDistributionListenSettings &&_ListenSettings)
+					f_GetCertificateData(_Address) > Promise / [this, Promise, _Address, ListenConfig](CActorDistributionListenSettings &&_ListenSettings)
 						{
 							auto &Internal = *mp_pInternal;
 
 							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(_ListenSettings))
-								> [this, Continuation, ListenConfig](TCAsyncResult<CDistributedActorListenReference> &&_ListenRef)
+								> [this, Promise, ListenConfig](TCAsyncResult<CDistributedActorListenReference> &&_ListenRef)
 								{
 									auto &Internal = *mp_pInternal;
 
 									if (!_ListenRef)
 									{
-										Continuation.f_SetException(DMibErrorInstance(fg_Format("Failed to listen: {}", _ListenRef.f_GetExceptionStr())));
+										Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to listen: {}", _ListenRef.f_GetExceptionStr())));
 										return;
 									}
 									auto &ListenState = Internal.m_Listen[ListenConfig];
 									ListenState.m_ListenReference = fg_Move(*_ListenRef);
 
 									Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, ListenConfig)
-										> [this, Continuation, ListenConfig](TCAsyncResult<void> &&_Result)
+										> [this, Promise, ListenConfig](TCAsyncResult<void> &&_Result)
 										{
 											auto &Internal = *mp_pInternal;
 
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 											{
 												Internal.m_Listen.f_Remove(ListenConfig);
 
-												Continuation.f_SetException
+												Promise.f_SetException
 													(
 														DMibErrorInstance
 														(
@@ -217,7 +217,7 @@ namespace NMib::NConcurrency
 												return;
 											}
 
-											Continuation.f_SetResult();
+											Promise.f_SetResult();
 										}
 									;
 								}
@@ -227,70 +227,70 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<bool> Continuation;
+		TCPromise<bool> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]()
+				Promise
+				, [this, Promise, _Address]()
 				{
 					auto &Internal = *mp_pInternal;
 					ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
 					ListenConfig.m_Address = _Address;
 					auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
-					Continuation.f_SetResult(pListenConfig != nullptr);
+					Promise.f_SetResult(pListenConfig != nullptr);
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
+	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> Continuation;
+		TCPromise<NContainer::TCSet<CDistributedActorTrustManager_Address>> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation]
+				Promise
+				, [this, Promise]
 				{
 					auto &Internal = *mp_pInternal;
 					NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
 					for (auto iClientConnection = Internal.m_Listen.f_GetIterator(); iClientConnection; ++iClientConnection)
 						Addresses[iClientConnection.f_GetKey().m_Address];
-					Continuation.f_SetResult(fg_Move(Addresses));
+					Promise.f_SetResult(fg_Move(Addresses));
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
 	{
 		auto &Internal = *mp_pInternal;
-		TCContinuation<void> Continuation;
+		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
-				Continuation
-				, [this, Continuation, _Address]()
+				Promise
+				, [this, Promise, _Address]()
 				{
 					auto &Internal = *mp_pInternal;
 					ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
 					ListenConfig.m_Address = _Address;
 
 					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, ListenConfig)
-						> [this, Continuation, ListenConfig](TCAsyncResult<void> &&_Result)
+						> [this, Promise, ListenConfig](TCAsyncResult<void> &&_Result)
 						{
 							auto &Internal = *mp_pInternal;
 
 							if (!_Result)
 							{
-								Continuation.f_SetException
+								Promise.f_SetException
 									(
 										DMibErrorInstance
 										(
@@ -304,11 +304,11 @@ namespace NMib::NConcurrency
 							auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
 							if (pListenConfig)
 							{
-								pListenConfig->m_ListenReference.f_Stop() > [this, ListenConfig, Continuation](TCAsyncResult<void> &&_Result)
+								pListenConfig->m_ListenReference.f_Stop() > [this, ListenConfig, Promise](TCAsyncResult<void> &&_Result)
 									{
 										if (!_Result)
 										{
-											Continuation.f_SetException
+											Promise.f_SetException
 												(
 													DMibErrorInstance
 													(
@@ -320,21 +320,21 @@ namespace NMib::NConcurrency
 										}
 										auto &Internal = *mp_pInternal;
 										Internal.m_Listen.f_Remove(ListenConfig);
-										Continuation.f_SetResult();
+										Promise.f_SetResult();
 									}
 								;
 							}
 							else
-								Continuation.f_SetResult();
+								Promise.f_SetResult();
 						}
 					;
 				}
 			)
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<NStr::CStr> CDistributedActorTrustManager::CInternal::f_ValidateClientAccess
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_ValidateClientAccess
 		(
 			NStr::CStr const &_HostID
 			, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain
@@ -343,27 +343,27 @@ namespace NMib::NConcurrency
 		if (_CertificateChain.f_IsEmpty())
 			return DMibErrorInstance("Empty certificate chain");
 
-		TCContinuation<NStr::CStr> Continuation;
+		TCPromise<NStr::CStr> Promise;
 
-		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [Continuation, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
+		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [Promise, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
 			{
 				if (!_Client)
 				{
-					Continuation.f_SetResult(fg_Format("Could not find client host: {}", _Client.f_GetExceptionStr()));
+					Promise.f_SetResult(fg_Format("Could not find client host: {}", _Client.f_GetExceptionStr()));
 					return;
 				}
 
 				if (_CertificateChain.f_GetFirst() != _Client->m_PublicCertificate)
 				{
-					Continuation.f_SetResult("Access denied");
+					Promise.f_SetResult("Access denied");
 					return;
 				}
 
-				Continuation.f_SetResult("");
+				Promise.f_SetResult("");
 			}
 		;
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }
 

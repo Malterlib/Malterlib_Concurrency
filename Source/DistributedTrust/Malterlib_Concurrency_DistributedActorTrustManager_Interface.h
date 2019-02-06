@@ -183,7 +183,7 @@ namespace NMib::NConcurrency
 			CDistributedActorTrustManager_Address m_Address;
 			TCActorFunctorWithID
 				<
-					TCContinuation<void>
+					TCFuture<void>
 					(
 						NStr::CStr const &_HostID
 						, CLocalCallingHostInfo const &_HostInfo
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 				>
 				m_fOnUseTicket
 			;
-			TCActorFunctorWithID<TCContinuation<void> (NStr::CStr const &_HostID, CLocalCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
+			TCActorFunctorWithID<TCFuture<void> (NStr::CStr const &_HostID, CLocalCallingHostInfo const &_HostInfo), 0> m_fOnCertificateSigned;
 		};
 
 		struct CPermissionInfo
@@ -233,38 +233,38 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
-		virtual TCContinuation<NStr::CStr> f_GetHostID() const = 0;
+		virtual TCFuture<NStr::CStr> f_GetHostID() const = 0;
 
-		virtual TCContinuation<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() = 0;
-		virtual TCContinuation<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) = 0;
-		virtual TCContinuation<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) = 0;
-		virtual TCContinuation<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> f_EnumListens() = 0;
+		virtual TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() = 0;
-		virtual TCContinuation<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) = 0;
-		virtual TCContinuation<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
-		virtual TCContinuation<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
+		virtual TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() = 0;
+		virtual TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) = 0;
+		virtual TCFuture<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
+		virtual TCFuture<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() = 0;
-		virtual TCContinuation<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
-		virtual TCContinuation<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
-		virtual TCContinuation<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
-		virtual TCContinuation<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
-		virtual TCContinuation<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> f_EnumClientConnections() = 0;
+		virtual TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
+		virtual TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) = 0;
-		virtual TCContinuation<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
-		virtual TCContinuation<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
+		virtual TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) = 0;
+		virtual TCFuture<void> f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
+		virtual TCFuture<void> f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command) = 0;
 
-		virtual TCContinuation<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) = 0;
-		virtual TCContinuation<void> f_AddPermissions(CAddPermissions const &_Command) = 0;
-		virtual TCContinuation<void> f_RemovePermissions(CRemovePermissions const &_Command) = 0;
+		virtual TCFuture<CEnumPermissionsResult> f_EnumPermissions(bool _bIncludeHostInfo) = 0;
+		virtual TCFuture<void> f_AddPermissions(CAddPermissions const &_Command) = 0;
+		virtual TCFuture<void> f_RemovePermissions(CRemovePermissions const &_Command) = 0;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
-		virtual TCContinuation<NStorage::TCOptional<CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) = 0;
-		virtual TCContinuation<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) = 0;
-		virtual TCContinuation<void> f_RemoveUser(NStr::CStr const &_UserID) = 0;
-		virtual TCContinuation<void> f_SetUserInfo
+		virtual TCFuture<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
+		virtual TCFuture<NStorage::TCOptional<CUserInfo>> f_TryGetUser(NStr::CStr const &_UserID) = 0;
+		virtual TCFuture<void> f_AddUser(NStr::CStr const &_UserID, NStr::CStr const &_UserName) = 0;
+		virtual TCFuture<void> f_RemoveUser(NStr::CStr const &_UserID) = 0;
+		virtual TCFuture<void> f_SetUserInfo
 			(
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
@@ -273,12 +273,12 @@ namespace NMib::NConcurrency
 			) = 0
 		;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const = 0;
+		virtual TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationActorInfo>> f_EnumAuthenticationActors() const = 0;
 
-		virtual TCContinuation<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const = 0;
-		virtual TCContinuation<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
-		virtual TCContinuation<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
-		virtual TCContinuation<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
+		virtual TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>> f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const = 0;
+		virtual TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
+		virtual TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
+		virtual TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
 	};
 }
 

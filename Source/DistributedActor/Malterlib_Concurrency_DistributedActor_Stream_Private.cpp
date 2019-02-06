@@ -9,23 +9,23 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <>
-	void fg_CopyReplyToContinuation
+	void fg_CopyReplyToPromise
 		(
-		 	TCContinuation<void> &_Continuation
+		 	TCPromise<void> &_Promise
 		 	, NContainer::CSecureByteVector const &_Data
 		 	, CDistributedActorStreamContext &_Context, uint32 _Version
 		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToContinuationOrAsyncResultShared(ReplyStream, _Continuation))
+		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise))
 			return;
 		NStr::CStr Error;
 		if (!_Context.f_ValidateContext(Error))
 		{
-			_Continuation.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+			_Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
 			return;
 		}
-		_Continuation.f_SetResult();
+		_Promise.f_SetResult();
 	}
 }

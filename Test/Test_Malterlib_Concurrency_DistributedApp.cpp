@@ -50,7 +50,7 @@ namespace
 							}
 						}
 					}
-					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCContinuation<uint32>
+					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						return fg_Explicit(_Params["Integer"].f_Integer());
 					}
@@ -58,12 +58,12 @@ namespace
 			;
 		}
 		
-		TCContinuation<void> fp_StartApp(NEncoding::CEJSON const &_Params) override 
+		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
 		{
 			return fg_Explicit();
 		}
 
-		TCContinuation<void> fp_StopApp() override 
+		TCFuture<void> fp_StopApp() override 
 		{
 			return fg_Explicit();
 		}

@@ -8,7 +8,10 @@ namespace NMib::NConcurrency
 	namespace NPrivate
 	{
 		template <typename t_CType>
-		struct TCIsContinuation;
+		struct TCIsPromise;
+
+		template <typename t_CType>
+		struct TCIsFuture;
 	}
 
 	template <typename t_CActor>
@@ -303,21 +306,22 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FToDispatch
-		, TCEnableIfType<!NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+		, TCEnableIfType<!NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 		= nullptr
 	>
 	auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch)
 	{
+		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
 		return _Actor.f_CallByValue
 			(
-				&CActor::f_DispatchWithReturn<TCContinuation<CReturnType>>
-				, NFunction::TCFunctionMovable<TCContinuation<CReturnType> ()>
+				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
+				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
-					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable
+					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{
-						return TCContinuation<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
+						return TCFuture<CReturnType>::fs_RunProtected() / fg_Forward<tf_FToDispatch>(fDispatch);
 					}
 				)
 			)
@@ -327,7 +331,7 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FToDispatch
-		, TCEnableIfType<NPrivate::TCIsContinuation<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
+		, TCEnableIfType<NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value> *
 		= nullptr
 	>
 	auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch)

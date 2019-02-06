@@ -6,29 +6,29 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CReturnValue>
-	auto operator % (TCContinuation<tf_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor)
+	auto operator % (TCPromise<tf_CReturnValue> const &_Promise, CDistributedAppAuditor const &_Auditor)
 	{
-		return TCContinuationWithAppAuditor<tf_CReturnValue>(_Continuation, _Auditor);
+		return TCPromiseWithAppAuditor<tf_CReturnValue>(_Promise, _Auditor);
 	}
 
 	template <typename tf_CReturnValue>
-	auto operator % (TCContinuationWithError<tf_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor)
+	auto operator % (TCPromiseWithError<tf_CReturnValue> const &_Promise, CDistributedAppAuditor const &_Auditor)
 	{
-		return TCContinuationWithErrorWithAppAuditor<tf_CReturnValue>(_Continuation, _Auditor);
+		return TCPromiseWithErrorWithAppAuditor<tf_CReturnValue>(_Promise, _Auditor);
 	}
 
 	template <typename t_CReturnValue>
-	TCContinuationWithAppAuditor<t_CReturnValue>::TCContinuationWithAppAuditor(TCContinuation<t_CReturnValue> const &_Continuation, CDistributedAppAuditor const &_Auditor)
-		: m_Continuation(_Continuation)
+	TCPromiseWithAppAuditor<t_CReturnValue>::TCPromiseWithAppAuditor(TCPromise<t_CReturnValue> const &_Promise, CDistributedAppAuditor const &_Auditor)
+		: m_Promise(_Promise)
 		, m_Auditor(_Auditor)
 	{
 	}
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCPromiseWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor]
+		return [Promise = m_Promise, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 							if (!bFailed && !p_Results)
 							{
 								Auditor.f_Error(p_Results.f_GetExceptionStr());
-								Continuation.f_SetException(fg_Move(p_Results));
+								Promise.f_SetException(fg_Move(p_Results));
 								bFailed = true;
 							}
 							return true;
@@ -57,9 +57,9 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCPromiseWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor]
+		return [Promise = m_Promise, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 							if (!bFailed && !p_Results)
 							{
 								Auditor.f_Error(p_Results.f_GetExceptionStr());
-								Continuation.f_SetException(fg_Move(p_Results));
+								Promise.f_SetException(fg_Move(p_Results));
 								bFailed = true;
 							}
 							return true;
@@ -87,21 +87,21 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCContinuationWithErrorWithAppAuditor<t_CReturnValue>::TCContinuationWithErrorWithAppAuditor
+	TCPromiseWithErrorWithAppAuditor<t_CReturnValue>::TCPromiseWithErrorWithAppAuditor
 		(
-			TCContinuationWithError<t_CReturnValue> const &_Continuation
+			TCPromiseWithError<t_CReturnValue> const &_Promise
 			, CDistributedAppAuditor const &_Auditor
 		)
-		: m_Continuation(_Continuation)
+		: m_Promise(_Promise)
 		, m_Auditor(_Auditor)
 	{
 	}
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithErrorWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCPromiseWithErrorWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation.m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor, Error = m_Continuation.m_Error]
+		return [Promise = m_Promise.m_Promise, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor, Error = m_Promise.m_Error]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 						{
 							if (!bFailed && !p_Results)
 							{
-								Continuation.f_SetException(Auditor.f_Exception(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
+								Promise.f_SetException(Auditor.f_Exception(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
 								bFailed = true;
 							}
 							return true;
@@ -129,9 +129,9 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto TCContinuationWithErrorWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
+	auto TCPromiseWithErrorWithAppAuditor<t_CReturnValue>::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Continuation = m_Continuation.m_Continuation, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor, Error = m_Continuation.m_Error]
+		return [Promise = m_Promise.m_Promise, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Auditor = m_Auditor, Error = m_Promise.m_Error]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 						{
 							if (!bFailed && !p_Results)
 							{
-								Continuation.f_SetException(Auditor.f_Exception(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
+								Promise.f_SetException(Auditor.f_Exception(fg_Format("{}: {}", Error, p_Results.f_GetExceptionStr())));
 								bFailed = true;
 							}
 							return true;

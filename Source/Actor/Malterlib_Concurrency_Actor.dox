@@ -8,18 +8,18 @@
 
  \class NMib::NConcurrency::CExceptionActorResultWasNotSet
 
- \brief Exception returned when a function forgets to set the result in an continuation.
+ \brief Exception returned when a function forgets to resolve a future.
 
  Usually this is the result of a coding error.
  
- \fn TCContinuation<void> NMib::NConcurrency::CActor::fp_Destroy
+ \fn TCFuture<void> NMib::NConcurrency::CActor::fp_Destroy
  
  \brief Override this function to provide asynchronous destruction of actor
  
  When someone calls one of the TCActor->f_Destroy functions an asynchronous shutdown process is started. You have the option to override fp_Destroy to do your
  own destruction actions before the actor is actually destroyed.
  
- After destroy has been called, but a result have yet to be set for the continuation there is nothing preventing other functions on the actor from being called, 
+ After destroy has been called, but a result have yet to be set for the future there is nothing preventing other functions on the actor from being called, 
  as this could be needed for the async destruction to actually finish. You might have to add logic to your code to prevent certain functions from running on 
  the actor. In this case returning an exception is recommended.	
  

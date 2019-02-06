@@ -4,7 +4,7 @@
 #pragma once
 
 #include "../Actor/Malterlib_Concurrency_AsyncResult.h"
-#include "../Actor/Malterlib_Concurrency_Continuation.h"
+#include "../Actor/Malterlib_Concurrency_Promise.h"
 
 namespace NMib::NConcurrency
 {

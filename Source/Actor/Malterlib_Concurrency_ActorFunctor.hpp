@@ -112,14 +112,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
-	TCContinuation<void> TCActorFunctor<t_CFunction>::f_Destroy()
+	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy()
 	{
-		TCContinuation<void> Continuation;
+		TCFuture<void> DestroyFuture;
 		if (f_GetSubscription())
-			Continuation = f_GetSubscription()->f_Destroy();
+			DestroyFuture = f_GetSubscription()->f_Destroy();
 		else
-			Continuation.f_SetResult();
-		return Continuation;
+			DestroyFuture = fg_Explicit();
+		return DestroyFuture;
 	}
 	
 	template <typename t_CFunction>

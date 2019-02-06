@@ -56,7 +56,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CActorSubscription m_ConnectionSubscription;
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> m_pSSLContext;
 		NStorage::TCSharedPointerSupportWeak<CHost> m_pHost;
-		TCContinuation<void> m_IdentifyContinuation;
+		TCPromise<void> m_IdentifyPromise;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
 		NStr::CStr m_LastError;
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct COutstandingCall
 	{
-		TCContinuation<NContainer::CSecureByteVector> m_Continuation;
+		TCPromise<NContainer::CSecureByteVector> m_Promise;
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_RemoteSubscriptionReferences;
 		NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_LocalSubscriptionReferences;
 
-		NContainer::TCMap<NStr::CStr, TCContinuation<void>> m_PendingRemoteSubscriptionDestroys;
+		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingRemoteSubscriptionDestroys;
 
 		NStr::CStr m_LastExecutionID;
 		NStr::CStr m_UniqueHostID; // Differs from HostID when anonymous
@@ -307,7 +307,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		TCWeakActor<> m_Actor;
 		NFunction::TCFunctionMutable
 			<
-				TCContinuation<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
+				TCFuture<void> (NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pNewServerConnection, NStr::CStr const &_RealHostID)
 			>
 			m_fNewWebsocketConnection
 		;
@@ -376,7 +376,7 @@ namespace NMib::NConcurrency
 		void fp_ScheduleReconnect
 			(
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-				, NStorage::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
+				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
 				, mint _Sequence
 				, NStr::CStr const &_ConnectionError 
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 		void fp_Reconnect
 			(
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-				, NStorage::TCSharedPointer<TCContinuation<CActorDistributionManager::CConnectionResult>> const &_pContinuation
+				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
 			)
 		;
@@ -399,7 +399,7 @@ namespace NMib::NConcurrency
 		bool fp_DecodeClientConnectionSettings
 			(
 				CActorDistributionConnectionSettings const &_Settings
-				, TCContinuation<tf_CReturnType> &_Continuation
+				, TCPromise<tf_CReturnType> &_Promise
 				, CDecodedClientConnectionSetting &o_DecodedSettings
 			)
 		;
@@ -410,7 +410,7 @@ namespace NMib::NConcurrency
 			(
 				NStr::CStr const &_ListenID
 				, CActorDistributionListenSettings const &_Settings
-				, NStorage::TCSharedPointer<TCContinuation<CDistributedActorListenReference>> const &_pContinuation
+				, NStorage::TCSharedPointer<TCPromise<CDistributedActorListenReference>> const &_pPromise
 			)
 		;
 		template <typename tf_CCommand>
@@ -463,7 +463,7 @@ namespace NMib::NConcurrency
 		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
-		bool fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, TCContinuation<> &_Continuation);
+		bool fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, TCPromise<> &_Promise);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);
 		void fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
 	};

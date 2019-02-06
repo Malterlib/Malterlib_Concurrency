@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICDistributedActorAuthentication::f_AuthenticatePermissionPattern);
 	}
 
-	TCContinuation<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
+	TCFuture<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
 		(
 			TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler
 			, NStr::CStr const &_UserID
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Registering authentication handler for host '{}' user '{}'", UniqueHostID, _UserID);
 
-		TCContinuation<TCActorSubscriptionWithID<>> Continuation;
+		TCPromise<TCActorSubscriptionWithID<>> Promise;
 
 		NStr::CStr UserName = "(Unknown)";
 
@@ -50,9 +50,9 @@ namespace NMib::NConcurrency
 			 	, _UserID
 			 	, UserName
 			)
-			> Continuation / [pThis = m_pThis, Continuation, UniqueHostID, pWeakHost, pWeakHandler = _Handler.f_Weak()]
+			> Promise / [pThis = m_pThis, Promise, UniqueHostID, pWeakHost, pWeakHandler = _Handler.f_Weak()]
 			{
-				auto ActorSubscription = g_ActorSubscription / [pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCContinuation<void>
+				auto ActorSubscription = g_ActorSubscription / [pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCFuture<void>
 					{
 						DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler for {}", UniqueHostID);
 						auto pHost = pWeakHost.f_Lock();
@@ -70,13 +70,13 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				Continuation.f_SetResult(fg_Move(ActorSubscription));
+				Promise.f_SetResult(fg_Move(ActorSubscription));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<bool> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_AuthenticatePermissionPattern
+	TCFuture<bool> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_AuthenticatePermissionPattern
 		(
 			NStr::CStr const &_Pattern
 			, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency
 		return Challenge;
 	}
 
-	TCContinuation<NContainer::TCVector<bool>> CDistributedActorTrustManager::f_VerifyAuthenticationResponses
+	TCFuture<NContainer::TCVector<bool>> CDistributedActorTrustManager::f_VerifyAuthenticationResponses
 		(
 			ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 		 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
-		TCContinuation<NContainer::TCVector<bool>> Continuation;
+		TCPromise<NContainer::TCVector<bool>> Promise;
 
 		TCActorResultVector<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> VerificationResults;
 
@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 		auto fAddFalseResult = [&]
 			{
 				FactorIDs.f_Insert();
-				TCContinuation<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
+				TCPromise<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
 				Result.f_SetResult(ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{});
 				Result > VerificationResults.f_AddResult();
 			}
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 		}
 
 		VerificationResults.f_GetResults()
-			> Continuation / [this, Continuation, _Challenge, FactorIDs](TCVector<TCAsyncResult<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn>> &&_Results)
+			> Promise / [this, Promise, _Challenge, FactorIDs](TCVector<TCAsyncResult<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn>> &&_Results)
 			{
 				auto &Internal = *mp_pInternal;
 				NContainer::TCVector<bool> Results;
@@ -195,7 +195,7 @@ namespace NMib::NConcurrency
 				for (auto &AuthenticationResult : _Results)
 				{
 					if (!AuthenticationResult)
-						return Continuation.f_SetException(AuthenticationResult.f_GetException());
+						return Promise.f_SetException(AuthenticationResult.f_GetException());
 
 					if (AuthenticationResult->m_bVerified && (!AuthenticationResult->m_UpdatedPrivateData.f_IsEmpty() ||  !AuthenticationResult->m_UpdatedPublicData.f_IsEmpty()))
 					{
@@ -234,9 +234,9 @@ namespace NMib::NConcurrency
 					Results.f_InsertLast(AuthenticationResult->m_bVerified);
 					++iFactorID;
 				}
-				Continuation.f_SetResult(Results);
+				Promise.f_SetResult(Results);
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 }

@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCContinuation<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
+	TCFuture<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
@@ -116,7 +116,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCContinuation<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
+	TCFuture<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
@@ -135,10 +135,10 @@ namespace NMib::NConcurrency
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
 		
-		TCContinuation<TCTrustedActorSubscription<t_CActor>> Continuation;
+		TCPromise<TCTrustedActorSubscription<t_CActor>> Promise;
 		
 		fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState) 
-			> Continuation / [pState, Continuation](NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
+			> Promise / [pState, Promise](NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 			{
 				TCTrustedActorSubscription<t_CActor> Result;
 				Result.mp_pState = pState;
@@ -150,10 +150,10 @@ namespace NMib::NConcurrency
 					TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
 					TrustedActor.m_Actor = (TCDistributedActor<t_CActor> &)Actor.m_Actor; 
 				}
-				Continuation.f_SetResult(fg_Move(Result));
+				Promise.f_SetResult(fg_Move(Result));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CActor>

@@ -60,12 +60,12 @@ namespace NMib::NConcurrency
 			Tool.m_pRuntimeClass->f_Register(ThisActor, ToolsSection, o_CommandLine, Tool.m_ClassName);
 	}
 
-	TCContinuation<void> CDistributedToolAppActor::fp_StartApp(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedToolAppActor::fp_StartApp(NEncoding::CEJSON const &_Params)
 	{
 		return fg_Explicit();
 	}
 
-	TCContinuation<void> CDistributedToolAppActor::fp_StopApp()
+	TCFuture<void> CDistributedToolAppActor::fp_StopApp()
 	{
 		return fg_Explicit();
 	}

@@ -36,7 +36,10 @@ namespace NMib::NConcurrency
 	class TCAsyncResult;
 
 	template <typename t_CReturnValue>
-	struct TCContinuation;
+	struct TCPromise;
+
+	template <typename t_CReturnValue>
+	struct TCFuture;
 }
 
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_Exception.h"

@@ -263,7 +263,7 @@ namespace
 			CDevice &operator = (CDevice &&) = default;
 			CDevice &operator = (CDevice const &) = default;
 
-			static TCContinuation<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			static TCFuture<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
 				static mint const c_InitNonceSize = 8;
 
@@ -281,22 +281,22 @@ namespace
 				CByteVector Nonce;
 				NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
 
-				TCContinuation<CDevice> Continuation;
-				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Continuation / [=](CByteVector &&_Response)
+				TCPromise<CDevice> Promise;
+				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Promise / [=](CByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() != (c_InitNonceSize + 4 + 5))
-							return Continuation.f_SetException(DMibErrorInstance("Invalid U2FHID_INIT response length"));
+							return Promise.f_SetException(DMibErrorInstance("Invalid U2FHID_INIT response length"));
 
 						CInitResponse Resonse;
 						NMemory::fg_MemCopy(&Resonse, _Response.f_GetArray(), c_InitNonceSize + 4 + 5);
 						if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
-							return Continuation.f_SetException(DMibErrorInstance("U2FHID_INIT response contains invalid nounce"));
+							return Promise.f_SetException(DMibErrorInstance("U2FHID_INIT response contains invalid nounce"));
 
-						Continuation.f_SetResult(CDevice{_Device, Resonse.m_ChannelID});
+						Promise.f_SetResult(CDevice{_Device, Resonse.m_ChannelID});
 					}
 				;
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
 			struct CReadFrameState
@@ -306,26 +306,26 @@ namespace
 				mint m_Timeout = c_HIDTimeout;
 			};
 
-			static TCContinuation<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			static TCFuture<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
 				TCSharedPointer<CReadFrameState> pState = fg_Construct();
 
-				TCContinuation<CFrame> Continuation;
+				TCPromise<CFrame> Promise;
 
-				auto fTry = [Device = _Device, Continuation](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
+				auto fTry = [Device = _Device, Promise](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
 					{
 						Device(&CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, _pState->m_Timeout)
-							> Continuation / [=](CByteVector &&_Result) mutable
+							> Promise / [=](CByteVector &&_Result) mutable
 							{
 								if (!_Result.f_IsEmpty())
 								{
 									CFrame Frame;
 									if (_Result.f_GetLen() != sizeof(Frame))
-										return Continuation.f_SetException(DMibErrorInstance("U2F transport error: Frame size wrong"));
+										return Promise.f_SetException(DMibErrorInstance("U2F transport error: Frame size wrong"));
 
 									NMemory::fg_MemCopy((uint8 *)&Frame, _Result.f_GetArray(), sizeof(Frame));
 
-									Continuation.f_SetResult(fg_Move(Frame));
+									Promise.f_SetResult(fg_Move(Frame));
 									return;
 								}
 
@@ -333,7 +333,7 @@ namespace
 
 								if (_pState->m_Timeout > CReadFrameState::c_HIDMaxTimeout)
 								{
-									Continuation.f_SetException(DMibErrorInstance("U2F transport error: Timed out reading"));
+									Promise.f_SetException(DMibErrorInstance("U2F transport error: Timed out reading"));
 									return;
 								}
 
@@ -345,15 +345,15 @@ namespace
 
 				fTry(pState, fTry);
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<CByteVector> f_SendReceive(uint8_t _Command, CByteVector const &_Send) const
+			TCFuture<CByteVector> f_SendReceive(uint8_t _Command, CByteVector const &_Send) const
 			{
 				return fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
 			}
 
-			static TCContinuation<CByteVector> fs_SendReceive(uint8_t _Command, CByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			static TCFuture<CByteVector> fs_SendReceive(uint8_t _Command, CByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
 				struct CSendState
 				{
@@ -372,7 +372,7 @@ namespace
 
 				TCSharedPointer<CSendState> pSendState = fg_Construct(_Send);
 
-				TCContinuation<void> SendContinuation;
+				TCPromise<void> SendPromise;
 
 				auto fDoSend = [=](TCSharedPointer<CSendState> const &_pSendState, auto const &_fDoSend) -> void
 					{
@@ -389,11 +389,11 @@ namespace
 							CByteVector Data;
 							Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
 
-							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > SendContinuation / [=](aint _BytesWritten)
+							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > SendPromise / [=](aint _BytesWritten)
 								{
 									if (_BytesWritten != sizeof(CFrame) + 1)
 									{
-										SendContinuation.f_SetException(DMibErrorInstance("Wrong number of bytes written for U2F frame"));
+										SendPromise.f_SetException(DMibErrorInstance("Wrong number of bytes written for U2F frame"));
 										return;
 									}
 									_fDoSend(_pSendState, _fDoSend);
@@ -401,14 +401,14 @@ namespace
 							;
 						}
 						else
-							SendContinuation.f_SetResult();
+							SendPromise.f_SetResult();
 					}
 				;
 
 				fDoSend(pSendState, fDoSend);
 
-				TCContinuation<CByteVector> Continuation;
-				SendContinuation > Continuation / [=]
+				TCPromise<CByteVector> Promise;
+				SendPromise > Promise / [=]
 					{
 						struct CReceiveState
 						{
@@ -423,10 +423,10 @@ namespace
 
 						auto fDoReceive = [=](TCSharedPointer<CReceiveState> const &_pReceiveState, auto const &_fDoReceive) -> void
 							{
-								fs_ReadFrame(_Device) > Continuation / [=](CFrame &&_Frame)
+								fs_ReadFrame(_Device) > Promise / [=](CFrame &&_Frame)
 									{
 										if (_Frame.m_ChannelID != _ChannelID)
-											return Continuation.f_SetException(DMibErrorInstance("Invalid channel number reading from U2F device"));
+											return Promise.f_SetException(DMibErrorInstance("Invalid channel number reading from U2F device"));
 
 										auto &State = *_pReceiveState;
 										if (State.m_bFirstFrame)
@@ -450,11 +450,11 @@ namespace
 													}
 												}
 
-												return Continuation.f_SetException(DMibErrorInstance("Error response reading from U2F device: {}"_f << Error));
+												return Promise.f_SetException(DMibErrorInstance("Error response reading from U2F device: {}"_f << Error));
 											}
 
 											if (_Frame.m_InitialFrame.m_Command != _Command)
-												return Continuation.f_SetException(DMibErrorInstance("Invalid command reading from U2F device"));
+												return Promise.f_SetException(DMibErrorInstance("Invalid command reading from U2F device"));
 
 											State.m_DataLength = _Frame.m_InitialFrame.m_ByteCountHigh << 8 | _Frame.m_InitialFrame.m_ByteCountLow;
 											auto Received = fg_Min(sizeof(_Frame.m_InitialFrame.m_Data), mint(State.m_DataLength));
@@ -465,7 +465,7 @@ namespace
 										else
 										{
 											if (_Frame.m_ContinuationFrame.m_SequenceNumber != State.m_Sequence++)
-												return Continuation.f_SetException(DMibErrorInstance("Invalid sequence number when reading from U2F device"));
+												return Promise.f_SetException(DMibErrorInstance("Invalid sequence number when reading from U2F device"));
 
 											auto Received = fg_Min(mint(State.m_nReceived) + sizeof(_Frame.m_ContinuationFrame.m_Data), mint(State.m_DataLength)) - mint(State.m_nReceived);
 											State.m_Receive.f_Insert(_Frame.m_ContinuationFrame.m_Data, Received);
@@ -473,7 +473,7 @@ namespace
 										}
 
 										if (State.m_nReceived == State.m_DataLength)
-											return Continuation.f_SetResult(fg_Move(State.m_Receive));
+											return Promise.f_SetResult(fg_Move(State.m_Receive));
 
 										_fDoReceive(_pReceiveState, _fDoReceive);
 									}
@@ -485,10 +485,10 @@ namespace
 					}
 				;
 
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
-			TCContinuation<CByteVector> f_SendAPDU(uint8 _Command, CByteVector const &_Data, uint8 _UserPresence) const
+			TCFuture<CByteVector> f_SendAPDU(uint8 _Command, CByteVector const &_Data, uint8 _UserPresence) const
 			{
 				auto DataLength = _Data.f_GetLen();
 
@@ -497,19 +497,19 @@ namespace
 				Buffer.f_Insert((uint8)0);
 				Buffer.f_Insert((uint8)0);
 
-				TCContinuation<CByteVector> Continuation;
-				f_SendReceive(U2FHID_MSG, Buffer) > Continuation / [=](CByteVector &&_Response)
+				TCPromise<CByteVector> Promise;
+				f_SendReceive(U2FHID_MSG, Buffer) > Promise / [=](CByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() < 2)
-							return Continuation.f_SetException(DMibErrorInstance("Response from U2F device too short"));
+							return Promise.f_SetException(DMibErrorInstance("Response from U2F device too short"));
 
 						if (_Response.f_GetLen() > MAXDATASIZE)
-							return Continuation.f_SetException(DMibErrorInstance("Response from U2F device too long"));
+							return Promise.f_SetException(DMibErrorInstance("Response from U2F device too long"));
 
-						Continuation.f_SetResult(fg_Move(_Response));
+						Promise.f_SetResult(fg_Move(_Response));
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 
 			TCActor<CHumanInterfaceDevicesActor::CDevice> m_Device;
@@ -599,7 +599,7 @@ namespace
 			return -1;
 		}
 
-		static TCContinuation<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
 			return g_Dispatch(_pDevices->f_FileActor()) / [=]() -> CUsageResult
 				{
@@ -623,26 +623,26 @@ namespace
 			;
 		}
 #else
-		static TCContinuation<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
 			return fg_Explicit(CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage});
 		}
 #endif
 
-		static TCContinuation<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
+		static TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
 		{
 			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
 
-			TCContinuation<TCSharedPointer<CU2FDevices>> Continuation;
+			TCPromise<TCSharedPointer<CU2FDevices>> Promise;
 
-			pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0) > Continuation / [=](TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> &&_HIDDevices)
+			pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0) > Promise / [=](TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> &&_HIDDevices)
 				{
 					TCActorResultMap<CStr, CUsageResult> UsageResults;
 
 					for (auto const &DeviceInfo : _HIDDevices)
 						fs_GetUsages(pDevices, DeviceInfo) > UsageResults.f_AddResult(DeviceInfo.m_Path);
 
-					UsageResults.f_GetResults() > Continuation / [=](TCMap<CStr, TCAsyncResult<CUsageResult>> &&_Results)
+					UsageResults.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<CUsageResult>> &&_Results)
 						{
 							TCActorResultMap<CStr, TCActor<CHumanInterfaceDevicesActor::CDevice>> OpenDeviceResults;
 
@@ -661,7 +661,7 @@ namespace
 									pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DevicePath) > OpenDeviceResults.f_AddResult(DevicePath);
 							}
 
-							OpenDeviceResults.f_GetResults() > Continuation / [=](TCMap<CStr, TCAsyncResult<TCActor<CHumanInterfaceDevicesActor::CDevice>>> &&_Devices)
+							OpenDeviceResults.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<TCActor<CHumanInterfaceDevicesActor::CDevice>>> &&_Devices)
 								{
 									TCActorResultMap<CStr, CDevice> DeviceInits;
 									for (auto &Device : _Devices)
@@ -676,7 +676,7 @@ namespace
 										CDevice::fs_Init(*Device) > DeviceInits.f_AddResult(DevicePath);
 									}
 
-									DeviceInits.f_GetResults() > Continuation / [=](TCMap<CStr, TCAsyncResult<CDevice>> &&_Devices)
+									DeviceInits.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<CDevice>> &&_Devices)
 										{
 											for (auto &Device : _Devices)
 											{
@@ -689,7 +689,7 @@ namespace
 
 												pDevices->m_Devices(DevicePath, fg_Move(*Device));
 											}
-											Continuation.f_SetResult(pDevices);
+											Promise.f_SetResult(pDevices);
 										}
 									;
 								}
@@ -698,7 +698,7 @@ namespace
 					;
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
 		TCActor<CActor> f_FileActor()
@@ -774,17 +774,17 @@ namespace
 			}
 		}
 
-		static TCContinuation<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
+		static TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
 		{
-			TCContinuation<CSendAPDUResult> Continuation;
+			TCPromise<CSendAPDUResult> Promise;
 
-			CU2FDevices::fs_DiscoverDevices() > Continuation / [=](TCSharedPointer<CU2FDevices> &&_pU2FDevices)
+			CU2FDevices::fs_DiscoverDevices() > Promise / [=](TCSharedPointer<CU2FDevices> &&_pU2FDevices)
 				{
 					auto &U2FDevices = *_pU2FDevices;
 
 					if (U2FDevices.m_Devices.f_IsEmpty())
 					{
-						Continuation.f_SetException(DMibErrorInstance("No U2F devices found"));
+						Promise.f_SetException(DMibErrorInstance("No U2F devices found"));
 						return;
 					}
 
@@ -810,28 +810,28 @@ namespace
 							auto &State = *_pState;
 
 							if (State.m_nIterations == 0)
-								return Continuation.f_SetException(DMibErrorInstance("Timed out waiting for U2F button press"));
+								return Promise.f_SetException(DMibErrorInstance("Timed out waiting for U2F button press"));
 
 							State.m_iData = 0;
 							State.m_bSkippedAll = true;
 
-							TCContinuation<void> DataContinuation;
+							TCPromise<void> DataPromise;
 
 							auto fLoopData = [=](auto const &_fLoopData) -> void
 								{
 									auto &State = *_pState;
 									if (State.m_bDone || State.m_iData == State.m_Data.f_GetLen())
-										return DataContinuation.f_SetResult();
+										return DataPromise.f_SetResult();
 
 									auto &U2FDevices = *_pU2FDevices;
 									State.m_iDevice = U2FDevices.m_Devices;
 
-									TCContinuation<void> DevicesContinuation;
+									TCPromise<void> DevicesPromise;
 									auto fLoopDevices = [=](auto const &_fLoopDevices) -> void
 										{
 											auto &State = *_pState;
 											if (State.m_bDone || !State.m_iDevice)
-												return DevicesContinuation.f_SetResult();
+												return DevicesPromise.f_SetResult();
 
 											auto &Device = *State.m_iDevice;
 
@@ -875,7 +875,7 @@ namespace
 																Result.m_Data = fg_Move(Response);
 																Result.m_Index = State.m_iData;
 
-																Continuation.f_SetResult(fg_Move(Result));
+																Promise.f_SetResult(fg_Move(Result));
 																State.m_bDone = true;
 																break;
 															}
@@ -909,7 +909,7 @@ namespace
 
 									fLoopDevices(fLoopDevices);
 
-									DevicesContinuation > DataContinuation / [=]() -> void
+									DevicesPromise > DataPromise / [=]() -> void
 										{
 											auto &State = *_pState;
 											++State.m_iData;
@@ -921,14 +921,14 @@ namespace
 
 							fLoopData(fLoopData);
 
-							DataContinuation > Continuation / [=]() -> void
+							DataPromise > Promise / [=]() -> void
 								{
 									auto &State = *_pState;
 									if (State.m_bDone)
 										return;
 
 									if (State.m_bSkippedAll)
-										return Continuation.f_SetException(DMibErrorInstance("No valid U2F devices"));
+										return Promise.f_SetException(DMibErrorInstance("No valid U2F devices"));
 
 									--State.m_nIterations;
 									fg_Timeout(0.5) > [=]
@@ -945,10 +945,10 @@ namespace
 				}
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<CRegistrationResult> f_VerifyRegistrationResponse
+		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse
 			(
 			 	CByteVector const &_RegistrationData
 			 	, CHashDigest_SHA256 const &_ChallengeDigest
@@ -956,7 +956,7 @@ namespace
 			 	, CStr const &_AppID
 			) const
 		{
-			return TCContinuation<CRegistrationResult>::fs_RunProtected<NException::CException>() / [&]()
+			return TCFuture<CRegistrationResult>::fs_RunProtected<NException::CException>() / [&]() -> TCAsyncResult<CRegistrationResult>
 				{
 					// Verify that the registration data is genuine
 
@@ -973,16 +973,15 @@ namespace
 						signature
 					*/
 
-					TCContinuation<CRegistrationResult> Continuation;
+					TCAsyncResult<CRegistrationResult> AsyncResult;
 					if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
 					{
-						Continuation.f_SetException(DMibErrorInstance("Registration data too short"));
-						return Continuation;
+						AsyncResult.f_SetException(DMibErrorInstance("Registration data too short"));
+						return AsyncResult;
 					}
 
 					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
 					Stream.f_OpenRead(_RegistrationData);
-
 
 					{
 						uint8 Reserverd;
@@ -990,8 +989,8 @@ namespace
 
 						if (Reserverd != 0x05)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
-							return Continuation;
+							AsyncResult.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
+							return AsyncResult;
 						}
 					}
 
@@ -1016,8 +1015,8 @@ namespace
 						// Length is big-endian encoded in offset+3 and offset+4
 						if (Reserved0 != 0x30 || Reserved1 != 0x82)
 						{
-							Continuation.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
-							return Continuation;
+							AsyncResult.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
+							return AsyncResult;
 						}
 						uint16 AttestationCertificateLen;
 						Stream >> AttestationCertificateLen;
@@ -1033,8 +1032,8 @@ namespace
 						pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
 						if (!pCertificate)
 						{
-							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
-							return Continuation;
+							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
+							return AsyncResult;
 						}
 					}
 
@@ -1049,23 +1048,23 @@ namespace
 						pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
 						if (!pSig)
 						{
-							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
-							return Continuation;
+							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
+							return AsyncResult;
 						}
 					}
 
 					CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
 					if (!pKey)
 					{
-						Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
-						return Continuation;
+						AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
+						return AsyncResult;
 					}
 
 					CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
 					if (!pECKey)
 					{
-						Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
-						return Continuation;
+						AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
+						return AsyncResult;
 					}
 
 					CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
@@ -1088,22 +1087,22 @@ namespace
 					if (VerifyResult != 1)
 					{
 						if (VerifyResult == -1)
-							Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
+							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
 						else
-							Continuation.f_SetException(DMibErrorInstance("Invalid signature"));;
-						return Continuation;
+							AsyncResult.f_SetException(DMibErrorInstance("Invalid signature"));;
+						return AsyncResult;
 					}
 
 					CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
-					Continuation.f_SetResult(CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID});
-					return Continuation;
+					AsyncResult.f_SetResult(CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID});
+					return AsyncResult;
 				}
 			;
 		}
 
-		TCContinuation<CRegistrationResult> f_Register(TCFunction<void ()> const &_fPrompt)
+		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> const &_fPrompt)
 		{
-			TCContinuation<CRegistrationResult> Continuation;
+			TCPromise<CRegistrationResult> Promise;
 			CByteVector Data;
 
 			auto ChallengeDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
@@ -1112,18 +1111,18 @@ namespace
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
 			Data.f_Insert(AppDigest.f_GetData(), AppDigest.fs_GetSize());
 
-			fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt) > Continuation / [*this, Continuation, ChallengeDigest, AppDigest](CSendAPDUResult &&_RegistrationData)
+			fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt) > Promise / [*this, Promise, ChallengeDigest, AppDigest](CSendAPDUResult &&_RegistrationData)
 				{
 					DMibRequire(_RegistrationData.m_Index == 0);
-					f_VerifyRegistrationResponse(_RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID) > Continuation;
+					f_VerifyRegistrationResponse(_RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID) > Promise;
 				}
 			;
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		static TCContinuation<CAuthenticationResponse> fs_Authenticate(TCVector<CU2FContext> const &_U2FContexts, TCFunction<void ()> const &_fPrompt)
+		static TCFuture<CAuthenticationResponse> fs_Authenticate(TCVector<CU2FContext> const &_U2FContexts, TCFunction<void ()> const &_fPrompt)
 		{
-			TCContinuation<CAuthenticationResponse> Continuation;
+			TCPromise<CAuthenticationResponse> Promise;
 
 			struct CFactorValues
 			{
@@ -1153,22 +1152,22 @@ namespace
 			}
 
 			fs_SendAPDUs(U2F_AUTHENTICATE, DataUnits, _fPrompt)
-				> Continuation / [Continuation, FactorValues = fg_Move(FactorValues)](CSendAPDUResult &&_AuthenticationData)
+				> Promise / [Promise, FactorValues = fg_Move(FactorValues)](CSendAPDUResult &&_AuthenticationData)
 				{
 					if (!FactorValues.f_IsPosValid(_AuthenticationData.m_Index))
-						return Continuation.f_SetException(DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)"));
+						return Promise.f_SetException(DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)"));
 
 					auto const &Values = FactorValues[_AuthenticationData.m_Index];
-					Continuation.f_SetResult(CAuthenticationResponse{fg_Move(_AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName});
+					Promise.f_SetResult(CAuthenticationResponse{fg_Move(_AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName});
 				}
 			;
 
-			return Continuation;
+			return Promise.f_MoveFuture();
 		}
 
-		TCContinuation<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
+		TCFuture<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
 		{
-			TCContinuation<CAuthenticationResult> Continuation;
+			TCPromise<CAuthenticationResult> Promise;
 			CAuthenticationResult Result;
 
 			// Parse the signature data
@@ -1185,8 +1184,8 @@ namespace
 
 			if (_Response.m_Signature.f_GetLen() < 1 + U2F_COUNTER_LEN)
 			{
-				Continuation.f_SetException(DMibErrorInstance("Length mismatch"));
-				return Continuation;
+				Promise.f_SetException(DMibErrorInstance("Length mismatch"));
+				return Promise.f_MoveFuture();
 			}
 
 			auto *pData = _Response.m_Signature.f_GetArray();
@@ -1198,8 +1197,8 @@ namespace
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
 			{
-				Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
-				return Continuation;
+				Promise.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
+				return Promise.f_MoveFuture();
 			}
 
 			CHash_SHA256 Hash;
@@ -1218,16 +1217,16 @@ namespace
 			if (Verified != 1)
 			{
 				if (Verified == -1)
-					Continuation.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
+					Promise.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
 				else
-					Continuation.f_SetException(DMibErrorInstance("Invalid signature"));;
-				return Continuation;
+					Promise.f_SetException(DMibErrorInstance("Invalid signature"));;
+				return Promise.f_MoveFuture();
 			}
 			// Change endianess
 			Result.m_Counter = fg_ByteSwapBE(Result.m_Counter);
 			Result.m_bVerified = true;
-			Continuation.f_SetResult(Result);
-			return Continuation;
+			Promise.f_SetResult(Result);
+			return Promise.f_MoveFuture();
 		}
 
 		CByteVector m_SignatureBytes;
@@ -1250,8 +1249,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationActorU2F(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorU2F();
 
-		TCContinuation<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
+		TCFuture<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
+		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
 				TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
@@ -1259,7 +1258,7 @@ namespace NMib::NConcurrency
 			 	, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		;
-		TCContinuation<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
+		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
 			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
 			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
@@ -1277,13 +1276,13 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::~CDistributedActorTrustManagerAuthenticationActorU2F() = default;
 
-	TCContinuation<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
+	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
 		(
 			CStr const &_UserID
 			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		TCContinuation<CAuthenticationData> Continuation;
+		TCPromise<CAuthenticationData> Promise;
 		CU2FContext U2FContext;
 		U2FContext.f_Register
 			(
@@ -1295,7 +1294,7 @@ namespace NMib::NConcurrency
 					;
 				}
 			)
-			> Continuation / [Continuation](CU2FContext::CRegistrationResult &&_Result)
+			> Promise / [Promise](CU2FContext::CRegistrationResult &&_Result)
 			{
 				CAuthenticationData Result;
 				Result.m_Category = EAuthenticationFactorCategory_Possession;
@@ -1304,15 +1303,15 @@ namespace NMib::NConcurrency
 				Result.m_PublicData["PublicKey"] = _Result.m_PublicKey;
 				Result.m_PublicData["AppID"] = _Result.m_AppID;
 				Result.m_PrivateData["KeyHandle"] = _Result.m_KeyHandle;
-				Continuation.f_SetResult(Result);
+				Promise.f_SetResult(Result);
 			}
 		;
 
 
-		return Continuation;
+		return Promise.f_MoveFuture();
 	}
 
-	TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorU2F::f_SignAuthenticationRequest
+	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorU2F::f_SignAuthenticationRequest
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
@@ -1320,7 +1319,7 @@ namespace NMib::NConcurrency
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		TCContinuation<ICDistributedActorAuthenticationHandler::CResponse> Continuation;
+		TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 
 		TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
@@ -1348,7 +1347,7 @@ namespace NMib::NConcurrency
 					;
 				}
 			)
-			> Continuation / [Continuation, _SignedProperties, _pCommandLine](CU2FContext::CAuthenticationResponse &&_Response)
+			> Promise / [Promise, _SignedProperties, _pCommandLine](CU2FContext::CAuthenticationResponse &&_Response)
 			{
 				ICDistributedActorAuthenticationHandler::CResponse Response;
 
@@ -1358,10 +1357,10 @@ namespace NMib::NConcurrency
 				Response.m_SignedProperties = _SignedProperties;
 				Response.m_Signature = _Response.m_Signature;
 
-				Continuation.f_SetResult(fg_Move(Response));
+				Promise.f_SetResult(fg_Move(Response));
 			}
 		;
-		return Continuation;
+		return Promise.f_MoveFuture();
 	};
 
 	auto CDistributedActorTrustManagerAuthenticationActorU2F::f_VerifyAuthenticationResponse
@@ -1370,9 +1369,9 @@ namespace NMib::NConcurrency
 			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
 			, CAuthenticationData const &_AuthenticationData
 		)
-		-> TCContinuation<CVerifyAuthenticationReturn>
+		-> TCFuture<CVerifyAuthenticationReturn>
 	{
-		TCContinuation<CVerifyAuthenticationReturn> Continuation;
+		TCPromise<CVerifyAuthenticationReturn> Promise;
 
 		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 		if (!pValue || !pValue->f_IsBinary())
@@ -1384,9 +1383,9 @@ namespace NMib::NConcurrency
 
 		return g_ConcurrentDispatch / [=]
 			{
-				TCContinuation<CVerifyAuthenticationReturn> Continuation;
+				TCPromise<CVerifyAuthenticationReturn> Promise;
 				CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
-				U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse) > Continuation / [Continuation, _AuthenticationData](CU2FContext::CAuthenticationResult &&_Result)
+				U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse) > Promise / [Promise, _AuthenticationData](CU2FContext::CAuthenticationResult &&_Result)
 					{
 						// Should we care about the counter?
 						CVerifyAuthenticationReturn Return;
@@ -1398,17 +1397,17 @@ namespace NMib::NConcurrency
 							int64 OldCounter = pValue->f_Integer();
 							if (NewCounter <= OldCounter)
 							{
-								Continuation.f_SetException(DMibErrorInstance("U2F counter decreased ({} <= {}), has your key been copied?"_f << NewCounter << OldCounter));
+								Promise.f_SetException(DMibErrorInstance("U2F counter decreased ({} <= {}), has your key been copied?"_f << NewCounter << OldCounter));
 								return;
 							}
 						}
 
 						Return.m_UpdatedPublicData["Counter"] = _Result.m_Counter;
 
-						Continuation.f_SetResult(fg_Move(Return));
+						Promise.f_SetResult(fg_Move(Return));
 					}
 				;
-				return Continuation;
+				return Promise.f_MoveFuture();
 			}
 		;
 	}

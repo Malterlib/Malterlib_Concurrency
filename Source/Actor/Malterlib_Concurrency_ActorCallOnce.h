@@ -15,14 +15,14 @@ namespace NMib::NConcurrency
 		TCActorCallOnce
 			(
 				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fFunction
+				, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
 				, bool _bSupportRetry
 				, NStr::CStr const &_ErrorOnRunning = NStr::CStr()
 			)
 		;
 		~TCActorCallOnce();
 
-		TCContinuation<t_CResult> operator()(tp_CParams const &...p_Params);
+		TCFuture<t_CResult> operator()(tp_CParams const &...p_Params);
 
 	private:
 		struct CCallState : public CActor
@@ -31,16 +31,16 @@ namespace NMib::NConcurrency
 
 			CCallState
 				(
-					NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> &&_fToPerform
+					NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 					, NStr::CStr const &_ErrorOnRunning
 					, bool _bSupportRetry
 				)
 			;
-			TCContinuation<t_CResult> f_Call(tp_CParams const &...p_Params);
+			TCFuture<t_CResult> f_Call(tp_CParams const &...p_Params);
 
-			NFunction::TCFunctionMovable<TCContinuation<t_CResult> (tp_CParams...)> m_fToPerform;
+			NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
 			NStr::CStr m_ErrorOnRunning;
-			NContainer::TCVector<TCContinuation<t_CResult>> m_Continuations;
+			NContainer::TCVector<TCPromise<t_CResult>> m_Promises;
 			bool m_bRunning = false;
 			bool m_bSupportRetry = false;
 			TCAsyncResult<t_CResult> m_Result;

@@ -1201,7 +1201,26 @@ namespace NMib::NConcurrency
 						, 5
 					)
 				;
-				ThreadLocal.m_CurrentActorCallParent = ActorCallCallstack.m_Callstack[4];
+#				if defined(DCompiler_MSVC)
+#					if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
+#						if defined(DArchitecture_x86)
+							mint CallstackLocation = 1;
+#						elif defined(DArchitecture_x64)
+							mint CallstackLocation = 2;
+#						else
+#							error "Implement this"
+#						endif
+#					elif defined(DConfig_DebugInlined)
+						mint CallstackLocation = 3;
+#					else
+						mint CallstackLocation = 4;
+#					endif
+#				elif defined (DCompiler_clang)
+					mint CallstackLocation = 4;
+#				else
+#					error "Implement this"
+#				endif
+				ThreadLocal.m_CurrentActorCallParent = ActorCallCallstack.m_Callstack[CallstackLocation];
 #endif
 				auto pActor = m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(pActor);

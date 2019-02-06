@@ -163,6 +163,9 @@ namespace NMib::NConcurrency
 		return Value == 0;
 	}
 
+#if DMibEnableSafeCheck > 0
+	inline_never
+#endif
 	bool CActorHolder::fp_DequeueProcess(bool _bRun)
 	{
 		if (auto *pJob = mp_ConcurrentRunQueue.f_FirstQueueEntry())

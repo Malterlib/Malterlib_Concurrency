@@ -56,11 +56,25 @@ namespace NMib::NConcurrency
 				, sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack) / sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[0])
 			)
 		;
-#ifdef DCompiler_MSVC
-		mint DequeueCallstackLocation = 10;
-#else
-		mint DequeueCallstackLocation = 9;
-#endif
+#		if defined(DCompiler_MSVC)
+#			if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
+#				if defined(DArchitecture_x86)
+					mint DequeueCallstackLocation = 5;
+#				elif defined(DArchitecture_x64)
+					mint DequeueCallstackLocation = 7;
+#				else
+#					error "Implement this"
+#				endif
+#			elif defined(DConfig_DebugInlined)
+				mint DequeueCallstackLocation = 8;
+#			else
+				mint DequeueCallstackLocation = 10;
+#			endif
+#		elif defined (DCompiler_clang)
+			mint DequeueCallstackLocation = 9;
+#		else
+#			error "Implement this"
+#		endif
 
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall && ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == ThreadLocal.m_CurrentActorCallParent;
 
@@ -132,11 +146,25 @@ namespace NMib::NConcurrency
 			;
 		}
 
-#ifdef DCompiler_MSVC
-		mint DequeueCallstackLocation = 13;
-#else
-		mint DequeueCallstackLocation = 12;
-#endif
+#		if defined(DCompiler_MSVC)
+#			if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
+#				if defined(DArchitecture_x86)
+					mint DequeueCallstackLocation = 7;
+#				elif defined(DArchitecture_x64)
+					mint DequeueCallstackLocation = 9;
+#				else
+#					error "Implement this"
+#				endif
+#			elif defined(DConfig_DebugInlined)
+				mint DequeueCallstackLocation = 10;
+#			else
+				mint DequeueCallstackLocation = 13;
+#			endif
+#		elif defined (DCompiler_clang)
+			mint DequeueCallstackLocation = 12;
+#		else
+#			error "Implement this"
+#		endif
 
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall
 			&&

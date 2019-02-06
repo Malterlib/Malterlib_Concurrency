@@ -93,8 +93,17 @@ namespace NMib::NConcurrency
 				break;
 			case ETimerType_Exact:
 			case ETimerType_Normal:
-				while (Timer.m_NextElapse < m_Clock.f_GetTime())
-					Timer.m_NextElapse.f_Get() += Timer.m_Period;
+				auto Period = Timer.m_Period;
+				auto Time = m_Clock.f_GetTime();
+				while (Timer.m_NextElapse < Time)
+				{
+					auto Diff = Time - Timer.m_NextElapse.f_Get();
+					if (Diff > Period)
+						Timer.m_NextElapse.f_Get() += Diff - Diff.f_Mod(Period) + Period;
+					else
+						Timer.m_NextElapse.f_Get() += Period;
+					Time = m_Clock.f_GetTime();
+				}
 				m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 				break;
 			}
@@ -273,7 +282,7 @@ namespace NMib::NConcurrency
 
 	void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback, bool _bFireAtExit)
 	{
-		DMibRequire(_Period > 0.0);
+		DMibFastCheck(_Period >= 0.001);
 
 		CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
 
@@ -309,7 +318,7 @@ namespace NMib::NConcurrency
 
 	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 	{
-		DMibRequire(_Period > 0.0);
+		DMibFastCheck(_Period >= 0.001);
 		CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
 
 		Timer.m_Period = _Period;
@@ -341,7 +350,7 @@ namespace NMib::NConcurrency
 
 	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
-		DMibRequire(_Period > 0.0);
+		DMibFastCheck(_Period >= 0.001);
 		auto &Timer = *m_RegisteredTimers(_Period, this);
 
 		if (Timer.m_Period == 0.0)
@@ -378,7 +387,7 @@ namespace NMib::NConcurrency
 
 	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
-		DMibRequire(_Period > 0.0);
+		DMibFastCheck(_Period >= 0.001);
 		CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));
 
 		Timer.m_Period = _Period;
@@ -457,11 +466,15 @@ namespace NMib::NConcurrency
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)
 	{
+		DMibFastCheck(_Period >= 0.001);
+
 		return CTimeoutHelper(_Period, _bFireAtExit);
 	}
 
 	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor, bool _bFireAtExit)
 	{
+		DMibFastCheck(_Period >= 0.001);
+
 		TCActor<CActor> pActor = _pActor;
 		if (!pActor)
 			pActor = fg_CurrentActor();
@@ -479,6 +492,8 @@ namespace NMib::NConcurrency
 
 	TCDispatchedActorCall<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 	{
+		DMibFastCheck(_Period >= 0.001);
+
 		return fg_DirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
@@ -501,6 +516,8 @@ namespace NMib::NConcurrency
 
 	TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
+		DMibFastCheck(_Period >= 0.001);
+
 		return fg_DirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
@@ -523,6 +540,8 @@ namespace NMib::NConcurrency
 
 	TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
+		DMibFastCheck(_Period >= 0.001);
+
 		return fg_DirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>

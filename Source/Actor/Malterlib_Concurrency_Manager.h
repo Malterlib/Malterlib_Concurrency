@@ -32,6 +32,7 @@ namespace NMib::NConcurrency
 	public:
 		CConcurrencyManager();
 		~CConcurrencyManager();
+		void f_Init();
 		void f_Stop();
 
 		template <typename tf_CType, typename... tfp_CParams, typename... tfp_CHolderParams>

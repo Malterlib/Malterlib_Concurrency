@@ -301,6 +301,48 @@ namespace
 			co_return Value + _Value;
 		}
 
+		TCFuture<uint32> f_TestLambdaReferenceRecursive()
+		{
+			uint32 Value = co_await
+				(
+					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+					{
+						co_return co_await [=]() -> TCFuture<uint32>
+							{
+								uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+								co_return Value + Value2;
+							}
+							()
+						;
+					}
+				)
+			;
+
+			co_return Value;
+		}
+
+		TCFuture<uint32> f_TestLambdaReferenceRecursiveCorrected()
+		{
+			uint32 Value = co_await
+				(
+					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+					{
+						co_return co_await
+							(
+								g_Dispatch / [=]() -> TCFuture<uint32>
+								{
+									uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+									co_return Value + Value2;
+								}
+							)
+						;
+					}
+				)
+			;
+
+			co_return Value;
+		}
+
 		TCFuture<uint32> f_TestLambdaReference()
 		{
 			uint32 Value = co_await [=, Value2 = 20]() -> TCFuture<uint32>
@@ -346,6 +388,35 @@ namespace
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
+				}
+			;
+		}
+
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursive()
+		{
+			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+				{
+					return [=]() -> TCFuture<uint32>
+						{
+							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+							co_return Value + Value2;
+						}
+						()
+					;
+				}
+			;
+		}
+
+		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
+		{
+			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+				{
+					return g_Dispatch / [=]() -> TCFuture<uint32>
+						{
+							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+							co_return Value + Value2;
+						}
+					;
 				}
 			;
 		}
@@ -652,10 +723,15 @@ namespace
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception\nTest Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
 
+#if DMibEnableSafeCheck > 0
 				NStr::CStr ReferenceThisError = "bSafeCall 'Unsafe call to coroutine with reference this pointer'";
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), );
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceRecursive).f_CallSync(), ReferenceThisError);
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoro).f_CallSync(), ReferenceThisError);
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturn).f_CallSync(), ReferenceThisError);
+				#ifndef DMibInlineEnabled
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnRecursive).f_CallSync(), ReferenceThisError);
+				#endif
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), ReferenceThisError);
 
 				NStr::CStr ReferenceParamError = "bSafeCall 'Unsafe call to coroutine with reference parameters'";
@@ -665,11 +741,14 @@ namespace
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), ReferenceParamError);
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), ReferenceParamError);
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), ReferenceParamError);
+#endif
 
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReference, 25).f_CallSync(), ==, 30);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceCorrected).f_CallSync(), ==, 25);
+				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceRecursiveCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnCorrected).f_CallSync(), ==, 25);
+				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatchedCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReferenceRecursiveCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroCorrected).f_CallSync(), ==, 25);

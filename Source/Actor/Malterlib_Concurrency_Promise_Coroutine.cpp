@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_Manager.h"
@@ -46,7 +46,11 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibEnableSafeCheck > 0
-	void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()
+
+	CMibCodeAddress CFutureCoroutineContext::msp_DequeueProcessAddress_ReferenceThis = nullptr;
+	mint CFutureCoroutineContext::msp_DequeueProcessLocaction_ReferenceParam = 0;
+
+	inline_never void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -56,33 +60,28 @@ namespace NMib::NConcurrency
 				, sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack) / sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[0])
 			)
 		;
-#		if defined(DCompiler_MSVC)
-#			if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
-#				if defined(DArchitecture_x86)
-					mint DequeueCallstackLocation = 5;
-#				elif defined(DArchitecture_x64)
-					mint DequeueCallstackLocation = 7;
-#				else
-#					error "Implement this"
-#				endif
-#			elif defined(DConfig_DebugInlined)
-				mint DequeueCallstackLocation = 8;
-#			else
-				mint DequeueCallstackLocation = 10;
-#			endif
-#		elif defined (DCompiler_clang)
-			mint DequeueCallstackLocation = 9;
-#		else
-#			error "Implement this"
-#		endif
 
-		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall && ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == ThreadLocal.m_CurrentActorCallParent;
-
-		if (!bSafeCall)
+		mint DequeueCallstackLocation = msp_DequeueProcessLocaction_ReferenceParam;
+		if (DequeueCallstackLocation == 0)
 		{
-			int x = 0;
-			++x;
+			uint8 *pDequeueProcessFunctionPointer = (uint8 *)CActorHolder::fs_DequeueProcess_FunctionPointer();
+			smint BestOffset = TCLimitsInt<smint>::mc_Max;
+			for (mint iCallstack = 0; iCallstack < ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen; ++iCallstack)
+			{
+				smint Offset = (uint8 *)ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[iCallstack] - pDequeueProcessFunctionPointer;
+				if (Offset >= 0 && Offset < BestOffset)
+				{
+					BestOffset = Offset;
+					msp_DequeueProcessLocaction_ReferenceParam = DequeueCallstackLocation = iCallstack;
+					msp_DequeueProcessAddress_ReferenceThis = ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[iCallstack];
+				}
+			}
+			DMibFastCheck(DequeueCallstackLocation != 0);
 		}
+
+		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall
+			&& ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == msp_DequeueProcessAddress_ReferenceThis
+		;
 
 		DMibSafeCheck
 			(
@@ -132,7 +131,21 @@ namespace NMib::NConcurrency
 		#endif
 	}
 
-	void CFutureCoroutineContext::fp_CheckUnsafeThisPointer()
+	mint CFutureCoroutineContext::msp_WrapDispatchWithReturnLocaction_ReferenceThis = 0;
+	CMibCodeAddress CFutureCoroutineContext::msp_WrapDispatchWithReturnAddress_ReferenceThis = nullptr;
+
+	namespace NPrivate
+	{
+		volatile mint g_WrapDispatchWithReturnUnoptimizer = 0;
+		inline_never mint fg_WrapDispatchWithReturn(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach)
+		{
+			mint Return = ++g_WrapDispatchWithReturnUnoptimizer;
+			_fDoDisptach();
+			return Return;
+		}
+	}
+
+	inline_never void CFutureCoroutineContext::fp_CheckUnsafeThisPointer()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -146,39 +159,27 @@ namespace NMib::NConcurrency
 			;
 		}
 
-#		if defined(DCompiler_MSVC)
-#			if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
-#				if defined(DArchitecture_x86)
-					mint DequeueCallstackLocation = 7;
-#				elif defined(DArchitecture_x64)
-					mint DequeueCallstackLocation = 9;
-#				else
-#					error "Implement this"
-#				endif
-#			elif defined(DConfig_DebugInlined)
-				mint DequeueCallstackLocation = 10;
-#			else
-				mint DequeueCallstackLocation = 13;
-#			endif
-#		elif defined (DCompiler_clang)
-			mint DequeueCallstackLocation = 12;
-#		else
-#			error "Implement this"
-#		endif
+		mint WrapDispatchWithReturnLocation = msp_WrapDispatchWithReturnLocaction_ReferenceThis;
+		if (WrapDispatchWithReturnLocation == 0)
+		{
+			uint8 *pWrapDispatchWithReturnFunctionPointer = (uint8 *)(void *)&NPrivate::fg_WrapDispatchWithReturn;
+			smint BestOffset = TCLimitsInt<smint>::mc_Max;
+			for (mint iCallstack = 0; iCallstack < ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen; ++iCallstack)
+			{
+				smint Offset = (uint8 *)ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[iCallstack] - pWrapDispatchWithReturnFunctionPointer;
+				if (Offset >= 0 && Offset < BestOffset)
+				{
+					BestOffset = Offset;
+					msp_WrapDispatchWithReturnLocaction_ReferenceThis = WrapDispatchWithReturnLocation = iCallstack;
+					msp_WrapDispatchWithReturnAddress_ReferenceThis = ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[iCallstack];
+				}
+			}
+			DMibFastCheck(WrapDispatchWithReturnLocation != 0);
+		}
 
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall
-			&&
-			(
-				ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == ThreadLocal.m_CurrentActorCallParent
-				|| ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation+1] == ThreadLocal.m_CurrentActorCallParent
-			)
+			&& ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[WrapDispatchWithReturnLocation] == msp_WrapDispatchWithReturnAddress_ReferenceThis
 		;
-
-		if (!bSafeCall)
-		{
-			int x = 0;
-			++x;
-		}
 
 		DMibSafeCheck
 			(

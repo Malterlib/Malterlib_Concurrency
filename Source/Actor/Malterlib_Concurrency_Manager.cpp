@@ -38,7 +38,10 @@ namespace NMib::NConcurrency
 				{
 					DMibLock(m_ConcurrencyManagerLock);
 					if (!m_pConcurrencyManager)
+					{
 						m_pConcurrencyManager = fg_Construct();
+						m_pConcurrencyManager->f_Init();
+					}
 
 					return *m_pConcurrencyManager;
 				}
@@ -140,6 +143,38 @@ namespace NMib::NConcurrency
 		}
 
 		m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActor>());
+	}
+
+#if DMibEnableSafeCheck > 0
+
+	namespace
+	{
+		struct CCoroutineActor : public CActor
+		{
+			TCFuture<void> f_ReferenceCoroutine(uint32 const &_Reference)
+			{
+				co_return {};
+			}
+		};
+	}
+
+#endif
+
+	void CConcurrencyManager::f_Init()
+	{
+#if DMibEnableSafeCheck > 0
+		// Initialize callstack locations for valid reference coroutines
+
+		TCActor<CCoroutineActor> CoroutineActor = fg_Construct();
+		CoroutineActor(&CCoroutineActor::f_ReferenceCoroutine, 5).f_CallSync();
+
+		(
+			g_ConcurrentDispatch / []() -> TCFuture<uint32>
+			{
+				co_return 0;
+			}
+		).f_CallSync();
+#endif
 	}
 
 	void CConcurrencyManager::f_Stop()

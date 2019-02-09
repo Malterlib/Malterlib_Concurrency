@@ -94,7 +94,13 @@ namespace NMib::NConcurrency
 			}
 
 			template <typename tf_CActor>
-			mark_artificial inline_always CReturnType operator() (tf_CActor &_Actor)
+			CReturnType
+#if DMibEnableSafeCheck > 0
+			inline_never
+#else
+			mark_artificial inline_always
+#endif
+			operator() (tf_CActor &_Actor)
 			{
 				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tp_Indices>(m_Params))...);
 			}
@@ -1070,7 +1076,7 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value ? EPriority_Low : EPriority_Normal);
 	}
 
-	template 
+	template
 	<
 		typename t_CActor
 		, typename t_CRet
@@ -1168,6 +1174,9 @@ namespace NMib::NConcurrency
 			}
 		}
 
+#if DMibEnableSafeCheck > 0
+		inline_never
+#endif
 		void operator ()() const
 		{
 			DMibFastCheck(m_pActorInternal);
@@ -1193,54 +1202,19 @@ namespace NMib::NConcurrency
 				;
 #endif
 
-#if DMibEnableSafeCheck > 0
-				NException::CCallstack ActorCallCallstack;
-				ActorCallCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace
-					(
-						ActorCallCallstack.m_Callstack
-						, 5
-					)
-				;
-#				if defined(DCompiler_MSVC)
-#					if defined(DConfig_Release) || defined(DConfig_ReleaseTesting) || defined(DConfig_Optimized)
-#						if defined(DArchitecture_x86)
-							mint CallstackLocation = 1;
-#						elif defined(DArchitecture_x64)
-							mint CallstackLocation = 2;
-#						else
-#							error "Implement this"
-#						endif
-#					elif defined(DConfig_DebugInlined)
-						mint CallstackLocation = 3;
-#					else
-						mint CallstackLocation = 4;
-#					endif
-#				elif defined (DCompiler_clang)
-					mint CallstackLocation = 4;
-#				else
-#					error "Implement this"
-#				endif
-				ThreadLocal.m_CurrentActorCallParent = ActorCallCallstack.m_Callstack[CallstackLocation];
-#endif
 				auto pActor = m_pActorInternal->fp_GetActor();
 				CCurrentActorScope CurrentActor(pActor);
 
-
 #if DMibEnableSafeCheck > 0
-				auto fCallActor = [&]() -> TCFuture<CReturnType>
-					{
-						try
-						{
-							return State.m_ToCall(*pActor);
-						}
-						catch (NException::CDebugException const &)
-						{
-							return NException::fg_CurrentException();
-						}
-					}
-				;
-
-				TCFuture<CReturnType> Future = fCallActor();
+				TCFuture<CReturnType> Future;
+				try
+				{
+					Future = State.m_ToCall(*pActor);
+				}
+				catch (NException::CDebugException const &)
+				{
+					Future = NException::fg_CurrentException();
+				}
 #else
 				TCFuture<CReturnType> Future = State.m_ToCall(*pActor);
 #endif

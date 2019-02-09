@@ -79,6 +79,11 @@ namespace NMib::NConcurrency
 
 	private:
 #if DMibEnableSafeCheck > 0
+		static mint msp_DequeueProcessLocaction_ReferenceParam;
+		static CMibCodeAddress msp_DequeueProcessAddress_ReferenceThis;
+		static mint msp_WrapDispatchWithReturnLocaction_ReferenceThis;
+		static CMibCodeAddress msp_WrapDispatchWithReturnAddress_ReferenceThis;
+
 		inline_never void fp_CheckUnsafeReferenceParams();
 		inline_never void fp_CheckUnsafeThisPointer();
 #endif

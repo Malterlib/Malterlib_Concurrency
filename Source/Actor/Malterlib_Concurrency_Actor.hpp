@@ -335,11 +335,34 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
+#if DMibEnableSafeCheck > 0
+	namespace NPrivate
+	{
+		mint fg_WrapDispatchWithReturn(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach);
+	}
+
+	template <typename tf_CReturnType>
+	inline_never tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
+	{
+		tf_CReturnType Return;
+
+		NPrivate::fg_WrapDispatchWithReturn
+			(
+				[&]
+				{
+					Return = _fToDisptach();
+				}
+			)
+		;
+		return Return;
+	}
+#else
 	template <typename tf_CReturnType>
 	tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
 	{
 		return _fToDisptach();
 	}
+#endif
 
 	template <typename t_CActor>
 	TCRoundRobinActors<t_CActor>::TCRoundRobinActors(mint _nActors)

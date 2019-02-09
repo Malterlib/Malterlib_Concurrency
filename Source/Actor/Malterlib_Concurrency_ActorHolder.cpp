@@ -164,6 +164,18 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibEnableSafeCheck > 0
+	void *CActorHolder::fs_DequeueProcess_FunctionPointer()
+	{
+		union
+		{
+			bool (CActorHolder::*pMemberPointer)(bool);
+			void *pPointer;
+		};
+		pMemberPointer = &CActorHolder::fp_DequeueProcess;
+
+		return pPointer;
+	}
+
 	inline_never
 #endif
 	bool CActorHolder::fp_DequeueProcess(bool _bRun)

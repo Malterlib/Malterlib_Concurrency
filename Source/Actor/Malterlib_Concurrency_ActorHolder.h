@@ -95,6 +95,9 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable
 		void f_TestDetach();
 #endif
+#if DMibEnableSafeCheck > 0
+		static void *fs_DequeueProcess_FunctionPointer();
+#endif
 
 	private:
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMutable<void ()> &&_fConstruct, void *_pActorMemory);

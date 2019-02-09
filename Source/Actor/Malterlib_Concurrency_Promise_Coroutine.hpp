@@ -23,6 +23,9 @@ namespace NMib::NConcurrency
 		}
 	}
 
+#if DMibEnableSafeCheck > 0
+	inline_never
+#endif
 	CSuspendNever CFutureCoroutineContext::initial_suspend()
 #if DMibEnableSafeCheck <= 0
 	 	noexcept

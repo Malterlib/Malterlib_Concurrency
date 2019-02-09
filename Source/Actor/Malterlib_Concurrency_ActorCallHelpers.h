@@ -94,12 +94,12 @@ namespace NMib::NConcurrency
 			}
 
 			template <typename tf_CActor>
-			CReturnType
 #if DMibEnableSafeCheck > 0
 			inline_never
 #else
 			mark_artificial inline_always
 #endif
+			CReturnType
 			operator() (tf_CActor &_Actor)
 			{
 				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tp_Indices>(m_Params))...);

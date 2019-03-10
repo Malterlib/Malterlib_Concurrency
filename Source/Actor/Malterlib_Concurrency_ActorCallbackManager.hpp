@@ -33,6 +33,26 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		Internal.mp_bDestroyed = true;
 		Internal.mp_DeferredCallbacks.f_Clear();
+
+		for (auto &Callback : Internal.mp_Callbacks)
+		{
+			auto DestroyActor = Callback.m_Actor.f_Lock();
+			if (!DestroyActor)
+				DestroyActor = fg_ConcurrentActor();
+
+			fg_Dispatch
+				(
+					DestroyActor
+					, [fCallback = fg_Move(Callback.m_fCallback)]
+					{
+					}
+				)
+				> fg_DiscardResult()
+			;
+
+			Callback.m_Actor.f_Clear();
+		}
+
 		Internal.mp_Callbacks.f_Clear();
 	}
 
@@ -84,8 +104,21 @@ namespace NMib::NConcurrency
 		Internal.mp_bDeferrCallbacks = false;
 		for (auto &Callback : Internal.mp_Callbacks)
 		{
+			auto DestroyActor = Callback.m_Actor.f_Lock();
+			if (!DestroyActor)
+				DestroyActor = fg_ConcurrentActor();
+
+			fg_Dispatch
+				(
+					DestroyActor
+					, [fCallback = fg_Move(Callback.m_fCallback)]
+					{
+					}
+				)
+				> fg_DiscardResult()
+			;
+
 			Callback.m_Actor.f_Clear();
-			Callback.m_fCallback.f_Clear();
 		}
 	}
 
@@ -329,7 +362,23 @@ namespace NMib::NConcurrency
 				, [pHandle, pCallbackManager = m_pCallbackManager]
 				{
 					if (!pCallbackManager->mp_bDestroyed)
+					{
+						auto DestroyActor = pHandle->m_Actor.f_Lock();
+						if (!DestroyActor)
+							DestroyActor = fg_ConcurrentActor();
+
+						fg_Dispatch
+							(
+							 	DestroyActor
+							 	, [fCallback = fg_Move(pHandle->m_fCallback)]
+							 	{
+								}
+							)
+							> fg_DiscardResult()
+						;
+
 						pCallbackManager->mp_Callbacks.f_Remove(*pHandle);
+					}
 				}
 			)
 		;

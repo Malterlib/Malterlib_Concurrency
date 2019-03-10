@@ -303,4 +303,6 @@ namespace NMib::NConcurrency
 	;
 }
 
+#include "Malterlib_Concurrency_Unwrap.h"
+
 #include "Malterlib_Concurrency_Utils.hpp"

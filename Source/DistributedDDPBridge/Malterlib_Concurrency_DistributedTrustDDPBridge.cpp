@@ -7,7 +7,6 @@
 #include <Mib/Network/SSLKeySetting>
 #include <Mib/Network/Sockets/SSL>
 #include <Mib/Concurrency/ActorSubscription>
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Web/WebSocket>
 #include <Mib/Web/DDPServer>
 
@@ -22,7 +21,7 @@ using namespace NMib::NException;
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedTrustDDPBridge::CInternal
+	struct CDistributedTrustDDPBridge::CInternal : public CActorInternal
 	{
 		CInternal(CDistributedTrustDDPBridge *_pThis, TCActor<CDistributedActorTrustManager> const &_TrustManager)
 			: m_pThis{_pThis}

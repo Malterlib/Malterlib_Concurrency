@@ -332,6 +332,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType>
+	TCFutureWithError<t_CReturnType> TCActorCallWithError<t_CActorCall, t_CReturnType>::f_Future() &&
+	{
+		return fg_Move(*mp_pActorCall).f_Future() % this->m_Error;
+	}
+
+	template <typename t_CActorCall, typename t_CReturnType>
 	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::operator co_await()
 	{
 		return TCActorCallAwaiter

@@ -6,7 +6,6 @@
 #include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/ActorSequencer>

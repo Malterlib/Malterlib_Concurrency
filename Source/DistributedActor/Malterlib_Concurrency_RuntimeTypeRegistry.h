@@ -21,6 +21,9 @@ namespace NMib::NStream
 
 	template <typename t_CStreamType, typename t_CVector>
 	class CBinaryStreamMemory;
+
+	template <typename t_CStreamType>
+	class TCBinaryStreamNull;
 }
 
 namespace NMib::NException

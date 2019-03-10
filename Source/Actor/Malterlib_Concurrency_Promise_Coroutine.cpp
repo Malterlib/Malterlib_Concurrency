@@ -6,7 +6,7 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	void TCFutureCoroutineContextValue<void>::return_value(CVoidSentinel &&_Value)
+	void TCFutureCoroutineContextValue<void>::return_value(CVoidTag &&_Value)
 	{
 		m_pPromiseData->f_SetResult();
 	}
@@ -50,6 +50,17 @@ namespace NMib::NConcurrency
 	CMibCodeAddress CFutureCoroutineContext::msp_DequeueProcessAddress_ReferenceThis = nullptr;
 	mint CFutureCoroutineContext::msp_DequeueProcessLocaction_ReferenceParam = 0;
 
+	namespace NPrivate
+	{
+		volatile mint g_WrapActorCallUnoptimizer = 0;
+		inline_never mint fg_WrapActorCall(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach)
+		{
+			mint Return = ++g_WrapActorCallUnoptimizer;
+			_fDoDisptach();
+			return Return;
+		}
+	}
+
 	inline_never void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
@@ -64,7 +75,7 @@ namespace NMib::NConcurrency
 		mint DequeueCallstackLocation = msp_DequeueProcessLocaction_ReferenceParam;
 		if (DequeueCallstackLocation == 0)
 		{
-			uint8 *pDequeueProcessFunctionPointer = (uint8 *)CActorHolder::fs_DequeueProcess_FunctionPointer();
+			uint8 *pDequeueProcessFunctionPointer = (uint8 *)(void *)&NPrivate::fg_WrapActorCall;
 			smint BestOffset = TCLimitsInt<smint>::mc_Max;
 			for (mint iCallstack = 0; iCallstack < ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen; ++iCallstack)
 			{
@@ -82,6 +93,16 @@ namespace NMib::NConcurrency
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall
 			&& ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[DequeueCallstackLocation] == msp_DequeueProcessAddress_ReferenceThis
 		;
+
+#	if DMibEnableSafeCheck > 0
+		if (!bSafeCall)
+		{
+			int x = 0;
+			++x;
+//			DMibConOut("DequeueCallstackLocation {}\n", DequeueCallstackLocation);
+//			ThreadLocal.m_LastUnsafeCoroutineCallstack.f_Trace(4);
+		}
+#endif
 
 		DMibSafeCheck
 			(
@@ -137,7 +158,7 @@ namespace NMib::NConcurrency
 	namespace NPrivate
 	{
 		volatile mint g_WrapDispatchWithReturnUnoptimizer = 0;
-		inline_never mint fg_WrapDispatchWithReturn(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach)
+		inline_never mint fg_WrapDispatchWithReturn(NFunction::TCFunction<void ()> const &_fDoDisptach)
 		{
 			mint Return = ++g_WrapDispatchWithReturnUnoptimizer;
 			_fDoDisptach();
@@ -149,15 +170,12 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
-		if (!(m_Flags & EFutureCoroutineContextFlag_UnsafeReferenceParameters))
-		{
-			ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace
-				(
-					ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack
-					, sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack) / sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[0])
-				)
-			;
-		}
+		ThreadLocal.m_LastUnsafeCoroutineCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace
+			(
+				ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack
+				, sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack) / sizeof(ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[0])
+			)
+		;
 
 		mint WrapDispatchWithReturnLocation = msp_WrapDispatchWithReturnLocaction_ReferenceThis;
 		if (WrapDispatchWithReturnLocation == 0)
@@ -181,6 +199,16 @@ namespace NMib::NConcurrency
 			&& ThreadLocal.m_LastUnsafeCoroutineCallstack.m_Callstack[WrapDispatchWithReturnLocation] == msp_WrapDispatchWithReturnAddress_ReferenceThis
 		;
 
+#	if DMibEnableSafeCheck > 0
+		if (!bSafeCall)
+		{
+			int x = 0;
+			++x;
+//			DMibConOut("WrapDispatchWithReturnLocation {}\n", WrapDispatchWithReturnLocation);
+//			ThreadLocal.m_LastUnsafeCoroutineCallstack.f_Trace(4);
+		}
+#endif
+
 		DMibSafeCheck
 			(
 				bSafeCall
@@ -191,7 +219,7 @@ namespace NMib::NConcurrency
 		// If you hit this assert you have called a coroutine (probably a lamdba) in an unsafe way.
 		// Instead of calling coroutine directly, dispatch it instead:
 		#if 0
-			g_Dispatch / [=] () -> TCFuture<void>
+			self / [=] () -> TCFuture<void>
 				{
 					co_await self(&CMyActor::f_MyOtherCoroutineFunction);
 					co_return {};
@@ -205,7 +233,7 @@ namespace NMib::NConcurrency
 			// Or
 			co_await
 				(
-					g_Dispatch / [=] () -> TCFuture<void>
+					self / [=] () -> TCFuture<void>
 					{
 						co_await self(&CMyActor::f_MyOtherCoroutineFunction);
 						co_return {};

@@ -1,8 +1,6 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
-#include <Mib/Concurrency/Actor/Timer>
-
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationCache.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 

@@ -159,7 +159,16 @@ namespace NMib::NConcurrency
 		;
 	}
 	
-	CDistributedApp_LaunchHelper::~CDistributedApp_LaunchHelper() = default;
+	CDistributedApp_LaunchHelper::~CDistributedApp_LaunchHelper()
+	{
+		for (auto &Launch : m_PendingLaunches)
+		{
+			if (Launch.m_pClientInterface)
+				Launch.m_pClientInterface->f_Destroy() > fg_DiscardResult();
+			if (Launch.m_pTrustInterface)
+				Launch.m_pTrustInterface->f_Destroy() > fg_DiscardResult();
+		}
+	};
 
 	TCFuture<void> CDistributedApp_LaunchHelper::fp_Destroy()
 	{
@@ -211,7 +220,13 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
+	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess
+		(
+			NStr::CStr const &_Description
+			, NStr::CStr const &_HomeDirectory
+			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
+			, NContainer::TCVector<NStr::CStr> &&_Params
+		)
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID();
 		auto &LaunchInfo = m_Launches[LaunchID];
@@ -234,7 +249,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory)) > Promise / [this, LaunchID](NStr::CStr &&_HostID)
+		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory), fg_Move(_Params))
+			> Promise / [this, LaunchID](NStr::CStr &&_HostID)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 				if (!pLaunch)

@@ -305,7 +305,7 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
-		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception), _Context);
+		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception, _Context.f_ActorProtocolVersion()), _Context);
 	}
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCallWithException
@@ -316,7 +316,7 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
-		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception), _Context);
+		return fp_ReplyToRemoteCall(_pHost, _PacketID, NPrivate::fg_StreamAsyncResultException(_Exception, _Context.f_ActorProtocolVersion()), _Context);
 	}
 	
 	void CActorDistributionManagerInternal::fp_ReplyToRemoteCall
@@ -752,14 +752,15 @@ namespace NMib::NConcurrency
 
 		CDistributedActorCommand_DestroySubscription DestroySubscription;
 		_Stream >> DestroySubscription;
-		if (Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed) >= 0x105)
+		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		if (ActorProtocolVersion >= 0x105)
 		{
 			auto *pSubscription = Host.m_ImplicitlyPublishedSubscriptions.f_FindEqual(DestroySubscription.m_SubscriptionID);
 			
 			if (pSubscription && pSubscription->m_Subscription)
 			{
 				pSubscription->m_Subscription->f_Destroy()
-					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID]
+					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID, ActorProtocolVersion]
 					(TCAsyncResult<void> &&_Result)
 					{
 						if (pHost->m_bDeleted || pHost->m_LastExecutionID != LastExecutionID)
@@ -769,7 +770,7 @@ namespace NMib::NConcurrency
 						Result.m_SubscriptionID = SubscriptionID;
 						Result.m_Result = fg_Move(_Result);
 						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-						Stream << Result;
+						Result.f_Feed(Stream, ActorProtocolVersion);
 						fp_QueuePacket(pHost, Stream.f_MoveVector());
 					}
 				;
@@ -780,7 +781,7 @@ namespace NMib::NConcurrency
 				Result.m_SubscriptionID = DestroySubscription.m_SubscriptionID;
 				Result.m_Result.f_SetResult();
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-				Stream << Result;
+				Result.f_Feed(Stream, ActorProtocolVersion);
 				fp_QueuePacket(pHost, Stream.f_MoveVector());
 			}
 		}
@@ -798,10 +799,12 @@ namespace NMib::NConcurrency
 			return true;
 
 		auto &Host = *pHost;
-		
+
+		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+
 		CDistributedActorCommand_SubscriptionDestroyed DestroySubscription;
-		_Stream >> DestroySubscription;
-		
+		DestroySubscription.f_Consume(_Stream, ActorProtocolVersion);
+
 		auto *pDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(DestroySubscription.m_SubscriptionID);
 		if (pDestroy)
 		{

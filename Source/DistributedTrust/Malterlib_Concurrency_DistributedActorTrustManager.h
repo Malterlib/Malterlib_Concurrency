@@ -116,21 +116,21 @@ namespace NMib::NConcurrency
 		CTrustedPermissionSubscription() = default;
 		~CTrustedPermissionSubscription();
 
-		TCFuture<bool> f_HasPermission
+		TCFutureAllowReferences<bool> f_HasPermission
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<NStr::CStr> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCFuture<bool> f_HasPermissions
+		TCFutureAllowReferences<bool> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<CPermissionQuery> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCFuture<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
+		TCFutureAllowReferences<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
@@ -161,9 +161,9 @@ namespace NMib::NConcurrency
 	private:
 		TCFuture<bool> fp_AuthenticatePermissions
 			(
-			 	NContainer::TCVector<CPermissionQuery> const &_PermissionsQueries
-			 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
-			 	, CCallingHostInfo const &_CallingHostInfo
+			 	NContainer::TCVector<CPermissionQuery> _PermissionsQueries
+			 	, ICDistributedActorAuthenticationHandler::CRequest _Request
+			 	, CCallingHostInfo _CallingHostInfo
 			) const
 		;
 

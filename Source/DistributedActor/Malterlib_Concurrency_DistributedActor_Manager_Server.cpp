@@ -7,7 +7,6 @@
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
 #include <Mib/Network/Sockets/SSL>
-#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib::NConcurrency
 {
@@ -46,6 +45,7 @@ namespace NMib::NConcurrency
 			, TCFuture<void> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<void> ()> &&)
 			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<void> ()>>
 			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<void> ()>>
+			, false
 		>
 	{
 		bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 
 		ResolvedAddresses.f_GetResults() > [this, _Settings, _pPromise, _ListenID](TCAsyncResult<NContainer::TCVector<TCAsyncResult<NMib::NNetwork::CNetAddress>>> &&_Results)
 			{
-				auto fReportListenFailure = [this, _Settings, _pPromise, _ListenID](CExceptionPointer _Error, NStr::CStr const &_ErrorString)
+				auto fReportListenFailure = [this, _Settings, _pPromise, _ListenID](NException::CExceptionPointer _Error, NStr::CStr const &_ErrorString)
 					{
 						bool bReportError = true;
 						if (_Settings.m_bRetryOnListenFailure)
@@ -448,7 +448,9 @@ namespace NMib::NConcurrency
 										}
 									;
 
+									pConnection->f_DiscardIdentifyPromise();
 									pConnection->m_IdentifyPromise = TCPromise<void>();
+
 									NWeb::NHTTP::CResponseHeader ResponseHeader;
 									ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);
 									auto &EntityFields = ResponseHeader.f_GetEntityFields();

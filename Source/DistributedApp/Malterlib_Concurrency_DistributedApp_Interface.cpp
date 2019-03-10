@@ -4,7 +4,6 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Process/StdInActor>
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 
 #include "Malterlib_Concurrency_DistributedApp.h"

@@ -1403,6 +1403,12 @@ public:
 
 		CTrustManagerTestHelper TrustManagerState;
 		TCActor<CDistributedActorTrustManager> TrustManager = TrustManagerState.f_TrustManager("TestHelper", {}, false);
+		auto CleanupTrustManager = g_OnScopeExit > [&]
+			{
+				TrustManager->f_BlockDestroy();
+			}
+		;
+		
 		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(g_Timeout);
 		CTrustedSubscriptionTestHelper Subscriptions{TrustManager};
 
@@ -1439,7 +1445,16 @@ public:
 		CStr ServerName = "Server";
 		CStr ServerDirectory = RootDirectory + "/" + ServerName;
 		CFile::fs_CreateDirectory(ServerDirectory);
-		auto ServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ServerName, ServerDirectory, &fg_ConstructApp_Server).f_CallSync(g_Timeout);
+		auto ServerLaunch = LaunchHelper
+			(
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, ServerName
+				, ServerDirectory
+				, &fg_ConstructApp_Server
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pServerTrust = ServerLaunch.m_pTrustInterface;
 		auto &ServerTrust = *pServerTrust;
 		CStr ServerHostID = ServerLaunch.m_HostID;
@@ -1462,7 +1477,16 @@ public:
 		CStr ManyServerName = "ManyServer";
 		CStr ManyServerDirectory = RootDirectory + "/" + ManyServerName;
 		CFile::fs_CreateDirectory(ManyServerDirectory);
-		auto ManyServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ManyServerName, ManyServerDirectory, &fg_ConstructApp_ManyServer).f_CallSync(g_Timeout);
+		auto ManyServerLaunch = LaunchHelper
+			(
+			 	&CDistributedApp_LaunchHelper::f_LaunchInProcess
+			 	, ManyServerName
+			 	, ManyServerDirectory
+			 	, &fg_ConstructApp_ManyServer
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pManyServerTrust = ManyServerLaunch.m_pTrustInterface;
 		auto &ManyServerTrust = *pManyServerTrust;
 		CStr ManyServerHostID = ManyServerLaunch.m_HostID;
@@ -1485,7 +1509,16 @@ public:
 		CStr SlowServerName = "SlowServer";
 		CStr SlowServerDirectory = RootDirectory + "/" + SlowServerName;
 		CFile::fs_CreateDirectory(SlowServerDirectory);
-		auto SlowServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, SlowServerName, SlowServerDirectory, &fg_ConstructApp_SlowServer).f_CallSync(g_Timeout);
+		auto SlowServerLaunch = LaunchHelper
+			(
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, SlowServerName
+				, SlowServerDirectory
+				, &fg_ConstructApp_SlowServer
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pSlowServerTrust = SlowServerLaunch.m_pTrustInterface;
 		auto &SlowServerTrust = *pSlowServerTrust;
 		CStr SlowServerHostID = SlowServerLaunch.m_HostID;
@@ -1511,7 +1544,16 @@ public:
 		CStr ClientName = "Client";
 		CStr ClientDirectory = RootDirectory + "/" + ClientName;
 		CFile::fs_CreateDirectory(ClientDirectory);
-		auto ClientLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ClientName, ClientDirectory, fg_ConstructApp_ClientFactory(DefaultUserID)).f_CallSync(g_Timeout);
+		auto ClientLaunch = LaunchHelper
+			(
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, ClientName
+				, ClientDirectory
+				, fg_ConstructApp_ClientFactory(DefaultUserID)
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pClientTrust = ClientLaunch.m_pTrustInterface;
 		auto &ClientTrust = *pClientTrust;
 		CStr ClientHostID = ClientLaunch.m_HostID;
@@ -2337,6 +2379,12 @@ public:
 
 		CTrustManagerTestHelper TrustManagerState;
 		TCActor<CDistributedActorTrustManager> TrustManager = TrustManagerState.f_TrustManager("TestHelper", {}, false);
+		auto CleanupTrustManager = g_OnScopeExit > [&]
+			{
+				TrustManager->f_BlockDestroy();
+			}
+		;
+
 		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(g_Timeout);
 		CTrustedSubscriptionTestHelper Subscriptions{TrustManager};
 
@@ -2371,7 +2419,16 @@ public:
 		CStr ServerName = "Server";
 		CStr ServerDirectory = RootDirectory + "/" + ServerName;
 		CFile::fs_CreateDirectory(ServerDirectory);
-		auto ServerLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ServerName, ServerDirectory, &fg_ConstructApp_Server).f_CallSync(g_Timeout);
+		auto ServerLaunch = LaunchHelper
+			(
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, ServerName
+				, ServerDirectory
+				, &fg_ConstructApp_Server
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pServerTrust = ServerLaunch.m_pTrustInterface;
 		auto &ServerTrust = *pServerTrust;
 		CStr ServerHostID = ServerLaunch.m_HostID;
@@ -2397,7 +2454,16 @@ public:
 		CStr ClientName = "Client";
 		CStr ClientDirectory = RootDirectory + "/" + ClientName;
 		CFile::fs_CreateDirectory(ClientDirectory);
-		auto ClientLaunch = LaunchHelper(&CDistributedApp_LaunchHelper::f_LaunchInProcess, ClientName, ClientDirectory, fg_ConstructApp_ClientFactory(DefaultUserID)).f_CallSync(g_Timeout);
+		auto ClientLaunch = LaunchHelper
+			(
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, ClientName
+				, ClientDirectory
+				, fg_ConstructApp_ClientFactory(DefaultUserID)
+				, NContainer::TCVector<NStr::CStr>{}
+			)
+			.f_CallSync(g_Timeout)
+		;
 		auto pClientTrust = ClientLaunch.m_pTrustInterface;
 		auto &ClientTrust = *pClientTrust;
 		CStr ClientHostID = ClientLaunch.m_HostID;

@@ -100,7 +100,14 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_Destroy() override;
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
-		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess(NStr::CStr const &_Description, NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess
+			(
+				NStr::CStr const &_Description
+				, NStr::CStr const &_HomeDirectory
+				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
+			 	, NContainer::TCVector<NStr::CStr> &&_Params
+			)
+		;
 
 		CDistributedApp_LaunchHelperDependencies m_Dependencies;
 		NContainer::TCMap<NStr::CStr, CLaunchInfo> m_Launches;

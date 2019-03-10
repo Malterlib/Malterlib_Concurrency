@@ -7,7 +7,6 @@
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
 
 #include <Mib/Network/Sockets/SSL>
-#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib::NConcurrency
 {
@@ -230,7 +229,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 
-				auto fReportError = [this, _bRetry, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, CExceptionPointer const &_Exception)
+				auto fReportError = [this, _bRetry, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, NException::CExceptionPointer const &_Exception)
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
@@ -422,6 +421,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
+				pConnection->f_DiscardIdentifyPromise();
 				pConnection->m_IdentifyPromise = TCPromise<void>();
 				pConnection->m_Connection = Result.f_Accept
 					(

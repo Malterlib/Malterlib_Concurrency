@@ -64,6 +64,7 @@ namespace NMib::NConcurrency
 		inline_always CCurrentActorScope(TCActor<CActor> const &_Actor);
 		inline_always ~CCurrentActorScope();
 	private:
+		DMibThreadLocalScopeDebugMember;
 		CActor *mp_pLastActor;
 	};
 	
@@ -96,17 +97,17 @@ namespace NMib::NConcurrency
 
 		struct CAsyncCallstacksScope
 		{
-			CAsyncCallstacks *m_pOld;
 			CAsyncCallstacksScope(CAsyncCallstacks &_New)
 				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New))
 			{
-				DMibThreadLocalScopeEnter;
 			}
 			~CAsyncCallstacksScope()
 			{
 				NPrivate::fg_SetConcurrentCallstacks(m_pOld);
-				DMibThreadLocalScopeExit;
 			}
+
+			DMibThreadLocalScopeDebugMember;
+			CAsyncCallstacks *m_pOld;
 		};
 #endif
 	}

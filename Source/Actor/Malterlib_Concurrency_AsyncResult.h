@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 		template <typename t_CType2>
 		friend class TCAsyncResult;
 		
-		CExceptionPointer m_pException;
+		NException::CExceptionPointer m_pException;
 		bint m_bHasBeenSet = false;
 	public:
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
 		NStr::CStr f_GetExceptionStr() const; ///< Returns a string for the contained exception.
 		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
-		CExceptionPointer f_GetException() const; ///< Returns the contained exception as a exception pointer
+		NException::CExceptionPointer f_GetException() const; ///< Returns the contained exception as a exception pointer
 		
 		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCPromise implementation
 		template 
@@ -41,8 +41,8 @@ namespace NMib::NConcurrency
 														 ///< Usually only used from TCPromise implementation
 		void f_SetException(CAsyncResult && _AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
 		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
-		void f_SetException(CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
-		void f_SetException(CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
+		void f_SetException(NException::CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
+		void f_SetException(NException::CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
 
 		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
 		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`
@@ -82,11 +82,11 @@ namespace NMib::NConcurrency
 		void f_SetResult(TCAsyncResult &&_Result);
 
 		template <typename tf_CStream>
-		void f_Feed(tf_CStream &_Stream) const;
+		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;
 		template <typename tf_CStream>
-		void f_Feed(tf_CStream &_Stream);
+		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 		template <typename tf_CStream>
-		void f_Consume(tf_CStream &_Stream);
+		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 	};
 
 	template <>
@@ -111,9 +111,9 @@ namespace NMib::NConcurrency
 		void f_SetResult();
 
 		template <typename tf_CStream>
-		void f_Feed(tf_CStream &_Stream) const;
+		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;
 		template <typename tf_CStream>
-		void f_Consume(tf_CStream &_Stream);
+		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 	};
 }
 

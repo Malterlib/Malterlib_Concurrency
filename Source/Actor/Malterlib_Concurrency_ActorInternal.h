@@ -17,10 +17,10 @@ namespace NMib::NConcurrency
 				, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
 			>
 		struct TCCallMutipleActorStorage;
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 			bool fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
@@ -74,10 +74,10 @@ namespace NMib::NConcurrency
 			>
 		friend struct NPrivate::TCCallMutipleActorStorage;
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 			friend bool NPrivate::fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)

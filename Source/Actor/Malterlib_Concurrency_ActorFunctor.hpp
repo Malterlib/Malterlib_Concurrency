@@ -65,7 +65,22 @@ namespace NMib::NConcurrency
 						(
 							[&](auto &&..._Params) mutable
 							{
+#if DMibEnableSafeCheck > 0
+								CReturn ReturnFuture;
+
+								NPrivate::fg_WrapDispatchWithReturn
+									(
+										[&]
+										{
+											ReturnFuture = (*pFunctor)(fg_Forward<decltype(_Params)>(_Params)...);
+										}
+									)
+								;
+
+								return ReturnFuture;
+#else
 								return (*pFunctor)(fg_Forward<decltype(_Params)>(_Params)...);
+#endif
 							}
 							, fg_Move(Params) 
 						)

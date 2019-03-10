@@ -8,7 +8,6 @@
 #include "Malterlib_Concurrency_DistributedActor_Stream_Internal.h"
 
 #include <Mib/Network/Sockets/SSL>
-#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib::NConcurrency
 {

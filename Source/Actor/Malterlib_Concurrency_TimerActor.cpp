@@ -3,7 +3,6 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/Coroutine>
 
 namespace NMib::NConcurrency
@@ -490,7 +489,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -514,7 +513,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -538,7 +537,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 

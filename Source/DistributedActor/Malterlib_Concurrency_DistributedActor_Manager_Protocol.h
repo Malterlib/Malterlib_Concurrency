@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion = 0x105
+			EProtocolVersion = 0x106
 		};
 
 		template <typename tf_CStream>
@@ -139,9 +139,9 @@ namespace NMib::NConcurrency
 	struct CDistributedActorCommand_SubscriptionDestroyed
 	{
 		template <typename tf_CStream>
-		void f_Feed(tf_CStream &_Stream) const;
+		void f_Feed(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;
 		template <typename tf_CStream>
-		void f_Consume(tf_CStream &_Stream);
+		void f_Consume(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 
 		uint64 m_PacketID;
 		NStr::CStr m_SubscriptionID;

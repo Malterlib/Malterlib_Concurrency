@@ -63,29 +63,27 @@ namespace NMib::NConcurrency
 		for (auto &Listen : Internal.m_Listen)
 			Listen.m_ListenReference.f_Stop() > Stops.f_AddResult();
 		
-		TCPromise<void> Promise;
-		
-		Stops.f_GetResults() > Promise / [Promise](NContainer::TCVector<TCAsyncResult<void>> &&_StopResults)
+		auto StopResults = co_await Stops.f_GetResults();
+
+		for (auto &Result : StopResults)
+		{
+			if (!Result)
 			{
-				for (auto &Result : _StopResults)
-				{
-					if (!Result)
-					{
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/Trust
-								, Error
-								, "Failed to stop connection or listen: {}"
-								, Result.f_GetExceptionStr()
-							)
-						;
-					}
-				}
-				Promise.f_SetResult();
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Trust
+						, Error
+						, "Failed to stop connection or listen: {}"
+						, Result.f_GetExceptionStr()
+					)
+				;
 			}
-		;
-		
-		return Promise.f_MoveFuture();
+		}
+
+		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
+			co_await Internal.m_ActorDistributionManager->f_Destroy();
+
+		co_return {};
 	}
 	
 	bool CDistributedActorTrustManager_Address::operator == (CDistributedActorTrustManager_Address const &_Right) const

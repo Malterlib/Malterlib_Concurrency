@@ -5,8 +5,9 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
-	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) -> TCDispatchedActorCall<CReturnType>
+	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
+	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, tf_bDirectCall>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
+		-> TCDispatchedActorCall<CReturnType, true>
 	{
 		return fg_DirectDispatch
 			(

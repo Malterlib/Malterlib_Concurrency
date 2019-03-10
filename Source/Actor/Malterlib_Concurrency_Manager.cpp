@@ -3,7 +3,6 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib::NConcurrency
 {
@@ -523,8 +522,16 @@ namespace NMib::NConcurrency
 					DMibLock(m_ActorListLock);
 					for (auto &Actor : this->m_Actors)
 					{
-						if (Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0 || Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0)
+						if
+							(
+								Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
+								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActor") >= 0
+							)
+						{
 							continue;
+						}
+
 						DMibTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
 
 #if DMibConfig_RefcountDebugging

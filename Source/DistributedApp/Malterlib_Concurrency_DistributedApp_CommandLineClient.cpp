@@ -35,6 +35,13 @@ namespace NMib::NConcurrency
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
 	}
 
+	CDistributedAppCommandLineSpecification::CParsedCommandLine CDistributedAppCommandLineClient::f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params)
+	{
+		auto &Internal = *mp_pInternal;
+		NException::CDisableExceptionTraceScope DisableTrace;
+		return Internal.m_pCommandLineSpecification->f_ParseCommandLine(_Params);
+	}
+
 	aint CDistributedAppCommandLineClient::f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine)
 	{
 		auto &Internal = *mp_pInternal;

@@ -15,6 +15,7 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppCommandLineClient
 	{
+		CDistributedAppCommandLineSpecification::CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params);
 		aint f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine = fg_GetSys()->f_GetCommandLineArgs());
 		aint f_RunCommand(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 		void f_MutateCommandLineSpecification

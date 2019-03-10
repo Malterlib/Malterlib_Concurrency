@@ -51,6 +51,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		;
 		virtual NStr::CStr f_GetConnectionID() const = 0;
 		virtual NStr::CStr f_GetServerURL() const;
+		void f_DiscardIdentifyPromise();
 
 		TCActor<NWeb::CWebSocketActor> m_Connection;
 		CActorSubscription m_ConnectionSubscription;

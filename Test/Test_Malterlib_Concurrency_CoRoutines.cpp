@@ -94,10 +94,51 @@ namespace
 		{
 			return fg_Explicit(5);
 		}
+
+		TCFuture<void> f_TestVoid()
+		{
+			return fg_Explicit();
+		}
+	};
+
+	struct CTestReturn
+	{
+		CTestReturn()
+		{
+		}
+
+		CTestReturn(CTestReturn const &)
+		{
+		}
+
+		CTestReturn(CTestReturn &&)
+		{
+		}
+
+		~CTestReturn()
+		{
+		}
+
+		mint m_Test = 0;
 	};
 
 	struct CTestActor : public CActor
 	{
+		TCFuture<CTestReturn> f_TestReturnInner()
+		{
+			CTestReturn Value;
+			Value.m_Test = 5;
+
+			co_return fg_Move(Value);
+		}
+
+		TCFuture<void> f_TestReturn()
+		{
+			CTestReturn Value = co_await f_TestReturnInner();
+
+			co_return {};
+		}
+
 		TCFuture<uint32> f_Test()
 		{
 			auto ValueResult = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap();
@@ -305,7 +346,7 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20]() -> TCFuture<uint32>
 					{
 						co_return co_await [=]() -> TCFuture<uint32>
 							{
@@ -325,11 +366,11 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20]() -> TCFuture<uint32>
 					{
 						co_return co_await
 							(
-								g_Dispatch / [=]() -> TCFuture<uint32>
+								self / [=]() -> TCFuture<uint32>
 								{
 									uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 									co_return Value + Value2;
@@ -360,7 +401,7 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20]() -> TCFuture<uint32>
 					{
 						uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 						co_return Value + Value2;
@@ -384,7 +425,7 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+			return self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -394,7 +435,7 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursive()
 		{
-			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+			return self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					return [=]() -> TCFuture<uint32>
 						{
@@ -409,9 +450,9 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
 		{
-			return g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+			return self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
-					return g_Dispatch / [=]() -> TCFuture<uint32>
+					return self / [=]() -> TCFuture<uint32>
 						{
 							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 							co_return Value + Value2;
@@ -440,7 +481,7 @@ namespace
 		{
 			TCPromise<uint32> Promise;
 
-			g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+			self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -470,7 +511,7 @@ namespace
 		{
 			TCPromise<uint32> Promise;
 
-			g_Dispatch / [=, Value2 = 20]() -> TCFuture<uint32>
+			self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -617,7 +658,7 @@ namespace
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					g_Dispatch / [=]() mutable -> TCFuture<void>
+					self / [=]() mutable -> TCFuture<void>
 						{
 							if (!_Value)
 							{
@@ -643,19 +684,101 @@ namespace
 			return m_WaitForResultCallToFinish;
 		}
 
+		TCFuture<uint32> f_TestActorResultUnwrapped()
+		{
+			auto Result = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | g_Unwrap;
+			auto Result2 = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | (g_Unwrap % "Test error");
+
+			co_return Result + Result2;
+		}
+
+		TCFuture<uint32> f_TestActorResultVoidUnwrapped()
+		{
+			co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | g_Unwrap;
+			co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | (g_Unwrap % "Test error");
+
+			co_return 0;
+		}
+
 		TCFuture<uint32> f_TestActorResultVectorUnwrapped(uint32 _Value)
 		{
-			TCActorResultVector<uint32> Results;
-			for (mint i = 0; i < 10; ++i)
-				m_TestActor(&CTestActor2::f_Test) > Results.f_AddResult();
-
-			auto Results2 = co_await Results.f_GetResults(); /// | g_Unwrap;
+			auto fResultContainer = [&]
+				{
+					TCActorResultVector<uint32> Results;
+					for (mint i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_Test) > Results.f_AddResult();
+					return Results;
+				}
+			;
 
 			uint32 Value = 0;
-			for (auto &Result : Results2)
-				Value += *Result;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+				Value += Result;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+				Value += Result;
 
 			co_return Value + _Value;
+		}
+
+		TCFuture<uint32> f_TestActorResultVectorVoidUnwrapped(uint32 _Value)
+		{
+			auto fResultContainer = [&]
+				{
+					TCActorResultVector<void> Results;
+					for (mint i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_TestVoid) > Results.f_AddResult();
+					return Results;
+				}
+			;
+
+			co_await fResultContainer().f_GetResults() | g_Unwrap;
+			co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error");
+
+			co_return _Value;
+		}
+
+		TCFuture<uint32> f_TestActorResultMapUnwrapped(uint32 _Value)
+		{
+			auto fResultContainer = [&]
+				{
+					TCActorResultMap<int, uint32> Results;
+					for (mint i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_Test) > Results.f_AddResult(i);
+					return Results;
+				}
+			;
+
+			uint32 Value = 0;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+				Value += Result;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+				Value += Result;
+
+			co_return Value + _Value;
+		}
+
+		TCFuture<uint32> f_TestActorResultMapVoidUnwrapped(uint32 _Value)
+		{
+			auto fResultContainer = [&]
+				{
+					TCActorResultMap<int, void> Results;
+					for (mint i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_TestVoid) > Results.f_AddResult(i);
+					return Results;
+				}
+			;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+				;
+
+			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+				;
+
+			co_return _Value;
 		}
 
 		TCFuture<void> f_TestCoroutineInResultCallUnobservedError(uint32 _Value)
@@ -664,9 +787,9 @@ namespace
 				{
 					return _Value * 2;
 				}
-				> [](TCAsyncResult<uint32> _Value) mutable
+				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					g_Dispatch / [] () -> TCFuture<void>
+					self / [] () -> TCFuture<void>
 	 					{
 							co_return DMibErrorInstance("Observed");
 						}
@@ -693,6 +816,8 @@ namespace
 			{
 				TCActor<CTestActor> TestActor = fg_Construct();
 
+				TestActor(&CTestActor::f_TestReturn).f_CallSync();
+
 				DMibExpect(TestActor(&CTestActor::f_Test).f_CallSync(), ==, 40);
 				DMibExpect(TestActor(&CTestActor::f_TestValue, 55).f_CallSync(), ==, 55);
 
@@ -716,12 +841,15 @@ namespace
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedException).f_CallSync(), DMibErrorInstance("Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedExceptionAsyncResult).f_CallSync(), DMibErrorInstance("Test Exception"));
 				DMibExpectException(TestActor(&CTestActor::f_TestRecursiveWrappedExceptionAsyncResultVoid).f_CallSync(), DMibErrorInstance("Test Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
- 				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstance("Extra error: Test Exception\nTest Exception"));
-				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithErrorWrapped).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
+
+				NException::CExceptionPointer pDummy;
+
+				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
+ 				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
+				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
+				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
+				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception\nTest Exception", pDummy));
+				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
 
 #if DMibEnableSafeCheck > 0
 				NStr::CStr ReferenceThisError = "bSafeCall 'Unsafe call to coroutine with reference this pointer'";
@@ -768,7 +896,13 @@ namespace
 				TestActor(&CTestActor::f_TestCoroutineInResultCall, 2).f_CallSync();
 				DMibExpect(TestActor(&CTestActor::f_WaitCleanupResultCall).f_CallSync(), ==, 4);
 
-				DMibExpect(TestActor(&CTestActor::f_TestActorResultVectorUnwrapped, 2).f_CallSync(), ==, 5 * 10 + 2);
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultVectorUnwrapped, 2).f_CallSync(), ==, 5 * 10 * 2 + 2);
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultMapUnwrapped, 2).f_CallSync(), ==, 5 * 10 * 2 + 2);
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultUnwrapped).f_CallSync(), ==, 5 * 2);
+
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultVectorVoidUnwrapped, 2).f_CallSync(), ==, 2);
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultMapVoidUnwrapped, 2).f_CallSync(), ==, 2);
+				DMibExpect(TestActor(&CTestActor::f_TestActorResultVoidUnwrapped).f_CallSync(), ==, 0);
 
 				TestActor(&CTestActor::f_TestCoroutineInResultCallUnobservedError, 2).f_CallSync();
 			};

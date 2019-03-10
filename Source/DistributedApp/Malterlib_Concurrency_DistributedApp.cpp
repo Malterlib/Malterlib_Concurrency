@@ -506,7 +506,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 
 		if (mp_State.m_bStoppingApp)
-			return DMibErrorInstance("Startup aborted");
+			co_return DMibErrorInstance("Startup aborted");
 		
 		mp_State.m_LogActor = _LogActor;
 
@@ -531,53 +531,43 @@ namespace NMib::NConcurrency
 			;
 		}				
 			
-		TCPromise<NStr::CStr> Promise;
-		g_Dispatch / [this, _Params]()
+		auto InitializeCall = self / [this, _Params]() -> TCFuture<void>
 			{
-				TCPromise<void> Promise;
-				(*mp_pInitOnce)() > Promise % "Failed to initialize" / [this, Promise, _Params]()
-					{
-						if (mp_State.m_bStoppingApp)
-							return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
-						fp_StartApp(_Params) > Promise % "Failed to start app" / [this, Promise]
-							{
-								if (mp_State.m_bStoppingApp)
-									return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
+				co_await ((*mp_pInitOnce)() % "Failed to initialize");
 
-								DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
-								fp_PublishCommandLine() > Promise % "Failed to publish command line" / [Promise] 
-									{
-										Promise.f_SetResult();
-									}
-								;
-							}
-						;
-					}
-				 ;
-				return Promise.f_MoveFuture();
-			}
-			> [this, Promise](TCAsyncResult<void> &&_Result)
-			{
-				mp_AppStartupResult = _Result;
-				
-				for (auto &StartupResult : mp_DeferredAppStartupResults)
-					StartupResult.f_SetResult(_Result);
-				
-				mp_DeferredAppStartupResults.f_Clear();
-				
-				if (!_Result)
-				{
-					DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", _Result.f_GetExceptionStr());
-					Promise.f_SetException(fg_Move(_Result));
-					return;
-				}
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished: {}", mp_Settings.m_AppName);
-				Promise.f_SetResult(mp_State.m_HostID);
+				if (mp_State.m_bStoppingApp)
+					co_return DMibErrorInstance("Startup aborted");
+
+				DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
+
+				co_await (self(&CDistributedAppActor::fp_StartApp, _Params) % "Failed to start app");
+
+				if (mp_State.m_bStoppingApp)
+					co_return DMibErrorInstance("Startup aborted");
+
+				DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
+
+				co_await (fp_PublishCommandLine() % "Failed to publish command line");
+
+				co_return {};
 			}
 		;
-		
-		return Promise.f_MoveFuture();
+
+		mp_AppStartupResult = co_await InitializeCall.f_Wrap();
+
+		for (auto &StartupResult : mp_DeferredAppStartupResults)
+			StartupResult.f_SetResult(mp_AppStartupResult);
+
+		mp_DeferredAppStartupResults.f_Clear();
+
+		if (!mp_AppStartupResult)
+		{
+			DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", mp_AppStartupResult.f_GetExceptionStr());
+			co_return mp_AppStartupResult.f_GetException();
+		}
+
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished: {}", mp_Settings.m_AppName);
+		co_return mp_State.m_HostID;
 	}
 
 	void CDistributedAppActor::fp_Construct()
@@ -595,7 +585,7 @@ namespace NMib::NConcurrency
 
 		mp_State.m_bStoppingApp = true;
 		
-		g_Dispatch / [this]() -> TCFuture<void>
+		self / [this]() -> TCFuture<void>
 			{
 				if (mp_CommandLine)
 				{

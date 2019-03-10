@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 			DMibError("No result specified");
 	}
 
-	CExceptionPointer CAsyncResult::f_GetException() const
+	NException::CExceptionPointer CAsyncResult::f_GetException() const
 	{
 		if (m_pException != nullptr)
 			return m_pException;
@@ -97,12 +97,12 @@ namespace NMib::NConcurrency
 		return f_Get();
 	}
 
-	void CAsyncResult::f_SetException(CExceptionPointer const &_pException)
+	void CAsyncResult::f_SetException(NException::CExceptionPointer const &_pException)
 	{
 		m_pException = _pException;
 	}
 	
-	void CAsyncResult::f_SetException(CExceptionPointer &&_pException)
+	void CAsyncResult::f_SetException(NException::CExceptionPointer &&_pException)
 	{
 		m_pException = fg_Move(_pException);
 	}

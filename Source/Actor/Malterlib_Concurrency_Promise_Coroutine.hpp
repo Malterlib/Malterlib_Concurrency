@@ -34,10 +34,10 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		
-		if (m_Flags & EFutureCoroutineContextFlag_UnsafeReferenceParameters)
-			fp_CheckUnsafeReferenceParams();
 		if (m_Flags & EFutureCoroutineContextFlag_UnsafeThisPointer)
 			fp_CheckUnsafeThisPointer();
+		else if (m_Flags & EFutureCoroutineContextFlag_UnsafeReferenceParameters)
+			fp_CheckUnsafeReferenceParams();
 
 		ThreadLocal.m_bExpectCoroutineCall = false;
 #endif
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = typename NTraits::TCRemoveReference<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value || NTraits::TCIsSame<CReturnNoReference, CExceptionPointer>::mc_Value)
+		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value || NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 			m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
 		else
 			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 			 	NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
 			 	|| NException::TCIsExcption<CReturnNoReference>::mc_Value
-			 	|| NTraits::TCIsSame<CReturnNoReference, CExceptionPointer>::mc_Value
+			 	|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
 			 	, "You can only return exceptions or async results"
 			)
 		;
@@ -194,10 +194,8 @@ namespace NMib::NConcurrency
 
 			mp_Future.f_OnResultSet
 				(
-					[this, CurrentActor, pKeepAlive = fg_Move(pKeepAlive), _Handle](TCAsyncResult<t_CReturnType> &&_Result) mutable
+					[CurrentActor = fg_Move(CurrentActor), pKeepAlive = fg_Move(pKeepAlive), _Handle](TCAsyncResult<t_CReturnType> &&) mutable
 					{
-						mp_Result = fg_Move(_Result);
-
 						CurrentActor->f_QueueProcess
 							(
 								[CurrentActor, pKeepAlive = fg_Move(pKeepAlive), _Handle]() mutable
@@ -218,20 +216,21 @@ namespace NMib::NConcurrency
 
 		auto await_resume() noexcept(!t_bUnwrap)
 		{
+			auto &FutureResult = mp_Future.m_pData->m_Result;
 			if constexpr (t_bUnwrap)
-				return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
+				return fg_UnwrapCoroutineAsyncResult(fg_Move(FutureResult), mp_fExceptionTransform);
 			else
 			{
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-					return fg_Move(mp_Result);
+					return fg_Move(FutureResult);
 				else
 				{
-					if (mp_Result)
-						return fg_Move(mp_Result);
+					if (FutureResult)
+						return fg_Move(FutureResult);
 					else
 					{
 						TCAsyncResult<t_CReturnType> Result;
-						Result.f_SetException(mp_fExceptionTransform(fg_Move(mp_Result.f_GetException())));
+						Result.f_SetException(mp_fExceptionTransform(fg_Move(FutureResult.f_GetException())));
 						return Result;
 					}
 				}
@@ -240,7 +239,6 @@ namespace NMib::NConcurrency
 
 	private:
 		TCFuture<t_CReturnType> mp_Future;
-		TCAsyncResult<t_CReturnType> mp_Result;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
 	};
 
@@ -311,7 +309,11 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCCoroutineContextFlagsFromParams_This<tfp_CThis, true>
 	{
 		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value
-			= NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActor>::mc_Value
+			=
+			(
+			 	NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActor>::mc_Value
+			 	|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActorInternal>::mc_Value
+			)
 			? NMib::NConcurrency::EFutureCoroutineContextFlag_None
 			: NMib::NConcurrency::EFutureCoroutineContextFlag_UnsafeThisPointer
 		;

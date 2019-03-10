@@ -181,7 +181,10 @@ namespace NMib::NConcurrency
 				DMibTraceSafe("{}\n", ToLog);
 		}
 #endif
-		this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}, false);
+		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
+			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}();
+		else
+			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}, false);
 
 		return true; // Dummy return to allow for fg_Swallow on arguments
 	}

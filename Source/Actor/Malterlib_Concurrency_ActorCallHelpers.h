@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Concurrency/Actor/Timer>
+
 namespace NMib::NConcurrency
 {
 	CCurrentActorScope::CCurrentActorScope(TCActor<CActor> const &_Actor)
@@ -14,7 +16,6 @@ namespace NMib::NConcurrency
 
 	CCurrentActorScope::CCurrentActorScope(CActor const *_pActor)
 	{
-		DMibThreadLocalScopeEnter;
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
 		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
@@ -24,7 +25,6 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		ThreadLocal.m_pCurrentActor = mp_pLastActor;
-		DMibThreadLocalScopeExit;
 	}
 
 	namespace NPrivate
@@ -59,6 +59,7 @@ namespace NMib::NConcurrency
 					, CMemberFunction
 					, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 					, NMeta::TCTypeList<tfp_CCallParams...>
+					, true
 				>
 				(
 					Actor
@@ -68,18 +69,14 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		template <typename t_FMemberFunctionPointer, typename t_CIndices, typename t_CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams>
+		template <typename t_FMemberFunctionPointer, bool t_bDirectCall, typename t_CIndices, typename t_CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams>
 		struct TCActorCallWithParams;
 		
-		template <typename t_FMemberFunctionPointer, typename... tp_CTupleParams, mint... tp_Indices>
-		struct TCActorCallWithParams<t_FMemberFunctionPointer, NMeta::TCIndices<tp_Indices...>, NMeta::TCTypeList<tp_CTupleParams...>>
+		template <typename t_FMemberFunctionPointer, bool t_bDirectCall, typename... tp_CTupleParams, mint... tp_Indices>
+		struct TCActorCallWithParams<t_FMemberFunctionPointer, t_bDirectCall, NMeta::TCIndices<tp_Indices...>, NMeta::TCTypeList<tp_CTupleParams...>>
 		{
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
-
-			t_FMemberFunctionPointer m_pMemberPointer;
-
-			NStorage::TCTuple<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CTupleParams>::CType...> m_Params;
 
 			template <typename... tfp_CParams>
 			TCActorCallWithParams(t_FMemberFunctionPointer _pMemberPointer, tfp_CParams &&...p_Params)
@@ -87,6 +84,7 @@ namespace NMib::NConcurrency
 				, m_Params(fg_Forward<tfp_CParams>(p_Params)...)
 			{
 			}
+
 			TCActorCallWithParams(TCActorCallWithParams &&_Other)
 				: m_pMemberPointer(fg_Move(_Other.m_pMemberPointer))
 				, m_Params(fg_Move(_Other.m_Params))
@@ -110,18 +108,23 @@ namespace NMib::NConcurrency
 				return NTraits::TCIsSame<typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass, CActor>::mc_Value;
 			}
 
+			t_FMemberFunctionPointer m_pMemberPointer;
+			NStorage::TCTuple<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CTupleParams>::CType...> m_Params;
+			static constexpr bool mc_bDirectCall = false;
+
 		private:
 			TCActorCallWithParams(TCActorCallWithParams const&);
 			TCActorCallWithParams &operator =(TCActorCallWithParams const&);
 			TCActorCallWithParams &operator =(TCActorCallWithParams &&);
 		};
 
-		template <typename tf_FMemberFunction, typename... tfp_CParams, mint... tfp_Indicies>
+		template <bool tf_bDirectCall, typename tf_FMemberFunction, typename... tfp_CParams, mint... tfp_Indicies>
 		auto fg_BindTupleHelper(tf_FMemberFunction _pToBind, NStorage::TCTuple<tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
 			return TCActorCallWithParams
 				<
 					tf_FMemberFunction
+					, tf_bDirectCall
 					, NMeta::TCIndices<tfp_Indicies...>
 				>
 				(
@@ -131,10 +134,10 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		template <typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
+		template <bool tf_bDirectCall, typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
 		auto fg_BindHelper(tf_FMemberFunction _pToBind, NStorage::TCTuple<tfp_CParams...> &&_Params)
 		{
-			return fg_BindTupleHelper
+			return fg_BindTupleHelper<tf_bDirectCall>
 				(
 					_pToBind
 					, fg_Move(_Params)
@@ -143,12 +146,13 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		template <typename tf_FMemberFunction, typename... tfp_CParams, mint... tfp_Indicies>
+		template <bool tf_bDirectCall, typename tf_FMemberFunction, typename... tfp_CParams, mint... tfp_Indicies>
 		auto fg_BindConstructHelper(tf_FMemberFunction _pToBind, TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
 			return TCActorCallWithParams
 				<
 					tf_FMemberFunction
+					, tf_bDirectCall
 					, NMeta::TCIndices<tfp_Indicies...>
 				>
 				(
@@ -158,10 +162,10 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		template <typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
+		template <bool tf_bDirectCall, typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
 		auto fg_BindHelper(tf_FMemberFunction _pToBind, TCConstruct<void, tfp_CParams...> &&_Params)
 		{
-			return fg_BindConstructHelper
+			return fg_BindConstructHelper<tf_bDirectCall>
 				(
 					_pToBind
 					, fg_Move(_Params)
@@ -306,7 +310,7 @@ namespace NMib::NConcurrency
 	struct TCActorCallPackAwaiter
 	{
 		using CUnwrappedType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
-		using CWrappedType = NStorage::TCTuple<TCAsyncResult<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType>...>;
+		using CWrappedType = NStorage::TCTuple<TCAsyncResult<typename tp_CCalls::CReturnType>...>;
 
 		TCActorCallPackAwaiter(NStorage::TCTuple<tp_CCalls...> &&_Calls, t_FExceptionTransform &&_fExceptionTransform);
 		~TCActorCallPackAwaiter();
@@ -364,9 +368,9 @@ namespace NMib::NConcurrency
 		{
 		}
 		
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-		TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>>
-		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
+		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
 		{
 			return NStorage::fg_TupleConcatenate(fg_Move(m_Calls), NStorage::fg_Tuple(fg_Move(_OtherCall)));
 		}
@@ -464,21 +468,20 @@ namespace NMib::NConcurrency
 	
 	namespace NPrivate
 	{
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 		bool fg_CallActorInternal
 			(
-				TCActorCall<TCActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+				TCActorCall<TCActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
 		{
 			_ActorCall.mp_Actor->template f_Call<tf_CFunctor>
 				(
-					NPrivate::fg_BindHelper<tf_CTypeList>
+					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
 					(
 						fg_Move(_ActorCall.mp_Functor)
 						, fg_Move(_ActorCall.mp_Params)
-
 					)
 					, fg_Move(_ResultActor)
 					, fg_Move(_fResultFunctor)
@@ -487,10 +490,10 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultFunctor>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultFunctor, bool tf_bDirectCall>
 		bool fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<NPrivate::CDirectResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
@@ -502,7 +505,7 @@ namespace NMib::NConcurrency
 			auto Actor = _ActorCall.mp_Actor.f_Lock();
 			if (!Actor)
 			{
-				TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList>::CReturnType> Result;
+				TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
 				Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
 				NPrivate::fg_CallResultFunctorDirect(_fResultFunctor, fg_Move(Result));
 				return true;
@@ -513,11 +516,10 @@ namespace NMib::NConcurrency
 			
 			Actor->template f_Call<tf_CFunctor>
 				(
-					NPrivate::fg_BindHelper<tf_CTypeList>
+					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
 					(
 						fg_Move(_ActorCall.mp_Functor)
 						, fg_Move(_ActorCall.mp_Params)
-
 					)
 					, fg_Move(_ResultActor)
 					, fg_Move(_fResultFunctor)
@@ -526,10 +528,10 @@ namespace NMib::NConcurrency
 			return true;
 		}
 		
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 		bool fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList> &_ActorCall
+				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
@@ -551,7 +553,7 @@ namespace NMib::NConcurrency
 					(
 						[ResultActor, fResultFunctor = fg_Move(_fResultFunctor)]() mutable
 						{
-							TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList>::CReturnType> Result;
+							TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
 							Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
 							NPrivate::fg_CallResultFunctor(fResultFunctor, ResultActor->fp_GetActor(), fg_Move(Result));
 						}
@@ -565,11 +567,10 @@ namespace NMib::NConcurrency
 			
 			Actor->template f_Call<tf_CFunctor>
 				(
-					NPrivate::fg_BindHelper<tf_CTypeList>
+					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
 					(
 						fg_Move(_ActorCall.mp_Functor)
 						, fg_Move(_ActorCall.mp_Params)
-
 					)
 					, fg_Move(_ResultActor)
 					, fg_Move(_fResultFunctor)
@@ -608,13 +609,14 @@ namespace NMib::NConcurrency
 
 		auto operator co_await();
 		CNoUnwrapAsyncResult f_Wrap();
+		TCFutureWithError<t_CReturnType> f_Future() &&;
 
 	private:
 
 		t_CActorCall *mp_pActorCall;
 	};
 
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
+	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool t_bDirectCall>
 	struct [[nodiscard]] TCActorCall
 	{
 		static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
@@ -624,10 +626,7 @@ namespace NMib::NConcurrency
 		using CReturnType = typename NPrivate::TCGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<t_CFunctor>::CReturn>::CType;
 		using CTypeList = t_CTypeList;
 		using CFunctor = t_CFunctor;
-		
-		t_CActor mp_Actor;
-		t_CFunctor mp_Functor;
-		t_CParams mp_Params;
+
 		TCActorCall(t_CActor const &_Actor, t_CFunctor const &_Functor, t_CParams &&_Params)
 			: mp_Actor(_Actor)
 			, mp_Functor(_Functor)
@@ -662,7 +661,7 @@ namespace NMib::NConcurrency
 			DMibCheck(NException::fg_UncaughtExceptions() || mp_Actor.f_IsEmpty())("Actor call without result used");
 		}
 #endif
-		
+
 		void f_Clear()
 		{
 			mp_Actor.f_Clear();
@@ -670,13 +669,18 @@ namespace NMib::NConcurrency
 
 		auto f_ByValue()
 		{
-			return TCActorCall<t_CActor, t_CFunctor, decltype(NPrivate::fg_ToTupleByValue(fg_Move(mp_Params))), t_CTypeList>
+			return TCActorCall<t_CActor, t_CFunctor, decltype(NPrivate::fg_ToTupleByValue(fg_Move(mp_Params))), t_CTypeList, t_bDirectCall>
 				{
 					fg_Move(mp_Actor)
 					, fg_Move(mp_Functor)
 					, NPrivate::fg_ToTupleByValue(fg_Move(mp_Params))
 				}
 			;
+		}
+
+		TCFuture<CReturnType> f_Future() &&
+		{
+			return fg_Move(*this);
 		}
 		
 		TCActorCall &operator =(TCActorCall const &_Other)
@@ -693,11 +697,11 @@ namespace NMib::NConcurrency
 			mp_Params = fg_Move(_Other.mp_Params);
 		}
 		
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_OtherCall)
-			-> TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>>
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
+			-> TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
 		{
-			return TCActorCallPack<TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList>, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList>>
+			return TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
 				(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
 			;
 		}
@@ -785,7 +789,7 @@ namespace NMib::NConcurrency
 			return {this, _ErrorString};
 		}
 
-		TCDispatchedActorCall<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true); // #include <Mib/Concurrency/Actor/Timer> to use
+		TCDispatchedActorCall<CReturnType, true> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
 		
 		auto f_CallSync()
 		{
@@ -844,6 +848,12 @@ namespace NMib::NConcurrency
 			DMibFastCheck(!mp_Actor.f_IsEmpty() || t_CActor::CContainedActor::mc_bCanBeEmpty);
 			return TCActorCallAwaiter<TCActorCall, CReturnType, true>{fg_Move(*this)};
 		}
+
+		t_CActor mp_Actor;
+		t_CFunctor mp_Functor;
+		t_CParams mp_Params;
+
+		static constexpr bool mc_bDirectCall = t_bDirectCall;
 	};
 
 	namespace NPrivate
@@ -986,8 +996,9 @@ namespace NMib::NConcurrency
 			, typename t_CFunctionPtr
 			, typename t_CParams
 			, typename t_CTypeList
+			, bool tf_bDirectCall
 		>
-		struct TCGetActorCallFunctionPointer<TCActorCall<t_CActor, t_CFunctionPtr, t_CParams, t_CTypeList>>
+		struct TCGetActorCallFunctionPointer<TCActorCall<t_CActor, t_CFunctionPtr, t_CParams, t_CTypeList, tf_bDirectCall>>
 		{
 			typedef t_CFunctionPtr CType;
 		};
@@ -1075,6 +1086,13 @@ namespace NMib::NConcurrency
 	{
 		return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value ? EPriority_Low : EPriority_Normal);
 	}
+
+#if DMibEnableSafeCheck > 0
+	namespace NPrivate
+	{
+		mint fg_WrapActorCall(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach);
+	}
+#endif
 
 	template
 	<
@@ -1185,6 +1203,13 @@ namespace NMib::NConcurrency
 
 			if constexpr (NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<t_CFunctor, void (CRealActor &)>::CReturnType>::mc_Value)
 			{
+#if DMibEnableSafeCheck > 0
+				NPrivate::fg_WrapActorCall
+				(
+				 	[this]
+				 	{
+#endif
+
 				auto &State = *m_pState;
 #if DMibConfig_Concurrency_DebugActorCallstacks
 				auto &Callstack = State.m_Callstacks;
@@ -1254,6 +1279,11 @@ namespace NMib::NConcurrency
 						}
 					)
 				;
+
+#if DMibEnableSafeCheck > 0
+				 	}
+				);
+#endif
 			}
 			else
 			{
@@ -1313,7 +1343,7 @@ namespace NMib::NConcurrency
 
 		fg_ActorCall() > [=]
 			{
-				g_Dispatch / [=]() -> TCContinutaion<void>
+				self / [=]() -> TCContinutaion<void>
 					{
 						co_await fg_AsyncCall();
 					}

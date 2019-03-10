@@ -3,11 +3,12 @@
 
 #pragma once
 
+#include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_Coroutine.h"
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
+	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
 	struct TCActorCall;
 	
 	class CActor;
@@ -23,28 +24,6 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	struct TCFuture;
-
-	template <typename t_CReturn>
-	using TCDispatchedActorCall =
-		TCActorCall
-		<
-			TCActor<CActor>
-			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-		>
-	;
-
-	template <typename t_CReturn>
-	using TCDispatchedWeakActorCall =
-		TCActorCall
-		<
-			TCWeakActor<CActor>
-			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-		>
-	;
 }
 
 namespace NMib::NConcurrency
@@ -189,11 +168,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CReturnType>
 		void return_value(tf_CReturnType &&_Value);
 
-		struct CVoidSentinel
-		{
-		};
-
-		void return_value(CVoidSentinel &&_Value);
+		void return_value(CVoidTag &&_Value);
 
 		TCPromiseData<void> *m_pPromiseData = nullptr;
 	};
@@ -278,7 +253,7 @@ namespace NMib::NConcurrency
 	struct CExceptionCoroutineData
 	{
 		CExceptionCoroutineData() = default;
-		CExceptionCoroutineData(CExceptionPointer &&_pException)
+		CExceptionCoroutineData(NException::CExceptionPointer &&_pException)
 			: m_pException(fg_Move(_pException))
 		{
 		}
@@ -289,7 +264,7 @@ namespace NMib::NConcurrency
 			DMibPDebugBreak; // Not valid for streaming
 		}
 
-		CExceptionPointer m_pException;
+		NException::CExceptionPointer m_pException;
 	};
 
 	DMibImpErrorSpecificClassDefine(CExceptionCoroutineWrapper, NMib::NException::CException, CExceptionCoroutineData);
@@ -331,10 +306,10 @@ namespace NMib::NConcurrency
 		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
 		TCFuture(tf_CType &&_Exception);
 
-		TCFuture(CExceptionPointer const &_pException);
+		TCFuture(NException::CExceptionPointer const &_pException);
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-		TCFuture(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		TCFuture(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
 
 		TCFuture(TCAsyncResult<t_CReturnValue> const &_Result);
 		TCFuture(TCAsyncResult<t_CReturnValue> &&_Result);
@@ -349,12 +324,13 @@ namespace NMib::NConcurrency
 
 		void f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult);
 		void f_DiscardResult();
+		bool f_IsObserved() const;
 
 		bool f_IsCoroutine() const;
 		EFutureCoroutineContextFlag f_CoroutineFlags() const;
 
-		TCDispatchedActorCall<t_CReturnValue> f_Dispatch() const;
-		TCDispatchedActorCall<t_CReturnValue> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true); // #include <Mib/Concurrency/Actor/Timer> to use
+		TCDispatchedActorCall<t_CReturnValue, true> f_Dispatch() const;
+		TCDispatchedActorCall<t_CReturnValue, true> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
 
 		auto f_CallSync(fp64 _Timeout) const;
 
@@ -369,8 +345,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CType>
 		auto operator + (TCFuture<tf_CType> const &_Other) const;
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
 
 		auto operator % (NStr::CStr const &_ErrorString) const -> TCFutureWithError<t_CReturnValue>;
 
@@ -400,10 +376,10 @@ namespace NMib::NConcurrency
 		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
 		TCPromise(tf_CType &&_Exception);
 
-		TCPromise(CExceptionPointer const &_pException);
+		TCPromise(NException::CExceptionPointer const &_pException);
 		
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-		TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall);
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
 		
 		TCPromise(TCAsyncResult<t_CReturnValue> const &_Result);
 		TCPromise(TCAsyncResult<t_CReturnValue> &&_Result);
@@ -537,6 +513,13 @@ namespace NMibOperators
 	class TCDisableAutomaticOperators<NMib::NConcurrency::TCFuture<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 	{
 	};
+
+	template <typename t_CReturnValue, NMib::NConcurrency::EFutureOption t_Options>
+	class TCDisableAutomaticOperators<NMib::NConcurrency::TCFutureWithOptions<t_CReturnValue, t_Options>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+	{
+	};
+
 }
 
 #include "Malterlib_Concurrency_Promise.hpp"
+#include <Mib/Concurrency/Actor/Timer>

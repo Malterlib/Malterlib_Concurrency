@@ -176,7 +176,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
-	void CDistributedActorCommand_SubscriptionDestroyed::f_Feed(tf_CStream &_Stream) const
+	void CDistributedActorCommand_SubscriptionDestroyed::f_Feed(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const
 	{
 		_Stream << uint8(EDistributedActorCommand_SubscriptionDestroyed);
 		_Stream << m_PacketID;
@@ -184,15 +184,15 @@ namespace NMib::NConcurrency
 		if (m_Result)
 			_Stream << uint8(0);
 		else
-			NPrivate::fg_StreamAsyncResultException(_Stream, m_Result);
+			NPrivate::fg_StreamAsyncResultException(_Stream, m_Result, _ActorProtocolVersion);
 	}
 
 	template <typename tf_CStream>
-	void CDistributedActorCommand_SubscriptionDestroyed::f_Consume(tf_CStream &_Stream)
+	void CDistributedActorCommand_SubscriptionDestroyed::f_Consume(tf_CStream &_Stream, uint32 _ActorProtocolVersion)
 	{
 		_Stream >> m_PacketID;
 		_Stream >> m_SubscriptionID;
-		if (!NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, m_Result))
+		if (!NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, m_Result, _ActorProtocolVersion))
 			m_Result.f_SetResult();
 	}
 }

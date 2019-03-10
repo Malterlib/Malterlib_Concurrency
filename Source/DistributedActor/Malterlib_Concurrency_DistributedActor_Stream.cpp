@@ -28,6 +28,20 @@ namespace NMib::NConcurrency::NPrivate
 		return State.f_IsValid(o_Error);
 	}
 
+	uint32 CDistributedActorStreamContext::f_ActorProtocolVersion() const
+	{
+		auto &State = *m_pState;
+		return State.m_ActorProtocolVersion;
+	}
+
+	uint32 fg_ActorProtocolVersion(void *_pStreamContext)
+	{
+		CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_pStreamContext;
+		DMibFastCheck(pContext && pContext->f_CorrectMagic());
+
+		return pContext->f_ActorProtocolVersion();
+	}
+
 	bool CDistributedActorStreamContextState::f_IsValid(NStr::CStr &o_Error) const
 	{
 		for (auto iActorFunctor = m_ActorFunctors.f_GetIterator(); iActorFunctor; ++iActorFunctor)

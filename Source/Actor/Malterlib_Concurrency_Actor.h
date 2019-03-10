@@ -10,10 +10,15 @@ namespace NMib::NConcurrency
 	{
 		struct CThisActor
 		{
-			void *m_pThis = nullptr;
 			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+
+			template <typename tf_FFunction>
+			auto operator / (tf_FFunction &&_fFunction) const;
+
 			operator TCActor<> () const;
+
+			void *m_pThis = nullptr;
 		private:
 			friend class NConcurrency::CActor;
 
@@ -24,6 +29,10 @@ namespace NMib::NConcurrency
 			CThisActor &operator = (CThisActor const &) = default;
 		};
 	}
+
+	struct CActorInternal
+	{
+	};
 
 	class CActor /// \brief Base class for all types used with \ref TCActor
 	{
@@ -39,7 +48,6 @@ namespace NMib::NConcurrency
 		friend class CActorHolder;
 
 	protected:
-		NPrivate::CThisActor self;
 		CConcurrencyManager *mp_pConcurrencyManager = nullptr;
 		bool mp_bDestroyed = false;
 
@@ -57,7 +65,9 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CType>
 		bool fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise);
+
 	public:
+		NPrivate::CThisActor self;
 
 		typedef CDefaultActorHolder CActorHolder;
 

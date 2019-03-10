@@ -13,12 +13,13 @@ namespace NMib::NConcurrency::NPrivate
 		(
 		 	TCPromise<void> &_Promise
 		 	, NContainer::CSecureByteVector const &_Data
-		 	, CDistributedActorStreamContext &_Context, uint32 _Version
+		 	, CDistributedActorStreamContext &_Context
+		 	, uint32 _Version
 		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise))
+		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise, _Context.f_ActorProtocolVersion()))
 			return;
 		NStr::CStr Error;
 		if (!_Context.f_ValidateContext(Error))

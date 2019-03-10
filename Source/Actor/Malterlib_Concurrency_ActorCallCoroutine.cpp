@@ -7,7 +7,7 @@ namespace NMib::NConcurrency
 {
 	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> CActorWithErrorBase::fp_GetTransformer()
 	{
-		return [Error = fg_Move(m_Error)](CExceptionPointer &&_pException)
+		return [Error = fg_Move(m_Error)](NException::CExceptionPointer &&_pException)
 			{
 				try
 				{
@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
-					return NException::fg_ExceptionPointer(DMibErrorInstance(NStr::fg_Format("{}: {}", Error, _Exception)));
+					return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Error, _Exception), fg_Move(_pException)));
 				}
 				return fg_Move(_pException);
 			}

@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 	using namespace NStr;
 	using namespace NEncoding;
 
-	struct CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal
+	struct CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal : public CActorInternal
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 

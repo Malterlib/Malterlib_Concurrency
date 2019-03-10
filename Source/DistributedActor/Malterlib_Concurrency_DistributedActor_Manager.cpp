@@ -5,7 +5,6 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Process/Platform>
 
 namespace NMib::NConcurrency
@@ -123,6 +122,12 @@ namespace NMib::NConcurrency
 		return Info;
 	}
 
+	void CActorDistributionManagerInternal::CConnection::f_DiscardIdentifyPromise()
+	{
+		if (!m_IdentifyPromise.f_IsObserved())
+			m_IdentifyPromise > fg_DiscardResult();
+	}
+
 	TCDispatchedActorCall<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
 	{
 		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
@@ -191,6 +196,7 @@ namespace NMib::NConcurrency
 		f_Reset(true);
 		m_pSSLContext.f_Clear();
 		m_LastError = _Error;
+		f_DiscardIdentifyPromise();
 	}
 
 	NStr::CStr CActorDistributionManagerInternal::CConnection::f_GetServerURL() const

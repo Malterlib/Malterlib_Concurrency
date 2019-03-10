@@ -26,16 +26,19 @@ namespace NMib::NConcurrency
 	template <typename t_CActor, typename t_CFunctor>
 	struct TCActorResultCall;
 
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList>
+	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
 	struct TCActorCall;
 
 	template <typename t_CActor = CActor>
 	class TCActor;
 
+	template <typename t_CActor>
+	class TCWeakActor;
+
 	template <typename t_CReturnValue>
 	struct TCPromise;
 
-	template <typename t_CReturn>
+	template <typename t_CReturn, bool t_bDirectCall = false>
 	using TCDispatchedActorCall =
 		TCActorCall
 		<
@@ -43,10 +46,11 @@ namespace NMib::NConcurrency
 			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
 			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
 			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
+			, t_bDirectCall
 		>
 	;
 
-	template <typename t_CReturn>
+	template <typename t_CReturn, bool t_bDirectCall = false>
 	using TCDispatchedWeakActorCall =
 		TCActorCall
 		<
@@ -54,6 +58,7 @@ namespace NMib::NConcurrency
 			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
 			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
 			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
+			, t_bDirectCall
 		>
 	;
 
@@ -152,7 +157,13 @@ namespace NMib::NConcurrency
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto f_CallDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValueDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 
 		template <typename tf_FResult>
 		auto operator / (tf_FResult &&_fResult) const

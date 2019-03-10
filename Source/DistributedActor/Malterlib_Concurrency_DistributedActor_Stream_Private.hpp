@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult)
+	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion)
 	{
 		uint8 bException;
 		_Stream >> bException;
@@ -49,9 +49,14 @@ namespace NMib::NConcurrency::NPrivate
 			
 			auto &TypeRegistry = fg_RuntimeTypeRegistry();
 			auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
-			
+
+			uint64 ExceptionStreamSize = 0;
+			if (_ActorProtocolVersion >= 0x106)
+				NStream::fg_ConsumeLenFromStream(_Stream, ExceptionStreamSize);
+
 			if (!pEntry)
 			{
+				_Stream.f_AddPosition(ExceptionStreamSize);
 				_PromiseOrAsyncResult.f_SetException(DMibErrorInstance("Unknown exception type received"));
 				return true;
 			}
@@ -69,12 +74,12 @@ namespace NMib::NConcurrency::NPrivate
 			TCPromise<tf_CResult> &_Promise
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
-			, uint32 _Version 
+			, uint32 _Version
 		)
 	{
 		CDistributedActorReadStream ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise))
+		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise, _Context.f_ActorProtocolVersion()))
 			return;
 		DMibBinaryStreamContext(ReplyStream, &_Context);
 		DMibBinaryStreamVersion(ReplyStream, _Version);
@@ -185,3 +190,4 @@ namespace NMib::NConcurrency::NPrivate
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private_Subscription.hpp"
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private_ActorFunctor.hpp"
 #include "Malterlib_Concurrency_DistributedActor_Stream_Private_Interface.hpp"
+#include "Malterlib_Concurrency_DistributedActor_Stream_Private_AsyncResult.hpp"

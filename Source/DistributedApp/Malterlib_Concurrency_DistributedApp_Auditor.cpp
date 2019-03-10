@@ -161,4 +161,35 @@ namespace NMib::NConcurrency
 	{
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
 	}
+
+	namespace NUnwrap
+	{
+		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditor const &_Auditor)
+		{
+			return CUnwrapHelperWithTransformer
+				(
+					[_Auditor, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
+					{
+						auto pException = fPreviousTransformer(fg_Move(_pException));
+						_Auditor.f_Error(NException::fg_ExceptionString(pException));
+						return fg_Move(_pException);
+					}
+				)
+			;
+		}
+
+		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditorWithError const &_Auditor)
+		{
+			return CUnwrapHelperWithTransformer
+				(
+					[_Auditor, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
+					{
+						auto pException = fPreviousTransformer(fg_Move(_pException));
+						_Auditor.m_Auditor.f_Error(_Auditor.f_InternalError(NException::fg_ExceptionString(pException)));
+						return NException::fg_ExceptionPointer(DMibErrorInstance(_Auditor.m_UserError));
+					}
+				)
+			;
+		}
+	}
 }

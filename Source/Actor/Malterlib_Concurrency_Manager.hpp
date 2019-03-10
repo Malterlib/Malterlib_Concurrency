@@ -74,14 +74,35 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	struct COnScopeExitActorHelperWithActor
+	{
+		COnScopeExitActorHelperWithActor(TCActor<CActor> const &_Actor)
+			: m_Actor(_Actor)
+		{
+		}
+
+		template <typename tf_FOnScopeExit>
+		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) const
+		{
+			return fg_OnScopeExitActor(m_Actor, fg_Move(_fOnExitFunctor));
+		}
+
+		TCActor<CActor> m_Actor;
+	};
+
 	struct COnScopeExitActorHelper
 	{
 		template <typename tf_FOnScopeExit>
-		COnScopeExitShared operator >(tf_FOnScopeExit &&_fOnExitFunctor) const
+		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) const
 		{
 			auto CurrentActor = fg_CurrentActor();
 			DMibFastCheck(CurrentActor);
 			return fg_OnScopeExitActor(CurrentActor, fg_Move(_fOnExitFunctor));
+		}
+
+		COnScopeExitActorHelperWithActor operator () (TCActor<CActor> const &_Actor) const
+		{
+			return COnScopeExitActorHelperWithActor(_Actor);
 		}
 	};
 

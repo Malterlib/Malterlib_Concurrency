@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(CExceptionPointer const &_pException)
+	TCFuture<t_CReturnValue>::TCFuture(NException::CExceptionPointer const &_pException)
 		: m_pData(fg_Construct())
 	{
 		m_pData->f_SetException(_pException);
@@ -80,8 +80,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-	TCFuture<t_CReturnValue>::TCFuture(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
+	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+	TCFuture<t_CReturnValue>::TCFuture(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
 		: m_pData(fg_Construct())
 	{
 		TCPromise<t_CReturnValue> Promise(*this);
@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 	
 	
 	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(CExceptionPointer const &_pException)
+	TCPromise<t_CReturnValue>::TCPromise(NException::CExceptionPointer const &_pException)
 	{
 		f_SetException(_pException);
 	}
@@ -162,15 +162,16 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnValue>
-	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList>
-	TCPromise<t_CReturnValue>::TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList> &&_ActorCall)
+	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+	TCPromise<t_CReturnValue>::TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
 	{
 		_ActorCall > *this;
 	}
 
 	enum EFutureResultFlag
 	{
-		EFutureResultFlag_DataSet = DMibBit(0)
+		EFutureResultFlag_None = 0
+		, EFutureResultFlag_DataSet = DMibBit(0)
 		, EFutureResultFlag_ResultFunctorSet = DMibBit(1)
 		, EFutureResultFlag_DiscardResult = DMibBit(2)
 	};
@@ -714,6 +715,13 @@ namespace NMib::NConcurrency
 	{
 		auto pData = m_pData.f_Get();
 		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult);
+	}
+
+	template <typename t_CReturnValue>
+	bool TCFuture<t_CReturnValue>::f_IsObserved() const
+	{
+		auto pData = m_pData.f_Get();
+		return (pData->m_OnResultSet.f_Load() & (EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) != EFutureResultFlag_None;
 	}
 
 	template <typename t_CReturnValue>

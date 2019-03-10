@@ -5,7 +5,6 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 #include <Mib/Process/Platform>
 #include <Mib/Network/SSL>
-#include <Mib/Concurrency/Actor/Timer>
 
 namespace NMib::NConcurrency
 {

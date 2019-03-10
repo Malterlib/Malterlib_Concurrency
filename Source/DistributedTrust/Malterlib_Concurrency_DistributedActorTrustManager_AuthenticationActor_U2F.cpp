@@ -2,7 +2,6 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/CommandLine/AnsiEncoding>
-#include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Container/Vector>

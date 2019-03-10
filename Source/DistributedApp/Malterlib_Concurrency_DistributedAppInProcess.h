@@ -33,7 +33,13 @@ namespace NMib::NConcurrency
 		;
 		~CDistributedAppInProcessActor();
 
-		TCFuture<NStr::CStr> f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory);
+		TCFuture<NStr::CStr> f_Launch
+			(
+				NStr::CStr const &_HomeDirectory
+				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
+				, NContainer::TCVector<NStr::CStr> &&_Params = {}
+			)
+		;
 
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);

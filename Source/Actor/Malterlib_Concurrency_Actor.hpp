@@ -274,6 +274,49 @@ namespace NMib::NConcurrency
 				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
+				, false
+			>
+			(
+				*this
+				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	{
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+
+		// If you get this, use DCallActor instead of calling directly
+		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, true
 			>
 			(
 				*this
@@ -315,6 +358,49 @@ namespace NMib::NConcurrency
 				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
+				, false
+			>
+			(
+				*this
+				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValueDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	{
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+
+		// If you get this, use DCallActor instead of calling directly
+		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, true
 			>
 			(
 				*this
@@ -338,7 +424,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 	namespace NPrivate
 	{
-		mint fg_WrapDispatchWithReturn(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach);
+		mint fg_WrapDispatchWithReturn(NFunction::TCFunction<void ()> const &_fDoDisptach);
 	}
 
 	template <typename tf_CReturnType>

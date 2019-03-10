@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		, EInitialize_Failure
 	};
 
-	struct CDistributedActorTrustManager::CInternal
+	struct CDistributedActorTrustManager::CInternal : public CActorInternal
 	{
 		struct CHostState;
 

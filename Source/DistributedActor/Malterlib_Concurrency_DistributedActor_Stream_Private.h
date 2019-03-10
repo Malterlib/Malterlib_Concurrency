@@ -27,6 +27,7 @@ namespace NMib::NConcurrency::NPrivate
 		CDistributedActorStreamContext& operator =(CDistributedActorStreamContext &&);
 
 		bool f_ValidateContext(NStr::CStr &o_Error);
+		uint32 f_ActorProtocolVersion() const;
 		
 #if DMibEnableSafeCheck > 0
 		bool f_CorrectMagic() const
@@ -82,6 +83,12 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Feed(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &&_ActorInterface);
+
+		template <typename tf_CType>
+		void f_Feed(TCAsyncResult<tf_CType> const &_AsyncResult);
+
+		template <typename tf_CType>
+		void f_Feed(TCAsyncResult<tf_CType> &&_AsyncResult);
 	};
 	
 	struct CDistributedActorReadStream : public NStream::CBinaryStreamMemoryPtr<>
@@ -118,5 +125,8 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Consume(TCDistributedActorInterfaceWithID<tf_CFunction, tf_SubscriptionID> &_ActorInterface);
+
+		template <typename tf_CType>
+		void f_Consume(TCAsyncResult<tf_CType> &_AsyncResult);
 	};
 }

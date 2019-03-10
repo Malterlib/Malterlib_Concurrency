@@ -29,7 +29,12 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppInProcessActor::f_Launch(NStr::CStr const &_HomeDirectory, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory)
+	TCFuture<NStr::CStr> CDistributedAppInProcessActor::f_Launch
+		(
+			NStr::CStr const &_HomeDirectory
+			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
+			, NContainer::TCVector<NStr::CStr> &&_Params
+		)
 	{
 		auto &ThreadLocal = fg_DistributedAppThreadLocal();
 		auto OldSettings = ThreadLocal.m_DefaultSettings;
@@ -61,9 +66,23 @@ namespace NMib::NConcurrency
 
 		TCPromise<NStr::CStr> Promise;
 
-		mp_DistributedApp(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, nullptr, EDistributedAppType_InProcess) > Promise;
+		CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
 
-		return Promise.f_MoveFuture();
+		NContainer::TCVector<NStr::CStr> Params{"--daemon-run-standalone"};
+
+		Params.f_Insert(fg_Move(_Params));
+
+		CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
+		try
+		{
+			CommandLine = CommandLineClient.f_ParseCommandLine(Params);
+		}
+		catch (NException::CException const &_Exception)
+		{
+			co_return _Exception;
+		}
+
+		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_StartApp, CommandLine.m_Params, nullptr, EDistributedAppType_InProcess);
 	}
 
 	TCFuture<void> CDistributedAppInProcessActor::fp_Destroy()

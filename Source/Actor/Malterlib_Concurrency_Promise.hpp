@@ -680,6 +680,24 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
+	bool TCFuture<t_CReturnValue>::f_OnResultSetOrAvailable(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
+	{
+		auto pData = m_pData.f_Get();
+		pData->m_fOnResult = fg_Move(_fOnResult);
+
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet);
+		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_ResultFunctorSet)); // You can only observe the result once
+
+		if (PreviousFlags & EFutureResultFlag_DataSet)
+		{
+			pData->m_fOnResult.f_Clear();
+			return true;
+		}
+
+		return false;
+	}
+
+	template <typename t_CReturnValue>
 	void TCFuture<t_CReturnValue>::f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
 	{
 		auto pData = m_pData.f_Get();
@@ -702,10 +720,10 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	EFutureCoroutineContextFlag TCFuture<t_CReturnValue>::f_CoroutineFlags() const
+	ECoroutineFlag TCFuture<t_CReturnValue>::f_CoroutineFlags() const
 	{
 		if (!m_pData->m_Coroutine)
-			return EFutureCoroutineContextFlag_None;
+			return ECoroutineFlag_None;
 
 		return m_pData->m_Coroutine.promise().m_Flags;
 	}
@@ -714,7 +732,29 @@ namespace NMib::NConcurrency
 	void TCFuture<t_CReturnValue>::f_DiscardResult()
 	{
 		auto pData = m_pData.f_Get();
-		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult);
+		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult);// , NAtomic::EMemoryOrder_Relaxed);
+	}
+
+	template <typename t_CReturnValue>
+	bool TCFuture<t_CReturnValue>::f_ObserveIfAvailable()
+	{
+		auto pData = m_pData.f_Get();
+		mint Expected = EFutureResultFlag_DataSet;
+		return pData->m_OnResultSet.f_CompareExchangeWeak(Expected, EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult);
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_FOnEmpty>
+	void TCFuture<t_CReturnValue>::f_Abandon(tf_FOnEmpty &&_fOnEmpty)
+	{
+		auto pData = m_pData.f_Get();
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet);
+		if ((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet)) == EFutureResultFlag_ResultFunctorSet)
+		{
+			pData->m_Result.f_SetException(_fOnEmpty());
+			pData->m_fOnResult(fg_Move(pData->m_Result));
+			pData->m_fOnResult.f_Clear();
+		}
 	}
 
 	template <typename t_CReturnValue>
@@ -766,7 +806,13 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 		if (m_Coroutine)
+		{
+#if DMibEnableSafeCheck > 0
+			auto Owner = m_CoroutineOwner.f_Lock();
+			DMibFastCheck(Owner && Owner->f_CurrentlyProcessing());
+#endif
 			m_Coroutine.destroy();
+		}
 	}
 
 	template <typename t_CReturnValue>

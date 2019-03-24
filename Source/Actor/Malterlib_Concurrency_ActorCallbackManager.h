@@ -16,12 +16,13 @@ namespace NMib::NConcurrency
 	class TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>
 	{
 	public:
+		using CSharedCallback = NStorage::TCSharedPointer<NFunction::TCFunctionMovable<t_CReturn (tp_CCallbackParams...)>>;
 		struct CCallbackHandle : public t_CExtraData
 		{
 			template <typename ...tfp_CParam>
 			CCallbackHandle(tfp_CParam && ...p_ExtraData);
 			TCWeakActor<CActor> m_Actor;
-			NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> m_fCallback;
+			CSharedCallback m_pCallback;
 		};
 		using CReturn = typename NPrivate::TCRemoveFuture<t_CReturn>::CType;
 	public:
@@ -29,9 +30,13 @@ namespace NMib::NConcurrency
 		~TCActorSubscriptionManager();
 
 		template <typename ...tfp_CParam>
-		CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+		CActorSubscription f_Register(TCActor<CActor> _pActor, NFunction::TCFunctionMovable<t_CReturn (tp_CCallbackParams...)> &&_fCallback, tfp_CParam && ...p_ExtraData);
+		template <typename ...tfp_CParam>
+		CActorSubscription f_Register(TCActor<CActor> _pActor, CSharedCallback const &_pCallback, tfp_CParam && ...p_ExtraData);
+		CSharedCallback f_GetCallback(CActorSubscription const &_Subscription);
 
 		bool f_IsEmpty();
+		bool f_IsDeferring();
 		void f_StopDeferring();
 		void f_Clear();
 
@@ -45,6 +50,9 @@ namespace NMib::NConcurrency
 
 		template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
 		typename TCEnableIf<tf_bSupportMultiple>::CType f_CallEach(tf_FResult &&_fDoCall, tp_CCallbackParams... p_Params);
+
+		template <bool tf_bSupportMultiple = t_bSupportMultiple, typename tf_FResult>
+		typename TCEnableIf<tf_bSupportMultiple>::CType f_CallSpecific(tf_FResult &&_fDoCall, t_CExtraData &_ExtraData, tp_CCallbackParams... p_Params);
 
 	private:
 		struct CInternal

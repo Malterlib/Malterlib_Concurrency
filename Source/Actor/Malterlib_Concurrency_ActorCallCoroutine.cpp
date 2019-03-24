@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
-					return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Error, _Exception), fg_Move(_pException)));
+					return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Error, _Exception), fg_Move(_pException), false));
 				}
 				return fg_Move(_pException);
 			}

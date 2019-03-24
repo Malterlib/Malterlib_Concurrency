@@ -81,5 +81,3 @@ namespace NMib::NConcurrency
 		auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 	};
 }
-
-#include "Malterlib_Concurrency_WeakActor.hpp"

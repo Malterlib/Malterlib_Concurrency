@@ -38,7 +38,7 @@ namespace NMib::NConcurrency::NUnwrap
 					}
 					catch (NException::CExceptionBase const &_Exception)
 					{
-						return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, _Exception), fg_Move(pException)));
+						return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, _Exception), fg_Move(pException), false));
 					}
 					return fg_Move(_pException);
 				}

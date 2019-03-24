@@ -81,6 +81,7 @@ namespace NMib::NConcurrency
 		bool f_ImmediateDelete() const;
 		bool f_IsDestroyed() const;
 		bool f_OwnsActor(CActor const *_pActor) const;
+		virtual bool f_CurrentlyProcessing() const;
 
 		TCDispatchedActorCall<void> f_Destroy();
 		void f_DestroyNoResult(ch8 const *_pFile, uint32 _Line);
@@ -205,6 +206,8 @@ namespace NMib::NConcurrency
 			)
 		;
 		~CDelegatedActorHolder();
+
+		bool f_CurrentlyProcessing() const override;
 
 	protected:
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame) override;

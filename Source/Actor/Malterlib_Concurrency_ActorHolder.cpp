@@ -253,6 +253,16 @@ namespace NMib::NConcurrency
 		return mp_pActor.f_Get() == _pActor;
 	}
 
+	bool CActorHolder::f_CurrentlyProcessing() const
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pCurrentActor == mp_pActor)
+			return true;
+		if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
+			return true;
+		return false;
+	}
+
 	bool CActorHolder::fp_Terminate(NFunction::TCFunctionNoAllocMutable<void ()> &&_fOnDestroyed)
 	{
 		smint Expected = 0;
@@ -655,6 +665,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	bool CDelegatedActorHolder::f_CurrentlyProcessing() const
+	{
+		auto pDelegateTo = mp_pDelegateTo.f_Lock();
+		if (!pDelegateTo)
+			return false;
+		return pDelegateTo->f_CurrentlyProcessing();
+	}
+	
 	void CDelegatedActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
 	{
 		auto pDelegateTo = mp_pDelegateTo.f_Lock();

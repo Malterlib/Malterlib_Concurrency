@@ -17,12 +17,6 @@ namespace NMib::NConcurrency::NPrivate
 		typedef t_CReturn CType;
 	};
 
-	template <typename t_CReturn, EFutureOption t_Options>
-	struct TCGetReturnType<TCFutureWithOptions<t_CReturn, t_Options>>
-	{
-		typedef t_CReturn CType;
-	};
-
 	template <typename t_CType>
 	struct TCIsPromise
 	{
@@ -53,16 +47,6 @@ namespace NMib::NConcurrency::NPrivate
 
 	template <typename t_CType>
 	struct TCIsFuture<TCFuture<t_CType>>
-	{
-		using CType = t_CType;
-		enum
-		{
-			mc_Value = true
-		};
-	};
-
-	template <typename t_CType, EFutureOption t_Options>
-	struct TCIsFuture<TCFutureWithOptions<t_CType, t_Options>>
 	{
 		using CType = t_CType;
 		enum

@@ -814,7 +814,7 @@ namespace
 
 				~CTestCommandOutput()
 				{
-					*m_pCommandLine += m_Results.f_ToString();
+					*m_pCommandLine += m_Results.f_ToString("\t", true);
 					if (!m_Promise.f_IsSet())
 						m_Promise.f_SetResult(0);
 				}
@@ -1600,7 +1600,12 @@ public:
 			).f_CallSync(g_Timeout)
 		;
 
-		auto HelperActor = fg_ConcurrentActor();
+		TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+		auto CleanupTestActor = g_OnScopeExit > [&]
+			{
+				HelperActor->f_BlockDestroy();
+			}
+		;
 		CCurrentActorScope CurrentActor{HelperActor};
 
 		{
@@ -2135,6 +2140,7 @@ public:
 			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
 			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
 			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
+
 			auto ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 			auto ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
 			fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
@@ -2493,7 +2499,12 @@ public:
 			).f_CallSync(g_Timeout)
 		;
 
-		auto HelperActor = fg_ConcurrentActor();
+		TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+		auto CleanupTestActor = g_OnScopeExit > [&]
+			{
+				HelperActor->f_BlockDestroy();
+			}
+		;
 		CCurrentActorScope CurrentActor{HelperActor};
 
 		{

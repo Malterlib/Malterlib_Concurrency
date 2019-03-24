@@ -7,57 +7,139 @@
 
 namespace NMib::NConcurrency
 {
+	struct CTimerActor::CInternal
+	{
+		//friend class CConcurrencyManager;
+		//template <typename t_CActor>
+		//friend class TCActorInternal;
+
+		enum ETimerType
+		{
+			ETimerType_Oneshot
+			, ETimerType_Normal
+			, ETimerType_Exact
+		};
+
+		struct CTimerSubscriptionState
+		{
+			CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup);
+			~CTimerSubscriptionState();
+
+			NFunction::TCFunctionMutable<void ()> m_fCleanup;
+			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
+			bool m_bOutstanding = false;
+			bool m_bMissed = false;
+		};
+
+		struct CTimer
+		{
+			CTimer(CActor *_pThisActor);
+			~CTimer();
+
+			DMibListLinkDS_Link(CTimer, m_Link);
+			TCActorSubscriptionManager<TCFuture<void> (), true, CTimerSubscriptionState> m_Callbacks;
+			TCActorSubscriptionManager<void (), true, CTimerSubscriptionState> m_OneshotCallbacks;
+			NStorage::TCSharedPointer<bool> m_pDestroyed;
+			fp64 m_NextElapse = 0.0;
+			fp64 m_Period = 0.0;
+			ETimerType m_TimerType;
+			bool m_bFireAtExit = false;
+
+			bool operator < (CTimer const &_Right) const
+			{
+				return m_NextElapse < _Right.m_NextElapse;
+			}
+		};
+
+		CInternal(CTimerActor *_pThis)
+			: m_pThis(_pThis)
+		{
+		}
+
+		void fp_CallTimerCallback(CTimer &_Timer, CTimerSubscriptionState &_HandleInfo);
+		void fp_CallTimer(CTimer &_Timer);
+		void fp_ProcessTimers();
+		void fp_StartThread();
+
+		CTimerActor *m_pThis;
+		NStorage::TCUniquePointer<NThread::CThreadObject> m_pTimerThread;
+		NContainer::TCMap<fp64, CTimer> m_RegisteredTimers;
+		NContainer::TCLinkedList<CTimer> m_OneshotTimers;
+		NContainer::TCLinkedList<CTimer> m_ExactTimers;
+		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
+
+		DMibListLinkDS_List(CTimer, m_Link) m_TimerQueue;
+
+		NTime::CClock m_Clock{true};
+
+#if DMibEnableSafeCheck > 0
+		mint m_ProcessingThread = 0;
+#endif
+	};
+	
 	TCActor<CTimerActor> fg_TimerActor()
 	{
 		return fg_ConcurrencyManager().f_GetTimerActor();
 	}
 
-	void CTimerActor::fp_CallTimer(CTimer &_Timer, bool _bOnlyMissed)
+	void CTimerActor::CInternal::fp_CallTimerCallback(CTimer &_Timer, CTimerSubscriptionState &_HandleInfo)
 	{
-		_Timer.m_Callbacks.f_CallEach
+		_Timer.m_Callbacks.f_CallSpecific
 			(
-				[&](TCDispatchedActorCall<void> &&_ActorCall, CTimerSubscriptionState &_HandleInfo)
+				[&](auto &&_fActorCall, CTimerSubscriptionState &_HandleInfo)
 				{
-					if (_bOnlyMissed)
-					{
-						if (!_HandleInfo.m_bMissed || _HandleInfo.m_bOutstanding)
-						{
-							_ActorCall.f_Clear();
-							return;
-						}
-					}
-					else
-					{
-						if (_HandleInfo.m_bOutstanding)
-						{
-							_HandleInfo.m_bMissed = true;
-							_ActorCall.f_Clear();
-							return;
-						}
-					}
 					_HandleInfo.m_bOutstanding = true;
-					_ActorCall > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&)
+					_fActorCall() > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&_Result)
 						{
+							(void)_Result;
 							if (*pDestroyed)
 								return;
 
 							pHandleInfo->m_bOutstanding = false;
 
-							if (pHandleInfo->m_bMissed)
-								fp_CallTimer(*pTimer, true);
+							if (pHandleInfo->m_bMissed && m_Clock.f_GetTime() < (pTimer->m_NextElapse - pTimer->m_Period * 0.1) )
+								fp_CallTimerCallback(*pTimer, *pHandleInfo);
+						}
+					;
+				}
+			 	, _HandleInfo
+			)
+		;
+	}
+
+	void CTimerActor::CInternal::fp_CallTimer(CTimer &_Timer)
+	{
+		_Timer.m_Callbacks.f_CallEach
+			(
+				[&](auto &&_fActorCall, CTimerSubscriptionState &_HandleInfo)
+				{
+					if (_HandleInfo.m_bOutstanding)
+					{
+						_HandleInfo.m_bMissed = true;
+						return;
+					}
+
+					_HandleInfo.m_bOutstanding = true;
+					_fActorCall() > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&_Result)
+						{
+							(void)_Result;
+							if (*pDestroyed)
+								return;
+
+							pHandleInfo->m_bOutstanding = false;
+
+							if (pHandleInfo->m_bMissed && m_Clock.f_GetTime() < (pTimer->m_NextElapse - pTimer->m_Period * 0.1) )
+								fp_CallTimerCallback(*pTimer, *pHandleInfo);
 						}
 					;
 				}
 			)
 		;
 
-		if (_bOnlyMissed)
-			return;
-
 		_Timer.m_OneshotCallbacks() > fg_DiscardResult();
 	}
 
-	void CTimerActor::fp_ProcessTimers()
+	void CTimerActor::CInternal::fp_ProcessTimers()
 	{
 #if DMibEnableSafeCheck > 0
 		m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
@@ -96,11 +178,11 @@ namespace NMib::NConcurrency
 				auto Time = m_Clock.f_GetTime();
 				while (Timer.m_NextElapse < Time)
 				{
-					auto Diff = Time - Timer.m_NextElapse.f_Get();
+					auto Diff = Time - Timer.m_NextElapse;
 					if (Diff > Period)
-						Timer.m_NextElapse.f_Get() += Diff - Diff.f_Mod(Period) + Period;
+						Timer.m_NextElapse += Diff - Diff.f_Mod(Period) + Period;
 					else
-						Timer.m_NextElapse.f_Get() += Period;
+						Timer.m_NextElapse += Period;
 					Time = m_Clock.f_GetTime();
 				}
 				m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
@@ -115,7 +197,7 @@ namespace NMib::NConcurrency
 			auto *pTimer = m_TimerQueue.f_GetFirst();
 			if (pTimer)
 			{
-				aint WaitTime = ((pTimer->m_NextElapse.f_Get() - m_Clock.f_GetTime()) * 1000000.0).f_ToIntRound();
+				aint WaitTime = ((pTimer->m_NextElapse - m_Clock.f_GetTime()) * 1000000.0).f_ToIntRound();
 				if (WaitTime == 0)
 					WaitTime = -1;
 				m_WaitTime.f_Exchange(WaitTime);
@@ -124,7 +206,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CTimerActor::fp_StartThread()
+	void CTimerActor::CInternal::fp_StartThread()
 	{
 		if (!m_pTimerThread)
 		{
@@ -145,7 +227,12 @@ namespace NMib::NConcurrency
 								// Reset semaphore
 								if (MicroSeconds < 0 || _pThread->m_EventWantQuit.f_WaitTimeout(fp64(MicroSeconds) / fp64(1000000.0)))
 								{
-									fg_ThisActor(this)(&CTimerActor::fp_ProcessTimers) > fg_DiscardResult();
+									g_Dispatch(fg_ThisActor(m_pThis)) / [this]
+										{
+											fp_ProcessTimers();
+										}
+										> fg_DiscardResult()
+									;
 								}
 								else
 								{
@@ -157,7 +244,7 @@ namespace NMib::NConcurrency
 						}
 						return 0;
 					}
-					, "Concurrent timer"
+					, "Timer actor timeouts"
 				)
 			;
 		}
@@ -165,50 +252,51 @@ namespace NMib::NConcurrency
 	}
 
 	CTimerActor::CTimerActor()
-#if DMibEnableSafeCheck > 0
-		: m_ProcessingThread(0)
-#endif
+		: mp_pInternal(fg_Construct(this))
 	{
-		m_Clock.f_Start();
 	}
 
 	TCFuture<void> CTimerActor::fp_Destroy()
 	{
-		m_pTimerThread.f_Clear();
+		auto &Internal = *mp_pInternal;
+
+		Internal.m_pTimerThread.f_Clear();
 #if DMibEnableSafeCheck > 0
-		m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
+		Internal.m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
 		auto Cleanup
 			= fg_OnScopeExit
 			(
 				[&]
 				{
-					m_ProcessingThread = 0;
+					Internal.m_ProcessingThread = 0;
 				}
 			)
 		;
 #endif
-		DMibFastCheck(m_RegisteredTimers.f_IsEmpty());
-		DMibFastCheck(m_ExactTimers.f_IsEmpty());
+		DMibFastCheck(Internal.m_RegisteredTimers.f_IsEmpty());
+		DMibFastCheck(Internal.m_ExactTimers.f_IsEmpty());
 
-		m_OneshotTimers.f_Clear();
+		Internal.m_OneshotTimers.f_Clear();
 
 		return fg_Explicit();
 	}
 
 	CTimerActor::~CTimerActor()
 	{
+		[[maybe_unused]] auto &Internal = *mp_pInternal;
+
 		// All timers must already be removed
-		DMibRequire(m_RegisteredTimers.f_IsEmpty());
-		DMibRequire(m_OneshotTimers.f_IsEmpty());
-		DMibRequire(m_ExactTimers.f_IsEmpty());
+		DMibRequire(Internal.m_RegisteredTimers.f_IsEmpty());
+		DMibRequire(Internal.m_OneshotTimers.f_IsEmpty());
+		DMibRequire(Internal.m_ExactTimers.f_IsEmpty());
 	}
 
-	CTimerActor::CTimerSubscriptionState::CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup)
+	CTimerActor::CInternal::CTimerSubscriptionState::CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup)
 		: m_fCleanup(fg_Move(_fCleanup))
 	{
 	}
 
-	CTimerActor::CTimerSubscriptionState::~CTimerSubscriptionState()
+	CTimerActor::CInternal::CTimerSubscriptionState::~CTimerSubscriptionState()
 	{
 		*m_pDestroyed = true;
 
@@ -216,13 +304,13 @@ namespace NMib::NConcurrency
 			m_fCleanup();
 	}
 
-	CTimerActor::CTimer::CTimer(CActor *_pThisActor)
+	CTimerActor::CInternal::CTimer::CTimer(CActor *_pThisActor)
 		: m_Callbacks(_pThisActor, false)
 		, m_OneshotCallbacks(_pThisActor, false)
 	{
 	}
 
-	CTimerActor::CTimer::~CTimer()
+	CTimerActor::CInternal::CTimer::~CTimer()
 	{
 		if (m_pDestroyed)
 			*m_pDestroyed = true;
@@ -230,23 +318,25 @@ namespace NMib::NConcurrency
 
 	void CTimerActor::f_FireAllTimeouts()
 	{
-		for (auto iTimer = m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
+		auto &Internal = *mp_pInternal;
+
+		for (auto iTimer = Internal.m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
 		{
 			auto &Timer = *iTimer;
 			++iTimer;
 
 			auto TimerType = Timer.m_TimerType;
 
-			fp_CallTimer(Timer);
+			Internal.fp_CallTimer(Timer);
 
 			switch (TimerType)
 			{
-			case ETimerType_Oneshot:
-				m_TimerQueue.f_Remove(&Timer);
-				m_OneshotTimers.f_Remove(Timer);
+			case CInternal::ETimerType_Oneshot:
+				Internal.m_TimerQueue.f_Remove(&Timer);
+				Internal.m_OneshotTimers.f_Remove(Timer);
 				break;
-			case ETimerType_Exact:
-			case ETimerType_Normal:
+			case CInternal::ETimerType_Exact:
+			case CInternal::ETimerType_Normal:
 				break;
 			}
 		}
@@ -254,7 +344,9 @@ namespace NMib::NConcurrency
 
 	void CTimerActor::f_FireAtExit()
 	{
-		for (auto iTimer = m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
+		auto &Internal = *mp_pInternal;
+
+		for (auto iTimer = Internal.m_TimerQueue.f_GetIterator(); iTimer; ++iTimer)
 		{
 			auto &Timer = *iTimer;
 			++iTimer;
@@ -264,16 +356,16 @@ namespace NMib::NConcurrency
 
 			auto TimerType = Timer.m_TimerType;
 
-			fp_CallTimer(Timer);
+			Internal.fp_CallTimer(Timer);
 
 			switch (TimerType)
 			{
-			case ETimerType_Oneshot:
-				m_TimerQueue.f_Remove(&Timer);
-				m_OneshotTimers.f_Remove(Timer);
+			case CInternal::ETimerType_Oneshot:
+				Internal.m_TimerQueue.f_Remove(&Timer);
+				Internal.m_OneshotTimers.f_Remove(Timer);
 				break;
-			case ETimerType_Exact:
-			case ETimerType_Normal:
+			case CInternal::ETimerType_Exact:
+			case CInternal::ETimerType_Normal:
 				break;
 			}
 		}
@@ -283,17 +375,19 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(_Period >= 0.001);
 
-		CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
+		auto &Internal = *mp_pInternal;
+
+		CInternal::CTimer &Timer = Internal.m_OneshotTimers.f_Insert(fg_Construct(this));
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = m_Clock.f_GetTime() + _Period;
-		Timer.m_TimerType = ETimerType_Oneshot;
+		Timer.m_NextElapse = Internal.m_Clock.f_GetTime() + _Period;
+		Timer.m_TimerType = CInternal::ETimerType_Oneshot;
 		Timer.m_pDestroyed = fg_Construct(false);
 		Timer.m_bFireAtExit = _bFireAtExit;
 
-		m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 
-		CTimer *pTimer = &Timer;
+		CInternal::CTimer *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
 
 		// This makes it self-referencing, so it will not be deleted until the callback is run. Because the callback handler saves the actor weakly it will not prevent deletion of
@@ -306,28 +400,32 @@ namespace NMib::NConcurrency
 				, fg_Move(_fCallback)
 				, [this, pTimer, pDestroyed, pCallbackHandle]
 				{
+					auto &Internal = *mp_pInternal;
 					if (!*pDestroyed)
-						m_OneshotTimers.f_Remove(*pTimer);
+						Internal.m_OneshotTimers.f_Remove(*pTimer);
 				}
 			)
 		;
 
-		fp_StartThread();
+		Internal.fp_StartThread();
 	}
 
 	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
-		CTimer &Timer = m_OneshotTimers.f_Insert(fg_Construct(this));
+
+		auto &Internal = *mp_pInternal;
+
+		CInternal::CTimer &Timer = Internal.m_OneshotTimers.f_Insert(fg_Construct(this));
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = m_Clock.f_GetTime() + _Period;
-		Timer.m_TimerType = ETimerType_Oneshot;
+		Timer.m_NextElapse = Internal.m_Clock.f_GetTime() + _Period;
+		Timer.m_TimerType = CInternal::ETimerType_Oneshot;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 
-		CTimer *pTimer = &Timer;
+		CInternal::CTimer *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
 
 		auto pCallbackHandle = Timer.m_OneshotCallbacks.f_Register
@@ -336,13 +434,14 @@ namespace NMib::NConcurrency
 				, fg_Move(_fCallback)
 				, [this, pTimer, pDestroyed]
 				{
+					auto &Internal = *mp_pInternal;
 					if (!*pDestroyed)
-						m_OneshotTimers.f_Remove(*pTimer);
+						Internal.m_OneshotTimers.f_Remove(*pTimer);
 				}
 			)
 		;
 
-		fp_StartThread();
+		Internal.fp_StartThread();
 
 		return fg_Move(pCallbackHandle);
 	}
@@ -350,18 +449,21 @@ namespace NMib::NConcurrency
 	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
-		auto &Timer = *m_RegisteredTimers(_Period, this);
+
+		auto &Internal = *mp_pInternal;
+
+		auto &Timer = *Internal.m_RegisteredTimers(_Period, this);
 
 		if (Timer.m_Period == 0.0)
 		{
 			Timer.m_Period = _Period;
-			Timer.m_NextElapse = ((m_Clock.f_GetTime() + _Period) / _Period).f_Floor() * _Period;
-			Timer.m_TimerType = ETimerType_Normal;
+			Timer.m_NextElapse = ((Internal.m_Clock.f_GetTime() + _Period) / _Period).f_Floor() * _Period;
+			Timer.m_TimerType = CInternal::ETimerType_Normal;
 			Timer.m_pDestroyed = fg_Construct(false);
-			m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+			Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 		}
 
-		CTimer *pTimer = &Timer;
+		CInternal::CTimer *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
 
 		auto pCallbackHandle = Timer.m_Callbacks.f_Register
@@ -370,16 +472,17 @@ namespace NMib::NConcurrency
 				, fg_Move(_fCallback)
 				, [this, pTimer, pDestroyed]
 				{
+					auto &Internal = *mp_pInternal;
 					if (!*pDestroyed)
 					{
 						if (pTimer->m_Callbacks.f_IsEmpty())
-							m_RegisteredTimers.f_Remove(pTimer);
+							Internal.m_RegisteredTimers.f_Remove(pTimer);
 					}
 				}
 			)
 		;
 
-		fp_StartThread();
+		Internal.fp_StartThread();
 
 		return fg_Move(pCallbackHandle);
 	}
@@ -387,16 +490,19 @@ namespace NMib::NConcurrency
 	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
-		CTimer &Timer = m_ExactTimers.f_Insert(fg_Construct(this));
+
+		auto &Internal = *mp_pInternal;
+
+		CInternal::CTimer &Timer = Internal.m_ExactTimers.f_Insert(fg_Construct(this));
 
 		Timer.m_Period = _Period;
-		Timer.m_NextElapse = m_Clock.f_GetTime() + _Period;
-		Timer.m_TimerType = ETimerType_Exact;
+		Timer.m_NextElapse = Internal.m_Clock.f_GetTime() + _Period;
+		Timer.m_TimerType = CInternal::ETimerType_Exact;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
 
-		CTimer *pTimer = &Timer;
+		CInternal::CTimer *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
 
 		auto pCallbackHandle = Timer.m_Callbacks.f_Register
@@ -405,15 +511,16 @@ namespace NMib::NConcurrency
 				, fg_Move(_fCallback)
 				, [this, pTimer, pDestroyed]
 				{
+					auto &Internal = *mp_pInternal;
 					if (!*pDestroyed)
 					{
-						m_ExactTimers.f_Remove(*pTimer);
+						Internal.m_ExactTimers.f_Remove(*pTimer);
 					}
 				}
 			)
 		;
 
-		fp_StartThread();
+		Internal.fp_StartThread();
 
 		return fg_Move(pCallbackHandle);
 	}
@@ -493,7 +600,7 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(_Period >= 0.001);
 
-		return fg_DirectDispatch
+		return fg_UnsafeDirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
@@ -517,7 +624,7 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(_Period >= 0.001);
 
-		return fg_DirectDispatch
+		return fg_UnsafeDirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
@@ -541,7 +648,7 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(_Period >= 0.001);
 
-		return fg_DirectDispatch
+		return fg_UnsafeDirectDispatch
 			(
 				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{

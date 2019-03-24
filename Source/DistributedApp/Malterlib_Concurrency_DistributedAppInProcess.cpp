@@ -36,53 +36,60 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<NStr::CStr> &&_Params
 		)
 	{
-		auto &ThreadLocal = fg_DistributedAppThreadLocal();
-		auto OldSettings = ThreadLocal.m_DefaultSettings;
-		auto OldAppType = ThreadLocal.m_DefaultAppType;
-		auto Cleanup = g_OnScopeExit > [&]
-			{
-				ThreadLocal.m_DefaultSettings = OldSettings;
-				ThreadLocal.m_DefaultAppType = OldAppType;
-			}
-		;
-
-		ThreadLocal.m_DefaultAppType = EDistributedAppType_InProcess;
-		ThreadLocal.m_DefaultSettings.m_bSeparateDistributionManager = true;
-		ThreadLocal.m_DefaultSettings.m_RootDirectory = _HomeDirectory;
-
-		auto &InterfaceSettings = ThreadLocal.m_DefaultSettings.m_InterfaceSettings;
-		if (mp_bDelegateTrust)
-			InterfaceSettings.m_Options = CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface;
-		else
-			InterfaceSettings.m_Options = CDistributedAppActor_InterfaceSettings::EOption_None;
-		InterfaceSettings.m_ServerAddress = mp_Address.f_Encode();
-		*(InterfaceSettings.m_pRequestTicket = fg_Construct()) = g_ActorFunctor / [this]() -> TCFuture<CDistributedActorTrustManager::CTrustTicket>
-			{
-				return fp_HandleTicketRequest();
-			}
-		;
-
-		mp_DistributedApp = _fDistributedAppFactory();
-
-		TCPromise<NStr::CStr> Promise;
-
-		CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
-
-		NContainer::TCVector<NStr::CStr> Params{"--daemon-run-standalone"};
-
-		Params.f_Insert(fg_Move(_Params));
-
-		CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
-		try
 		{
-			CommandLine = CommandLineClient.f_ParseCommandLine(Params);
-		}
-		catch (NException::CException const &_Exception)
-		{
-			co_return _Exception;
+			auto &ThreadLocal = fg_DistributedAppThreadLocal();
+			auto OldSettings = ThreadLocal.m_DefaultSettings;
+			auto OldAppType = ThreadLocal.m_DefaultAppType;
+			auto Cleanup = g_OnScopeExit > [&]
+				{
+					ThreadLocal.m_DefaultSettings = OldSettings;
+					ThreadLocal.m_DefaultAppType = OldAppType;
+				}
+			;
+
+			ThreadLocal.m_DefaultAppType = EDistributedAppType_InProcess;
+			ThreadLocal.m_DefaultSettings.m_bSeparateDistributionManager = true;
+			ThreadLocal.m_DefaultSettings.m_RootDirectory = _HomeDirectory;
+
+			auto &InterfaceSettings = ThreadLocal.m_DefaultSettings.m_InterfaceSettings;
+
+			DMibFastCheck(!InterfaceSettings.m_pRequestTicket);
+
+			if (mp_bDelegateTrust)
+				InterfaceSettings.m_Options = CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface;
+			else
+				InterfaceSettings.m_Options = CDistributedAppActor_InterfaceSettings::EOption_None;
+			InterfaceSettings.m_ServerAddress = mp_Address.f_Encode();
+			*(InterfaceSettings.m_pRequestTicket = fg_Construct()) = g_ActorFunctor / [this]() -> TCFuture<CDistributedActorTrustManager::CTrustTicket>
+				{
+					return fp_HandleTicketRequest();
+				}
+			;
+
+			mp_DistributedApp = _fDistributedAppFactory();
 		}
 
-		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_StartApp, CommandLine.m_Params, nullptr, EDistributedAppType_InProcess);
+		NEncoding::CEJSON AppParams;
+		{
+			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
+
+			NContainer::TCVector<NStr::CStr> Params{"--daemon-run-standalone"};
+
+			Params.f_Insert(fg_Move(_Params));
+
+			CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
+			try
+			{
+				CommandLine = CommandLineClient.f_ParseCommandLine(Params);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return _Exception;
+			}
+			AppParams = fg_Move(CommandLine.m_Params);
+		}
+
+		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_StartApp, fg_Move(AppParams), nullptr, EDistributedAppType_InProcess);
 	}
 
 	TCFuture<void> CDistributedAppInProcessActor::fp_Destroy()

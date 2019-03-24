@@ -65,6 +65,9 @@ namespace NMib::NConcurrency
 		friend class CDefaultActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CConcurrencyThreadLocal;
+#if DMibConfig_Concurrency_DebugFutures
+		friend struct NPrivate::CPromiseDataBase;
+#endif
 
 		struct CQueue
 		{
@@ -89,6 +92,10 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NThread::CMutual m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
+#endif
+#if DMibConfig_Concurrency_DebugFutures
+		NThread::CMutual m_FutureListLock;
+		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
 #endif
 
 		mint m_nThreads = 0;
@@ -133,6 +140,7 @@ namespace NMib::NConcurrency
 
 	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 
+	bool fg_ActorRunning(TCActor<> &_Actor);
 	bool fg_CurrentActorRunning();
 
 	template <typename tf_CActor, typename... tfp_CParams>
@@ -156,6 +164,7 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_ActorInternal.hpp"
 #include "Malterlib_Concurrency_Manager.hpp"
 #include "Malterlib_Concurrency_Promise_Coroutine.hpp"
+#include "Malterlib_Concurrency_WeakActor.hpp"
 
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;

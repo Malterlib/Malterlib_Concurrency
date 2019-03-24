@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 										}
 									;
 
-									pConnection->f_DiscardIdentifyPromise();
+									pConnection->f_DiscardIdentifyPromise("Reconnected");
 									pConnection->m_IdentifyPromise = TCPromise<void>();
 
 									NWeb::NHTTP::CResponseHeader ResponseHeader;

@@ -13,28 +13,28 @@ namespace NMib::NConcurrency
 #		define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NException::CExceptionActorDeleted, _Description)
 
 #		ifndef DMibPNoShortCuts
-#			define DErrorActorDeleted(_Description) DMibErrorActorDeleted(_Description)
+#			define DErrorActorDeleted DMibErrorActorDeleted
 #		endif
 
 	DMibImpErrorClassDefine(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
 #		define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorAlreadyDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
-#			define DErrorActorAlreadyDestroyed(_Description) DMibErrorActorAlreadyDestroyed(_Description)
+#			define DErrorActorAlreadyDestroyed DMibErrorActorAlreadyDestroyed
 #		endif
 
 	DMibImpErrorClassDefine(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
 #		define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorIsBeingDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
-#			define DErrorActorIsBeingDestroyed(_Description) DMibErrorActorIsBeingDestroyed(_Description)
+#			define DErrorActorIsBeingDestroyed DMibErrorActorIsBeingDestroyed
 #		endif
 
 	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
-#		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description)
+#		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description, false)
 
 #		ifndef DMibPNoShortCuts
-#			define DErrorActorResultWasNotSet(_Description) DMibErrorActorResultWasNotSet(_Description)
+#			define DErrorActorResultWasNotSet DMibErrorActorResultWasNotSet
 #		endif
 
 	template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
@@ -53,10 +53,11 @@ namespace NMib::NConcurrency
 	>
 	struct TCReportLocal;
 
-	class CTimerActor;
+	struct CTimerActor;
 	class CConcurrentActor;
 	class CAnyConcurrentActor;
 	class CAnyConcurrentActorLowPrio;
+	class CActorHolder;
 
 	struct CCurrentActorScope
 	{
@@ -67,7 +68,7 @@ namespace NMib::NConcurrency
 		DMibThreadLocalScopeDebugMember;
 		CActor *mp_pLastActor;
 	};
-	
+
 	namespace NPrivate
 	{
 		class CDirectResultActor;

@@ -136,7 +136,7 @@ namespace
 		t_CPointer m_pSSLHandle;
 	};
 
-	EC_KEY *fg_DecodeUserKey(CByteVector const &_Data)
+	EC_KEY *fg_DecodeUserKey(CSecureByteVector const &_Data)
 	{
 		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 		CSSLPointer<EC_KEY *, EC_KEY_free> pKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
@@ -156,14 +156,14 @@ namespace
 		return pKey.f_StealPointer();
 	}
 
-	CByteVector fg_DumpUserKey(EC_KEY const *_pKey)
+	CSecureByteVector fg_DumpUserKey(EC_KEY const *_pKey)
 	{
 		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
 		if (!pECGroup)
 			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
 
-		CByteVector Buffer;
+		CSecureByteVector Buffer;
 		EC_POINT const *pPoint = EC_KEY_get0_public_key(_pKey);
 		ERR_clear_error();
 		if (EC_POINT_point2oct(pECGroup, pPoint, POINT_CONVERSION_UNCOMPRESSED, Buffer.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN, nullptr) != U2F_PUBLIC_KEY_LEN)
@@ -277,11 +277,11 @@ namespace
 					uint8 m_CapFlags;
 				};
 
-				CByteVector Nonce;
+				CSecureByteVector Nonce;
 				NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
 
 				TCPromise<CDevice> Promise;
-				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Promise / [=](CByteVector &&_Response)
+				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Promise / [=](CSecureByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() != (c_InitNonceSize + 4 + 5))
 							return Promise.f_SetException(DMibErrorInstance("Invalid U2FHID_INIT response length"));
@@ -314,7 +314,7 @@ namespace
 				auto fTry = [Device = _Device, Promise](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
 					{
 						Device(&CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, _pState->m_Timeout)
-							> Promise / [=](CByteVector &&_Result) mutable
+							> Promise / [=](CSecureByteVector &&_Result) mutable
 							{
 								if (!_Result.f_IsEmpty())
 								{
@@ -347,21 +347,21 @@ namespace
 				return Promise.f_MoveFuture();
 			}
 
-			TCFuture<CByteVector> f_SendReceive(uint8_t _Command, CByteVector const &_Send) const
+			TCFuture<CSecureByteVector> f_SendReceive(uint8_t _Command, CSecureByteVector const &_Send) const
 			{
 				return fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
 			}
 
-			static TCFuture<CByteVector> fs_SendReceive(uint8_t _Command, CByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			static TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
 				struct CSendState
 				{
-					CSendState(CByteVector const &_ToSend)
+					CSendState(CSecureByteVector const &_ToSend)
 						: m_ToSend(_ToSend)
 					{
 					}
 
-					CByteVector m_ToSend;
+					CSecureByteVector m_ToSend;
 
 					uint8 m_Sequence = 0;
 					mint m_SendLength = m_ToSend.f_GetLen();
@@ -385,7 +385,7 @@ namespace
 							else
 								State.m_DataSent += Frame.f_SetContinuation(_ChannelID, State.m_Sequence++, State.m_pSendData + State.m_DataSent, State.m_SendLength - State.m_DataSent);
 
-							CByteVector Data;
+							CSecureByteVector Data;
 							Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
 
 							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > SendPromise / [=](aint _BytesWritten)
@@ -406,12 +406,12 @@ namespace
 
 				fDoSend(pSendState, fDoSend);
 
-				TCPromise<CByteVector> Promise;
+				TCPromise<CSecureByteVector> Promise;
 				SendPromise > Promise / [=]
 					{
 						struct CReceiveState
 						{
-							CByteVector m_Receive;
+							CSecureByteVector m_Receive;
 							uint16 m_nReceived = 0;
 							uint16 m_DataLength = 0;
 							uint8 m_Sequence = 0;
@@ -420,7 +420,7 @@ namespace
 
 						TCSharedPointer<CReceiveState> pReceiveState = fg_Construct();
 
-						auto fDoReceive = [=](TCSharedPointer<CReceiveState> const &_pReceiveState, auto const &_fDoReceive) -> void
+						auto fDoReceive = [=](TCSharedPointer<CReceiveState> const &_pReceiveState, auto &&_fDoReceive) -> void
 							{
 								fs_ReadFrame(_Device) > Promise / [=](CFrame &&_Frame)
 									{
@@ -487,17 +487,17 @@ namespace
 				return Promise.f_MoveFuture();
 			}
 
-			TCFuture<CByteVector> f_SendAPDU(uint8 _Command, CByteVector const &_Data, uint8 _UserPresence) const
+			TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector const &_Data, uint8 _UserPresence) const
 			{
 				auto DataLength = _Data.f_GetLen();
 
-				CByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
+				CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
 				Buffer.f_Insert(_Data);
 				Buffer.f_Insert((uint8)0);
 				Buffer.f_Insert((uint8)0);
 
-				TCPromise<CByteVector> Promise;
-				f_SendReceive(U2FHID_MSG, Buffer) > Promise / [=](CByteVector &&_Response)
+				TCPromise<CSecureByteVector> Promise;
+				f_SendReceive(U2FHID_MSG, Buffer) > Promise / [=](CSecureByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() < 2)
 							return Promise.f_SetException(DMibErrorInstance("Response from U2F device too short"));
@@ -717,15 +717,15 @@ namespace
 	{
 		struct CRegistrationResult
 		{
-			CByteVector m_KeyHandle;
-			NContainer::CByteVector m_PublicKey;
+			CSecureByteVector m_KeyHandle;
+			NContainer::CSecureByteVector m_PublicKey;
 			CStr m_AttestationCertificatePEM;
 			CStr m_AppID;
 		};
 
 		struct CAuthenticationResponse
 		{
-			CByteVector m_Signature;
+			CSecureByteVector m_Signature;
 			CStr m_FactorID;
 			CStr m_FactorName;
 		};
@@ -739,7 +739,7 @@ namespace
 
 		struct CSendAPDUResult
 		{
-			CByteVector m_Data;
+			CSecureByteVector m_Data;
 			uint32 m_Index;
 		};
 
@@ -750,7 +750,7 @@ namespace
 			fg_Malterlib_UseSSL();
 		}
 
-		CU2FContext(CAuthenticationData const &_AuthenticationData, CByteVector const &_SignatureBytes, CStr const &_ID)
+		CU2FContext(CAuthenticationData const &_AuthenticationData, CSecureByteVector const &_SignatureBytes, CStr const &_ID)
 			: m_SignatureBytes(_SignatureBytes)
 			, m_FactorID(_ID)
 			, m_FactorName(_AuthenticationData.m_Name)
@@ -759,7 +759,7 @@ namespace
 			if (auto *pValue = _AuthenticationData.m_PrivateData.f_FindEqual("KeyHandle"))
 			{
 				if (pValue->f_IsBinary())
-					m_KeyHandle = pValue->f_Binary();
+					m_KeyHandle = pValue->f_Binary().f_ToSecure();
 			}
 			if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("AppID"))
 			{
@@ -769,11 +769,11 @@ namespace
 			if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey"))
 			{
 				if (pValue->f_IsBinary())
-					m_PublicKey = pValue->f_Binary();
+					m_PublicKey = pValue->f_Binary().f_ToSecure();
 			}
 		}
 
-		static TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
+		static TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
 		{
 			TCPromise<CSendAPDUResult> Promise;
 
@@ -790,7 +790,7 @@ namespace
 					struct CState
 					{
 						TCVector<TCSet<uint32>> m_SkipDevice;
-						TCVector<CByteVector> m_Data;
+						TCVector<CSecureByteVector> m_Data;
 						mint m_nIterations = 15;
 						mint m_iData = 0;
 						TCMap<CStr, CU2FDevices::CDevice>::CIteratorConst m_iDevice;
@@ -842,7 +842,7 @@ namespace
 
 											State.m_bSkippedAll = false;
 
-											Device.f_SendAPDU(_Command, State.m_Data[State.m_iData], 3) > [=](TCAsyncResult<CByteVector> &&_Response) -> void
+											Device.f_SendAPDU(_Command, State.m_Data[State.m_iData], 3) > [=](TCAsyncResult<CSecureByteVector> &&_Response) -> void
 												{
 													auto &State = *_pState;
 													if (!_Response)
@@ -949,7 +949,7 @@ namespace
 
 		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse
 			(
-			 	CByteVector const &_RegistrationData
+			 	CSecureByteVector const &_RegistrationData
 			 	, CHashDigest_SHA256 const &_ChallengeDigest
 			 	, CHashDigest_SHA256 const &_AppDigest
 			 	, CStr const &_AppID
@@ -993,16 +993,16 @@ namespace
 						}
 					}
 
-					CByteVector PublicKey;
+					CSecureByteVector PublicKey;
 					Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
 
 					uint8 KeyHandleLen;
 					Stream >> KeyHandleLen;
 
-					CByteVector KeyHandle;
+					CSecureByteVector KeyHandle;
 					Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
 
-					CByteVector AttestationCertData;
+					CSecureByteVector AttestationCertData;
 					{
 						uint8 Reserved0;
 						uint8 Reserved1;
@@ -1039,7 +1039,7 @@ namespace
 					CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
 					{
 						size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
-						CByteVector SignatureBuffer;
+						CSecureByteVector SignatureBuffer;
 						Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
 
 						uint8 const *pTempData = SignatureBuffer.f_GetArray();
@@ -1102,7 +1102,7 @@ namespace
 		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> const &_fPrompt)
 		{
 			TCPromise<CRegistrationResult> Promise;
-			CByteVector Data;
+			CSecureByteVector Data;
 
 			auto ChallengeDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
 			Data.f_Insert(ChallengeDigest.f_GetData(), ChallengeDigest.fs_GetSize());
@@ -1132,10 +1132,10 @@ namespace
 
 			TCVector<CFactorValues> FactorValues;
 			// Build the packets to send to the key
-			TCVector<CByteVector> DataUnits;
+			TCVector<CSecureByteVector> DataUnits;
 			for (auto const &Context : _U2FContexts)
 			{
-				CByteVector Data;
+				CSecureByteVector Data;
 				FactorValues.f_InsertLast({Context.m_AppID, Context.m_FactorID, Context.m_FactorName});
 
 				auto Digest = CHash_SHA256::fs_DigestFromData(Context.m_SignatureBytes);
@@ -1228,9 +1228,9 @@ namespace
 			return Promise.f_MoveFuture();
 		}
 
-		CByteVector m_SignatureBytes;
-		CByteVector m_KeyHandle;
-		CByteVector m_PublicKey;
+		CSecureByteVector m_SignatureBytes;
+		CSecureByteVector m_KeyHandle;
+		CSecureByteVector m_PublicKey;
 		CStr m_AppID;
 		CStr m_FactorID;
 		CStr m_FactorName;
@@ -1299,9 +1299,9 @@ namespace NMib::NConcurrency
 				Result.m_Category = EAuthenticationFactorCategory_Possession;
 				Result.m_Name = "U2F";
 				Result.m_PublicData["AttestationCertificate"] = _Result.m_AttestationCertificatePEM;
-				Result.m_PublicData["PublicKey"] = _Result.m_PublicKey;
+				Result.m_PublicData["PublicKey"] = _Result.m_PublicKey.f_ToInsecure();
 				Result.m_PublicData["AppID"] = _Result.m_AppID;
-				Result.m_PrivateData["KeyHandle"] = _Result.m_KeyHandle;
+				Result.m_PrivateData["KeyHandle"] = _Result.m_KeyHandle.f_ToInsecure();
 				Promise.f_SetResult(Result);
 			}
 		;

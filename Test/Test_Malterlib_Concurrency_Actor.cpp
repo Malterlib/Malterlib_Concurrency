@@ -43,7 +43,8 @@ namespace
 	using namespace NMib::NConcurrency;
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
-	
+	using namespace NMib::NStr;
+
 	constexpr mint gc_nRepetitions = 11;
 
 	class CConstructorExceptionActor : public CActor
@@ -160,6 +161,8 @@ namespace
 		{
 			return 0;
 		}
+		virtual TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> &&_pValue) = 0;
+		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> &&_pValue) = 0;
 	};
 
 	class CDerivedActor : public CBaseActor
@@ -178,6 +181,19 @@ namespace
 		{
 			return fg_Explicit();
 		}
+
+		TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> &&_pValue) override
+		{
+			return fg_Explicit(_pValue->f_ToInt());
+		}
+
+		TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> &&_pValue) override
+		{
+			return fg_Explicit(_pValue->f_ToInt());
+		}
+
+		mint m_DummyMember0 = 0;
+		mint m_DummyMember1 = 1;
 	};
 	
 	class CCallbackActor : public CActor
@@ -190,7 +206,7 @@ namespace
 		{
 		}
 		
-		CActorSubscription f_RegisterCallback(TCActor<CActor> _pActor, TCFunction<void (int32 _Value)> && _fCallback)
+		CActorSubscription f_RegisterCallback(TCActor<CActor> _pActor, TCFunctionMovable<void (int32 _Value)> && _fCallback)
 		{
 			return m_CallbackManager.f_Register(_pActor, fg_Move(_fCallback));
 		}
@@ -412,7 +428,7 @@ namespace
 					CEventAutoReset FinishedEvent;
 
 					uint32 Value = 555;
-					
+
 					fg_Dispatch
 						(
 							TestActor
@@ -427,10 +443,22 @@ namespace
 							FinishedEvent.f_Signal();
 						}
 					;
-					
+
 					FinishedEvent.f_Wait();
-					
+
 					DMibExpect(Value, ==, 5);
+				}
+				{
+					DMibTestPath("Pointer params");
+					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
+
+					TCFuture<uint32> SharedPointerFuture = TestActor(&CBaseActor::f_SharedPointer, fg_Construct(CStr("5")));
+					uint32 SharedPointerResult = SharedPointerFuture.f_CallSync(60.0);
+					DMibExpect(SharedPointerResult, ==, 5);
+
+					TCFuture<uint32> UniquePointerFuture = TestActor(&CBaseActor::f_UniquePointer, fg_Construct(CStr("5")));
+					uint32 UniquePointerResult = UniquePointerFuture.f_CallSync(60.0);
+					DMibExpect(UniquePointerResult, ==, 5);
 				}
 				{
 					DMibTestPath("Weak actor");

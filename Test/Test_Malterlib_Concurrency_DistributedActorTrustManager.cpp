@@ -502,7 +502,12 @@ namespace
 				, NFunction::TCFunction<void ()> const &_fCleanup
 			)
 		{
-			auto HelperActor = fg_ConcurrentActor();
+			TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+			auto CleanupTestActor = g_OnScopeExit > [&]
+				{
+					HelperActor->f_BlockDestroy();
+				}
+			;
 			CCurrentActorScope CurrentActor{HelperActor};
 
 			DMibTestSuite("Basic")
@@ -2338,7 +2343,12 @@ namespace
 
 		void fp_DoDatabaseConversionTests()
 		{
-			auto HelperActor = fg_ConcurrentActor();
+			TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+			auto CleanupTestActor = g_OnScopeExit > [&]
+				{
+					HelperActor->f_BlockDestroy();
+				}
+			;
 			CCurrentActorScope CurrentActor{HelperActor};
 
 			DMibTestSuite("Host Permissions to Permissions")

@@ -461,7 +461,7 @@ namespace NMib::NConcurrency
 		return mp_pHost.f_Lock();
 	}
 
-	TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const
+	TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const
 	{
 		return fg_ConcurrentDispatch
 			(

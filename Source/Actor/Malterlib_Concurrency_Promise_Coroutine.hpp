@@ -1,11 +1,11 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
 
 namespace NMib::NConcurrency
 {
-	inline_always CFutureCoroutineContext::CFutureCoroutineContext(EFutureCoroutineContextFlag _Flags) noexcept
+	inline_always CFutureCoroutineContext::CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept
 		: m_Flags(_Flags)
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
@@ -23,41 +23,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
-#if DMibEnableSafeCheck > 0
-	inline_never
-#endif
-	CSuspendNever CFutureCoroutineContext::initial_suspend()
-#if DMibEnableSafeCheck <= 0
-	 	noexcept
-#endif
+#	if DMibEnableSafeCheck == 0
+	inline_always CSuspendNever CFutureCoroutineContext::initial_suspend() noexcept
 	{
-#if DMibEnableSafeCheck > 0
-		auto &ThreadLocal = **g_SystemThreadLocal;
-		
-		if (m_Flags & EFutureCoroutineContextFlag_UnsafeThisPointer)
-			fp_CheckUnsafeThisPointer();
-		else if (m_Flags & EFutureCoroutineContextFlag_UnsafeReferenceParameters)
-			fp_CheckUnsafeReferenceParams();
-
-		ThreadLocal.m_bExpectCoroutineCall = false;
-#endif
-
-		DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
-
 		return {};
 	}
-
-	CSuspendAlways CFutureCoroutineContext::final_suspend()
-	{
-		if (m_pPreviousCoroutineHandler != this)
-		{
-			auto &ThreadLocal = **g_SystemThreadLocal;
-			DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
-			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
-			m_pPreviousCoroutineHandler = this;
-		}
-		return {};
-	}
+#endif
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -120,16 +91,26 @@ namespace NMib::NConcurrency::NPrivate
 
 		auto *pPromiseData = Future.m_pData.f_Get();
 		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContext>::from_promise(*this);
-
+#if DMibEnableSafeCheck > 0
+		pPromiseData->m_CoroutineOwner = fg_CurrentActor();
+#endif
 		this->m_pPromiseData = pPromiseData;
 
 		return Future;
 	}
 
+#if DMibEnableSafeCheck > 0
+	template <typename t_CReturnType>
+	void TCFutureCoroutineContext<t_CReturnType>::f_ReportDebugException(NException::CDebugException const &_Exception)
+	{
+		this->m_pPromiseData->f_SetException(_Exception);
+	}
+#endif
+
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::unhandled_exception()
 	{
-		if (this->m_Flags & EFutureCoroutineContextFlag_CaptureExceptions)
+		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 		{
 			try
 			{
@@ -150,6 +131,12 @@ namespace NMib::NConcurrency::NPrivate
 			{
 				throw;
 			}
+#if DMibEnableSafeCheck > 0
+			catch (NException::CDebugException const &)
+			{
+				this->m_pPromiseData->f_SetCurrentException();
+			}
+#endif
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
 				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
@@ -159,10 +146,50 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	NStorage::TCSharedPointer<TCPromiseData<t_CReturnType>> TCFutureCoroutineContext<t_CReturnType>::f_Suspend()
+	TCFutureCoroutineKeepAlive<t_CReturnType>::TCFutureCoroutineKeepAlive(TCActor<> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
+		: m_Actor(fg_Move(_Actor))
+		, mp_pPromiseData(fg_Move(_pPromiseData))
 	{
-		CFutureCoroutineContext::f_Suspend();
-		return fg_Explicit(this->m_pPromiseData);
+	}
+
+	template <typename t_CReturnType>
+	TCFutureCoroutineKeepAlive<t_CReturnType>::~TCFutureCoroutineKeepAlive()
+	{
+		if (!mp_pPromiseData)
+			return;
+
+		m_Actor.f_GetActor()->f_QueueProcess
+			(
+			 	[pPromiseData = fg_Move(mp_pPromiseData)]
+			 	{
+				}
+			)
+		;
+	}
+
+	template <typename t_CReturnType>
+	TCFutureCoroutineKeepAliveImplicit<t_CReturnType>::TCFutureCoroutineKeepAliveImplicit(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
+		: mp_pPromiseData(fg_Move(_pPromiseData))
+	{
+	}
+
+	template <typename t_CReturnType>
+	TCFutureCoroutineKeepAliveImplicit<t_CReturnType>::~TCFutureCoroutineKeepAliveImplicit()
+	{
+		DMibFastCheck(!mp_pPromiseData || mp_Actor->f_CurrentlyProcessing());
+	}
+
+	template <typename t_CReturnType>
+	TCFutureCoroutineKeepAlive<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::f_KeepAlive(TCActor<> &&_Actor)
+	{
+		DMibFastCheck(_Actor);
+		return TCFutureCoroutineKeepAlive<t_CReturnType>(fg_Move(_Actor), fg_Explicit(this->m_pPromiseData));
+	}
+
+	template <typename t_CReturnType>
+	TCFutureCoroutineKeepAliveImplicit<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::f_KeepAliveImplicit()
+	{
+		return TCFutureCoroutineKeepAliveImplicit<t_CReturnType>(fg_Explicit(this->m_pPromiseData));
 	}
 }
 
@@ -171,14 +198,20 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	struct TCFutureAwaiter
 	{
-		TCFutureAwaiter(TCFuture<t_CReturnType> const &_Future, t_FExceptionTransform &&_fExceptionTransform)
-			: mp_Future(_Future)
+		TCFutureAwaiter(TCFuture<t_CReturnType> &&_Future, t_FExceptionTransform &&_fExceptionTransform)
+			: mp_Future(fg_Move(_Future))
 			, mp_fExceptionTransform(fg_Move(_fExceptionTransform))
 		{
 		}
 
-		bool await_ready() const noexcept
+		bool await_ready() noexcept
 		{
+			if (mp_Future.f_ObserveIfAvailable())
+			{
+				auto Future = fg_Move(mp_Future);
+				mp_Result = fg_Move(Future.m_pData->m_Result);
+				return true;
+			}
 			return false;
 		}
 
@@ -189,48 +222,64 @@ namespace NMib::NConcurrency
 
 			auto &CoroutineContext = _Handle.promise();
 
-			auto pKeepAlive = CoroutineContext.f_Suspend();
-			auto CurrentActor = fg_CurrentActor();
-
-			mp_Future.f_OnResultSet
+			auto Future = fg_Move(mp_Future);
+			if
 				(
-					[CurrentActor = fg_Move(CurrentActor), pKeepAlive = fg_Move(pKeepAlive), _Handle](TCAsyncResult<t_CReturnType> &&) mutable
-					{
-						CurrentActor->f_QueueProcess
-							(
-								[CurrentActor, pKeepAlive = fg_Move(pKeepAlive), _Handle]() mutable
-								{
-									auto &CoroutineContext = _Handle.promise();
-									CCurrentActorScope CurrentActorScope(CurrentActor);
-									CoroutineContext.f_Resume();
-									_Handle.resume();
-								}
-							)
-						;
-					}
+					Future.f_OnResultSetOrAvailable
+					(
+						[this, _Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_CurrentActor())](TCAsyncResult<t_CReturnType> &&_Result) mutable
+						{
+							KeepAlive.m_Actor.f_GetActor()->f_QueueProcess
+								(
+									[this, _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
+									{
+										auto &CoroutineContext = _Handle.promise();
+										mp_Result = fg_Move(Result);
+										CCurrentActorScope CurrentActorScope(KeepAlive.m_Actor);
+#if DMibEnableSafeCheck > 0
+										mp_pDebugException = CoroutineContext.f_Resume();
+#else
+										CoroutineContext.f_Resume();
+#endif
+										_Handle.resume();
+									}
+								)
+							;
+						}
+					)
 				)
-			;
+			{
+				mp_Result = fg_Move(Future.m_pData->m_Result);
+				return false;
+			}
 
+			CoroutineContext.f_Suspend();
 			return true;
 		}
 
-		auto await_resume() noexcept(!t_bUnwrap)
+		auto await_resume()
+#if DMibEnableSafeCheck == 0
+		noexcept(!t_bUnwrap)
+#endif
 		{
-			auto &FutureResult = mp_Future.m_pData->m_Result;
+#if DMibEnableSafeCheck > 0
+			if (mp_pDebugException)
+				std::rethrow_exception(mp_pDebugException);
+#endif
 			if constexpr (t_bUnwrap)
-				return fg_UnwrapCoroutineAsyncResult(fg_Move(FutureResult), mp_fExceptionTransform);
+				return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
 			else
 			{
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-					return fg_Move(FutureResult);
+					return fg_Move(mp_Result);
 				else
 				{
-					if (FutureResult)
-						return fg_Move(FutureResult);
+					if (mp_Result)
+						return fg_Move(mp_Result);
 					else
 					{
 						TCAsyncResult<t_CReturnType> Result;
-						Result.f_SetException(mp_fExceptionTransform(fg_Move(FutureResult.f_GetException())));
+						Result.f_SetException(mp_fExceptionTransform(fg_Move(mp_Result.f_GetException())));
 						return Result;
 					}
 				}
@@ -239,25 +288,29 @@ namespace NMib::NConcurrency
 
 	private:
 		TCFuture<t_CReturnType> mp_Future;
+		TCAsyncResult<t_CReturnType> mp_Result;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+#if DMibEnableSafeCheck > 0
+		NException::CExceptionPointer mp_pDebugException;
+#endif
 	};
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::f_Wrap() const -> CNoUnwrapAsyncResult
+	auto TCFuture<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::operator co_await() const
+	auto TCFuture<t_CReturnValue>::operator co_await()
 	{
-		return TCFutureAwaiter<t_CReturnValue, true>(*this, nullptr);
+		return TCFutureAwaiter<t_CReturnValue, true>(fg_Move(*this), nullptr);
 	}
 
 	template <typename t_CReturnValue>
 	auto TCFuture<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
 	{
-		return TCFutureAwaiter<t_CReturnValue, false>(*m_pWrapped, nullptr);
+		return TCFutureAwaiter<t_CReturnValue, false>(fg_Move(*m_pWrapped), nullptr);
 	}
 
 	template <typename t_CReturnValue>
@@ -278,7 +331,7 @@ namespace NMib::NConcurrency
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
-			 	m_Future
+			 	fg_Move(m_Future)
 			 	, this->fp_GetTransformer()
 			)
 		;
@@ -289,7 +342,7 @@ namespace NMib::NConcurrency
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
-			 	m_pWrapped->m_Future
+			 	fg_Move(m_pWrapped->m_Future)
 			 	, m_pWrapped->fp_GetTransformer()
 			)
 		;
@@ -302,27 +355,27 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tfp_CThis, bool t_bIsComplete = NTraits::TCIsComplete<tfp_CThis>::mc_Value>
 	struct TCCoroutineContextFlagsFromParams_This
 	{
-		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value = NMib::NConcurrency::EFutureCoroutineContextFlag_UnsafeThisPointer; // Assume lambda
+		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer; // Assume lambda
 	};
 
 	template <typename tfp_CThis>
 	struct TCCoroutineContextFlagsFromParams_This<tfp_CThis, true>
 	{
-		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value
+		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value
 			=
 			(
 			 	NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActor>::mc_Value
 			 	|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActorInternal>::mc_Value
 			)
-			? NMib::NConcurrency::EFutureCoroutineContextFlag_None
-			: NMib::NConcurrency::EFutureCoroutineContextFlag_UnsafeThisPointer
+			? NMib::NConcurrency::ECoroutineFlag_None
+			: NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer
 		;
 	};
 
 	template <typename ...tp_CParams>
 	struct TCCoroutineContextFlagsFromParams
 	{
-		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value = NMib::NConcurrency::EFutureCoroutineContextFlag_None;
+		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_None;
 	};
 
 #ifdef DCompiler_MSVC_Workaround
@@ -335,11 +388,11 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tp_CFirstParam, typename ...tp_CParams>
 	struct TCCoroutineContextFlagsFromParams<tp_CFirstParam, tp_CParams...>
 	{
-		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value =
+		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value =
 			(
 				fg_AnyIsReference<tp_CParams...>()
-				? NMib::NConcurrency::EFutureCoroutineContextFlag_UnsafeReferenceParameters
-				: NMib::NConcurrency::EFutureCoroutineContextFlag_None
+				? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
+				: NMib::NConcurrency::ECoroutineFlag_None
 			)
 			| TCCoroutineContextFlagsFromParams_This<typename TCChooseType<NTraits::TCIsPointer<tp_CFirstParam>::mc_Value, typename NTraits::TCAddLValueReference<typename NTraits::TCRemovePointer<tp_CFirstParam>::CType>::CType, tp_CFirstParam>::CType>::mc_Value;
 		;
@@ -348,11 +401,11 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tp_CFirstParam, typename ...tp_CParams>
 	struct TCCoroutineContextFlagsFromParams<tp_CFirstParam, tp_CParams...>
 	{
-		static constexpr NMib::NConcurrency::EFutureCoroutineContextFlag mc_Value =
+		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value =
 			(
 				(... || NMib::NTraits::TCIsReference<tp_CParams>::mc_Value)
-				? NMib::NConcurrency::EFutureCoroutineContextFlag_UnsafeReferenceParameters
-				: NMib::NConcurrency::EFutureCoroutineContextFlag_None
+				? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
+				: NMib::NConcurrency::ECoroutineFlag_None
 			)
 			| TCCoroutineContextFlagsFromParams_This<tp_CFirstParam>::mc_Value;
 		;
@@ -367,67 +420,15 @@ namespace std::experimental
 	template <typename t_CReturnType, typename ...tp_CParams>
 	struct coroutine_traits<NMib::NConcurrency::TCFuture<t_CReturnType>, tp_CParams...>
 	{
+#if DMibEnableSafeCheck > 0
 		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
 			<
 				t_CReturnType
-#if DMibEnableSafeCheck > 0
 				, NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value
-#endif
 			>
 		;
-	};
-
-	template <typename t_CReturnType, NMib::NConcurrency::EFutureOption t_Options, typename ...tp_CParams>
-	struct coroutine_traits<NMib::NConcurrency::TCFutureWithOptions<t_CReturnType, t_Options>, tp_CParams...>
-	{
-		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
-			<
-				t_CReturnType
-#if DMibEnableSafeCheck > 0
-				, NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value
-#endif
-			>
-		;
-	};
-
-	template <typename t_CReturnType, typename ...tp_CParams>
-	struct coroutine_traits<NMib::NConcurrency::TCFutureWithOptions<t_CReturnType, NMib::NConcurrency::EFutureOption_CaptureExceptions>, tp_CParams...>
-	{
-		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
-			<
-				t_CReturnType
-				, (NMib::NConcurrency::EFutureCoroutineContextFlag)
-				(
-#if DMibEnableSafeCheck > 0
-					NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value
 #else
-					NMib::NConcurrency::EFutureCoroutineContextFlag_None
+		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContext<t_CReturnType>;
 #endif
-					| NMib::NConcurrency::EFutureCoroutineContextFlag_CaptureExceptions
-				)
-			>
-		;
-	};
-
-	template <typename t_CReturnType, typename ...tp_CParams>
-	struct coroutine_traits<NMib::NConcurrency::TCFutureWithOptions<t_CReturnType, NMib::NConcurrency::EFutureOption_AllowReferences>, tp_CParams...>
-	{
-		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
-			<
-				t_CReturnType
-				, NMib::NConcurrency::EFutureCoroutineContextFlag_None
-			>
-		;
-	};
-
-	template <typename t_CReturnType, typename ...tp_CParams>
-	struct coroutine_traits<NMib::NConcurrency::TCFutureWithOptions<t_CReturnType, NMib::NConcurrency::EFutureOption_AllowReferencesCaptureExceptions>, tp_CParams...>
-	{
-		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
-			<
-				t_CReturnType
-				, NMib::NConcurrency::EFutureCoroutineContextFlag_CaptureExceptions
-			>
-		;
 	};
 }

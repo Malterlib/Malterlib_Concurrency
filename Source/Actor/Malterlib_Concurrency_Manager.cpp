@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -519,38 +519,61 @@ namespace NMib::NConcurrency
 				if (Clock.f_GetTime() > 10.0)
 				{
 					DMibTrace("Shutting down of actors is taking a long time. Waiting for actors:{\n}", 0);
-					DMibLock(m_ActorListLock);
-					for (auto &Actor : this->m_Actors)
 					{
-						if
-							(
-								Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0
-								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
-								|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActor") >= 0
-							)
+						DMibLock(m_ActorListLock);
+						for (auto &Actor : this->m_Actors)
 						{
-							continue;
-						}
+							if
+								(
+									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActor") >= 0
+								)
+							{
+								continue;
+							}
 
-						DMibTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
 
-#if DMibConfig_RefcountDebugging
-						mint iCallstack = 0;
-						for (auto &Callstack : Actor.m_Debug->m_Callstacks)
-						{
-							DMibTrace2("        Reference callstack {}\n", iCallstack);
-							Callstack.f_Trace(12);
-							++iCallstack;
+	#if DMibConfig_RefcountDebugging
+							mint iCallstack = 0;
+							for (auto &Callstack : Actor.m_Debug->m_Callstacks)
+							{
+								DMibTrace2("        Reference callstack {}\n", iCallstack);
+								Callstack.f_Trace(12);
+								++iCallstack;
+							}
+							iCallstack = 0;
+							for (auto &Callstack : Actor.m_Debug->m_WeakCallstacks)
+							{
+								DMibTrace2("        Weak reference callstack {}\n", iCallstack);
+								Callstack.f_Trace(12);
+								++iCallstack;
+							}
+	#endif
 						}
-						iCallstack = 0;
-						for (auto &Callstack : Actor.m_Debug->m_WeakCallstacks)
-						{
-							DMibTrace2("        Weak reference callstack {}\n", iCallstack);
-							Callstack.f_Trace(12);
-							++iCallstack;
-						}
-#endif
 					}
+
+#if DMibConfig_Concurrency_DebugFutures
+					{
+						DMibTrace("Futures alive:{\n}", 0);
+						DMibLock(m_FutureListLock);
+						for (auto &Future : this->m_Futures)
+						{
+							DMibTrace("    {}   RefCount {}{\n}", Future.m_FutureTypeName << Future.f_RefCountGet());
+
+	#if DMibConfig_RefcountDebugging
+							mint iCallstack = 0;
+							for (auto &Callstack : Future.m_Debug->m_Callstacks)
+							{
+								DMibTrace2("        Reference callstack {}\n", iCallstack);
+								Callstack.f_Trace(12);
+								++iCallstack;
+							}
+	#endif
+						}
+					}
+#endif
 					Clock.f_Start();
 				}
 				if (s_AbortLoop)
@@ -697,7 +720,7 @@ namespace NMib::NConcurrency
 			{
 				DMibLock(m_pTimerActorLock);
 				if (!m_pTimerActor)
-					m_pTimerActor = fg_ConstructActor<CTimerActor>();
+					m_pTimerActor = fg_Construct(fg_Construct(), "Timer actor");
 			}
 			return m_pTimerActor;
 		}
@@ -706,9 +729,20 @@ namespace NMib::NConcurrency
 	TCActor<CActor> fg_CurrentActor()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (!ThreadLocal.m_pCurrentActor)
-			return fg_Default();
-		return fg_ThisActor(ThreadLocal.m_pCurrentActor);
+		if (ThreadLocal.m_pCurrentActor)
+		{
+			DMibFastCheck(fg_ThisActor(ThreadLocal.m_pCurrentActor) != fg_DirectCallActor()); // It's not safe to use the direct call actor
+			return fg_ThisActor(ThreadLocal.m_pCurrentActor);
+		}
+
+		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			return {};
+
+		TCActor<> Actor(fg_Explicit(static_cast<TCActorInternal<CActor> *>(ThreadLocal.m_pCurrentlyProcessingActorHolder)));
+
+		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
+
+		return Actor;
 	}
 
 	CConcurrencyManager &fg_CurrentConcurrencyManager()
@@ -716,6 +750,8 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pCurrentActor)
 			return ThreadLocal.m_pCurrentActor->f_ConcurrencyManager();
+		if (ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			return ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager();
 		return fg_ConcurrencyManager();
 	}
 

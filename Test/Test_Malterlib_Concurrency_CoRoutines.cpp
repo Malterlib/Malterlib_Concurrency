@@ -92,7 +92,8 @@ namespace
 
 		TCFuture<uint32> f_Test()
 		{
-			return fg_Explicit(5);
+			//co_await fg_Timeout(0.001);
+			co_return 5;
 		}
 
 		TCFuture<void> f_TestVoid()
@@ -253,8 +254,10 @@ namespace
 			return m_WaitForCleanupScopeExit;
 		}
 
-		TCFutureCaptureExceptions<uint32> f_TestFutureWithErrorWrapped()
+		TCFuture<uint32> f_TestFutureWithErrorWrapped()
 		{
+			co_await ECoroutineFlag_CaptureExceptions;
+
 			uint32 Value = *(co_await (f_TestExceptionAfterSuspend() % "Extra error").f_Wrap());
 			co_return Value;
 		}
@@ -265,8 +268,10 @@ namespace
 			co_return Value;
 		}
 
-		TCFutureCaptureExceptions<uint32> f_TestActorCallWithErrorWrapped()
+		TCFuture<uint32> f_TestActorCallWithErrorWrapped()
 		{
+			co_await ECoroutineFlag_CaptureExceptions;
+
 			auto Value = co_await (fg_ThisActor(this)(&CTestActor::f_TestExceptionAfterSuspend) % "Extra error").f_Wrap();
 			co_return *Value;
 		}
@@ -279,23 +284,29 @@ namespace
 			co_return Result0 + Result1;
 		}
 
-		TCFutureCaptureExceptions<uint32> f_TestActorCallPackWithErrorWrapped()
+		TCFuture<uint32> f_TestActorCallPackWithErrorWrapped()
 		{
+			co_await ECoroutineFlag_CaptureExceptions;
+
 			auto Results = co_await (f_TestExceptionAfterSuspend() + f_TestExceptionAfterSuspend() ^ "Extra error").f_Wrap();
 
 			auto &[Result0, Result1] = Results;
 			co_return *Result0 + *Result1;
 		}
 
-		TCFutureCaptureExceptions<uint32> f_TestThrowException()
+		TCFuture<uint32> f_TestThrowException()
 		{
+			co_await ECoroutineFlag_CaptureExceptions;
+
 			DMibError("Test Exception");
 
 			co_return 5;
 		}
 
-		TCFutureCaptureExceptions<uint32> f_TestThrowExceptionAfterSuspend()
+		TCFuture<uint32> f_TestThrowExceptionAfterSuspend()
 		{
+			co_await ECoroutineFlag_CaptureExceptions;
+
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
@@ -816,6 +827,26 @@ namespace
 			{
 				TCActor<CTestActor> TestActor = fg_Construct();
 
+#if DMibEnableSafeCheck > 0
+				NStr::CStr ReferenceThisError = "false 'Unsafe call to coroutine with reference this pointer'";
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceRecursive).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoro).f_CallSync(), ReferenceThisError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturn).f_CallSync(), ReferenceThisError);
+				#ifndef DMibInlineEnabled
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnRecursive).f_CallSync(), ReferenceThisError);
+				#endif
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), ReferenceThisError);
+
+				NStr::CStr ReferenceParamError = "false 'Unsafe call to coroutine with reference parameters'";
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursive).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoro).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturn).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), ReferenceParamError);
+				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), ReferenceParamError);
+#endif
+
 				TestActor(&CTestActor::f_TestReturn).f_CallSync();
 
 				DMibExpect(TestActor(&CTestActor::f_Test).f_CallSync(), ==, 40);
@@ -850,26 +881,6 @@ namespace
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception\nTest Exception", pDummy));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
-
-#if DMibEnableSafeCheck > 0
-				NStr::CStr ReferenceThisError = "bSafeCall 'Unsafe call to coroutine with reference this pointer'";
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReference).f_CallSync(), ReferenceThisError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceRecursive).f_CallSync(), ReferenceThisError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoro).f_CallSync(), ReferenceThisError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturn).f_CallSync(), ReferenceThisError);
-				#ifndef DMibInlineEnabled
-					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnRecursive).f_CallSync(), ReferenceThisError);
-				#endif
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), ReferenceThisError);
-
-				NStr::CStr ReferenceParamError = "bSafeCall 'Unsafe call to coroutine with reference parameters'";
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursive).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoro).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturn).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), ReferenceParamError);
-#endif
 
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReference, 25).f_CallSync(), ==, 30);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceCorrected).f_CallSync(), ==, 25);
@@ -927,6 +938,15 @@ namespace
 
 		void f_DoTests()
 		{
+#if DMibEnableSafeCheck > 0
+			auto bDebugCoroutineSafeCheck = CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck;
+			CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck = true;
+			auto Cleanup = g_OnScopeExit > [&]
+				{
+					CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck = bDebugCoroutineSafeCheck;
+				}
+			;
+#endif
 			f_TestGeneral();
 			f_TestAuditor();
 		}

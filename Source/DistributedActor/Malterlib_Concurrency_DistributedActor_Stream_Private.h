@@ -75,6 +75,15 @@ namespace NMib::NConcurrency
 		template <typename ...tf_CFunctionOptions>
 		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> const &_Function);
 
+		template <typename tf_CSignature>
+		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> const &_Function);
+
+		template <typename tf_CSignature>
+		void f_Feed(NFunction::TCFunctionMovable<tf_CSignature> &&_Function);
+
+		template <typename tf_CSignature>
+		void f_Feed(NFunction::TCFunctionMutable<tf_CSignature> &&_Function);
+
 		template <typename ...tf_CFunctionOptions>
 		void f_Feed(NFunction::TCFunction<tf_CFunctionOptions...> &&_Function);
 
@@ -119,6 +128,12 @@ namespace NMib::NConcurrency
 		
 		template <typename ...tf_CFunctionOptions>
 		void f_Consume(NFunction::TCFunction<tf_CFunctionOptions...> &_Function);
+
+		template <typename tf_CSignature>
+		void f_Consume(NFunction::TCFunctionMovable<tf_CSignature> &_Function);
+
+		template <typename tf_CSignature>
+		void f_Consume(NFunction::TCFunctionMutable<tf_CSignature> &_Function);
 
 		template <typename tf_CFunction, uint32 tf_SubscriptionID>
 		void f_Consume(TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID> &_ActorFunctor);

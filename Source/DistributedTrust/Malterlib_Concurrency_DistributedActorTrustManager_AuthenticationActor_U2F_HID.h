@@ -56,12 +56,12 @@ namespace NMib::NConcurrency
 			CDevice(hid_device *_Device);
 			~CDevice();
 
-			TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
-			TCFuture<NContainer::CByteVector> f_Read(size_t _Length);
-			TCFuture<NContainer::CByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
+			TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+			TCFuture<NContainer::CSecureByteVector> f_Read(size_t _Length);
+			TCFuture<NContainer::CSecureByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
 
-			TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer);
-			TCFuture<NContainer::CByteVector> f_GetFeatureReport(uint8 _ReportID);
+			TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+			TCFuture<NContainer::CSecureByteVector> f_GetFeatureReport(uint8 _ReportID);
 
 			TCFuture<NStr::CStr> f_GetManufacturerString() const;
 			TCFuture<NStr::CStr> f_GetProductString() const;

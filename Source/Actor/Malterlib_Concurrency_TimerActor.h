@@ -8,73 +8,9 @@
 
 namespace NMib::NConcurrency
 {
-	class CTimerActor : public CActor
+	struct CTimerActor : public CActor
 	{
-		friend class CConcurrencyManager;
-		template <typename t_CActor>
-		friend class TCActorInternal;
-
-		NStorage::TCUniquePointer<NThread::CThreadObject> m_pTimerThread;
-
-		enum ETimerType
-		{
-			ETimerType_Oneshot
-			, ETimerType_Normal
-			, ETimerType_Exact
-		};
-
-		struct CTimerSubscriptionState
-		{
-			CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup);
-			~CTimerSubscriptionState();
-
-			NFunction::TCFunctionMutable<void ()> m_fCleanup;
-			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
-			bool m_bOutstanding = false;
-			bool m_bMissed = false;
-		};
-
-		struct CTimer
-		{
-			CTimer(CActor *_pThisActor);
-			~CTimer();
-
-			DMibListLinkDS_Link(CTimer, m_Link);
-			TCActorSubscriptionManager<TCFuture<void> (), true, CTimerSubscriptionState> m_Callbacks;
-			TCActorSubscriptionManager<void (), true, CTimerSubscriptionState> m_OneshotCallbacks;
-			NStorage::TCSharedPointer<bool> m_pDestroyed;
-			zfp64 m_NextElapse;
-			zfp64 m_Period;
-			ETimerType m_TimerType;
-			bool m_bFireAtExit = false;
-
-			bool operator < (CTimer const &_Right) const
-			{
-				return m_NextElapse < _Right.m_NextElapse;
-			}
-		};
-
-		NContainer::TCMap<fp64, CTimer> m_RegisteredTimers;
-		NContainer::TCLinkedList<CTimer> m_OneshotTimers;
-		NContainer::TCLinkedList<CTimer> m_ExactTimers;
-		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
-
-		DMibListLinkDS_List(CTimer, m_Link) m_TimerQueue;
-
-		NTime::CClock m_Clock;
-
-#if DMibEnableSafeCheck > 0
-		mint m_ProcessingThread;
-#endif
-
-		void fp_CallTimer(CTimer &_Timer, bool _bOnlyMissed = false);
-		void fp_ProcessTimers();
-		void fp_StartThread();
-
-		TCFuture<void> fp_Destroy();
-
-	public:
-
+		using CActorHolder = CSeparateThreadActorHolder;
 		CTimerActor();
 		~CTimerActor();
 
@@ -84,6 +20,13 @@ namespace NMib::NConcurrency
 		CActorSubscription f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
 		CActorSubscription f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
 		CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
+
+	private:
+		struct CInternal;
+
+		TCFuture<void> fp_Destroy();
+
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 
 	struct CTimeoutHelper

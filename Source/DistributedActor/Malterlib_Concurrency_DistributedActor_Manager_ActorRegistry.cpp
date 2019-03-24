@@ -370,7 +370,7 @@ namespace NMib::NConcurrency
 	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged
 		(
 			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMutable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+			, NFunction::TCFunctionMovable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -381,11 +381,14 @@ namespace NMib::NConcurrency
 		(
 			NContainer::TCVector<NStr::CStr> const &_NameSpaces
 			, TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMutable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-			, NFunction::TCFunctionMutable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+			, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+			, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 		)
 	{
 		auto &Internal = *mp_pInternal;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
+
 		NStorage::TCUniquePointer<CCombinedCallbackReference> pCallback = fg_Construct();
 
 		auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
@@ -395,12 +398,12 @@ namespace NMib::NConcurrency
 						_Actor
 						,
 						[
-							fOnNewActor = _fOnNewActor
+							pOnNewActor = pOnNewActor
 							, Actor = _RemoteActor
 						]
 						() mutable
 						{
-							fOnNewActor(fg_Move(Actor));
+							(*pOnNewActor)(fg_Move(Actor));
 						}
 					)
 					> fg_DiscardResult()
@@ -411,8 +414,8 @@ namespace NMib::NConcurrency
 		{
 			auto &Subscribed = *Internal.m_SubscribedActors("", this);
 
-			pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, fg_TempCopy(_fOnNewActor)));
-			pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, fg_TempCopy(_fOnRemovedActor)));
+			pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, pOnNewActor));
+			pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, pOnRemovedActor));
 
 			for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
 			{
@@ -447,8 +450,8 @@ namespace NMib::NConcurrency
 			{
 				auto &Subscribed = *Internal.m_SubscribedActors(Namespace, this);
 
-				pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, fg_TempCopy(_fOnNewActor)));
-				pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, fg_TempCopy(_fOnRemovedActor)));
+				pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, pOnNewActor));
+				pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, pOnRemovedActor));
 				if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(Namespace))
 				{
 					for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)

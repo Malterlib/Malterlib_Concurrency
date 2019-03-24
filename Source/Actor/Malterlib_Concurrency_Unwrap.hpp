@@ -11,6 +11,7 @@ namespace NMib::NConcurrency
 		if (_ToUnwrap)
 			return fg_Move(*_ToUnwrap);
 
+		NException::CDisableExceptionTraceScope DisableExceptionTrace;
 		DMibErrorCoroutineWrapper("Exception unwrapping async result", _ToUnwrap.f_GetException());
 	}
 
@@ -24,6 +25,7 @@ namespace NMib::NConcurrency
 		if (_ToUnwrap)
 			return fg_Move(*_ToUnwrap);
 
+		NException::CDisableExceptionTraceScope DisableExceptionTrace;
 		DMibErrorCoroutineWrapper("Exception unwrapping async result", _fTransformer(_ToUnwrap.f_GetException()));
 	}
 
@@ -49,7 +51,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+		}
 
 		return Return;
 	}
@@ -80,7 +85,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+		}
 
 		return Return;
 	}
@@ -103,7 +111,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+		}
 	}
 
 	template <typename tf_CAllocator, typename tf_COptions>
@@ -128,7 +139,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+		}
 	}
 
 	template <typename tf_CKey, typename tf_CData, typename tf_CCompare, typename tf_CAllocator>
@@ -153,7 +167,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result map", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+		}
 
 		return Return;
 	}
@@ -184,7 +201,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result map", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+		}
 
 		return Return;
 	}
@@ -211,7 +231,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result map", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+		}
 
 		return Return;
 	}
@@ -242,7 +265,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (!bSuccess)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorCoroutineWrapper("Exception unwrapping async result map", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+		}
 
 		return Return;
 	}

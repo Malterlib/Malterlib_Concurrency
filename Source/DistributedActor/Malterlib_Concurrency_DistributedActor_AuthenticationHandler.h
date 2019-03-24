@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 			NStr::CStr m_FactorName;
 
 			CSignedProperties m_SignedProperties;
-			NContainer::CByteVector m_Signature;
+			NContainer::CSecureByteVector m_Signature;
 		};
 
 		struct CMultipleRequestData

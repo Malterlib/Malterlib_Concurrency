@@ -128,8 +128,9 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 		ConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 		ConnectionSettings.m_PrivateClientKey = m_BasicConfig.m_CAPrivateKey;
+		ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 		ConnectionSettings.m_bRetryConnectOnFailure = true;
-		
+
 		return ConnectionSettings;
 	}
 

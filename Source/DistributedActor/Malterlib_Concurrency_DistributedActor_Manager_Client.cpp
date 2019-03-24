@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 						return;
 					if (_Sequence != _pConnection->m_ConnectionSequence)
 						return;
-					fp_Reconnect(_pConnection, _pPromise, _bRetry);
+					fp_Reconnect(_pConnection, _pPromise, _bRetry, _bRetry);
 				}
 				, true
 			)
@@ -194,6 +194,7 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
+		 	, bool _bRetryOnFirst
 		)
 	{
 		if (!_pConnection->m_pSSLContext || !m_WebsocketClientConnector)
@@ -219,7 +220,8 @@ namespace NMib::NConcurrency
 				, fg_Move(Request)
 				, NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
 			)
-			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry](NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
+			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry, _bRetryOnFirst]
+			(NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 			{
 				auto pConnection = pConnectionWeak.f_Lock();
 				if (!pConnection)
@@ -229,7 +231,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 
-				auto fReportError = [this, _bRetry, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, NException::CExceptionPointer const &_Exception)
+				auto fReportError = [this, _bRetry, _bRetryOnFirst, _pPromise, pConnectionWeak, Sequence](NStr::CStr const &_Error, NException::CExceptionPointer const &_Exception)
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
@@ -239,7 +241,7 @@ namespace NMib::NConcurrency
 							return;
 						}
 
-						if (!_bRetry)
+						if (!_bRetryOnFirst)
 						{
 							if (_pPromise)
 								_pPromise->f_SetException(_Exception);
@@ -421,7 +423,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				pConnection->f_DiscardIdentifyPromise();
+				pConnection->f_DiscardIdentifyPromise("Reconnected");
 				pConnection->m_IdentifyPromise = TCPromise<void>();
 				pConnection->m_Connection = Result.f_Accept
 					(
@@ -570,7 +572,7 @@ namespace NMib::NConcurrency
 
 		bAnonymous = _Settings.m_PrivateClientKey.f_IsEmpty();
 
-		if (_Settings.m_bRetryConnectOnFailure && bAnonymous)
+		if ((_Settings.m_bRetryConnectOnFailure || _Settings.m_bRetryConnectOnFirstFailure) && bAnonymous)
 		{
 			_Promise = DMibErrorInstance("Anonymous connections cannot reconnect on failure");
 			return false;
@@ -641,7 +643,7 @@ namespace NMib::NConcurrency
 		}
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
-		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure);
+		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure);
 
 		return Promise.f_MoveFuture();
 	}

@@ -154,7 +154,8 @@ namespace NMib::NConcurrency
 		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this, CDistributedAppInterfaceServer::mc_pDefaultNamespace)
 			> [](TCAsyncResult<void> &&_Result)
 			{
-				DMibLog(Info, "Failed to publish app interface server: {}", _Result.f_GetExceptionStr());
+				if (!_Result)
+					DMibLog(Info, "Failed to publish app interface server: {}", _Result.f_GetExceptionStr());
 			}
 		;
 	}

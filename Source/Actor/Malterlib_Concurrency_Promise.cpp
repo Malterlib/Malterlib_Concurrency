@@ -8,6 +8,8 @@
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionCoroutineWrapper);
+
+
 }
 
 namespace NMib::NConcurrency::NPrivate
@@ -17,4 +19,21 @@ namespace NMib::NConcurrency::NPrivate
 		DMibDTrace("Unobserved exception in future: {}\n", NException::fg_ExceptionString(_Exception));
 		DMibLog(Error, "Unobserved exception in future: {}", NException::fg_ExceptionString(_Exception));
 	}
+
+#if DMibConfig_Concurrency_DebugFutures
+	CPromiseDataBase::CPromiseDataBase(NStr::CStr const &_Name)
+		: m_FutureTypeName(_Name)
+	{
+		auto &ConcurrencyManager = fg_ConcurrencyManager();
+		DMibLock(ConcurrencyManager.m_FutureListLock);
+		ConcurrencyManager.m_Futures.f_Insert(this);
+	}
+
+	CPromiseDataBase::~CPromiseDataBase()
+	{
+		auto &ConcurrencyManager = fg_ConcurrencyManager();
+		DMibLock(ConcurrencyManager.m_FutureListLock);
+		m_Link.f_Unlink();
+	}
+#endif
 }

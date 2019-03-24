@@ -88,7 +88,9 @@ namespace NMib::NConcurrency
 
 		friend class CActorHolder;
 		friend struct CCurrentActorScope;
+
 		t_CActor *fp_GetActor() const;
+		TCActorInternal *fp_GetThis();
 
 	public:
 

@@ -35,6 +35,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	{
 		virtual ~CConnection()
 		{
+			f_DiscardIdentifyPromise("Destroyed");
 		}
 
 		void f_Reset(bool _bResetHost);
@@ -51,7 +52,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		;
 		virtual NStr::CStr f_GetConnectionID() const = 0;
 		virtual NStr::CStr f_GetServerURL() const;
-		void f_DiscardIdentifyPromise();
+		void f_DiscardIdentifyPromise(NStr::CStr const &_Error);
 
 		TCActor<NWeb::CWebSocketActor> m_Connection;
 		CActorSubscription m_ConnectionSubscription;
@@ -388,6 +389,7 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
+				, bool _bRetryOnFirst
 			)
 		;
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);

@@ -109,6 +109,7 @@ namespace NMib::NConcurrency
 			mp_ClientCryptography.f_AddRemoteServer(ConnectionSettings.m_ServerURL, _Server.mp_ServerCryptography.m_PublicCertificate, SignedRequest);
 		}
 		ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
+		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
@@ -129,6 +130,7 @@ namespace NMib::NConcurrency
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
+		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;

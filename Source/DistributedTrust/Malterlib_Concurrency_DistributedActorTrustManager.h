@@ -116,21 +116,21 @@ namespace NMib::NConcurrency
 		CTrustedPermissionSubscription() = default;
 		~CTrustedPermissionSubscription();
 
-		TCFutureAllowReferences<bool> f_HasPermission
+		TCFuture<bool> f_HasPermission
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<NStr::CStr> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCFutureAllowReferences<bool> f_HasPermissions
+		TCFuture<bool> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCVector<CPermissionQuery> const &_Permissions
 			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
-		TCFutureAllowReferences<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
+		TCFuture<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
 			(
 			 	NStr::CStr const &_Description
 			 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries

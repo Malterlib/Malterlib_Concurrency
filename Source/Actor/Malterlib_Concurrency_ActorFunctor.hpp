@@ -31,15 +31,32 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	bool TCActorFunctor<t_CFunction>::f_IsEmpty() const
 	{
-		return mp_pFunctor->f_IsEmpty();
+		return !mp_pFunctor || mp_pFunctor->f_IsEmpty();
 	}
 	
 	template <typename t_CFunction>
 	TCActorFunctor<t_CFunction>::operator bool () const
 	{
-		return !mp_pFunctor->f_IsEmpty();
+		return mp_pFunctor && !mp_pFunctor->f_IsEmpty();
 	}
-	
+
+
+	namespace NPrivate
+	{
+		template <typename t_CParams>
+		struct TCDecayedTupleHelper
+		{
+		};
+
+		template <typename ...tp_CParams>
+		struct TCDecayedTupleHelper<NMeta::TCTypeList<tp_CParams...>>
+		{
+			using CMoveList = NMeta::TCTypeList<typename NTraits::TCAddRValueReference<typename NTraits::TCDecay<tp_CParams>::CType>::CType...>;
+			using CType = NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...>;
+		};
+	}
+
+
 	template <typename t_CFunction>
 	template <typename ...tfp_CParams>
 	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const
@@ -56,12 +73,16 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
+
 		return fg_Dispatch
 			(
 				mp_Actor
-				, [Params = NStorage::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable -> CReturn
+				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable -> CReturn
 				{
-					return NStorage::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
+					return NStorage::fg_TupleApplyAs<CMoveList>
 						(
 							[&](auto &&..._Params) mutable
 							{
@@ -72,14 +93,14 @@ namespace NMib::NConcurrency
 									(
 										[&]
 										{
-											ReturnFuture = (*pFunctor)(fg_Forward<decltype(_Params)>(_Params)...);
+											ReturnFuture = (*pFunctor)(fg_Move(_Params)...);
 										}
 									)
 								;
 
 								return ReturnFuture;
 #else
-								return (*pFunctor)(fg_Forward<decltype(_Params)>(_Params)...);
+								return (*pFunctor)(fg_Move(_Params)...);
 #endif
 							}
 							, fg_Move(Params) 
@@ -129,19 +150,30 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy()
 	{
-		TCFuture<void> DestroyFuture;
-		if (f_GetSubscription())
-			DestroyFuture = f_GetSubscription()->f_Destroy();
-		else
-			DestroyFuture = fg_Explicit();
-		return DestroyFuture;
+		co_await ECoroutineFlag_AllowReferences;
+
+		auto Subscription = fg_Move(f_GetSubscription());
+
+		if (mp_Actor && mp_pFunctor)
+			co_await fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
+
+		if (Subscription)
+			co_await Subscription->f_Destroy();
+
+		co_return {};
 	}
 	
 	template <typename t_CFunction>
 	void TCActorFunctor<t_CFunction>::f_Clear()
 	{
+		if (mp_Actor && mp_pFunctor)
+		{
+			// Destroy functor on correct actor
+			fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
+		}
+
 		mp_Actor.f_Clear();
-		mp_pFunctor->f_Clear();
+		mp_pFunctor.f_Clear();
 		mp_Subscription.f_Clear();
 	}
 	

@@ -1025,7 +1025,7 @@ namespace NMib::NConcurrency
 	{
 		CEJSON JSON;
 		JSON["HostID"] = _BasicConfig.m_HostID;
-		JSON["CAPrivateKey"] = NContainer::CByteVector{_BasicConfig.m_CAPrivateKey};
+		JSON["CAPrivateKey"] = _BasicConfig.m_CAPrivateKey.f_ToInsecure();
 		JSON["CACertificate"] = _BasicConfig.m_CACertificate;
 		JSON["Version"] = _BasicConfig.m_Version;
 		return JSON;
@@ -1035,7 +1035,7 @@ namespace NMib::NConcurrency
 	{
 		o_BasicConfig.m_HostID = _JSON["HostID"].f_String();
 		if (auto *pValue = _JSON.f_GetMember("CAPrivateKey"))
-			o_BasicConfig.m_CAPrivateKey = pValue->f_Binary();
+			o_BasicConfig.m_CAPrivateKey = pValue->f_Binary().f_ToSecure();
 		if (auto *pValue = _JSON.f_GetMember("CACertificate"))
 			o_BasicConfig.m_CACertificate = pValue->f_Binary();
 		if (auto *pValue = _JSON.f_GetMember("Version"))
@@ -1059,14 +1059,14 @@ namespace NMib::NConcurrency
 	CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CServerCertificate const &_Certificate) const
 	{
 		CEJSON JSON;
-		JSON["PrivateKey"] = NContainer::CByteVector{_Certificate.m_PrivateKey};
+		JSON["PrivateKey"] = _Certificate.m_PrivateKey.f_ToInsecure();
 		JSON["PublicCertificate"] = _Certificate.m_PublicCertificate;
 		return JSON;
 	}
 
 	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CServerCertificate &o_ServerCertificate, CEJSON const &_JSON, CStr const &_Name) const
 	{
-		o_ServerCertificate.m_PrivateKey = _JSON["PrivateKey"].f_Binary();
+		o_ServerCertificate.m_PrivateKey = _JSON["PrivateKey"].f_Binary().f_ToSecure();
 		o_ServerCertificate.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
 	}
 

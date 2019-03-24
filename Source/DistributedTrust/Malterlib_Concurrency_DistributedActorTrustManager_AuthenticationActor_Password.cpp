@@ -101,13 +101,13 @@ namespace NMib::NConcurrency
 											EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Write);
 											EncryptedStream << PrivateKeyData;
 										}
-										CByteVector EncryptedPrivateKey = Stream.f_MoveVector();
+										CSecureByteVector EncryptedPrivateKey = Stream.f_MoveVector();
 
 										CAuthenticationData Result;
 										Result.m_Category = EAuthenticationFactorCategory_Knowledge;
 										Result.m_Name = "Password";
 										Result.m_PublicData["PublicKey"] = CByteVector{PublicKeyData.f_GetArray(), PublicKeyData.f_GetLen()};
-										Result.m_PrivateData["PrivateKeyEncrypted"] = EncryptedPrivateKey;
+										Result.m_PrivateData["PrivateKeyEncrypted"] = EncryptedPrivateKey.f_ToInsecure();
 										Result.m_PrivateData["PasswordSalt"] = CByteVector{PasswordSalt.f_GetArray(), PasswordSalt.f_GetLen()};
 										Result.m_PrivateData["ExpansionSalt"] = CByteVector{ExpansionSalt.f_GetArray(), ExpansionSalt.f_GetLen()};
 
@@ -166,9 +166,9 @@ namespace NMib::NConcurrency
 								if (!pExpansionSalt || !pExpansionSalt->f_IsBinary())
 									return {};
 
-								CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary();
-								CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary();
-								CSecureByteVector EncyptedPrivateKey = pKey->f_Binary();
+								CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary().f_ToSecure();
+								CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary().f_ToSecure();
+								CSecureByteVector EncyptedPrivateKey = pKey->f_Binary().f_ToSecure();
 
 								CBinaryStreamMemoryPtr<> Stream;
 								Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency
 	{
 		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 		if (!pValue || !pValue->f_IsBinary())
-		return fg_Explicit(CVerifyAuthenticationReturn{});
+			return fg_Explicit(CVerifyAuthenticationReturn{});
 
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 		
 		fg_ConcurrentDispatch
 			(
-				[=, PublicKey = pValue->f_Binary()]() -> CVerifyAuthenticationReturn
+				[=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
 				{
 					CVerifyAuthenticationReturn Return;
 					Return.m_bVerified = CSSLContext::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);

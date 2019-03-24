@@ -122,10 +122,16 @@ namespace NMib::NConcurrency
 		return Info;
 	}
 
-	void CActorDistributionManagerInternal::CConnection::f_DiscardIdentifyPromise()
+	void CActorDistributionManagerInternal::CConnection::f_DiscardIdentifyPromise(NStr::CStr const &_Error)
 	{
-		if (!m_IdentifyPromise.f_IsObserved())
-			m_IdentifyPromise > fg_DiscardResult();
+		m_IdentifyPromise.f_Abandon
+			(
+			 	[&]()
+			 	{
+					return DMibErrorInstance(_Error).f_ExceptionPointer();
+				}
+			)
+		;
 	}
 
 	TCDispatchedActorCall<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
@@ -164,6 +170,7 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost)
 	{
+		f_DiscardIdentifyPromise("Connection reset");
 		m_Link.f_Unlink();
 		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
 
@@ -177,7 +184,7 @@ namespace NMib::NConcurrency
 			auto Desc = f_GetHostInfo().f_GetDesc();
 
 			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal reset", 5.0)
-				> fg_ConcurrentActor() / [=, Connection = m_Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
+				> fg_ConcurrentActor() / [=](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 				{
 					fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
 				}
@@ -193,10 +200,10 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Error)
 	{
+		f_DiscardIdentifyPromise(fg_Format("Connection destroyed: {}", _Error));
 		f_Reset(true);
 		m_pSSLContext.f_Clear();
 		m_LastError = _Error;
-		f_DiscardIdentifyPromise();
 	}
 
 	NStr::CStr CActorDistributionManagerInternal::CConnection::f_GetServerURL() const
@@ -208,15 +215,11 @@ namespace NMib::NConcurrency
 	{
 		CConnection::f_Reset(_bResetHost);
 		m_bConnected = false;
-		if (!m_IdentifyPromise.f_IsSet())
-			m_IdentifyPromise.f_SetException(DMibErrorInstance("Connection reset"));
 	}
 
 	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Error)
 	{
 		CConnection::f_Destroy(_Error);
-		if (!m_IdentifyPromise.f_IsSet())
-			m_IdentifyPromise.f_SetException(DMibErrorInstance(fg_Format("Connection destroyed: {}", _Error)));
 		m_bConnected = false;
 	}
 

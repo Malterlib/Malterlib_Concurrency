@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -43,7 +43,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					DestroyActor
-					, [fCallback = fg_Move(Callback.m_fCallback)]
+					, [pCallback = fg_Move(Callback.m_pCallback)]
 					{
 					}
 				)
@@ -57,12 +57,20 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_GetCallback(CActorSubscription const &_Subscription)
+		-> CSharedCallback
+	{
+		CCallbackReference *pCallbackReference = static_cast<CCallbackReference *>(_Subscription.f_Get());
+		return pCallbackReference->m_pHandle->m_pCallback;
+	}
+
+	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 	template <typename ...tfp_CParam>
 	CActorSubscription TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Register
 		(
-			TCActor<CActor> _pActor
-			, NFunction::TCFunctionMutable<t_CReturn (tp_CCallbackParams...)> &&_fCallback
-			, tfp_CParam && ...p_ExtraData
+		 	TCActor<CActor> _pActor
+		 	, CSharedCallback const &_pCallback
+		 	, tfp_CParam && ...p_ExtraData
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -71,7 +79,7 @@ namespace NMib::NConcurrency
 			f_Clear();
 
 		CCallbackHandle &CallbackHandle = Internal.mp_Callbacks.f_Insert(fg_Construct(fg_Forward<tfp_CParam>(p_ExtraData)...));
-		CallbackHandle.m_fCallback = fg_Move(_fCallback);
+		CallbackHandle.m_pCallback = _pCallback;
 		CallbackHandle.m_Actor = fg_Move(_pActor);
 		NStorage::TCUniquePointer<CCallbackReference> pRet = fg_Construct(&CallbackHandle, mp_pInternal, fg_ThisActor(Internal.mp_pActor));
 
@@ -87,6 +95,25 @@ namespace NMib::NConcurrency
 		}
 
 		return fg_Move(pRet);
+	}
+
+	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+	template <typename ...tfp_CParam>
+	CActorSubscription TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_Register
+		(
+			TCActor<CActor> _pActor
+			, NFunction::TCFunctionMovable<t_CReturn (tp_CCallbackParams...)> &&_fCallback
+			, tfp_CParam && ...p_ExtraData
+		)
+	{
+		return f_Register(_pActor, CSharedCallback(fg_Construct(fg_Move(_fCallback))), fg_Forward<tfp_CParam>(p_ExtraData)...);
+	}
+
+	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+	bool TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_IsDeferring()
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.mp_bDeferrCallbacks;
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -111,7 +138,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					DestroyActor
-					, [fCallback = fg_Move(Callback.m_fCallback)]
+					, [pCallback = fg_Move(Callback.m_pCallback)]
 					{
 					}
 				)
@@ -175,14 +202,13 @@ namespace NMib::NConcurrency
 							fg_Dispatch
 								(
 									Actor
-									, [fCallback = Callback.m_fCallback, Params = fg_Move(Params)]() mutable
+									, [pCallback = Callback.m_pCallback, Params = fg_Move(Params)]() mutable
 									{
 										 return NPrivate::fg_CallCallback
 											(
-												fg_Move(fCallback)
+												*pCallback
 												, fg_Move(Params)
-												,
-												typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+												, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 												, NMeta::TCTypeList<tp_CCallbackParams...>()
 											)
 										;
@@ -206,11 +232,11 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					Actor
-					, [fCallback = Callback.m_fCallback, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
+					, [pCallback = Callback.m_pCallback, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						 return NPrivate::fg_CallCallback
 							(
-								fg_Move(fCallback)
+								*pCallback
 								, fg_Move(Params)
 								, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 								, NMeta::TCTypeList<tp_CCallbackParams...>()
@@ -248,14 +274,13 @@ namespace NMib::NConcurrency
 							fg_Dispatch
 								(
 									Actor
-									, [fCallback = Callback.m_fCallback, Params]() mutable
+									, [pCallback = Callback.m_pCallback, Params]() mutable
 									{
 										 return NPrivate::fg_CallCallback
 											(
-												fg_Move(fCallback)
+												*pCallback
 												, fg_Move(Params)
-												,
-												typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+												, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 												, NMeta::TCTypeList<tp_CCallbackParams...>()
 											)
 										;
@@ -283,11 +308,11 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					Actor
-					, [fCallback = Callback.m_fCallback, Params]() mutable
+					, [pCallback = Callback.m_pCallback, Params]() mutable
 					{
 						 return NPrivate::fg_CallCallback
 							(
-								fg_Move(fCallback)
+								*pCallback
 								, fg_Move(Params)
 								, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
 								, NMeta::TCTypeList<tp_CCallbackParams...>()
@@ -301,6 +326,53 @@ namespace NMib::NConcurrency
 
 		Results.f_GetResults() > Promise;
 		return Promise.f_MoveFuture();
+	}
+
+	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
+	template <bool tf_bSupportMultiple, typename tf_FResult>
+	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::f_CallSpecific
+		(
+		 	tf_FResult &&_fDoCall
+		 	, t_CExtraData &_ExtraData
+		 	, tp_CCallbackParams... p_Params
+		)
+		-> typename TCEnableIf<tf_bSupportMultiple>::CType
+	{
+		auto &Internal = *mp_pInternal;
+		if (Internal.mp_bDeferrCallbacks)
+			DMibError("Deferred callbacks not supported");
+		auto &Callback = *static_cast<CCallbackHandle *>(&_ExtraData);
+
+		auto Actor = Callback.m_Actor.f_Lock();
+		if (!Actor)
+			return;
+
+		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
+
+		_fDoCall
+			(
+				[&]
+				{
+					return fg_Dispatch
+						(
+							Actor
+							, [pCallback = Callback.m_pCallback, Params]() mutable
+							{
+								 return NPrivate::fg_CallCallback
+									(
+										*pCallback
+										, fg_Move(Params)
+										, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+										, NMeta::TCTypeList<tp_CCallbackParams...>()
+									)
+								;
+							}
+						)
+					;
+				}
+				, static_cast<t_CExtraData &>(Callback)
+			)
+		;
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -321,22 +393,25 @@ namespace NMib::NConcurrency
 				continue;
 			_fDoCall
 				(
-					fg_Dispatch
-					(
-						Actor
-						, [fCallback = Callback.m_fCallback, Params]() mutable
-						{
-							 return NPrivate::fg_CallCallback
-								(
-									fg_Move(fCallback)
-									, fg_Move(Params)
-									,
-									typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
-									, NMeta::TCTypeList<tp_CCallbackParams...>()
-								)
-							;
-						}
-					)
+					[&]
+				 	{
+						return fg_Dispatch
+							(
+								Actor
+								, [pCallback = Callback.m_pCallback, Params]() mutable
+								{
+									 return NPrivate::fg_CallCallback
+										(
+											*pCallback
+											, fg_Move(Params)
+											, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCallbackParams)>::CType()
+											, NMeta::TCTypeList<tp_CCallbackParams...>()
+										)
+									;
+								}
+							)
+						;
+					}
 					, static_cast<t_CExtraData &>(Callback)
 				)
 			;
@@ -370,7 +445,7 @@ namespace NMib::NConcurrency
 						fg_Dispatch
 							(
 							 	DestroyActor
-							 	, [fCallback = fg_Move(pHandle->m_fCallback)]
+							 	, [pCallback = fg_Move(pHandle->m_pCallback)]
 							 	{
 								}
 							)

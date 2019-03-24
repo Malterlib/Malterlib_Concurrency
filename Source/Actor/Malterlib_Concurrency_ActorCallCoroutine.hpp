@@ -13,44 +13,62 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
+	TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::~TCActorCallAwaiter()
+	{
+		mp_ActorCall.mp_Actor.f_Clear();
+	}
+
+	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	bool TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_ready() const noexcept
 	{
 		return false;
 	}
 
+	enum ECoroutineAwaiterResult
+	{
+		ECoroutineAwaiterResult_None = 0
+		, ECoroutineAwaiterResult_Observed = DMibBit(0)
+		, ECoroutineAwaiterResult_Set = DMibBit(1)
+	};
+
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	template <typename tf_CCoroutineContext>
 	bool TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 	{
-#ifdef DMibContractConfigure_CheckEnabled
-		auto Cleanup = g_OnScopeExit > [&]
-			{
-				mp_ActorCall.mp_Actor.f_Clear();
-			}
-		;
-
-#endif
+#if DMibEnableSafeCheck > 0
+		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(fg_CurrentActor());
+#endif
 
 		auto &CoroutineContext = _Handle.promise();
-
-		auto pKeepAlive = CoroutineContext.f_Suspend();
 
 		NPrivate::fg_CallActorInternal
 			(
 				mp_ActorCall
 				, fg_CurrentActor()
-				, [this, pKeepAlive = fg_Move(pKeepAlive), _Handle]
-				(TCAsyncResult<t_CReturnType> &&_Result) mutable
+				, [=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
 				{
+					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
+
 					mp_Result = fg_Move(_Result);
+					if (!(mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Set) & ECoroutineAwaiterResult_Observed))
+						return;
+
 					auto &CoroutineContext = _Handle.promise();
+#if DMibEnableSafeCheck > 0
+					mp_pDebugException = CoroutineContext.f_Resume();
+#else
 					CoroutineContext.f_Resume();
+#endif
 					_Handle.resume();
 				}
 			)
 		;
 
+		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
+			return false;
+
+		CoroutineContext.f_Suspend();
 		return true;
 	}
 
@@ -65,6 +83,7 @@ namespace NMib::NConcurrency
 			}
 			catch (...)
 			{
+				NException::CDisableExceptionTraceScope DisableExceptionTrace;
 				if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, void *>::mc_Value)
 					DMibErrorCoroutineWrapper("Exception calling async result", NException::fg_CurrentException());
 				else
@@ -75,8 +94,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
-	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume() noexcept(!t_bUnwrap)
+	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume()
+#if DMibEnableSafeCheck == 0
+		noexcept(!t_bUnwrap)
+#endif
 	{
+#if DMibEnableSafeCheck > 0
+		if (mp_pDebugException)
+			std::rethrow_exception(mp_pDebugException);
+#endif
 		if constexpr (t_bUnwrap)
 			return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
 		else
@@ -220,19 +246,28 @@ namespace NMib::NConcurrency
 	template <typename tf_CCoroutineContext>
 	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 	{
+#if DMibEnableSafeCheck > 0
+		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(fg_CurrentActor());
-
+#endif
 		auto &CoroutineContext = _Handle.promise();
-
-		auto pKeepAlive = CoroutineContext.f_Suspend();
 
 		fp_ActorCall
 			(
-				[this, pKeepAlive = fg_Move(pKeepAlive), _Handle](CWrappedType &&_Results) mutable
+				[=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
 				{
+					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
 					mp_Results = fg_Move(_Results);
+
+					if (!(mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Set) & ECoroutineAwaiterResult_Observed))
+						return;
+
 					auto &CoroutineContext = _Handle.promise();
+#if DMibEnableSafeCheck > 0
+					mp_pDebugException = CoroutineContext.f_Resume();
+#else
 					CoroutineContext.f_Resume();
+#endif
 					_Handle.resume();
 				}
 				, fg_CurrentActor()
@@ -240,12 +275,23 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
+			return false;
+
+		CoroutineContext.f_Suspend();
 		return true;
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
-	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_resume() noexcept(!t_bUnwrap)
+	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_resume()
+#if DMibEnableSafeCheck == 0
+		noexcept(!t_bUnwrap)
+#endif
 	{
+#if DMibEnableSafeCheck > 0
+		if (mp_pDebugException)
+			std::rethrow_exception(mp_pDebugException);
+#endif
 		if constexpr (t_bUnwrap)
 		{
 			CUnwrappedType Results;
@@ -263,10 +309,11 @@ namespace NMib::NConcurrency
 					)
 				)
 			{
+				NException::CDisableExceptionTraceScope DisableExceptionTrace;
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-					DMibErrorCoroutineWrapper("Exception calling async result", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+					DMibErrorCoroutineWrapper("Exception calling async result", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions), false).f_ExceptionPointer());
 				else
-					DMibErrorCoroutineWrapper("Exception calling async result", mp_fExceptionTransform(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+					DMibErrorCoroutineWrapper("Exception calling async result", mp_fExceptionTransform(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions), false).f_ExceptionPointer()));
 			}
 
 			return Results;

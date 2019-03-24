@@ -421,6 +421,7 @@ namespace NMib::NConcurrency
 
 					NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 					ConnectionSettings.m_ServerURL = _TrustTicket.m_ServerAddress.m_URL;
+					ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 					ConnectionSettings.m_bRetryConnectOnFailure = false;
 					ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 
@@ -651,6 +652,7 @@ namespace NMib::NConcurrency
 														ConnectionSettings.m_PublicServerCertificate = ClientConnection.m_PublicServerCertificate;
 														ConnectionSettings.m_PublicClientCertificate = ClientConnection.m_PublicClientCertificate;
 														ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
+														ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 														ConnectionSettings.m_bRetryConnectOnFailure = true;
 
 														Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
@@ -841,6 +843,7 @@ namespace NMib::NConcurrency
 
 					NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 					ConnectionSettings.m_ServerURL = _Address.m_URL;
+					ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 					ConnectionSettings.m_bRetryConnectOnFailure = false;
 					ConnectionSettings.m_bAllowInsecureConnection = true;
 
@@ -888,6 +891,7 @@ namespace NMib::NConcurrency
 							NMib::NConcurrency::CActorDistributionConnectionSettings ConnectionSettings;
 							ConnectionSettings.m_ServerURL = _Address.m_URL;
 							ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
+							ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 							ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
@@ -901,6 +905,7 @@ namespace NMib::NConcurrency
 									ConnectionSettings.m_PublicServerCertificate = NewClientConnection.m_PublicServerCertificate;
 									ConnectionSettings.m_PublicClientCertificate = NewClientConnection.m_PublicClientCertificate;
 									ConnectionSettings.m_PrivateClientKey = Internal.m_BasicConfig.m_CAPrivateKey;
+									ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 									ConnectionSettings.m_bRetryConnectOnFailure = true;
 
 									Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)

@@ -19,6 +19,10 @@
 #	endif
 #endif
 
+#ifndef DMibConfig_Concurrency_DebugFutures
+#	define DMibConfig_Concurrency_DebugFutures 0
+#endif
+
 #if DMibConfig_Concurrency_DebugActorCallstacks
 #include <Mib/Container/LinkedList>
 #endif

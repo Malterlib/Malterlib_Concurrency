@@ -37,8 +37,8 @@ namespace NMib::NConcurrency
 #if defined DMibContractConfigure_CheckEnabled
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
-		
-		void const * volatile pFunctionPointer = o_pFunction->f_GetFunctionPointer();
+
+		CMibCodeAddress volatile pFunctionPointer = (CMibCodeAddress)o_pFunction->f_GetFunctionPointer();
 		(void)pFunctionPointer;
 			
 		o_pFunction.f_Clear();
@@ -356,7 +356,7 @@ namespace NMib::NConcurrency
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
 		(
 			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect
+			, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect
 			, NStr::CStr const &_UniqueHostID
 			, NStr::CStr const &_LastExecutionID
 		)

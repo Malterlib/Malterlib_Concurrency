@@ -1054,7 +1054,7 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
-	TCFutureAllowReferences<bool> CTrustedPermissionSubscription::f_HasPermission
+	TCFuture<bool> CTrustedPermissionSubscription::f_HasPermission
 		(
 		 	NStr::CStr const &_Description
 		 	, NContainer::TCVector<NStr::CStr> const &_Permissions
@@ -1062,6 +1062,8 @@ namespace NMib::NConcurrency
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
+		co_await ECoroutineFlag_AllowReferences;
 
 		using CHandler = ICDistributedActorAuthenticationHandler;
 		// This is slightly more complicated than the case above - check if the user has permission for all permissions in _Permissions
@@ -1083,7 +1085,7 @@ namespace NMib::NConcurrency
 		co_return co_await fp_AuthenticatePermissions({Query}, Request, _CallingHostInfo);
 	}
 
-	TCFutureAllowReferences<bool> CTrustedPermissionSubscription::f_HasPermissions
+	TCFuture<bool> CTrustedPermissionSubscription::f_HasPermissions
 		(
 		 	NStr::CStr const &_Description
 		 	, NContainer::TCVector<CPermissionQuery> const &_PermissionsQueries
@@ -1091,6 +1093,8 @@ namespace NMib::NConcurrency
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
+		co_await ECoroutineFlag_AllowReferences;
 
 		using CHandler = ICDistributedActorAuthenticationHandler;
 		// This is slightly more complicated than the case above - check if the user has permission for all permissions in _Permissions
@@ -1110,7 +1114,7 @@ namespace NMib::NConcurrency
 		co_return co_await fp_AuthenticatePermissions(_PermissionsQueries, Request, _CallingHostInfo);
 	}
 
-	TCFutureAllowReferences<NContainer::TCMap<NStr::CStr, bool>> CTrustedPermissionSubscription::f_HasPermissions
+	TCFuture<NContainer::TCMap<NStr::CStr, bool>> CTrustedPermissionSubscription::f_HasPermissions
 		(
 			NStr::CStr const &_Description
 		 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
@@ -1118,6 +1122,8 @@ namespace NMib::NConcurrency
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
+
+		co_await ECoroutineFlag_AllowReferences;
 
 		using CHandler = ICDistributedActorAuthenticationHandler;
 		// This is the messy case.

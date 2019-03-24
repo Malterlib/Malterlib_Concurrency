@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 		m_pDevice = nullptr;
 	}
 
-	TCFuture<aint> CHumanInterfaceDevicesActor::CDevice::f_Write(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
+	TCFuture<aint> CHumanInterfaceDevicesActor::CDevice::f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_write(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -182,9 +182,9 @@ namespace NMib::NConcurrency
 		return fg_Explicit(nBytes);
 	}
 
-	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
 	{
-		NContainer::CByteVector Buffer;
+		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read(m_pDevice, Buffer.f_GetArray(_Length), _Length);
 		if (nBytes == -1)
 			return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read)"));
@@ -192,9 +192,9 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Buffer);
 	}
 
-	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
 	{
-		NContainer::CByteVector Buffer;
+		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read_timeout(m_pDevice, Buffer.f_GetArray(_Length), _Length, _TimeoutMilliseconds);
 		if (nBytes == -1)
 			return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read_timeout)"));
@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Buffer);
 	}
 
-	TCFuture<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CByteVector &&_Buffer)
+	TCFuture<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_send_feature_report(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -213,9 +213,9 @@ namespace NMib::NConcurrency
 		return fg_Explicit();
 	}
 
-	TCFuture<NContainer::CByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
 	{
-		NContainer::CByteVector Buffer;
+		NContainer::CSecureByteVector Buffer;
 		Buffer.f_SetLen(1024);
 		Buffer[0] = _ReportID;
 

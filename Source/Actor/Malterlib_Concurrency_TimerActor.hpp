@@ -7,38 +7,31 @@ namespace NMib::NConcurrency
 {
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
 	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, tf_bDirectCall>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
-		-> TCDispatchedActorCall<CReturnType, true>
+		-> TCFuture<CReturnType>
 	{
-		return fg_DirectDispatch
+		TCPromise<CReturnType> Promise;
+		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
+		*this > NPrivate::fg_DirectResultActor() / [pReplied, Promise](TCAsyncResult<CReturnType> &&_Result)
+			{
+				if (!pReplied->f_TestAndSet())
+					Promise.f_SetResult(fg_Move(_Result));
+			}
+		;
+
+		fg_OneshotTimer
 			(
-				[_TimeoutMessage, _Timeout, _bFireAtExit, This = f_ByValue()]() mutable -> TCFuture<CReturnType>
+				_Timeout
+				, [pReplied, Promise, _TimeoutMessage]
 				{
-					TCPromise<CReturnType> Promise;
-					NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
-					This > [pReplied, Promise](TCAsyncResult<CReturnType> &&_Result)
-						{
-							if (!pReplied->f_TestAndSet())
-								Promise.f_SetResult(fg_Move(_Result));
-						}
-					;
-					
-					fg_OneshotTimer
-						(
-							_Timeout
-							, [pReplied, Promise, _TimeoutMessage]
-							{
-								if (!pReplied->f_TestAndSet())
-									Promise.f_SetException(DMibErrorInstance(_TimeoutMessage));
-							}
-							, fg_DirectCallActor()
-							, _bFireAtExit
-						)
-					;
-					
-					return Promise.f_MoveFuture();
+					if (!pReplied->f_TestAndSet())
+						Promise.f_SetException(DMibErrorInstance(_TimeoutMessage));
 				}
+				, fg_DirectCallActor()
+				, _bFireAtExit
 			)
 		;
+
+		return Promise.f_MoveFuture();
 	}
 }
 

@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 
 	class CConcurrentActor;
 	class CConcurrentActorLowPrio;
-	class CTimerActor;
+	struct CTimerActor;
 
 	template <typename t_CType, typename t_CLock>
 	class TCLockActor;

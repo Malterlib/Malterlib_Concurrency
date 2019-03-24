@@ -69,14 +69,26 @@ namespace NMib::NConcurrency
 			;
 		}
 		
-		template <typename t_FMemberFunctionPointer, bool t_bDirectCall, typename t_CIndices, typename t_CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams>
-		struct TCActorCallWithParams;
-		
-		template <typename t_FMemberFunctionPointer, bool t_bDirectCall, typename... tp_CTupleParams, mint... tp_Indices>
-		struct TCActorCallWithParams<t_FMemberFunctionPointer, t_bDirectCall, NMeta::TCIndices<tp_Indices...>, NMeta::TCTypeList<tp_CTupleParams...>>
+		template <typename t_CTypeList>
+		struct TCActorCallWithParamsTuple
 		{
+		};
+
+		template <typename ...tp_CParam>
+		struct TCActorCallWithParamsTuple<NMeta::TCTypeList<tp_CParam...>>
+		{
+			using CType = NStorage::TCTuple<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CParam>::CType...>;
+		};
+
+		template <typename t_FMemberFunctionPointer, bool t_bDirectCall>
+		struct TCActorCallWithParams
+		{
+			using CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams;
+
+			static constexpr mint mc_nParams = NMeta::TCTypeList_Len<CMemberPointerTypes>::mc_Value;
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
+			using CIndices = typename NMeta::TCMakeConsecutiveIndices<mc_nParams>::CType;
 
 			template <typename... tfp_CParams>
 			TCActorCallWithParams(t_FMemberFunctionPointer _pMemberPointer, tfp_CParams &&...p_Params)
@@ -91,16 +103,15 @@ namespace NMib::NConcurrency
 			{
 			}
 
-			template <typename tf_CActor>
+			template <typename tf_CActor, mint ...tfp_Indices>
 #if DMibEnableSafeCheck > 0
 			inline_never
 #else
 			mark_artificial inline_always
 #endif
-			CReturnType
-			operator() (tf_CActor &_Actor)
+			CReturnType operator() (tf_CActor &_Actor, NMeta::TCIndices<tfp_Indices...>)
 			{
-				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tp_Indices>(m_Params))...);
+				return (_Actor.*m_pMemberPointer)(fg_Move(fg_Get<tfp_Indices>(m_Params))...);
 			}
 
 			constexpr bool f_IsDispatch() const
@@ -109,8 +120,8 @@ namespace NMib::NConcurrency
 			}
 
 			t_FMemberFunctionPointer m_pMemberPointer;
-			NStorage::TCTuple<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CTupleParams>::CType...> m_Params;
-			static constexpr bool mc_bDirectCall = false;
+			typename TCActorCallWithParamsTuple<CMemberPointerTypes>::CType m_Params;
+			static constexpr bool mc_bDirectCall = t_bDirectCall;
 
 		private:
 			TCActorCallWithParams(TCActorCallWithParams const&);
@@ -125,7 +136,6 @@ namespace NMib::NConcurrency
 				<
 					tf_FMemberFunction
 					, tf_bDirectCall
-					, NMeta::TCIndices<tfp_Indicies...>
 				>
 				(
 					_pToBind
@@ -153,7 +163,6 @@ namespace NMib::NConcurrency
 				<
 					tf_FMemberFunction
 					, tf_bDirectCall
-					, NMeta::TCIndices<tfp_Indicies...>
 				>
 				(
 					_pToBind
@@ -331,12 +340,20 @@ namespace NMib::NConcurrency
 		bool await_ready() const noexcept;
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
+#if DMibEnableSafeCheck > 0
+		auto await_resume();
+#else
 		auto await_resume() noexcept(!t_bUnwrap);
+#endif
 
 	private:
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CCalls...> mp_Calls;
+		NAtomic::TCAtomic<mint> mp_ResultAvailable;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+#if DMibEnableSafeCheck > 0
+		NException::CExceptionPointer mp_pDebugException;
+#endif
 	};
 
 	template <typename t_CActorCall, typename... tp_CCalls>
@@ -584,16 +601,25 @@ namespace NMib::NConcurrency
 	struct TCActorCallAwaiter
 	{
 		TCActorCallAwaiter(t_CActorCall &&_ActorCall, t_FExceptionTransform &&_fExceptionTransform = nullptr);
+		~TCActorCallAwaiter();
 
 		bool await_ready() const noexcept;
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
+#if DMibEnableSafeCheck > 0
+		auto await_resume();
+#else
 		auto await_resume() noexcept(!t_bUnwrap);
+#endif
 
 	private:
 		t_CActorCall mp_ActorCall;
 		TCAsyncResult<t_CReturnType> mp_Result;
+		NAtomic::TCAtomic<mint> mp_ResultAvailable;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+#if DMibEnableSafeCheck > 0
+		NException::CExceptionPointer mp_pDebugException;
+#endif
 	};
 
 	template <typename t_CActorCall, typename t_CReturnType>
@@ -641,19 +667,8 @@ namespace NMib::NConcurrency
 		{
 		}
 
-		TCActorCall(TCActorCall const &_Other)
-			: mp_Actor(_Other.mp_Actor)
-			, mp_Functor(_Other.mp_Functor)
-			, mp_Params(_Other.mp_Params)
-		{
-		}
-
-		TCActorCall(TCActorCall &&_Other)
-			: mp_Actor(fg_Move(_Other.mp_Actor))
-			, mp_Functor(fg_Move(_Other.mp_Functor))
-			, mp_Params(fg_Move(_Other.mp_Params))
-		{
-		}
+		TCActorCall(TCActorCall const &_Other) = default;
+		TCActorCall(TCActorCall &&_Other) = default;
 
 #ifdef DMibContractConfigure_CheckEnabled			
 		~TCActorCall()
@@ -789,7 +804,7 @@ namespace NMib::NConcurrency
 			return {this, _ErrorString};
 		}
 
-		TCDispatchedActorCall<CReturnType, true> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
+		TCFuture<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
 		
 		auto f_CallSync()
 		{
@@ -1090,7 +1105,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 	namespace NPrivate
 	{
-		mint fg_WrapActorCall(NFunction::TCFunctionNoAlloc<void ()> const &_fDoDisptach);
+		mint fg_WrapActorCall(NFunction::TCFunctionNoAllocMovable<void ()> &&_fDoDisptach);
 	}
 #endif
 
@@ -1195,90 +1210,89 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		inline_never
 #endif
-		void operator ()() const
+		void operator ()()
 		{
 			DMibFastCheck(m_pActorInternal);
 
-			using CRealActor = decltype(*(m_pActorInternal->fp_GetActor()));
-
-			if constexpr (NPrivate::TCIsFuture<typename NTraits::TCIsCallableWith<t_CFunctor, void (CRealActor &)>::CReturnType>::mc_Value)
+			if constexpr (NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value)
 			{
+				auto pThis = this;
 #if DMibEnableSafeCheck > 0
 				NPrivate::fg_WrapActorCall
 				(
-				 	[this]
+				 	[pThis]() mutable
 				 	{
 #endif
 
-				auto &State = *m_pState;
+						auto &State = *pThis->m_pState;
 #if DMibConfig_Concurrency_DebugActorCallstacks
-				auto &Callstack = State.m_Callstacks;
-				NPrivate::CAsyncCallstacksScope CallstacksScope(Callstack);
+						auto &Callstack = State.m_Callstacks;
+						NPrivate::CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 
 #if DMibEnableSafeCheck > 0
-				auto &ThreadLocal = **g_SystemThreadLocal;
-				bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
-				ThreadLocal.m_bExpectCoroutineCall = true;
-				auto Cleanup = g_OnScopeExit > [&]
-					{
-						ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
-					}
-				;
-#endif
-
-				auto pActor = m_pActorInternal->fp_GetActor();
-				CCurrentActorScope CurrentActor(pActor);
-
-#if DMibEnableSafeCheck > 0
-				TCFuture<CReturnType> Future;
-				try
-				{
-					Future = State.m_ToCall(*pActor);
-				}
-				catch (NException::CDebugException const &)
-				{
-					Future = NException::fg_CurrentException();
-				}
-#else
-				TCFuture<CReturnType> Future = State.m_ToCall(*pActor);
-#endif
-
-#if DMibEnableSafeCheck > 0
-				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
-				Cleanup.f_Clear();
-#endif
-
-				if constexpr (mc_ShouldDiscardResults)
-				{
-					if (!Future.f_IsCoroutine())
-					{
-						Future.f_DiscardResult();
-						return;
-					}
-					// Coroutine param state needs to be kept alive until coroutine has resloved
-				}
-
-				Future.f_OnResultSet
-					(
-						[Local = fg_Move(fg_RemoveQualifiers(*this))](auto &&_Result) mutable
-						{
-							if constexpr (!mc_ShouldDiscardResults)
+						auto &ThreadLocal = **g_SystemThreadLocal;
+						bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
+						ThreadLocal.m_bExpectCoroutineCall = true;
+						auto Cleanup = g_OnScopeExit > [&]
 							{
-								if (_Result.f_IsSet())
-								{
-#if DMibConfig_Concurrency_DebugActorCallstacks
-									_Result.m_Callstacks = fg_Move(Local.m_pState->m_Callstacks);
-#endif
-								}
-								else
-									_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+								ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 							}
+						;
+#endif
 
-							fg_RemoveQualifiers(Local).f_ResultAvailable(fg_Move(_Result));
+						auto pActor = pThis->m_pActorInternal->fp_GetActor();
+						CCurrentActorScope CurrentActor(pActor);
+
+#if DMibEnableSafeCheck > 0
+						TCFuture<CReturnType> Future;
+						try
+						{
+							Future = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
 						}
-					)
-				;
+						catch (NException::CDebugException const &)
+						{
+							Future = NException::fg_CurrentException();
+						}
+#else
+						TCFuture<CReturnType> Future = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+#endif
+
+#if DMibEnableSafeCheck > 0
+						ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+						Cleanup.f_Clear();
+#endif
+
+						if constexpr (mc_ShouldDiscardResults)
+						{
+							if (!Future.f_IsCoroutine())
+							{
+								Future.f_DiscardResult();
+								return;
+							}
+							// Coroutine param state needs to be kept alive until coroutine has resloved
+						}
+
+						Future.f_OnResultSet
+							(
+								[Local = fg_Move(*pThis)](auto &&_Result) mutable
+								{
+									if constexpr (!mc_ShouldDiscardResults)
+									{
+										if (_Result.f_IsSet())
+										{
+#if DMibConfig_Concurrency_DebugActorCallstacks
+											_Result.m_Callstacks = fg_Move(Local.m_pState->m_Callstacks);
+#endif
+										}
+										else
+											_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set", false));
+									}
+
+									Local.f_ResultAvailable(fg_Move(_Result));
+								}
+							)
+						;
 
 #if DMibEnableSafeCheck > 0
 				 	}
@@ -1297,19 +1311,19 @@ namespace NMib::NConcurrency
 					NPrivate::CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 					if constexpr (mc_ShouldDiscardResults)
-						State.m_ToCall(*(pActor));
+						State.m_ToCall(*(pActor), typename t_CFunctor::CIndices());
 					else
 					{
 						if constexpr (NTraits::TCIsSame<CResultType, TCAsyncResult<void>>::mc_Value)
 						{
-							State.m_ToCall(*pActor);
+							State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
 							Result.f_SetResult();
 						}
 						else
-							Result.f_SetResult(State.m_ToCall(*(pActor)));
+							Result.f_SetResult(State.m_ToCall(*(pActor), typename t_CFunctor::CIndices()));
 					}
 				}
-				fg_RemoveQualifiers(*this).f_ResultAvailable(fg_Move(Result));
+				(*this).f_ResultAvailable(fg_Move(Result));
 			}
 		}
 		
@@ -1330,7 +1344,7 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
 #else
-					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted"));
+					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted", false));
 #endif
 					f_ResultAvailable(fg_Move(Result));
 				}

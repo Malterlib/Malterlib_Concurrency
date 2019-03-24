@@ -158,9 +158,11 @@ namespace NMib::NConcurrency
 			else // When local
 			{
 				DispatchActor = _Actor;
-				ToDispatch = [_Actor, Params = NStorage::fg_Tuple(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
+				using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::CMoveList;
+				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::CType;
+				ToDispatch = [_Actor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
-						return NStorage::fg_TupleApplyAs<NMeta::TCTypeList<typename NTraits::TCDecayForward<tfp_CParams>::CType...>>
+						return NStorage::fg_TupleApplyAs<CMoveList>
 							(
 								[&](auto &&..._Params) mutable -> TCFuture<CReturn>
 								{

@@ -209,6 +209,7 @@ namespace NMib::NConcurrency
 		NContainer::CByteVector m_PublicServerCertificate;
 		NContainer::CByteVector m_PublicClientCertificate;
 		NContainer::CSecureByteVector m_PrivateClientKey;
+		bool m_bRetryConnectOnFirstFailure = true;
 		bool m_bRetryConnectOnFailure = true;
 		bool m_bAllowInsecureConnection = false; // Only enabled when m_PublicServerCertificate is empty
 	};
@@ -462,7 +463,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const &f_LastExecutionID() const;
 		TCActor<CActorDistributionManager> f_GetDistributionManager() const;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
-		TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect) const;
+		TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const;
 		uint32 f_GetProtocolVersion() const;
 		NStr::CStr const &f_GetClaimedUserID() const;
 		NStr::CStr const &f_GetClaimedUserName() const;
@@ -594,15 +595,15 @@ namespace NMib::NConcurrency
 			(
 				NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
 				, TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMutable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-				, NFunction::TCFunctionMutable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+				, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+				, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 			)
 		;
 
 		CActorSubscription f_SubscribeHostInfoChanged
 			(
 				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMutable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
+				, NFunction::TCFunctionMovable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
 			)
 		;
 
@@ -661,7 +662,7 @@ namespace NMib::NConcurrency
 		CActorSubscription fp_OnRemoteDisconnect
 			(
 				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMutable<void ()> &&_fOnDisconnect
+				, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect
 				, NStr::CStr const &_UniqueHostID
 				, NStr::CStr const &_LastExecutionID
 			)

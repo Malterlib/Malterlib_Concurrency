@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 		{
 			return _Exception.f_GetErrorStr();
 		}
-		return NStr::CStr();
+		return NStr::CStr("No error (no exception was set)");
 	}
 	
 	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const

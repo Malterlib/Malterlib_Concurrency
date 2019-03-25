@@ -352,30 +352,42 @@ namespace
 				return fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
 			}
 
+			struct CSendState
+			{
+				CSendState(CSecureByteVector const &_ToSend)
+					: m_ToSend(_ToSend)
+				{
+				}
+
+				CSecureByteVector m_ToSend;
+
+				uint8 m_Sequence = 0;
+				mint m_SendLength = m_ToSend.f_GetLen();
+				uint8 const *m_pSendData = m_ToSend.f_GetArray();
+				mint m_DataSent = 0;
+				TCFunctionMovable<void (TCSharedPointer<CSendState> const &_pReceiveState, TCPromise<void> const &_Promise)> m_fDoSend;
+			};
+
+			struct CReceiveState
+			{
+				CSecureByteVector m_Receive;
+				uint16 m_nReceived = 0;
+				uint16 m_DataLength = 0;
+				uint8 m_Sequence = 0;
+				bool m_bFirstFrame = true;
+				TCFunctionMovable<void (TCSharedPointer<CReceiveState> const &_pReceiveState, TCPromise<CSecureByteVector> const &_Promise)> m_fDoReceive;
+			};
+
 			static TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
-				struct CSendState
-				{
-					CSendState(CSecureByteVector const &_ToSend)
-						: m_ToSend(_ToSend)
-					{
-					}
-
-					CSecureByteVector m_ToSend;
-
-					uint8 m_Sequence = 0;
-					mint m_SendLength = m_ToSend.f_GetLen();
-					uint8 const *m_pSendData = m_ToSend.f_GetArray();
-					mint m_DataSent = 0;
-				};
 
 				TCSharedPointer<CSendState> pSendState = fg_Construct(_Send);
 
 				TCPromise<void> SendPromise;
 
-				auto fDoSend = [=](TCSharedPointer<CSendState> const &_pSendState, auto const &_fDoSend) -> void
+				pSendState->m_fDoSend = [_Device, _ChannelID, _Command](TCSharedPointer<CSendState> const &_pSendState, TCPromise<void> const &_Promise) -> void
 					{
-						auto &State = *pSendState;
+						auto &State = *_pSendState;
 						if (State.m_DataSent < State.m_SendLength)
 						{
 							CFrame Frame;
@@ -388,44 +400,35 @@ namespace
 							CSecureByteVector Data;
 							Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
 
-							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > SendPromise / [=](aint _BytesWritten)
+							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > _Promise / [=](aint _BytesWritten)
 								{
 									if (_BytesWritten != sizeof(CFrame) + 1)
 									{
-										SendPromise.f_SetException(DMibErrorInstance("Wrong number of bytes written for U2F frame"));
+										_Promise.f_SetException(DMibErrorInstance("Wrong number of bytes written for U2F frame"));
 										return;
 									}
-									_fDoSend(_pSendState, _fDoSend);
+									_pSendState->m_fDoSend(_pSendState, _Promise);
 								}
 							;
 						}
 						else
-							SendPromise.f_SetResult();
+							_Promise.f_SetResult();
 					}
 				;
 
-				fDoSend(pSendState, fDoSend);
+				pSendState->m_fDoSend(pSendState, SendPromise);
 
 				TCPromise<CSecureByteVector> Promise;
+
 				SendPromise > Promise / [=]
 					{
-						struct CReceiveState
-						{
-							CSecureByteVector m_Receive;
-							uint16 m_nReceived = 0;
-							uint16 m_DataLength = 0;
-							uint8 m_Sequence = 0;
-							bool m_bFirstFrame = true;
-						};
-
 						TCSharedPointer<CReceiveState> pReceiveState = fg_Construct();
-
-						auto fDoReceive = [=](TCSharedPointer<CReceiveState> const &_pReceiveState, auto &&_fDoReceive) -> void
+						pReceiveState->m_fDoReceive = [_Device, _ChannelID, _Command](TCSharedPointer<CReceiveState> const &_pReceiveState, TCPromise<CSecureByteVector> const &_Promise) mutable -> void
 							{
-								fs_ReadFrame(_Device) > Promise / [=](CFrame &&_Frame)
+								fs_ReadFrame(_Device) > _Promise / [=](CFrame &&_Frame) mutable
 									{
 										if (_Frame.m_ChannelID != _ChannelID)
-											return Promise.f_SetException(DMibErrorInstance("Invalid channel number reading from U2F device"));
+											return _Promise.f_SetException(DMibErrorInstance("Invalid channel number reading from U2F device"));
 
 										auto &State = *_pReceiveState;
 										if (State.m_bFirstFrame)
@@ -449,11 +452,11 @@ namespace
 													}
 												}
 
-												return Promise.f_SetException(DMibErrorInstance("Error response reading from U2F device: {}"_f << Error));
+												return _Promise.f_SetException(DMibErrorInstance("Error response reading from U2F device: {}"_f << Error));
 											}
 
 											if (_Frame.m_InitialFrame.m_Command != _Command)
-												return Promise.f_SetException(DMibErrorInstance("Invalid command reading from U2F device"));
+												return _Promise.f_SetException(DMibErrorInstance("Invalid command reading from U2F device"));
 
 											State.m_DataLength = _Frame.m_InitialFrame.m_ByteCountHigh << 8 | _Frame.m_InitialFrame.m_ByteCountLow;
 											auto Received = fg_Min(sizeof(_Frame.m_InitialFrame.m_Data), mint(State.m_DataLength));
@@ -464,7 +467,7 @@ namespace
 										else
 										{
 											if (_Frame.m_ContinuationFrame.m_SequenceNumber != State.m_Sequence++)
-												return Promise.f_SetException(DMibErrorInstance("Invalid sequence number when reading from U2F device"));
+												return _Promise.f_SetException(DMibErrorInstance("Invalid sequence number when reading from U2F device"));
 
 											auto Received = fg_Min(mint(State.m_nReceived) + sizeof(_Frame.m_ContinuationFrame.m_Data), mint(State.m_DataLength)) - mint(State.m_nReceived);
 											State.m_Receive.f_Insert(_Frame.m_ContinuationFrame.m_Data, Received);
@@ -472,15 +475,15 @@ namespace
 										}
 
 										if (State.m_nReceived == State.m_DataLength)
-											return Promise.f_SetResult(fg_Move(State.m_Receive));
+											return _Promise.f_SetResult(fg_Move(State.m_Receive));
 
-										_fDoReceive(_pReceiveState, _fDoReceive);
+										State.m_fDoReceive(_pReceiveState, _Promise);
 									}
 								;
 							}
 						;
 
-						fDoReceive(pReceiveState, fDoReceive);
+						pReceiveState->m_fDoReceive(pReceiveState, Promise);
 					}
 				;
 

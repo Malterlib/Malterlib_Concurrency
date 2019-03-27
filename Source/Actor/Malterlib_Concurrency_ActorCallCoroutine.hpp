@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType, typename tf_FExceptionTransform>
-	decltype(auto) fg_UnwrapCoroutineAsyncResult(TCAsyncResult<tf_CType> &&_AsyncResult, tf_FExceptionTransform &_fExceptionTransform)
+	auto fg_UnwrapCoroutineAsyncResult(TCAsyncResult<tf_CType> &&_AsyncResult, tf_FExceptionTransform &_fExceptionTransform)
 	{
 		if (!_AsyncResult)
 		{

@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<TCActorSubscriptionWithID<>> Promise;
 
-		m_pThis->fp_StartBackup(fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot)
+		m_pThis->self(&CDistributedAppActor::fp_StartBackup, fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot)
 			> Promise / [Promise](CActorSubscription &&_Subscription)
 			{
 				Promise.f_SetResult(fg_Move(_Subscription));

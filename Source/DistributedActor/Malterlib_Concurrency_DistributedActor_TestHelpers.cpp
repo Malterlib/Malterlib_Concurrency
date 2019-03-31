@@ -39,12 +39,12 @@ namespace NMib::NConcurrency
 	{
 		return mp_pServer->f_GetHostID(); 
 	}
-	
+
 	NStr::CStr const &CDistributedActorTestHelperCombined::f_GetClientHostID() const
 	{
 		return mp_pClient->f_GetHostID(); 
 	}
-	
+
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 	{
 		mp_pServer = fg_Construct
@@ -60,8 +60,7 @@ namespace NMib::NConcurrency
 		f_InitServer();
 		f_InitClient(*this);
 	}
-	
-	
+
 	void CDistributedActorTestHelperCombined::f_InitServer()
 	{
 		if (!mp_pServer)
@@ -86,7 +85,7 @@ namespace NMib::NConcurrency
 		if (_bNewExecutionID)
 			mp_pClient.f_Clear();
 	}
-	
+
 	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server)
 	{
 		CActorDistributionConnectionSettings ConnectionSettings;

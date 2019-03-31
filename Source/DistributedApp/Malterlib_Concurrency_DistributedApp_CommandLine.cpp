@@ -203,10 +203,10 @@ namespace NMib::NConcurrency
 
 				CStr UserID = ValidatedParams.f_GetMemberValue("AuthenticationUser", "").f_String();
 
-				fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID) > Promise / [=](CActorSubscription &&_AuthenticationSubscription)
+				self(&CDistributedAppActor::fp_SetupAuthentication, _pCommandLine, AuthenticationLifetime, UserID) > Promise / [=](CActorSubscription &&_AuthenticationSubscription)
 					{
 						CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-						fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine) > Promise / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
+						self(&CDistributedAppActor::fp_PreRunCommandLine, _Command, ValidatedParams, _pCommandLine) > Promise / [=, AuthenticationSubscription = fg_Move(_AuthenticationSubscription)]() mutable
 							{
 								auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
 

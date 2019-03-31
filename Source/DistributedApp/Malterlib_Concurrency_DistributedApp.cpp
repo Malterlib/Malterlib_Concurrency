@@ -599,7 +599,7 @@ namespace NMib::NConcurrency
 			}
 			> Promise % "Failed to stop command line interface" / [this, Promise]
 			{
-				fp_StopApp() > Promise % "Failed to stop app" / [this, Promise]
+				self(&CDistributedAppActor::fp_StopApp) > Promise % "Failed to stop app" / [this, Promise]
 					{
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
@@ -798,7 +798,7 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable
 	TCFuture<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
-		return fp_Test_Command(_Command, _Params);
+		return self(&CDistributedAppActor::fp_Test_Command, _Command, _Params);
 	}
 
 	TCFuture<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)

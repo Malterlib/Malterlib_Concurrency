@@ -125,10 +125,12 @@ namespace NMib::NConcurrency
 		CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
 		mint m_iConcurrentActor[EPriority_Max];
 		mint m_JobQueueIndex[EPriority_Max];
-#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 		CActor *m_pCurrentlyConstructingActor = nullptr;
+		CActor *m_pCurrentlyDestructingActor = nullptr;
 		mint m_AllowWrongThreadDestroySequence = 0;
 #endif
+
 	};
 
 	struct CAllowWrongThreadDestroy

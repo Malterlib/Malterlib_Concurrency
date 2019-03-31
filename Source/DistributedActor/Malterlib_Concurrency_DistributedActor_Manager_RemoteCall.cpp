@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 
 	inline_never static void fg_DestroyStreamedFunctionWithoutActor(NStorage::TCSharedPointer<NPrivate::CStreamingFunction> &o_pFunction)
 	{
-#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mint DestroySequence = ThreadLocal.m_AllowWrongThreadDestroySequence;
 

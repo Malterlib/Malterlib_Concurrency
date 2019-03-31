@@ -614,11 +614,26 @@ namespace NMib::NConcurrency
 
 		auto Subscription = g_ActorSubscription / [=]() -> TCFuture<void>
 			{
-				mp_AuthenticationRemotes.f_Clear();
-				mp_AuthenticationRegistrationSubscriptions.f_Clear();
-				mp_AuthenticationHandlerImplementation.f_Clear();
+				TCActorResultVector<void> Destroys;
 
-				return fg_Explicit();
+				mp_AuthenticationRemotes.f_Destroy() > Destroys.f_AddResult();
+
+				for (auto &Subscription : mp_AuthenticationRegistrationSubscriptions)
+				{
+					if (Subscription.m_Subscription)
+						Subscription.m_Subscription->f_Destroy() > Destroys.f_AddResult();;
+				}
+				mp_AuthenticationRegistrationSubscriptions.f_Clear();
+
+				if (mp_AuthenticationHandlerImplementation)
+				{
+					mp_AuthenticationHandlerImplementation->f_Destroy() > Destroys.f_AddResult();
+					mp_AuthenticationHandlerImplementation.f_Clear();
+				}
+
+				co_await Destroys.f_GetResults().f_Wrap();
+
+				co_return {};
 			}
 		;
 

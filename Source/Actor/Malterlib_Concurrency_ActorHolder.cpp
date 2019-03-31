@@ -95,19 +95,19 @@ namespace NMib::NConcurrency
 			fp_StartQueueProcessing();
 
 			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-#if defined DMibContractConfigure_CheckEnabled
+#	if DMibEnableSafeCheck > 0
 			auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
 #endif
 			auto pOldActor = ThreadLocal.m_pCurrentActor;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
-#if defined DMibContractConfigure_CheckEnabled
+#	if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
 #endif
 
 			auto CleanupWorking = g_OnScopeExit > [&]
 				{
 					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
-#if defined DMibContractConfigure_CheckEnabled
+#	if DMibEnableSafeCheck > 0
 					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
 #endif
 					ThreadLocal.m_pCurrentActor = pOldActor;
@@ -164,18 +164,6 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibEnableSafeCheck > 0
-	void *CActorHolder::fs_DequeueProcess_FunctionPointer()
-	{
-		union
-		{
-			bool (CActorHolder::*pMemberPointer)(bool);
-			void *pPointer;
-		};
-		pMemberPointer = &CActorHolder::fp_DequeueProcess;
-
-		return pPointer;
-	}
-
 	inline_never
 #endif
 	bool CActorHolder::fp_DequeueProcess(bool _bRun)
@@ -473,6 +461,17 @@ namespace NMib::NConcurrency
 						return;
 					}
 
+#if DMibEnableSafeCheck > 0
+					auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+					auto pOldDestructingActor = ThreadLocal.m_pCurrentlyDestructingActor;
+					ThreadLocal.m_pCurrentlyDestructingActor = mp_pActor.f_Get();
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							ThreadLocal.m_pCurrentlyDestructingActor = pOldDestructingActor;
+						}
+					;
+#endif
 					mp_pActor.f_Clear();
 					mp_bDestroyed.f_Exchange(2);
 					TCActor<CActor> pToDelete = fp_GetAsActor<CActor>();
@@ -652,9 +651,11 @@ namespace NMib::NConcurrency
 	{
 		if (!mp_pOnTerminateEntry)
 			return;
+
 		auto pDelegateTo = mp_pDelegateTo.f_Lock();
 		if (!pDelegateTo)
 			return;
+
 		pDelegateTo->f_QueueProcess
 			(
 				[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo]

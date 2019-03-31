@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&) = default;
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
-	
+
 		TCFuture<void> f_Destroy();
 
 #if DMibConfig_Tests_Enable
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 			)
 		;
 #endif
-		
+
 		TCActor<CDistributedAppInterfaceLaunchActor> m_Launch;
 		NStorage::TCSharedPointer<CActorSubscription> m_pLaunchSubscription;
 
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
 		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 	};
-	
+
 	struct CDistributedApp_LaunchInfo : public CDistributedApp_LaunchInfoData
 	{
 		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfoData const &_LaunchInfo, CActorSubscription &&_Subscription);
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 
 		CActorSubscription m_Subscription;
 	};
-	
+
 	struct CDistributedApp_LaunchHelper : public CActor
 	{
 		struct CDistributedAppInterfaceServerImplementation : public CDistributedAppInterfaceServer
@@ -78,25 +78,25 @@ namespace NMib::NConcurrency
 
 			CDistributedApp_LaunchHelper *m_pThis = nullptr;
 		};
-		
+
 		struct CLaunchInfo : public CDistributedApp_LaunchInfoData
 		{
 			void f_Abort();
-			
+
 			TCPromise<CDistributedApp_LaunchInfo> m_Promise;
 		};
-		
+
 		struct CPendingLaunch
 		{
 			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
 			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 		};
-	
+
 		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr);
 		~CDistributedApp_LaunchHelper();
-		
+
 		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
-		
+
 		TCFuture<void> fp_Destroy() override;
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CLaunchInfo> m_Launches;
 		NContainer::TCMap<NStr::CStr, CPendingLaunch> m_PendingLaunches;
 		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingDestroys;
-		TCDelegatedActorInterface<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
+		TCDistributedActorInstance<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;
 		bool m_bLogToStderr = false;
 	};
 }

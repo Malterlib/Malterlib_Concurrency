@@ -47,20 +47,20 @@ namespace NMib::NConcurrency
 	}
 
 	CDistributedAppState::~CDistributedAppState() = default;
-	
+
 	CDistributedAppState::CDistributedAppState(CDistributedAppActor_Settings const &_Settings)
 		: m_StateDatabase(fg_Format("{}/{}State.json", _Settings.m_RootDirectory, _Settings.m_AppName))
 		, m_ConfigDatabase(fg_Format("{}/{}Config.json", _Settings.m_RootDirectory, _Settings.m_AppName))
 		, m_RootDirectory(_Settings.m_RootDirectory)
 	{
 	}
-	
+
 	CDistributedAppState::CDistributedAppState(CDistributedAppState const &) = default;
 	CDistributedAppState::CDistributedAppState(CDistributedAppState &&) = default;
-	
+
 	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState const &) = default;
 	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&) = default;
-	
+
 	CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
 		: mp_State(_Settings, *this)
 		, mp_Settings(_Settings)
@@ -74,10 +74,10 @@ namespace NMib::NConcurrency
 			mp_CurrentLogDirectory = _Settings.m_RootDirectory + "/Log";
 			fg_GetSys()->f_SetDefaultLogFileDirectory(mp_CurrentLogDirectory);
 		}
-		
+
 		fp_MakeActive();
 	}
-	
+
 	CDistributedAppActor::~CDistributedAppActor()
 	{
 	}
@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 			else
 				FriendlyName = CurrentCallingHostInfo.f_GetHostInfo().m_FriendlyName;
 		}
-		
+
 		return CCallingHostInfoScope
 			{
 				CCallingHostInfo
@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 					, CurrentCallingHostInfo.f_GetAuthenticationHandler()
 					, CurrentCallingHostInfo.f_GetUniqueHostID()
 					, CurrentCallingHostInfo.f_GetRealHostID().f_IsEmpty()
-					? CHostInfo(mp_State.m_HostID, FriendlyName) 
+					? CHostInfo(mp_State.m_HostID, FriendlyName)
 					: CHostInfo(CurrentCallingHostInfo.f_GetHostInfo().m_HostID, FriendlyName)
 					, CurrentCallingHostInfo.f_LastExecutionID()
 					, CurrentCallingHostInfo.f_GetProtocolVersion()
@@ -143,12 +143,12 @@ namespace NMib::NConcurrency
 	{
 		return mp_Settings.f_GetLocalSocketHostname(_bEnclaveSpecific);
 	}
-	
+
 	NWeb::NHTTP::CURL CDistributedAppActor::fp_GetLocalAddress() const
 	{
 		return NWeb::NHTTP::CURL{fg_Format("wss://[{}]/", fp_GetLocalHostname(false))};
 	}
-	
+
 	NContainer::TCMap<NStr::CStr, NStr::CStr> CDistributedAppActor::fp_GetTranslateHostnames() const
 	{
 		NContainer::TCMap<NStr::CStr, NStr::CStr> TranslateHostnames;
@@ -156,26 +156,26 @@ namespace NMib::NConcurrency
 			TranslateHostnames[fp_GetLocalHostname(false)] = fp_GetLocalHostname(true);
 		return TranslateHostnames;
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Setting up listen config");
 		TCPromise<void> Promise;
-		
+
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
-		
+
 		CDistributedActorTrustManager_Address LocalListen;
 		LocalListen.m_URL = fp_GetLocalAddress();
 
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 		if (pListen)
 		{
-			bool bFirst = true; 
+			bool bFirst = true;
 			for (auto &Object : pListen->f_Array())
 			{
 				if (!Object.f_IsObject())
 					return DMibErrorInstance("Invalid listen entry. Entry needs to be an object with 'Address' specified");
-					
+
 				CDistributedActorTrustManager_Address Address;
 				if (auto pAddress = Object.f_GetMember("Address"))
 				{
@@ -192,15 +192,15 @@ namespace NMib::NConcurrency
 				if (bFirst)
 					mp_PrimaryListen = Address;
 				bFirst = false;
-				
+
 				if (Address == LocalListen)
 					return DMibErrorInstance(fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode()));
 				WantedListens[Address];
 			}
 		}
 		WantedListens[LocalListen];
-		
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens) 
+
+		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens)
 			> Promise % "Failed to enum current listen" / [this, Promise, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)
 			{
 				TCActorResultVector<void> ChangesResults;
@@ -231,14 +231,14 @@ namespace NMib::NConcurrency
 					{
 						if (!fg_CombineResults(Promise, fg_Move(_Results)))
 							return;
-						
+
 						DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished changing listen config");
 						Promise.f_SetResult();
 					}
 				;
 			}
 		;
-		
+
 		return Promise.f_MoveFuture();
 	}
 
@@ -316,12 +316,12 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<void> Promise;
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
-		
+
 		fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
 		fp_CleanupOldExecutables();
 #endif
-		
+
 		mp_State.m_StateDatabase.f_Load()
 			+ mp_State.m_ConfigDatabase.f_Load()
 			> Promise / [this, Promise, _Params]()
@@ -329,10 +329,10 @@ namespace NMib::NConcurrency
 				if (mp_State.m_bStoppingApp)
 					return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
-				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> 
+				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)>
 					fManagerFactor
 				;
-				
+
 				if (mp_Settings.m_bSeparateDistributionManager)
 				{
 					fManagerFactor = [](CActorDistributionManagerInitSettings const &_Settings)
@@ -345,17 +345,17 @@ namespace NMib::NConcurrency
 				int32 DefaultConcurrency = 1;
 				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
 					DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
-				
+
 				fp64 InitialConnectionTimeout = 5.0;
 				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
 					InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
-				
+
 				bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
 				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJSONType_Boolean))
 					bSupportAuthentication = pValue->f_Boolean();
 
 				CDistributedActorTrustManager::COptions Options;
-				
+
 				Options.m_fConstructManager = fg_Move(fManagerFactor);
 				Options.m_KeySetting = mp_Settings.m_KeySetting;
 				Options.m_ListenFlags = mp_Settings.m_ListenFlags;
@@ -366,16 +366,16 @@ namespace NMib::NConcurrency
 				Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
 				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
 				Options.m_bSupportAuthentication = bSupportAuthentication;
-				
+
 				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(mp_TrustManagerDatabase, fg_Move(Options));
-				
+
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
 					> Promise % "Failed to initialize trust manager" / [this, Promise, _Params]()
 					{
 						if (mp_State.m_bStoppingApp)
 							return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-						
-						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
+
+						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager)
 							+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
 							> Promise % "Failed to initialize trust manager"
 							/ [this, Promise, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager, CStr &&_HostID)
@@ -415,8 +415,8 @@ namespace NMib::NConcurrency
 				;
 			}
 		;
-		
-		return Promise.f_MoveFuture();				
+
+		return Promise.f_MoveFuture();
 	}
 
 	namespace
@@ -507,7 +507,7 @@ namespace NMib::NConcurrency
 
 		if (mp_State.m_bStoppingApp)
 			co_return DMibErrorInstance("Startup aborted");
-		
+
 		mp_State.m_LogActor = _LogActor;
 
 		if (!mp_pInitOnce)
@@ -529,8 +529,8 @@ namespace NMib::NConcurrency
 					, false
 				)
 			;
-		}				
-			
+		}
+
 		auto InitializeCall = self / [this, _Params]() -> TCFuture<void>
 			{
 				co_await ((*mp_pInitOnce)() % "Failed to initialize");
@@ -584,7 +584,7 @@ namespace NMib::NConcurrency
 		TCPromise<void> Promise;
 
 		mp_State.m_bStoppingApp = true;
-		
+
 		self / [this]() -> TCFuture<void>
 			{
 				if (mp_CommandLine)
@@ -599,19 +599,34 @@ namespace NMib::NConcurrency
 			}
 			> Promise % "Failed to stop command line interface" / [this, Promise]
 			{
-				fp_StopApp() > Promise % "Failed to stop app" / [Promise]
+				fp_StopApp() > Promise % "Failed to stop app" / [this, Promise]
 					{
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped");
-						
-						Promise.f_SetResult();
+						DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
+
+						self / [this]() -> TCFuture<void>
+							{
+								if (mp_AppInterfaceClientTrustProxy)
+									co_await mp_AppInterfaceClientTrustProxy->f_Destroy();
+								if (mp_AppInterfaceClientRegistrationSubscription)
+									co_await mp_AppInterfaceClientRegistrationSubscription->f_Destroy();
+								co_await mp_AppInteraceServerSubscription.f_Destroy();
+								co_await mp_AppInterfaceClientImplementation.f_Destroy();
+								co_return {};
+							}
+							> Promise / [Promise]
+							{
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");
+								Promise.f_SetResult();
+							}
+						;
 					}
 				;
 			}
 		;
-		
+
 		return Promise.f_MoveFuture();
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
@@ -619,12 +634,12 @@ namespace NMib::NConcurrency
 			mp_State.m_DistributionManager->f_Destroy() > Destroys.f_AddResult();
 		if (mp_State.m_TrustManager)
 			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
-	
+
 		TCPromise<void> Promise;
-		Destroys.f_GetResults() > Promise.f_ReceiveAny(); 
+		Destroys.f_GetResults() > Promise.f_ReceiveAny();
 		return Promise.f_MoveFuture();
 	}
-	
+
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 	{
 		TCActor<CActor> LogActor;
@@ -656,7 +671,7 @@ namespace NMib::NConcurrency
 									LogActor
 									, fg_Move(_fToDispatch)
 								)
-								> fg_DiscardResult() 
+								> fg_DiscardResult()
 							;
 						}
 					)
@@ -664,7 +679,7 @@ namespace NMib::NConcurrency
 			}
 		}
 #endif
-		
+
 		return LogActor;
 	}
 
@@ -708,7 +723,7 @@ namespace NMib::NConcurrency
 				}
 			;
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
-			
+
 			if (_fMutateCommandLine)
 				CommandLineClient.f_MutateCommandLineSpecification(_fMutateCommandLine);
 
@@ -751,10 +766,10 @@ namespace NMib::NConcurrency
 		catch (NException::CException const &_Exception)
 		{
 			DMibConErrOut("{}{\n}", _Exception.f_GetErrorStr());
-			
+
 			Ret = 1;
 		}
-		
+
 		try
 		{
 			if (bStartedApp)
@@ -767,7 +782,7 @@ namespace NMib::NConcurrency
 		{
 			DMibConErrOut("Error stopping app: {}{\n}", _Exception.f_GetErrorStr());
 		}
-		
+
 		return Ret;
 	}
 

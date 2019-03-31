@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -333,7 +333,7 @@ namespace NMib::NConcurrency
 		CDistributedActorPublication &operator = (CDistributedActorPublication &&);
 
 		bool f_IsValid() const;
-		void f_Clear();
+		TCFuture<void> f_Destroy();
 		void f_Republish(NStr::CStr const &_HostID) const;
 
 	private:
@@ -345,10 +345,11 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CImplementation>
-	struct TCDelegatedActorInterface
+	struct TCDistributedActorInstance
 	{
-		void f_Clear();
-		TCDispatchedActorCall<void> f_Destroy();
+		~TCDistributedActorInstance();
+
+		TCFuture<void> f_Destroy();
 
 		template <typename ...tfp_CInterfaces, typename tf_CThis>
 		TCFuture<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
@@ -357,7 +358,11 @@ namespace NMib::NConcurrency
 
 		TCDistributedActor<t_CImplementation> m_Actor;
 		CDistributedActorPublication m_Publication;
-		t_CImplementation *m_pActor;
+		t_CImplementation *m_pActor = nullptr;
+	private:
+#if DMibEnableSafeCheck > 0
+		CActor *mp_pThis = nullptr;
+#endif
 	};
 
 	struct CDistributedActorListenReference

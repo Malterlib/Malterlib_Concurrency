@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -188,55 +188,73 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CImplementation>
-	void TCDelegatedActorInterface<t_CImplementation>::f_Clear()
+	TCDistributedActorInstance<t_CImplementation>::~TCDistributedActorInstance()
 	{
-		m_Publication.f_Clear();
-		m_Actor.f_Clear();
-		m_pActor = nullptr;
+#if DMibEnableSafeCheck > 0
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+		// The lifetime of this object needs to be tied to the containing actor
+		DMibFastCheck(!mp_pThis || ThreadLocal.m_pCurrentlyDestructingActor == mp_pThis);
+#endif
 	}
 
 	template <typename t_CImplementation>
-	TCDispatchedActorCall<void> TCDelegatedActorInterface<t_CImplementation>::f_Destroy()
+	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Destroy()
 	{
+		if (!mp_pThis)
+			co_return {};
+
+#if DMibEnableSafeCheck > 0
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		DMibFastCheck(ThreadLocal.m_pCurrentActor == mp_pThis);
+#endif
+		co_await ECoroutineFlag_AllowReferences;
+
 		m_pActor = nullptr;
-		return g_Dispatch / [this]() -> TCFuture<void>
-			{
-				m_Publication.f_Clear();
-				if (m_Actor.f_IsEmpty())
-					return fg_Explicit();
-				auto Return = m_Actor->f_Destroy();
-				m_Actor.f_Clear();
-				return Return;
-			}
-		;
+
+		co_await m_Publication.f_Destroy();
+
+		if (!m_Actor.f_IsEmpty())
+		{
+			auto DestroyFuture = m_Actor->f_Destroy();
+			m_Actor.f_Clear();
+			co_await DestroyFuture;
+		}
+
+		co_return {};
 	}
 
 	template <typename t_CImplementation>
 	template <typename ...tfp_CInterfaces, typename tf_CThis>
-	TCFuture<void> TCDelegatedActorInterface<t_CImplementation>::f_Publish
+	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Publish
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, tf_CThis *_pThis
 			, NStr::CStr const &_Namespace
 		)
 	{
-		f_Construct(_DistributionManager, _pThis);
+		co_await NConcurrency::ECoroutineFlag_AllowReferences;
 
-		TCPromise<void> Promise;
-		m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace)
-			> Promise / [this, Promise] (CDistributedActorPublication &&_Publication)
-			{
-				m_Publication = fg_Move(_Publication);
-				Promise.f_SetResult();
-			}
-		;
-		return Promise.f_MoveFuture();
+		if (!m_Actor)
+			f_Construct(_DistributionManager, _pThis);
+
+		m_Publication = co_await m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace);
+
+		co_return {};
 	}
 
 	template <typename t_CImplementation>
 	template <typename tf_CThis>
-	void TCDelegatedActorInterface<t_CImplementation>::f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis)
+	void TCDistributedActorInstance<t_CImplementation>::f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis)
 	{
+#if DMibEnableSafeCheck > 0
+		DMibFastCheck(!mp_pThis);
+		DMibFastCheck(!m_Actor);
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		DMibFastCheck(ThreadLocal.m_pCurrentActor == _pThis);
+#endif
+		mp_pThis = _pThis;
+
 		auto Interface = _DistributionManager->f_ConstructInterface<t_CImplementation>(_pThis);
 		m_pActor = &Interface->f_AccessInternal();
 		m_Actor = fg_Move(Interface);

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -233,12 +233,10 @@ namespace
 		private:
 			TCFuture<void> fp_Destroy() override
 			{
-				mp_ProtocolInterface.m_Publication.f_Clear();
-
-				return fg_Explicit();
+				return mp_ProtocolInterface.m_Publication.f_Destroy();
 			}
 
-			TCDelegatedActorInterface<CServerInterfaceImplementation> mp_ProtocolInterface;
+			TCDistributedActorInstance<CServerInterfaceImplementation> mp_ProtocolInterface;
 			CDistributedAppState &mp_AppState;
 			CTrustedPermissionSubscription mp_Permissions;
 		};
@@ -447,12 +445,10 @@ namespace
 		private:
 			TCFuture<void> fp_Destroy() override
 			{
-				mp_ProtocolInterface.m_Publication.f_Clear();
-
-				return fg_Explicit();
+				return mp_ProtocolInterface.m_Publication.f_Destroy();
 			}
 
-			TCDelegatedActorInterface<CServerInterfaceImplementation> mp_ProtocolInterface;
+			TCDistributedActorInstance<CServerInterfaceImplementation> mp_ProtocolInterface;
 			CDistributedAppState &mp_AppState;
 			CTrustedPermissionSubscription mp_Permissions1;
 			CTrustedPermissionSubscription mp_Permissions2;
@@ -602,12 +598,10 @@ namespace
 		private:
 			TCFuture<void> fp_Destroy() override
 			{
-				mp_ProtocolInterface.m_Publication.f_Clear();
-
-				return fg_Explicit();
+				return mp_ProtocolInterface.m_Publication.f_Destroy();
 			}
 
-			TCDelegatedActorInterface<CServerInterfaceImplementation> mp_ProtocolInterface;
+			TCDistributedActorInstance<CServerInterfaceImplementation> mp_ProtocolInterface;
 			CDistributedAppState &mp_AppState;
 			CTrustedPermissionSubscription mp_Permissions;
 		};
@@ -1172,7 +1166,7 @@ namespace
 	};
 
 	TCActor<CCallCount> g_CallCount;
-		
+
 	struct CAuthenticationActorTestSucceed : public ICDistributedActorTrustManagerAuthenticationActor
 	{
 		CAuthenticationActorTestSucceed
@@ -1408,7 +1402,7 @@ public:
 				TrustManager->f_BlockDestroy();
 			}
 		;
-		
+
 		CStr TestHostID = TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(g_Timeout);
 		CTrustedSubscriptionTestHelper Subscriptions{TrustManager};
 
@@ -1775,7 +1769,7 @@ public:
 		#define DCheckCallCounts(d_Expected, d_Description) DMibTest(DMibExpr(d_Description) && DMibExpr(fCallCounts()) == DMibExpr(d_Expected))
 
 		int64 CurrentAuthLifetime = CPermissionRequirements::mc_OverrideLifetimeNotSet;
-		
+
 		auto fCommonParams = [&](CStr const &_Command) -> CEJSON
 			{
 				return
@@ -1994,7 +1988,7 @@ public:
 			DMibExpectTrue(fPerformCall2(Many7));
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Many7");
 		};
-		
+
 		auto fMQ1 = [](CStr _Tag, CQueries &&_Query) -> TCMap<CStr, TCVector<CPermissionQuery>>
 			{
 				TCMap<CStr, TCVector<CPermissionQuery>> Result;

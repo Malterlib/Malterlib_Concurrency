@@ -41,23 +41,30 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCTrustedActorSubscription<t_CActor>::~TCTrustedActorSubscription()
 	{
-		f_Clear();
+		f_Destroy() > fg_DiscardResult();
 	}
 	
 	template <typename t_CActor>
-	void TCTrustedActorSubscription<t_CActor>::f_Clear()
+	TCFuture<void> TCTrustedActorSubscription<t_CActor>::f_Destroy()
 	{
 		if (!mp_pState)
-			return;
+			return fg_Explicit();
+		
 		auto &State = *mp_pState;
 		auto TrustManager = State.m_TrustManager.f_Lock();
+		TCFuture<void> UnsubscribeFuture;
 		if (TrustManager)
-			TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeTrustedActors, mp_pState) > fg_DiscardResult();
+			UnsubscribeFuture = TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeTrustedActors, mp_pState);
+		else
+			UnsubscribeFuture = fg_Explicit();
+
 		State.m_pSubscription = nullptr;
 		State.m_fOnNewActor.f_Clear();
 		State.m_fOnRemovedActor.f_Clear();
 		mp_pState = nullptr;
 		m_Actors.f_Clear();
+
+		return UnsubscribeFuture;
 	}
 		
 	template <typename t_CActor>

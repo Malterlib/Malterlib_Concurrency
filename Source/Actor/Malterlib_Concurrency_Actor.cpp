@@ -10,8 +10,8 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-		DMibCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
-		
+		DMibFastCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
+
 		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActor = fg_Explicit(this); 
 		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 		mp_pConcurrencyManager = &ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager();
@@ -21,6 +21,21 @@ namespace NMib::NConcurrency
 	CActor::~CActor()
 	{
 	}
+
+#if DMibEnableSafeCheck > 0
+	CActorInternal::CActorInternal()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		mp_pThis = ThreadLocal.m_pCurrentActor;
+	}
+
+	CActorInternal::~CActorInternal()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		// The lifetime of this object needs to be tied to the containing actor
+		DMibFastCheck(ThreadLocal.m_pCurrentlyDestructingActor == mp_pThis);
+	}
+#endif
 
 	bool CActor::f_IsDestroyed() const
 	{

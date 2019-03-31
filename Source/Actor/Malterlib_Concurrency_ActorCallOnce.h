@@ -31,13 +31,15 @@ namespace NMib::NConcurrency
 
 			CCallState
 				(
-					NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
+				 	TCActor<CActor> const &_Actor
+					, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 					, NStr::CStr const &_ErrorOnRunning
 					, bool _bSupportRetry
 				)
 			;
 			TCFuture<t_CResult> f_Call(tp_CParams const &...p_Params);
 
+			TCWeakActor<CActor> m_Actor;
 			NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
 			NStr::CStr m_ErrorOnRunning;
 			NContainer::TCVector<TCPromise<t_CResult>> m_Promises;

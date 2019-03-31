@@ -103,9 +103,9 @@ namespace
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			ThreadLocal.m_pCurrentActor = _pThis;
-	#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = _pThis;
-	#endif
+#endif
 			return 0;
 		}
 
@@ -114,7 +114,7 @@ namespace
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			ThreadLocal.m_pCurrentActor = nullptr;
-#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = nullptr;
 #endif
 #if DMibConfig_Tests_Enable

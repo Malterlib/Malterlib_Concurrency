@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 			, bool _bSupportRetry
 			, NStr::CStr const &_ErrorOnRunning
 		)
-		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_Actor), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
+		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_Actor), _Actor, fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
 	{
 	}
 
@@ -31,11 +31,13 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
 		(
-			NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
+			TCActor<CActor> const &_Actor
+			, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 			, NStr::CStr const &_ErrorOnRunning
 			, bool _bSupportRetry
 		)
-		: m_fToPerform(fg_Move(_fToPerform))
+		: m_Actor(_Actor)
+		, m_fToPerform(fg_Move(_fToPerform))
 		, m_ErrorOnRunning(_ErrorOnRunning)
 		, m_bSupportRetry(_bSupportRetry)
 	{
@@ -58,6 +60,12 @@ namespace NMib::NConcurrency
 		m_bRunning = true;
 
 		TCPromise<t_CResult> Promise;
+
+		auto Actor = m_Actor.f_Lock();
+		if (!Actor)
+			return DMibErrorInstance("Actor destroyed");
+
+		CCurrentActorScope CurrentActor(Actor);
 
 		m_fToPerform(p_Params...) > [this, Promise](TCAsyncResult<t_CResult> const &_Result)
 			{

@@ -23,7 +23,8 @@ namespace NMib::NConcurrency
 
 	CDistributedActorPublication::~CDistributedActorPublication()
 	{
-		f_Clear();
+		if (mp_DistributionManager)
+			f_Destroy() > fg_DiscardResult();
 	}
 
 	bool CDistributedActorPublication::f_IsValid() const
@@ -31,17 +32,22 @@ namespace NMib::NConcurrency
 		return !mp_DistributionManager.f_IsEmpty();
 	}
 
-	void CDistributedActorPublication::f_Clear()
+	TCFuture<void> CDistributedActorPublication::f_Destroy()
 	{
-		if (mp_DistributionManager)
-		{
-			if (auto DistributionManager = mp_DistributionManager.f_Lock())
-				DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID) > fg_DiscardResult();
+		if (!mp_DistributionManager)
+			return fg_Explicit();
 
-			mp_DistributionManager.f_Clear();
-			mp_Namespace.f_Clear();
-			mp_ActorID.f_Clear();
-		}
+		TCFuture<void> RemovePublicationFuture;
+		if (auto DistributionManager = mp_DistributionManager.f_Lock())
+			RemovePublicationFuture = DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID);
+		else
+			RemovePublicationFuture = fg_Explicit();
+
+		mp_DistributionManager.f_Clear();
+		mp_Namespace.f_Clear();
+		mp_ActorID.f_Clear();
+
+		return RemovePublicationFuture;
 	}
 
 	void CDistributedActorPublication::f_Republish(NStr::CStr const &_HostID) const

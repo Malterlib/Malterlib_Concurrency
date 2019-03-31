@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 
 	CAllowWrongThreadDestroy::~CAllowWrongThreadDestroy()
 	{
-#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 		++fg_ConcurrencyThreadLocal().m_AllowWrongThreadDestroySequence;
 #endif
 	}

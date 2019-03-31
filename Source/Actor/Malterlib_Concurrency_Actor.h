@@ -32,6 +32,11 @@ namespace NMib::NConcurrency
 
 	struct CActorInternal
 	{
+#if defined DMibContractConfigure_CheckEnabled
+		CActorInternal();
+		~CActorInternal();
+		CActor *mp_pThis = nullptr;
+#endif
 	};
 
 	class CActor /// \brief Base class for all types used with \ref TCActor
@@ -52,7 +57,6 @@ namespace NMib::NConcurrency
 		bool mp_bDestroyed = false;
 
 	private:
-
 		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 
 		TCFuture<void> fp_DestroyInternal();

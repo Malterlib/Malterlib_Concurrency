@@ -1116,6 +1116,20 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
+	void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) const
+	{
+		fg_UnsafeDirectDispatch
+			(
+				[Future = *this]() mutable
+				{
+					return fg_Move(Future);
+				}
+			)
+			> fg_Move(_fResultHandler)
+		;
+	}
+
+	template <typename t_CReturnValue>
 	template <typename tf_CReturnValue>
 	void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> const &_Promise) const
 	{

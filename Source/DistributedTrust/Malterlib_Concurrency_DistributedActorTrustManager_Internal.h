@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -256,7 +256,7 @@ namespace NMib::NConcurrency
 		TCDistributedActor<CTicketInterface> m_TicketInterface;
 		CDistributedActorPublication m_TicketInterfacePublication;
 
-		TCDelegatedActorInterface<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
+		TCDistributedActorInstance<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
 
 		NStorage::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
 

@@ -102,6 +102,8 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
+	struct CDiscardResultFunctor;
+	
 	template <typename t_CReturnValue, typename t_CException = void>
 	struct TCRunProtectedHelper
 	{
@@ -430,6 +432,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_FResultHandler>
 		void operator > (tf_FResultHandler &&_fResultHandler) const;
+		void operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) const;
 
 		template <typename tf_CReturnValue>
 		void operator > (TCPromise<tf_CReturnValue> const &_Promise) const;
@@ -554,6 +557,11 @@ namespace NMibOperators
 
 	template <typename t_CReturnValue>
 	class TCDisableAutomaticOperators<NMib::NConcurrency::TCFuture<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+	{
+	};
+
+	template <typename t_CActor, typename t_CFunctor>
+	class TCDisableAutomaticOperators<NMib::NConcurrency::TCActorResultCall<t_CActor, t_CFunctor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 	{
 	};
 }

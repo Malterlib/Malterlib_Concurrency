@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTestHelper::f_Unpublish(NStr::CStr const &_Publication)
 	{
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
-		pPublication->m_Publication.f_Clear();
+		pPublication->m_Publication.f_Destroy() > fg_DiscardResult();
 	}
 	
 	void CDistributedActorTestHelper::f_SetSecurity(CDistributedActorSecurity const &_Security)

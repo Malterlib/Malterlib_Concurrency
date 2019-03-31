@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -59,6 +59,10 @@ namespace NMib::NConcurrency
 		friend class CConcurrencyManager;
 		friend class CActor;
 		friend class CDelegatedActorHolder;
+
+		template <typename t_CImplementation>
+		friend struct TCDistributedActorInstance;
+
 	protected:
 		bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
 		virtual void fp_StartQueueProcessing();
@@ -95,9 +99,6 @@ namespace NMib::NConcurrency
 
 #if DMibConfig_Tests_Enable
 		void f_TestDetach();
-#endif
-#if DMibEnableSafeCheck > 0
-		static void *fs_DequeueProcess_FunctionPointer();
 #endif
 
 	private:

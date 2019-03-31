@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 		
 		TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
 		
-		void f_Clear();
+		TCFuture<void> f_Destroy();
 		bool f_IsEmpty() const;
 
 		void f_OnActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor, bool _bReportCurrent = true);

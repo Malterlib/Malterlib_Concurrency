@@ -1030,7 +1030,7 @@ namespace
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
 					}
 					
-					TrustedSubscription.f_Clear();
+					TrustedSubscription.f_Destroy().f_CallSync(60.0);
 					{
 						DMibTestPath("After clear subscription");
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
@@ -1148,7 +1148,7 @@ namespace
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
-						TrustedSubscription2.f_Clear();
+						TrustedSubscription2.f_Destroy().f_CallSync(60.0);
 						ServerHelper.f_Unpublish(NewPublish2);
 						NTime::CClock Clock{true};
 						while (Clock.f_GetTime() < 10.0)

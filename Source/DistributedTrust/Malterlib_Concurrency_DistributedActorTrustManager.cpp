@@ -80,6 +80,8 @@ namespace NMib::NConcurrency
 			}
 		}
 
+		co_await Internal.m_AuthenticationInterface.f_Destroy();
+
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
 			co_await Internal.m_ActorDistributionManager->f_Destroy();
 

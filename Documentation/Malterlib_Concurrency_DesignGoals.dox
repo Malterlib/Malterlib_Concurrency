@@ -693,7 +693,7 @@ struct CMyActorInterface : public CActor
 ~~~
 
  You then need to publish an implementation of the interface so remote processes can see your actor. The easiest way to do this
- is to use a `TCDelegatedActorInterface`. The delegated actor interface will run on the sequenced processing queue of the containing
+ is to use a `TCDistributedActorInstance`. The delegated distributed actor will run on the sequenced processing queue of the containing
  actor and it's lifetime is also tied to it. This allows you to publish several actor interfaces without the overhead of dispatching
  across actors. Another option would be using multiple inheritance, but that is not supported for actors.
 ~~~
@@ -701,12 +701,12 @@ struct CMyActor : public CActor
 {
 	struct CMyActorInterfaceImplementation : public CMyActorInterface
 	{
-		CMyActor *m_pThis;
-
 		TCFuture<int32> f_MyFunction() override
 		{
 			co_return m_pThis->f_CalcResult();
 		}
+
+		CMyActor *m_pThis;
 	};
 
 	int32 f_CalcResult()
@@ -716,7 +716,7 @@ struct CMyActor : public CActor
 
 	void f_Publish();
 
-	TCDelegatedActorInterface<CMyActorInterfaceImplementation> m_MyDelegatedInterface;
+	TCDistributedActorInstance<CMyActorInterfaceImplementation> m_MyDelegatedInterface;
 };
 ~~~
 

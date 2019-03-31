@@ -1521,7 +1521,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		CStr RemoteCallingHostID = (DMibCallActor(RemoteActor, CDistributedActorBase::f_GetCallingHostID)).f_CallSync(60.0);
 		DMibExpect(RemoteCallingHostID, ==, ClientHostID);
 
-		ActorPublication.f_Clear();
+		ActorPublication.f_Destroy().f_CallSync();
 
 		bool bTimedOutWatingForUnPublish = false;
 		while (!bTimedOutWatingForUnPublish)

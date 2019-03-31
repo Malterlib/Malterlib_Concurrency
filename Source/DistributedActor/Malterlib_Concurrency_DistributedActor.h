@@ -351,8 +351,8 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Destroy();
 
-		template <typename ...tfp_CInterfaces, typename tf_CThis>
-		TCFuture<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace);
+		template <typename tf_CFirstInterface, typename ...tfp_CInterfaces, typename tf_CThis>
+		TCFuture<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace = tf_CFirstInterface::mc_pDefaultNamespace);
 		template <typename tf_CThis>
 		void f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis);
 

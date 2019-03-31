@@ -225,7 +225,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CImplementation>
-	template <typename ...tfp_CInterfaces, typename tf_CThis>
+	template <typename tf_CFirstInterface, typename ...tfp_CInterfaces, typename tf_CThis>
 	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Publish
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 		if (!m_Actor)
 			f_Construct(_DistributionManager, _pThis);
 
-		m_Publication = co_await m_Actor->template f_Publish<tfp_CInterfaces...>(_Namespace);
+		m_Publication = co_await m_Actor->template f_Publish<tf_CFirstInterface, tfp_CInterfaces...>(_Namespace);
 
 		co_return {};
 	}

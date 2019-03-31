@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 			{
 				if (pFoundCommand)
 					return;
-				if (!bDefaultCommandUsed)
+				if (!bDefaultCommandUsed && pCurrentCommand)
 				{
 					fApplyOptionDefaults(*pCurrentCommand);
 					bDefaultCommandUsed = true;
@@ -433,10 +433,13 @@ namespace NMib::NConcurrency
 		;
 		for (auto &Option : CommandLineSpec.m_GlobalOptions)
 			fCheckOption(Option, CInternal::EColor_GlobalOption);
-		for (auto &Option : pFoundCommand->m_pSection->m_SectionOptions)
-			fCheckOption(Option, CInternal::EColor_SectionOption);
-		for (auto &Option : pFoundCommand->m_Options)
-			fCheckOption(Option, CInternal::EColor_Option);
+		if (pFoundCommand)
+		{
+			for (auto &Option : pFoundCommand->m_pSection->m_SectionOptions)
+				fCheckOption(Option, CInternal::EColor_SectionOption);
+			for (auto &Option : pFoundCommand->m_Options)
+				fCheckOption(Option, CInternal::EColor_Option);
+		}
 
 		CStr MissingParameters;
 		while (iCommandParameter && !iCommandParameter->m_bOptional && !bUsedVectorParam)
@@ -480,8 +483,12 @@ namespace NMib::NConcurrency
 			DMibError(CombinedException);
 		}
 
-		CommandParams["Command"] = pFoundCommand->m_Names.f_GetFirst();
-
-		return {pFoundCommand->m_Names.f_GetFirst(), fg_Move(CommandParams)};
+		if (pFoundCommand)
+		{
+			CommandParams["Command"] = pFoundCommand->m_Names.f_GetFirst();
+			return {pFoundCommand->m_Names.f_GetFirst(), fg_Move(CommandParams)};
+		}
+		else
+			return {"", fg_Move(CommandParams)};
 	}
 }

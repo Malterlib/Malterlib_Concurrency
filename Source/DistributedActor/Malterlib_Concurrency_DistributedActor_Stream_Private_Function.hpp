@@ -175,27 +175,41 @@ namespace NMib::NConcurrency
 					, NMeta::TCIndices<tfp_Indices...> const &_Indices
 				)
 			{
-				NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
+				NStorage::TCUniquePointer<NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...>> pParamList;
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
 				
 				try
 				{
-					ParamList = fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>());
+					pParamList = fg_Construct(fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>()));
 				}
 				catch (NException::CException const &_Exception)
 				{
 					return _Exception;
 				}
-				
-				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
-			
+
+		#if DMibEnableSafeCheck > 0
+				TCFuture<t_CReturn> Future;
+
+				NPrivate::fg_WrapDispatchWithReturn
+					(
+						[&]
+						{
+							Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
+						}
+					)
+				;
+		#else
+				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
+		#endif
+
 				NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
 				
 				Future.f_OnResultSet
 					(
-						[Return, Context = *pContext, Version = _Stream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
+						[Return, Context = *pContext, Version = _Stream.f_GetVersion(), pParamList = fg_Move(pParamList)](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
 						{
+							// We need to keep pParamList alive until result is available to make coroutines safe
 							Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &Context, Version));
 						}
 					)

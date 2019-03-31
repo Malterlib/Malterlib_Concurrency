@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/ActorFunctor>
+#include <Mib/Encoding/JSONShortcuts>
 
 #include "Malterlib_Concurrency_DistributedAppInProcess.h"
 
@@ -71,9 +72,29 @@ namespace NMib::NConcurrency
 
 		NEncoding::CEJSON AppParams;
 		{
+			using namespace NStr;
 			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
+			CommandLineClient.f_MutateCommandLineSpecification
+				(
+					[&](CDistributedAppCommandLineSpecification &_Spec, CDistributedAppActor_Settings const &_Settings)
+					{
+						_Spec.f_GetDefaultSection().f_RegisterDirectCommand
+							(
+								{
+									"Names"_= {"--daemon-run-in-app"}
+									, "Description"_= "Run as in app daemon"
+								}
+								, [](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+								{
+									return 0;
+								}
+							)
+						;
+					}
+				)
+			;
 
-			NContainer::TCVector<NStr::CStr> Params{"--daemon-run-standalone"};
+			NContainer::TCVector<NStr::CStr> Params{"InApp", "--daemon-run-in-app"};
 
 			Params.f_Insert(fg_Move(_Params));
 

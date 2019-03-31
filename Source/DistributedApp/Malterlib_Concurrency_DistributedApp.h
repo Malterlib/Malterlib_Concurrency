@@ -37,6 +37,7 @@ namespace NMib::NConcurrency
 		bool m_bStoppingApp = false;
 
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
+		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo)> f_AuditorFactory() const;
 
 		virtual TCFuture<void> f_SaveStateDatabase();
 		virtual TCFuture<void> f_SaveConfigDatabase();

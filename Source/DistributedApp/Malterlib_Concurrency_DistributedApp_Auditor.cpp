@@ -148,6 +148,15 @@ namespace NMib::NConcurrency
 	{
 		return {m_AppActor, _CallingHostInfo};
 	}
+
+	NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo)> CDistributedAppState::f_AuditorFactory() const
+	{
+		return [AppActor = m_AppActor](CCallingHostInfo const &_CallingHostInfo) mutable -> CDistributedAppAuditor
+			{
+				return {AppActor, _CallingHostInfo};
+			}
+		;
+	}
 	
 	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{

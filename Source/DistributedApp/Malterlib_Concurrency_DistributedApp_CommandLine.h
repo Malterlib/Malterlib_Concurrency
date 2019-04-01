@@ -79,8 +79,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x102
+			EMinProtocolVersion = 0x103
+			, EProtocolVersion = 0x103
 		};
 
 		ICCommandLine();

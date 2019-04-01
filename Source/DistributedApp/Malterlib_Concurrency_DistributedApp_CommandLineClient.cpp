@@ -7,6 +7,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Process/StdInActor>
+#include <Mib/Process/Platform>
 
 namespace NMib::NConcurrency
 {
@@ -219,19 +220,61 @@ namespace NMib::NConcurrency
 			CommandLineControl.m_CommandLineHeight = ConsoleProperties.m_Height;
 			CommandLineControl.m_bColorEnabled = Internal.m_bColorEnabled;
 
-			aint Status = DMibCallActor
+			struct CState
+			{
+				NThread::CEventAutoReset m_Event;
+				NThread::CMutual m_ResultLock;
+				TCAsyncResult<uint32> m_Result;
+			};
+
+			TCSharedPointer<CState> pState = fg_Construct();
+
+			DMibCallActor
 				(
 					 CommandLineActor
 					 , ICCommandLine::f_RunCommandLine
 					 , Command.m_Names.f_GetFirst()
 					 , _Params
 					 , fg_Move(CommandLineControl)
-				).f_CallSync()
+				)
+				> NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<uint32> &&_Result)
+				{
+					DMibLock(pState->m_ResultLock);
+					if (!pState->m_Result.f_IsSet())
+						pState->m_Result = fg_Move(_Result);
+					pState->m_Event.f_Signal();
+				}
 			;
+
+			auto Subscription = NProcess::NPlatform::fg_Process_WaitForTermination
+				(
+				 	[pState]
+				 	{
+						DMibLock(pState->m_ResultLock);
+						if (!pState->m_Result.f_IsSet())
+							pState->m_Result.f_SetException(DMibErrorInstance("\nAborted"));
+						pState->m_Event.f_Signal();
+					}
+				)
+			;
+
+			TCAsyncResult<uint32> Result;
+			while (true)
+			{
+				{
+					DMibLock(pState->m_ResultLock);
+					if (pState->m_Result.f_IsSet())
+					{
+						Result = pState->m_Result;
+						break;
+					}
+				}
+				pState->m_Event.f_Wait();
+			}
 
 			pCommandLineControl->f_Destroy().f_CallSync();
 
-			return Status;
+			return *Result;
 		}
 		return 0;
 	}

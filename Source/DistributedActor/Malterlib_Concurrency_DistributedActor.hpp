@@ -201,7 +201,7 @@ namespace NMib::NConcurrency
 	template <typename t_CImplementation>
 	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Destroy()
 	{
-		if (!mp_pThis)
+		if (!m_pActor)
 			co_return {};
 
 #if DMibEnableSafeCheck > 0
@@ -252,8 +252,8 @@ namespace NMib::NConcurrency
 		DMibFastCheck(!m_Actor);
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		DMibFastCheck(ThreadLocal.m_pCurrentActor == _pThis);
-#endif
 		mp_pThis = _pThis;
+#endif
 
 		auto Interface = _DistributionManager->f_ConstructInterface<t_CImplementation>(_pThis);
 		m_pActor = &Interface->f_AccessInternal();

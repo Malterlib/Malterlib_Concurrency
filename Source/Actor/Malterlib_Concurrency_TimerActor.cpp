@@ -89,6 +89,7 @@ namespace NMib::NConcurrency
 				[&](auto &&_fActorCall, CTimerSubscriptionState &_HandleInfo)
 				{
 					_HandleInfo.m_bOutstanding = true;
+					_HandleInfo.m_bMissed = false;
 					_fActorCall() > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&_Result)
 						{
 							(void)_Result;
@@ -120,6 +121,7 @@ namespace NMib::NConcurrency
 					}
 
 					_HandleInfo.m_bOutstanding = true;
+					_HandleInfo.m_bMissed = false;
 					_fActorCall() > [this, pTimer = &_Timer, pHandleInfo = &_HandleInfo, pDestroyed = _HandleInfo.m_pDestroyed](auto &&_Result)
 						{
 							(void)_Result;

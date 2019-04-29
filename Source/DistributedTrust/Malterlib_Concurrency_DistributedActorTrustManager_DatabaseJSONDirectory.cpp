@@ -965,7 +965,7 @@ namespace NMib::NConcurrency
 
 	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(CStr const &_Object) const
 	{
-		NDataProcessing::TCBinaryStreamHash<NDataProcessing::CHash_SHA256> HashStream;
+		NCryptography::TCBinaryStreamHash<NCryptography::CHash_SHA256> HashStream;
 		HashStream << _Object;
 		auto Digest = HashStream.f_GetDigest();
 		return Digest.f_GetString();

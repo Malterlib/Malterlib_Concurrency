@@ -29,6 +29,12 @@ namespace NMib::NConcurrency
 			CClientConnection m_ClientConnection;
 		};
 
+		struct CInternalServerCertificate
+		{
+			CStr m_HostName;
+			CServerCertificate m_ServerCertificate;
+		};
+
 		CInternal(CStr const &_BaseDirectory);
 
 		CStr m_BaseDirectory;
@@ -40,6 +46,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CComponent>
 		bool f_Delete(tfp_CComponent const &...p_Component) const;
 		CStr f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const;
+		CStr f_GetNameHash(CStr const &_Object) const;
 		CStr f_PercentEncode(CStr const &_Str) const;
 		CStr f_PercentDecode(CStr const &_Str) const;
 		template <typename ...tfp_CComponent>
@@ -62,8 +69,9 @@ namespace NMib::NConcurrency
 		void f_FromJSON(CSerial &_Serial, CEJSON const &_JSON, CStr const &_Name) const;
 		CEJSON f_ToJSON(CBasicConfig const &_BasicConfig) const;
 		void f_FromJSON(CBasicConfig &_BasicConfig, CEJSON const &_JSON, CStr const &_Name) const;
-		CEJSON f_ToJSON(CServerCertificate const &_Certificate) const;
+		CEJSON f_ToJSON(CInternalServerCertificate const &_Certificate) const;
 		void f_FromJSON(CServerCertificate &_ServerCertificate, CEJSON const &_JSON, CStr const &_Name) const;
+		void f_FromJSON(CInternalServerCertificate &_ServerCertificate, CEJSON const &_JSON, CStr const &_Name) const;
 		CEJSON f_ToJSON(CDefaultUser const &_DefaultUser) const;
 		void f_FromJSON(CDefaultUser &_DefaultUser, CEJSON const &_JSON, CStr const &_Name) const;
 		CEJSON f_ToJSON(CClient const &_Client) const;
@@ -120,6 +128,39 @@ namespace NMib::NConcurrency
 			CStr HostPermissionsDirectory = m_BaseDirectory / "HostPermissions";
 			if (NFile::CFile::fs_FileExists(HostPermissionsDirectory))
 				NFile::CFile::fs_DeleteDirectoryRecursive(HostPermissionsDirectory);
+		}
+		if (_OldVersion < 0x102)
+		{
+			CStr ServerCertificatesDirectory = m_BaseDirectory / "ServerCertificates";
+			CStr ServerCertificatesDirectoryTemp = m_BaseDirectory / "ServerCertificatesTemp";
+			CStr ServerCertificatesDirectoryDelete = m_BaseDirectory / "ServerCertificatesDelete";
+			if (NFile::CFile::fs_FileExists(ServerCertificatesDirectoryTemp))
+				NFile::CFile::fs_DeleteDirectoryRecursive(ServerCertificatesDirectoryTemp);
+			if (NFile::CFile::fs_FileExists(ServerCertificatesDirectoryDelete))
+				NFile::CFile::fs_DeleteDirectoryRecursive(ServerCertificatesDirectoryDelete);
+
+			NContainer::TCMap<CStr, CInternalServerCertificate> Certificates;
+			for (auto &FileName : f_Find("ServerCertificates"))
+			{
+				CStr HostName = f_PercentDecode(FileName);
+				auto &Certificate = Certificates[HostName];
+				Certificate.m_HostName = HostName;
+				
+				f_Read(Certificate.m_ServerCertificate, "ServerCertificates", FileName);
+			}
+
+			for (auto &Certificate : Certificates)
+			{
+				CStr FileName = f_GetNameHash(Certificates.fs_GetKey(Certificate));
+				f_Write(Certificate, "ServerCertificatesTemp", FileName);
+			}
+
+			if (NFile::CFile::fs_FileExists(ServerCertificatesDirectory))
+				NFile::CFile::fs_RenameFile(ServerCertificatesDirectory, ServerCertificatesDirectoryDelete);
+			if (!Certificates.f_IsEmpty())
+				NFile::CFile::fs_RenameFile(ServerCertificatesDirectoryTemp, ServerCertificatesDirectory);
+			if (NFile::CFile::fs_FileExists(ServerCertificatesDirectoryDelete))
+				NFile::CFile::fs_DeleteDirectoryRecursive(ServerCertificatesDirectoryDelete);
 		}
 	}
 
@@ -214,7 +255,11 @@ namespace NMib::NConcurrency
 
 				NContainer::TCMap<CStr, CServerCertificate> ReturnCertificates;
 				for (auto &FileName : Internal.f_Find("ServerCertificates"))
-					Internal.f_Read(ReturnCertificates[Internal.f_PercentDecode(FileName)], "ServerCertificates", FileName);
+				{
+					CInternal::CInternalServerCertificate InternalServerCertificate;
+					Internal.f_Read(InternalServerCertificate, "ServerCertificates", FileName);
+					ReturnCertificates[InternalServerCertificate.m_HostName] = fg_Move(InternalServerCertificate.m_ServerCertificate);
+				}
 
 				return ReturnCertificates;
 			}
@@ -229,7 +274,7 @@ namespace NMib::NConcurrency
 				auto &Internal = *mp_pInternal;
 				Internal.f_CheckState();
 				CServerCertificate ServerCertificate;
-				CStr FileName = Internal.f_PercentEncode(_HostName);
+				CStr FileName = Internal.f_GetNameHash(_HostName);
 				if (!Internal.f_Read(ServerCertificate, "ServerCertificates", FileName))
 					DMibError("No server certificate for host");
 				return ServerCertificate;
@@ -244,10 +289,13 @@ namespace NMib::NConcurrency
 			{
 				auto &Internal = *mp_pInternal;
 				Internal.f_CheckState();
-				CStr FileName = Internal.f_PercentEncode(_HostName);
+				CStr FileName = Internal.f_GetNameHash(_HostName);
 				if (Internal.f_Exists("ServerCertificates", FileName))
 					DMibError("Server certificate already exists");
-				Internal.f_Write(_Certificate, "ServerCertificates", FileName);
+				CInternal::CInternalServerCertificate Certificate;
+				Certificate.m_HostName = _HostName;
+				Certificate.m_ServerCertificate = _Certificate;
+				Internal.f_Write(Certificate, "ServerCertificates", FileName);
 			}
 		;
 	}
@@ -259,10 +307,13 @@ namespace NMib::NConcurrency
 			{
 				auto &Internal = *mp_pInternal;
 				Internal.f_CheckState();
-				CStr FileName = Internal.f_PercentEncode(_HostName);
+				CStr FileName = Internal.f_GetNameHash(_HostName);
 				if (!Internal.f_Exists("ServerCertificates", FileName))
 					DMibError("No server certificate for host");
-				Internal.f_Write(_Certificate, "ServerCertificates", FileName);
+				CInternal::CInternalServerCertificate Certificate;
+				Certificate.m_HostName = _HostName;
+				Certificate.m_ServerCertificate = _Certificate;
+				Internal.f_Write(Certificate, "ServerCertificates", FileName);
 			}
 		;
 	}
@@ -274,7 +325,7 @@ namespace NMib::NConcurrency
 			{
 				auto &Internal = *mp_pInternal;
 				Internal.f_CheckState();
-				CStr FileName = Internal.f_PercentEncode(_HostName);
+				CStr FileName = Internal.f_GetNameHash(_HostName);
 				if (!Internal.f_Delete("ServerCertificates", FileName))
 					DMibError("No server certificate for host");
 			}
@@ -912,6 +963,14 @@ namespace NMib::NConcurrency
 		return Digest.f_GetString();
 	}
 
+	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(CStr const &_Object) const
+	{
+		NDataProcessing::TCBinaryStreamHash<NDataProcessing::CHash_SHA256> HashStream;
+		HashStream << _Object;
+		auto Digest = HashStream.f_GetDigest();
+		return Digest.f_GetString();
+	}
+
 	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_PercentEncode(CStr const &_Str) const
 	{
 		CStr Encoded;
@@ -1056,12 +1115,19 @@ namespace NMib::NConcurrency
 		o_DefaultUser.m_UserID = _JSON["UserID"].f_String();
 	}
 
-	CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CServerCertificate const &_Certificate) const
+	CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CInternalServerCertificate const &_Certificate) const
 	{
 		CEJSON JSON;
-		JSON["PrivateKey"] = _Certificate.m_PrivateKey.f_ToInsecure();
-		JSON["PublicCertificate"] = _Certificate.m_PublicCertificate;
+		JSON["Host"] = _Certificate.m_HostName;
+		JSON["PrivateKey"] = NContainer::TCVector<uint8>{_Certificate.m_ServerCertificate.m_PrivateKey};
+		JSON["PublicCertificate"] = _Certificate.m_ServerCertificate.m_PublicCertificate;
 		return JSON;
+	}
+	
+	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CInternalServerCertificate &o_ServerCertificate, CEJSON const &_JSON, CStr const &_Name) const
+	{
+		o_ServerCertificate.m_HostName = _JSON["Host"].f_String();
+		f_FromJSON(o_ServerCertificate.m_ServerCertificate, _JSON, _Name);
 	}
 
 	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CServerCertificate &o_ServerCertificate, CEJSON const &_JSON, CStr const &_Name) const

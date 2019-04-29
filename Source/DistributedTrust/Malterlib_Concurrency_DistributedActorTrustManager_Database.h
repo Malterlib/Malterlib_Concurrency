@@ -17,7 +17,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		enum
 		{
 			EVersion = 0x102
-			, EConversionVersion = 0x101
+			, EConversionVersion = 0x102
 		};
 
 		template <typename tf_CStream>

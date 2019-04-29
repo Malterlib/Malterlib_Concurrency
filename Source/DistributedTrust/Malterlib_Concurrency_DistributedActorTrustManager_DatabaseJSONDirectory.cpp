@@ -1119,7 +1119,7 @@ namespace NMib::NConcurrency
 	{
 		CEJSON JSON;
 		JSON["Host"] = _Certificate.m_HostName;
-		JSON["PrivateKey"] = NContainer::TCVector<uint8>{_Certificate.m_ServerCertificate.m_PrivateKey};
+		JSON["PrivateKey"] = _Certificate.m_ServerCertificate.m_PrivateKey.f_ToInsecure();
 		JSON["PublicCertificate"] = _Certificate.m_ServerCertificate.m_PublicCertificate;
 		return JSON;
 	}

@@ -46,13 +46,15 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			uint32 TypeHash;
 			_Stream >> TypeHash;
-			
-			auto &TypeRegistry = fg_RuntimeTypeRegistry();
-			auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
 
 			uint64 ExceptionStreamSize = 0;
 			if (_ActorProtocolVersion >= 0x106)
 				NStream::fg_ConsumeLenFromStream(_Stream, ExceptionStreamSize);
+			else if (TypeHash == 0x2d572b80u)
+				TypeHash = NException::CException::ms_TypeHash;
+
+			auto &TypeRegistry = fg_RuntimeTypeRegistry();
+			auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
 
 			if (!pEntry)
 			{

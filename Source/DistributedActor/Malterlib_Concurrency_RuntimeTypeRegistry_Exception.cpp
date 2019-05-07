@@ -26,6 +26,8 @@ namespace NMib::NConcurrency::NPrivate
 		auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
 
 		DMibFastCheck(pEntry);
+		if (_ActorProtocolVersion < 0x106 && TypeHash == NException::CException::ms_TypeHash)
+			TypeHash = 0x2d572b80u;
 
 		_Stream << TypeHash;
 

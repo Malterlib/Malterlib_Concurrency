@@ -432,7 +432,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-		>::ms_EntryInit
+		>::ms_EntryInit{typename TCAlternateHashesForMemberFunction<t_CMemberFunction, t_pMemberFunction>::CAlternates()}
 	;
 
 	template
@@ -502,6 +502,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamParams
 		, typename t_CStreamResult
 	>
+	template <typename ...tfp_CAlternate>
 	TCRuntimeTypeRegistryEntry_MemberFunctionInit
 		<
 			t_CMemberFunction
@@ -510,7 +511,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-		>::TCRuntimeTypeRegistryEntry_MemberFunctionInit()
+		>::TCRuntimeTypeRegistryEntry_MemberFunctionInit(NMeta::TCTypeList<tfp_CAlternate...>)
 	{
 		*TCMemberFunctionRegistryImpl
 			<
@@ -522,5 +523,26 @@ namespace NMib::NConcurrency::NPrivate
 				, t_CStreamResult
 			>::ms_Entry
 		;
+
+		[[maybe_unused]] TCInitializerList<bool> Dummy =
+			{
+				[&]
+				{
+					*TCMemberFunctionRegistryImpl
+						<
+							t_CMemberFunction
+							, t_pMemberFunction
+							, tfp_CAlternate::mc_Hash
+							, t_CStreamContext
+							, t_CStreamParams
+							, t_CStreamResult
+						>::ms_Entry
+					;
+					return true;
+				}
+				()...
+			}
+		;
+
 	}
 }

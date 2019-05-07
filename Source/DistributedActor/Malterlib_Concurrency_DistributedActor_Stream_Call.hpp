@@ -42,8 +42,8 @@ namespace NMib::NConcurrency
 	template 
 	<
 		typename tf_CMemberFunction
-		, tf_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		, tf_CMemberFunction tf_pMemberFunction
+		, uint32 tf_NameHash
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
@@ -61,7 +61,9 @@ namespace NMib::NConcurrency
 		{
 			if (pActorDataRaw && pActorDataRaw->m_bRemote) // Only when remote
 			{
-				if (pActorDataRaw->m_ProtocolVersion < TCLowestSupportedVersionForMemberFunction<tf_CMemberFunction, t_pMemberFunction>::mc_Value)
+				auto ProtocolVersion = pActorDataRaw->m_ProtocolVersion;
+
+				if (ProtocolVersion < TCLowestSupportedVersionForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::mc_Value)
 				{
 					ToDispatch = []
 						{
@@ -77,8 +79,18 @@ namespace NMib::NConcurrency
 				Stream << uint8(0); // Dummy command
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;
-				Stream << t_NameHash;
-				Stream << pActorDataRaw->m_ProtocolVersion;
+				uint32 NameHash = tf_NameHash;
+				if constexpr (TCAlternateHashesForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::mc_bHasAlternates)
+				{
+					for (auto &AlternateHash : TCAlternateHashesForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::CAlternatesArray::mc_Value)
+					{
+						if (ProtocolVersion <= AlternateHash.m_UpToVersion)
+							NameHash = AlternateHash.m_Hash;
+					}
+				}
+
+				Stream << NameHash;
+				Stream << ProtocolVersion;
 				
 				auto pHost = pActorDataRaw->m_pHost.f_Lock();
 				if (!pHost || pHost->m_bDeleted)
@@ -100,7 +112,7 @@ namespace NMib::NConcurrency
 					(
 						Stream
 						, Context
-						, pActorDataRaw->m_ProtocolVersion
+						, ProtocolVersion
 						, fg_Forward<tfp_CParams>(p_Params)...
 					)
 				;
@@ -120,7 +132,7 @@ namespace NMib::NConcurrency
 						 , Data = Stream.f_MoveVector()
 						 , pActorData = fg_Move(pActorData)
 						 , Context
-						 , Version = pActorDataRaw->m_ProtocolVersion
+						 , ProtocolVersion
 					]
 					() mutable
 					{
@@ -133,7 +145,7 @@ namespace NMib::NConcurrency
 						}
 						auto *pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
 						pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context)
-							> [Promise, Context, Version](TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
+							> [Promise, Context, ProtocolVersion](TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 							{
 								if (!_Result)
 								{
@@ -143,7 +155,7 @@ namespace NMib::NConcurrency
 								try
 								{
 									NException::CDisableExceptionTraceScope DisableTrace;
-									NPrivate::fg_CopyReplyToPromise(Promise, *_Result, Context, Version);
+									NPrivate::fg_CopyReplyToPromise(Promise, *_Result, Context, ProtocolVersion);
 								}
 								catch (NException::CException const &_Exception)
 								{
@@ -167,7 +179,7 @@ namespace NMib::NConcurrency
 								[&](auto &&..._Params) mutable -> TCFuture<CReturn>
 								{
 									auto *pActor = NPrivate::fg_GetInternalActor(_Actor);
-									return NPrivate::TCCallToFuture<tf_CMemberFunction, t_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
+									return NPrivate::TCCallToFuture<tf_CMemberFunction, tf_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
 								}
 								, fg_Move(Params) 
 							)

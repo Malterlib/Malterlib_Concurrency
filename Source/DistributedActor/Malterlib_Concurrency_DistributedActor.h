@@ -715,6 +715,12 @@ namespace NMib::NConcurrency
 		, NMib::NConcurrency::CDistributedActorWriteStream \
 	)
 
+#define DMibActorFunctionAlternateName(d_Function, d_AlternateName, d_UpToVersion) TCAlternateHashForMemberFunction \
+	< \
+		::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_AlternateName)) \
+		, d_UpToVersion \
+	>
+
 #define DMibCallActor(d_Actor, d_Function, ...) ::NMib::NConcurrency::fg_CallActor \
 	< \
 		decltype(&d_Function) \

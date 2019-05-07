@@ -605,12 +605,19 @@ namespace NMib::NConcurrency
 
 						self / [this]() -> TCFuture<void>
 							{
+								TCActorResultVector<void> Destroys;
+
 								if (mp_AppInterfaceClientTrustProxy)
-									co_await mp_AppInterfaceClientTrustProxy->f_Destroy();
+									mp_AppInterfaceClientTrustProxy->f_Destroy() > Destroys.f_AddResult();
+
 								if (mp_AppInterfaceClientRegistrationSubscription)
-									co_await mp_AppInterfaceClientRegistrationSubscription->f_Destroy();
-								co_await mp_AppInteraceServerSubscription.f_Destroy();
-								co_await mp_AppInterfaceClientImplementation.f_Destroy();
+									mp_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
+
+								mp_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
+								mp_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
+
+								co_await Destroys.f_GetResults().f_Timeout(10.0, "Timed out waiting for destroy of app interface");
+
 								co_return {};
 							}
 							> Promise / [Promise]

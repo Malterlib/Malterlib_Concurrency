@@ -89,8 +89,47 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CAddPermissions::f_Stream(tf_CStream &_Stream)
 	{
-		_Stream % m_Identity;
-		_Stream % m_Permissions;
+		if (_Stream.f_GetVersion() < 0x105)
+		{
+			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+			{
+				NStr::CStr HostIDString;
+				_Stream >> HostIDString;
+
+				NStr::CStr HostID = fg_GetStrSep(HostIDString, "-");
+				NStr::CStr UserID = HostIDString;
+				m_Identity = CPermissionIdentifiers(HostID, UserID);
+
+				NContainer::TCSet<NStr::CStr> Permissions;
+				_Stream >> Permissions;
+				m_Permissions.f_Clear();
+				for (auto &Permission : Permissions)
+					m_Permissions[Permission];
+			}
+			else
+			{
+				NStr::CStr HostID = m_Identity.f_GetHostID();
+				if (auto &UserID = m_Identity.f_GetUserID())
+				{
+					// Intentionally create invalid hostid that can't be understood by remote, but does transfer back correctly
+					HostID += "-";
+					HostID += UserID;
+				}
+				_Stream << HostID;
+
+				NContainer::TCSet<NStr::CStr> Permissions;
+				for (auto &Permission : m_Permissions)
+					Permissions[m_Permissions.fs_GetKey(Permission)];
+
+				_Stream << Permissions;
+			}
+		}
+		else
+		{
+			_Stream % m_Identity;
+			_Stream % m_Permissions;
+		}
+
 		_Stream % m_OrderingFlags;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CAddPermissions);
@@ -98,7 +137,31 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CRemovePermissions::f_Stream(tf_CStream &_Stream)
 	{
-		_Stream % m_Identity;
+		if (_Stream.f_GetVersion() < 0x105)
+		{
+			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+			{
+				NStr::CStr HostIDString;
+				_Stream >> HostIDString;
+
+				NStr::CStr HostID = fg_GetStrSep(HostIDString, "-");
+				NStr::CStr UserID = HostIDString;
+				m_Identity = CPermissionIdentifiers(HostID, UserID);
+			}
+			else
+			{
+				NStr::CStr HostID = m_Identity.f_GetHostID();
+				if (auto &UserID = m_Identity.f_GetUserID())
+				{
+					// Intentionally create invalid hostid that can't be understood by remote, but does transfer back correctly
+					HostID += "-";
+					HostID += UserID;
+				}
+				_Stream << HostID;
+			}
+		}
+		else
+			_Stream % m_Identity;
 		_Stream % m_Permissions;
 		_Stream % m_OrderingFlags;
 	}

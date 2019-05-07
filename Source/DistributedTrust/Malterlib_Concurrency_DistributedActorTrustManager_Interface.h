@@ -282,6 +282,42 @@ namespace NMib::NConcurrency
 	};
 }
 
+DMibConcurrencyRegisterMemberFunctionAlternateHashes
+	(
+		NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_EnumPermissions
+		, DMibActorFunctionAlternateName
+		(
+			NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_EnumPermissions
+			, NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_EnumHostPermissions
+			, 0x104
+		)
+	)
+;
+
+DMibConcurrencyRegisterMemberFunctionAlternateHashes
+	(
+		NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_AddPermissions
+		, DMibActorFunctionAlternateName
+		(
+			NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_AddPermissions
+			, NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_AddHostPermissions
+			, 0x104
+		)
+	)
+;
+
+DMibConcurrencyRegisterMemberFunctionAlternateHashes
+	(
+		NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_RemovePermissions
+		, DMibActorFunctionAlternateName
+		(
+			NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_RemovePermissions
+			, NMib::NConcurrency::CDistributedActorTrustManagerInterface::f_RemoveHostPermissions
+			, 0x104
+		)
+	)
+;
+
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;
 #endif

@@ -410,6 +410,22 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	template <typename t_CActor>
+	template <typename tf_CStr>
+	void TCActor<t_CActor>::f_Format(tf_CStr &o_Str) const
+	{
+		if (m_pInternalActor)
+		{
+			auto *pDistributedData = m_pInternalActor->f_GetDistributedActorData().f_Get();
+			if (pDistributedData)
+				o_Str += typename tf_CStr::CFormat("Remote({}) 0x{}") << pDistributedData->m_ActorID << m_pInternalActor.f_Get();
+			else
+				o_Str += typename tf_CStr::CFormat("Local 0x{}") << m_pInternalActor.f_Get();
+		}
+		else
+			o_Str += typename tf_CStr::CFormat("Null 0x{}") << m_pInternalActor.f_Get();
+	}
+
 	template <typename tf_CType>
 	bool CActor::fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise)
 	{

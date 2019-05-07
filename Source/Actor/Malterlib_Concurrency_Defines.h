@@ -170,6 +170,9 @@ namespace NMib::NConcurrency
 			-> TCActorResultCall<TCActor, typename NTraits::TCRemoveReference<tf_FResult>::CType>
 		;
 
+		template <typename tf_CStr>
+		void f_Format(tf_CStr &o_Str) const;
+
 		inline_always TCActor<CActor> const &f_GetActor() const;
 	};
 

@@ -82,13 +82,21 @@ namespace NMib::NConcurrency
 	
 	struct CTrustedSubscriptionTestHelper
 	{
-		CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager);
+		CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout = 30.0);
 		~CTrustedSubscriptionTestHelper();
 		
 		template <typename tf_CActor>
-		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
+		TCDistributedActor<tf_CActor> f_SubscribeFromHost(NStr::CStr const &_HostID, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
 		template <typename tf_CActor>
-		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
+		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr const &_HostID = {});
+		template <typename tf_CActor>
+		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple
+			(
+				mint _nActors
+				, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace
+				, NStr::CStr const &_HostID = {}
+			)
+		;
 		
 	private:
 		struct CSubscription
@@ -101,14 +109,16 @@ namespace NMib::NConcurrency
 			CInternal(TCActor<CDistributedActorTrustManager> const &_TrustManager);
 
 			template <typename tf_CActor>
-			TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(mint _nActors, NStr::CStr const &_Namespace);
+			TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_Subscribe(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID);
 			
 		private:
 			TCActor<CDistributedActorTrustManager> mp_TrustManager;
 			NContainer::TCVector<NStorage::TCUniquePointer<CSubscription>> mp_Subscriptions;
+			NContainer::TCSet<NStr::CStr> mp_SeenActors;
 		};
 		
 		TCActor<CInternal> mp_Internal;		
+		fp64 mp_Timeout;
 	};
 }
 

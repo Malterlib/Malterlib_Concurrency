@@ -6,24 +6,32 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CActor>
-	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_Subscribe(NStr::CStr const &_Namespace)
+	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_SubscribeFromHost(NStr::CStr const &_HostID, NStr::CStr const &_Namespace)
 	{
-		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace).f_CallSync(30.0);
+		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(mp_Timeout);
 		return Subscriptions[0];
 	}
-	
+
 	template <typename tf_CActor>
-	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace)
+	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_Subscribe(NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 	{
-		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace).f_CallSync(30.0);
+		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(mp_Timeout);
+		return Subscriptions[0];
 	}
-	
+
 	template <typename tf_CActor>
-	TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace)
+	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+	{
+		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_CallSync(mp_Timeout);
+	}
+
+	template <typename tf_CActor>
+	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this)) 
-			> Promise / [this, Promise, _nActors](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
+			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
 			{
 				struct CSubscriptionImpl : CSubscription
 				{
@@ -33,12 +41,22 @@ namespace NMib::NConcurrency
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor
 					(
-						[Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>()]
+						[this, Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
 						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
 						{
-							Actors.f_Insert(_NewActor);
+							if (!_HostID || _ActorInfo.m_HostInfo.m_HostID == _HostID)
+							{
+								if (!mp_SeenActors.f_Exists(fg_GetRemoteActorID(_NewActor)))
+									Actors.f_Insert(_NewActor);
+							}
+
 							if (Actors.f_GetLen() == _nActors && !Promise.f_IsSet())
+							{
+								for (auto &Actor : Actors)
+									mp_SeenActors[fg_GetRemoteActorID(Actor)];
+
 								Promise.f_SetResult(fg_Move(Actors));
+							}
 						}
 					)
 				;

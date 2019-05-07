@@ -440,8 +440,9 @@ namespace NMib::NConcurrency
 		m_Database->f_BlockDestroy();
 	}
 	
-	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager)
+	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout)
 		: mp_Internal(fg_ConstructActor<CInternal>(_TrustManager))
+		, mp_Timeout(_Timeout)
 	{
 	}
 

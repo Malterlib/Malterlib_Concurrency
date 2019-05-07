@@ -315,12 +315,15 @@ namespace NMib::NConcurrency
 			)
 		;
 		
-		auto Params = NContainer::fg_CreateVector<NStr::CStr>("--daemon-run-standalone");
+		NContainer::TCVector<NStr::CStr> Params;
 
+		if (_ExtraParams.f_IsEmpty() || !_ExtraParams[0].f_StartsWith("--daemon-run-"))
+			Params = NContainer::fg_CreateVector<NStr::CStr>("--daemon-run-standalone");
+
+		Params.f_Insert(fg_Move(_ExtraParams));
 		if (m_bLogToStderr)
 			Params.f_Insert("--log-to-stderr");
-		Params.f_Insert(fg_Move(_ExtraParams));
-		
+
 		NProcess::CProcessLaunchActor::CLaunch Launch
 			{
 				NProcess::CProcessLaunchParams::fs_LaunchExecutable

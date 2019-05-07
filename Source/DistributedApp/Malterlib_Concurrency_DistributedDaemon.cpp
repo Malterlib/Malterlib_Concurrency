@@ -40,7 +40,15 @@ namespace NMib::NConcurrency
 		{
 			if (m_Actor)
 			{
-				m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync();
+				try
+				{
+					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync();
+				}
+				catch (NException::CException const &_Exception)
+				{
+					DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Exception stopping app: {}", _Exception);
+				}
+
 				m_Actor = nullptr;
 			}
 

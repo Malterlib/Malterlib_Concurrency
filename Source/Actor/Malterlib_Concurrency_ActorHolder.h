@@ -49,7 +49,15 @@ namespace NMib::NConcurrency
 	struct ICDistributedActorData : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
 	{
 		virtual ~ICDistributedActorData();
-		virtual bool f_IsValidForCall() const = 0;
+		inline_always bool f_IsValidForCall() const
+		{
+			return !m_bRemote;
+		}
+
+		NStr::CStr m_ActorID;
+		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
+		bool m_bWasDestroyed = false;
+		bool m_bRemote = false;
 	};
 
 	/// \brief Manages actor execution and lifetime

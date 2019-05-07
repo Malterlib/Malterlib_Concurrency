@@ -9,11 +9,6 @@
 
 namespace NMib::NConcurrency
 {
-	bool NPrivate::CDistributedActorData::f_IsValidForCall() const
-	{
-		return !m_bRemote;
-	}
-
 	CActorDistributionManagerInitSettings::CActorDistributionManagerInitSettings(NStr::CStr const &_HostID, NStr::CStr const &_Enclave, NStr::CStr const &_FriendlyName)
 		: m_HostID(_HostID)
 		, m_Enclave(_Enclave)

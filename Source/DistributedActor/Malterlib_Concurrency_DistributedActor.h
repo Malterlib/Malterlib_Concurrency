@@ -697,6 +697,12 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInitSettings fg_InitDistributionManager(CActorDistributionManagerInitSettings const &_Settings);
 	TCActor<CActorDistributionManager> const &fg_GetDistributionManager();
 	void fg_InitDistributedActorSystem();
+
+	template <typename tf_CActor>
+	NStr::CStr fg_GetRemoteActorID(TCDistributedActor<tf_CActor> const &_NewActor);
+
+	template <typename tf_CActor>
+	NStr::CStr fg_GetRemoteActorID(TCWeakDistributedActor<tf_CActor> const &_NewActor);
 }
 
 #define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreams \

@@ -562,6 +562,24 @@ namespace NMib::NConcurrency
 		_Stream >> m_MinSupported;
 		_Stream >> m_MaxSupported;
 	}
+
+	template <typename tf_CActor>
+	NStr::CStr fg_GetRemoteActorID(TCDistributedActor<tf_CActor> const &_NewActor)
+	{
+		auto pDistributedActor = _NewActor->f_GetDistributedActorData().f_Get();
+		if (!pDistributedActor)
+			return {};
+		return pDistributedActor->m_ActorID;
+	}
+
+	template <typename tf_CActor>
+	NStr::CStr fg_GetRemoteActorID(TCWeakDistributedActor<tf_CActor> const &_NewActor)
+	{
+		auto Actor = _NewActor.f_Lock();
+		if (!Actor)
+			return {};
+		return fg_GetRemoteActorID(Actor);
+	}
 }
 
 #include "Malterlib_Concurrency_DistributedActor_Stream.hpp"

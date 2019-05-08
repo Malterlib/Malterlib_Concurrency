@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -156,14 +156,22 @@ namespace NMib::NConcurrency
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 
-		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+		template
+		<
+			auto tf_pMemberFunction
+			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+			, typename... tfp_CCallParams
+		>
+		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const;
 
-		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const;
 
-		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const;
+
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const;
 
 		template <typename tf_FResult>
 		auto operator / (tf_FResult &&_fResult) const
@@ -179,6 +187,16 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_CActorSource>
 	TCActor<tf_CActor> fg_StaticCast(TCActor<tf_CActorSource> const &_Actor);
 
+	template
+	<
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, typename tf_CActor
+		, typename... tfp_CParams
+	>
+	auto fg_CallActor(TCActor<tf_CActor> const &_Actor, tfp_CParams && ...p_Params);
+
+#	define f_CallActor(d_PointerToMemberFunction) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
 
 	template <typename tf_CActor>
 	TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
@@ -223,7 +241,7 @@ struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::CCanDestroyTra
 
 template <>
 struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, false>
-{ 
+{
 };
 
 template <typename t_CActor>
@@ -233,7 +251,7 @@ struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::TCActorInterna
 
 template <typename t_CActor>
 struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::TCActorInternal<t_CActor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
-{ 
+{
 };
 
 #ifndef DMibPNoShortCuts

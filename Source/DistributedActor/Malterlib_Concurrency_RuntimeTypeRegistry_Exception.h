@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename t_CException, uint32 t_NameHash = DMibConstantTypeHash(t_CException)>
+	template <typename t_CException>
 	struct TCRuntimeTypeRegistryEntry_Exception final : public CRuntimeTypeRegistryEntry_Exception
 	{
 		TCRuntimeTypeRegistryEntry_Exception ();
@@ -45,6 +45,8 @@ namespace NMib::NConcurrency::NPrivate
 		void f_Feed(NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream, NException::CExceptionBase const &_Exception) override;
 		void f_Feed(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionBase const &_Exception) override;
 		void f_Feed(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream, NException::CExceptionBase const &_Exception) override;
+
+		static constexpr uint32 c_NameHash = DMibConstantTypeHash(t_CException);
 	};
 
 	template <typename t_CException>

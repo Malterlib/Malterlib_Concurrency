@@ -666,11 +666,9 @@ namespace NMib::NConcurrency
 
 								mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
 
-								DMibCallActor
+								_NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
 									(
-										_NewActor
-										, ICDistributedActorAuthentication::f_RegisterAuthenticationHandler
-										, mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
+										mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
 										, UserID
 									) > [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
 									{

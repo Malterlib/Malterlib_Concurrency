@@ -529,7 +529,7 @@ namespace NMib::NConcurrency
 											return;
 										}
 
-										DMibCallActor(pConnectionState->m_TicketInterface, CInternal::CTicketInterface::f_SignCertificate, _TrustTicket.m_Token, CertificateRequest)
+										pConnectionState->m_TicketInterface.f_CallActor(&CInternal::CTicketInterface::f_SignCertificate)(_TrustTicket.m_Token, CertificateRequest)
 											> [this, Promise, pConnectionState, _TrustTicket, ServerHostID, _ConnectionConcurrency]
 											(TCAsyncResult<NContainer::CByteVector> &&_PublicCertificate)
 											{

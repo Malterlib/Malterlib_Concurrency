@@ -42,21 +42,21 @@ namespace NMib::NConcurrency
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOut, _Output);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output);
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdOutBinary, _Output);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(_Output);
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdErr(NStr::CStrSecure const &_Output) const
 	{
 		if (!m_ControlActor)
 			return fg_Explicit();
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_StdErr, _Output);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output);
 	}
 
 	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, NProcess::EStdInReaderFlag _Flags) const
@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdInBinary, fg_Move(_fOnBinaryInput), _Flags);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdInBinary)(fg_Move(_fOnBinaryInput), _Flags);
 	}
 
 	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
@@ -72,35 +72,35 @@ namespace NMib::NConcurrency
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_RegisterForStdIn, fg_Move(_fOnInput), _Flags);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdIn)(fg_Move(_fOnInput), _Flags);
 	}
 
 	TCFuture<NContainer::CSecureByteVector> CCommandLineControl::f_ReadBinary() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadBinary);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadBinary)();
 	}
 
 	TCFuture<NStr::CStrSecure> CCommandLineControl::f_ReadLine() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadLine);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadLine)();
 	}
 
 	TCFuture<NStr::CStrSecure> CCommandLineControl::f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_ReadPrompt, _Params);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadPrompt)(_Params);
 	}
 
 	TCFuture<void> CCommandLineControl::f_AbortReads() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
-		return DMibCallActor(m_ControlActor, ICCommandLineControl::f_AbortReads);
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_AbortReads)();
 	}
 
 	uint32 CCommandLineControl::f_AddAsyncResult(CAsyncResult const &_Result) const
@@ -1412,11 +1412,9 @@ namespace NMib::NConcurrency
 				TCActorResultVector<bool> Results;
 				for (auto const &AuthenticationActorInfo : AuthenticationActors)
 				{
-					DMibCallActor
+					AuthenticationActorInfo.m_Actor.f_CallActor(&ICDistributedActorAuthentication::f_AuthenticatePermissionPattern)
 						(
-							AuthenticationActorInfo.m_Actor
-							, ICDistributedActorAuthentication::f_AuthenticatePermissionPattern
-							, Pattern
+							Pattern
 							, Factors
 							, _MultipleRequestData->m_ID
 						)

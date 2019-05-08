@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 			if (_TrustInterface)
 				LaunchInfo.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 
-			DMibCallActor(*LaunchInfo.m_pClientInterface, CDistributedAppInterfaceClient::f_GetAppStartResult)
+			LaunchInfo.m_pClientInterface->f_CallActor(&CDistributedAppInterfaceClient::f_GetAppStartResult)()
 				> [LaunchID, pThis](TCAsyncResult<void> &&_LaunchResult)
 				{
 					auto *pLaunch = pThis->m_Launches.f_FindEqual(LaunchID);

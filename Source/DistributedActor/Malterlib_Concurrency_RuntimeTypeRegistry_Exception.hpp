@@ -113,23 +113,14 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::TCRuntimeTypeRegistryEntry_Exception ()
-		: CRuntimeTypeRegistryEntry_Exception(t_NameHash)
+	template <typename t_CException>
+	TCRuntimeTypeRegistryEntry_Exception<t_CException>::TCRuntimeTypeRegistryEntry_Exception ()
+		: CRuntimeTypeRegistryEntry_Exception(c_NameHash)
 	{
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream)
-	{
-		auto Exception = DMibImpExceptionInstance(t_CException, "");
-		_Stream >> Exception;
-
-		return NException::fg_ExceptionPointer(fg_Move(Exception));
-	}
-
-	template <typename t_CException, uint32 t_NameHash>
-	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Consume(NStream::CBinaryStreamDefault &_Stream)
+	template <typename t_CException>
+	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Consume(NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream)
 	{
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
@@ -137,8 +128,8 @@ namespace NMib::NConcurrency::NPrivate
 		return NException::fg_ExceptionPointer(fg_Move(Exception));
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Consume(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream)
+	template <typename t_CException>
+	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Consume(NStream::CBinaryStreamDefault &_Stream)
 	{
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
@@ -146,8 +137,17 @@ namespace NMib::NConcurrency::NPrivate
 		return NException::fg_ExceptionPointer(fg_Move(Exception));
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Feed
+	template <typename t_CException>
+	NException::CExceptionPointer TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Consume(NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream)
+	{
+		auto Exception = DMibImpExceptionInstance(t_CException, "");
+		_Stream >> Exception;
+
+		return NException::fg_ExceptionPointer(fg_Move(Exception));
+	}
+
+	template <typename t_CException>
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
 		(
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
 			, NException::CExceptionBase const &_Exception
@@ -157,8 +157,8 @@ namespace NMib::NConcurrency::NPrivate
 		_Stream << Exception;
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Feed
+	template <typename t_CException>
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
 		(
 			NStream::CBinaryStreamDefault &_Stream
 			, NException::CExceptionBase const &_Exception
@@ -168,8 +168,8 @@ namespace NMib::NConcurrency::NPrivate
 		_Stream << Exception;
 	}
 
-	template <typename t_CException, uint32 t_NameHash>
-	void TCRuntimeTypeRegistryEntry_Exception<t_CException, t_NameHash>::f_Feed
+	template <typename t_CException>
+	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
 		(
 			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> &_Stream
 			, NException::CExceptionBase const &_Exception

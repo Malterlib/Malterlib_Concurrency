@@ -229,11 +229,9 @@ namespace NMib::NConcurrency
 
 			TCSharedPointer<CState> pState = fg_Construct();
 
-			DMibCallActor
+			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)
 				(
-					 CommandLineActor
-					 , ICCommandLine::f_RunCommandLine
-					 , Command.m_Names.f_GetFirst()
+					 Command.m_Names.f_GetFirst()
 					 , _Params
 					 , fg_Move(CommandLineControl)
 				)

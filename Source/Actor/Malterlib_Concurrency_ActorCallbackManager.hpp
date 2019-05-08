@@ -489,10 +489,9 @@ namespace NMib::NConcurrency
 	{
 		if (!m_pHandle)
 			return;
-		fg_AnyConcurrentActor().f_CallByValue
+		fg_AnyConcurrentActor().f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<void>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<void>>
-				, [Future = fp_RemoveCallback()]() mutable
+				[Future = fp_RemoveCallback()]() mutable
 				{
 					return fg_Move(Future);
 				}

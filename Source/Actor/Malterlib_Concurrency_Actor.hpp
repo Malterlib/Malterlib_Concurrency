@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -264,7 +264,7 @@ namespace NMib::NConcurrency
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
 
-		// If you get this, use DCallActor instead of calling directly
+		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 
@@ -285,11 +285,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) const
 	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
 #endif
 #ifdef DMibConcurrency_CheckFunctionCalls
 		static_assert
@@ -306,32 +307,33 @@ namespace NMib::NConcurrency
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
 
-		// If you get this, use DCallActor instead of calling directly
+		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>
 			(
 				*this
-				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, tf_pMemberFunction
 				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 			)
 		;
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const
 	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
 #endif
 #ifdef DMibConcurrency_CheckFunctionCalls
 		static_assert
@@ -349,31 +351,98 @@ namespace NMib::NConcurrency
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
 
-		// If you get this, use DCallActor instead of calling directly
+		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
 			(
 				*this
-				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, tf_pMemberFunction
 				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 			)
 		;
 	}
 
-	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallByValueDirect(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	template
+	<
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, typename tf_CActor
+		, typename... tfp_CCallParams
+	>
+	auto fg_CallActor(TCActor<tf_CActor> const &_Actor, tfp_CCallParams && ...p_CallParams)
 	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!_Actor.f_IsEmpty() || tf_CActor::mc_bCanBeEmpty);
+
+		// If you get this, use f_CallActor instead of calling directly
+		DMibFastCheck
+			(
+			 	_Actor.f_IsEmpty()
+			 	|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+			 	|| !_Actor->f_GetDistributedActorData()
+			 	|| _Actor->f_GetDistributedActorData()->f_IsValidForCall()
+			)
+		;
+
+		return TCActorCall
+			<
+				TCActor<tf_CActor>
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, false
+			>
+			(
+				_Actor
+				, tf_pMemberFunction
+				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template
+	<
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, typename... tfp_CCallParams
+	>
+	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const
+	{
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(*this, fg_Forward<tfp_CCallParams>(p_CallParams)...);
+	}
+
+	template <typename t_CActor>
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const
+	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
 #endif
 #ifdef DMibConcurrency_CheckFunctionCalls
 		static_assert
@@ -391,20 +460,20 @@ namespace NMib::NConcurrency
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
 
-		// If you get this, use DCallActor instead of calling directly
+		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>
 			(
 				*this
-				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, tf_pMemberFunction
 				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 			)
 		;

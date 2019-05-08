@@ -273,15 +273,16 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCWeakActor<t_CActor>::f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCWeakActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const
 	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
 #ifdef DMibConcurrency_CheckFunctionCalls
 		static_assert
 			(
 				NTraits::TCIsCallableWith
 				<
-					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
+					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>::CFunctionType>::CType
 					, void (tfp_CCallParams...)
 				>::mc_Value
 				, "Invalid params for function"
@@ -292,14 +293,14 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCWeakActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
 				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
 			(
 				*this
-				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, tf_pMemberFunction
 				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 			)
 		;
@@ -323,10 +324,9 @@ namespace NMib::NConcurrency
 		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return _Actor.f_CallByValue
+		return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
-				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
+				NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{
@@ -347,10 +347,9 @@ namespace NMib::NConcurrency
 	{
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return _Actor.f_CallByValue
+		return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType>>
 			(
-				&CActor::f_DispatchWithReturn<CReturnType>
-				, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
+				NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
 			)
 		;
 	}

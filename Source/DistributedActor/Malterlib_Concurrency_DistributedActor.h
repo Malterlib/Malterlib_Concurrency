@@ -135,22 +135,8 @@ namespace NMib::NConcurrency
 
 	template
 	<
-		typename tf_CMemberFunction
-		, tf_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
-		, typename tf_CActor
-		, typename... tfp_CParams
-	>
-	auto fg_CallActor(tf_CActor const &_Actor, tfp_CParams && ...p_Params)
-	{
-		return _Actor(t_pMemberFunction, fg_Forward<tfp_CParams>(p_Params)...);
-	}
-
-	template
-	<
-		typename tf_CMemberFunction
-		, tf_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
@@ -707,30 +693,19 @@ namespace NMib::NConcurrency
 
 #define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreams \
 	( \
-		decltype(&d_Function) \
-		, &d_Function \
-		, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
+		&d_Function \
 		, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext \
 		, NMib::NConcurrency::CDistributedActorReadStream \
 		, NMib::NConcurrency::CDistributedActorWriteStream \
 	)
 
-#define DMibActorFunctionAlternateName(d_Function, d_AlternateName, d_UpToVersion) TCAlternateHashForMemberFunction \
+#define DMibActorFunctionAlternateName(d_Class, d_AlternateName, d_UpToVersion) TCAlternateHashForMemberFunction \
 	< \
-		::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_AlternateName)) \
+		::NMib::fg_GetMemberFunctionHash<d_Class>(DMibStringize(d_AlternateName)) \
 		, d_UpToVersion \
 	>
 
-#define DMibCallActor(d_Actor, d_Function, ...) ::NMib::NConcurrency::fg_CallActor \
-	< \
-		decltype(&d_Function) \
-		, &d_Function \
-		, ::NMib::fg_GetMemberFunctionHash<decltype(&d_Function)>(DMibStringize(d_Function)) \
-	> \
-	(d_Actor, ##__VA_ARGS__)
-
 #ifndef DMibPNoShortCuts
-#	define DCallActor DMibCallActor
 #	define DPublishActorFunction DMibPublishActorFunction
 #endif
 

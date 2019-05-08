@@ -97,43 +97,27 @@ namespace NMib::NConcurrency
 	
 	template 
 	<
-		typename tf_CMemberFunction
-		, tf_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> const &_Actor, tfp_CParams && ...p_Params)
 	{
-		return fg_CallActor
-			<
-				tf_CMemberFunction
-				, t_pMemberFunction
-				, t_NameHash
-			>
-			(_Actor.f_GetActor(), fg_Forward<tfp_CParams>(p_Params)...)
-		;
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(_Actor.f_GetActor(), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template 
 	<
-		typename tf_CMemberFunction
-		, tf_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename tf_CInterface
-		, uint32 t_SubscriptionID
+		, uint32 tf_SubscriptionID
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, t_SubscriptionID> const &_Actor, tfp_CParams && ...p_Params)
+	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> const &_Actor, tfp_CParams && ...p_Params)
 	{
-		return fg_CallActor
-			<
-				tf_CMemberFunction
-				, t_pMemberFunction
-				, t_NameHash
-			>
-			(_Actor.f_GetActor(), fg_Forward<tfp_CParams>(p_Params)...)
-		;
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(_Actor.f_GetActor(), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 	
 #define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \

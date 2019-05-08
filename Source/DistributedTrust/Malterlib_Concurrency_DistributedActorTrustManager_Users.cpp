@@ -198,13 +198,13 @@ namespace NMib::NConcurrency
 			return DMibErrorInstance("Invalid user ID");
 
 		TCPromise<CStr> Promise;
-		DMibCallActor(_TrustManager, t_CType::f_TryGetUser, _UserID) > Promise
+		_TrustManager.template f_CallActor(&t_CType::f_TryGetUser)(_UserID) > Promise
 			/ [Promise, _TrustManager, _UserID, _bIncludePrivate](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo) mutable
 			{
 				if (!_UserInfo)
 					return Promise.f_SetException(DMibErrorInstance("User {} does not exist"_f << _UserID));
 
-				DMibCallActor(_TrustManager, t_CType::f_EnumUserAuthenticationFactors, _UserID)
+				_TrustManager.template f_CallActor(&t_CType::f_EnumUserAuthenticationFactors)(_UserID)
 					> Promise / [Promise, _UserID, UserInfo = *_UserInfo, _bIncludePrivate]
 					(NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CLocalAuthenticationData> _Factors) mutable
 					{
@@ -303,21 +303,22 @@ namespace NMib::NConcurrency
 			> Promise / [Promise, _TrustManager] (CResult &&_Result)
 			{
 				NStr::CStr UserID = _Result.m_UserID;
-				DMibCallActor(_TrustManager, t_CType::f_TryGetUser, UserID)
+				_TrustManager.template f_CallActor(&t_CType::f_TryGetUser)(UserID)
 					> Promise / [Promise, _TrustManager, Result = fg_Move(_Result)](TCOptional<CDistributedActorTrustManagerInterface::CUserInfo> const &_UserInfo)
 					{
 						TCPromise<void> AddPromise;
 						if (!_UserInfo)
-							DMibCallActor(_TrustManager, t_CType::f_AddUser, Result.m_UserID, Result.m_UserInfo.m_UserName) > AddPromise;
+							_TrustManager.template f_CallActor(&t_CType::f_AddUser)(Result.m_UserID, Result.m_UserInfo.m_UserName) > AddPromise;
 						else
 							AddPromise.f_SetResult();
 
 						AddPromise > Promise / [Promise, _TrustManager, Result]
 							{
-								DMibCallActor(_TrustManager, t_CType::f_SetUserInfo, Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata)
+								_TrustManager.template f_CallActor(&t_CType::f_SetUserInfo)
+									(Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata)
 									> Promise / [Promise, _TrustManager, Result]
 									{
-										DMibCallActor(_TrustManager, t_CType::f_EnumUserAuthenticationFactors, Result.m_UserID)
+										_TrustManager.template f_CallActor(&t_CType::f_EnumUserAuthenticationFactors)(Result.m_UserID)
 											> Promise / [Promise, _TrustManager, Result](NContainer::TCMap<CStr, CAuthenticationData> &&_Factors)
 											{
 												TCActorResultVector<void> Results;
@@ -331,14 +332,14 @@ namespace NMib::NConcurrency
 													{
 														if (pFactor->m_PrivateData.f_IsEmpty() || !Data.m_PrivateData.f_IsEmpty())
 														{
-															DMibCallActor(_TrustManager, t_CType::f_SetUserAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
+															_TrustManager.template f_CallActor(&t_CType::f_SetUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data))
 																> Results.f_AddResult()
 															;
 														}
 													}
 													else
 													{
-														DMibCallActor(_TrustManager, t_CType::f_AddUserAuthenticationFactor, Result.m_UserID, FactorID, fg_TempCopy(Data))
+														_TrustManager.template f_CallActor(&t_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data))
 															> Results.f_AddResult();
 														;
 													}

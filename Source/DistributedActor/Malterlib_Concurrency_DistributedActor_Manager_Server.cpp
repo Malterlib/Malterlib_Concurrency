@@ -51,10 +51,9 @@ namespace NMib::NConcurrency
 		bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		mp_DistributionManager.f_Clear();
-		return fg_ConcurrentActor().f_CallByValue
+		return fg_ConcurrentActor().f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<void>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<void>>
-				, NFunction::TCFunctionMovable<TCFuture<void> ()>
+				NFunction::TCFunctionMovable<TCFuture<void> ()>
 				(
 					[bAlreadyStopped, DistributionManager = fg_Move(DistributionManager), ListenID = fg_Move(mp_ListenID)]
 					{

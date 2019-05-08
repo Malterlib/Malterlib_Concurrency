@@ -40,7 +40,7 @@ using namespace NMib::NContainer;
 
 static fp64 g_Timeout = 60.0;
 
-namespace
+namespace NTestAuthentication
 {
 	struct CPermissionQueryLocal : public CPermissionQuery
 	{
@@ -830,7 +830,7 @@ namespace
 						if (!pTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
+						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -858,7 +858,7 @@ namespace
 						for (auto &QueryJSON : _Params["Permissions"].f_Array())
 							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
 
-						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions2, Permissions)
+						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions)
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -890,7 +890,7 @@ namespace
 								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
 						}
 
-						DMibCallActor(pTestServer->m_Actor, CServerInterface::f_CheckPermissions3, Permissions)
+						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions)
 							> pOutput->m_Promise / [=](TCMap<CStr, bool> &&_Results)
 							{
 								for (auto &Result : _Results)
@@ -915,7 +915,7 @@ namespace
 						if (!pManyTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
+						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -939,7 +939,7 @@ namespace
 						if (!pManyTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions2, fs_GetCommandPermissions(_Params["Permissions"]))
+						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -963,7 +963,7 @@ namespace
 						if (!pManyTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions3, fs_GetCommandPermissions(_Params["Permissions"]))
+						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -987,7 +987,7 @@ namespace
 						if (!pManyTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pManyTestServer->m_Actor, CManyServerInterface::f_CheckPermissions4, fs_GetCommandPermissions(_Params["Permissions"]))
+						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -1011,7 +1011,7 @@ namespace
 						if (!pSlowTestServer)
 							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						DMibCallActor(pSlowTestServer->m_Actor, CSlowServerInterface::f_CheckPermissions1, fs_GetCommandPermissions(_Params["Permissions"]))
+						pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
 							> pOutput->m_Promise / [=](bool _bSuccess)
 							{
 								pOutput->m_Results = _bSuccess;
@@ -1344,6 +1344,8 @@ namespace
 	DMibAuthenticationFactorRegister(CDistributedActorTrustManagerAuthenticationActorFactoryFail1);
 };
 
+using namespace NTestAuthentication;
+
 class CDistributedAppAuthentication_Tests : public NMib::NTest::CTest
 {
 public:
@@ -1454,13 +1456,11 @@ public:
 		CStr ServerHostID = ServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ServerAddress;
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
-		DMibCallActor(ServerTrust, CDistributedActorTrustManagerInterface::f_AddListen, ServerAddress).f_CallSync(g_Timeout);
+		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ServerAddress).f_CallSync(g_Timeout);
 
-		DMibCallActor
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
-				TrustManager
-				, CDistributedActorTrustManager::f_AllowHostsForNamespace
-				, CServerInterface::mc_pDefaultNamespace
+				CServerInterface::mc_pDefaultNamespace
 				, fg_CreateSet<CStr>(ServerHostID)
 				, c_WaitForSubscriptions
 			).f_CallSync(g_Timeout)
@@ -1486,13 +1486,11 @@ public:
 		CStr ManyServerHostID = ManyServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ManyServerAddress;
 		ManyServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsManyServer.sock"_f << RootDirectory);
-		DMibCallActor(ManyServerTrust, CDistributedActorTrustManagerInterface::f_AddListen, ManyServerAddress).f_CallSync(g_Timeout);
+		ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ManyServerAddress).f_CallSync(g_Timeout);
 
-		DMibCallActor
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
-				TrustManager
-				, CDistributedActorTrustManager::f_AllowHostsForNamespace
-				, CManyServerInterface::mc_pDefaultNamespace
+				CManyServerInterface::mc_pDefaultNamespace
 				, fg_CreateSet<CStr>(ManyServerHostID)
 				, c_WaitForSubscriptions
 			).f_CallSync(g_Timeout)
@@ -1518,13 +1516,11 @@ public:
 		CStr SlowServerHostID = SlowServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address SlowServerAddress;
 		SlowServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsSlowServer.sock"_f << RootDirectory);
-		DMibCallActor(SlowServerTrust, CDistributedActorTrustManagerInterface::f_AddListen, SlowServerAddress).f_CallSync(g_Timeout);
+		SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(SlowServerAddress).f_CallSync(g_Timeout);
 
-		DMibCallActor
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
-				TrustManager
-				, CDistributedActorTrustManager::f_AllowHostsForNamespace
-				, CSlowServerInterface::mc_pDefaultNamespace
+				CSlowServerInterface::mc_pDefaultNamespace
 				, fg_CreateSet<CStr>(SlowServerHostID)
 				, c_WaitForSubscriptions
 			).f_CallSync(g_Timeout)
@@ -1554,7 +1550,7 @@ public:
 
 		CDistributedActorTrustManager_Address ClientAddress;
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
-		DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddListen, ClientAddress).f_CallSync(g_Timeout);
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ClientAddress).f_CallSync(g_Timeout);
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
 			{
@@ -1564,33 +1560,25 @@ public:
 
 		for (auto const &HostID : {ServerHostID, ManyServerHostID, SlowServerHostID})
 		{
-			DMibCallActor
+			ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 				(
-					ClientTrust
-					, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-					, fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(HostID))
+					fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(HostID))
 				).f_CallSync(g_Timeout)
 			;
 		}
-		DMibCallActor
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(
-				ClientTrust
-				, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-				, fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
+				fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
 			).f_CallSync(g_Timeout)
 		;
-		DMibCallActor
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(
-				ClientTrust
-				, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-				, fNamespaceHosts(CManyServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ManyServerHostID))
+				fNamespaceHosts(CManyServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ManyServerHostID))
 			).f_CallSync(g_Timeout)
 		;
-		DMibCallActor
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(
-				ClientTrust
-				, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-				, fNamespaceHosts(CSlowServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(SlowServerHostID))
+				fNamespaceHosts(CSlowServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(SlowServerHostID))
 			).f_CallSync(g_Timeout)
 		;
 
@@ -1604,48 +1592,42 @@ public:
 
 		{
 			TCPromise<void> Promise;
-			DMibCallActor
+			ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
-					ServerTrust
-					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
-					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
+					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
 				)
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
 			Promise.f_CallSync(g_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
-			DMibCallActor
+			ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
-					ManyServerTrust
-					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
-					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ManyServerAddress}
+					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ManyServerAddress}
 				)
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
 			Promise.f_CallSync(g_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
-			DMibCallActor
+			SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
-					SlowServerTrust
-					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
-					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{SlowServerAddress}
+					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{SlowServerAddress}
 				)
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
 			Promise.f_CallSync(g_Timeout);
@@ -1701,10 +1683,10 @@ public:
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
 		TrustManager(&CDistributedActorTrustManager::f_AddUser, DefaultUserID, "Default User").f_CallSync(g_Timeout);
 		TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, DefaultUserID).f_CallSync(g_Timeout);
-		DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Succeed1").f_CallSync(g_Timeout);
-		DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Succeed2").f_CallSync(g_Timeout);
-		DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Succeed3").f_CallSync(g_Timeout);
-		DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Fail1").f_CallSync(g_Timeout);
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed1").f_CallSync(g_Timeout);
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed2").f_CallSync(g_Timeout);
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed3").f_CallSync(g_Timeout);
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Fail1").f_CallSync(g_Timeout);
 		auto ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 		auto ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
 		fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
@@ -1725,11 +1707,9 @@ public:
 				Permissions[_Permission] = _Methods;
 
 				auto &ServerTrust = *_pServerTrust;
-				DMibCallActor
+				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
-					 	ServerTrust
-						, CDistributedActorTrustManagerInterface::f_AddPermissions
-					 	, CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
+					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
 					).f_CallSync(60.0)
 				;
 			}
@@ -1796,10 +1776,10 @@ public:
 				JSON["AuthenticationLifetime"] = _Lifetime;
 				JSON["JSONOutput"] = true;
 
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_Clear).f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", JSON, pCommandLine).f_CallSync(g_Timeout);
 
-				return CEJSON::fs_FromString(DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnStdOut).f_CallSync(g_Timeout));
+				return CEJSON::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(g_Timeout));
 			}
 		;
 
@@ -1809,9 +1789,9 @@ public:
 
 				JSON["Permissions"] = _Permissions;
 
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_Clear).f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), _Command, JSON, pCommandLine).f_CallSync(g_Timeout);
-				return CEJSON::fs_FromString(DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnStdOut).f_CallSync(g_Timeout)).f_Boolean();
+				return CEJSON::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(g_Timeout)).f_Boolean();
 			}
 		;
 
@@ -1823,9 +1803,9 @@ public:
 				for (auto &Query : _Permissions)
 					Queries.f_Insert(Query.f_ToJSON());
 
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_Clear).f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-2", JSON, pCommandLine).f_CallSync(g_Timeout);
-				return CEJSON::fs_FromString(DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnStdOut).f_CallSync(g_Timeout)).f_Boolean();
+				return CEJSON::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(g_Timeout)).f_Boolean();
 			}
 		;
 
@@ -1842,11 +1822,11 @@ public:
 						Queries.f_Insert(Query.f_ToJSON());
 				}
 
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_Clear).f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", JSON, pCommandLine).f_CallSync(g_Timeout);
 
 				TCMap<CStr, bool> Return;
-				auto Results = CEJSON::fs_FromString(DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnStdOut).f_CallSync(g_Timeout));
+				auto Results = CEJSON::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(g_Timeout));
 
 				for (auto &Result : Results.f_Object())
 					Return[Result.f_Name()] = Result.f_Value().f_Boolean();
@@ -2123,17 +2103,17 @@ public:
 
 		// Test password authentication
 		{
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Wrong").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(g_Timeout);
 			DMibExpectException
 				(
-					(DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout))
+					(TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout))
 					, DMibErrorInstance("Password mismatch")
 				)
 			;
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
-			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
 
 			auto ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 			auto ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
@@ -2141,30 +2121,30 @@ public:
 			fg_ImportUser(ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
 			{
 				DMibTestPath("Correct Password");
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Wrong Password");
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Wrong").f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Wrong").f_CallSync(g_Timeout);
 				DMibExpectFalse(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			// Add another password factor - both password should work for authentication
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
-			DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
-			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(g_Timeout);
+			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
 			ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 			ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
 			fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
 			fg_ImportUser(ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
 			{
 				DMibTestPath("Correct Password 1");
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "Password").f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 			{
 				DMibTestPath("Correct Password 2");
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnString, "OtherPassword").f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(g_Timeout);
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Password"}));
 			}
 		}
@@ -2257,11 +2237,9 @@ public:
 			}
 			{
 				DMibTestPath("Preauthentication should not work when the permission has been removed");
-				DMibCallActor
+				pManyServerTrust->f_CallActor(&CDistributedActorTrustManagerInterface::f_RemovePermissions)
 					(
-					 	*pManyServerTrust
-						, CDistributedActorTrustManagerInterface::f_RemovePermissions
-					 	, CDistributedActorTrustManagerInterface::CRemovePermissions
+					 	CDistributedActorTrustManagerInterface::CRemovePermissions
 						{
 							{ClientHostID, DefaultUserID}
 							, {"com.manymalterlib/Succeed3_Cacheable"}
@@ -2323,11 +2301,9 @@ public:
 			}
 			{
 				DMibTestPath("Cached permission should be removed when the permission is removed");
-				DMibCallActor
+				pManyServerTrust->f_CallActor(&CDistributedActorTrustManagerInterface::f_RemovePermissions)
 					(
-					 	*pManyServerTrust
-						, CDistributedActorTrustManagerInterface::f_RemovePermissions
-					 	, CDistributedActorTrustManagerInterface::CRemovePermissions
+					 	CDistributedActorTrustManagerInterface::CRemovePermissions
 						{
 							{ClientHostID, DefaultUserID}
 							, {"com.manymalterlib/Succeed2_Cacheable"}
@@ -2434,13 +2410,11 @@ public:
 		CStr ServerHostID = ServerLaunch.m_HostID;
 		CDistributedActorTrustManager_Address ServerAddress;
 		ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsServer.sock"_f << RootDirectory);
-		DMibCallActor(ServerTrust, CDistributedActorTrustManagerInterface::f_AddListen, ServerAddress).f_CallSync(g_Timeout);
+		ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ServerAddress).f_CallSync(g_Timeout);
 
-		DMibCallActor
+		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_AllowHostsForNamespace)
 			(
-				TrustManager
-				, CDistributedActorTrustManager::f_AllowHostsForNamespace
-				, CServerInterface::mc_pDefaultNamespace
+				CServerInterface::mc_pDefaultNamespace
 				, fg_CreateSet<CStr>(ServerHostID)
 				, c_WaitForSubscriptions
 			).f_CallSync(g_Timeout)
@@ -2470,7 +2444,7 @@ public:
 
 		CDistributedActorTrustManager_Address ClientAddress;
 		ClientAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/DistributedAppAuthenticationTestsClient.sock"_f << RootDirectory);
-		DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddListen, ClientAddress).f_CallSync(g_Timeout);
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddListen)(ClientAddress).f_CallSync(g_Timeout);
 
 		auto fNamespaceHosts = [](auto &&_Namespace, auto &&_Hosts)
 			{
@@ -2478,18 +2452,14 @@ public:
 			}
 		;
 
-		DMibCallActor
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(
-				ClientTrust
-				, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-				, fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
+				fNamespaceHosts(ICDistributedActorAuthentication::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
 			).f_CallSync(g_Timeout)
 		;
-		DMibCallActor
+		ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace)
 			(
-				ClientTrust
-				, CDistributedActorTrustManagerInterface::f_AllowHostsForNamespace
-				, fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
+				fNamespaceHosts(CServerInterface::mc_pDefaultNamespace, fg_CreateSet<CStr>(ServerHostID))
 			).f_CallSync(g_Timeout)
 		;
 
@@ -2503,16 +2473,14 @@ public:
 
 		{
 			TCPromise<void> Promise;
-			DMibCallActor
+			ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
-					ServerTrust
-					, CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket
-					, CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
+					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
 				)
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					DMibCallActor(ClientTrust, CDistributedActorTrustManagerInterface::f_AddClientConnection, _Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
 			Promise.f_CallSync(g_Timeout);
@@ -2582,11 +2550,9 @@ public:
 				Permissions[_Permission] = _Methods;
 
 				auto &ServerTrust = *_pServerTrust;
-				DMibCallActor
+				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
-					 	ServerTrust
-						, CDistributedActorTrustManagerInterface::f_AddPermissions
-					 	, CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
+					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
 					).f_CallSync(60.0)
 				;
 			}
@@ -2617,9 +2583,9 @@ public:
 
 				JSON["Permissions"] = _Permissions;
 
-				DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_Clear).f_CallSync(g_Timeout);
+				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), _Command, JSON, pCommandLine).f_CallSync(g_Timeout);
-				return CEJSON::fs_FromString(DMibCallActor(pCommandLineControl, CCommandLineControlActorTest::f_ReturnStdOut).f_CallSync(g_Timeout)).f_Boolean();
+				return CEJSON::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(g_Timeout)).f_Boolean();
 			}
 		;
 
@@ -2627,7 +2593,7 @@ public:
 
 		// Test U2F registration and authentication
 		{
-			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
 
 			auto ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 			auto ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
@@ -2637,7 +2603,7 @@ public:
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1"}));
 
 			// Add another U2F factor - both should work for authentication
-			DMibCallActor(TrustManager, CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
+			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
 			ExportedWithPrivate = fg_ExportUser(TrustManager, DefaultUserID, true).f_CallSync(60.0);
 			ExportedWithoutPrivate = fg_ExportUser(TrustManager, DefaultUserID, false).f_CallSync(60.0);
 			fg_ImportUser(ClientTrust, ExportedWithPrivate).f_CallSync(60.0);

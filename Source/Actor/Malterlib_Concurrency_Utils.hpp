@@ -155,10 +155,9 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	auto TCActorResultVector<t_CType>::f_GetResults()
 	{
-		return fg_AnyConcurrentActor().f_CallByValue
+		return fg_AnyConcurrentActor().f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>>
-				, [pInternal = mp_pInternal]() mutable -> TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>
+				[pInternal = mp_pInternal]() mutable -> TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>
 				{
 					return pInternal->f_GetResults();
 				}
@@ -854,10 +853,9 @@ namespace NMib::NConcurrency
 	{
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return _Actor.f_CallByValue
+		return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType>>
 			(
-				&CActor::f_DispatchWithReturn<CReturnType>
-				, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
+				NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
 			)
 		;
 	}
@@ -873,10 +871,9 @@ namespace NMib::NConcurrency
 		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return _Actor.f_CallByValue
+		return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
-				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
+				NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{
@@ -897,10 +894,9 @@ namespace NMib::NConcurrency
 	{
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return fg_CurrentActor().f_CallByValueDirect
+		return fg_CurrentActor().f_CallByValueDirect<&CActor::f_DispatchWithReturn<CReturnType>>
 			(
-				&CActor::f_DispatchWithReturn<CReturnType>
-				, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
+				NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
 			)
 		;
 	}
@@ -916,10 +912,9 @@ namespace NMib::NConcurrency
 		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return fg_CurrentActor().f_CallByValueDirect
+		return fg_CurrentActor().f_CallByValueDirect<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
-				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
+				NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{
@@ -940,10 +935,9 @@ namespace NMib::NConcurrency
 	{
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return TCActor<>(fg_DirectCallActor()).f_CallByValueDirect
+		return TCActor<>(fg_DirectCallActor()).f_CallByValueDirect<&CActor::f_DispatchWithReturn<CReturnType>>
 			(
-				&CActor::f_DispatchWithReturn<CReturnType>
-				, NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
+				NFunction::TCFunctionMovable<CReturnType ()>(fg_Forward<tf_FToDispatch>(_fDispatch))
 			)
 		;
 	}
@@ -959,10 +953,9 @@ namespace NMib::NConcurrency
 		static_assert(!NPrivate::TCIsPromise<typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType>::mc_Value);
 		using CReturnType = typename NTraits::TCIsCallableWith<typename NTraits::TCRemoveReference<tf_FToDispatch>::CType, void ()>::CReturnType;
 
-		return TCActor<>(fg_DirectCallActor()).f_CallByValueDirect
+		return TCActor<>(fg_DirectCallActor()).f_CallByValueDirect<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>>
 			(
-				&CActor::f_DispatchWithReturn<TCFuture<CReturnType>>
-				, NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
+				NFunction::TCFunctionMovable<TCFuture<CReturnType> ()>
 				(
 					[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]() mutable -> TCFuture<CReturnType>
 					{

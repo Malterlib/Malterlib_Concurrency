@@ -184,7 +184,7 @@ namespace NMib::NConcurrency
 							if (mp_AppInterfaceClientTrustProxy)
 								TrustInterface = mp_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 							
-							DMibCallActor(_NewActor, CDistributedAppInterfaceServer::f_RegisterDistributedApp, fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
+							_NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
 								> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
 								{
 									if (!_Subscription)

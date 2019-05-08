@@ -77,8 +77,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
 
-		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const;
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;

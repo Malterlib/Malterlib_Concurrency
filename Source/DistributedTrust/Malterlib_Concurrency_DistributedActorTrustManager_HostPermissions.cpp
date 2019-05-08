@@ -331,7 +331,7 @@ namespace NMib::NConcurrency
 		auto CacheTime = NTime::CTime::fs_NowUTC();
 
 		auto Challenge = CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(UserID);
-		DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, Request, Challenge, _RequestID)
+		AuthenticationHandler.f_CallActor(&CHandler::f_RequestAuthentication)(Request, Challenge, _RequestID)
 			> [=, Identity = CPermissionIdentifiers(HostID, UserID)]
 			(TCAsyncResult<NContainer::TCVector<CHandler::CResponse>> &&_Responses) mutable
 			{
@@ -961,7 +961,7 @@ namespace NMib::NConcurrency
 		auto CacheTime = NTime::CTime::fs_NowUTC();
 
 		auto Challenge = CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(UserID);
-		DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, _Request, Challenge, "") > [=]
+		AuthenticationHandler.f_CallActor(&CHandler::f_RequestAuthentication)(_Request, Challenge, "") > [=]
 			(TCAsyncResult<NContainer::TCVector<CHandler::CResponse>> &&_Responses)
 			{
 				if (!_Responses)
@@ -1169,7 +1169,7 @@ namespace NMib::NConcurrency
 
 		auto NamedPermissionQueries = _NamedPermissionQueries;
 
-		auto ResponsesResult = co_await DMibCallActor(AuthenticationHandler, CHandler::f_RequestAuthentication, Request, Challenge, "").f_Wrap();
+		auto ResponsesResult = co_await AuthenticationHandler.f_CallActor(&CHandler::f_RequestAuthentication)(Request, Challenge, "").f_Wrap();
 
 		if (!ResponsesResult)
 		{

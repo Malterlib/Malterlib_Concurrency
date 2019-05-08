@@ -41,15 +41,16 @@ namespace NMib::NConcurrency
 
 	template 
 	<
-		typename tf_CMemberFunction
-		, tf_CMemberFunction tf_pMemberFunction
-		, uint32 tf_NameHash
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
 	{
-		using CReturn = typename NPrivate::TCRemoveFuture<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CReturn>::CType;
+		constexpr static uint32 c_NameHash = ::NMib::fg_GetMemberFunctionHash<tf_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(tf_NameHash));
+		using CMemberFunction = decltype(tf_pMemberFunction);
+		using CReturn = typename NPrivate::TCRemoveFuture<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CReturn>::CType;
 		
 		NFunction::TCFunctionMovable<TCFuture<CReturn> ()> ToDispatch;
 		
@@ -63,7 +64,7 @@ namespace NMib::NConcurrency
 			{
 				auto ProtocolVersion = pActorDataRaw->m_ProtocolVersion;
 
-				if (ProtocolVersion < TCLowestSupportedVersionForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::mc_Value)
+				if (ProtocolVersion < TCLowestSupportedVersionForMemberFunction<tf_pMemberFunction>::mc_Value)
 				{
 					ToDispatch = []
 						{
@@ -79,10 +80,10 @@ namespace NMib::NConcurrency
 				Stream << uint8(0); // Dummy command
 				Stream << uint64(0); // Dummy packet ID
 				Stream << pActorDataRaw->m_ActorID;
-				uint32 NameHash = tf_NameHash;
-				if constexpr (TCAlternateHashesForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::mc_bHasAlternates)
+				uint32 NameHash = c_NameHash;
+				if constexpr (TCAlternateHashesForMemberFunction<tf_pMemberFunction>::mc_bHasAlternates)
 				{
-					for (auto &AlternateHash : TCAlternateHashesForMemberFunction<tf_CMemberFunction, tf_pMemberFunction>::CAlternatesArray::mc_Value)
+					for (auto &AlternateHash : TCAlternateHashesForMemberFunction<tf_pMemberFunction>::CAlternatesArray::mc_Value)
 					{
 						if (ProtocolVersion <= AlternateHash.m_UpToVersion)
 							NameHash = AlternateHash.m_Hash;
@@ -108,7 +109,7 @@ namespace NMib::NConcurrency
 				
 				NPrivate::CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
 				
-				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::fs_Stream
+				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::fs_Stream
 					(
 						Stream
 						, Context
@@ -170,8 +171,8 @@ namespace NMib::NConcurrency
 			else // When local
 			{
 				DispatchActor = _Actor;
-				using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::CMoveList;
-				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<tf_CMemberFunction>::CParams>::CType;
+				using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CMoveList;
+				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CType;
 				ToDispatch = [_Actor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
 					{
 						return NStorage::fg_TupleApplyAs<CMoveList>
@@ -179,7 +180,7 @@ namespace NMib::NConcurrency
 								[&](auto &&..._Params) mutable -> TCFuture<CReturn>
 								{
 									auto *pActor = NPrivate::fg_GetInternalActor(_Actor);
-									return NPrivate::TCCallToFuture<tf_CMemberFunction, tf_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
+									return NPrivate::TCCallToFuture<CMemberFunction, tf_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
 								}
 								, fg_Move(Params) 
 							)
@@ -190,11 +191,6 @@ namespace NMib::NConcurrency
 		}
 		while (false)
 			;
-		return DispatchActor.f_CallByValue
-			(
-				&CActor::f_DispatchWithReturn<TCFuture<CReturn>>
-				, fg_Move(ToDispatch)
-			)
-		;
+		return DispatchActor.f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturn>>>(fg_Move(ToDispatch));
 	}
 }

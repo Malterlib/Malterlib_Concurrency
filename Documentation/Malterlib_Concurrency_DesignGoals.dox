@@ -559,7 +559,7 @@ TCFuture<void> f_DestroyActor()
 ~~~
 	// Old way
 	auto Result = co_await MyActor(&CMyActor::f_MyFunction, 5);
- 	auto Result2 = co_await DActorCall(MyDistributedActor, CMyActor::f_MyFunction, 5);
+ 	auto Result2 = co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)(5);
 
 	// New way
 	auto Result = co_await MyActor->f_MyFunction(5);
@@ -653,11 +653,11 @@ TCFuture<void> f_MyFunction()
 \subsection s_Malterlib_Concurrency_DesignGoals_TransparantDistributedCalls Transparent calls across processes and hosts
 
  Calling an actor running in another process or on another host follows the same semantics as normal actor calls. Instead of calling
- the actor directly we call through DActorCall.
+ the actor directly we call through f_CallActor.
 ~~~
 TCDistributedActor<CMyActor> MyDistributedActor = x;
 
-DActorCall(MyDistributedActor, CMyActor::f_MyFunction) > [](TCAsyncResult<int32> &&_Result)
+MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)() > [](TCAsyncResult<int32> &&_Result)
 	{
 	}
 ;
@@ -666,11 +666,11 @@ DActorCall(MyDistributedActor, CMyActor::f_MyFunction) > [](TCAsyncResult<int32>
 ~~~
 TCDistributedActor<CMyActor> MyDistributedActor = x;
 
-co_await DActorCall(MyDistributedActor, CMyActor::f_MyFunction);
+co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)();
 ~~~
 
- `DActorCall` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that the macro
- needs to capture the name of the function you are calling so a hash can be generated at compile time.
+ `f_CallActor` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that to capture the name of the function you are calling the member
+ funciton needs to be supplied as a template argument so a hash can be generated at compile time.
 
  To be able to call a function on an actor remotely you need to publish the function and supply the version
  information for the interface.
@@ -750,7 +750,7 @@ TCFuture<void> f_SubscribeToInterface()
 				// "MyActorNamespace" namspace in any of the processes we are connected to, provided that a
 				// trust has been setup for the namespace in the trust manager.
 
-				DActorCall(_NewActor, CMyActorInterface::f_MyFunction) > [this](TCAsyncResult<int32> &&_Result)
+				_NewActor.f_CallActor(&CMyActorInterface::f_MyFunction)() > [this](TCAsyncResult<int32> &&_Result)
 					{
 					}
 				;
@@ -813,11 +813,9 @@ CActorSubscription f_RegisterCallback(TCActorFunctor<void (uint32 _Value)> &&_fC
  The lifetime can also be tracked the other way, so the site that registers the callback will get notified when the actor functor goes out of
  scope:
 ~~~
-CActorSubscription Subscription = co_await DActorCall
+CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_RegisterCallback)
 	(
-		MyActor
-	 	, CMyActor::f_RegisterCallback
-		, g_ActorFunctor
+		g_ActorFunctor
 		(
 			g_ActorSubscription / [this]() -> TCFuture<void>
 			{

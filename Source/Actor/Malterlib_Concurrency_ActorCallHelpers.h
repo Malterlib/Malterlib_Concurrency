@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
 		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
 	}
-	
+
 	CCurrentActorScope::~CCurrentActorScope()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -39,12 +39,12 @@ namespace NMib::NConcurrency
 					<
 						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
 						, void (tfp_CCallParams...)
-					>::mc_Value 
+					>::mc_Value
 					, "Invalid params for function"
 				)
 			;
 #endif
-			
+
 			using CMemberFunction = typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType;
 			using CActorClass = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CClass;
 
@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 			DMibRequire(dynamic_cast<CActorClass *>(pActor->fp_GetActor()));
 			DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
 			TCActor<CActorClass> Actor{fg_Explicit(pActor)};
-			
+
 			return TCActorCall
 				<
 					TCActor<CActorClass>
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <typename t_CTypeList>
 		struct TCActorCallWithParamsTuple
 		{
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <bool tf_bDirectCall, typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
 		auto fg_BindHelper(tf_FMemberFunction _pToBind, NStorage::TCTuple<tfp_CParams...> &&_Params)
 		{
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <bool tf_bDirectCall, typename tf_FMemberFunction, typename... tfp_CParams, mint... tfp_Indicies>
 		auto fg_BindConstructHelper(tf_FMemberFunction _pToBind, TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <bool tf_bDirectCall, typename tf_CTypeList, typename tf_FMemberFunction, typename... tfp_CParams>
 		auto fg_BindHelper(tf_FMemberFunction _pToBind, TCConstruct<void, tfp_CParams...> &&_Params)
 		{
@@ -182,13 +182,13 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <typename... tfp_CParams>
 		auto fg_ToTupleByValue(NStorage::TCTuple<tfp_CParams...> &&_Params)
 		{
 			return fg_Move(_Params);
 		}
-		
+
 		template <typename... tfp_CParams, mint... tfp_Indicies>
 		auto fg_ToTupleByValueHelper(TCConstruct<void, tfp_CParams...> &&_Params, NMeta::TCIndices<tfp_Indicies...>)
 		{
@@ -198,14 +198,14 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		
+
 		template <typename... tfp_CParams>
 		auto fg_ToTupleByValue(TCConstruct<void, tfp_CParams...> &&_Params)
 		{
 			return fg_ToTupleByValueHelper(fg_Move(_Params), typename NMeta::TCMakeConsecutiveIndices<TCConstruct<void, tfp_CParams...>::mc_nParams>::CType());
 		}
-		
-		
+
+
 	}
 
 	template <typename t_CActor, typename t_CFunctor>
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 	{
 		static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
 		static_assert(!NTraits::TCIsReference<t_CFunctor>::mc_Value, "Incorrect type");
-		
+
 		t_CActor mp_Actor;
 		t_CFunctor mp_Functor;
 
@@ -248,7 +248,7 @@ namespace NMib::NConcurrency
 		}
 
 	};
-	
+
 	template <typename t_CType>
 	struct TCIsActorResultCallHelper : public NTraits::TCCompileTimeConstant<bool, false>
 	{
@@ -258,7 +258,7 @@ namespace NMib::NConcurrency
 	struct TCIsActorResultCallHelper<TCActorResultCall<t_CActor, t_CFunctor>> : public NTraits::TCCompileTimeConstant<bool, true>
 	{
 	};
-	
+
 	template <typename t_CType>
 	struct TCIsActorResultCall : public TCIsActorResultCallHelper<typename NTraits::TCRemoveReference<t_CType>::CType>
 	{
@@ -276,8 +276,8 @@ namespace NMib::NConcurrency
 			void f_TransferResults(NMeta::TCIndices<tfp_Indices...> const &_Indicies, tfp_CResults && ...p_Results)
 			{
 				t_CReturnType Result;
-				
-				TCInitializerList<bool> Dummy = 
+
+				TCInitializerList<bool> Dummy =
 					{
 						[&]
 						{
@@ -294,14 +294,14 @@ namespace NMib::NConcurrency
 					}
 				;
 				(void)Dummy;
-					
+
 				if (!m_Result.f_IsSet())
 					m_Result.f_SetResult(fg_Move(Result));
-						
+
 				m_WaitEvent.f_SetSignaled();
 			}
 		};
-		
+
 		template <typename t_CType>
 		struct TCConvertResultTypeVoid
 		{
@@ -379,12 +379,12 @@ namespace NMib::NConcurrency
 	struct [[nodiscard]] TCActorCallPack
 	{
 		NStorage::TCTuple<tp_CCalls...> m_Calls;
-		
+
 		TCActorCallPack(NStorage::TCTuple<tp_CCalls...> &&_Tuple)
 			: m_Calls(fg_Move(_Tuple))
 		{
 		}
-		
+
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
 		TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
 		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
@@ -406,9 +406,9 @@ namespace NMib::NConcurrency
 		{
 			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
-			fp_ActorCall(pActor / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());				
+			fp_ActorCall(pActor / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
 		}
-		
+
 		auto f_CallSync(fp64 _Timeout = -1.0)
 		{
 			return fp_CallSync(_Timeout);
@@ -478,11 +478,11 @@ namespace NMib::NConcurrency
 
 			return pResult->m_Result.f_Move();
 		}
-		
+
 		template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
 		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>);
 	};
-	
+
 	namespace NPrivate
 	{
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
@@ -518,7 +518,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
 #endif
-			
+
 			auto Actor = _ActorCall.mp_Actor.f_Lock();
 			if (!Actor)
 			{
@@ -528,9 +528,9 @@ namespace NMib::NConcurrency
 				return true;
 			}
 
-			// If you get this, use DCallActor instead of calling directly
+			// If you get this, use f_CallActor instead of calling directly
 			DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
-			
+
 			Actor->template f_Call<tf_CFunctor>
 				(
 					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
@@ -544,7 +544,7 @@ namespace NMib::NConcurrency
 			;
 			return true;
 		}
-		
+
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 		bool fg_CallActorInternal
 			(
@@ -556,7 +556,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
 #endif
-			
+
 			auto Actor = _ActorCall.mp_Actor.f_Lock();
 			if (!Actor)
 			{
@@ -564,7 +564,7 @@ namespace NMib::NConcurrency
 					return true;
 
 				static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
-				
+
 				auto ResultActor = fg_GetResultActor(_ResultActor);
 				ResultActor->f_QueueProcess
 					(
@@ -579,9 +579,9 @@ namespace NMib::NConcurrency
 				return true;
 			}
 
-			// If you get this, use DCallActor instead of calling directly
+			// If you get this, use f_Call instead of calling directly
 			DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
-			
+
 			Actor->template f_Call<tf_CFunctor>
 				(
 					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
@@ -648,7 +648,7 @@ namespace NMib::NConcurrency
 		static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
 		static_assert(!NTraits::TCIsReference<t_CFunctor>::mc_Value, "Incorrect type");
 		static_assert(!NTraits::TCIsReference<t_CParams>::mc_Value, "Incorrect type");
-		
+
 		using CReturnType = typename NPrivate::TCGetReturnType<typename NTraits::TCMemberFunctionPointerTraits<t_CFunctor>::CReturn>::CType;
 		using CTypeList = t_CTypeList;
 		using CFunctor = t_CFunctor;
@@ -670,7 +670,7 @@ namespace NMib::NConcurrency
 		TCActorCall(TCActorCall const &_Other) = default;
 		TCActorCall(TCActorCall &&_Other) = default;
 
-#ifdef DMibContractConfigure_CheckEnabled			
+#ifdef DMibContractConfigure_CheckEnabled
 		~TCActorCall()
 		{
 			DMibCheck(NException::fg_UncaughtExceptions() || mp_Actor.f_IsEmpty())("Actor call without result used");
@@ -697,7 +697,7 @@ namespace NMib::NConcurrency
 		{
 			return fg_Move(*this);
 		}
-		
+
 		TCActorCall &operator =(TCActorCall const &_Other)
 		{
 			mp_Actor = _Other.mp_Actor;
@@ -711,7 +711,7 @@ namespace NMib::NConcurrency
 			mp_Functor = fg_Move(_Other.mp_Functor);
 			mp_Params = fg_Move(_Other.mp_Params);
 		}
-		
+
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
 		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
 			-> TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
@@ -729,7 +729,7 @@ namespace NMib::NConcurrency
 			typename tf_CFunctor
 			, TCEnableIfType
 			<
-				!TCIsActorResultCall<tf_CFunctor>::mc_Value 
+				!TCIsActorResultCall<tf_CFunctor>::mc_Value
 				&& !NPrivate::TCIsPromise<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
 				&& !NPrivate::TCIsPromiseWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
 			> * = nullptr
@@ -740,7 +740,7 @@ namespace NMib::NConcurrency
 			DMibFastCheck(pActor);
 			*this > pActor / fg_Forward<tf_CFunctor>(_Functor);
 		}
-		
+
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
 		{
@@ -773,11 +773,11 @@ namespace NMib::NConcurrency
 				}
 			;
 		}
-		
+
 		template <typename tf_CResult>
 		void operator > (TCPromiseWithError<tf_CResult> const &_PromiseWithError)
 		{
-			*this > NPrivate::fg_DirectResultActor() / 
+			*this > NPrivate::fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise](tf_CResult &&_Result)
 					{
@@ -789,7 +789,7 @@ namespace NMib::NConcurrency
 
 		void operator > (TCPromiseWithError<void> const &_PromiseWithError)
 		{
-			*this > NPrivate::fg_DirectResultActor() / 
+			*this > NPrivate::fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise]()
 					{
@@ -805,7 +805,7 @@ namespace NMib::NConcurrency
 		}
 
 		TCFuture<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
-		
+
 		auto f_CallSync()
 		{
 			TCAsyncResult<CReturnType> Result;
@@ -891,7 +891,7 @@ namespace NMib::NConcurrency
 			typedef t_CReturnType CType;
 		};
 
-		template 
+		template
 			<
 				bool t_bUnwrapTuple
 				, typename t_CHandler
@@ -915,13 +915,13 @@ namespace NMib::NConcurrency
 				, m_Actor(_Actor)
 			{
 			}
-			
+
 			~TCCallMutipleActorStorage()
 			{
 				if (m_nFinished.f_Load() != mc_nResults)
 					f_ReportResult();
 			}
-			
+
 			void f_ReportResult()
 			{
 				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value);
@@ -953,8 +953,8 @@ namespace NMib::NConcurrency
 					f_ReportResult();
 			}
 		};
-		
-		template 
+
+		template
 			<
 				bool t_bUnwrapTuple
 				, typename t_CHandler
@@ -978,13 +978,13 @@ namespace NMib::NConcurrency
 				, m_Actor(_Actor)
 			{
 			}
-			
+
 			~TCCallMutipleActorStorage()
 			{
 				if (m_nFinished.f_Load() != mc_nResults)
 					f_ReportResult();
 			}
-			
+
 			void f_ReportResult()
 			{
 				auto &This = *this;
@@ -1001,12 +1001,12 @@ namespace NMib::NConcurrency
 					f_ReportResult();
 			}
 		};
-		
+
 		template <typename t_CActorCall>
 		struct TCGetActorCallFunctionPointer;
 
-		template 
-		<	
+		template
+		<
 			typename t_CActor
 			, typename t_CFunctionPtr
 			, typename t_CParams
@@ -1018,9 +1018,9 @@ namespace NMib::NConcurrency
 			typedef t_CFunctionPtr CType;
 		};
 	}
-	
+
 	template <typename... tp_CCalls>
-	template 
+	template
 	<
 		typename tf_CResultActor
 		, typename tf_CResultFunctor
@@ -1036,7 +1036,7 @@ namespace NMib::NConcurrency
 				)
 			;
 #endif
-		
+
 		typedef NMeta::TCTypeList
 			<
 				typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType...
@@ -1053,7 +1053,7 @@ namespace NMib::NConcurrency
 #endif
 
 		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
-		
+
 		auto &Actor = NPrivate::fg_DirectResultActor();
 		TCInitializerList<bool> Dummy =
 			{
@@ -1073,7 +1073,7 @@ namespace NMib::NConcurrency
 		(void)Dummy;
 	}
 
-	template 
+	template
 	<
 		typename tf_CResultActor
 		, TCEnableIfType
@@ -1087,8 +1087,8 @@ namespace NMib::NConcurrency
 		static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
 		return _ResultActor;
 	}
-	
-	template 
+
+	template
 	<
 		typename tf_CResultActor
 		, TCEnableIfType
@@ -1147,7 +1147,7 @@ namespace NMib::NConcurrency
 		{
 			_Other.m_pActorInternal = nullptr;
 		}
-		
+
 		TCReportLocal
 			(
 				t_CFunctor &&_ToCall
@@ -1162,7 +1162,7 @@ namespace NMib::NConcurrency
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			if (ThreadLocal.m_pCallstacks)
 				m_pState->m_Callstacks = *ThreadLocal.m_pCallstacks;
-			
+
 			auto &Callstack = m_pState->m_Callstacks.f_InsertFirst();
 			Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
 #	ifdef DMibDebug
@@ -1175,10 +1175,10 @@ namespace NMib::NConcurrency
 #	endif
 			NMemory::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
 			Callstack.m_CallstackLen -= nFramesToRemove;
-			
+
 			if (m_pState->m_Callstacks.f_GetLen() > 16)
 				m_pState->m_Callstacks.f_Remove(m_pState->m_Callstacks.f_GetLast());
-#endif				
+#endif
 		}
 
 		inline_always void f_ResultAvailable(CResultType &&_Result)
@@ -1326,7 +1326,7 @@ namespace NMib::NConcurrency
 				(*this).f_ResultAvailable(fg_Move(Result));
 			}
 		}
-		
+
 		inline_always CConcurrencyManager &f_ConcurrencyManager()
 		{
 			if constexpr (NTraits::TCIsSame<t_CActor, CAnyConcurrentActor>::mc_Value || NTraits::TCIsSame<t_CActor, CAnyConcurrentActorLowPrio>::mc_Value)

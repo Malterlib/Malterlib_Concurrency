@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		NIntrusive::TCAVLLink<> m_MemberPointerLink;
 	};
 
-	template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction>
+	template <auto t_pMemberFunction>
 	struct TCLowestSupportedVersionForMemberFunction
 	{
 		static constexpr uint32 mc_Value = 0x0;
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 
 #define DMibConcurrencyRegisterMemberFunctionLowestVersion(d_MemberFunction, d_LowestVersion) \
 	template <> \
-	struct NMib::NConcurrency::TCLowestSupportedVersionForMemberFunction<decltype(&d_MemberFunction), &d_MemberFunction> \
+	struct NMib::NConcurrency::TCLowestSupportedVersionForMemberFunction<&d_MemberFunction> \
 	{ \
 		static constexpr uint32 mc_Value = d_LowestVersion; \
 	};
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 		static constexpr CAlternateHashForMemberFunction mc_Value[] = {{tp_Hash, tp_UpToVersion}...};
 	};
 
-	template <typename tf_CMemberFunction, tf_CMemberFunction t_pMemberFunction>
+	template <auto t_pMemberFunction>
 	struct TCAlternateHashesForMemberFunction
 	{
 		static constexpr bool mc_bHasAlternates = false;
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 
 #define DMibConcurrencyRegisterMemberFunctionAlternateHashes(d_MemberFunction, ...) \
 	template <> \
-	struct NMib::NConcurrency::TCAlternateHashesForMemberFunction<decltype(&d_MemberFunction), &d_MemberFunction> \
+	struct NMib::NConcurrency::TCAlternateHashesForMemberFunction<&d_MemberFunction> \
 	{ \
 		static constexpr bool mc_bHasAlternates = true; \
 		using CAlternates = NMeta::TCTypeList<__VA_ARGS__>; \
@@ -88,13 +88,12 @@ namespace NMib::NConcurrency::NPrivate
 {
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
 		, typename t_CStreamResult
-		, typename t_CReturn = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CReturn
+		, typename t_CReturn = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CReturn
 	>
 	struct TCRuntimeTypeRegistryEntry_MemberFunction final : public CRuntimeTypeRegistryEntry_MemberFunction
 	{
@@ -119,8 +118,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -128,8 +126,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	struct TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -160,8 +157,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -170,8 +166,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	struct TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -203,9 +198,8 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto t_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 t_NameHash)
 		, typename t_CStreamContext
 		, typename t_CStreamParams
 		, typename t_CStreamResult
@@ -218,9 +212,8 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto t_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 t_NameHash)
 		, typename t_CStreamContext = zuint32
 		, typename t_CStreamParams = NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault>
 		, typename t_CStreamResult = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>
@@ -229,9 +222,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		static TCRuntimeTypeRegistryEntry_MemberFunctionInit
 			<
-				t_CMemberFunction
-				, t_pMemberFunction
-				, t_NameHash
+				t_pMemberFunction
+				DMibIfNotSupportMemberNameFromMemberPointer(, t_NameHash)
 				, t_CStreamContext
 				, t_CStreamParams
 				, t_CStreamResult
@@ -241,8 +233,8 @@ namespace NMib::NConcurrency::NPrivate
 	};
 }
 	
-#define DMibConcurrencyRegisterMemberFunction(d_CMemberFunction, d_pMemberFunction, d_NameHash) \
-	(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash>::ms_EntryInit
+#define DMibConcurrencyRegisterMemberFunction(d_pMemberFunction) \
+	(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<DMibPointerToMemberFunctionForHash(d_pMemberFunction)>::ms_EntryInit
 
-#define DMibConcurrencyRegisterMemberFunctionWithStreams(d_CMemberFunction, d_pMemberFunction, d_NameHash, d_StreamContext, d_StreamParams, d_StreamResult) \
-	(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<d_CMemberFunction, d_pMemberFunction, d_NameHash, d_StreamContext, d_StreamParams, d_StreamResult>::ms_EntryInit
+#define DMibConcurrencyRegisterMemberFunctionWithStreams(d_pMemberFunction, d_StreamContext, d_StreamParams, d_StreamResult) \
+	(void)::NMib::NConcurrency::NPrivate::TCMemberFunctionRegistry<DMibPointerToMemberFunctionForHash(d_pMemberFunction), d_StreamContext, d_StreamParams, d_StreamResult>::ms_EntryInit

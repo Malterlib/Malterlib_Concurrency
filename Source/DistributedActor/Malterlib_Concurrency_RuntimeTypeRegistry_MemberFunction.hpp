@@ -8,8 +8,7 @@ namespace NMib::NConcurrency::NPrivate
 {
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -18,8 +17,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -29,8 +27,8 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass)
-			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
+			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass)
+			, TCLowestSupportedVersionForMemberFunction<t_pMemberFunction>::mc_Value
 		)
 	{
 	}
@@ -60,8 +58,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -71,8 +68,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <mint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -87,7 +83,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
+		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
 
@@ -110,8 +106,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -120,8 +115,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -134,7 +128,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
+		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call
 			(
 				static_cast<t_CStreamParams &>(_Stream)
@@ -148,8 +142,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -157,8 +150,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -168,16 +160,15 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass)
-			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
+			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass)
+			, TCLowestSupportedVersionForMemberFunction<t_pMemberFunction>::mc_Value
 		)
 	{
 	}
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -186,8 +177,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <mint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -202,7 +192,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
+		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
 
@@ -225,8 +215,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -234,8 +223,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -248,7 +236,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
+		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call
 			(
 				static_cast<t_CStreamParams &>(_Stream)
@@ -263,8 +251,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -273,8 +260,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -284,16 +270,15 @@ namespace NMib::NConcurrency::NPrivate
 		: CRuntimeTypeRegistryEntry_MemberFunction
 		(
 			t_NameHash
-			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass)
-			, TCLowestSupportedVersionForMemberFunction<t_CMemberFunction, t_pMemberFunction>::mc_Value
+			, DMibConstantTypeHash(typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass)
+			, TCLowestSupportedVersionForMemberFunction<t_pMemberFunction>::mc_Value
 		)
 	{
 	}
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -303,8 +288,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <mint... tfp_Indices, typename... tfp_CParams>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -319,7 +303,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CClass;
+		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCSharedPointer<NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...>> pParamList;
 		t_CStreamContext *pContext = (t_CStreamContext *)_ParamsStream.f_GetContext();
@@ -335,7 +319,7 @@ namespace NMib::NConcurrency::NPrivate
 
 
 #if DMibEnableSafeCheck > 0
-		typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CReturn Future;
+		typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CReturn Future;
 
 		auto fWrapCall = [&]()
 			{
@@ -370,8 +354,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -380,8 +363,7 @@ namespace NMib::NConcurrency::NPrivate
 	>
 	auto TCRuntimeTypeRegistryEntry_MemberFunction
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -394,7 +376,7 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
-		using CParams = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CParams;
+		using CParams = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CParams;
 		return fp_Call
 			(
 				static_cast<t_CStreamParams &>(_Stream)
@@ -408,37 +390,33 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto t_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 t_NameHash)
 		, typename t_CStreamContext
 		, typename t_CStreamParams
 		, typename t_CStreamResult
 	>
 	TCRuntimeTypeRegistryEntry_MemberFunctionInit
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
-			, t_NameHash
+			t_pMemberFunction
+			DMibIfNotSupportMemberNameFromMemberPointer(, t_NameHash)
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
 		>
 		TCMemberFunctionRegistry
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
-			, t_NameHash
+			t_pMemberFunction
+			DMibIfNotSupportMemberNameFromMemberPointer(, t_NameHash)
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
-		>::ms_EntryInit{typename TCAlternateHashesForMemberFunction<t_CMemberFunction, t_pMemberFunction>::CAlternates()}
+		>::ms_EntryInit{typename TCAlternateHashesForMemberFunction<t_pMemberFunction>::CAlternates()}
 	;
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -450,8 +428,7 @@ namespace NMib::NConcurrency::NPrivate
 			<
 				TCRuntimeTypeRegistryEntry_MemberFunction
 				<
-					t_CMemberFunction
-					, t_pMemberFunction
+					t_pMemberFunction
 					, t_NameHash
 					, t_CStreamContext
 					, t_CStreamParams
@@ -463,8 +440,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
+		auto t_pMemberFunction
 		, uint32 t_NameHash
 		, typename t_CStreamContext
 		, typename t_CStreamParams
@@ -474,8 +450,7 @@ namespace NMib::NConcurrency::NPrivate
 		<
 			TCRuntimeTypeRegistryEntry_MemberFunction
 			<
-				t_CMemberFunction
-				, t_pMemberFunction
+				t_pMemberFunction
 				, t_NameHash
 				, t_CStreamContext
 				, t_CStreamParams
@@ -484,8 +459,7 @@ namespace NMib::NConcurrency::NPrivate
 		>
 		TCMemberFunctionRegistryImpl
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
+			t_pMemberFunction
 			, t_NameHash
 			, t_CStreamContext
 			, t_CStreamParams
@@ -495,9 +469,8 @@ namespace NMib::NConcurrency::NPrivate
 
 	template
 	<
-		typename t_CMemberFunction
-		, t_CMemberFunction t_pMemberFunction
-		, uint32 t_NameHash
+		auto t_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 t_NameHash)
 		, typename t_CStreamContext
 		, typename t_CStreamParams
 		, typename t_CStreamResult
@@ -505,9 +478,8 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename ...tfp_CAlternate>
 	TCRuntimeTypeRegistryEntry_MemberFunctionInit
 		<
-			t_CMemberFunction
-			, t_pMemberFunction
-			, t_NameHash
+			t_pMemberFunction
+			DMibIfNotSupportMemberNameFromMemberPointer(, t_NameHash)
 			, t_CStreamContext
 			, t_CStreamParams
 			, t_CStreamResult
@@ -515,9 +487,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		*TCMemberFunctionRegistryImpl
 			<
-				t_CMemberFunction
-				, t_pMemberFunction
-				, t_NameHash
+				t_pMemberFunction
+				, ::NMib::fg_GetMemberFunctionHash<t_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(t_NameHash))
 				, t_CStreamContext
 				, t_CStreamParams
 				, t_CStreamResult
@@ -530,8 +501,7 @@ namespace NMib::NConcurrency::NPrivate
 				{
 					*TCMemberFunctionRegistryImpl
 						<
-							t_CMemberFunction
-							, t_pMemberFunction
+							t_pMemberFunction
 							, tfp_CAlternate::mc_Hash
 							, t_CStreamContext
 							, t_CStreamParams

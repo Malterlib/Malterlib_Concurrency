@@ -649,7 +649,7 @@ namespace NMib::NConcurrency
 								if (!_Published)
 									DMibLogWithCategory(Mib/Concurrency/App, Error, "Publishing authentication interface failed: {}", _Published.f_GetExceptionStr());
 								else if (m_bSupportAuthentication)
-									DMibLogWithCategory(Mib/Concurrency/App, Info, "Authentication interface published successfully");
+									DMibLogWithCategory(Mib/Concurrency/App, Debug, "Authentication interface published successfully");
 
 								_Promise.f_SetResult(m_BasicConfig.m_HostID);
 								if (!_Result)

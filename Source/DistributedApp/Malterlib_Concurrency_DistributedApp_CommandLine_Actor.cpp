@@ -221,12 +221,12 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<void> Promise;
 		mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Publishing command line actor");
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
 		mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline")
 			> Promise / [this, Promise](CDistributedActorPublication &&_Publication)
 			{
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "Command line published");
+				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line published");
 				mp_CommandLinePublication = fg_Move(_Publication);
 				Promise.f_SetResult();
 			}
@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
 		TCPromise<void> Promise;
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Setting up command line trust");
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 
 		fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Promise / [this, Promise]()
 			{
@@ -247,7 +247,7 @@ namespace NMib::NConcurrency
 						if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 							mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
 
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished setting up command line trust");
+						DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished setting up command line trust");
 						Promise.f_SetResult();
 					}
 				;

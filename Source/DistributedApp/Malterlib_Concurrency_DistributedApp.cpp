@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Setting up listen config");
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up listen config");
 		TCPromise<void> Promise;
 
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
@@ -210,7 +210,7 @@ namespace NMib::NConcurrency
 					if (WantedListens.f_FindEqual(CurrentListen))
 						continue;
 					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, CurrentListen) > ChangesResults.f_AddResult();
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Removing listen config {}", CurrentListen.m_URL.f_Encode());
+					DMibLogWithCategory(Mib/Concurrency/App, Debug, "Removing listen config {}", CurrentListen.m_URL.f_Encode());
 					bChanged = true;
 				}
 				for (auto const &WantedListen : WantedListens)
@@ -218,12 +218,12 @@ namespace NMib::NConcurrency
 					if (_Listens.f_FindEqual(WantedListen))
 						continue;
 					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, WantedListen) > ChangesResults.f_AddResult();
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "Adding listen config {}", WantedListen.m_URL.f_Encode());
+					DMibLogWithCategory(Mib/Concurrency/App, Debug, "Adding listen config {}", WantedListen.m_URL.f_Encode());
 					bChanged = true;
 				}
 				if (!bChanged)
 				{
-					DMibLogWithCategory(Mib/Concurrency/App, Info, "No listen config changes needed");
+					DMibLogWithCategory(Mib/Concurrency/App, Debug, "No listen config changes needed");
 					Promise.f_SetResult();
 					return;
 				}
@@ -232,7 +232,7 @@ namespace NMib::NConcurrency
 						if (!fg_CombineResults(Promise, fg_Move(_Results)))
 							return;
 
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Finished changing listen config");
+						DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished changing listen config");
 						Promise.f_SetResult();
 					}
 				;
@@ -315,7 +315,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
 		TCPromise<void> Promise;
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Loading config file and state");
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
 		fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
@@ -328,7 +328,7 @@ namespace NMib::NConcurrency
 			{
 				if (mp_State.m_bStoppingApp)
 					return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "Initializing trust manager");
+				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
 				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)>
 					fManagerFactor
 				;
@@ -538,14 +538,14 @@ namespace NMib::NConcurrency
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
 
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "Running specific application startup");
+				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Running specific application startup");
 
 				co_await (self(&CDistributedAppActor::fp_StartApp, _Params) % "Failed to start app");
 
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
 
-				DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific application startup finished");
+				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Specific application startup finished");
 
 				co_await (fp_PublishCommandLine() % "Failed to publish command line");
 

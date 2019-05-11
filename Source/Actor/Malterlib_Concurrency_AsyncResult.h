@@ -115,6 +115,12 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 	};
+
+}
+
+namespace NMib::NFunction
+{
+	extern template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&)>;
 }
 
 #include "Malterlib_Concurrency_AsyncResult.hpp"

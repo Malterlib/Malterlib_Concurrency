@@ -151,3 +151,8 @@ namespace NMib::NConcurrency
 		return m_bHasBeenSet || m_pException != nullptr;
 	}
 }
+
+namespace NMib::NFunction
+{
+	template struct TCFunctionMovable<void (NConcurrency::TCAsyncResult<void> &&)>;
+}

@@ -665,4 +665,20 @@ namespace NMib::NConcurrency
 			, uint32 _ProtocolVersion
 		)
 	;
+
+	template class TCActor<CActorDistributionManager>;
+
+	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
+		<
+			&CActorDistributionManager::f_CallRemote
+			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
+		>
+		(
+			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NPrivate::CDistributedActorStreamContext&
+		) const
+	;
 }

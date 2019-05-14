@@ -5,7 +5,6 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 #include <Mib/Stream/ByteVector>
 #include <Mib/Encoding/Base64>
-#include <Mib/Network/SSL>
 
 namespace NMib::NConcurrency
 {

@@ -240,7 +240,7 @@ namespace NMib::NConcurrency
 				NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)
 			> m_fConstructManager = nullptr;
 			
-			NNetwork::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+			NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 			NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 			NStr::CStr m_FriendlyName;
 			NStr::CStr m_Enclave;

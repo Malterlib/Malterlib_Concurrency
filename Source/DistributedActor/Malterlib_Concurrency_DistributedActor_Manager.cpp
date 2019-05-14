@@ -5,7 +5,9 @@
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
+
 #include <Mib/Process/Platform>
+#include <Mib/Cryptography/Certificate>
 
 namespace NMib::NConcurrency
 {
@@ -294,7 +296,7 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CActorDistributionManager::fs_GetCertificateHostID(NContainer::CByteVector const &_Certificate)
 	{
-		auto Extensions = NNetwork::CSSLContext::fs_GetCertificateExtensions(_Certificate);
+		auto Extensions = NCryptography::CCertificate::fs_GetCertificateExtensions(_Certificate);
 
 		auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
 		if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1)
@@ -307,7 +309,7 @@ namespace NMib::NConcurrency
 
 	NStr::CStr CActorDistributionManager::fs_GetCertificateRequestHostID(NContainer::CByteVector const &_Certificate)
 	{
-		auto Extensions = NNetwork::CSSLContext::fs_GetCertificateRequestExtensions(_Certificate);
+		auto Extensions = NCryptography::CCertificate::fs_GetCertificateRequestExtensions(_Certificate);
 
 		auto *pHostIDExtension = Extensions.f_FindEqual("MalterlibHostID");
 		if (!pHostIDExtension || pHostIDExtension->f_GetLen() != 1)

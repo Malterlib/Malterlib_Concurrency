@@ -5,7 +5,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 #include <Mib/Stream/ByteVector>
 #include <Mib/Encoding/Base64>
-#include <Mib/Network/SSL>
+#include <Mib/Cryptography/Certificate>
 #include <Mib/Concurrency/ActorSubscription>
 
 namespace NMib::NConcurrency
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 					try
 					{
 						NException::CDisableExceptionTraceScope DisableTrace;
-						NNetwork::CSSLContext::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, _ExistingClient->m_PublicCertificate);
+						NCryptography::CCertificate::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, _ExistingClient->m_PublicCertificate);
 					}
 					catch (NException::CException const &_Exception)
 					{
@@ -122,12 +122,12 @@ namespace NMib::NConcurrency
 											CResults Results;
 											try
 											{
-												NNetwork::CSignOptions SignOptions;
+												NCryptography::CCertificateSignOptions SignOptions;
 												SignOptions.m_Serial = Serial;
 												SignOptions.m_Days = 10*365;
 
 												NException::CDisableExceptionTraceScope DisableTrace;
-												NNetwork::CSSLContext::fs_SignClientCertificate
+												NCryptography::CCertificate::fs_SignClientCertificate
 													(
 														CaCertificate
 														, CaPrivateKey
@@ -503,7 +503,7 @@ namespace NMib::NConcurrency
 
 										auto &Internal = *mp_pInternal;
 
-										NNetwork::CSSLContext::CCertificateOptions Options;
+										NCryptography::CCertificateOptions Options;
 										Options.m_KeySetting = Internal.m_KeySetting;
 										Options.m_CommonName = fg_Format("Malterlib Distributed Actors Client - {}", Internal.m_BasicConfig.m_HostID).f_Left(64);
 										auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
@@ -514,7 +514,7 @@ namespace NMib::NConcurrency
 										try
 										{
 											NException::CDisableExceptionTraceScope DisableTrace;
-											NNetwork::CSSLContext::fs_GenerateClientCertificateRequest
+											NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 												(
 													Options
 													, CertificateRequest

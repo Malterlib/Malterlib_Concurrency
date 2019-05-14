@@ -4,7 +4,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 #include <Mib/Process/Platform>
-#include <Mib/Network/SSL>
+#include <Mib/Cryptography/Certificate>
 
 namespace NMib::NConcurrency
 {
@@ -181,20 +181,20 @@ namespace NMib::NConcurrency
 			if (m_BasicConfig.m_HostID.f_IsEmpty())
 				m_BasicConfig.m_HostID = NCryptography::fg_HighEntropyRandomID();
 			
-			NNetwork::CSSLContext::CCertificateOptions Options;
+			NCryptography::CCertificateOptions Options;
 			Options.m_KeySetting = m_KeySetting;
 			Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", m_BasicConfig.m_HostID).f_Left(64); 
 			auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 			Extension.m_bCritical = false; 
 			Extension.m_Value = m_BasicConfig.m_HostID;
 			
-			NNetwork::CSignOptions SignOptions;
+			NCryptography::CCertificateSignOptions SignOptions;
 			SignOptions.m_Serial = 1;
 			SignOptions.m_Days = 100*365;
 			
 			try
 			{
-				NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey
+				NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
 					(
 						Options
 						, m_BasicConfig.m_CACertificate

@@ -8,17 +8,11 @@
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Cryptography/RandomData>
 #include <Mib/Encoding/Base64>
-#include <Mib/Network/SSL>
+#include <Mib/Cryptography/BoringSSL>
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor_U2F_HID.h"
-
-extern "C" void fg_Malterlib_UseSSL();
-namespace NMib::NNetwork
-{
-	NStr::CStr fg_SSL_GetExceptionStr(NStr::CStr const &_Description);
-}
 
 extern "C"
 {
@@ -146,12 +140,11 @@ namespace
 
 		ERR_clear_error();
 		if (EC_POINT_oct2point(pECGroup, pPoint, _Data.f_GetArray(), U2F_PUBLIC_KEY_LEN, nullptr) == 0)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed decode user key (EC_POINT_oct2point)"));
-
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed decode user key (EC_POINT_oct2point)"));
 
 		ERR_clear_error();
 		if (EC_KEY_set_public_key(pKey, pPoint) == 0)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed decode user key (EC_KEY_set_public_key)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed decode user key (EC_KEY_set_public_key)"));
 
 		return pKey.f_StealPointer();
 	}
@@ -161,13 +154,13 @@ namespace
 		CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
 
 		if (!pECGroup)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump user key (EC_GROUP_new_by_curve_name)"));
 
 		CSecureByteVector Buffer;
 		EC_POINT const *pPoint = EC_KEY_get0_public_key(_pKey);
 		ERR_clear_error();
 		if (EC_POINT_point2oct(pECGroup, pPoint, POINT_CONVERSION_UNCOMPRESSED, Buffer.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN, nullptr) != U2F_PUBLIC_KEY_LEN)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump user key (EC_POINT_point2oct)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump user key (EC_POINT_point2oct)"));
 
 		// For some reason the libraries from Yubico produces U2F_PUBLIC_KEY_LEN + 1 bytes from its dump_user_key function.
 		// The buffer also contains a zero termination, so we add one as well to get identical results.
@@ -180,16 +173,16 @@ namespace
 		ERR_clear_error();
 		CSSLPointer<BIO *, BIO_free> pBio = BIO_new(BIO_s_mem());
 		if (!pBio)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_new)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump x509 cert (BIO_new)"));
 
 		ERR_clear_error();
 		if (!PEM_write_bio_X509(pBio, _pCert))
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (PEM_write_bio_X509)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump x509 cert (PEM_write_bio_X509)"));
 
 		char *pData = nullptr;
 		auto Length = BIO_get_mem_data(pBio, &pData);
 		if (Length < 0)
-			DMibError(NNetwork::fg_SSL_GetExceptionStr("Failed dump x509 cert (BIO_get_mem_data)"));
+			DMibError(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed dump x509 cert (BIO_get_mem_data)"));
 
 		return CStr(pData, Length);
 	}
@@ -750,7 +743,6 @@ namespace
 		{
 			m_AppID = NCryptography::fg_RandomID();
 			NCryptography::fg_GenerateRandomData(m_SignatureBytes.f_GetArray(32), 32);
-			fg_Malterlib_UseSSL();
 		}
 
 		CU2FContext(CAuthenticationData const &_AuthenticationData, CSecureByteVector const &_SignatureBytes, CStr const &_ID)
@@ -1034,7 +1026,7 @@ namespace
 						pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
 						if (!pCertificate)
 						{
-							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
+							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
 							return AsyncResult;
 						}
 					}
@@ -1050,7 +1042,7 @@ namespace
 						pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
 						if (!pSig)
 						{
-							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
+							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
 							return AsyncResult;
 						}
 					}
@@ -1058,14 +1050,14 @@ namespace
 					CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
 					if (!pKey)
 					{
-						AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
+						AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
 						return AsyncResult;
 					}
 
 					CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
 					if (!pECKey)
 					{
-						AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
+						AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
 						return AsyncResult;
 					}
 
@@ -1089,7 +1081,7 @@ namespace
 					if (VerifyResult != 1)
 					{
 						if (VerifyResult == -1)
-							AsyncResult.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
+							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
 						else
 							AsyncResult.f_SetException(DMibErrorInstance("Invalid signature"));;
 						return AsyncResult;
@@ -1199,7 +1191,7 @@ namespace
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
 			{
-				Promise.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
+				Promise.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
 				return Promise.f_MoveFuture();
 			}
 
@@ -1219,7 +1211,7 @@ namespace
 			if (Verified != 1)
 			{
 				if (Verified == -1)
-					Promise.f_SetException(DMibErrorInstance(NNetwork::fg_SSL_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
+					Promise.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
 				else
 					Promise.f_SetException(DMibErrorInstance("Invalid signature"));;
 				return Promise.f_MoveFuture();

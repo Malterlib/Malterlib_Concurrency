@@ -6,6 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Process/Platform>
 #include <Mib/Cryptography/RandomID>
+#include <Mib/Cryptography/Certificate>
 #include <Mib/Encoding/EJSON>
 
 #include "Malterlib_Concurrency_DistributedActor.h"
@@ -64,7 +65,7 @@ namespace NMib::NConcurrency
 		{
 			fg_ConcurrencyManager(); // Add dependency to subsystem
 			
-			NNetwork::CSSLContext::fs_RegisterExtension
+			NCryptography::CCertificate::fs_RegisterExtension
 				(
 					"1.3.6.1.4.1.47722.1.1"
 					, "MalterlibHostID"
@@ -148,9 +149,9 @@ namespace NMib::NConcurrency
 	{
 	}
 	
-	NNetwork::CSSLKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
+	NCryptography::CPublicKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
 	{
-		return NNetwork::CSSLKeySettings_EC_secp521r1{};
+		return NCryptography::CPublicKeySettings_EC_secp521r1{};
 	}
 	
 	void fg_InitDistributedActorSystem()
@@ -229,13 +230,13 @@ namespace NMib::NConcurrency
 	{
 	}		
 	
-	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NNetwork::CSSLKeySetting _KeySetting)
+	void CActorDistributionCryptographySettings::f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting _KeySetting)
 	{
 		NPrivate::fg_DistributedActorSubSystem(); // Register extension if needed
 
 		m_Subject = fg_Format("Malterlib Distributed Actors - {}", NCryptography::fg_RandomID());
 		
-		NNetwork::CSSLContext::CCertificateOptions Options;
+		NCryptography::CCertificateOptions Options;
 		Options.m_KeySetting = _KeySetting;
 		Options.m_Hostnames = _HostNames;
 		Options.m_CommonName = m_Subject;
@@ -243,11 +244,11 @@ namespace NMib::NConcurrency
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID;
 		
-		NNetwork::CSignOptions SignOptions;
+		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = 1;
 		SignOptions.m_Days = 10*365;
 		
-		NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey
+		NCryptography::CCertificate::fs_GenerateSelfSignedCertAndKey
 			(
 				Options
 				, m_PublicCertificate
@@ -268,13 +269,13 @@ namespace NMib::NConcurrency
 		NContainer::CByteVector Return;
 		NContainer::CSecureByteVector KeyData = m_PrivateKey;
 		
-		NNetwork::CSSLContext::CCertificateOptions Options;
+		NCryptography::CCertificateOptions Options;
 		Options.m_CommonName = m_Subject; 
 		auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 		Extension.m_bCritical = false; 
 		Extension.m_Value = m_HostID; 
 		
-		NNetwork::CSSLContext::fs_GenerateClientCertificateRequest
+		NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 			(
 				Options
 				, Return
@@ -286,12 +287,12 @@ namespace NMib::NConcurrency
 	
 	NContainer::CByteVector CActorDistributionCryptographySettings::f_SignRequest(NContainer::CByteVector const &_Request)
 	{
-		NNetwork::CSignOptions SignOptions;
+		NCryptography::CCertificateSignOptions SignOptions;
 		SignOptions.m_Serial = ++m_Serial;
 		SignOptions.m_Days = 10*365;
 		
 		NContainer::CByteVector Return;
-		NNetwork::CSSLContext::fs_SignClientCertificate
+		NCryptography::CCertificate::fs_SignClientCertificate
 			(
 				m_PublicCertificate
 				, m_PrivateKey
@@ -317,7 +318,7 @@ namespace NMib::NConcurrency
 	
 	NStr::CStr CActorDistributionCryptographySettings::f_GetHostID() const
 	{
-		return NNetwork::CSSLContext::fs_GetCertificateFingerprint(m_PublicCertificate);
+		return NCryptography::CCertificate::fs_GetCertificateFingerprint(m_PublicCertificate);
 	}		
 	
 	CActorDistributionConnectionSettings::CActorDistributionConnectionSettings()

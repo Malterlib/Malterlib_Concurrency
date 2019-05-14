@@ -6,7 +6,6 @@
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Encoding/Base64>
-#include <Mib/Network/SSL>
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
 #include "Malterlib_Concurrency_DistributedActorTrustManager_AuthenticationActor.h"
@@ -87,7 +86,7 @@ namespace NMib::NConcurrency
 									{
 										CSecureByteVector PrivateKeyData;
 										CSecureByteVector PublicKeyData;
-										CSSLContext::fs_GenerateKeys(PrivateKeyData, PublicKeyData);
+										CPublicCrypto::fs_GenerateKeys(PrivateKeyData, PublicKeyData);
 
 										CSecureByteVector PasswordSalt;
 										CSecureByteVector ExpansionSalt;
@@ -97,7 +96,7 @@ namespace NMib::NConcurrency
 
 										CBinaryStreamMemory<CBinaryStreamDefault, CSecureByteVector> Stream;
 										{
-											TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
+											TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
 											EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Write);
 											EncryptedStream << PrivateKeyData;
 										}
@@ -179,7 +178,7 @@ namespace NMib::NConcurrency
 								{
 									CSecureByteVector PrivateKeyData;
 									{
-										TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), ESSLDigest_SHA512, KeyExpansion.f_GetHMACKey()};
+										TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
 										EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
 										EncryptedStream >> PrivateKeyData;
 									}
@@ -189,7 +188,7 @@ namespace NMib::NConcurrency
 									Response.m_FactorID = FactorID;
 									Response.m_FactorName = Factor.m_Name;
 									Response.m_SignedProperties = _SignedProperties;
-									Response.m_Signature = CSSLContext::fs_SignMessage(_SignedProperties.f_GetSignatureBytes(), PrivateKeyData);
+									Response.m_Signature = CPublicCrypto::fs_SignMessage(_SignedProperties.f_GetSignatureBytes(), PrivateKeyData);
 
 									return Response;
 								}
@@ -257,7 +256,7 @@ namespace NMib::NConcurrency
 				[=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
 				{
 					CVerifyAuthenticationReturn Return;
-					Return.m_bVerified = CSSLContext::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);
+					Return.m_bVerified = CPublicCrypto::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);
 					return Return;
 				}
 			) > Promise;

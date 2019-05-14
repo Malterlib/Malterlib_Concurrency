@@ -12,8 +12,8 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
-#include <Mib/Network/SSLKeySetting>
 #include <Mib/Web/WebSocket>
+#include <Mib/Cryptography/PublicCrypto>
 
 namespace NMib::NConcurrency
 {
@@ -155,11 +155,11 @@ namespace NMib::NConcurrency
 
 	struct CActorDistributionCryptographySettings
 	{
-		static NNetwork::CSSLKeySetting fs_DefaultKeySetting();
+		static NCryptography::CPublicKeySetting fs_DefaultKeySetting();
 
 		CActorDistributionCryptographySettings(NStr::CStr const &_HostID);
 		~CActorDistributionCryptographySettings();
-		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NNetwork::CSSLKeySetting _KeySetting = fs_DefaultKeySetting());
+		void f_GenerateNewCert(NContainer::TCVector<NStr::CStr> const &_HostNames, NCryptography::CPublicKeySetting _KeySetting = fs_DefaultKeySetting());
 		NContainer::CByteVector f_GenerateRequest() const;
 		NContainer::CByteVector f_SignRequest(NContainer::CByteVector const &_Request);
 		void f_AddRemoteServer(NWeb::NHTTP::CURL const &_URL, NContainer::CByteVector const &_ServerCert, NContainer::CByteVector const &_ClientCert);

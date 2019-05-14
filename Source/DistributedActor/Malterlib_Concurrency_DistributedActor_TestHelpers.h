@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 {
 	class CDistributedActorTrustManager;
 	
-	using CDistributedActorTestKeySettings = NNetwork::CSSLKeySettings_EC_secp256r1;
+	using CDistributedActorTestKeySettings = NCryptography::CPublicKeySettings_EC_secp256r1;
 		
 	struct CDistributedActorTestHelper
 	{

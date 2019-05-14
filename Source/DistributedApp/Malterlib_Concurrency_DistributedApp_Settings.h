@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_RunAsUser(NStr::CStr const &_User) &&;
 		CDistributedAppActor_Settings &&f_RunAsGroup(NStr::CStr const &_Group) &&;
 		CDistributedAppActor_Settings &&f_SeparateDistributionManager(bool _bSeparateDistributionManager) &&;
-		CDistributedAppActor_Settings &&f_KeySetting(NNetwork::CSSLKeySetting _KeySetting) &&;
+		CDistributedAppActor_Settings &&f_KeySetting(NCryptography::CPublicKeySetting _KeySetting) &&;
 		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
 		CDistributedAppActor_Settings &&f_InterfaceSettings(CDistributedAppActor_InterfaceSettings const &_InterfaceSettings) &&;
 		CDistributedAppActor_Settings &&f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&;

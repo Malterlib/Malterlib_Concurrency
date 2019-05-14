@@ -292,7 +292,7 @@ namespace NMib::NConcurrency
 
 		NTime::CTimer m_TicketTimer;
 
-		NNetwork::CSSLKeySetting const m_KeySetting;
+		NCryptography::CPublicKeySetting const m_KeySetting;
 		NNetwork::ENetFlag const m_ListenFlags;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 

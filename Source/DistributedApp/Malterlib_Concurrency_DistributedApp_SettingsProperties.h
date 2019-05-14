@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RunAsUser;
 		NStr::CStr m_RunAsGroup;
 		NStr::CStr m_Enclave;
-		NNetwork::CSSLKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
+		NCryptography::CPublicKeySetting m_KeySetting = CActorDistributionCryptographySettings::fs_DefaultKeySetting();
 		NNetwork::ENetFlag m_ListenFlags = NNetwork::ENetFlag_None;
 		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;

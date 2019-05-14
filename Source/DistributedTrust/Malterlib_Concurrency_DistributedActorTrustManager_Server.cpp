@@ -5,7 +5,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 #include <Mib/Stream/ByteVector>
 #include <Mib/Encoding/Base64>
-#include <Mib/Network/SSL>
+#include <Mib/Cryptography/Certificate>
 
 namespace NMib::NConcurrency
 {
@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 										, Serial = *_Serial
 									]
 									{
-										NNetwork::CSSLContext::CCertificateOptions Options;
+										NCryptography::CCertificateOptions Options;
 										Options.m_KeySetting = KeySetting;
 										Options.m_CommonName = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
 										Options.m_Hostnames.f_Insert(Host);
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 										ICDistributedActorTrustManagerDatabase::CServerCertificate ServerCert;
 										try
 										{
-											NNetwork::CSSLContext::fs_GenerateClientCertificateRequest
+											NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 												(
 													Options
 													, CertificateRequest
@@ -93,11 +93,11 @@ namespace NMib::NConcurrency
 
 										try
 										{
-											NNetwork::CSignOptions SignOptions;
+											NCryptography::CCertificateSignOptions SignOptions;
 											SignOptions.m_Serial = Serial;
 											SignOptions.m_Days = 10*365;
 
-											NNetwork::CSSLContext::fs_SignClientCertificate
+											NCryptography::CCertificate::fs_SignClientCertificate
 												(
 													CaCertificate
 													, CaPrivateKey

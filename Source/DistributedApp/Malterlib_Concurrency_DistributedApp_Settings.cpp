@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 	
-	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NNetwork::CSSLKeySetting _KeySetting) &&
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KeySetting(NCryptography::CPublicKeySetting _KeySetting) &&
 	{
 		m_KeySetting = _KeySetting;
 		return fg_Move(*this);

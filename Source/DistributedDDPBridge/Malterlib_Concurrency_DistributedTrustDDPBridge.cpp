@@ -4,7 +4,6 @@
 #include "Malterlib_Concurrency_DistributedTrustDDPBridge.h"
 #include <Mib/Network/ResolveActor>
 #include <Mib/Network/SSL>
-#include <Mib/Network/SSLKeySetting>
 #include <Mib/Network/Sockets/SSL>
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Web/WebSocket>

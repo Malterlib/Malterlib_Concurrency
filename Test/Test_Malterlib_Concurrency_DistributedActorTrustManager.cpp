@@ -14,12 +14,13 @@
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 #include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
-
+#include <Mib/Cryptography/Certificate>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
 using namespace NMib::NContainer;
 using namespace NMib::NStr;
+using namespace NMib::NCryptography;
 
 namespace NTestTrustManager
 {
@@ -791,17 +792,17 @@ namespace NTestTrustManager
 					NDistributedActorTrustManagerDatabase::CBasicConfig BasicConfig;
 					BasicConfig.m_HostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0);
 
-					NNetwork::CSSLContext::CCertificateOptions Options;
+					CCertificateOptions Options;
 					Options.m_KeySetting = CDistributedActorTestKeySettings{};
 					Options.m_CommonName = fg_Format("Malterlib Distributed Actors Root - {}", BasicConfig.m_HostID).f_Left(64);
 					auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
 					Extension.m_bCritical = false;
 					Extension.m_Value = BasicConfig.m_HostID;
 
-					NNetwork::CSignOptions SignOptions;
+					CCertificateSignOptions SignOptions;
 					SignOptions.m_Days = 100*365;
 
-					NNetwork::CSSLContext::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
+					CCertificate::fs_GenerateSelfSignedCertAndKey(Options, BasicConfig.m_CACertificate, BasicConfig.m_CAPrivateKey, SignOptions);
 
 					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(60.0);
 				}

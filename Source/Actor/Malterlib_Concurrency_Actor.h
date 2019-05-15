@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 
 	struct CActorInternal
 	{
-#if defined DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 		CActorInternal();
 		~CActorInternal();
 		CActor *mp_pThis = nullptr;

@@ -199,7 +199,7 @@ namespace
 			m_InitialFrame.m_ByteCountLow = _ByteCount;
 			NMemory::fg_MemCopy(m_InitialFrame.m_Data, _pData, _Length);
 			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 7)
-				NMemory::fg_MemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 7) - _Length);
+				NMemory::fg_SecureMemClear(m_InitialFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 7) - _Length);
 
 			return _Length;
 		}
@@ -211,7 +211,7 @@ namespace
 			m_ContinuationFrame.m_SequenceNumber = _SequenceNumber;
 			NMemory::fg_MemCopy(m_ContinuationFrame.m_Data, _pData, _Length);
 			if (_Length < CHumanInterfaceDevicesActor::EReportSize - 5)
-				NMemory::fg_MemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 5) - _Length);
+				NMemory::fg_SecureMemClear(m_ContinuationFrame.m_Data + _Length, (CHumanInterfaceDevicesActor::EReportSize - 5) - _Length);
 
 			return _Length;
 		}

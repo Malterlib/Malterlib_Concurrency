@@ -400,6 +400,7 @@ namespace NMib::NConcurrency
 		return ConcurrencyManager.f_ConstructFromInternalActor<TCDistributedActorWrapper<tf_CActor>>(fg_Move(pActor), fg_Construct<TCDistributedActorWrapper<tf_CActor>>());
 	}
 
+#ifndef DCompiler_MSVC_Workaround
 	extern template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
@@ -408,6 +409,7 @@ namespace NMib::NConcurrency
 			, uint32 _ProtocolVersion
 		)
 	;
+#endif
 
 	namespace NPrivate
 	{

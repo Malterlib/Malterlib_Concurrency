@@ -658,6 +658,7 @@ namespace NMib::NConcurrency
 	{
 	}
 	
+#ifndef DCompiler_MSVC_Workaround
 	template TCDistributedActor<CActor> fg_ConstructRemoteDistributedActor<CActor>
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
@@ -682,4 +683,5 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext&
 		) const
 	;
+#endif
 }

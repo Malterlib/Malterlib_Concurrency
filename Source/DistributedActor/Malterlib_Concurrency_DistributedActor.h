@@ -690,6 +690,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	NStr::CStr fg_GetRemoteActorID(TCWeakDistributedActor<tf_CActor> const &_NewActor);
 
+#ifndef DCompiler_MSVC_Workaround
 	extern template class TCActor<CActorDistributionManager>;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -705,6 +706,7 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext&
 		) const
 	;
+#endif
 }
 
 #define DMibPublishActorFunction(d_Function) DMibConcurrencyRegisterMemberFunctionWithStreams \

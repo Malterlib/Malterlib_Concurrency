@@ -653,7 +653,7 @@ namespace NMib::NConcurrency
 			References.m_Functions = fg_Move(pActorFunctors->m_ImplicitlyPublishedFunctions);
 		}
 	}
-	
+
 	void CActorDistributionManager::fp_RegisterRemoteSubscription
 		(
 			NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &_pContextState
@@ -670,7 +670,7 @@ namespace NMib::NConcurrency
 			return;
 
 		auto &References = Host.m_RemoteSubscriptionReferences[_SubscriptionID];
-		
+
 		auto *pActorFunctors = State.m_ActorFunctors.f_FindEqual(_SubscriptionSequenceID);
 		if (!pActorFunctors)
 			return;
@@ -691,9 +691,8 @@ namespace NMib::NConcurrency
 		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
 			return fg_Explicit();
 		auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
-		DMibCheck(pSubscription);
 		if (!pSubscription)
-			return fg_Explicit();
+			return fg_Explicit(); // Host destroyed
 
 		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
 

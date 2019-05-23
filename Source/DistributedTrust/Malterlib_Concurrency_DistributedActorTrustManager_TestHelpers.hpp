@@ -1,7 +1,13 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
+
+#if 0
+#define DTestHelpersDebug DMibConErrOut2
+#else
+#define DTestHelpersDebug(...)
+#endif
 
 namespace NMib::NConcurrency
 {
@@ -30,7 +36,7 @@ namespace NMib::NConcurrency
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
-		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this)) 
+		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this))
 			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
 			{
 				struct CSubscriptionImpl : CSubscription
@@ -47,15 +53,28 @@ namespace NMib::NConcurrency
 							if (!_HostID || _ActorInfo.m_HostInfo.m_HostID == _HostID)
 							{
 								if (!mp_SeenActors.f_Exists(fg_GetRemoteActorID(_NewActor)))
+								{
 									Actors.f_Insert(_NewActor);
+									DTestHelpersDebug("INSERT {}\n", _NewActor);
+								}
+								else
+									DTestHelpersDebug("SEEN {}\n", _NewActor);
 							}
+							else
+								DTestHelpersDebug("IGNORE {} {} != {}\n", _NewActor, _ActorInfo.m_HostInfo.m_HostID, _HostID);
 
-							if (Actors.f_GetLen() == _nActors && !Promise.f_IsSet())
+							if (Actors.f_GetLen() == _nActors)
 							{
-								for (auto &Actor : Actors)
-									mp_SeenActors[fg_GetRemoteActorID(Actor)];
+								if (!Promise.f_IsSet())
+								{
+									for (auto &Actor : Actors)
+										mp_SeenActors[fg_GetRemoteActorID(Actor)];
 
-								Promise.f_SetResult(fg_Move(Actors));
+									DTestHelpersDebug("RESULT {vs}\n", Actors);
+									Promise.f_SetResult(fg_Move(Actors));
+								}
+								else
+									DTestHelpersDebug("ALREADY SET {vs}\n", Actors);
 							}
 						}
 					)

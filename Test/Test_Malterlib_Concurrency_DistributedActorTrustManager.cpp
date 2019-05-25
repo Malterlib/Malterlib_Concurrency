@@ -503,16 +503,16 @@ namespace NTestTrustManager
 				, NFunction::TCFunction<void ()> const &_fCleanup
 			)
 		{
-			TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
-			auto CleanupTestActor = g_OnScopeExit > [&]
-				{
-					HelperActor->f_BlockDestroy();
-				}
-			;
-			CCurrentActorScope CurrentActor{HelperActor};
-
 			DMibTestSuite("Basic")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				{
@@ -639,11 +639,18 @@ namespace NTestTrustManager
 					ClientTrustManager->f_BlockDestroy();
 					ServerTrustManager->f_BlockDestroy();
 				}
-
 			};
 
 			DMibTestSuite("Remove client while connected")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
@@ -684,6 +691,14 @@ namespace NTestTrustManager
 
 			DMibTestSuite("Disconnects")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
@@ -757,6 +772,14 @@ namespace NTestTrustManager
 
 			DMibTestSuite("Security")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
@@ -834,6 +857,14 @@ namespace NTestTrustManager
 			};
 			DMibTestSuite("Multiple Enclaves")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
@@ -892,6 +923,14 @@ namespace NTestTrustManager
 			static constexpr auto c_WaitForSubscriptions = EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions;
 			DMibTestSuite("Subscriptions")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
@@ -1304,6 +1343,14 @@ namespace NTestTrustManager
 			};
 			DMibTestSuite("Permissions")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 
 				CPermissionTestState TestState{State, 31407};
@@ -1486,6 +1533,14 @@ namespace NTestTrustManager
 			};
 			DMibTestSuite("Permissions Database")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CState State{_fDatabaseFactory, _fCleanup};
 				{
 					DMibTestPath("Setup");
@@ -1542,6 +1597,14 @@ namespace NTestTrustManager
 			};
 			DMibTestSuite("User Database")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+				
 				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
 				using CKeys = TCSet<CStr>;
 				NStorage::TCSharedPointer<CCommandLineControl> pCommandLine;
@@ -1890,6 +1953,14 @@ namespace NTestTrustManager
 
 			DMibTestSuite("Permissions for HostID+UserID combos")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
 				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
 				CStr const ID3 = "JNsXrbgP3dL6xuFXm";
@@ -2344,16 +2415,16 @@ namespace NTestTrustManager
 
 		void fp_DoDatabaseConversionTests()
 		{
-			TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
-			auto CleanupTestActor = g_OnScopeExit > [&]
-				{
-					HelperActor->f_BlockDestroy();
-				}
-			;
-			CCurrentActorScope CurrentActor{HelperActor};
-
 			DMibTestSuite("Host Permissions to Permissions")
 			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentActorScope CurrentActor{HelperActor};
+
 				NStr::CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/TestDatababseConversion";
 				if (NFile::CFile::fs_FileExists(BaseDirectory))
 					NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);

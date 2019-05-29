@@ -197,9 +197,7 @@ namespace NMib::NConcurrency
 		mint nFinished = ++Internal.mp_nFinished;
 		if (Internal.mp_bResultsGotten && nFinished == Internal.mp_nAdded.f_Load())
 			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
-
 	}
-
 
 	template <typename t_CKey, typename t_CValue>
 	TCActorResultMap<t_CKey, t_CValue>::TCActorResultMap()
@@ -729,7 +727,6 @@ namespace NMib::NConcurrency
 		}
 		return true;
 	}
-
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
 	bool fg_CombineResults

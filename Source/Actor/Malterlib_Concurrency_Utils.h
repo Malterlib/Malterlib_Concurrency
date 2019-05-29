@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
 			TCAutoClearInt<mint> mp_nFinished;
 			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise;
-			TCAutoClearInt<bint> mp_bResultsGotten;
+			TCAutoClearInt<bool> mp_bResultsGotten;
 
 			TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> f_GetResults();
 		public:

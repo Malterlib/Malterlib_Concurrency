@@ -87,7 +87,7 @@ namespace NMib::NContainer
 			}
 		}
 
-		bint f_IsValid() const
+		bool f_IsValid() const
 		{
 			return m_pEntry != nullptr;
 		}
@@ -221,7 +221,7 @@ namespace NMib::NContainer
 			}
 		}
 
-		bint f_IsEmpty() const
+		bool f_IsEmpty() const
 		{
 			return fg_RemoveQualifiers(m_Queue).empty();
 		}

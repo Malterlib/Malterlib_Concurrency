@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 		friend class TCAsyncResult;
 		
 		NException::CExceptionPointer m_pException;
-		bint m_bHasBeenSet = false;
+		bool m_bHasBeenSet = false;
 	public:
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks m_Callstacks;

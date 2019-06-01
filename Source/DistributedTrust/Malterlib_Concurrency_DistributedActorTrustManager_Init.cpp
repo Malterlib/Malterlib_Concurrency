@@ -479,14 +479,12 @@ namespace NMib::NConcurrency
 
 				TCActorResultMap<CDistributedActorTrustManager_Address, void> ConnectResults;
 				
-				NContainer::TCMap<CDistributedActorTrustManager_Address, TCPromise<void>> ConnectionsToTimeout;
-				
 				for (auto iClientConnection = m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
 				{
 					auto &Address = iClientConnection.f_GetKey();
 					TCPromise<void> ConnectPromise;
 					
-					m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(*iClientConnection))
+					m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(*iClientConnection), m_InitialConnectionTimeout)
 						> [this, Address, ConnectPromise](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 						{
 							if (!_ConnectionResult)
@@ -500,8 +498,7 @@ namespace NMib::NConcurrency
 										, _ConnectionResult.f_GetExceptionStr()
 									)
 								;
-								if (!ConnectPromise.f_IsSet())
-									ConnectPromise.f_SetResult();
+								ConnectPromise.f_SetResult();
 								return;
 							}
 							
@@ -512,26 +509,12 @@ namespace NMib::NConcurrency
 							ClientConnection.m_ConnectionReferences.f_Insert(fg_Move(_ConnectionResult->m_ConnectionReference));
 							f_ApplyConnectionConcurrency(ClientConnection);
 
-							if (!ConnectPromise.f_IsSet())
-								ConnectPromise.f_SetResult();
+							ConnectPromise.f_SetResult();
 						}
 					;
 					
-					ConnectionsToTimeout[Address] = ConnectPromise;
 					ConnectPromise > ConnectResults.f_AddResult(Address);
 				}
-
-				fg_Timeout(m_InitialConnectionTimeout) > [this, ConnectionsToTimeout = fg_Move(ConnectionsToTimeout)]
-					{
-						for (auto &ConnectionPromise : ConnectionsToTimeout)
-						{
-							if (ConnectionPromise.f_IsSet())
-								continue;
-
-							ConnectionPromise.f_SetException(DMibErrorInstance(NStr::fg_Format("Abandonned wait for initial connection after {} seconds", m_InitialConnectionTimeout)));
-						}
-					}
-				;
 
 				TCPromise<void> WaitForConnectionsPromise;
 

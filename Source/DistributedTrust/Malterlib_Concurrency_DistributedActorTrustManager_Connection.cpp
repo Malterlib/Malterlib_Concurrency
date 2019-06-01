@@ -343,7 +343,7 @@ namespace NMib::NConcurrency
 
 		for (int32 ToCreate = ConnectionConcurrency - _ConnectionState.m_ConnectionReferences.f_GetLen(); ToCreate > 0; --ToCreate)
 		{
-			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 				> [=](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 				{
 					auto *pConnectionState = m_ClientConnections.f_FindEqual(Address);
@@ -425,7 +425,7 @@ namespace NMib::NConcurrency
 					ConnectionSettings.m_bRetryConnectOnFailure = false;
 					ConnectionSettings.m_PublicServerCertificate = _TrustTicket.m_ServerPublicCert;
 
-					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, _Timeout)
 						> [this, Promise, _Timeout, _TrustTicket, ServerHostID, _ConnectionConcurrency]
 						(TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 						{
@@ -655,7 +655,7 @@ namespace NMib::NConcurrency
 														ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 														ConnectionSettings.m_bRetryConnectOnFailure = true;
 
-														Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+														Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 															>
 															[
 																this
@@ -847,7 +847,7 @@ namespace NMib::NConcurrency
 					ConnectionSettings.m_bRetryConnectOnFailure = false;
 					ConnectionSettings.m_bAllowInsecureConnection = true;
 
-					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+					Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 						> Promise % "Failed to connect to server"
 						/ [this, Promise, _Address, _ConnectionConcurrency](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 						{
@@ -894,7 +894,7 @@ namespace NMib::NConcurrency
 							ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 							ConnectionSettings.m_bRetryConnectOnFailure = false;
 
-							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 								> Promise % "Failed to verify connection to server"
 								/ [this, Promise, _Address, NewClientConnection, ServerHostID](CActorDistributionManager::CConnectionResult &&_ConnectionResult)
 								{
@@ -908,7 +908,7 @@ namespace NMib::NConcurrency
 									ConnectionSettings.m_bRetryConnectOnFirstFailure = true;
 									ConnectionSettings.m_bRetryConnectOnFailure = true;
 
-									Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings)
+									Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 										> Promise % "Failed to connect to server"
 										/
 										[

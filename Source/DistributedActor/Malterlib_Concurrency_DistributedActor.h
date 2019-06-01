@@ -570,7 +570,7 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings const &_Settings);
-		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings);
+		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings const &_Settings, fp64 _Timeout);
 
 		TCFuture<NContainer::CSecureByteVector> f_CallRemote
 			(

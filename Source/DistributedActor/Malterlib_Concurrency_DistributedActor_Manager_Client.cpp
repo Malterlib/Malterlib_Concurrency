@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 						return;
 					if (_Sequence != _pConnection->m_ConnectionSequence)
 						return;
-					fp_Reconnect(_pConnection, _pPromise, _bRetry, _bRetry);
+					fp_Reconnect(_pConnection, _pPromise, _bRetry, _bRetry, 3600.0);
 				}
 				, true
 			)
@@ -195,6 +195,7 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
 		 	, bool _bRetryOnFirst
+			, fp64 _Timeout
 		)
 	{
 		if (!_pConnection->m_pSSLContext || !m_WebsocketClientConnector)
@@ -220,6 +221,7 @@ namespace NMib::NConcurrency
 				, fg_Move(Request)
 				, NNetwork::CSocket_SSL::fs_GetFactory(_pConnection->m_pSSLContext)
 			)
+			.f_Timeout(_Timeout, "Timed out waiting for websocket connection")
 			> [this, pConnectionWeak = _pConnection.f_Weak(), _pPromise, Sequence, _bRetry, _bRetryOnFirst]
 			(NConcurrency::TCAsyncResult<NWeb::CWebSocketNewClientConnection> &&_Result) mutable
 			{
@@ -258,7 +260,7 @@ namespace NMib::NConcurrency
 				if (!_Result)
 				{
 					auto Error = fg_Format("Error connecting to '{}': {}", Connection.m_ServerURL.f_Encode(), _Result.f_GetExceptionStr());
-					if (Connection.m_LastLoggedError != Error)
+					if (Connection.m_LastLoggedError != Error && !m_pThis->f_IsDestroyed())
 					{
 						Connection.m_LastLoggedError = Error;
 						DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
@@ -612,7 +614,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	TCFuture<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings)
+	TCFuture<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings, fp64 _Timeout)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -643,7 +645,7 @@ namespace NMib::NConcurrency
 		}
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
-		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure);
+		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure, _Timeout);
 
 		return Promise.f_MoveFuture();
 	}

@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
-		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;
+		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference;
 	}
 	
 	void CDistributedActorTestHelperCombined::f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server)
@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
-		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;
+		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference;
 	}
 	
 	NStr::CStr CDistributedActorTestHelperCombined::f_Subscribe(NStr::CStr const &_Namespace)

@@ -390,6 +390,7 @@ namespace NMib::NConcurrency
 				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
 				, bool _bRetryOnFirst
+				, fp64 _Timeout
 			)
 		;
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);

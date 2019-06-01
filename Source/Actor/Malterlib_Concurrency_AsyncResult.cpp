@@ -18,7 +18,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 	}
 
 	NException::CExceptionPointer CAsyncResult::f_GetException() const
@@ -65,7 +68,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 		return CVoidTag();
 	}
 	
@@ -74,7 +80,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 		return CVoidTag();
 	}
 	
@@ -83,7 +92,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 		return CVoidTag();
 	}
 

@@ -64,7 +64,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 
 		return *m_ResultAggregate;
 	}
@@ -74,7 +77,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 
 		return *m_ResultAggregate;
 	}
@@ -84,7 +90,10 @@ namespace NMib::NConcurrency
 		if (m_pException != nullptr)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibError("No result specified");
+		}
 
 		return fg_Move(*m_ResultAggregate);
 	}

@@ -1547,7 +1547,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			}
 		;
 
-		CDistributedActorConnectionReference ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings).f_CallSync(60.0).m_ConnectionReference;
+		CDistributedActorConnectionReference ClientConnectionReference
+			= ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference
+		;
 
 		bool bConnectionSuccessful = true; // If not we would have had exceptions above
 

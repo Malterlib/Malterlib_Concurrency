@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		}
 
 	protected:
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 		{
 			CDefaultActorHolder::fp_QueueProcess
 				(
@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 						;
 						Functor();
 					}
-					, _bSame 
+					, _bDestroy 
 				)
 			;
 		}

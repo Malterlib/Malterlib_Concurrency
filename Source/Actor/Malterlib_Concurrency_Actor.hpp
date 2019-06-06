@@ -148,24 +148,44 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::operator ->() const
 	{
-		return &(*m_pInternalActor);
+		return m_pInternalActor.f_Get();
 	}
 
 	template <typename t_CActor>
-	inline_always TCActor<CActor> const &TCActor<t_CActor>::f_GetActor() const
+	typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::f_Get() const
 	{
-		return *reinterpret_cast<TCActor<CActor> const *>(this);
+		return m_pInternalActor.f_Get();
 	}
 
-	template <>
-	inline_always TCActor<CActor> const &TCActor<CAnyConcurrentActor>::f_GetActor() const
+	template <typename t_CActor>
+	inline_always TCActorInternal<CActor> *TCActor<t_CActor>::f_GetRealActor() const
 	{
-		return *reinterpret_cast<TCActor<CActor> const *>(&fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal));
+		return m_pInternalActor->fp_GetRealActor((TCActorInternal<CActor> *)this->f_Get());
 	}
-	template <>
-	inline_always TCActor<CActor> const &TCActor<CAnyConcurrentActorLowPrio>::f_GetActor() const
+
+	inline_always TCActorInternal<CActor> *CActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
 	{
-		return *reinterpret_cast<TCActor<CActor> const *>(&fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low));
+		return _pActorInternal;
+	}
+
+	inline_always TCActorInternal<CActor> *CAnyConcurrentActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	{
+		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal).f_Get();
+	}
+
+	inline_always TCActorInternal<CActor> *CAnyConcurrentActorLowPrio::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	{
+		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low).f_Get();
+	}
+
+	inline_always TCActorInternal<CActor> *CDynamicConcurrentActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	{
+		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActor().f_Get();
+	}
+
+	inline_always TCActorInternal<CActor> *CDynamicConcurrentActorLowPrio::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	{
+		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorLowPrio().f_Get();
 	}
 
 	template <typename t_CActor>
@@ -262,11 +282,10 @@ namespace NMib::NConcurrency
 		;
 #endif
 		// If you get this you are probably calling an empty actor
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 
 		// If you get this, use f_CallActor instead of calling directly
-		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
-
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<
@@ -305,11 +324,10 @@ namespace NMib::NConcurrency
 		;
 #endif
 		// If you get this you are probably calling an empty actor
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 
 		// If you get this, use f_CallActor instead of calling directly
-		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
-
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<
@@ -349,10 +367,10 @@ namespace NMib::NConcurrency
 
 #endif
 		// If you get this you are probably calling an empty actor
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 
 		// If you get this, use f_CallActor instead of calling directly
-		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<
@@ -396,13 +414,12 @@ namespace NMib::NConcurrency
 		;
 #endif
 		// If you get this you are probably calling an empty actor
-		DMibFastCheck(!_Actor.f_IsEmpty() || tf_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!_Actor.f_IsEmpty());
 
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-			 	_Actor.f_IsEmpty()
-			 	|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+			 	(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
 			 	|| !_Actor->f_GetDistributedActorData()
 			 	|| _Actor->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -458,10 +475,10 @@ namespace NMib::NConcurrency
 
 #endif
 		// If you get this you are probably calling an empty actor
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 
 		// If you get this, use f_CallActor instead of calling directly
-		DMibFastCheck(f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
 
 		return TCActorCall
 			<

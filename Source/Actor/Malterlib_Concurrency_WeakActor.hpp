@@ -255,7 +255,7 @@ namespace NMib::NConcurrency
 			)
 		;
 #endif
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<
 				TCWeakActor
@@ -289,7 +289,7 @@ namespace NMib::NConcurrency
 			)
 		;
 #endif
-		DMibFastCheck(!f_IsEmpty() || t_CActor::mc_bCanBeEmpty);
+		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<
 				TCWeakActor

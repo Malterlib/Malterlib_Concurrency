@@ -26,41 +26,10 @@ namespace NMib::NConcurrency
 		return this->mp_Priority;
 	}
 
-	template <>
-	inline_always CConcurrencyManager &TCActorInternal<CAnyConcurrentActor>::f_ConcurrencyManager() const
+	template <typename t_CActor>
+	TCActorInternal<CActor> *TCActorInternal<t_CActor>::fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const
 	{
-		return fg_ConcurrencyManager();
-	}
-
-	template <>
-	inline_always EPriority TCActorInternal<CAnyConcurrentActor>::f_GetPriority() const
-	{
-		return EPriority_Normal;
-	}
-
-	template <>
-	inline_always CConcurrencyManager &TCActorInternal<CAnyConcurrentActorLowPrio>::f_ConcurrencyManager() const
-	{
-		return fg_ConcurrencyManager();
-	}
-
-	template <>
-	inline_always EPriority TCActorInternal<CAnyConcurrentActorLowPrio>::f_GetPriority() const
-	{
-		return EPriority_Low;
-	}
-
-	template <>
-	inline_always CConcurrencyManager &TCActorInternal<NPrivate::CDirectResultActor>::f_ConcurrencyManager() const
-	{
-		DMibFastCheck(false); // Should never get here
-		return fg_ConcurrencyManager();
-	}
-
-	template <>
-	inline_always EPriority TCActorInternal<NPrivate::CDirectResultActor>::f_GetPriority() const
-	{
-		return EPriority_Normal;
+		return t_CActor::fs_GetRealActor(_pActorInternal);
 	}
 
 	template <typename t_CActor>
@@ -154,7 +123,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template
 		<
-			typename tf_CFunction
+			typename tf_CActor
+			, typename tf_CFunction
 			, typename tf_CFunctor
 			, typename tf_CResultActor
 			, typename tf_CResultFunctor
@@ -166,10 +136,10 @@ namespace NMib::NConcurrency
 			, tf_CResultFunctor &&_ResultFunctor
 		)
 	{
-		static_assert(!NTraits::TCIsSame<t_CActor, NPrivate::CDirectResultActor>::mc_Value, "Cannot be called");
+		static_assert(!NTraits::TCIsSame<tf_CActor, NPrivate::CDirectResultActor>::mc_Value, "Cannot be called");
 		typedef TCReportLocal
 			<
-				t_CActor
+				tf_CActor
 				, typename NTraits::TCMemberFunctionPointerTraits<tf_CFunction>::CReturn
 				, typename NTraits::TCRemoveReference<tf_CFunctor>::CType
 				, tf_CResultActor
@@ -188,46 +158,10 @@ namespace NMib::NConcurrency
 		}
 #endif
 		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
-			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}();
+			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, (TCActorInternal<tf_CActor> *)this}();
 		else
-			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, this}, false);
+			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, (TCActorInternal<tf_CActor> *)this}, false);
 
 		return true; // Dummy return to allow for fg_Swallow on arguments
-	}
-
-	template <>
-	template
-		<
-			typename tf_CFunction
-			, typename tf_CFunctor
-			, typename tf_CResultActor
-			, typename tf_CResultFunctor
-		>
-	bool TCActorInternal<CAnyConcurrentActor>::f_Call
-		(
-			tf_CFunctor &&_ToCall
-			, TCActor<tf_CResultActor> const &_pResultActor
-			, tf_CResultFunctor &&_ResultFunctor
-		)
-	{
-		return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal).m_pInternalActor->f_Call<tf_CFunction>(_ToCall, _pResultActor, fg_Move(_ResultFunctor));
-	}
-
-	template <>
-	template
-		<
-			typename tf_CFunction
-			, typename tf_CFunctor
-			, typename tf_CResultActor
-			, typename tf_CResultFunctor
-		>
-	bool TCActorInternal<CAnyConcurrentActorLowPrio>::f_Call
-		(
-			tf_CFunctor &&_ToCall
-			, TCActor<tf_CResultActor> const &_pResultActor
-			, tf_CResultFunctor &&_ResultFunctor
-		)
-	{
-		return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low).m_pInternalActor->f_Call<tf_CFunction>(_ToCall, _pResultActor, fg_Move(_ResultFunctor));
 	}
 }

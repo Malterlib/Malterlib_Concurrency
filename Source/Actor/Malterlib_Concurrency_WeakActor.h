@@ -13,13 +13,18 @@ namespace NMib::NConcurrency
 		friend class TCActor;
 		template <typename t_CActor2>
 		friend class TCWeakActor;
-
 		friend class CConcurrencyManager;
+
 	public:
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
+		using CNonWeak = TCActor<t_CActor>;
+
+		static constexpr bool mc_bIsWeak = true;
+
 	private:
 		TCActorHolderWeakPointer<CActorInternal> m_pInternalActor;
+
 	public:
 		TCWeakActor();
 		TCWeakActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);

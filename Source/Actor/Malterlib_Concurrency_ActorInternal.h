@@ -17,10 +17,11 @@ namespace NMib::NConcurrency
 				, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
 			>
 		struct TCCallMutipleActorStorage;
+
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
-			bool fg_CallActorInternal
+		bool fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
+				TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
@@ -65,19 +66,19 @@ namespace NMib::NConcurrency
 		friend struct TCReportLocal;
 
 		template
-			<
-				bool t_bUnwrapTuple
-				, typename t_CHandler2
-				, typename t_CActor2
-				, typename t_CResultTypes2
-				, typename t_CResultIndicies2
-			>
+		<
+			bool t_bUnwrapTuple
+			, typename t_CHandler2
+			, typename t_CActor2
+			, typename t_CResultTypes2
+			, typename t_CResultIndicies2
+		>
 		friend struct NPrivate::TCCallMutipleActorStorage;
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
-			friend bool NPrivate::fg_CallActorInternal
+		friend bool NPrivate::fg_CallActorInternal
 			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
+				TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
@@ -91,6 +92,7 @@ namespace NMib::NConcurrency
 
 		t_CActor *fp_GetActor() const;
 		TCActorInternal *fp_GetThis();
+		TCActorInternal<CActor> *fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const override;
 
 	public:
 
@@ -115,7 +117,8 @@ namespace NMib::NConcurrency
 
 		template
 			<
-				typename tf_CFunction
+				typename tf_CActor
+				, typename tf_CFunction
 				, typename tf_CFunctor
 				, typename tf_CResultActor
 				, typename tf_CResultFunctor

@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 		{
 			return fg_Dispatch
 				(
-					fg_AnyConcurrentActor()
+					fg_DirectCallActor()
 					, []() -> CReturn
 					{
 						return DMibErrorInstance("Functor is empty");

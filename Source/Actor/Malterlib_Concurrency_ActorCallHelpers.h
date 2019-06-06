@@ -488,101 +488,56 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
 		bool fg_CallActorInternal
 			(
-				TCActorCall<TCActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
+				TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
 				, TCActor<tf_CResultActor> &&_ResultActor
 				, tf_CResultFunctor &&_fResultFunctor
 			)
 		{
-			_ActorCall.mp_Actor->template f_Call<tf_CFunctor>
-				(
-					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
-					(
-						fg_Move(_ActorCall.mp_Functor)
-						, fg_Move(_ActorCall.mp_Params)
-					)
-					, fg_Move(_ResultActor)
-					, fg_Move(_fResultFunctor)
-				)
-			;
-			return true;
-		}
+			typename tf_CActor::CNonWeak Actor;
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultFunctor, bool tf_bDirectCall>
-		bool fg_CallActorInternal
-			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
-				, TCActor<NPrivate::CDirectResultActor> &&_ResultActor
-				, tf_CResultFunctor &&_fResultFunctor
-			)
-		{
+			static constexpr bool c_bIsDirect = NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
+
+			if constexpr (tf_CActor::mc_bIsWeak)
+			{
+				Actor = _ActorCall.mp_Actor.f_Lock();
+				if (!Actor)
+				{
+					if (NTraits::TCIsSame<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CResultFunctor>::CType, NPrivate::CDiscardResultFunctor>::mc_Value)
+						return true;
+
+					if constexpr (c_bIsDirect)
+					{
+						TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
+						Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
+						NPrivate::fg_CallResultFunctorDirect(_fResultFunctor, fg_Move(Result));
+						return true;
+					}
+					else
+					{
+						_ResultActor.f_GetRealActor()->f_QueueProcess
+							(
+								[ResultActor = fg_Move(_ResultActor), fResultFunctor = fg_Move(_fResultFunctor)]() mutable
+								{
+									TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
+									Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
+									NPrivate::fg_CallResultFunctor(fResultFunctor, ResultActor->fp_GetActor(), fg_Move(Result));
+								}
+							)
+						;
+						return true;
+					}
+				}
 #if DMibEnableSafeCheck > 0
-			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
+				using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
 #endif
 
-			auto Actor = _ActorCall.mp_Actor.f_Lock();
-			if (!Actor)
-			{
-				TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
-				Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
-				NPrivate::fg_CallResultFunctorDirect(_fResultFunctor, fg_Move(Result));
-				return true;
+				// If you get this, use f_CallActor instead of calling directly
+				DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
 			}
+			else
+				Actor = _ActorCall.mp_Actor;
 
-			// If you get this, use f_CallActor instead of calling directly
-			DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
-
-			Actor->template f_Call<tf_CFunctor>
-				(
-					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
-					(
-						fg_Move(_ActorCall.mp_Functor)
-						, fg_Move(_ActorCall.mp_Params)
-					)
-					, fg_Move(_ResultActor)
-					, fg_Move(_fResultFunctor)
-				)
-			;
-			return true;
-		}
-
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
-		bool fg_CallActorInternal
-			(
-				TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
-				, TCActor<tf_CResultActor> &&_ResultActor
-				, tf_CResultFunctor &&_fResultFunctor
-			)
-		{
-#if DMibEnableSafeCheck > 0
-			using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
-#endif
-
-			auto Actor = _ActorCall.mp_Actor.f_Lock();
-			if (!Actor)
-			{
-				if (NTraits::TCIsSame<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CResultFunctor>::CType, NPrivate::CDiscardResultFunctor>::mc_Value)
-					return true;
-
-				static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
-
-				auto ResultActor = fg_GetResultActor(_ResultActor);
-				ResultActor->f_QueueProcess
-					(
-						[ResultActor, fResultFunctor = fg_Move(_fResultFunctor)]() mutable
-						{
-							TCAsyncResult<typename TCActorCall<TCWeakActor<tf_CActor>, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
-							Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
-							NPrivate::fg_CallResultFunctor(fResultFunctor, ResultActor->fp_GetActor(), fg_Move(Result));
-						}
-					)
-				;
-				return true;
-			}
-
-			// If you get this, use f_Call instead of calling directly
-			DMibFastCheck(Actor.f_IsEmpty() || (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)  || !Actor->f_GetDistributedActorData() || Actor->f_GetDistributedActorData()->f_IsValidForCall());
-
-			Actor->template f_Call<tf_CFunctor>
+			Actor.f_GetRealActor()->template f_Call<typename tf_CActor::CContainedActor, tf_CFunctor>
 				(
 					NPrivate::fg_BindHelper<tf_bDirectCall, tf_CTypeList>
 					(
@@ -752,7 +707,7 @@ namespace NMib::NConcurrency
 				)
 			;
 #endif
-			DMibFastCheck(!mp_Actor.f_IsEmpty() || t_CActor::CContainedActor::mc_bCanBeEmpty);
+			DMibFastCheck(!mp_Actor.f_IsEmpty());
 #ifdef DMibContractConfigure_CheckEnabled
 			auto Cleanup = g_OnScopeExit > [&]
 				{
@@ -854,13 +809,13 @@ namespace NMib::NConcurrency
 
 		CNoUnwrapAsyncResult f_Wrap()
 		{
-			DMibFastCheck(!mp_Actor.f_IsEmpty() || t_CActor::CContainedActor::mc_bCanBeEmpty);
+			DMibFastCheck(!mp_Actor.f_IsEmpty());
 			return {this};
 		}
 
 		auto operator co_await()
 		{
-			DMibFastCheck(!mp_Actor.f_IsEmpty() || t_CActor::CContainedActor::mc_bCanBeEmpty);
+			DMibFastCheck(!mp_Actor.f_IsEmpty());
 			return TCActorCallAwaiter<TCActorCall, CReturnType, true>{fg_Move(*this)};
 		}
 
@@ -926,12 +881,12 @@ namespace NMib::NConcurrency
 			{
 				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value);
 				NStorage::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
-				m_Actor.f_GetActor()->f_QueueProcess
+				m_Actor.f_GetRealActor()->f_QueueProcess
 					(
 						[pThis, Handler = fg_Move(m_Handler)]() mutable
 						{
 							auto &This = *pThis;
-							auto &Internal = *This.m_Actor.f_GetActor()->fp_GetActor();
+							auto &Internal = *This.m_Actor.f_GetRealActor()->fp_GetActor();
 							CCurrentActorScope CurrentActor(&Internal);
 							if constexpr (t_bUnwrapTuple)
 							{
@@ -1073,35 +1028,6 @@ namespace NMib::NConcurrency
 		(void)Dummy;
 	}
 
-	template
-	<
-		typename tf_CResultActor
-		, TCEnableIfType
-		<
-			!NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActor>::mc_Value
-			&& !NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value
-		> * = nullptr
-	>
-	inline_always TCActor<tf_CResultActor> const &fg_GetResultActor(TCActor<tf_CResultActor> const &_ResultActor)
-	{
-		static_assert(!NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
-		return _ResultActor;
-	}
-
-	template
-	<
-		typename tf_CResultActor
-		, TCEnableIfType
-		<
-			NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActor>::mc_Value
-			|| NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value
-		> * = nullptr
-	>
-	inline_always TCActor<CConcurrentActor> const &fg_GetResultActor(TCActor<tf_CResultActor> const &_ResultActor)
-	{
-		return fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(NTraits::TCIsSame<tf_CResultActor, CAnyConcurrentActorLowPrio>::mc_Value ? EPriority_Low : EPriority_Normal);
-	}
-
 #if DMibEnableSafeCheck > 0
 	namespace NPrivate
 	{
@@ -1194,13 +1120,14 @@ namespace NMib::NConcurrency
 				m_pActorInternal = nullptr;
 			else
 			{
-				auto pActor = fg_GetResultActor(State.m_ResultActor);
+				static_assert(!NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
+				auto pActor = State.m_ResultActor.f_GetRealActor();
 				m_pActorInternal = nullptr;
 				pActor->f_QueueProcess
 					(
 					 	[pState = fg_Move(m_pState), Result = fg_Move(_Result)]() mutable
 					 	{
-							NPrivate::fg_CallResultFunctor(pState->m_ResultFunctor, fg_GetResultActor(pState->m_ResultActor)->fp_GetActor(), fg_Move(Result));
+							NPrivate::fg_CallResultFunctor(pState->m_ResultFunctor, pState->m_ResultActor.f_GetRealActor()->fp_GetActor(), fg_Move(Result));
 						}
 					)
 				;

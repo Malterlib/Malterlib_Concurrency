@@ -54,9 +54,9 @@ namespace NMib::NConcurrency
 	struct TCReportLocal;
 
 	struct CTimerActor;
-	class CConcurrentActor;
-	class CAnyConcurrentActor;
-	class CAnyConcurrentActorLowPrio;
+	struct CConcurrentActor;
+	struct CAnyConcurrentActor;
+	struct CAnyConcurrentActorLowPrio;
 	class CActorHolder;
 
 	struct CCurrentActorScope
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		class CDirectResultActor;
+		struct CDirectResultActor;
 		
 		struct CDiscardResultFunctor
 		{

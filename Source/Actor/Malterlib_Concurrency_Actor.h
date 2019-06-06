@@ -52,6 +52,8 @@ namespace NMib::NConcurrency
 
 		friend class CActorHolder;
 
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
 	protected:
 		CConcurrencyManager *mp_pConcurrencyManager = nullptr;
 		bool mp_bDestroyed = false;
@@ -98,7 +100,6 @@ namespace NMib::NConcurrency
 			mc_bAllowInternalAccess = false
 			, mc_bImmediateDelete = false
 			, mc_Priority = EPriority_Normal
-			, mc_bCanBeEmpty = false
 		};
 	};
 

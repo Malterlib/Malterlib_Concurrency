@@ -340,20 +340,22 @@ namespace NMib::NConcurrency
 			{
 				if (!pActor->fp_Terminate(fg_Move(fOnDestroyed)))
 					fOnDestroyed();
-				if (NTraits::TCIsSame<tf_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value)
+				if constexpr (NTraits::TCIsSame<tf_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value)
 				{
 					NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
 					return;
 				}
-				auto ResultActor = ResultCall.mp_Actor.f_GetActor();
-				ResultActor->f_QueueProcess
-					(
-						[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
-						{
-							NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor.f_GetActor()->fp_GetActor(), fg_Move(Result));
-						}
-					)
-				;
+				else
+				{
+					ResultCall.mp_Actor.f_GetRealActor()->f_QueueProcess
+						(
+							[ResultCall = fg_Move(ResultCall), Result = fg_Move(_Result)]() mutable
+							{
+								NPrivate::fg_CallResultFunctor(ResultCall.mp_Functor, ResultCall.mp_Actor.f_GetRealActor()->fp_GetActor(), fg_Move(Result));
+							}
+						)
+					;
+				}
 			}
 		;
 	}
@@ -505,6 +507,7 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
+		
 		fp_QueueProcess
 			(
 				[OnExit = fg_Move(OnExit)]() mutable
@@ -563,7 +566,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
 		// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
 		TCActorHolderSharedPointer<CSeparateThreadActorHolder> pThis = fg_Explicit(this);
@@ -595,7 +598,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
 		TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 		if (fp_AddToQueue(fg_Move(_Functor)))
@@ -674,7 +677,7 @@ namespace NMib::NConcurrency
 		return pDelegateTo->f_CurrentlyProcessing();
 	}
 	
-	void CDelegatedActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CDelegatedActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
 		auto pDelegateTo = mp_pDelegateTo.f_Lock();
 		if (pDelegateTo)
@@ -687,12 +690,12 @@ namespace NMib::NConcurrency
 						if (pThis && pThis->mp_pActor)
 							Functor();
 					}
-					, _bSame
+					, _bDestroy
 				)
 			;
 		}
 		else
-			CDefaultActorHolder::fp_QueueProcess(fg_Move(_Functor), _bSame);
+			CDefaultActorHolder::fp_QueueProcess(fg_Move(_Functor), _bDestroy);
 	}
 
 	///
@@ -729,10 +732,41 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CDirectCallActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CDirectCallActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
 		_Functor();
 	}
+
+	///
+	/// CDirectCallActorHolder
+	///
+
+	CShamActorHolder::CShamActorHolder
+		(
+			CConcurrencyManager *_pConcurrencyManager
+			, bool _bImmediateDelete
+			, EPriority _Priority
+			, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+		)
+		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
+	{
+	}
+
+	CShamActorHolder::~CShamActorHolder()
+	{
+	}
+
+	void CShamActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
+	{
+		if (_bDestroy)
+		{
+			_Functor();
+			return;
+		}
+		DMibFastCheck(false); // Should never be used directly
+	}
+
+	///
 
 	CConcurrentRunQueue::CConcurrentRunQueue()
 	{
@@ -835,13 +869,13 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CDefaultActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CDefaultActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
 		if (fp_AddToQueue(fg_Move(_Functor)))
 		{
 			TCActorHolderSharedPointer<CDefaultActorHolder> pThis = fg_Explicit(this);
 
-			if (_bSame)
+			if (_bDestroy)
 			{
 				mp_pConcurrencyManager->f_DispatchFirstOnCurrentThread
 					(
@@ -869,8 +903,8 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bSame)
+	void CActorHolder::f_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
-		fp_QueueProcess(fg_Move(_Functor), _bSame);
+		fp_QueueProcess(fg_Move(_Functor), _bDestroy);
 	}
 }

@@ -5,66 +5,83 @@
 
 namespace NMib::NConcurrency
 {
-	class CConcurrentActor : public CActor
+	struct CShamActorHolder;
+
+	struct CConcurrentActor : public CActor
 	{
-	public:
-		enum
-		{
-			mc_bImmediateDelete = true
-		};
+		static constexpr bool mc_bImmediateDelete = true;
 	};
 
-	class CConcurrentActorLowPrio : public CConcurrentActor
+	struct CConcurrentActorLowPrio : public CConcurrentActor
 	{
-	public:
-		enum
-		{
-			mc_Priority = EPriority_Low
-		};
+		static constexpr EPriority mc_Priority = EPriority_Low;
+		static constexpr bool mc_bImmediateDelete = true;
 	};
 
 	namespace NPrivate
 	{
-		class CDirectResultActor : public CActor
+		struct CDirectResultActor : public CActor
 		{
-		public:
+			using CActorHolder = CShamActorHolder;
+
+			static constexpr bool mc_bImmediateDelete = true;
 		};
 
 		TCActor<CDirectResultActor> const &fg_DirectResultActor();
 	}
 
-	class CAnyConcurrentActor : public CConcurrentActor
+	struct CAnyConcurrentActor : public CConcurrentActor
 	{
-	public:
-		enum
-		{
-			mc_bCanBeEmpty = true
-		};
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
+		static constexpr bool mc_bImmediateDelete = true;
 	};
 
 	TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor();
 
-	class CAnyConcurrentActorLowPrio : public CConcurrentActor
+	struct CAnyConcurrentActorLowPrio : public CConcurrentActor
 	{
-	public:
-		enum
-		{
-			mc_bCanBeEmpty = true
-		};
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
+		static constexpr EPriority mc_Priority = EPriority_Low;
+		static constexpr bool mc_bImmediateDelete = true;
 	};
 
 	TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();
 
+	struct CDynamicConcurrentActor : public CActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
+		static constexpr bool mc_bImmediateDelete = true;
+	};
+
+	TCActor<CDynamicConcurrentActor> const &fg_DynamicConcurrentActor();
+
+	struct CDynamicConcurrentActorLowPrio : public CActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
+		static constexpr bool mc_bImmediateDelete = true;
+	};
+
+	TCActor<CDynamicConcurrentActorLowPrio> const &fg_DynamicConcurrentActorLowPrio();
+
 	class CDirectCallActorHolder;
 
-	class CDirectCallActor : public CActor
+	struct CDirectCallActor : public CActor
 	{
-	public:
 		using CActorHolder = CDirectCallActorHolder;
-		enum
-		{
-			mc_bImmediateDelete = true
-		};
+
+		static constexpr bool mc_bImmediateDelete = true;
 	};
 
 	TCActor<CDirectCallActor> const &fg_DirectCallActor();

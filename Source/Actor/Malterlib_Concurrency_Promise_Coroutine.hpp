@@ -158,7 +158,7 @@ namespace NMib::NConcurrency::NPrivate
 		if (!mp_pPromiseData)
 			return;
 
-		m_Actor.f_GetActor()->f_QueueProcess
+		m_Actor.f_GetRealActor()->f_QueueProcess
 			(
 			 	[pPromiseData = fg_Move(mp_pPromiseData)]
 			 	{
@@ -229,7 +229,7 @@ namespace NMib::NConcurrency
 					(
 						[this, _Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_CurrentActor())](TCAsyncResult<t_CReturnType> &&_Result) mutable
 						{
-							KeepAlive.m_Actor.f_GetActor()->f_QueueProcess
+							KeepAlive.m_Actor.f_GetRealActor()->f_QueueProcess
 								(
 									[this, _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
 									{

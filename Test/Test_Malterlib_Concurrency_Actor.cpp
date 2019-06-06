@@ -1481,7 +1481,7 @@ namespace
 			CTestPerformanceMeasure DispatchMeasureDestroy("Vector");
 
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
-			CDefaultActorHolder Holder{&ConcurrencyManager, true, EPriority_Normal, nullptr};
+			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
@@ -1523,7 +1523,7 @@ namespace
 			CTestPerformanceMeasure DispatchMeasureDestroy("Linked List");
 
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
-			CDefaultActorHolder Holder{&ConcurrencyManager, true, EPriority_Normal, nullptr};
+			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
@@ -1568,7 +1568,7 @@ namespace
 			CTestPerformanceMeasure DispatchMeasureDestroy("Thread safe queue");
 
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
-			CDefaultActorHolder Holder{&ConcurrencyManager, true, EPriority_Normal, nullptr};
+			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;

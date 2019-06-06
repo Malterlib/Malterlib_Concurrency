@@ -103,6 +103,9 @@ namespace NMib::NConcurrency
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
 
+		static constexpr bool mc_bIsWeak = false;
+		using CNonWeak = TCActor;
+
 	private:
 		TCActorHolderSharedPointer<CActorInternal> m_pInternalActor;
 
@@ -137,6 +140,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		TCActor &operator =(TCActor<tf_CActor> &&_Other);
 		CActorInternal *operator ->() const;
+		CActorInternal *f_Get() const;
 		void f_Clear();
 		bool f_IsEmpty() const;
 		TCWeakActor<t_CActor> f_Weak() const;
@@ -181,7 +185,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		inline_always TCActor<CActor> const &f_GetActor() const;
+		inline_always TCActorInternal<CActor> *f_GetRealActor() const;
 	};
 
 	template <typename tf_CActor, typename tf_CActorSource>
@@ -201,8 +205,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
 
-	class CConcurrentActor;
-	class CConcurrentActorLowPrio;
+	struct CConcurrentActor;
+	struct CConcurrentActorLowPrio;
 	struct CTimerActor;
 
 	template <typename t_CType, typename t_CLock>

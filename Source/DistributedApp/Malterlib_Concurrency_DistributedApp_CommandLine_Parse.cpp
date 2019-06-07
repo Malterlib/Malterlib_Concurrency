@@ -130,6 +130,7 @@ namespace NMib::NConcurrency
 		bool bFatalError = false;
 
 		NContainer::TCVector<NException::CException> Exceptions;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> ChecksToPerform;
 
 		for (auto &Parameter : Params)
 		{
@@ -283,19 +284,26 @@ namespace NMib::NConcurrency
 
 					if (auto *pOption = CommandLineSpec.m_GlobalOptionsByName.f_FindEqual(ParsedParameter))
 					{
-						if (pCurrentCommand)
-						{
-							if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_GlobalOptionSet, !!pCurrentCommand->m_fDirectRunCommand))
-							{
-								DMibError
-									(
-										"Option {} is not allowed for command {}"_f
-										<< fColor((*pOption)->m_Names.f_GetFirst(), CInternal::EColor_GlobalOption)
-										<< fColor(pCurrentCommand->m_Names.f_GetFirst(), CInternal::EColor_Command)
-									)
-								;
-							}
-						}
+						ChecksToPerform.f_Insert
+							(
+								[&]
+							 	{
+									if (pCurrentCommand)
+									{
+										if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_GlobalOptionSet, !!pCurrentCommand->m_fDirectRunCommand))
+										{
+											DMibError
+												(
+													"Option {} is not allowed for command {}"_f
+													<< fColor((*pOption)->m_Names.f_GetFirst(), CInternal::EColor_GlobalOption)
+													<< fColor(pCurrentCommand->m_Names.f_GetFirst(), CInternal::EColor_Command)
+												)
+											;
+										}
+									}
+								}
+							)
+						;
 
 						if (fParseOption(**pOption, ParsedParameter, CInternal::EColor_GlobalOption))
 							continue;
@@ -413,6 +421,10 @@ namespace NMib::NConcurrency
 		}
 
 		fUseDefaultCommand();
+
+		for (auto &fCheck : ChecksToPerform)
+			fCheck();
+		ChecksToPerform.f_Clear();
 
 		bool bFoundCommand = !!pFoundCommand;
 

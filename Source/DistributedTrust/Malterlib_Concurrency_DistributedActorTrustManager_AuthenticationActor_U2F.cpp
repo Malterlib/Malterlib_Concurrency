@@ -1282,9 +1282,11 @@ namespace NMib::NConcurrency
 			(
 			 	[=]
 			 	{
+					auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
 					*_pCommandLine %= "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+						<< AnsiEncoding.f_Prompt()
+						<< AnsiEncoding.f_Default()
 					;
 				}
 			)
@@ -1335,9 +1337,11 @@ namespace NMib::NConcurrency
 			 	U2FContexts
 			 	, [=]
 			 	{
+					auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
 					*_pCommandLine %= "{}Please press the button on your U2F device.{}\n"_f
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+						<< AnsiEncoding.f_Prompt()
+						<< AnsiEncoding.f_Default()
 					;
 				}
 			)

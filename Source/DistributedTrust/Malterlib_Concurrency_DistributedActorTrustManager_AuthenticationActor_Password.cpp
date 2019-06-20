@@ -61,19 +61,21 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<CAuthenticationData> Promise;
 
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
 		CStdInReaderPromptParams NewPasswordPrompt1;
 		NewPasswordPrompt1.m_bPassword = true;
 		NewPasswordPrompt1.m_Prompt = "Adding Password factor to user. Please provide a new password.\n{}Password        : {}"_f
-			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
-			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+			<< AnsiEncoding.f_Prompt()
+			<< AnsiEncoding.f_Default()
 		;
 		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Promise / [=](CStrSecure &&_NewPassword1) mutable
 			{
 				CStdInReaderPromptParams NewPasswordPrompt2;
 				NewPasswordPrompt2.m_bPassword = true;
 				NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
-					<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
-					<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+					<< AnsiEncoding.f_Prompt()
+					<< AnsiEncoding.f_Default()
 				;
 
 				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Promise / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
@@ -134,11 +136,13 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
 		CStdInReaderPromptParams PasswordPrompt;
 		PasswordPrompt.m_bPassword = true;
 		PasswordPrompt.m_Prompt = "{}Password: {}"_f
-			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Prompt
-			<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+			<< AnsiEncoding.f_Prompt()
+			<< AnsiEncoding.f_Default()
 		;
 		
 		auto TrustManager = m_TrustManager.f_Lock();

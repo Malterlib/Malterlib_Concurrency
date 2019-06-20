@@ -9,7 +9,7 @@
 
 namespace NMib::NConcurrency
 {
-	auto CDistributedAppCommandLineSpecification::f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params) -> CParsedCommandLine
+	auto CDistributedAppCommandLineSpecification::f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params, NCommandLine::EAnsiEncodingFlag _AnsiFlags) -> CParsedCommandLine
 	{
 		auto &CommandLineSpec = *mp_pInternal;
 
@@ -34,19 +34,14 @@ namespace NMib::NConcurrency
 		NStr::CStr ProgramName;
 		bool bParametersOnly = false;
 
-		bool bColor = true;
 		auto fColor = [&](CStr const &_String, CInternal::EColor _Color) -> CStr
 			{
-				if (bColor)
-					return CInternal::fs_Color(_String, _Color);
-				return _String;
+				return CInternal::fs_Color(_String, _Color, _AnsiFlags);
 			}
 		;
 		auto fColorValue = [&](CInternal::EColor _Color) -> CInternal::EColor
 			{
-				if (bColor)
-					return _Color;
-				return CInternal::EColor_None;
+				return _Color;
 			}
 		;
 
@@ -120,9 +115,9 @@ namespace NMib::NConcurrency
 		auto fParseValue = [&](CDistributedAppCommandLineSpecification::CInternal::CValue const &_Value, CStr const &_StringData, CInternal::EColor _Color, CStr const &_OptionName = {})
 			{
 				if (_OptionName.f_IsEmpty())
-					CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData, fColorValue(_Color));
+					CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData, fColorValue(_Color), _AnsiFlags);
 				else
-					CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData, _OptionName, fColorValue(_Color));
+					CommandParams[_Value.m_Identifier] = _Value.f_ConvertValue(_StringData, _OptionName, fColorValue(_Color), _AnsiFlags);
 			}
 		;
 
@@ -286,7 +281,7 @@ namespace NMib::NConcurrency
 					{
 						ChecksToPerform.f_Insert
 							(
-								[&]
+								[pOption, &pCurrentCommand, &fColor]
 							 	{
 									if (pCurrentCommand)
 									{
@@ -399,7 +394,7 @@ namespace NMib::NConcurrency
 				if (iCommandParameter->m_bVector)
 				{
 					bUsedVectorParam = true;
-					iCommandParameter->f_AppendConvertValue(CommandParams[iCommandParameter->m_Identifier], Parameter, fColorValue(CInternal::EColor_Parameter));
+					iCommandParameter->f_AppendConvertValue(CommandParams[iCommandParameter->m_Identifier], Parameter, fColorValue(CInternal::EColor_Parameter), _AnsiFlags);
 				}
 				else
 				{

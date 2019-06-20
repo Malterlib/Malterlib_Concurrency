@@ -7,6 +7,8 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Encoding/EJSON>
 #include <Mib/Process/StdIn>
+#include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/CommandLine/TableRenderer>
 
 namespace NMib::NConcurrency
 {
@@ -14,8 +16,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x103
-			, EProtocolVersion = 0x103
+			EMinProtocolVersion = 0x104
+			, EProtocolVersion = 0x104
 		};
 
 		ICCommandLineControl();
@@ -46,6 +48,8 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const;
 		NConcurrency::TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) const;
 		NConcurrency::TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) const;
+		NCommandLine::CTableRenderHelper f_TableRenderer() const;
+		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
 
 		void operator += (NStr::CStrSecure const &_StdOut) const;
 		void operator %= (NStr::CStrSecure const &_StdErr) const;
@@ -72,7 +76,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorInterfaceWithID<ICCommandLineControl, gc_SubscriptionNotRequired> m_ControlActor;
 		uint32 m_CommandLineWidth = 0;
 		uint32 m_CommandLineHeight = 0;
-		bool m_bColorEnabled = true;
+		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 	};
 
 	struct ICCommandLine : public CActor
@@ -198,7 +202,7 @@ namespace NMib::NConcurrency
 		void f_SetDefaultCommand(CCommand const &_Command);
 		void f_SetProgramDescription(NStr::CStr const &_Heading, NStr::CStr const &_Description);
 		void f_RegisterGlobalOptions(NEncoding::CEJSON const &_Options);
-		CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params);
+		CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params, NCommandLine::EAnsiEncodingFlag _AnsiFlags);
 
 	private:
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;

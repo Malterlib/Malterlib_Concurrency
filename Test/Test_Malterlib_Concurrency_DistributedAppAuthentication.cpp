@@ -1653,6 +1653,8 @@ public:
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
 				, "Color"_= false
+				, "Color24Bit"_= false
+				, "ColorLight"_= false
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
@@ -1759,6 +1761,8 @@ public:
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
 						, "Color"_= false
+						, "Color24Bit"_= false
+						, "ColorLight"_= false
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= CurrentAuthLifetime
@@ -2506,6 +2510,8 @@ public:
 				, "StdErrLogger"_= false
 				, "TraceLogger"_= true
 				, "Color"_= false
+				, "Color24Bit"_= false
+				, "ColorLight"_= false
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
@@ -2569,6 +2575,8 @@ public:
 						, "StdErrLogger"_= false
 						, "TraceLogger"_= true
 						, "Color"_= false
+						, "Color24Bit"_= false
+						, "ColorLight"_= false
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= 0

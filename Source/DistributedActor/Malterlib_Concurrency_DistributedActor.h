@@ -14,6 +14,7 @@
 #include <Mib/Concurrency/WeakActor>
 #include <Mib/Web/WebSocket>
 #include <Mib/Cryptography/PublicCrypto>
+#include <Mib/CommandLine/AnsiEncoding>
 
 namespace NMib::NConcurrency
 {
@@ -98,6 +99,7 @@ namespace NMib::NConcurrency
 		void f_Consume(CDistributedActorReadStream &_Stream);
 
 		NStr::CStr f_GetDesc() const;
+		NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 
 		bool operator ==(CHostInfo const &_Right) const;
 		bool operator <(CHostInfo const &_Right) const;

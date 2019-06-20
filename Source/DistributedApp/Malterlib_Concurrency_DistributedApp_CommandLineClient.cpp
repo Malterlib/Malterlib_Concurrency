@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		bool m_bInitialized = false;
-		bool m_bColorEnabled = true;
+		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 	};
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
@@ -40,14 +40,14 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		NException::CDisableExceptionTraceScope DisableTrace;
-		return Internal.m_pCommandLineSpecification->f_ParseCommandLine(_Params);
+		return Internal.m_pCommandLineSpecification->f_ParseCommandLine(_Params, f_AnsiEncodingFlags());
 	}
 
 	aint CDistributedAppCommandLineClient::f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine)
 	{
 		auto &Internal = *mp_pInternal;
 		NException::CDisableExceptionTraceScope DisableTrace;
-		auto ParsedCommandLine = Internal.m_pCommandLineSpecification->f_ParseCommandLine(_CommandLine);
+		auto ParsedCommandLine = Internal.m_pCommandLineSpecification->f_ParseCommandLine(_CommandLine, f_AnsiEncodingFlags());
 		return f_RunCommand(ParsedCommandLine.m_Command, ParsedCommandLine.m_Params);
 	}
 
@@ -146,7 +146,31 @@ namespace NMib::NConcurrency
 	bool CDistributedAppCommandLineClient::f_ColorEnabled() const
 	{
 		auto &Internal = *mp_pInternal;
-		return Internal.m_bColorEnabled;
+		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_Color;
+	}
+
+	bool CDistributedAppCommandLineClient::f_Color24BitEnabled() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_Color24Bit;
+	}
+
+	bool CDistributedAppCommandLineClient::f_ColorLightBackground() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
+	}
+
+	NCommandLine::EAnsiEncodingFlag CDistributedAppCommandLineClient::f_AnsiEncodingFlags() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_AnsiFlags;
+	}
+
+	NCommandLine::CAnsiEncoding CDistributedAppCommandLineClient::f_AnsiEncoding() const
+	{
+		auto &Internal = *mp_pInternal;
+		return NCommandLine::CAnsiEncoding(Internal.m_AnsiFlags);
 	}
 
 	aint CDistributedAppCommandLineClient::f_RunCommand(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
@@ -154,7 +178,13 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		auto &CommandLineSpec = *(Internal.m_pCommandLineSpecification->mp_pInternal);
 
-		Internal.m_bColorEnabled = _Params.f_GetMemberValue("Color", CDistributedAppActor::fs_ColorEnabledDefault()).f_Boolean();
+		Internal.m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
+		if (_Params.f_GetMemberValue("Color", CDistributedAppActor::fs_ColorEnabledDefault()).f_Boolean())
+			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color;
+		if (_Params.f_GetMemberValue("Color24Bit", CDistributedAppActor::fs_Color24BitEnabledDefault()).f_Boolean())
+			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color24Bit;
+		if (_Params.f_GetMemberValue("ColorLight", CDistributedAppActor::fs_ColorLightBackgroundDefault()).f_Boolean())
+			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
 
 		enum EHelpCommand
 		{
@@ -181,7 +211,16 @@ namespace NMib::NConcurrency
 
 		if (auto HelpCommand = fCommandHelp())
 		{
-			TCVector<CStr> Params = {CFile::fs_GetFile(CFile::fs_GetProgramPath()), "--help", Internal.m_bColorEnabled ? "--color" : "--no-color", _Command};
+			TCVector<CStr> Params =
+				{
+					CFile::fs_GetFile(CFile::fs_GetProgramPath())
+					, "--help"
+					, f_ColorEnabled() ? "--color" : "--no-color"
+					, f_Color24BitEnabled() ? "--color-24bit" : "--no-color-24bit"
+					, f_ColorLightBackground() ? "--color-light" : "--no-color-light"
+					, _Command
+				}
+			;
 
 			if (HelpCommand == EHelpCommand_Verbose)
 				Params.f_Insert("-v");
@@ -218,7 +257,7 @@ namespace NMib::NConcurrency
 			auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 			CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
 			CommandLineControl.m_CommandLineHeight = ConsoleProperties.m_Height;
-			CommandLineControl.m_bColorEnabled = Internal.m_bColorEnabled;
+			CommandLineControl.m_AnsiFlags = Internal.m_AnsiFlags;
 
 			struct CState
 			{
@@ -298,6 +337,7 @@ namespace NMib::NConcurrency
 		Internal.m_pCommandLineSpecification = _pCommandLineSpecification;
 		Internal.m_Settings = _Settings;
 		Internal.m_TranslateHostnames = fg_Move(_TranslateHostnames);
+		Internal.m_AnsiFlags = CDistributedAppActor::fs_ColorAnsiFlagsDefault();
 	}
 
 	CDistributedAppCommandLineClient::~CDistributedAppCommandLineClient()

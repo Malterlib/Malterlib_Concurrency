@@ -11,8 +11,9 @@ namespace NMib::NConcurrency
 		_Stream % fg_Move(m_ControlActor);
 		_Stream % m_CommandLineWidth;
 		_Stream % m_CommandLineHeight;
-		_Stream % m_bColorEnabled;
+		_Stream % m_AnsiFlags;
 	}
+
 
 	COneOf::COneOf(NEncoding::CEJSON const &_Config)
 	{

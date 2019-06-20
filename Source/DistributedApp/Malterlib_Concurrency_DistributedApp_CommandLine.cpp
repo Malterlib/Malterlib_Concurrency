@@ -5,6 +5,8 @@
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
+#include <Mib/Process/StdIn>
+
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
@@ -17,6 +19,7 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NStorage;
 	using namespace NProcess;
+	using namespace NCommandLine;
 
 	ICCommandLine::ICCommandLine()
 	{
@@ -57,6 +60,25 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return fg_Explicit();
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output);
+	}
+
+	CTableRenderHelper CCommandLineControl::f_TableRenderer() const
+	{
+		return CTableRenderHelper
+			(
+				[this](NStr::CStr const &_Output)
+			 	{
+					*this += _Output;
+				}
+			 	, CTableRenderHelper::EOption_Rounded
+			 	, m_AnsiFlags
+		 	)
+		;
+	}
+
+	NCommandLine::CAnsiEncoding CCommandLineControl::f_AnsiEncoding() const
+	{
+		return NCommandLine::CAnsiEncoding(m_AnsiFlags);
 	}
 
 	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, NProcess::EStdInReaderFlag _Flags) const
@@ -1514,10 +1536,108 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	NCommandLine::EAnsiEncodingFlag CDistributedAppActor::fs_ColorAnsiFlagsDefault()
+	{
+		NCommandLine::EAnsiEncodingFlag Flags = NCommandLine::EAnsiEncodingFlag_None;
+		if (fs_ColorEnabledDefault())
+			Flags |= NCommandLine::EAnsiEncodingFlag_Color;
+		if (fs_Color24BitEnabledDefault())
+			Flags |= NCommandLine::EAnsiEncodingFlag_Color24Bit;
+		if (fs_ColorLightBackgroundDefault())
+			Flags |= NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
+		return Flags;
+	}
+
 	bool CDistributedAppActor::fs_ColorEnabledDefault()
 	{
-		bool bDefaultEnableColor = !NSys::fg_System_BeingDebugged();
-		return fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", bDefaultEnableColor ? "true" : "false") == "true";
+		static bool bValue = []
+			{
+				bool bDefaultEnableColor = !NSys::fg_System_BeingDebugged();
+				return fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", bDefaultEnableColor ? "true" : "false") == "true";
+			}
+			()
+		;
+		return bValue;
+	}
+
+	bool CDistributedAppActor::fs_Color24BitEnabledDefault()
+	{
+		static bool bValue = []
+			{
+				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor24Bit", ""))
+					return Value == "true";
+
+				auto ColorTerm = fg_GetSys()->f_GetEnvironmentVariable("COLORTERM", "");
+				if (ColorTerm == "truecolor" || ColorTerm == "24bit")
+					return true;
+
+				return false;
+			}
+			()
+		;
+		return bValue;
+	}
+
+	bool CDistributedAppActor::fs_ColorLightBackgroundDefault()
+	{
+		static bool bValue = []
+			{
+				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColorLight", ""); Value == "true")
+					return true;
+				else if (Value != "auto")
+					return false;
+
+				struct CState
+				{
+					NThread::CEvent m_Event;
+					NStr::CStr m_Buffer;
+					bool m_bLight = false;
+				};
+
+				NStorage::TCSharedPointer<CState> pState = fg_Construct();
+
+				auto Params = NProcess::CStdInReaderParams::fs_Create
+					(
+						[pState](EStdInReaderOutputType _Type, NStr::CStrSecure const &_Input)
+						{
+							if (_Type != EStdInReaderOutputType_StdIn)
+								return;
+							CByteVector Data((uint8 const *)_Input.f_GetStr(), _Input.f_GetLen());
+
+							DMibConOut("Input: {vs}\n", CByteVector((uint8 const *)_Input.f_GetStr(), _Input.f_GetLen()));
+
+							pState->m_Buffer += _Input;
+							if (auto iFound = pState->m_Buffer.f_Find("\x1B]11;rgb:"); iFound >= 0)
+							{
+								CStr Buffer = pState->m_Buffer.f_Extract(iFound);
+
+								uint8 Red;
+								uint8 Green;
+								uint8 Blue;
+								aint nParsed;
+								(CStr::CParse("\x1B]11;rgb:{nfh}/{nfh}/{nfh}\x07") >> Red >> Green >> Blue).f_Parse(Buffer, nParsed);
+								if (nParsed == 3)
+								{
+									pState->m_bLight = (fp32(Red) * 0.3f + fp32(Green) * 0.59f + fp64(Blue) * 0.11f) > 128.0f;
+									pState->m_Event.f_SetSignaled();
+								}
+							}
+						}
+					)
+				;
+
+				NProcess::CStdInReader StdIn(fg_Move(Params));
+
+				DMibConOut2("\x1B]11;?\x1B\\");
+
+				if (pState->m_Event.f_WaitTimeout(1.0))
+					return false;
+
+				return pState->m_bLight;
+			}
+			()
+		;
+		return bValue;
 	}
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities)
@@ -1538,7 +1658,6 @@ namespace NMib::NConcurrency
 
 		if (_Functionalities & EDefaultCommandLineFunctionality_Color)
 		{
-
 			o_CommandLine.f_RegisterGlobalOptions
 				(
 					{
@@ -1546,7 +1665,39 @@ namespace NMib::NConcurrency
 						{
 							"Names"_= {"--color"}
 							, "Default"_= fs_ColorEnabledDefault()
-							, "Description"_= "Display text output with ansi colors where supported."
+							, "Description"_= "Display text output with ansi colors where supported.\n"\
+							"You can override behaviour with MalterlibColor env var. Set it to true or false. "\
+						}
+					}
+				)
+			;
+
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"Color24Bit?"_=
+						{
+							"Names"_= {"--color-24bit"}
+							, "Default"_= fs_Color24BitEnabledDefault()
+							, "Description"_= "Display text output with 24 bit ansi colors.\n"\
+							"By default detected through COLORTERM. "\
+							"You can override behaviour with MalterlibColor24Bit env var. Set it to true or false. "\
+						}
+					}
+				)
+			;
+
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"ColorLight?"_=
+						{
+							"Names"_= {"--color-light"}
+							, "Default"_= fs_ColorLightBackgroundDefault()
+							, "Description"_= "Force light background.\n"\
+							"You can override behaviour with MalterlibColorLight env var. Set it to true, false or auto. "\
+							"With auto a xterm secquence will be used to determine background color. "\
+							"Can interfere with commands that use std input processing."
 						}
 					}
 				)

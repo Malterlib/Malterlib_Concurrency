@@ -47,14 +47,14 @@ namespace NMib::NConcurrency
 			}
 			void f_Parse(CEJSON const &_Option);
 			CEJSON fp_ParseEJSON(CStr const &_Value, CStr const &_Error) const;
-			CEJSON fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict, bool _bColor) const;
-			CStr fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bColor) const;
+			CEJSON fp_ConvertValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bStrict, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+			CStr fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 			void fp_ValidateTemplate(CEJSON const &_Template, CStr const &_Identifier, bool _bPrevIsSetOf) const;
-			CEJSON f_ConvertValue(CEJSON const &_Value, EColor _Color) const;
-			CEJSON f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const;
-			void f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, EColor _Color) const;
-			void f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const;
-			CStr f_FormatValue(CEJSON const &_Value, bool _bColor) const;
+			CEJSON f_ConvertValue(CEJSON const &_Value, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+			CEJSON f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+			void f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+			void f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+			CStr f_FormatValue(CEJSON const &_Value, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 
 			CStr const m_Identifier;
 			bool const m_bOptional;
@@ -166,8 +166,7 @@ namespace NMib::NConcurrency
 		CEJSON f_ValidateParams(CCommand const &_Command, CEJSON const &_Params) const;
 		void f_CheckName(CStr const &_Name);
 		static void fs_CheckValidObject(CEJSON const &_ToCheck, TCSet<CStr> const &_AllowedKeys);
-		static CStr fs_Color(CStr const &_String, EColor _Color);
-		static CStr fs_Color(CStr const &_String, EColor _Color, bool _bColor);
+		static CStr fs_Color(CStr const &_String, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags);
 
 		TCLinkedList<CSection> m_Sections;
 		TCLinkedList<COption> m_GlobalOptions;

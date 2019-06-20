@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/CommandLine/AnsiEncodingParse>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
@@ -17,32 +18,30 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCommandLine;
 
-	CStr CDistributedAppCommandLineSpecification::CInternal::fs_Color(CStr const &_String, EColor _Color, bool _bColor)
+	CStr CDistributedAppCommandLineSpecification::CInternal::fs_Color(CStr const &_String, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags)
 	{
-		if (!_bColor)
+		if (!(_AnsiFlags & EAnsiEncodingFlag_Color))
 			return _String;
-		return fs_Color(_String, _Color);
-	}
 
-	CStr CDistributedAppCommandLineSpecification::CInternal::fs_Color(CStr const &_String, EColor _Color)
-	{
+		CAnsiEncoding AnsiEncoding(_AnsiFlags);
+
 		switch (_Color)
 		{
-		case EColor_Executable: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0x00, 0xe4, 0xe6) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Command: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0x1c, 0xb9, 0x00) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Parameter: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xb8, 0xaa, 0xff) << _String << CAnsiEncoding::ms_Default;
-		case EColor_GlobalOption: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0x77, 0x00) << _String << CAnsiEncoding::ms_Default;
-		case EColor_SectionOption: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0xa6, 0x00) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Option: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0xd7, 0x00) << _String << CAnsiEncoding::ms_Default;
-		case EColor_String: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0x00, 0x9e, 0xff) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Number: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0x00, 0x80) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Constant: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0x8a, 0xc5) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Date: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0x5b, 0xad) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Binary: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0x80, 0x80, 0x80) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Value: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xc0, 0xc0, 0xc0) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Error: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0xff, 0x3f, 0x1c) << _String << CAnsiEncoding::ms_Default;
-		case EColor_Heading1: return "{}{}{}"_f << CAnsiEncoding::ms_Bold << _String << CAnsiEncoding::ms_Default;
-		case EColor_Default: return "{}{}{}"_f << CAnsiEncoding::fs_ForegroundRGB(0x90, 0x90, 0x90) << _String << CAnsiEncoding::ms_Default;
+		case EColor_Executable: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0x00, 0xe4, 0xe6) << _String << AnsiEncoding.f_Default();
+		case EColor_Command: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0x1c, 0xb9, 0x00) << _String << AnsiEncoding.f_Default();
+		case EColor_Parameter: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xb8, 0xaa, 0xff) << _String << AnsiEncoding.f_Default();
+		case EColor_GlobalOption: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0x77, 0x00) << _String << AnsiEncoding.f_Default();
+		case EColor_SectionOption: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0xa6, 0x00) << _String << AnsiEncoding.f_Default();
+		case EColor_Option: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0xd7, 0x00) << _String << AnsiEncoding.f_Default();
+		case EColor_String: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0x00, 0x9e, 0xff) << _String << AnsiEncoding.f_Default();
+		case EColor_Number: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0x00, 0x80) << _String << AnsiEncoding.f_Default();
+		case EColor_Constant: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0x8a, 0xc5) << _String << AnsiEncoding.f_Default();
+		case EColor_Date: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0x5b, 0xad) << _String << AnsiEncoding.f_Default();
+		case EColor_Binary: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0x80, 0x80, 0x80) << _String << AnsiEncoding.f_Default();
+		case EColor_Value: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xc0, 0xc0, 0xc0) << _String << AnsiEncoding.f_Default();
+		case EColor_Error: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0xff, 0x3f, 0x1c) << _String << AnsiEncoding.f_Default();
+		case EColor_Heading1: return "{}{}{}"_f << AnsiEncoding.f_Bold() << _String << AnsiEncoding.f_Default();
+		case EColor_Default: return "{}{}{}"_f << AnsiEncoding.f_ForegroundRGB(0x90, 0x90, 0x90) << _String << AnsiEncoding.f_Default();
 
 		case EColor_None:
 		default: return _String;
@@ -51,7 +50,7 @@ namespace NMib::NConcurrency
 
 	TCVector<CStr> CDistributedAppCommandLineSpecification::fs_RelevantHelpGlobalOptions()
 	{
-		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color"};
+		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color", "Color24Bit", "ColorLight"};
 	}
 
 	void CDistributedAppCommandLineSpecification::f_AddHelpCommand()
@@ -115,11 +114,12 @@ namespace NMib::NConcurrency
 				{
 					bool bVerbose = _Params["Verbose"].f_Boolean();
 					bool bColor = _CommandLineClient.f_ColorEnabled();
+					auto AnsiFlags = _CommandLineClient.f_AnsiEncodingFlags();
 
 					auto fColor = [&](CStr const &_String, CInternal::EColor _Color)
 						{
 							if (bColor)
-								return CInternal::fs_Color(_String, _Color);
+								return CInternal::fs_Color(_String, _Color, _CommandLineClient.f_AnsiEncodingFlags());
 							return _String;
 						}
 					;
@@ -132,12 +132,12 @@ namespace NMib::NConcurrency
 						{
 							if (!bColor)
 								return _WantedLen;
-							return (_String.f_GetLen() - CAnsiEncoding::fs_RenderedStrLen(_String)) + _WantedLen;
+							return (_String.f_GetLen() - CAnsiEncodingParse::fs_RenderedStrLen(_String)) + _WantedLen;
 						}
 					;
 					auto fRenderLength = [&](CStr const &_String)
 						{
-							return CAnsiEncoding::fs_RenderedStrLen(_String);
+							return CAnsiEncodingParse::fs_RenderedStrLen(_String);
 						}
 					;
 
@@ -425,7 +425,7 @@ namespace NMib::NConcurrency
 								CStr Description;
 								if (!_bVerbose && Option.m_Default.f_IsValid())
 								{
-									CStr FormattedValue = Option.f_FormatValue(Option.m_Default, bColor).f_Trim();
+									CStr FormattedValue = Option.f_FormatValue(Option.m_Default, AnsiFlags).f_Trim();
 
 									if (FormattedValue.f_SplitLine().f_GetLen() > 1)
 										Description = Option.m_ShortDescription;
@@ -442,7 +442,7 @@ namespace NMib::NConcurrency
 									fOutputSectionedText(Option.m_LongDescription);
 									if (Option.m_Default.f_IsValid())
 									{
-										CStr DefaultLine = "Default:   {}"_f << Option.f_FormatValue(Option.m_Default, bColor).f_ReplaceChar('\n', '\r');
+										CStr DefaultLine = "Default:   {}"_f << Option.f_FormatValue(Option.m_Default, AnsiFlags).f_ReplaceChar('\n', '\r');
 										fOutputSectionedText(DefaultLine, 11);
 									}
 								}
@@ -485,7 +485,7 @@ namespace NMib::NConcurrency
 								CStr Description;
 								if (!_bVerbose && Parameter.m_Default.f_IsValid())
 								{
-									CStr FormattedValue = Parameter.f_FormatValue(Parameter.m_Default, bColor).f_Trim();
+									CStr FormattedValue = Parameter.f_FormatValue(Parameter.m_Default, AnsiFlags).f_Trim();
 
 									if (FormattedValue.f_SplitLine().f_GetLen() > 1)
 										Description = Parameter.m_ShortDescription;
@@ -504,7 +504,7 @@ namespace NMib::NConcurrency
 									fOutputSectionedText(Parameter.m_LongDescription);
 									if (Parameter.m_Default.f_IsValid())
 									{
-										CStr DefaultLine = fg_Format("Default:   {}", Parameter.f_FormatValue(Parameter.m_Default, bColor).f_ReplaceChar('\n', '\r'));
+										CStr DefaultLine = fg_Format("Default:   {}", Parameter.f_FormatValue(Parameter.m_Default, AnsiFlags).f_ReplaceChar('\n', '\r'));
 										fOutputSectionedText(DefaultLine, 11);
 									}
 								}

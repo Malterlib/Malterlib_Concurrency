@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 		fp_ValidateTemplate(m_TypeTemplate, m_Identifier, false);
 
 		if (m_Default.f_IsValid())
-			m_Default = f_ConvertValue(m_Default, EColor_None); // This will do checking to make sure that the default value matches the template
+			m_Default = f_ConvertValue(m_Default, EColor_None, NCommandLine::EAnsiEncodingFlag_None); // This will do checking to make sure that the default value matches the template
 
 		fg_ParseDescription(_Value, m_ShortDescription, m_LongDescription);
 	}
@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 					pValue = *pOption;
 				if (!pValue)
 					DMibError(fg_Format("Unexpected parameter '{}' in command params", ParamName));
-				Params[ParamName] = pValue->f_ConvertValue(Param.f_Value(), EColor_None);
+				Params[ParamName] = pValue->f_ConvertValue(Param.f_Value(), EColor_None, NCommandLine::EAnsiEncodingFlag_None);
 			}
 		}
 
@@ -137,30 +137,49 @@ namespace NMib::NConcurrency
 		return Params;
 	}
 
-	CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, EColor _Color) const
+	CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, EColor _Color, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const
 	{
-		return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(m_Identifier, _Color), false, _Color != EColor_None);
+		return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(m_Identifier, _Color, _AnsiFlags), false, _AnsiFlags);
 	}
 
-	CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue(CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const
+	CEJSON CDistributedAppCommandLineSpecification::CInternal::CValue::f_ConvertValue
+		(
+		 	CEJSON const &_Value
+		 	, CStr const &_Identifier
+		 	, EColor _Color
+		 	, NCommandLine::EAnsiEncodingFlag _AnsiFlags
+		) const
 	{
-		return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(_Identifier, _Color), false, _Color != EColor_None);
+		return fp_ConvertValue(m_TypeTemplate, _Value, fs_Color(_Identifier, _Color, _AnsiFlags), false, _AnsiFlags);
 	}
 
-	CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value, bool _bColor) const
+	CStr CDistributedAppCommandLineSpecification::CInternal::CValue::f_FormatValue(CEJSON const &_Value, NCommandLine::EAnsiEncodingFlag _AnsiFlags) const
 	{
-		return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier, _bColor);
+		return fp_FormatValue(m_TypeTemplate, _Value, m_Identifier, _AnsiFlags);
 	}
 
-	void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, EColor _Color) const
+	void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue
+		(
+		 	CEJSON &o_Value
+		 	, CEJSON const &_Value
+		 	, EColor _Color
+		 	, NCommandLine::EAnsiEncodingFlag _AnsiFlags
+		) const
 	{
-		CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(m_Identifier, _Color), false, _Color != EColor_None);
+		CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(m_Identifier, _Color, _AnsiFlags), false, _AnsiFlags);
 		o_Value.f_Array().f_Insert(NewParams);
 	}
 
-	void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue(CEJSON &o_Value, CEJSON const &_Value, CStr const &_Identifier, EColor _Color) const
+	void CDistributedAppCommandLineSpecification::CInternal::CValue::f_AppendConvertValue
+		(
+		 	CEJSON &o_Value
+		 	, CEJSON const &_Value
+		 	, CStr const &_Identifier
+		 	, EColor _Color
+		 	, NCommandLine::EAnsiEncodingFlag _AnsiFlags
+		) const
 	{
-		CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(_Identifier, _Color), false, _Color != EColor_None);
+		CEJSON NewParams = fp_ConvertValue(m_TypeTemplate.f_Array()[0], _Value, fs_Color(_Identifier, _Color, _AnsiFlags), false, _AnsiFlags);
 		o_Value.f_Array().f_Insert(NewParams);
 	}
 
@@ -296,7 +315,7 @@ namespace NMib::NConcurrency
 			, CEJSON const &_Value
 			, CStr const &_Identifier
 			, bool _bStrict
-			, bool _bColor
+			, NCommandLine::EAnsiEncodingFlag _AnsiFlags
 		) const
 	{
 		CEJSON Return;
@@ -324,7 +343,7 @@ namespace NMib::NConcurrency
 						{
 							Value = _Value.f_String().f_ToIntExact(TCLimitsInt<int64>::mc_Min);
 							if (Value == TCLimitsInt<int64>::mc_Min)
-								DMibError(fg_Format("Failed to parse {} as a integer value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
+								DMibError(fg_Format("Failed to parse {} as a integer value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _AnsiFlags)));
 						}
 						Return = Value;
 					}
@@ -343,7 +362,7 @@ namespace NMib::NConcurrency
 					{
 						fp64 Value = _Value.f_String().f_ToFloatExact(fp64::fs_Inf());
 						if (Value == fp64::fs_Inf())
-							DMibError(fg_Format("Failed to parse {} as a float value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
+							DMibError(fg_Format("Failed to parse {} as a float value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _AnsiFlags)));
 						Return = Value;
 					}
 					else
@@ -371,7 +390,7 @@ namespace NMib::NConcurrency
 							else if (Value == 0)
 								Return = false;
 							else
-								DMibError(fg_Format("Failed to parse {} as a boolean value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
+								DMibError(fg_Format("Failed to parse {} as a boolean value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _AnsiFlags)));
 						}
 					}
 					else
@@ -409,7 +428,7 @@ namespace NMib::NConcurrency
 									fg_Format
 									(
 										"Failed to parse {} as a date: {}. Date format is: Year-Month-Day [Hour[:Minute[:Second[.Fraction]]]]"
-										, fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)
+										, fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _AnsiFlags)
 										, _Error
 									)
 								)
@@ -422,7 +441,7 @@ namespace NMib::NConcurrency
 							bool bFailed = false;
 							auto Return = fg_StrToIntParse(_pParse, _Type, _pTerminators, false, EStrToIntParseMode_Base10, &bFailed);
 							if (bFailed)
-								fReportError(fg_Format("Failed to parse {} as a integer", fs_Color("\"{}\""_f << _pParse, EColor_String, _bColor)));
+								fReportError(fg_Format("Failed to parse {} as a integer", fs_Color("\"{}\""_f << _pParse, EColor_String, _AnsiFlags)));
 							if (*_pParse == _pTerminators[0])
 								++_pParse;
 							return Return;
@@ -462,7 +481,7 @@ namespace NMib::NConcurrency
 						--pParse;
 						Fraction = fg_StrToFloatParse(pParse, fp64::fs_Inf(), (ch8 const *)nullptr, false, (ch8 const *)nullptr);
 						if (Fraction == fp64::fs_Inf())
-							fReportError(fg_Format("Failed to parse {} as a float", fs_Color("\"{}\""_f << pParse, EColor_String, _bColor)));
+							fReportError(fg_Format("Failed to parse {} as a float", fs_Color("\"{}\""_f << pParse, EColor_String, _AnsiFlags)));
 					}
 
 					if (*pParse)
@@ -507,7 +526,7 @@ namespace NMib::NConcurrency
 							{
 								try
 								{
-									CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict, _bColor);
+									CEJSON Value = fp_ConvertValue(PossibleMatch, _Value, FormatIdentifier, _bStrict, _AnsiFlags);
 									if (bIsType)
 										return Value;
 									else if (Value == PossibleMatch)
@@ -595,7 +614,7 @@ namespace NMib::NConcurrency
 							}
 
 							OutputObject.f_CreateMember(Identifier)
-								= fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true, _bColor)
+								= fp_ConvertValue(TemplateMember.f_Value(), *pInputMember, fg_Format("{}.{}", _Identifier, Identifier), true, _AnsiFlags)
 							;
 						}
 
@@ -606,7 +625,7 @@ namespace NMib::NConcurrency
 								if (!pWildcard)
 									DMibError(fg_Format("Unexpected member '{}' in input object", InputMember.f_Name()));
 								OutputObject.f_CreateMember(InputMember.f_Name())
-									= fp_ConvertValue(*pWildcard, InputMember.f_Value(), fg_Format("{}.{}", _Identifier, InputMember.f_Name()), true, _bColor)
+									= fp_ConvertValue(*pWildcard, InputMember.f_Value(), fg_Format("{}.{}", _Identifier, InputMember.f_Name()), true, _AnsiFlags)
 								;
 							}
 						}
@@ -648,7 +667,7 @@ namespace NMib::NConcurrency
 						auto &Template = TemplateArray.f_GetFirst();
 						CStr Identifier = fg_Format("{}.[]", _Identifier);
 						for (auto &InputElement : InputArray)
-							OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true, _bColor);
+							OutputArray.f_Insert() = fp_ConvertValue(Template, InputElement, Identifier, true, _AnsiFlags);
 					}
 
 					Return = RawValue;
@@ -674,7 +693,7 @@ namespace NMib::NConcurrency
 						break;
 					}
 					else
-						DMibError(fg_Format("Failed to parse {} as a null value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _bColor)));
+						DMibError(fg_Format("Failed to parse {} as a null value", fs_Color("\"{}\""_f << _Value.f_String(), EColor_String, _AnsiFlags)));
 				}
 				else
 					DMibError("Null can only be converted from string");
@@ -696,19 +715,25 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue(CEJSON const &_Template, CEJSON const &_Value, CStr const &_Identifier, bool _bColor) const
+	CStr CDistributedAppCommandLineSpecification::CInternal::CValue::fp_FormatValue
+		(
+		 	CEJSON const &_Template
+		 	, CEJSON const &_Value
+		 	, CStr const &_Identifier
+		 	, NCommandLine::EAnsiEncodingFlag _AnsiFlags
+		) const
 	{
 		CStr Return;
 
 		auto fToString = [&](CEJSON const &_Value)
 			{
-				return _Value.f_ToStringColored("    ", _bColor);
+				return _Value.f_ToStringColored(_AnsiFlags, "    ");
 			}
 		;
 		auto fColor = [&](CStr const &_Value, EColor _Color)
 			{
-				if (_bColor)
-					return fs_Color(_Value, _Color);
+				if (_AnsiFlags & NCommandLine::EAnsiEncodingFlag_Color)
+					return fs_Color(_Value, _Color, _AnsiFlags);
 				else
 					return _Value;
 			}

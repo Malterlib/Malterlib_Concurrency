@@ -187,11 +187,13 @@ namespace NMib::NConcurrency
 				auto CurrentFactor = *State.m_iCurrentFactor;
 				if (!_Response)
 				{
+					auto AnsiEncoding = State.m_pCommandLine->f_AnsiEncoding();
+
 					*State.m_pCommandLine %= "Failed to authenticate with factor '{}': {}{}{}\n"_f
 						<< CurrentFactor
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_StatusError
+						<< AnsiEncoding.f_StatusError()
 						<< _Response.f_GetExceptionStr()
-						<< (ch8 const *)NCommandLine::CAnsiEncoding::ms_Default
+						<< AnsiEncoding.f_Default()
 					;
 
 					State.m_Tested[CurrentFactor] = false;

@@ -8,6 +8,7 @@
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Cryptography/Certificate>
 #include <Mib/Encoding/EJSON>
+#include <Mib/CommandLine/AnsiEncoding>
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
@@ -522,6 +523,46 @@ namespace NMib::NConcurrency
 		else if (m_HostID.f_IsEmpty())
 			return m_FriendlyName;
 		return fg_Format("{} [{}]", m_HostID, m_FriendlyName);
+	}
+
+	NStr::CStr CHostInfo::f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const
+	{
+		using namespace NStr;
+
+		CStr Return;
+
+		if (m_HostID.f_IsEmpty())
+			Return += "Invalid";
+		else
+			Return += m_HostID;
+
+		if (m_FriendlyName.f_IsEmpty())
+			return Return;
+
+		Return += " ";
+
+		CStr UserName;
+		CStr HostName;
+		aint nParsed;
+		(CStr::CParse("{}@{}") >> UserName >> HostName).f_Parse(m_FriendlyName, nParsed);
+
+		NCommandLine::CAnsiEncoding AnsiEncoding(_AnsiFlags);
+
+		if (nParsed == 2)
+		{
+			Return += "[{}{}{}@{}{}{}]"_f
+				<< AnsiEncoding.f_Foreground256(75)
+				<< UserName
+				<< AnsiEncoding.f_Foreground256(246)
+				<< AnsiEncoding.f_Foreground256(75)
+				<< HostName
+				<< AnsiEncoding.f_Default()
+			;
+		}
+		else
+			Return += "[{}]"_f << m_FriendlyName;
+
+		return Return;
 	}
 
 	bool CHostInfo::operator ==(CHostInfo const &_Right) const

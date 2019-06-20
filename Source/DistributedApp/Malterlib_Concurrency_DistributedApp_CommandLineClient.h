@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/ConcurrencyDefines>
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Concurrency/DistributedActorSingleSubscription>
+#include <Mib/CommandLine/AnsiEncoding>
 
 #include "Malterlib_Concurrency_DistributedApp_CommandLine.h"
 
@@ -29,6 +30,11 @@ namespace NMib::NConcurrency
 		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyPreRunDirectCommand);
 
 		bool f_ColorEnabled() const;
+		bool f_Color24BitEnabled() const;
+		bool f_ColorLightBackground() const;
+
+		NCommandLine::EAnsiEncodingFlag f_AnsiEncodingFlags() const;
+		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
 
 		CDistributedAppCommandLineClient
 			(

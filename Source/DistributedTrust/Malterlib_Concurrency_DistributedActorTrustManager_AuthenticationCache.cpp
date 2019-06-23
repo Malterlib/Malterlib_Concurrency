@@ -228,7 +228,6 @@ namespace NMib::NConcurrency
 			fg_RegisterTimer
 				(
 					15.0 * 60.0
-					, fg_CurrentActor()
 					, [this]
 					{
 						return f_CleanupExpired();

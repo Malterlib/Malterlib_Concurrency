@@ -18,8 +18,8 @@ namespace NMib::NConcurrency
 		void f_FireAtExit();
 		void f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback, bool _bFireAtExit);
 		CActorSubscription f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
-		CActorSubscription f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
-		CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
+		CActorSubscription f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, FUnitVoidFutureFunction &&_fCallback);
+		CActorSubscription f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, FUnitVoidFutureFunction &&_fCallback);
 
 	private:
 		struct CInternal;
@@ -46,9 +46,9 @@ namespace NMib::NConcurrency
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit = true);
 	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor = nullptr, bool _bFireAtExit = true);
-	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback);
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback);
+	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor = nullptr);
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor = nullptr);
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor = nullptr);
 }
 
 #include "Malterlib_Concurrency_TimerActor.hpp"

@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 		return fg_Move(pCallbackHandle);
 	}
 
-	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, FUnitVoidFutureFunction &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -489,7 +489,7 @@ namespace NMib::NConcurrency
 		return fg_Move(pCallbackHandle);
 	}
 
-	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, FUnitVoidFutureFunction &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -586,6 +586,7 @@ namespace NMib::NConcurrency
 		TCActor<CActor> pActor = _pActor;
 		if (!pActor)
 			pActor = fg_CurrentActor();
+
 		fg_TimerActor()
 			(
 				&CTimerActor::f_OneshotTimer
@@ -598,20 +599,24 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
+		TCActor<CActor> pActor = _pActor;
+		if (!pActor)
+			pActor = fg_CurrentActor();
+
 		return fg_UnsafeDirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
+				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
 					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_OneshotTimerAbortable
 							, _Period
-							, _pActor
+							, pActor
 							, fg_Move(fCallback)
 						)
 						> Promise;
@@ -622,20 +627,24 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
+		TCActor<CActor> pActor = _pActor;
+		if (!pActor)
+			pActor = fg_CurrentActor();
+
 		return fg_UnsafeDirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
+				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
 					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_RegisterTimer
 							, _Period
-							, _pActor
+							, pActor
 							, fg_Move(fCallback)
 						)
 						> Promise;
@@ -646,20 +655,24 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<TCFuture<void> ()> &&_fCallback)
+	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
+		TCActor<CActor> pActor = _pActor;
+		if (!pActor)
+			pActor = fg_CurrentActor();
+
 		return fg_UnsafeDirectDispatch
 			(
-				[_Period, _pActor, fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
+				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
 					TCPromise<CActorSubscription> Promise;
 					fg_TimerActor()
 						(
 							&CTimerActor::f_RegisterExactTimer
 							, _Period
-							, _pActor
+							, pActor
 							, fg_Move(fCallback)
 						)
 						> Promise;

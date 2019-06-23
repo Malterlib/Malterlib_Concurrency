@@ -5,11 +5,14 @@
 #include "Malterlib_Concurrency_Promise.h"
 #include <Mib/Log/Log>
 
+namespace NMib::NFunction
+{
+	extern template struct TCFunctionMutable<NConcurrency::TCFuture<void> ()>;
+}
+
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionCoroutineWrapper);
-
-
 }
 
 namespace NMib::NConcurrency::NPrivate

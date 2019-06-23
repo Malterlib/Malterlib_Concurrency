@@ -546,6 +546,14 @@ namespace NMib::NConcurrency
 
 		TCFuture<t_CReturnValue> m_Future;
 	};
+
+	using FUnitVoidFutureFunction = NFunction::TCFunctionMovable<TCFuture<void> ()>;
+
+}
+
+namespace NMib::NFunction
+{
+	extern template struct TCFunctionMutable<NConcurrency::TCFuture<void> ()>;
 }
 
 namespace NMibOperators

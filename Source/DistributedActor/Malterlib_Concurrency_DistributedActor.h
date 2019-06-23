@@ -548,9 +548,15 @@ namespace NMib::NConcurrency
 			}
 		};
 
+		struct CHostState
+		{
+			NStr::CStr m_LastConnectionError;
+			NTime::CTime m_LastConnectionErrorTime;
+			bool m_bActive = false;
+		};
+
 		CActorDistributionManager(CActorDistributionManagerInitSettings const &_InitSettings);
 		~CActorDistributionManager();
-
 
 		void f_SetSecurity(CDistributedActorSecurity const &_Security);
 		void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
@@ -584,6 +590,7 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<void> f_KickHost(NStr::CStr const &_HostID);
+		TCFuture<CHostState> f_GetHostState(NStr::CStr const &_UniqueHostID);
 
 		TCFuture<CActorSubscription> f_SubscribeActors
 			(

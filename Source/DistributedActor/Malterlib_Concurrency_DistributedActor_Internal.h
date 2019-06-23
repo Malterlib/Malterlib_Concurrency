@@ -235,6 +235,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_ClaimedUserName;
 		NStr::CStr m_ExecutionID = NCryptography::fg_RandomID();
 
+		NStr::CStr m_LastError;
+		NTime::CTime m_LastErrorTime;
+
 		bool m_bAllowAllNamespaces = false;
 
 		bool m_bIncoming = false;

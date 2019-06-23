@@ -100,6 +100,25 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
+	TCFuture<CActorDistributionManager::CHostState> CActorDistributionManager::f_GetHostState(NStr::CStr const &_UniqueHostID)
+	{
+		auto &Internal = *mp_pInternal;
+
+		auto *pHost = Internal.m_Hosts.f_FindEqual(_UniqueHostID);
+		if (!pHost)
+			return fg_Explicit();
+
+		auto &Host = **pHost;
+
+		CHostState ReturnState;
+
+		ReturnState.m_bActive = !Host.m_ActiveConnections.f_IsEmpty();
+		ReturnState.m_LastConnectionError = Host.m_LastError;
+		ReturnState.m_LastConnectionErrorTime = Host.m_LastErrorTime;
+
+		return fg_Explicit(fg_Move(ReturnState));
+	}
+
 	void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
 	{
 		auto &Host = _Host;

@@ -239,6 +239,12 @@ namespace NMib::NConcurrency
 	{
 		m_LastConnectionError = _Error;
 		m_LastConnectionErrorTime = NTime::CTime::fs_NowUTC();
+
+		if (m_pHost)
+		{
+			m_pHost->m_LastError = _Error;
+			m_pHost->m_LastErrorTime = m_LastConnectionErrorTime;
+		}
 	}
 
 	NActorDistributionManagerInternal::CServerConnection::CServerConnection(mint _ConnectionID)

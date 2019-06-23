@@ -235,7 +235,6 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		bool m_bIncoming = false;
 		bool m_bOutgoing = false;
-		bool m_bDeleted = false;
 		bool m_bLoggedConnection = false;
 	};
 

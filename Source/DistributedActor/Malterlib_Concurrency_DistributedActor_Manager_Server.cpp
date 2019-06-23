@@ -79,19 +79,35 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
+	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
 	{
 		auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
 		if (pConnection)
 		{
-			_Connection.f_Destroy(_Error);
+			auto pHost = _Connection.m_pHost;
 
-			auto &pHost = _Connection.m_pHost;
-			if (!_bSaveHost && pHost && pHost->m_bAnonymous)
+			if (pHost)
 			{
-				fp_DestroyHost(*pHost, &_Connection);
-				pHost = nullptr;
+				pHost->m_LastError = _Error;
+				pHost->m_LastErrorTime = NTime::CTime::fs_NowUTC();
 			}
+
+			bool bDestroyAnon = !_bSaveHost && pHost && pHost->m_HostInfo.m_bAnonymous;
+			bool bDestroyNormal = pHost && _bLastActiveNormalClosure;
+
+			_Connection.f_Destroy(_Error, *this);
+
+			if (bDestroyAnon)
+			{
+				fp_DestroyHost(*pHost, &_Connection, "anonymous connection disconnected");
+				_Connection.m_pHost = nullptr;
+			}
+			else if (bDestroyNormal)
+			{
+				fp_DestroyHost(*pHost, &_Connection, "last active connection disconnected");
+				_Connection.m_pHost = nullptr;
+			}
+
 			m_ServerConnections.f_Remove(pConnection);
 		}
 	}
@@ -387,7 +403,7 @@ namespace NMib::NConcurrency
 									pConnection->m_bIncoming = true;
 
 									NewServerConnection.m_fOnClose = [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
-										(NWeb::EWebSocketStatus _Reason, NStr::CStr const& _Message, NWeb::EWebSocketCloseOrigin _Origin)
+										(NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
 										{
 											auto pConnection = pConnectionWeak.f_Lock();
 											if (!pConnection)
@@ -395,13 +411,15 @@ namespace NMib::NConcurrency
 											if (!pConnection->m_pHost)
 												return;
 
+											bool bLast = pConnection->m_Link.f_IsAloneInList();
+
 											NStr::CStr CloseMessage = fg_Format
 												(
-													"Lost {} incoming connection({}) from '{}' <{}>: {} {} {}"
-													, pConnection->m_Link.f_IsAloneInList() ? "last" : "additional"
-													, pConnection->f_GetConnectionID()
+												 	"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
+													, pConnection->f_GetHostInfo()
+													, bLast ? "last" : "additional"
 													, Address.f_GetString()
-													, pConnection->f_GetHostInfo().f_GetDesc()
+													, pConnection->f_GetConnectionID()
 													, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 													, _Reason
 													, _Message
@@ -424,7 +442,14 @@ namespace NMib::NConcurrency
 												DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
 											}
 
-											fp_DestroyServerConnection(*pConnection, false, CloseMessage);
+											fp_DestroyServerConnection
+												(
+												 	*pConnection
+												 	, false
+												 	, CloseMessage
+												 	, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && _Message != "Remove connection (preserve host)"
+												)
+											;
 										}
 									;
 
@@ -445,7 +470,7 @@ namespace NMib::NConcurrency
 									;
 
 									pConnection->f_DiscardIdentifyPromise("Reconnected");
-									pConnection->m_IdentifyPromise = TCPromise<void>();
+									pConnection->m_IdentifyPromise = TCPromise<bool>();
 
 									NWeb::NHTTP::CResponseHeader ResponseHeader;
 									ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);
@@ -467,7 +492,7 @@ namespace NMib::NConcurrency
 														return;
 													if (!pConnection->m_Connection)
 														return;
-													pConnection->m_IdentifyPromise.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<void> &&_Result) mutable
+													pConnection->m_IdentifyPromise.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<bool> &&_Result) mutable
 														{
 															auto pConnection = pConnectionWeak.f_Lock();
 															if (!pConnection)
@@ -479,9 +504,9 @@ namespace NMib::NConcurrency
 																	(
 																		Mib/Concurrency/Actors
 																		, Error
-																		, "Error identifying connection({}) from '{}': {}"
-																		, pConnection->f_GetConnectionID()
+																	 	, "Error identifying connection from '{}' {{{}}: {}"
 																		, Address.f_GetString()
+																		, pConnection->f_GetConnectionID()
 																		, _Result.f_GetExceptionStr()
 																	)
 																;
@@ -492,10 +517,10 @@ namespace NMib::NConcurrency
 
 															NStr::CStr ToLog = NStr::fg_Format
 																(
-																	"Accepted connection({}) from '{}' <{}>"
-																	, pConnection->f_GetConnectionID()
+																 	"<{}> Accepted '{}' {{{}}"
+																	, pConnection->f_GetHostInfo()
 																	, Address.f_GetString()
-																	, pConnection->f_GetHostInfo().f_GetDesc()
+																	, pConnection->f_GetConnectionID()
 																)
 															;
 

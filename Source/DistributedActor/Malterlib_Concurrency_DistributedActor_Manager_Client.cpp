@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		if (mp_DistributionManager)
 		{
 			if (auto DistributionManager = mp_DistributionManager.f_Lock())
-				DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID) > fg_DiscardResult();
+				DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, false) > fg_DiscardResult();
 
 			mp_DistributionManager.f_Clear();
 			mp_ConnectionID.f_Clear();
@@ -77,19 +77,19 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<void> CDistributedActorConnectionReference::f_Disconnect()
+	TCDispatchedActorCall<void> CDistributedActorConnectionReference::f_Disconnect(bool _bPreserveHost)
 	{
 		bool bAlreadyRemoved = mp_DistributionManager.f_IsEmpty();
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		mp_DistributionManager.f_Clear();
 		return fg_ConcurrentDispatch
 			(
-				[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID]
+				[bAlreadyRemoved, DistributionManager = fg_Move(DistributionManager), ConnectionID = mp_ConnectionID, _bPreserveHost]
 				{
 					TCPromise<void> Promise;
 					if (DistributionManager)
 					{
-						DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID) > [Promise](TCAsyncResult<void> &&_Result)
+						DistributionManager(&CActorDistributionManager::fp_RemoveConnection, ConnectionID, _bPreserveHost) > [Promise](TCAsyncResult<void> &&_Result)
 							{
 								Promise.f_SetResult(fg_Move(_Result));
 							}
@@ -135,9 +135,10 @@ namespace NMib::NConcurrency
 			, bool _bRetry
 			, mint _Sequence
 			, NStr::CStr const &_ConnectionError
+		 	, bool _bResetHost
 		)
 	{
-		_pConnection->f_Reset(false);
+		_pConnection->f_Reset(_bResetHost, *this, "Reconnect");
 		_pConnection->f_SetLastError(_ConnectionError);
 
 		fg_TimerActor()
@@ -159,15 +160,31 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error)
+	void CActorDistributionManagerInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
 	{
-		_Connection.f_Destroy(_Error);
-		auto &pHost = _Connection.m_pHost;
-		if (!_bSaveHost && pHost && pHost->m_bAnonymous)
+		auto pHost = _Connection.m_pHost;
+		if (pHost)
 		{
-			fp_DestroyHost(*pHost, &_Connection);
-			pHost = nullptr;
+			pHost->m_LastError = _Error;
+			pHost->m_LastErrorTime = NTime::CTime::fs_NowUTC();
 		}
+
+		bool bDestroyAnon = !_bSaveHost && pHost && pHost->m_HostInfo.m_bAnonymous;
+		bool bDestroyNormal = pHost && _bLastActiveNormalClosure;
+
+		_Connection.f_Destroy(_Error, *this);
+
+		if (bDestroyAnon)
+		{
+			fp_DestroyHost(*pHost, &_Connection, "anonymous client connection disconnected");
+			_Connection.m_pHost = nullptr;
+		}
+		else if (bDestroyNormal)
+		{
+			fp_DestroyHost(*pHost, &_Connection, "last active client connection disconnected");
+			_Connection.m_pHost = nullptr;
+		}
+
 		m_ClientConnections.f_Remove(_Connection.m_ConnectionID);
 	}
 
@@ -361,7 +378,6 @@ namespace NMib::NConcurrency
 
 				Connection.m_pHost = pHost;
 				Host.m_ClientConnections.f_Insert(Connection);
-				bool bFirstConnection = Connection.m_HostLink.f_IsAloneInList();
 
 				Host.m_bOutgoing = true;
 
@@ -376,11 +392,15 @@ namespace NMib::NConcurrency
 						if (!pConnection->m_pHost)
 							return;
 
+						bool bLast = pConnection->m_Link.f_IsAloneInList();
+
 						NStr::CStr Error = fg_Format
 							(
-								"Lost outgoing connection to '{}' <{}>: {} {} {}"
+							 	"<{}> Lost {} outgoing connection to '{}' {{{}}: {} {} {}"
+								, pConnection->f_GetHostInfo()
+							 	, bLast ? "last" : "additional"
 								, pConnection->m_ServerURL.f_Encode()
-								, pConnection->f_GetHostInfo().f_GetDesc()
+								, pConnection->f_GetConnectionID()
 								, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 								, _Reason
 								, _Message
@@ -390,11 +410,18 @@ namespace NMib::NConcurrency
 							DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", Error);
 						else
 							DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+
 						auto &pHost = pConnection->m_pHost;
 						if (pHost && pHost->m_HostInfo.m_bAnonymous)
-							fp_DestroyClientConnection(*pConnection, false, Error);
+							fp_DestroyClientConnection(*pConnection, false, Error, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast);
 						else
-							fp_ScheduleReconnect(pConnection, nullptr, true, Sequence, Error);
+						{
+							auto pHost = pConnection->m_pHost;
+							bool bDestroyNormal = pHost && _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast;
+							fp_ScheduleReconnect(pConnection, nullptr, true, Sequence, Error, bDestroyNormal);
+							if (bDestroyNormal)
+								fp_DestroyHost(*pHost, pConnection.f_Get(), "last active client connection disconnected");
+						}
 					}
 				;
 
@@ -423,7 +450,7 @@ namespace NMib::NConcurrency
 				;
 
 				pConnection->f_DiscardIdentifyPromise("Reconnected");
-				pConnection->m_IdentifyPromise = TCPromise<void>();
+				pConnection->m_IdentifyPromise = TCPromise<bool>();
 				pConnection->m_Connection = Result.f_Accept
 					(
 						fg_ThisActor(m_pThis)
@@ -437,7 +464,6 @@ namespace NMib::NConcurrency
 							, UniqueHostID
 							, CertificateChain = pSocketInfo->m_CertificateChain
 							, fReportError
-							, bFirstConnection
 						]
 						(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Callback) mutable
 						{
@@ -493,10 +519,9 @@ namespace NMib::NConcurrency
 									, pConnectionWeak
 									, _pPromise
 									, CertificateChain = fg_Move(CertificateChain)
-									, bFirstConnection
 									, fReportError
 								]
-								(TCAsyncResult<void> &&_Result) mutable
+								(TCAsyncResult<bool> &&_Result) mutable
 								{
 									auto pConnection = pConnectionWeak.f_Lock();
 									if (!pConnection)
@@ -521,16 +546,14 @@ namespace NMib::NConcurrency
 
 									NStr::CStr ToLog = NStr::fg_Format
 										(
-											"Connection({}) to '{}' <{}> was successful. Host ID: {}   Unique host ID: {}"
-											, pConnection->f_GetConnectionID()
+										 	"<{}> Connected '{}' {{{}}"
+											, pConnection->f_GetHostInfo()
 											, pConnection->m_ServerURL.f_Encode()
-											, pConnection->f_GetHostInfo().f_GetDesc()
-											, RealHostID
-											, UniqueHostID
+											, pConnection->f_GetConnectionID()
 										)
 									;
 
-									if (bFirstConnection)
+									if (*_Result)
 										DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
 									else
 										DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
@@ -666,12 +689,22 @@ namespace NMib::NConcurrency
 		return fg_Explicit(Return);
 	}
 
-	void CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID)
+	void CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 		if (pConnection)
-			Internal.fp_DestroyClientConnection(**pConnection, false, "Remove connection");
+		{
+			auto &Connection = **pConnection;
+			Internal.fp_DestroyClientConnection
+				(
+				 	Connection
+				 	, false
+				 	, _bPreserveHost ? "Remove connection (preserve host)" : "Remove connection"
+				 	, !_bPreserveHost && Connection.m_Link.f_IsAloneInList()
+				)
+			;
+		}
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)

@@ -87,7 +87,7 @@ namespace NMib::NConcurrency
 			for (auto &ServerConnection : Host.m_ServerConnections)
 				ServerConnection.f_Disconnect() > Results.f_AddResult();
 
-			Internal.fp_DestroyHost(Host, nullptr);
+			Internal.fp_DestroyHost(Host, nullptr, "host was kicked");
 		}
 
 		TCPromise<void> Promise;
@@ -121,7 +121,10 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			fp_DestroyClientConnection(Connection, true, "Reset host state");
+			if (Host.m_HostInfo.m_bAnonymous)
+				fp_DestroyClientConnection(Connection, true, "Reset host state", false);
+			else
+				fp_ScheduleReconnect(fg_Explicit(&Connection), nullptr, true, Connection.m_ConnectionSequence, "Reset host state", true);
 		}
 
 		for (auto iServerConnection = Host.m_ServerConnections.f_GetIterator(); iServerConnection; )
@@ -138,7 +141,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			fp_DestroyServerConnection(Connection, true, "Reset host state");
+			fp_DestroyServerConnection(Connection, true, "Reset host state", false);
 		}
 
 		DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
@@ -193,8 +196,14 @@ namespace NMib::NConcurrency
 		Host.f_DeletePackets();
 	}
 
-	void CActorDistributionManagerInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection)
+	void CActorDistributionManagerInternal::fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason)
 	{
+		CHostInfo HostInfo;
+		HostInfo.m_HostID = _Host.m_HostInfo.m_RealHostID;
+		HostInfo.m_FriendlyName = _Host.m_FriendlyName;
+
+		DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Destroyed host because {}", HostInfo, _Reason);
+
 		fp_ResetHostState(_Host, _pSaveConnection, false);
 		_Host.f_Destroy();
 		if (_Host.m_RealHostsLink.f_IsAloneInList())

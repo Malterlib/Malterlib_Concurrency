@@ -58,7 +58,6 @@ namespace NMib::NConcurrency
 
 					if (Host.m_LastExecutionID != Identify.m_ExecutionID)
 						bShouldReset = true;
-
 #if 0
 					// This seems to not be needed
 					if (!Identify.m_LastSeenExecutionID.f_IsEmpty() && Identify.m_LastSeenExecutionID != m_ExecutionID)
@@ -66,7 +65,6 @@ namespace NMib::NConcurrency
 						bShouldReset = true;
 					}
 #endif
-
 					if (bShouldReset && !Host.m_LastExecutionID.f_IsEmpty())
 						fp_ResetHostState(*pHost, _pConnection, true);
 
@@ -144,6 +142,7 @@ namespace NMib::NConcurrency
 
 					_pConnection->m_bIdentified = true;
 					Host.m_ActiveConnections.f_Insert(*_pConnection);
+					_pConnection->m_bFirstConnection = _pConnection->m_Link.f_IsAloneInList();
 					fp_SendPacketQueue(pHost);
 					fp_ProcessPacketQueue(_pConnection);
 
@@ -184,7 +183,7 @@ namespace NMib::NConcurrency
 					else
 					{
 						if (!_pConnection->m_IdentifyPromise.f_IsSet())
-							_pConnection->m_IdentifyPromise.f_SetResult();
+							_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
 					}
 				}
 				break;
@@ -203,7 +202,7 @@ namespace NMib::NConcurrency
 					Stream >> InitialPublishFinished;
 
 					if (!_pConnection->m_IdentifyPromise.f_IsSet())
-						_pConnection->m_IdentifyPromise.f_SetResult();
+						_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
 				}
 				break;
 			case EDistributedActorCommand_Acknowledge:
@@ -305,7 +304,7 @@ namespace NMib::NConcurrency
 		auto &pHost = _pConnection->m_pHost;
 		CDistributedActorCommand_Identify Identify;
 		Identify.m_FriendlyName = m_FriendlyName;
-		Identify.m_ExecutionID = m_ExecutionID;
+		Identify.m_ExecutionID = pHost->m_ExecutionID;
 		Identify.m_LastSeenExecutionID = pHost->m_LastExecutionID;
 		Identify.m_AckedPacketID = pHost->m_Incoming_NextPacketID - 1;
 		Identify.m_HighestSeenPacketID = Identify.m_AckedPacketID;

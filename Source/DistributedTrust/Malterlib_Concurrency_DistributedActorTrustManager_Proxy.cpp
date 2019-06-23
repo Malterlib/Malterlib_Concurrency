@@ -173,11 +173,11 @@ namespace NMib::NConcurrency
 		return mp_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, _Address, _ConnectionConcurrency);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CRemoveClientConnection const &_Command)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Remove))
 			return fp_AccessDenied();
-		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, _Address);
+		return mp_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, _Command.m_Address, _Command.m_bPreserveHost);
 	}
 	
 	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)

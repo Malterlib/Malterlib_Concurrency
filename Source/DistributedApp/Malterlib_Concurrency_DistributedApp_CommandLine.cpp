@@ -676,7 +676,7 @@ namespace NMib::NConcurrency
 		TCPromise<uint32> Promise;
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, Address)
+		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, Address, false)
 			> Promise / [Promise, _URL]()
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove connection '{}' from command line", _URL);

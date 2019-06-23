@@ -598,7 +598,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, ServerAddress, -1).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, OldServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, OldServerAddress, false).f_CallSync(60.0);
 
 					fp_DoTests(ServerTrustManager, ClientTrustManager);
 
@@ -754,7 +754,7 @@ namespace NTestTrustManager
 				Clock.f_Start();
 				while (Clock.f_GetTime() < 1.5)
 				{
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(60.0);
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
 					NSys::fg_Thread_Sleep(0.05f);
@@ -793,7 +793,7 @@ namespace NTestTrustManager
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
 
-					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(60.0);
 
 					// Check that you cannot reuse old ticket
 					DMibExpectExceptionType(ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0), NException::CException);

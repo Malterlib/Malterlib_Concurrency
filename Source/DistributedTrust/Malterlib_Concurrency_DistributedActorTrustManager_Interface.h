@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x106
+			, EProtocolVersion = 0x107
 		};
 	  
 		struct CTrustTicket
@@ -230,6 +230,15 @@ namespace NMib::NConcurrency
 			EAuthenticationFactorCategory m_Category;
 		};
 
+		struct CRemoveClientConnection
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CDistributedActorTrustManager_Address m_Address;
+			bool m_bPreserveHost = false;
+		};
+
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
@@ -249,7 +258,7 @@ namespace NMib::NConcurrency
 		virtual TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) = 0;
 		virtual TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
 		virtual TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) = 0;
-		virtual TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<void> f_RemoveClientConnection(CRemoveClientConnection const &_Command) = 0;
 		virtual TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) = 0;

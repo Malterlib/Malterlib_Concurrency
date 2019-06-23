@@ -294,7 +294,7 @@ namespace NMib::NConcurrency
 		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1);
 		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
-		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost = false);
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
 
 		TCFuture<CConnectionState> f_GetConnectionState();

@@ -315,7 +315,7 @@ namespace NMib::NConcurrency
 				if (_bHasCurrent && ServerAddress != CurrentServerAddress && !CurrentServerAddress.f_IsEmpty())
 				{
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface address changed: {} != {}", ServerAddress, CurrentServerAddress);
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, CURL(CurrentServerAddress)) > ClientConnectionChanges.f_AddResult();
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, CURL(CurrentServerAddress), false) > ClientConnectionChanges.f_AddResult();
 				}
 				
 				ClientConnectionChanges.f_GetResults() > Promise / [=](TCVector<TCAsyncResult<void>> &&_Results)

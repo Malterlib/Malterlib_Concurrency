@@ -213,37 +213,30 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
+		if (mp_bDestroyed)
+			return DMibErrorInstance("Distribution manager destroyed");
+
 		auto &State = *_Context.m_pState; 
 		auto &DistributedData = *_pDistributedActorData.f_Get();
 
-		TCPromise<NContainer::CSecureByteVector> Promise;
-
 		if (DistributedData.m_bWasDestroyed)
-		{
-			Promise.f_SetException(DMibErrorInstance("Remote actor longer available"));
-			return Promise.f_MoveFuture();
-		}
+			return DMibErrorInstance("Remote actor longer available");
 
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 		
 		if (!pHostInterface || pHostInterface->m_bDeleted)
-		{
-			Promise.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
-			return Promise.f_MoveFuture();
-		}
+			return DMibErrorInstance("Remote actor host no longer available");
 
 		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
 
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
-		{
-			Promise.f_SetException(DMibErrorInstance("Remote host restarted with new actor protocol"));
-			return Promise.f_MoveFuture();
-		}
+			return DMibErrorInstance("Remote host restarted with new actor protocol");
 
 		State.m_pHost = pHost;
 		State.m_DistributionManager = fg_ThisActor(this);
 		State.m_LastExecutionID = pHost->m_LastExecutionID;
 		
+		TCPromise<NContainer::CSecureByteVector> Promise;
 		if (!fg_RegisterActorFunctorsForCall(State, *pHost, Promise))
 			return Promise.f_MoveFuture();
 			

@@ -52,6 +52,9 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedActorTrustManager::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
+
+		co_await Internal.m_AuthenticationInterface.f_Destroy();
+
 		TCActorResultVector<void> Stops;
 		for (auto &Connection : Internal.m_ClientConnections)
 		{
@@ -78,8 +81,6 @@ namespace NMib::NConcurrency
 				;
 			}
 		}
-
-		co_await Internal.m_AuthenticationInterface.f_Destroy();
 
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
 			co_await Internal.m_ActorDistributionManager->f_Destroy();

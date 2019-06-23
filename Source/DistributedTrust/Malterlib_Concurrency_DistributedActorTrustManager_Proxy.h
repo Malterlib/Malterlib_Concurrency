@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 		TCFuture<CHostInfo> f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency = -1) override;
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
 		TCFuture<CHostInfo> f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1) override;
-		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<void> f_RemoveClientConnection(CRemoveClientConnection const &_Command) override;
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address) override;
 
 		TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> f_EnumNamespacePermissions(bool _bIncludeHostInfo) override;

@@ -295,4 +295,12 @@ namespace NMib::NConcurrency
 		_Stream % m_Category;
 	}
 	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CLocalAuthenticationActorInfo);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CRemoveClientConnection::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Address;
+		if (_Stream.f_GetVersion() >= 0x107)
+			_Stream % m_bPreserveHost;
+	}
 }

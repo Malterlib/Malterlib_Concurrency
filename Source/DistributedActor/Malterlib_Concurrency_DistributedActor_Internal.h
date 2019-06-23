@@ -38,8 +38,8 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 			f_DiscardIdentifyPromise("Destroyed");
 		}
 
-		void f_Reset(bool _bResetHost);
-		void f_Destroy(NStr::CStr const &_Error);
+		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);
+		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This);
 		TCDispatchedActorCall<void> f_Disconnect();
 		static void fs_LogClose
 			(
@@ -58,20 +58,20 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CActorSubscription m_ConnectionSubscription;
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> m_pSSLContext;
 		NStorage::TCSharedPointerSupportWeak<CHost> m_pHost;
-		TCPromise<void> m_IdentifyPromise;
+		TCPromise<bool> m_IdentifyPromise;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
-		NStr::CStr m_LastError;
 		bool m_bIncoming = false;
 		bool m_bIdentified = false;
+		bool m_bFirstConnection = false;
 
 		CHostInfo f_GetHostInfo() const;
 	};
 
 	struct CClientConnection : public CConnection
 	{
-		void f_Reset(bool _bResetHost);
-		void f_Destroy(NStr::CStr const &_Error);
+		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);
+		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This);
 		NStr::CStr f_GetConnectionID() const override;
 		NStr::CStr f_GetServerURL() const override;
 		void f_SetLastError(NStr::CStr const &_Error);
@@ -230,6 +230,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> m_AuthenticationHandler;
 		NStr::CStr m_ClaimedUserID;
 		NStr::CStr m_ClaimedUserName;
+		NStr::CStr m_ExecutionID = NCryptography::fg_RandomID();
 
 		bool m_bAllowAllNamespaces = false;
 
@@ -343,7 +344,6 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointerSupportWeak<CHost>> m_Hosts;
 		NContainer::TCMap<NStr::CStr, DMibListLinkDS_List(CHost, m_RealHostsLink)> m_HostsByRealHostID;
 		CActorDistributionManager *m_pThis;
-		NStr::CStr m_ExecutionID;
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_Enclave;
@@ -378,7 +378,8 @@ namespace NMib::NConcurrency
 				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
 				, mint _Sequence
-				, NStr::CStr const &_ConnectionError 
+				, NStr::CStr const &_ConnectionError
+			 	, bool _bResetHost = false
 			)
 		;
 		void fp_Reconnect
@@ -390,8 +391,8 @@ namespace NMib::NConcurrency
 				, fp64 _Timeout
 			)
 		;
-		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
-		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error);
+		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
+		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
 		
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
@@ -406,7 +407,7 @@ namespace NMib::NConcurrency
 		;
 
 		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive);
-		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection);
+		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
 		void fp_Listen
 			(
 				NStr::CStr const &_ListenID

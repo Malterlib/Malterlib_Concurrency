@@ -82,9 +82,9 @@ namespace NMib::NConcurrency
 			if (_Result->m_Status != NWeb::EWebSocketStatus_AlreadyClosed)
 			{
 				if (_Result->m_Status != NWeb::EWebSocketStatus_NormalClosure || _bIsLastConnection)
-					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Connection({}) to '{}' <{}> closed: {} - {}", _ConnectionID, _ServerURL, _Desc, _Result->m_Status, _Result->m_Reason);
+					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Closed '{}' {{{}}: {} - {}", _Desc, _ServerURL, _ConnectionID, _Result->m_Status, _Result->m_Reason);
 				else
-					DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "Connection({}) to '{}' <{}> closed: {} - {}", _ConnectionID, _ServerURL, _Desc, _Result->m_Status, _Result->m_Reason);
+					DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "<{}> Closed '{}' {{{}}: {} - {}", _Desc, _ServerURL, _ConnectionID, _Result->m_Status, _Result->m_Reason);
 			}
 		}
 		else
@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 			}
 			catch (NException::CException const &)
 			{
-				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Connection({}) to '{}' <{}> closed with error: {}", _ConnectionID, _ServerURL, _Desc, _Result.f_GetExceptionStr());
+				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Closed with error '{}' {{{}}: {}", _Desc, _ServerURL, _ConnectionID, _Result.f_GetExceptionStr());
 			}
 		}
 	}
@@ -165,7 +165,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost)
+	void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message)
 	{
 		f_DiscardIdentifyPromise("Connection reset");
 		m_Link.f_Unlink();
@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 			auto ServerURL = f_GetServerURL();
 			auto Desc = f_GetHostInfo().f_GetDesc();
 
-			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal reset", 5.0)
+			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message, 5.0)
 				> fg_ConcurrentActor() / [=](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 				{
 					fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
@@ -195,12 +195,11 @@ namespace NMib::NConcurrency
 			m_pHost.f_Clear();
 	}
 
-	void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Error)
+	void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This)
 	{
-		f_DiscardIdentifyPromise(fg_Format("Connection destroyed: {}", _Error));
-		f_Reset(true);
+		f_DiscardIdentifyPromise(fg_Format("Connection destroyed: {}", _Message));
+		f_Reset(true, _This, _Message);
 		m_pSSLContext.f_Clear();
-		m_LastError = _Error;
 	}
 
 	NStr::CStr CActorDistributionManagerInternal::CConnection::f_GetServerURL() const
@@ -208,15 +207,15 @@ namespace NMib::NConcurrency
 		return "Unknown";
 	}
 
-	void CActorDistributionManagerInternal::CClientConnection::f_Reset(bool _bResetHost)
+	void CActorDistributionManagerInternal::CClientConnection::f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message)
 	{
-		CConnection::f_Reset(_bResetHost);
+		CConnection::f_Reset(_bResetHost, _This, _Message);
 		m_bConnected = false;
 	}
 
-	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Error)
+	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This)
 	{
-		CConnection::f_Destroy(_Error);
+		CConnection::f_Destroy(_Message, _This);
 		m_bConnected = false;
 	}
 
@@ -253,15 +252,14 @@ namespace NMib::NConcurrency
 		for (auto &pConnection : Internal.m_ClientConnections)
 		{
 			++pConnection->m_ConnectionSequence;
-			pConnection->f_Destroy("");
+			pConnection->f_Destroy("", Internal);
 		}
 		for (auto &pConnection : Internal.m_ServerConnections)
-			pConnection->f_Destroy("");
+			pConnection->f_Destroy("", Internal);
 	}
 
 	CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings)
 		: m_pThis(_pThis)
-		, m_ExecutionID(NCryptography::fg_RandomID())
 		, m_OnHostInfoChanged(_pThis, false)
 		, m_FriendlyName(_InitSettings.m_FriendlyName)
 		, m_HostID(_InitSettings.m_HostID)
@@ -274,7 +272,7 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()
 	{
 		while (auto *pHost = m_Hosts.f_FindAny())
-			fp_DestroyHost(**pHost, nullptr);
+			fp_DestroyHost(**pHost, nullptr, "distribution manager was destroyed");
 	}
 
 	namespace

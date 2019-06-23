@@ -976,19 +976,19 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
 	{
 		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
 		Internal.f_RunAfterInit
 			(
 				Promise
-				, [this, Promise, _Address]
+				, [this, Promise, _Address, _bPreserveHost]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.m_ClientConnectionsInDatabase.f_Remove(_Address);
 					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address)
-						> Promise % "Failed to remove client connection from database" / [this, Promise, _Address]
+						> Promise % "Failed to remove client connection from database" / [this, Promise, _Address, _bPreserveHost]
 						{
 							auto &Internal = *mp_pInternal;
 							auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
@@ -999,7 +999,7 @@ namespace NMib::NConcurrency
 
 							TCActorResultVector<void> DisconnectResults;
 							for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
-								ConnectionReference.f_Disconnect() > DisconnectResults.f_AddResult();
+								ConnectionReference.f_Disconnect(_bPreserveHost) > DisconnectResults.f_AddResult();
 
 							DisconnectResults.f_GetResults() > Promise % "Failed to disconnect client connection"
 								/ [this, _Address, Promise](NContainer::TCVector<TCAsyncResult<void>> &&_Results)

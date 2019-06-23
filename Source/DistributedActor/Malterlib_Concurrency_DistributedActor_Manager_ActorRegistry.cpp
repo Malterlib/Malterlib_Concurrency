@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 				continue;
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 				continue;
-			if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 
 			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
@@ -141,13 +141,13 @@ namespace NMib::NConcurrency
 
 		for (auto &Host : *pHosts)
 		{
-			if (Host.m_RealHostID != _HostID)
+			if (Host.m_HostInfo.m_RealHostID != _HostID)
 				continue;
 			if (!Host.f_CanSendPublish())
 				return;
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_NamespaceID))
 				return;
-			if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
 				return;
 
 			auto &PublishedActor = *pPublishedActor;
@@ -210,7 +210,7 @@ namespace NMib::NConcurrency
 				continue;
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 				continue;
-			if (Host.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 
 			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
@@ -280,7 +280,7 @@ namespace NMib::NConcurrency
 				, _pHost
 				, fg_ThisActor(m_pThis)
 				, _RemoteActor.m_Hierarchy
-				, _pHost->m_UniqueHostID
+				, _pHost->m_HostInfo.m_UniqueHostID
 				, _pHost->f_GetHostInfo()
 				, _RemoteActor.m_ProtocolVersions
 			}
@@ -435,7 +435,7 @@ namespace NMib::NConcurrency
 								, fg_Explicit(RemoteActor.m_pHost)
 								, fg_ThisActor(this)
 								, RemoteActor.m_Hierarchy
-								, RemoteActor.m_pHost->m_UniqueHostID
+								, RemoteActor.m_pHost->m_HostInfo.m_UniqueHostID
 								, RemoteActor.m_pHost->f_GetHostInfo()
 								, RemoteActor.m_ProtocolVersions
 							)
@@ -470,7 +470,7 @@ namespace NMib::NConcurrency
 									, fg_Explicit(RemoteActor.m_pHost)
 									, fg_ThisActor(this)
 									, RemoteActor.m_Hierarchy
-									, RemoteActor.m_pHost->m_UniqueHostID
+									, RemoteActor.m_pHost->m_HostInfo.m_UniqueHostID
 									, RemoteActor.m_pHost->f_GetHostInfo()
 									, RemoteActor.m_ProtocolVersions
 								)

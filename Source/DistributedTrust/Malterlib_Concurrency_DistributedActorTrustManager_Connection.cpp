@@ -369,9 +369,12 @@ namespace NMib::NConcurrency
 
 					auto &ConnectionResult = *_ConnectionResult;
 
-					if (pConnectionState->m_pHost && !ConnectionResult.m_RealHostID.f_IsEmpty())
+					if (pConnectionState->m_pHost && !ConnectionResult.m_HostInfo.m_HostID.f_IsEmpty())
 					{
-						DMibCheck(ConnectionResult.m_RealHostID == pConnectionState->m_pHost->f_GetHostID())(ConnectionResult.m_RealHostID)(pConnectionState->m_pHost->f_GetHostID());
+						DMibCheck(ConnectionResult.m_HostInfo.m_HostID == pConnectionState->m_pHost->f_GetHostID())
+							(ConnectionResult.m_HostInfo.m_HostID)
+							(pConnectionState->m_pHost->f_GetHostID())
+						;
 					}
 
 					pConnectionState->m_ConnectionReferences.f_Insert(fg_Move(ConnectionResult.m_ConnectionReference));
@@ -698,7 +701,7 @@ namespace NMib::NConcurrency
 																}
 
 																auto &ConnectionResult = *_ConnectionResult;
-																DMibCheck(ConnectionResult.m_RealHostID == ServerHostID);
+																DMibCheck(ConnectionResult.m_HostInfo.m_HostID == ServerHostID);
 
 																auto &LocalClientConnection = Internal.m_ClientConnections[Address];
 
@@ -860,10 +863,10 @@ namespace NMib::NConcurrency
 								return;
 							}
 
-							DMibFastCheck(!ConnectionResult.m_RealHostID.f_IsEmpty());
+							DMibFastCheck(!ConnectionResult.m_HostInfo.m_HostID.f_IsEmpty());
 							DMibFastCheck(!ConnectionResult.m_UniqueHostID.f_IsEmpty());
 
-							NStr::CStr ServerHostID = ConnectionResult.m_RealHostID;
+							NStr::CStr ServerHostID = ConnectionResult.m_HostInfo.m_HostID;
 
 							auto &RootCertificate = ConnectionResult.m_CertificateChain.f_GetLast();
 

@@ -46,6 +46,13 @@ namespace NMib::NConcurrency
 		align_cacheline NAtomic::TCAtomic<CQueueEntry *> mp_pFirstQueued;
 	};
 
+	struct CDistributedActorHostInfo
+	{
+		NStr::CStr m_UniqueHostID;
+		NStr::CStr m_RealHostID;
+		bool m_bAnonymous = false;
+	};
+
 	struct ICDistributedActorData : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
 	{
 		virtual ~ICDistributedActorData();
@@ -53,6 +60,7 @@ namespace NMib::NConcurrency
 		{
 			return !m_bRemote;
 		}
+		virtual CDistributedActorHostInfo f_GetHostInfo() const = 0;
 
 		NStr::CStr m_ActorID;
 		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;

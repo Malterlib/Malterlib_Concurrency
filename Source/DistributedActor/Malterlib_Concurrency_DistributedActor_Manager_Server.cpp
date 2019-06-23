@@ -362,21 +362,18 @@ namespace NMib::NConcurrency
 									auto MappedHost = m_Hosts(UniqueHostID);
 									if (MappedHost.f_WasCreated())
 									{
-										*MappedHost = fg_Construct(*m_pThis);
-										auto &Host = **MappedHost;
-										Host.m_RealHostID = RealHostID;
-										Host.m_UniqueHostID = UniqueHostID;
-										Host.m_bAnonymous = bAnonymous;
-										m_HostsByRealHostID[RealHostID].f_Insert(Host);
+										*MappedHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, bAnonymous});
+										m_HostsByRealHostID[RealHostID].f_Insert(**MappedHost);
+
 									}
 
 									auto &Host = **MappedHost;
-									if (Host.m_bAnonymous != bAnonymous)
+									if (Host.m_HostInfo.m_bAnonymous != bAnonymous)
 									{
 										fReject("Mismatching anonymous for host");
 										return;
 									}
-									if (Host.m_RealHostID != RealHostID)
+									if (Host.m_HostInfo.m_RealHostID != RealHostID)
 									{
 										fReject("Mismatching real host ID for host");
 										return;

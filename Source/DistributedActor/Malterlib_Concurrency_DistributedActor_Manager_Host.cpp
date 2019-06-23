@@ -13,8 +13,9 @@ namespace NMib::NConcurrency
 {
 	namespace NActorDistributionManagerInternal
 	{
-		CHost::CHost(CActorDistributionManager &_DistributionManager)
-			: m_OnDisconnect(&_DistributionManager, false)
+		CHost::CHost(CActorDistributionManager &_DistributionManager, CDistributedActorHostInfo &&_Info)
+			: ICHost(fg_Move(_Info))
+			, m_OnDisconnect(&_DistributionManager, false)
 		{
 		}
 
@@ -25,18 +26,23 @@ namespace NMib::NConcurrency
 
 		bool CHost::f_CanReceivePublish() const
 		{
-			return !m_bIncoming || !m_bAnonymous;
+			return !m_bIncoming || !m_HostInfo.m_bAnonymous;
 		}
 
 		bool CHost::f_CanSendPublish() const
 		{
-			return m_bIncoming || !m_bAnonymous;
+			return m_bIncoming || !m_HostInfo.m_bAnonymous;
+		}
+
+		bool CHost::f_IsDaemon() const
+		{
+			return m_HostInfo.m_UniqueHostID == m_HostInfo.m_RealHostID;
 		}
 
 		CHostInfo CHost::f_GetHostInfo() const
 		{
 			CHostInfo Info;
-			Info.m_HostID = m_RealHostID;
+			Info.m_HostID = m_HostInfo.m_RealHostID;
 			Info.m_FriendlyName = m_FriendlyName;
 			return Info;
 		}
@@ -192,9 +198,9 @@ namespace NMib::NConcurrency
 		fp_ResetHostState(_Host, _pSaveConnection, false);
 		_Host.f_Destroy();
 		if (_Host.m_RealHostsLink.f_IsAloneInList())
-			m_HostsByRealHostID.f_Remove(_Host.m_RealHostID);
+			m_HostsByRealHostID.f_Remove(_Host.m_HostInfo.m_RealHostID);
 		else
 			_Host.m_RealHostsLink.f_Unlink();
-		m_Hosts.f_Remove(_Host.m_UniqueHostID);
+		m_Hosts.f_Remove(_Host.m_HostInfo.m_UniqueHostID);
 	}
 }

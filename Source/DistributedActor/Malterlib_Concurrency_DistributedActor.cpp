@@ -663,7 +663,12 @@ namespace NMib::NConcurrency
 	NPrivate::ICHost::~ICHost()
 	{
 	}
-	
+
+	NPrivate::ICHost::ICHost(CDistributedActorHostInfo &&_Info)
+		: m_HostInfo(fg_Move(_Info))
+	{
+	}
+
 	bool CActorDistributionManager::fs_IsValidNamespaceName(NStr::CStr const &_String)
 	{
 		return NNetwork::fg_IsValidHostname(_String, "/");

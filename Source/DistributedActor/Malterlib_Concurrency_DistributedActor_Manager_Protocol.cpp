@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 					{
 						Host.m_FriendlyName = Identify.m_FriendlyName;
 						CHostInfo HostInfo;
-						HostInfo.m_HostID = Host.m_RealHostID;
+						HostInfo.m_HostID = Host.m_HostInfo.m_RealHostID;
 						HostInfo.m_FriendlyName = Host.m_FriendlyName;
 						m_OnHostInfoChanged(HostInfo) > fg_DiscardResult();
 					}
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 							auto &Namespace = NamespaceActors.f_GetNamespace();
 							if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(Namespace))
 								continue;
-							if (Host.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
+							if (Host.m_HostInfo.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
 								continue;
 
 							for (auto &Actor : NamespaceActors.m_Actors)

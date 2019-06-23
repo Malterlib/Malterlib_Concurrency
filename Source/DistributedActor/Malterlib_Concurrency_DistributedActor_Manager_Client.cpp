@@ -345,17 +345,14 @@ namespace NMib::NConcurrency
 				auto &pHost = m_Hosts[UniqueHostID];
 				if (!pHost)
 				{
-					pHost = fg_Construct(*m_pThis);
-					auto &Host = *pHost;
-					Host.m_RealHostID = RealHostID;
-					Host.m_UniqueHostID = UniqueHostID;
-					Host.m_bAnonymous = Connection.m_bAnonymous;
-					m_HostsByRealHostID[RealHostID].f_Insert(Host);
+					pHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, Connection.m_bAnonymous});
+					m_HostsByRealHostID[RealHostID].f_Insert(*pHost);
+
 				}
 
 				auto &Host = *pHost;
 
-				if (Host.m_RealHostID != RealHostID || Host.m_UniqueHostID != UniqueHostID || Host.m_bAnonymous != Connection.m_bAnonymous)
+				if (Host.m_HostInfo.m_RealHostID != RealHostID || Host.m_HostInfo.m_UniqueHostID != UniqueHostID || Host.m_HostInfo.m_bAnonymous != Connection.m_bAnonymous)
 				{
 					NStr::CStr Error = "Host IDs mismatch";
 					fReportError(Error, NException::fg_ExceptionPointer(DMibErrorInstance(Error)));
@@ -394,7 +391,7 @@ namespace NMib::NConcurrency
 						else
 							DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
 						auto &pHost = pConnection->m_pHost;
-						if (pHost && pHost->m_bAnonymous)
+						if (pHost && pHost->m_HostInfo.m_bAnonymous)
 							fp_DestroyClientConnection(*pConnection, false, Error);
 						else
 							fp_ScheduleReconnect(pConnection, nullptr, true, Sequence, Error);
@@ -542,7 +539,6 @@ namespace NMib::NConcurrency
 									{
 										CActorDistributionManager::CConnectionResult ConnectionResult{fg_ThisActor(m_pThis), pConnection->m_ConnectionID};
 										ConnectionResult.m_CertificateChain = fg_Move(CertificateChain);
-										ConnectionResult.m_RealHostID = RealHostID;
 										ConnectionResult.m_UniqueHostID = UniqueHostID;
 										ConnectionResult.m_HostInfo.m_HostID = RealHostID;
 										ConnectionResult.m_HostInfo.m_FriendlyName = pConnection->m_pHost->m_FriendlyName;
@@ -661,7 +657,7 @@ namespace NMib::NConcurrency
 		CDistributedActorConnectionStatus Return;
 		if (Connection.m_pHost)
 		{
-			Return.m_HostInfo.m_HostID = Connection.m_pHost->m_RealHostID;
+			Return.m_HostInfo.m_HostID = Connection.m_pHost->m_HostInfo.m_RealHostID;
 			Return.m_HostInfo.m_FriendlyName = Connection.m_pHost->m_FriendlyName;
 		}
 		Return.m_bConnected = Connection.m_bConnected;
@@ -696,9 +692,9 @@ namespace NMib::NConcurrency
 		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
 			return Promise.f_MoveFuture();
 
-		if (DecodedSettings.m_bAnonymous != Host.m_bAnonymous)
+		if (DecodedSettings.m_bAnonymous != Host.m_HostInfo.m_bAnonymous)
 			return DMibErrorInstance("You cannot change the anonymous status of the connection");
-		if (DecodedSettings.m_RealHostID != Host.m_RealHostID)
+		if (DecodedSettings.m_RealHostID != Host.m_HostInfo.m_RealHostID)
 			return DMibErrorInstance("You cannot change the host ID of the connection");
 
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> pNewSSLContext;

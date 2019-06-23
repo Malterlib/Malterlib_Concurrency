@@ -180,13 +180,14 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct CHost : public NPrivate::ICHost
 	{
-		CHost(CActorDistributionManager &_DistributionManager);
+		CHost(CActorDistributionManager &_DistributionManager, CDistributedActorHostInfo &&_Info);
 		~CHost();
 
 		void f_DeletePackets();
 		void f_Destroy();
 		bool f_CanReceivePublish() const;
 		bool f_CanSendPublish() const;
+		bool f_IsDaemon() const;
 		CHostInfo f_GetHostInfo() const;
 
 		void f_DestroyImplicitFunction(NStr::CStr const &_FunctionID);
@@ -218,8 +219,6 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingRemoteSubscriptionDestroys;
 
 		NStr::CStr m_LastExecutionID;
-		NStr::CStr m_UniqueHostID; // Differs from HostID when anonymous
-		NStr::CStr m_RealHostID;
 		NStr::CStr m_FriendlyName;
 
 		NContainer::TCMap<NStr::CStr, CRemoteActor> m_RemoteActors;
@@ -236,7 +235,6 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		bool m_bIncoming = false;
 		bool m_bOutgoing = false;
-		bool m_bAnonymous = false;
 		bool m_bDeleted = false;
 		bool m_bLoggedConnection = false;
 	};

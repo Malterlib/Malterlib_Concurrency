@@ -9,5 +9,13 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStorage::TCWeakPointer<NPrivate::ICHost> m_pHost;
+		CDistributedActorHostInfo f_GetHostInfo() const override
+		{
+			auto pHost = m_pHost.f_Lock();
+			if (!pHost)
+				return {};
+
+			return pHost->m_HostInfo;
+		}
 	};
 }

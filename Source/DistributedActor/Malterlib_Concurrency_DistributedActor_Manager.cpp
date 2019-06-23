@@ -110,7 +110,7 @@ namespace NMib::NConcurrency
 
 		if (m_pHost)
 		{
-			Info.m_HostID = m_pHost->m_RealHostID;
+			Info.m_HostID = m_pHost->m_HostInfo.m_RealHostID;
 			Info.m_FriendlyName = m_pHost->m_FriendlyName;
 		}
 		else

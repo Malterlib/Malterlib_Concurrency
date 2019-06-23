@@ -262,7 +262,7 @@ namespace NMib::NConcurrency
 
 		return Promise.f_MoveFuture();			
 	}
-	
+
 	bool CActorDistributionManagerInternal::fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		CDistributedActorCommand_RemoteCallResult RemoteCallResult;
@@ -443,7 +443,7 @@ namespace NMib::NConcurrency
 
 				if (auto pPublishedActor = m_PublishedActors.f_FindEqual(RemoteCall.m_ActorID))
 				{
-					if (Host.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
+					if (Host.m_HostInfo.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(pPublishedActor->m_pNamespace->f_GetNamespace()))
 					{
 						fp_ReplyToRemoteCallWithException(pHost, RemoteCall.m_PacketID, DMibErrorInstance("Access denied"), Context);
 						return true;
@@ -533,12 +533,12 @@ namespace NMib::NConcurrency
 				[
 					Actor
 					, ParamData = fg_Move(ParamData)
-					, HostID = Host.m_RealHostID
+					, HostID = Host.m_HostInfo.m_RealHostID
 					, CallingHostInfo = CCallingHostInfo
 				 		(
 							fg_ThisActor(m_pThis)
 							, Host.m_AuthenticationHandler
-							, Host.m_UniqueHostID
+							, Host.m_HostInfo.m_UniqueHostID
 							, Host.f_GetHostInfo()
 							, Host.m_LastExecutionID
 							, ProtocolVersion

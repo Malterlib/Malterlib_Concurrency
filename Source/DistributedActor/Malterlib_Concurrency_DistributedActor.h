@@ -44,8 +44,10 @@ namespace NMib::NConcurrency
 
 		struct ICHost : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
 		{
+			ICHost(CDistributedActorHostInfo &&_Info);
 			virtual ~ICHost();
 
+			CDistributedActorHostInfo const m_HostInfo;
 			NAtomic::TCAtomic<uint32> m_ActorProtocolVersion = 0;
 			bool m_bDeleted = false;
 		};
@@ -537,7 +539,6 @@ namespace NMib::NConcurrency
 		{
 			CDistributedActorConnectionReference m_ConnectionReference;
 			NStr::CStr m_UniqueHostID;
-			NStr::CStr m_RealHostID;
 			NContainer::TCVector<NContainer::CByteVector> m_CertificateChain;
 			CHostInfo m_HostInfo;
 

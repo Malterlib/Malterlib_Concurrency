@@ -561,12 +561,22 @@ namespace NMib::NConcurrency
 									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActorLowPrio") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrio") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::NPrivate::CDirectResultActor") >= 0
 								)
 							{
 								continue;
 							}
 
-							DMibTrace("    {}   RefCount {}   WeakCount {}{\n}", Actor.m_ActorTypeName << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet());
+							DMibTrace
+								(
+								 	"    {}   Destroyed {}   RefCount {}   WeakCount {}{\n}"
+								 	, Actor.m_ActorTypeName << Actor.mp_bDestroyed.f_Load() << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet()
+								)
+							;
 
 	#if DMibConfig_RefcountDebugging
 							mint iCallstack = 0;
@@ -593,7 +603,7 @@ namespace NMib::NConcurrency
 						DMibLock(m_FutureListLock);
 						for (auto &Future : this->m_Futures)
 						{
-							DMibTrace("    {}   RefCount {}{\n}", Future.m_FutureTypeName << Future.f_RefCountGet());
+							DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.f_RefCountGet());
 
 	#if DMibConfig_RefcountDebugging
 							mint iCallstack = 0;

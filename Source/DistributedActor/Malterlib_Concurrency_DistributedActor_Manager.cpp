@@ -63,9 +63,12 @@ namespace NMib::NConcurrency
 		for (auto &pConnection : Internal.m_ServerConnections)
 			pConnection->f_Disconnect() > Results.f_AddResult();
 
-		TCPromise<void> Promise;
-		Results.f_GetResults() > Promise.f_ReceiveAny();
-		return Promise.f_MoveFuture();
+		if (Internal.m_CleanupTimerSubscription)
+			Internal.m_CleanupTimerSubscription->f_Destroy() > Results.f_AddResult();
+
+		co_await Results.f_GetResults();
+
+		co_return {};
 	}
 
 	void CActorDistributionManagerInternal::CConnection::fs_LogClose
@@ -170,6 +173,9 @@ namespace NMib::NConcurrency
 		f_DiscardIdentifyPromise("Connection reset");
 		m_Link.f_Unlink();
 		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
+
+		if (m_pHost && m_pHost->m_ActiveConnections.f_IsEmpty())
+			_This.fp_CleanupMarkInactive(*m_pHost);
 
 		if (_bResetHost)
 			m_HostLink.f_Unlink();

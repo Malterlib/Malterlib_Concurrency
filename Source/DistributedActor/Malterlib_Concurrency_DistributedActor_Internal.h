@@ -207,6 +207,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		DMibListLinkDS_Link(CHost, m_RealHostsLink);
 
+		NTime::CClock m_InactiveClock;
+		DMibListLinkDS_Link(CHost, m_InactiveHostsLink);
+
 		NContainer::TCMap<uint32, COutstandingCall> m_OutstandingCalls;
 
 		NContainer::TCMap<NStr::CStr, TCWeakActor<CActor>> m_ImplicitlyPublishedActors;
@@ -371,7 +374,16 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		
 		NContainer::TCMap<NStr::CStr, CWebsocketHandler> m_WebsocketHandlers;
-		
+
+		DMibListLinkDS_List(CHost, m_InactiveHostsLink) m_InactiveHosts;
+		CActorSubscription m_CleanupTimerSubscription;
+		bool m_bCleanupSetup = false;
+
+		void fp_CleanupUpdateTimer();
+		void fp_CleanupPerform();
+		void fp_CleanupMarkActive(CHost &_Host);
+		void fp_CleanupMarkInactive(CHost &_Host);
+
 		void fp_ScheduleReconnect
 			(
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection

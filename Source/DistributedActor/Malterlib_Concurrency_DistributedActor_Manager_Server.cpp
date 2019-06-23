@@ -376,11 +376,13 @@ namespace NMib::NConcurrency
 									NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
 
 									auto MappedHost = m_Hosts(UniqueHostID);
+
 									if (MappedHost.f_WasCreated())
 									{
 										*MappedHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, bAnonymous});
 										m_HostsByRealHostID[RealHostID].f_Insert(**MappedHost);
 
+										fp_CleanupMarkInactive(**MappedHost);
 									}
 
 									auto &Host = **MappedHost;

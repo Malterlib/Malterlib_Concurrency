@@ -143,6 +143,7 @@ namespace NMib::NConcurrency
 					_pConnection->m_bIdentified = true;
 					Host.m_ActiveConnections.f_Insert(*_pConnection);
 					_pConnection->m_bFirstConnection = _pConnection->m_Link.f_IsAloneInList();
+					fp_CleanupMarkActive(Host);
 					fp_SendPacketQueue(pHost);
 					fp_ProcessPacketQueue(_pConnection);
 

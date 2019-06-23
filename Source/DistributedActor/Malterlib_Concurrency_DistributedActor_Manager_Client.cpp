@@ -365,6 +365,7 @@ namespace NMib::NConcurrency
 					pHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, Connection.m_bAnonymous});
 					m_HostsByRealHostID[RealHostID].f_Insert(*pHost);
 
+					fp_CleanupMarkInactive(*pHost);
 				}
 
 				auto &Host = *pHost;

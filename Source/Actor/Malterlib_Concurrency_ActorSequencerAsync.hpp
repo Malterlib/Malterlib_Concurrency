@@ -3,10 +3,12 @@
 
 #pragma once
 
+#include <Mib/Concurrency/ActorSubscription>
+
 namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
-	TCActorSequencer<t_CReturnType>::TCActorSequencer(mint _MaxConcurrency)
+	TCActorSequencerAsync<t_CReturnType>::TCActorSequencerAsync(mint _MaxConcurrency)
 		: mp_pState(fg_Construct())
 	{
 		mp_pState->m_MaxConcurrency = _MaxConcurrency;
@@ -14,7 +16,7 @@ namespace NMib::NConcurrency
 	
 	template <typename t_CReturnType>
 	template <typename tf_FToSequence>
-	TCFuture<t_CReturnType> TCActorSequencer<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
+	TCFuture<t_CReturnType> TCActorSequencerAsync<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
 	{
 		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCFuture<t_CReturnType>
 			{
@@ -38,7 +40,7 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnType>
-	TCActorSequencer<t_CReturnType>::~TCActorSequencer()
+	TCActorSequencerAsync<t_CReturnType>::~TCActorSequencerAsync()
 	{
 		auto &State = *mp_pState;
 		
@@ -50,7 +52,7 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnType>
-	TCFuture<void> TCActorSequencer<t_CReturnType>::f_Abort()
+	TCFuture<void> TCActorSequencerAsync<t_CReturnType>::f_Abort()
 	{
 		auto fDoAbort = [this]() -> TCFuture<void>
 			{
@@ -74,7 +76,7 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnType>
-	void TCActorSequencer<t_CReturnType>::fp_ProcessSequence()
+	void TCActorSequencerAsync<t_CReturnType>::fp_ProcessSequence()
 	{
 		auto &State = *mp_pState;
 		
@@ -84,25 +86,34 @@ namespace NMib::NConcurrency
 		++State.m_nRunning;
 		
 		auto ToSequence = State.m_ToSequence.f_Pop();
-		g_Dispatch / fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
+		g_Dispatch / [this, pState = mp_pState, fToSequence = fg_Move(ToSequence.m_fToSequence)]() mutable -> TCFuture<t_CReturnType>
+			{
+				return fToSequence
+					(
+					 	g_ActorSubscription / [this, pState = mp_pState]
+						{
+							auto &State = *pState;
+
+							--State.m_nRunning;
+
+							if (State.m_bDestroyed)
+							{
+								if (State.m_nRunning == 0)
+								{
+									if (!State.m_AbortPromise.f_IsSet())
+										State.m_AbortPromise.f_SetResult();
+								}
+								return;
+							}
+
+							fp_ProcessSequence();
+						}
+					)
+				;
+			}
+			> [Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				Promise.f_SetResult(fg_Move(_Result));
-				
-				auto &State = *pState;
-				
-				--State.m_nRunning;
-				
-				if (State.m_bDestroyed)
-				{
-					if (State.m_nRunning == 0)
-					{
-						if (!State.m_AbortPromise.f_IsSet())
-							State.m_AbortPromise.f_SetResult();
-					}
-					return;
-				}
-				
-				fp_ProcessSequence();
 			}
 		;
 	}

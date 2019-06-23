@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename tf_CCallback, mint... tfp_Indices, typename... tfp_CParams, typename... tfp_COriginalTypes>
+		template <typename tf_CReturn, typename tf_CCallback, mint... tfp_Indices, typename... tfp_CParams, typename... tfp_COriginalTypes>
 		auto fg_CallCallback
 			(
 				tf_CCallback &&_Callback
@@ -169,7 +169,25 @@ namespace NMib::NConcurrency
 				, NMeta::TCTypeList<tfp_COriginalTypes...> const &
 			)
 		{
-			return _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
+#if DMibEnableSafeCheck > 0
+			if constexpr (TCIsFuture<tf_CReturn>::mc_Value)
+			{
+				tf_CReturn ReturnFuture;
+
+				NPrivate::fg_WrapDispatchWithReturn
+					(
+						[&]
+						{
+							ReturnFuture = _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
+						}
+					)
+				;
+
+				return ReturnFuture;
+			}
+			else
+#endif
+				return _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
 		}
 	}
 
@@ -204,7 +222,7 @@ namespace NMib::NConcurrency
 									Actor
 									, [pCallback = Callback.m_pCallback, Params = fg_Move(Params)]() mutable
 									{
-										 return NPrivate::fg_CallCallback
+										 return NPrivate::fg_CallCallback<t_CReturn>
 											(
 												*pCallback
 												, fg_Move(Params)
@@ -234,7 +252,7 @@ namespace NMib::NConcurrency
 					Actor
 					, [pCallback = Callback.m_pCallback, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
-						 return NPrivate::fg_CallCallback
+						 return NPrivate::fg_CallCallback<t_CReturn>
 							(
 								*pCallback
 								, fg_Move(Params)
@@ -276,7 +294,7 @@ namespace NMib::NConcurrency
 									Actor
 									, [pCallback = Callback.m_pCallback, Params]() mutable
 									{
-										 return NPrivate::fg_CallCallback
+										 return NPrivate::fg_CallCallback<t_CReturn>
 											(
 												*pCallback
 												, fg_Move(Params)
@@ -310,7 +328,7 @@ namespace NMib::NConcurrency
 					Actor
 					, [pCallback = Callback.m_pCallback, Params]() mutable
 					{
-						 return NPrivate::fg_CallCallback
+						 return NPrivate::fg_CallCallback<t_CReturn>
 							(
 								*pCallback
 								, fg_Move(Params)
@@ -358,7 +376,7 @@ namespace NMib::NConcurrency
 							Actor
 							, [pCallback = Callback.m_pCallback, Params]() mutable
 							{
-								 return NPrivate::fg_CallCallback
+								 return NPrivate::fg_CallCallback<t_CReturn>
 									(
 										*pCallback
 										, fg_Move(Params)
@@ -400,7 +418,7 @@ namespace NMib::NConcurrency
 								Actor
 								, [pCallback = Callback.m_pCallback, Params]() mutable
 								{
-									 return NPrivate::fg_CallCallback
+									 return NPrivate::fg_CallCallback<t_CReturn>
 										(
 											*pCallback
 											, fg_Move(Params)

@@ -56,11 +56,35 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContextValue<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
-		using CReturnNoReference = typename NTraits::TCRemoveReference<tf_CReturnType>::CType;
+		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value || NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
+		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+		{
+			static_assert
+				(
+				 	(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
+				 	&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+				 	, "Only safe to return newly created exceptions, otherwise use exception pointers"
+				)
+			;
 			m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+		}
+		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
+		{
+			try
+			{
+				std::rethrow_exception(_Value);
+			}
+			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
+			{
+				m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+			}
+			catch (...)
+			{
+				m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+			}
+		}
 		else
 			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 	}
@@ -68,7 +92,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContextValue<void>::return_value(tf_CReturnType &&_Value)
 	{
-		using CReturnNoReference = typename NTraits::TCRemoveReference<tf_CReturnType>::CType;
+		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		static_assert
 			(
 			 	NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
@@ -81,7 +105,34 @@ namespace NMib::NConcurrency::NPrivate
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value)
 			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 		else
-			m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+		{
+			if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+			{
+				static_assert
+					(
+						(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
+						&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+						, "Only safe to newly created exceptions, otherwise use exception pointers"
+					)
+				;
+				m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+			}
+			else
+			{
+				try
+				{
+					std::rethrow_exception(_Value);
+				}
+				catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
+				{
+					m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				}
+				catch (...)
+				{
+					m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				}
+			}
+		}
 	}
 
 	template <typename t_CReturnType>

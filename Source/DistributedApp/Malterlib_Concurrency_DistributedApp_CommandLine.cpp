@@ -1086,15 +1086,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 	{
-		bool bQuiet = _Params["Quiet"].f_Boolean();
-		CStr const &_UserName = _Params["UserName"].f_String();
-		CStr const &UserID = NCryptography::fg_RandomID();
+		auto UserName = _Params["UserName"].f_String();
+		auto UserID = NCryptography::fg_RandomID();
 
-		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, UserID, _UserName);
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, UserID, UserName);
 
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add user ID '{}' ({}) to host from command line", UserID, _UserName);
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add user ID '{}' ({}) to host from command line", UserID, UserName);
 
-		if (!bQuiet)
+		if (!_Params["Quiet"].f_Boolean())
 			*_pCommandLine += "{}\n"_f << UserID;
 
 		co_return 0;

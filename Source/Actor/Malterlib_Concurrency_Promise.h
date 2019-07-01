@@ -378,7 +378,7 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFuture *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
 		TCFuture(TCFuture const &_Other);
@@ -422,31 +422,31 @@ namespace NMib::NConcurrency
 		bool f_IsCoroutine() const;
 		ECoroutineFlag f_CoroutineFlags() const;
 
-		TCDispatchedActorCall<t_CReturnValue, true> f_Dispatch() const;
-		TCFuture<t_CReturnValue> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
+		TCDispatchedActorCall<t_CReturnValue, true> f_Dispatch() &&;
+		TCFuture<t_CReturnValue> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true) &&;
 
-		auto f_CallSync() const;
-		auto f_CallSync(fp64 _Timeout) const;
+		auto f_CallSync() &&;
+		auto f_CallSync(fp64 _Timeout) &&;
 
 		TCFuture &&f_Move();
 
 		template <typename tf_FResultHandler>
-		void operator > (tf_FResultHandler &&_fResultHandler) const;
-		void operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) const;
+		void operator > (tf_FResultHandler &&_fResultHandler) &&;
+		void operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) &&;
 
 		template <typename tf_CReturnValue>
-		void operator > (TCPromise<tf_CReturnValue> const &_Promise) const;
+		void operator > (TCPromise<tf_CReturnValue> const &_Promise) &&;
 
 		template <typename tf_CType>
-		auto operator + (TCFuture<tf_CType> const &_Other) const;
+		auto operator + (TCFuture<tf_CType> &&_Other) &&;
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
+		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall) &&;
 
-		auto operator % (NStr::CStr const &_ErrorString) const -> TCFutureWithError<t_CReturnValue>;
+		auto operator % (NStr::CStr const &_ErrorString) && -> TCFutureWithError<t_CReturnValue>;
 
-		CNoUnwrapAsyncResult f_Wrap();
-		auto operator co_await();
+		CNoUnwrapAsyncResult f_Wrap() &&;
+		auto operator co_await() &&;
 
 	public:
 		template <typename t_CReturnType>
@@ -536,13 +536,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithError *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
-		TCFutureWithError(TCFuture<t_CReturnValue> const &_Future, NStr::CStr const &_Error);
+		TCFutureWithError(TCFuture<t_CReturnValue> &&_Future, NStr::CStr const &_Error);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFuture<t_CReturnValue> m_Future;
 	};

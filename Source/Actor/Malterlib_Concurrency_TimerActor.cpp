@@ -569,7 +569,7 @@ namespace NMib::NConcurrency
 			)
 			> fg_DiscardResult();
 		;
-		return Promise.operator co_await();
+		return fg_Move(Promise).operator co_await();
 	}
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)

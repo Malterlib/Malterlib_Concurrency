@@ -553,7 +553,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		mp_AppStartupResult = co_await InitializeCall.f_Wrap();
+		mp_AppStartupResult = co_await fg_Move(InitializeCall).f_Wrap();
 
 		for (auto &StartupResult : mp_DeferredAppStartupResults)
 			StartupResult.f_SetResult(mp_AppStartupResult);

@@ -160,8 +160,8 @@ namespace
 
 		TCFuture<uint32> f_TestFuture()
 		{
-			auto Promise = f_Test();
-			auto Value = co_await Promise;
+			auto Future = f_Test();
+			auto Value = co_await fg_Move(Future);
 			co_return 5 + Value;
 		}
 

@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 						else
 							AddPromise.f_SetResult();
 
-						AddPromise > Promise / [Promise, _TrustManager, Result]
+						AddPromise.f_MoveFuture() > Promise / [Promise, _TrustManager, Result]
 							{
 								_TrustManager.template f_CallActor(&t_CType::f_SetUserInfo)
 									(Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata)

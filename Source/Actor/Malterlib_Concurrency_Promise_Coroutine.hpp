@@ -296,38 +296,38 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFuture<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::operator co_await()
+	auto TCFuture<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true>(fg_Move(*this), nullptr);
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFuture<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false>(fg_Move(*m_pWrapped), nullptr);
 	}
 
 	template <typename t_CReturnValue>
-	TCFutureWithError<t_CReturnValue>::TCFutureWithError(TCFuture<t_CReturnValue> const &_Future, NStr::CStr const &_Error)
+	TCFutureWithError<t_CReturnValue>::TCFutureWithError(TCFuture<t_CReturnValue> &&_Future, NStr::CStr const &_Error)
 		: CActorWithErrorBase{_Error}
-		, m_Future(_Future)
+		, m_Future(fg_Move(_Future))
 	{
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithError<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFutureWithError<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithError<t_CReturnValue>::operator co_await()
+	auto TCFutureWithError<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -338,7 +338,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFutureWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(

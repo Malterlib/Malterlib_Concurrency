@@ -494,7 +494,7 @@ namespace NMib::NConcurrency
 														return;
 													if (!pConnection->m_Connection)
 														return;
-													pConnection->m_IdentifyPromise.f_Dispatch() > [Address, pConnectionWeak](TCAsyncResult<bool> &&_Result) mutable
+													pConnection->m_IdentifyPromise.f_Future() > [Address, pConnectionWeak](TCAsyncResult<bool> &&_Result) mutable
 														{
 															auto pConnection = pConnectionWeak.f_Lock();
 															if (!pConnection)

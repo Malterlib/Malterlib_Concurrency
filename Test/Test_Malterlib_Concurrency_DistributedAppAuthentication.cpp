@@ -1588,7 +1588,7 @@ public:
 				HelperActor->f_BlockDestroy();
 			}
 		;
-		CCurrentActorScope CurrentActor{HelperActor};
+		CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 		{
 			TCPromise<void> Promise;
@@ -1602,7 +1602,7 @@ public:
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Promise.f_CallSync(g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(g_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
@@ -1616,7 +1616,7 @@ public:
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Promise.f_CallSync(g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(g_Timeout);
 		}
 		{
 			TCPromise<void> Promise;
@@ -1630,7 +1630,7 @@ public:
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Promise.f_CallSync(g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(g_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object
@@ -2473,7 +2473,7 @@ public:
 				HelperActor->f_BlockDestroy();
 			}
 		;
-		CCurrentActorScope CurrentActor{HelperActor};
+		CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 		{
 			TCPromise<void> Promise;
@@ -2487,7 +2487,7 @@ public:
 					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
 				}
 			;
-			Promise.f_CallSync(g_Timeout);
+			Promise.f_MoveFuture().f_CallSync(g_Timeout);
 		}
 
 		// Before running a command on the client we also need a command line control object

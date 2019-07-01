@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 				else
 					ValidateSignRequestFuture = fg_Explicit();
 
-				ValidateSignRequestFuture
+				fg_Move(ValidateSignRequestFuture)
 					>
 					[
 						=

@@ -360,7 +360,7 @@ namespace NMib::NConcurrency
 							RequestTicketFuture = CDistributedAppActor::fp_GetTicketThroughStdIn(RequestTicketMagic);
 						}
 						
-						RequestTicketFuture.f_Timeout(60.0, "Timed out getting trust ticket through stdin")
+						fg_Move(RequestTicketFuture).f_Timeout(60.0, "Timed out getting trust ticket through stdin")
 							> Promise % "Failed to get ticket through stdin" / [=](CDistributedActorTrustManager::CTrustTicket &&_TrustTicket)
 							{
 								DMibLogWithCategory(Mib/Concurrency/App, Info, "Got trust ticket, adding client connection");

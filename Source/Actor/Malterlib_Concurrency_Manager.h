@@ -69,6 +69,7 @@ namespace NMib::NConcurrency
 		friend class CActor;
 		friend class CDefaultActorHolder;
 		friend struct CCurrentActorScope;
+		friend struct CCurrentlyProcessingActorScope;
 		friend struct CConcurrencyThreadLocal;
 #if DMibConfig_Concurrency_DebugFutures
 		friend struct NPrivate::CPromiseDataBase;
@@ -140,7 +141,7 @@ namespace NMib::NConcurrency
 		CActor *m_pCurrentlyDestructingActor = nullptr;
 		mint m_AllowWrongThreadDestroySequence = 0;
 #endif
-
+		CActorHolder *m_pCurrentlyOverridenProcessingActorHolder = nullptr;
 	};
 
 	struct CAllowWrongThreadDestroy

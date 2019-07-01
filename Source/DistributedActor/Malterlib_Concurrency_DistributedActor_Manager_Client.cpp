@@ -510,7 +510,7 @@ namespace NMib::NConcurrency
 
 							pConnection->m_ConnectionSubscription = fg_Move(*_Callback);
 
-							pConnection->m_IdentifyPromise.f_Dispatch()
+							pConnection->m_IdentifyPromise.f_Future()
 								>
 								[
 									this

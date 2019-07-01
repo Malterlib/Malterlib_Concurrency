@@ -837,11 +837,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 
 			TCFuture<uint32> SharedPointerFuture = Actor.f_CallActor(&CDistributedActor::f_SharedPointer)(fg_Construct(CStr("5")));
-			uint32 SharedPointerResult = SharedPointerFuture.f_CallSync(60.0);
+			uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(60.0);
 			DMibExpect(SharedPointerResult, ==, 5);
 
 			TCFuture<uint32> UniquePointerFuture = Actor.f_CallActor(&CDistributedActor::f_UniquePointer)(fg_Construct(CStr("5")));
-			uint32 UniquePointerResult = UniquePointerFuture.f_CallSync(60.0);
+			uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(60.0);
 			DMibExpect(UniquePointerResult, ==, 5);
 		};
 		DMibTestSuite("Virtual")

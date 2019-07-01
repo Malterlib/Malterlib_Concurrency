@@ -33,6 +33,7 @@ namespace NMib::NConcurrency
 
 	struct CActorDistributionManagerInternal;
 	struct CCurrentActorScope;
+	struct CCurrentlyProcessingActorScope;
 	struct CDistributedActorProtocolVersions;
 
 	template <typename t_CActor>
@@ -89,6 +90,7 @@ namespace NMib::NConcurrency
 
 		friend class CActorHolder;
 		friend struct CCurrentActorScope;
+		friend struct CCurrentlyProcessingActorScope;
 
 		t_CActor *fp_GetActor() const;
 		TCActorInternal *fp_GetThis();

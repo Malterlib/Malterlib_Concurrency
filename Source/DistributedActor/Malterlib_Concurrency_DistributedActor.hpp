@@ -218,7 +218,7 @@ namespace NMib::NConcurrency
 		{
 			auto DestroyFuture = m_Actor->f_Destroy();
 			m_Actor.f_Clear();
-			co_await DestroyFuture;
+			co_await fg_Move(DestroyFuture);
 		}
 
 		co_return {};

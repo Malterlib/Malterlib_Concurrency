@@ -152,7 +152,7 @@ namespace NMib::NConcurrency
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 		{
 			TCPromise<void> Promise;
-			SaveDatabasePromise.f_Dispatch() + SubscriptionResults.f_GetResults()
+			SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()
 				> Promise / [Promise](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
 				{
 					Promise.f_SetResult();
@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 		{
 			TCPromise<void> Promise;
-			SaveDatabasePromise.f_Dispatch() + SubscriptionResults.f_GetResults()
+			SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()
 				> Promise / [Promise](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
 				{
 					Promise.f_SetResult();

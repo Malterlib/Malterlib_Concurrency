@@ -334,13 +334,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename ...tp_CCalls>
-	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CActorCall, typename ...tp_CCalls>
-	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::operator co_await()
+	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::operator co_await() &&
 	{
 		return TCActorCallPackAwaiter
 			<
@@ -353,7 +353,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename ...tp_CCalls>
-	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCActorCallPackAwaiter
 			<
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType>
-	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType>
-	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::operator co_await()
+	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::operator co_await() &&
 	{
 		return TCActorCallAwaiter
 			<
@@ -399,7 +399,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType>
-	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCActorCallAwaiter
 			<

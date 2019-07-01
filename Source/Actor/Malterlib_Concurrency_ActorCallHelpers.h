@@ -362,13 +362,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCActorCallPackWithError *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
 		TCActorCallPackWithError(t_CActorCall *_pActorCall, NStr::CStr const &_Error);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 	private:
 
@@ -393,62 +393,62 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CType>
-		auto operator + (TCFuture<tf_CType> const &_Future);
+		auto operator + (TCFuture<tf_CType> &&_Future) &&;
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
-		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
+		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
 		{
-			fp_ActorCall(fg_Move(_ResultCall), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
+			fg_Move(*this).fp_ActorCall(fg_Move(_ResultCall), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
 		}
 
 		template <typename tf_CFunctor, TCEnableIfType<!TCIsActorResultCall<tf_CFunctor>::mc_Value> * = nullptr>
-		void operator > (tf_CFunctor &&_Functor)
+		void operator > (tf_CFunctor &&_Functor) &&
 		{
 			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
-			fp_ActorCall(pActor / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
+			fg_Move(*this).fp_ActorCall(pActor / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
 		}
 
-		auto f_CallSync(fp64 _Timeout = -1.0)
+		auto f_CallSync(fp64 _Timeout = -1.0) &&
 		{
-			return fp_CallSync(_Timeout);
+			return fg_Move(*this).fp_CallSync(_Timeout);
 		}
 
 		struct CNoUnwrapAsyncResult
 		{
 			TCActorCallPack *m_pWrapped;
-			auto operator co_await()
+			auto operator co_await() &&
 			{
 				return TCActorCallPackAwaiter<false, void *, tp_CCalls...>{fg_Move(m_pWrapped->m_Calls), nullptr};
 			}
 		};
 
-		CNoUnwrapAsyncResult f_Wrap()
+		CNoUnwrapAsyncResult f_Wrap() &&
 		{
 			return {this};
 		}
 
-		auto operator co_await()
+		auto operator co_await() &&
 		{
 			return TCActorCallPackAwaiter<true, void *, tp_CCalls...>{fg_Move(m_Calls), nullptr};
 		}
 
-		auto operator % (NStr::CStr const &_ErrorString) -> TCActorCallPackWithError<TCActorCallPack, tp_CCalls...>
+		auto operator % (NStr::CStr const &_ErrorString) && -> TCActorCallPackWithError<TCActorCallPack, tp_CCalls...>
 		{
 			return {this, _ErrorString};
 		}
 
-		auto operator ^ (NStr::CStr const &_ErrorString) -> TCActorCallPackWithError<TCActorCallPack, tp_CCalls...>
+		auto operator ^ (NStr::CStr const &_ErrorString) && -> TCActorCallPackWithError<TCActorCallPack, tp_CCalls...>
 		{
 			return {this, _ErrorString};
 		}
 
 	private:
-		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout)
+		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout) &&
 		{
 			using CReturnType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-			*this > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{
 					pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(p_Results)>::CType(), fg_Forward<decltype(p_Results)>(p_Results)...);
 				}
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
-		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>);
+		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&;
 	};
 
 	namespace NPrivate
@@ -583,13 +583,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCActorCallWithError *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
 		TCActorCallWithError(t_CActorCall *_pActorCall, NStr::CStr const &_Error);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 		TCFutureWithError<t_CReturnType> f_Future() &&;
 
 	private:
@@ -668,7 +668,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
+		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall) &&
 			-> TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
 		{
 			return TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
@@ -677,7 +677,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CType>
-		auto operator + (TCFuture<tf_CType> const &_Future);
+		auto operator + (TCFuture<tf_CType> &&_Future) &&;
 
 		template
 		<
@@ -689,15 +689,15 @@ namespace NMib::NConcurrency
 				&& !NPrivate::TCIsPromiseWithError<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::mc_Value
 			> * = nullptr
 		>
-		void operator > (tf_CFunctor &&_Functor)
+		void operator > (tf_CFunctor &&_Functor) &&
 		{
 			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
-			*this > pActor / fg_Forward<tf_CFunctor>(_Functor);
+			fg_Move(*this) > pActor / fg_Forward<tf_CFunctor>(_Functor);
 		}
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
-		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall)
+		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
 		{
 #ifdef DMibConcurrency_CheckFunctionCalls
 			static_assert
@@ -720,9 +720,9 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CResult>
-		void operator > (TCPromise<tf_CResult> const &_Promise)
+		void operator > (TCPromise<tf_CResult> const &_Promise) &&
 		{
-			*this > NPrivate::fg_DirectResultActor() / [_Promise](TCAsyncResult<tf_CResult> &&_Result)
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [_Promise](TCAsyncResult<tf_CResult> &&_Result)
 				{
 					_Promise.f_SetResult(fg_Move(_Result));
 				}
@@ -730,9 +730,9 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CResult>
-		void operator > (TCPromiseWithError<tf_CResult> const &_PromiseWithError)
+		void operator > (TCPromiseWithError<tf_CResult> const &_PromiseWithError) &&
 		{
-			*this > NPrivate::fg_DirectResultActor() /
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise](tf_CResult &&_Result)
 					{
@@ -742,9 +742,9 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		void operator > (TCPromiseWithError<void> const &_PromiseWithError)
+		void operator > (TCPromiseWithError<void> const &_PromiseWithError) &&
 		{
-			*this > NPrivate::fg_DirectResultActor() /
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise]()
 					{
@@ -754,18 +754,18 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		auto operator % (NStr::CStr const &_ErrorString) -> TCActorCallWithError<TCActorCall, CReturnType>
+		auto operator % (NStr::CStr const &_ErrorString) && -> TCActorCallWithError<TCActorCall, CReturnType>
 		{
 			return {this, _ErrorString};
 		}
 
-		TCFuture<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true);
+		TCFuture<CReturnType> f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit = true) &&;
 
-		auto f_CallSync()
+		auto f_CallSync() &&
 		{
 			TCAsyncResult<CReturnType> Result;
 			NThread::CEvent WaitEvent;
-			*this > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<CReturnType> &&_Result)
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<CReturnType> &&_Result)
 				{
 					Result = fg_Move(_Result);
 					WaitEvent.f_SetSignaled();
@@ -777,10 +777,10 @@ namespace NMib::NConcurrency
 			return Result.f_Move();
 		}
 
-		auto f_CallSync(fp64 _Timeout)
+		auto f_CallSync(fp64 _Timeout) &&
 		{
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-			*this > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
 					pResult->m_Result = fg_Move(_Result);
 					pResult->m_WaitEvent.f_SetSignaled();
@@ -801,19 +801,19 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCActorCall *m_pWrapped;
-			auto operator co_await()
+			auto operator co_await() &&
 			{
 				return TCActorCallAwaiter<TCActorCall, CReturnType, false>{fg_Move(*m_pWrapped)};
 			}
 		};
 
-		CNoUnwrapAsyncResult f_Wrap()
+		CNoUnwrapAsyncResult f_Wrap() &&
 		{
 			DMibFastCheck(!mp_Actor.f_IsEmpty());
 			return {this};
 		}
 
-		auto operator co_await()
+		auto operator co_await() &&
 		{
 			DMibFastCheck(!mp_Actor.f_IsEmpty());
 			return TCActorCallAwaiter<TCActorCall, CReturnType, true>{fg_Move(*this)};
@@ -981,7 +981,7 @@ namespace NMib::NConcurrency
 		, typename tf_CResultFunctor
 		, mint... tfp_Indices
 	>
-	void TCActorCallPack<tp_CCalls...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>)
+	void TCActorCallPack<tp_CCalls...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
 	{
 #ifdef DMibConcurrency_CheckFunctionCalls
 			static_assert

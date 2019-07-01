@@ -985,11 +985,11 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCDispatchedActorCall<t_CReturnValue, true> TCFuture<t_CReturnValue>::f_Dispatch() const
+	TCDispatchedActorCall<t_CReturnValue, true> TCFuture<t_CReturnValue>::f_Dispatch() &&
 	{
 		return fg_UnsafeDirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -998,21 +998,21 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit)
+	TCFuture<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) &&
 	{
-		return f_Dispatch().f_Timeout(_Timeout, _TimeoutMessage, _bFireAtExit);
+		return fg_Move(*this).f_Dispatch().f_Timeout(_Timeout, _TimeoutMessage, _bFireAtExit);
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::f_CallSync() const
+	auto TCFuture<t_CReturnValue>::f_CallSync() &&
 	{
-		return f_Dispatch().f_CallSync();
+		return fg_Move(*this).f_Dispatch().f_CallSync();
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::f_CallSync(fp64 _Timeout) const
+	auto TCFuture<t_CReturnValue>::f_CallSync(fp64 _Timeout) &&
 	{
-		return f_Dispatch().f_CallSync(_Timeout);
+		return fg_Move(*this).f_Dispatch().f_CallSync(_Timeout);
 	}
 
 	struct CDispatchHelperWithActor
@@ -1092,11 +1092,11 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_FResultHandler>
-	void TCFuture<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) const
+	void TCFuture<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) &&
 	{
 		fg_DirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -1106,11 +1106,11 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) const
+	void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) &&
 	{
 		fg_UnsafeDirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -1121,11 +1121,11 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CReturnValue>
-	void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> const &_Promise) const
+	void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> const &_Promise) &&
 	{
 		fg_UnsafeDirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -1136,11 +1136,11 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
 	template <typename tf_CType>
-	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, tf_bDirectCall>::operator + (TCFuture<tf_CType> const &_Future)
+	auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, tf_bDirectCall>::operator + (TCFuture<tf_CType> &&_Future) &&
 	{
-		return *this + fg_UnsafeDirectDispatch
+		return fg_Move(*this) + fg_UnsafeDirectDispatch
 			(
-				[Future = _Future]() mutable
+				[Future = fg_Move(_Future)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -1150,11 +1150,11 @@ namespace NMib::NConcurrency
 
 	template <typename... tp_CCalls>
 	template <typename tf_CType>
-	auto TCActorCallPack<tp_CCalls...>::operator + (TCFuture<tf_CType> const &_Future)
+	auto TCActorCallPack<tp_CCalls...>::operator + (TCFuture<tf_CType> &&_Future) &&
 	{
-		return *this + fg_UnsafeDirectDispatch
+		return fg_Move(*this) + fg_UnsafeDirectDispatch
 			(
-				[Future = _Future]() mutable
+				[Future = fg_Move(_Future)]() mutable
 				{
 					return fg_Move(Future);
 				}
@@ -1164,26 +1164,26 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	template <typename tf_CType>
-	auto TCFuture<t_CReturnValue>::operator + (TCFuture<tf_CType> const &_Other) const
+	auto TCFuture<t_CReturnValue>::operator + (TCFuture<tf_CType> &&_Other) &&
 	{
 		return fg_UnsafeDirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}
 			)
-			+ _Other;
+			+ fg_Move(_Other);
 		;
 	}
 
 	template <typename t_CReturnValue>
 	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-	auto TCFuture<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
+	auto TCFuture<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall) &&
 	{
 		return fg_UnsafeDirectDispatch
 			(
-				[Future = *this]() mutable
+				[Future = fg_Move(*this)]() mutable
 				{
 					return fg_Move(Future);
 				}

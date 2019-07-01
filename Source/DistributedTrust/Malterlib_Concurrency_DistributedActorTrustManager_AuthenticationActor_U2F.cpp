@@ -413,7 +413,7 @@ namespace
 
 				TCPromise<CSecureByteVector> Promise;
 
-				SendPromise > Promise / [=]
+				SendPromise.f_MoveFuture() > Promise / [=]
 					{
 						TCSharedPointer<CReceiveState> pReceiveState = fg_Construct();
 						pReceiveState->m_fDoReceive = [_Device, _ChannelID, _Command](TCSharedPointer<CReceiveState> const &_pReceiveState, TCPromise<CSecureByteVector> const &_Promise) mutable -> void
@@ -903,7 +903,7 @@ namespace
 
 									fLoopDevices(fLoopDevices);
 
-									DevicesPromise > DataPromise / [=]() -> void
+									DevicesPromise.f_MoveFuture() > DataPromise / [=]() -> void
 										{
 											auto &State = *_pState;
 											++State.m_iData;
@@ -915,7 +915,7 @@ namespace
 
 							fLoopData(fLoopData);
 
-							DataPromise > Promise / [=]() -> void
+							DataPromise.f_MoveFuture() > Promise / [=]() -> void
 								{
 									auto &State = *_pState;
 									if (State.m_bDone)

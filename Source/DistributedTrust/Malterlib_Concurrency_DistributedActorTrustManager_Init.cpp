@@ -513,7 +513,7 @@ namespace NMib::NConcurrency
 						}
 					;
 					
-					ConnectPromise > ConnectResults.f_AddResult(Address);
+					ConnectPromise.f_MoveFuture() > ConnectResults.f_AddResult(Address);
 				}
 
 				TCPromise<void> WaitForConnectionsPromise;
@@ -565,7 +565,7 @@ namespace NMib::NConcurrency
 				;
 
 				ListenResults.f_GetResults()
-					+ WaitForConnectionsPromise
+					+ WaitForConnectionsPromise.f_MoveFuture()
 					> [this, _Promise, pCleanup]
 					(
 						TCAsyncResult<NContainer::TCMap<CListenConfig, TCAsyncResult<CDistributedActorListenReference>>> &&_ListenResults
@@ -625,7 +625,7 @@ namespace NMib::NConcurrency
 						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 						
 						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
-							+ PublishFuture
+							+ fg_Move(PublishFuture)
 							> [this, _Promise]
 							(TCAsyncResult<CDistributedActorPublication> &&_Result, TCAsyncResult<void> &&_Published)
 							{

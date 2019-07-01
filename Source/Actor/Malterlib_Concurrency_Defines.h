@@ -22,6 +22,7 @@ namespace NMib::NConcurrency
 	struct CSeparateThreadActor;
 	class CDelegatedActorHolder;
 	struct CCurrentActorScope;
+	struct CCurrentlyProcessingActorScope;
 
 	template <typename t_CActor, typename t_CFunctor>
 	struct TCActorResultCall;

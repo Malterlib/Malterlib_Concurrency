@@ -6,6 +6,31 @@
 
 namespace NMib::NConcurrency
 {
+	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(CActor const *_pActor)
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		mp_pLastActor = ThreadLocal.m_pCurrentActor;
+		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
+		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
+		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)_pActor->self.m_pThis;
+	}
+
+	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(TCActor<CActor> const &_Actor)
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		mp_pLastActor = ThreadLocal.m_pCurrentActor;
+		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
+		ThreadLocal.m_pCurrentActor = _Actor->fp_GetActor();
+		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)ThreadLocal.m_pCurrentActor->self.m_pThis;
+	}
+
+	CCurrentlyProcessingActorScope::~CCurrentlyProcessingActorScope()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		ThreadLocal.m_pCurrentActor = mp_pLastActor;
+		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = mp_pLastProcessingActorHolder;
+	}
+
 	CActor::CActor()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();

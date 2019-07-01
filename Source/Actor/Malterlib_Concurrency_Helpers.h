@@ -64,9 +64,22 @@ namespace NMib::NConcurrency
 		inline_always CCurrentActorScope(CActor const *_pActor);
 		inline_always CCurrentActorScope(TCActor<CActor> const &_Actor);
 		inline_always ~CCurrentActorScope();
+
 	private:
 		DMibThreadLocalScopeDebugMember;
 		CActor *mp_pLastActor;
+	};
+
+	struct CCurrentlyProcessingActorScope
+	{
+		CCurrentlyProcessingActorScope(CActor const *_pActor);
+		CCurrentlyProcessingActorScope(TCActor<CActor> const &_Actor);
+		~CCurrentlyProcessingActorScope();
+
+	private:
+		DMibThreadLocalScopeDebugMember;
+		CActor *mp_pLastActor;
+		CActorHolder *mp_pLastProcessingActorHolder;
 	};
 
 	namespace NPrivate

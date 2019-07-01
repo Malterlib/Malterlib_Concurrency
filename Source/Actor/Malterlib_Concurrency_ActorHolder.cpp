@@ -248,6 +248,8 @@ namespace NMib::NConcurrency
 			return true;
 		if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			return true;
+		if (ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder == this)
+			return true;
 		return false;
 	}
 

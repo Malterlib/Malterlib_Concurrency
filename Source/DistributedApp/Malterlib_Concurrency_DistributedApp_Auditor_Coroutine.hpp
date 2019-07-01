@@ -8,27 +8,27 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CReturnValue>
-	auto operator % (TCFuture<tf_CReturnValue> const &_Future, CDistributedAppAuditor const &_Auditor)
+	auto operator % (TCFuture<tf_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor)
 	{
-		return TCFutureWithAppAuditor<tf_CReturnValue>(_Future, _Auditor);
+		return TCFutureWithAppAuditor<tf_CReturnValue>(fg_Move(_Future), _Auditor);
 	}
 
 	template <typename tf_CReturnValue>
-	auto operator % (TCFutureWithError<tf_CReturnValue> const &_Future, CDistributedAppAuditor const &_Auditor)
+	auto operator % (TCFutureWithError<tf_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor)
 	{
-		return TCFutureWithErrorWithAppAuditor<tf_CReturnValue>(_Future, _Auditor);
+		return TCFutureWithErrorWithAppAuditor<tf_CReturnValue>(fg_Move(_Future), _Auditor);
 	}
 
 	template <typename tf_CReturnValue>
-	auto operator % (TCFuture<tf_CReturnValue> const &_Future, CDistributedAppAuditorWithError const &_Auditor)
+	auto operator % (TCFuture<tf_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor)
 	{
-		return TCFutureWithAppAuditorWithError<tf_CReturnValue>(_Future, _Auditor);
+		return TCFutureWithAppAuditorWithError<tf_CReturnValue>(fg_Move(_Future), _Auditor);
 	}
 
 	template <typename tf_CReturnValue>
-	auto operator % (TCFutureWithError<tf_CReturnValue> const &_Future, CDistributedAppAuditorWithError const &_Auditor)
+	auto operator % (TCFutureWithError<tf_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor)
 	{
-		return TCFutureWithErrorWithAppAuditorWithError<tf_CReturnValue>(_Future, _Auditor);
+		return TCFutureWithErrorWithAppAuditorWithError<tf_CReturnValue>(fg_Move(_Future), _Auditor);
 	}
 
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool t_bDirectCall>
@@ -56,20 +56,20 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCFutureWithAppAuditor<t_CReturnValue>::TCFutureWithAppAuditor(TCFuture<t_CReturnValue> const &_Future, CDistributedAppAuditor const &_Auditor)
-		: m_Future(_Future)
+	TCFutureWithAppAuditor<t_CReturnValue>::TCFutureWithAppAuditor(TCFuture<t_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor)
+		: m_Future(fg_Move(_Future))
 		, m_Auditor(_Auditor)
 	{
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditor<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFutureWithAppAuditor<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditor<t_CReturnValue>::operator co_await()
+	auto TCFutureWithAppAuditor<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditor<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFutureWithAppAuditor<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -106,22 +106,22 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFutureWithErrorWithAppAuditor<t_CReturnValue>::TCFutureWithErrorWithAppAuditor
 		(
-			TCFutureWithError<t_CReturnValue> const &_Future
+			TCFutureWithError<t_CReturnValue> &&_Future
 			, CDistributedAppAuditor const &_Auditor
 		)
-		: m_Future(_Future)
+		: m_Future(fg_Move(_Future))
 		, m_Auditor(_Auditor)
 	{
 	}
 	
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::operator co_await()
+	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFutureWithErrorWithAppAuditor<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -156,22 +156,22 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFutureWithAppAuditorWithError<t_CReturnValue>::TCFutureWithAppAuditorWithError
 		(
-		 	TCFuture<t_CReturnValue> const &_Future
+		 	TCFuture<t_CReturnValue> &&_Future
 		 	, CDistributedAppAuditorWithError const &_Auditor
 		)
-		: m_Future(_Future)
+		: m_Future(fg_Move(_Future))
 		, m_Auditor(_Auditor)
 	{
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::operator co_await()
+	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFutureWithAppAuditorWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -208,22 +208,22 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::TCFutureWithErrorWithAppAuditorWithError
 		(
-			TCFutureWithError<t_CReturnValue> const &_Future
+			TCFutureWithError<t_CReturnValue> &&_Future
 			, CDistributedAppAuditorWithError const &_Auditor
 		)
-		: m_Future(_Future)
+		: m_Future(fg_Move(_Future))
 		, m_Auditor(_Auditor)
 	{
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::f_Wrap() -> CNoUnwrapAsyncResult
+	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::f_Wrap() && -> CNoUnwrapAsyncResult
 	{
 		return {this};
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::operator co_await()
+	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await()
+	auto TCFutureWithErrorWithAppAuditorWithError<t_CReturnValue>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(

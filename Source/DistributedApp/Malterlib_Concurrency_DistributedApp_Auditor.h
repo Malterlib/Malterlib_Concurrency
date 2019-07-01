@@ -119,13 +119,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithAppAuditor *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
-		TCFutureWithAppAuditor(TCFuture<t_CReturnValue> const &_Future, CDistributedAppAuditor const &_Auditor);
+		TCFutureWithAppAuditor(TCFuture<t_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFuture<t_CReturnValue> m_Future;
 		CDistributedAppAuditor m_Auditor;
@@ -137,13 +137,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithErrorWithAppAuditor *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
-		TCFutureWithErrorWithAppAuditor(TCFutureWithError<t_CReturnValue> const &_Future, CDistributedAppAuditor const &_Auditor);
+		TCFutureWithErrorWithAppAuditor(TCFutureWithError<t_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFutureWithError<t_CReturnValue> m_Future;
 		CDistributedAppAuditor m_Auditor;
@@ -155,13 +155,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithAppAuditorWithError *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
-		TCFutureWithAppAuditorWithError(TCFuture<t_CReturnValue> const &_Future, CDistributedAppAuditorWithError const &_Auditor);
+		TCFutureWithAppAuditorWithError(TCFuture<t_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFuture<t_CReturnValue> m_Future;
 		CDistributedAppAuditorWithError m_Auditor;
@@ -173,13 +173,13 @@ namespace NMib::NConcurrency
 		struct CNoUnwrapAsyncResult
 		{
 			TCFutureWithErrorWithAppAuditorWithError *m_pWrapped;
-			auto operator co_await();
+			auto operator co_await() &&;
 		};
 
-		TCFutureWithErrorWithAppAuditorWithError(TCFutureWithError<t_CReturnValue> const &_Future, CDistributedAppAuditorWithError const &_Auditor);
+		TCFutureWithErrorWithAppAuditorWithError(TCFutureWithError<t_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor);
 
-		auto operator co_await();
-		CNoUnwrapAsyncResult f_Wrap();
+		auto operator co_await() &&;
+		CNoUnwrapAsyncResult f_Wrap() &&;
 
 		TCFutureWithError<t_CReturnValue> m_Future;
 		CDistributedAppAuditorWithError m_Auditor;

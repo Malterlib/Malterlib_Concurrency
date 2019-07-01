@@ -165,14 +165,14 @@ namespace NMib::NConcurrency
 
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 		{
-			co_await (SaveDatabasePromise + SubscriptionResults.f_GetResults()); // Intentionally ignore results
+			co_await (SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()); // Intentionally ignore results
 
 			co_return {};
 		}
 
 		SubscriptionResults.f_GetResults() > fg_DiscardResult();
 
-		co_return co_await SaveDatabasePromise;
+		co_return co_await SaveDatabasePromise.f_MoveFuture();
 	}
 	
 	TCFuture<void> CDistributedActorTrustManager::f_RemovePermissions
@@ -256,7 +256,7 @@ namespace NMib::NConcurrency
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
 		{
 			TCPromise<void> Promise;
-			SaveDatabasePromise.f_Dispatch() + SubscriptionResults.f_GetResults()
+			SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()
 				> Promise / [Promise](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
 				{
 					Promise.f_SetResult();

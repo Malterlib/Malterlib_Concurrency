@@ -511,7 +511,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -649,7 +649,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -697,7 +697,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -778,7 +778,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -863,7 +863,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -929,7 +929,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -1349,7 +1349,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 
@@ -1539,7 +1539,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CState State{_fDatabaseFactory, _fCleanup};
 				{
@@ -1603,7 +1603,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 				
 				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
 				using CKeys = TCSet<CStr>;
@@ -1959,7 +1959,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				CStr const ID1 = "2YAzJPcR2K5QMbJYP";
 				CStr const ID2 = "DPYQEvAqw4RQhXRYe";
@@ -2423,7 +2423,7 @@ namespace NTestTrustManager
 						HelperActor->f_BlockDestroy();
 					}
 				;
-				CCurrentActorScope CurrentActor{HelperActor};
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 				NStr::CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/TestDatababseConversion";
 				if (NFile::CFile::fs_FileExists(BaseDirectory))

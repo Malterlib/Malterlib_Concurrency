@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 		: m_pData(fg_Construct())
 	{
 		TCPromise<t_CReturnValue> Promise(*this);
-		_ActorCall > Promise;
+		fg_Move(_ActorCall) > Promise;
 	}
 
 
@@ -607,9 +607,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCFuture<t_CReturnValue>::operator % (NStr::CStr const &_ErrorString) const -> TCFutureWithError<t_CReturnValue>
+	auto TCFuture<t_CReturnValue>::operator % (NStr::CStr const &_ErrorString) && -> TCFutureWithError<t_CReturnValue>
 	{
-		return TCFutureWithError<t_CReturnValue>(*this, _ErrorString);
+		return TCFutureWithError<t_CReturnValue>(fg_Move(*this), _ErrorString);
 	}
 
 	template <typename t_CReturnValue>

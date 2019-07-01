@@ -181,7 +181,8 @@ namespace NMib::NConcurrency
 		}
 		
 		for (auto &Destroy : m_PendingDestroys)
-			Destroy > Destroys.f_AddResult();
+			Destroy.f_MoveFuture() > Destroys.f_AddResult();
+		m_PendingDestroys.f_Clear();
 
 		TCPromise<void> Promise;
 		Destroys.f_GetResults() > [=](auto &&_Results)

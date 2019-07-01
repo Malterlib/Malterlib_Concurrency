@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 				FactorIDs.f_Insert();
 				TCPromise<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
 				Result.f_SetResult(ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{});
-				Result > VerificationResults.f_AddResult();
+				Result.f_MoveFuture() > VerificationResults.f_AddResult();
 			}
 		;
 

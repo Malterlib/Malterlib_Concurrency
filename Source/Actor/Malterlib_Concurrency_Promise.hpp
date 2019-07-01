@@ -165,7 +165,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
 	TCPromise<t_CReturnValue>::TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
 	{
-		_ActorCall > *this;
+		fg_Move(_ActorCall) > *this;
 	}
 
 	enum EFutureResultFlag

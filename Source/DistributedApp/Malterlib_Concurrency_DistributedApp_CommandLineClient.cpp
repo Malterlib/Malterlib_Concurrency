@@ -234,14 +234,14 @@ namespace NMib::NConcurrency
 
 		auto &Command = **pFoundCommand;
 
-		if (Command.m_fDirectRunCommand)
+		if (Command.m_pDirectRunCommand)
 		{
 			if (mp_fLazyPreRunDirectCommand)
 				mp_fLazyPreRunDirectCommand(_Params);
 
-			return Command.m_fDirectRunCommand(_Params, *this);
+			return (*Command.m_pDirectRunCommand)(_Params, *this);
 		}
-		else if (Command.m_fActorRunCommand)
+		else if (Command.m_pActorRunCommand)
 		{
 			if (mp_fLazyStartApp)
 				mp_fLazyStartApp(_Params, Command.m_Flags);

@@ -23,6 +23,8 @@ namespace NMib::NConcurrency
 		, EAuthenticationFactorCategory_Knowledge
 	};
 
+	NStr::CStr fg_AuthenticationFactorCategoryToString(EAuthenticationFactorCategory _Categories);
+
 	struct CAuthenticationData
 	{
 		CAuthenticationData const &operator = (NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor const &_Factor);

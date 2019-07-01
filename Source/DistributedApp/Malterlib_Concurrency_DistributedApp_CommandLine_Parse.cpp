@@ -256,7 +256,7 @@ namespace NMib::NConcurrency
 						}
 						if (auto *pOption = pCurrentCommand->m_pSection->m_SectionOptionsByName.f_FindEqual(ParsedParameter))
 						{
-							if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_SectionOptionSet, !!pCurrentCommand->m_fDirectRunCommand))
+							if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_SectionOptionSet, !!pCurrentCommand->m_pDirectRunCommand))
 							{
 								DMibError
 									(
@@ -285,7 +285,7 @@ namespace NMib::NConcurrency
 							 	{
 									if (pCurrentCommand)
 									{
-										if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_GlobalOptionSet, !!pCurrentCommand->m_fDirectRunCommand))
+										if (!(*pOption)->f_IsEnabled(pCurrentCommand->m_GlobalOptionSet, !!pCurrentCommand->m_pDirectRunCommand))
 										{
 											DMibError
 												(

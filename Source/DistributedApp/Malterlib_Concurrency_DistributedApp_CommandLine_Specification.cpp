@@ -539,7 +539,7 @@ namespace NMib::NConcurrency
 							}
 						}
 
-						DMibError(fg_Format("Could not match '{jp}' to any member in set", _Value));
+						DMibError(fg_Format("Could not match '{jp}' to any member in set: {}", _Value, TemplateSet.f_ToString(nullptr)));
 
 						break;
 					}
@@ -1221,10 +1221,10 @@ namespace NMib::NConcurrency
 	auto CDistributedAppCommandLineSpecification::CSection::f_RegisterCommand
 		(
 			NEncoding::CEJSON const &_CommandDescription
-			, NFunction::TCFunction
+			, NFunction::TCFunctionMovable
 			<
 				TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
-			> const &_fRunCommand
+			> &&_fRunCommand
 			, ECommandFlag _Flags
 		)
 		-> CCommand
@@ -1233,7 +1233,7 @@ namespace NMib::NConcurrency
 		auto &Section = *pSection;
 		auto &Internal = *mp_pInternal;
 		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
-		pCommand->m_fActorRunCommand = _fRunCommand;
+		pCommand->m_pActorRunCommand = fg_Construct(fg_Move(_fRunCommand));
 		pCommand->m_Flags = _Flags;
 		return CCommand(mp_pInternal, pCommand);
 	}
@@ -1241,7 +1241,7 @@ namespace NMib::NConcurrency
 	auto CDistributedAppCommandLineSpecification::CSection::f_RegisterDirectCommand
 		(
 			NEncoding::CEJSON const &_CommandDescription
-			, NFunction::TCFunction<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> const &_fRunCommand
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> &&_fRunCommand
 		)
 		-> CCommand
 	{
@@ -1249,7 +1249,7 @@ namespace NMib::NConcurrency
 		auto &Section = *pSection;
 		auto &Internal = *mp_pInternal;
 		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
-		pCommand->m_fDirectRunCommand = _fRunCommand;
+		pCommand->m_pDirectRunCommand = fg_Construct(fg_Move(_fRunCommand));
 		return CCommand(mp_pInternal, pCommand);
 	}
 

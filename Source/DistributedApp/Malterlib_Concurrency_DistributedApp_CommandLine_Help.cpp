@@ -653,7 +653,7 @@ namespace NMib::NConcurrency
 							bool bAddedGlobalOption = false;
 							for (auto &Option : Internal.m_GlobalOptions)
 							{
-								if (!Option.f_IsEnabled(Command.m_GlobalOptionSet, !!Command.m_fDirectRunCommand))
+								if (!Option.f_IsEnabled(Command.m_GlobalOptionSet, !!Command.m_pDirectRunCommand))
 									continue;
 								if (Option.m_bHidden)
 									continue;
@@ -665,7 +665,7 @@ namespace NMib::NConcurrency
 							bool bAddedSectionOption = false;
 							for (auto &Option : Command.m_pSection->m_SectionOptions)
 							{
-								if (!Option.f_IsEnabled(Command.m_SectionOptionSet, !!Command.m_fDirectRunCommand))
+								if (!Option.f_IsEnabled(Command.m_SectionOptionSet, !!Command.m_pDirectRunCommand))
 									continue;
 								if (Option.m_bHidden)
 									continue;
@@ -728,7 +728,7 @@ namespace NMib::NConcurrency
 								}
 							}
 
-							fOutputOptions("Options", Command.m_Options, CInternal::COptionSet(), !!Command.m_fDirectRunCommand, true, CInternal::EColor_Option);
+							fOutputOptions("Options", Command.m_Options, CInternal::COptionSet(), !!Command.m_pDirectRunCommand, true, CInternal::EColor_Option);
 						}
 					;
 
@@ -818,7 +818,7 @@ namespace NMib::NConcurrency
 									fCombineOptionSet(SectionState.m_OptionSet, Command.m_SectionOptionSet);
 								SectionState.m_Commands.f_Insert(&Command);
 
-								if (!Command.m_fDirectRunCommand)
+								if (!Command.m_pDirectRunCommand)
 								{
 									bIsDirectCommand = false;
 									SectionState.m_bIsDirectCommand = false;
@@ -891,7 +891,7 @@ namespace NMib::NConcurrency
 									{
 										fOutputEndSection();
 										auto pIndent = fAddIndent(Indent + 3);
-										fOutputOptions("", Command.m_Options, CInternal::COptionSet{}, !!Command.m_fDirectRunCommand, false, CInternal::EColor_Option);
+										fOutputOptions("", Command.m_Options, CInternal::COptionSet{}, !!Command.m_pDirectRunCommand, false, CInternal::EColor_Option);
 									}
 
 									if (!Command.m_Parameters.f_IsEmpty())

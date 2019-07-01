@@ -206,6 +206,7 @@ namespace NMib::NConcurrency
 			CPermissionIdentifiers const &f_GetIdentifiers() const;
 
 			NStr::CStr f_GetDesc() const;
+			NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 			bool operator == (CPermissionInfo const &_Right) const;
 
 			NStorage::TCOptional<CHostInfo> m_HostInfo;

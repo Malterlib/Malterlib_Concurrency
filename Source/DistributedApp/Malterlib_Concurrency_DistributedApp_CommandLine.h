@@ -8,7 +8,11 @@
 #include <Mib/Encoding/EJSON>
 #include <Mib/Process/StdIn>
 #include <Mib/CommandLine/AnsiEncoding>
-#include <Mib/CommandLine/TableRenderer>
+
+namespace NMib::NCommandLine
+{
+	struct CTableRenderHelper;
+}
 
 namespace NMib::NConcurrency
 {
@@ -159,10 +163,10 @@ namespace NMib::NConcurrency
 			CCommand f_RegisterCommand
 				(
 					NEncoding::CEJSON const &_CommandDescription
-					, NFunction::TCFunction
+					, NFunction::TCFunctionMovable
 				 	<
 				 		TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
-				 	> const &_fRunCommand
+				 	> &&_fRunCommand
 					, ECommandFlag _Flags = ECommandFlag_None
 				)
 			;
@@ -170,7 +174,7 @@ namespace NMib::NConcurrency
 			CCommand f_RegisterDirectCommand
 				(
 					NEncoding::CEJSON const &_CommandDescription
-					, NFunction::TCFunction<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> const &_fRunCommand
+					, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> &&_fRunCommand
 				)
 			;
 

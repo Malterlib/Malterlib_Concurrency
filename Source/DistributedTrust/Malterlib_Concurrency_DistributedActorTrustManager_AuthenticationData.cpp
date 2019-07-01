@@ -25,8 +25,16 @@ namespace NMib::NConcurrency
 		m_PrivateData = _Data.m_PrivateData;
 		return *this;
 	}
+
+	NStr::CStr fg_AuthenticationFactorCategoryToString(EAuthenticationFactorCategory _Category)
+	{
+		switch (_Category)
+		{
+			case EAuthenticationFactorCategory_Possession: return "Posession";
+			case EAuthenticationFactorCategory_Inherence: return "Inherence";
+			case EAuthenticationFactorCategory_Knowledge: return "Knowledge";
+			case EAuthenticationFactorCategory_None: return "None";
+			default: return "None";
+		}
+	}
 }
-
-
-
-

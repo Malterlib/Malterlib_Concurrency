@@ -259,6 +259,53 @@ namespace NMib::NConcurrency
 		return Result;
 	}
 
+	NStr::CStr CDistributedActorTrustManagerInterface::CPermissionInfo::f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const
+	{
+		using namespace NStr;
+		CStr Result;
+
+		NCommandLine::CAnsiEncoding AnsiEncoding(_AnsiFlags);
+
+		if (m_HostInfo)
+			Result += "{}Host{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_HostInfo->f_GetDescColored(_AnsiFlags);
+
+		if (m_UserInfo)
+		{
+			fg_AddStrSep
+				(
+				 	Result
+				 	, "{}User{}: {} [{}{}{}]"_f
+				 	<< AnsiEncoding.f_Bold()
+				 	<< AnsiEncoding.f_Default()
+				 	<< f_GetIdentifiers().f_GetUserID()
+				 	<< AnsiEncoding.f_Prompt()
+				 	<< m_UserInfo->m_UserName
+				 	<< AnsiEncoding.f_Default()
+				 	, " "
+				)
+			;
+		}
+		if (!m_AuthenticationFactors.f_IsEmpty())
+		{
+			fg_AddStrSep(Result, "{}Authentication factors{}:"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default(), " ");
+			for (auto const &Factors : m_AuthenticationFactors)
+				fg_AddStrSep(Result, "{vs}"_f << Factors, " ");
+
+			if (m_MaximumAuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet)
+			{
+				Result += " {}Authentication Lifetime{}: Infinite (determined by signed expire time)"_f
+					<< AnsiEncoding.f_Bold()
+					<< AnsiEncoding.f_Default()
+					<< m_MaximumAuthenticationLifetime
+				;
+			}
+			else if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
+				Result += " {}Authentication Lifetime{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_MaximumAuthenticationLifetime;
+		}
+
+		return Result;
+	}
+
 	bool CDistributedActorTrustManagerInterface::CPermissionInfo::operator == (CPermissionInfo const &_Right) const
 	{
 		return NStorage::fg_TupleReferences(m_HostInfo, m_UserInfo) == NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_UserInfo);

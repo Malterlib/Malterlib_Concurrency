@@ -134,8 +134,18 @@ namespace NMib::NConcurrency
 			COptionSet m_SectionOptionSet;
 			COptionSet m_GlobalOptionSet;
 
-			NFunction::TCFunction<TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)> m_fActorRunCommand;
-			NFunction::TCFunction<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> m_fDirectRunCommand;
+			NStorage::TCSharedPointer
+				<
+					NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)>
+				>
+				m_pActorRunCommand
+			;
+			NStorage::TCSharedPointer
+				<
+					NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)>
+				>
+				m_pDirectRunCommand
+			;
 
 			ECommandFlag m_Flags = ECommandFlag_None;
 

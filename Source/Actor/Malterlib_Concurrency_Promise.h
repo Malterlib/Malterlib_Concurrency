@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 {
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
 	struct TCActorCall;
-	
+
 	class CActor;
 
 	template <typename t_CActor>
@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	struct CDiscardResultFunctor;
-	
+
 	template <typename t_CReturnValue, typename t_CException = void>
 	struct TCRunProtectedHelper
 	{
@@ -162,7 +162,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	template <typename t_FFunctor>
 	struct TCAllAsyncResultsAreVoid;
-	
+
 	template <typename t_CPromise>
 	struct TCPromiseReceiveAnyFunctor;
 
@@ -300,10 +300,10 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetResult(TCAsyncResult<t_CReturnValue> const volatile &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> &&_Result);
 
-		void f_SetResult(TCPromise<t_CReturnValue> const &_Result);
-		void f_SetResult(TCPromise<t_CReturnValue> &_Result);
+		void f_SetResult(TCPromise<t_CReturnValue> const &_Result) = delete;
+		void f_SetResult(TCPromise<t_CReturnValue> &_Result) = delete;
 		void f_SetResult(TCPromise<t_CReturnValue> &&_Result);
-		
+
 		template <typename tf_CResult>
 		void f_SetResult(tf_CResult &&_Result);
 		template <typename tf_CResult>
@@ -322,6 +322,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCCoroutineHandle<TCFutureCoroutineContext<t_CReturnValue>> m_Coroutine;
 #if DMibEnableSafeCheck > 0
 		TCWeakActor<> m_CoroutineOwner;
+		bool m_bFutureGotten = false;
 #endif
 	};
 }
@@ -333,7 +334,7 @@ struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::NPrivate::TCPr
 
 template <typename t_CReturnValue>
 struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, false>
-{ 
+{
 };
 
 namespace NMib::NConcurrency
@@ -381,11 +382,9 @@ namespace NMib::NConcurrency
 			auto operator co_await() &&;
 		};
 
-		TCFuture(TCFuture const &_Other);
-		TCFuture(TCFuture &&_Other);
-		TCFuture &operator =(TCFuture const &_Other);
-		TCFuture &operator =(TCFuture &&_Other);
 		TCFuture();
+		TCFuture(TCFuture &&_Other);
+		TCFuture &operator =(TCFuture &&_Other);
 
 		template <typename tf_CType>
 		TCFuture(TCExplicit<tf_CType> &&_Data);
@@ -394,6 +393,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
 		TCFuture(tf_CType &&_Exception);
 
+		TCFuture(NException::CExceptionPointer &&_pException);
 		TCFuture(NException::CExceptionPointer const &_pException);
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
@@ -415,9 +415,7 @@ namespace NMib::NConcurrency
 		void f_DiscardResult();
 		bool f_ObserveIfAvailable();
 		bool f_IsObserved() const;
-
-		template <typename tf_FOnEmpty>
-		void f_Abandon(tf_FOnEmpty &&_fOnEmpty);
+		TCAsyncResult<t_CReturnValue> &&f_MoveResult();
 
 		bool f_IsCoroutine() const;
 		ECoroutineFlag f_CoroutineFlags() const;
@@ -448,14 +446,19 @@ namespace NMib::NConcurrency
 		CNoUnwrapAsyncResult f_Wrap() &&;
 		auto operator co_await() &&;
 
-	public:
+	private:
+		friend struct TCPromise<t_CReturnValue>;
 		template <typename t_CReturnType>
-		friend struct TCFutureCoroutineContext;
-		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> m_pData;
+		friend struct NPrivate::TCFutureCoroutineContext;
+
+		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &_pData);
+		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData);
+
+		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> mp_pData;
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromise : public TCFuture<t_CReturnValue>
+	struct [[nodiscard]] TCPromise
 	{
 	public:
 		TCPromise(TCPromise const &_Other);
@@ -472,14 +475,10 @@ namespace NMib::NConcurrency
 		TCPromise(tf_CType &&_Exception);
 
 		TCPromise(NException::CExceptionPointer const &_pException);
-		
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-		TCPromise(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
-		
+
 		TCPromise(TCAsyncResult<t_CReturnValue> const &_Result);
 		TCPromise(TCAsyncResult<t_CReturnValue> &&_Result);
 
-		//explicit operator bool () const;
 		bool f_IsSet() const;
 		void f_SetResult() const;
 		template <typename tf_CResult>
@@ -490,10 +489,13 @@ namespace NMib::NConcurrency
 		void f_SetExceptionOrResult(tf_CException &&_Exception, tf_CResult &&_Result) const;
 		void f_SetCurrentException() const;
 		auto f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>;
+		template <typename tf_FOnEmpty>
+		void f_Abandon(tf_FOnEmpty &&_fOnEmpty);
+		TCAsyncResult<t_CReturnValue> &&f_MoveResult();
 
 		TCPromise &&f_Move();
 		TCFuture<t_CReturnValue> f_Future() const;
-		TCFuture<t_CReturnValue> &&f_MoveFuture();
+		TCFuture<t_CReturnValue> f_MoveFuture();
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
@@ -506,7 +508,9 @@ namespace NMib::NConcurrency
 	private:
 		friend struct TCFuture<t_CReturnValue>;
 
-		TCPromise(TCFuture<t_CReturnValue> const &_Other);
+		TCPromise(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &_pData);
+
+		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> mp_pData;
 	};
 
 	struct CActorWithErrorBase

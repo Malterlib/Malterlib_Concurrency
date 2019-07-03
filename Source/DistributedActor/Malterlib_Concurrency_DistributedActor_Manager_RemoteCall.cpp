@@ -582,13 +582,13 @@ namespace NMib::NConcurrency
 					if (!Context.f_ValidateContext(Error))
 					{
 						Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
-						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.m_pData->m_Result, Context);
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.f_MoveResult(), Context);
 						return;
 					}
 					
 					if (!fp_RegisterActorFunctorsForCall(*Context.m_pState, *pHost, Promise))
 					{
-						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.m_pData->m_Result, Context);
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.f_MoveResult(), Context);
 						return;
 					}
 				}
@@ -715,7 +715,7 @@ namespace NMib::NConcurrency
 		if (HostActorProtocolVersion < 0x105)
 			return fg_Explicit();
 		
-		return Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID];
+		return Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID].f_Future();
 	}
 
 	void CActorDistributionManagerInternal::fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID)

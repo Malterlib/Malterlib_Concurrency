@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 		if (pThis->mp_AppStartupResult.f_IsSet())
 			return pThis->mp_AppStartupResult;
 		
-		return pThis->mp_DeferredAppStartupResults.f_Insert();
+		return pThis->mp_DeferredAppStartupResults.f_Insert().f_Future();
 	}
 	
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()

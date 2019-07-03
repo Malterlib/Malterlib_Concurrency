@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 		if (m_bRunning)
 		{
 			if (m_ErrorOnRunning.f_IsEmpty())
-				return m_Promises.f_Insert();
+				return m_Promises.f_Insert().f_Future();
 			else
 				return DMibErrorInstance(m_ErrorOnRunning);
 		}

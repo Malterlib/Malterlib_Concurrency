@@ -463,7 +463,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return pState->m_Promise;
+		return pState->m_Promise.f_Future();
 	}
 
 	void CDistributedAppAuthenticationHandler::fp_RequestCollected(TCSharedPointer<CPreauthenticationInfo> const &_pInfo)
@@ -554,7 +554,7 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		return Info.m_Promises[HostID];
+		return Info.m_Promises[HostID].f_Future();
 	}
 
 	TCFuture<CDistributedAppAuthenticationHandler::CMultipleRequestData> CDistributedAppAuthenticationHandler::f_GetMultipleRequestSubscription(uint32 _nHosts)

@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 			fp_TransferResults();
 			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
 		}
-		return mp_GetResultsPromise;
+		return mp_GetResultsPromise.f_Future();
 	}
 
 	template <typename t_CType>
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 		mp_bResultsGotten = true;
 		if (mp_nFinished.f_Get() == mp_nAdded.f_Load())
 			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
-		return mp_GetResultsPromise;
+		return mp_GetResultsPromise.f_Future();
 	}
 
 	template <typename t_CKey, typename t_CValue>

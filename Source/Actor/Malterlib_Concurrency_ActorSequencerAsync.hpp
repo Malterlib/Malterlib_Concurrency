@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 				State.m_bDestroyed = true;
 
 				if (State.m_nRunning)
-					return State.m_AbortPromise;
+					return State.m_AbortPromise.f_Future();
 				else
 					return fg_Explicit();
 			}

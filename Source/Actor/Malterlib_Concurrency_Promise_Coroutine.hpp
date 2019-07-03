@@ -138,9 +138,13 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	TCFuture<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::get_return_object()
 	{
-		TCFuture<t_CReturnType> Future;
+		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> pPromiseDataShared(fg_Construct());
+#if DMibEnableSafeCheck > 0
+		pPromiseDataShared->m_bFutureGotten = true;
+#endif
+		TCFuture<t_CReturnType> Future{fg_Move(pPromiseDataShared)};
 
-		auto *pPromiseData = Future.m_pData.f_Get();
+		auto *pPromiseData = Future.mp_pData.f_Get();
 		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContext>::from_promise(*this);
 #if DMibEnableSafeCheck > 0
 		pPromiseData->m_CoroutineOwner = fg_CurrentActor();
@@ -260,7 +264,7 @@ namespace NMib::NConcurrency
 			if (mp_Future.f_ObserveIfAvailable())
 			{
 				auto Future = fg_Move(mp_Future);
-				mp_Result = fg_Move(Future.m_pData->m_Result);
+				mp_Result = Future.f_MoveResult();
 				return true;
 			}
 			return false;
@@ -300,7 +304,7 @@ namespace NMib::NConcurrency
 					)
 				)
 			{
-				mp_Result = fg_Move(Future.m_pData->m_Result);
+				mp_Result = Future.f_MoveResult();
 				return false;
 			}
 

@@ -153,7 +153,8 @@ namespace
 
 		virtual TCFuture<void> f_GetResultWasNotSet()
 		{
-			return {};
+			TCPromise<void> Promise;
+			return Promise.f_MoveFuture();
 		}
 	};
 

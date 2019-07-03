@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_bConnectionsInitialized)
 			return fg_Explicit();
-		return Internal.m_AwaitingConnection.f_Insert();
+		return Internal.m_AwaitingConnection.f_Insert().f_Future();
 	}
 
 	void CDistributedActorTrustManager::CInternal::f_Init

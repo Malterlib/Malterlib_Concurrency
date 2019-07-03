@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 					)
 				;
 				
-				return fg_Move(Return);
+				return Return.f_MoveFuture();
 			}
 		};
 	}

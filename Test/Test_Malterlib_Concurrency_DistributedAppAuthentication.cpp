@@ -837,7 +837,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -865,7 +865,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -898,7 +898,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -922,7 +922,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -946,7 +946,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -970,7 +970,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -994,7 +994,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;
@@ -1018,7 +1018,7 @@ namespace NTestAuthentication
 							}
 						;
 
-						return pOutput->m_Promise;
+						return pOutput->m_Promise.f_Future();
 					}
 				)
 			;

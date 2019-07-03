@@ -251,7 +251,7 @@ namespace
 
 		TCFuture<void> f_WaitCleanupScope()
 		{
-			return m_WaitForCleanupScopeExit;
+			return m_WaitForCleanupScopeExit.f_Future();
 		}
 
 		TCFuture<uint32> f_TestFutureWithErrorWrapped()
@@ -692,7 +692,7 @@ namespace
 
 		TCFuture<uint32> f_WaitCleanupResultCall()
 		{
-			return m_WaitForResultCallToFinish;
+			return m_WaitForResultCallToFinish.f_Future();
 		}
 
 		TCFuture<uint32> f_TestActorResultUnwrapped()

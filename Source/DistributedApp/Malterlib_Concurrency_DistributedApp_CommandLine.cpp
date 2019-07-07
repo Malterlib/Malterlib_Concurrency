@@ -74,6 +74,7 @@ namespace NMib::NConcurrency
 				}
 			 	, CTableRenderHelper::EOption_Rounded
 			 	, m_AnsiFlags
+		 		, m_CommandLineWidth
 		 	)
 		;
 	}

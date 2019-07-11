@@ -183,7 +183,7 @@ namespace
 
 			TCPromise<uint32> Promise;
 			Promise.f_SetResult(Value);
-			co_return Promise;
+			co_return fg_Move(Promise);
 		}
 
 		TCFuture<uint32> f_TestException()

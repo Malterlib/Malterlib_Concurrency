@@ -1264,6 +1264,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
 	{
+		if (!mp_AuthenticationHandlerImplementation)
+		{
+			if (!mp_Settings.m_bSupportUserAuthentication)
+				co_return DMibErrorInstance("Authentication is not supported in this application");
+			else
+				co_return DMibErrorInstance("Authentication not supported. Set default authentication user or use --authentication-user.");
+		}
+
 		CStr Pattern = _Params["Pattern"].f_String();
 		bool bJSONOutput = _Params["JSONOutput"].f_Boolean();
 
@@ -1669,7 +1677,7 @@ namespace NMib::NConcurrency
 					, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
 						"\"Factor1\"                                        - must authenticate by Factor1\n"
 						"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2\n"
-						"[[\"Factor1\"], [\"Factor2\"]]                       - must authenticate by Factor1 and Factor2\n"
+						"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2\n"
 						"[[\"Factor1\", \"Factor2\"], [\"Factor1\", \"Factor3\"]] - must authenticate by Factor1 and either Factor2 or Factor3.\n"
 				}
 			;
@@ -1850,6 +1858,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
+					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -1944,6 +1953,7 @@ namespace NMib::NConcurrency
 					{
 						return self(&CDistributedAppActor::f_CommandLine_ListTrustedHosts, _pCommandLine, _Params["IncludeFriendlyName"].f_Boolean(), _Params["TableType"].f_String());
 					}
+					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -2185,6 +2195,7 @@ namespace NMib::NConcurrency
 					{
 						return self(&CDistributedAppActor::f_CommandLine_ListNamespaces, _pCommandLine, _Params["IncludeTrustedHosts"].f_Boolean(), _Params["TableType"].f_String());
 					}
+					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -2300,6 +2311,7 @@ namespace NMib::NConcurrency
 					{
 						return self(&CDistributedAppActor::f_CommandLine_ListPermissions, _pCommandLine, _Params["IncludeTargets"].f_Boolean(), _Params["TableType"].f_String());
 					}
+					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -2829,6 +2841,7 @@ namespace NMib::NConcurrency
 					{
 						return self(&CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern, _pCommandLine, _Params);
 					}
+					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
 				)
 			;
 		}

@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 					o_DaemonParams.f_SetRunAsGroup(_Params["Daemon_RunAsGroup"].f_String());
 			}
 			if (_Params.f_GetMember("Daemon_FailIfAdded"))
-				o_DaemonParams.f_SetActionParam(_Params["Daemon_FailIfAdded"].f_Boolean());
+				o_DaemonParams.f_SetActionParam(!_Params["Daemon_FailIfAdded"].f_Boolean());
 			else if (_Params.f_GetMember("Daemon_Wait"))
 				o_DaemonParams.f_SetActionParam(_Params["Daemon_Wait"].f_Boolean());
 			if (_Params.f_GetMember("Daemon_Daemonize"))

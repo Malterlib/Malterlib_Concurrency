@@ -262,20 +262,26 @@ namespace NMib::NConcurrency
 							{
 								NNetwork::CNetAddress Address = NNetwork::CSocket::fs_ResolveAddress(fg_Format("UNIX:{}", File));
 								NNetwork::CSocket Socket;
-								Socket.f_Connect(Address);
+								Socket.f_Connect(Address, nullptr, 5.0);
 							}
-							catch (NException::CException const &)
+							catch (NException::CException const &_Exception)
 							{
+								(void)_Exception;
+								DMibLogWithCategory(Mib/Concurrency/App, Info, "Cleaned up stale enclave socket '{}': {}", File, _Exception);
 								CFile::fs_DeleteFile(File);
 							}
 						}
-						catch (NException::CException const &)
+						catch (NException::CException const &_Exception)
 						{
+							(void)_Exception;
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave socket '{}': {}", File, _Exception);
 						}
 					}
 				}
-				catch (NException::CException const &)
+				catch (NException::CException const &_Exception)
 				{
+					(void)_Exception;
+					DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave sockets: {}", _Exception);
 				}
 			}
 			> fg_DiscardResult()

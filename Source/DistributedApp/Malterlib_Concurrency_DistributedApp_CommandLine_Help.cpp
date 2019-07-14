@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 
 	TCVector<CStr> CDistributedAppCommandLineSpecification::fs_RelevantHelpGlobalOptions()
 	{
-		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color", "Color24Bit", "ColorLight"};
+		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color", "Color24Bit", "ColorLight", "TerminalWidth", "TerminalHeight"};
 	}
 
 	void CDistributedAppCommandLineSpecification::f_AddHelpCommand()
@@ -147,10 +147,9 @@ namespace NMib::NConcurrency
 
 					mint Indentation = 0;
 
-					auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 					mint MaxWidth = 120;
-					if (ConsoleProperties.m_Width)
-						MaxWidth = fg_Max(fg_Min(ConsoleProperties.m_Width, 200u), 50u); // Never wider than 200 chars, never less than 50
+					if (auto Width = _CommandLineClient.f_CommandLineWidth(); Width > 0)
+						MaxWidth = fg_Max(fg_Min(Width, 200u), 50u); // Never wider than 200 chars, never less than 50
 
 					mint MaxExecutableIndent = MaxWidth / 10;
 

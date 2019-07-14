@@ -35,6 +35,8 @@ namespace NMib::NConcurrency
 
 		NCommandLine::EAnsiEncodingFlag f_AnsiEncodingFlags() const;
 		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
+		uint32 f_CommandLineWidth() const;
+		uint32 f_CommandLineHeight() const;
 
 		CDistributedAppCommandLineClient
 			(

@@ -1655,6 +1655,8 @@ public:
 				, "Color"_= false
 				, "Color24Bit"_= false
 				, "ColorLight"_= false
+				, "TerminalWidth"_= -1
+				, "TerminalHeight"_= -1
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
@@ -1763,6 +1765,8 @@ public:
 						, "Color"_= false
 						, "Color24Bit"_= false
 						, "ColorLight"_= false
+						, "TerminalWidth"_= -1
+						, "TerminalHeight"_= -1
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= CurrentAuthLifetime
@@ -2512,6 +2516,8 @@ public:
 				, "Color"_= false
 				, "Color24Bit"_= false
 				, "ColorLight"_= false
+				, "TerminalWidth"_= -1
+				, "TerminalHeight"_= -1
 				, "HelpCurrentCommand"_= false
 				, "HelpCurrentCommandVerbose"_= false
 				, "AuthenticationLifetime"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
@@ -2577,6 +2583,8 @@ public:
 						, "Color"_= false
 						, "Color24Bit"_= false
 						, "ColorLight"_= false
+						, "TerminalWidth"_= -1
+						, "TerminalHeight"_= -1
 						, "HelpCurrentCommand"_= false
 						, "HelpCurrentCommandVerbose"_= false
 						, "AuthenticationLifetime"_= 0

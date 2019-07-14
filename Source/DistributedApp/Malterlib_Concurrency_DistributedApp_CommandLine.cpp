@@ -1594,6 +1594,32 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"TerminalWidth?"_=
+						{
+							"Names"_= {"--terminal-width"}
+							, "Default"_= fg_GetSys()->f_GetEnvironmentVariable("MalterlibTerminalWidth", "-1").f_ToInt(int64(-1))
+							, "Description"_= "Override detected terminal width.\n"\
+							"Useful for when for whatever reason tty is not accessible. "\
+						}
+					}
+				)
+			;
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
+						"TerminalHeight?"_=
+						{
+							"Names"_= {"--terminal-height"}
+							, "Default"_= fg_GetSys()->f_GetEnvironmentVariable("MalterlibTerminalHeight", "-1").f_ToInt(int64(-1))
+							, "Description"_= "Override detected terminal height.\n"\
+							"Useful for when for whatever reason tty is not accessible. "\
+						}
+					}
+				)
+			;
 		}
 
 		if (_Functionalities & EDefaultCommandLineFunctionality_Help)

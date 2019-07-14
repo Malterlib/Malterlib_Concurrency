@@ -21,6 +21,8 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		bool m_bInitialized = false;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
+		uint32 m_CommandLineWidth;
+		uint32 m_CommandLineHeight;
 	};
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
@@ -173,6 +175,18 @@ namespace NMib::NConcurrency
 		return NCommandLine::CAnsiEncoding(Internal.m_AnsiFlags);
 	}
 
+	uint32 CDistributedAppCommandLineClient::f_CommandLineWidth() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_CommandLineWidth;
+	}
+
+	uint32 CDistributedAppCommandLineClient::f_CommandLineHeight() const
+	{
+		auto &Internal = *mp_pInternal;
+		return Internal.m_CommandLineHeight;
+	}
+
 	aint CDistributedAppCommandLineClient::f_RunCommand(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
 		auto &Internal = *mp_pInternal;
@@ -185,6 +199,16 @@ namespace NMib::NConcurrency
 			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color24Bit;
 		if (_Params.f_GetMemberValue("ColorLight", CDistributedAppActor::fs_ColorLightBackgroundDefault()).f_Boolean())
 			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
+
+		auto ConsoleProperties = NSys::fg_GetConsoleProperties();
+
+		Internal.m_CommandLineWidth = ConsoleProperties.m_Width;
+		Internal.m_CommandLineHeight = ConsoleProperties.m_Height;
+
+		if (auto Value = _Params.f_GetMemberValue("TerminalWidth", -1).f_Integer(); Value > 0)
+			Internal.m_CommandLineWidth = Value;
+		if (auto Value = _Params.f_GetMemberValue("TerminalHeight", -1).f_Integer(); Value > 0)
+			Internal.m_CommandLineHeight = Value;
 
 		enum EHelpCommand
 		{
@@ -218,6 +242,8 @@ namespace NMib::NConcurrency
 					, f_ColorEnabled() ? "--color" : "--no-color"
 					, f_Color24BitEnabled() ? "--color-24bit" : "--no-color-24bit"
 					, f_ColorLightBackground() ? "--color-light" : "--no-color-light"
+					, "--terminal-width={}"_f << _Params.f_GetMemberValue("TerminalWidth", -1).f_Integer()
+					, "--terminal-height={}"_f << _Params.f_GetMemberValue("TerminalHeight", -1).f_Integer()
 					, _Command
 				}
 			;
@@ -254,9 +280,8 @@ namespace NMib::NConcurrency
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
 
-			auto ConsoleProperties = NSys::fg_GetConsoleProperties();
-			CommandLineControl.m_CommandLineWidth = ConsoleProperties.m_Width;
-			CommandLineControl.m_CommandLineHeight = ConsoleProperties.m_Height;
+			CommandLineControl.m_CommandLineWidth = Internal.m_CommandLineWidth;
+			CommandLineControl.m_CommandLineHeight = Internal.m_CommandLineHeight;
 			CommandLineControl.m_AnsiFlags = Internal.m_AnsiFlags;
 
 			struct CState

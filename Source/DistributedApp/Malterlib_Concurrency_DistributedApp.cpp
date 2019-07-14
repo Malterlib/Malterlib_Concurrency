@@ -648,9 +648,13 @@ namespace NMib::NConcurrency
 		if (mp_State.m_TrustManager)
 			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
 
-		TCPromise<void> Promise;
-		Destroys.f_GetResults() > Promise.f_ReceiveAny();
-		return Promise.f_MoveFuture();
+		if (mp_FileOperationsActor)
+			mp_FileOperationsActor->f_Destroy() > Destroys.f_AddResult();
+		if (mp_CleanupFilesActor)
+			mp_CleanupFilesActor->f_Destroy() > Destroys.f_AddResult();
+
+		co_await Destroys.f_GetResults();
+		co_return {};
 	}
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)

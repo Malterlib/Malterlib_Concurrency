@@ -1429,8 +1429,23 @@ namespace NMib::NConcurrency
 	{
 		static bool bValue = []
 			{
-				bool bDefaultEnableColor = !NSys::fg_System_BeingDebugged();
-				return fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", bDefaultEnableColor ? "true" : "false") == "true";
+				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", ""))
+					return Value == "true";
+
+				if (NSys::fg_System_BeingDebugged())
+					return false;
+
+				auto ColorTerm = fg_GetSys()->f_GetEnvironmentVariable("COLORTERM", "");
+				if (ColorTerm == "truecolor" || ColorTerm == "24bit")
+					return true;
+
+#ifdef DPlatformFamily_Windows
+				if (CSystem::ms_PlatformVersion >= 10'0'015063)
+					return true;
+				else
+					return false;
+#endif
+				return true;
 			}
 			()
 		;
@@ -1448,6 +1463,10 @@ namespace NMib::NConcurrency
 				if (ColorTerm == "truecolor" || ColorTerm == "24bit")
 					return true;
 
+#ifdef DPlatformFamily_Windows
+				if (CSystem::ms_PlatformVersion >= 10'0'015063)
+					return true;
+#endif
 				return false;
 			}
 			()
@@ -1480,8 +1499,6 @@ namespace NMib::NConcurrency
 							if (_Type != EStdInReaderOutputType_StdIn)
 								return;
 							CByteVector Data((uint8 const *)_Input.f_GetStr(), _Input.f_GetLen());
-
-							DMibConOut("Input: {vs}\n", CByteVector((uint8 const *)_Input.f_GetStr(), _Input.f_GetLen()));
 
 							pState->m_Buffer += _Input;
 							if (auto iFound = pState->m_Buffer.f_Find("\x1B]11;rgb:"); iFound >= 0)
@@ -1548,7 +1565,6 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-
 			o_CommandLine.f_RegisterGlobalOptions
 				(
 					{
@@ -1563,7 +1579,6 @@ namespace NMib::NConcurrency
 					}
 				)
 			;
-
 			o_CommandLine.f_RegisterGlobalOptions
 				(
 					{

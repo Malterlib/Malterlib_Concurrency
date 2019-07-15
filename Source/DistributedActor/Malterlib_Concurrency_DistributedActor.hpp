@@ -85,6 +85,8 @@ namespace NMib::NConcurrency
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
 		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
 
+		DMibFastCheck(this);
+
 		auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
 
 		return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>

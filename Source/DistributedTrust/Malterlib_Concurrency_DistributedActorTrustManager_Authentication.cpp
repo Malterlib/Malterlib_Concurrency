@@ -23,6 +23,9 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_UserID
 		)
 	{
+		if (!_Handler)
+			return DMibErrorInstance("Invalid authentication handler");
+
 		auto &Internal = *m_pThis->mp_pInternal;
 		auto &CallingHostInfo = fg_GetCallingHostInfo();
 		auto &UniqueHostID = CallingHostInfo.f_GetUniqueHostID();

@@ -93,6 +93,9 @@ namespace NMib::NConcurrency
 			, CRegisterInfo const &_RegisterInfo
 		)
 	{
+		if (!_ClientInterface)
+			return DMibErrorInstance("Invalid client interface");
+
 		auto *pThis = m_pThis;
 		auto &CallingHostInfo = fg_GetCallingHostInfo();
 		

@@ -44,6 +44,9 @@ namespace NMib::NConcurrency
 			, CStr const &_BackupRoot
 		)
 	{
+		if (!_BackupInterface)
+			return DMibErrorInstance("Invalid backup interface");
+
 		TCPromise<TCActorSubscriptionWithID<>> Promise;
 
 		m_pThis->self(&CDistributedAppActor::fp_StartBackup, fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot)

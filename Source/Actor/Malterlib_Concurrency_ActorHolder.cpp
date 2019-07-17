@@ -657,13 +657,9 @@ namespace NMib::NConcurrency
 		if (!mp_pOnTerminateEntry)
 			return;
 
-		auto pDelegateTo = mp_pDelegateTo.f_Lock();
-		if (!pDelegateTo)
-			return;
-
-		pDelegateTo->f_QueueProcess
+		mp_pDelegateTo->f_QueueProcess
 			(
-				[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo]
+				[pOnTerminateEntry = mp_pOnTerminateEntry, pDelegateTo = mp_pDelegateTo]
 				{
 					pDelegateTo->mp_OnTerminate.f_TryRemovePointerBasedComparison(pOnTerminateEntry);
 				}
@@ -673,31 +669,22 @@ namespace NMib::NConcurrency
 
 	bool CDelegatedActorHolder::f_CurrentlyProcessing() const
 	{
-		auto pDelegateTo = mp_pDelegateTo.f_Lock();
-		if (!pDelegateTo)
-			return false;
-		return pDelegateTo->f_CurrentlyProcessing();
+		return mp_pDelegateTo->f_CurrentlyProcessing();
 	}
 	
 	void CDelegatedActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy)
 	{
-		auto pDelegateTo = mp_pDelegateTo.f_Lock();
-		if (pDelegateTo)
-		{
-			pDelegateTo->f_QueueProcess
-				(
-					[pThisWeak = TCActorHolderWeakPointer<CDelegatedActorHolder>{this}, Functor = fg_Move(_Functor)]() mutable
-					{
-						auto pThis = pThisWeak.f_Lock();
-						if (pThis && pThis->mp_pActor)
-							Functor();
-					}
-					, _bDestroy
-				)
-			;
-		}
-		else
-			CDefaultActorHolder::fp_QueueProcess(fg_Move(_Functor), _bDestroy);
+		mp_pDelegateTo->f_QueueProcess
+			(
+				[pThisWeak = TCActorHolderWeakPointer<CDelegatedActorHolder>{this}, Functor = fg_Move(_Functor)]() mutable
+				{
+					auto pThis = pThisWeak.f_Lock();
+					if (pThis && pThis->mp_pActor)
+						Functor();
+				}
+				, _bDestroy
+			)
+		;
 	}
 
 	///

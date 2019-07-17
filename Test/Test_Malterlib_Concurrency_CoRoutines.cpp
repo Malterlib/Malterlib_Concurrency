@@ -819,6 +819,28 @@ namespace
 		TCPromise<uint32> m_WaitForResultCallToFinish;
 	};
 
+	struct CTestDestroyActor : public CActor
+	{
+		TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+		{
+			co_await fg_Move(_ToWaitFor);
+
+			co_return {};
+		}
+	};
+
+	struct CTestDestroyDelegatedActor : public CActor
+	{
+		using CActorHolder = CDelegatedActorHolder;
+
+		TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+		{
+			co_await fg_Move(_ToWaitFor);
+
+			co_return {};
+		}
+	};
+
 	class CCoroutines_Tests : public NMib::NTest::CTest
 	{
 		void f_TestGeneral()
@@ -936,6 +958,86 @@ namespace
 			};
 		}
 
+		void f_TestDestroy()
+		{
+			DMibTestSuite("Destroy")
+			{
+				TCFuture<void> DestroyFuture;
+				{
+					TCPromise<void> DestroyPromise;
+					{
+						TCActor<CTestDestroyActor> TestDestroyActor = fg_Construct();
+
+						DestroyFuture = TestDestroyActor(&CTestDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
+						TestDestroyActor->f_Destroy().f_CallSync();
+					}
+					DestroyPromise.f_SetResult();
+				}
+
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+			};
+			DMibTestSuite("Destroy Delegated")
+			{
+				TCFuture<void> DestroyFuture;
+				{
+					TCPromise<void> DestroyPromise;
+					{
+						TCActor<CActor> MainActor = fg_Construct();
+						{
+							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
+
+							DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+							TestDestroyActor->f_Destroy().f_CallSync();
+						}
+					}
+					DestroyPromise.f_SetResult();
+				}
+
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+			};
+			DMibTestSuite("Destroy Delegated 2")
+			{
+				TCFuture<void> DestroyFuture;
+				{
+					TCPromise<void> DestroyPromise;
+					{
+						TCActor<CActor> MainActor = fg_Construct();
+						{
+							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
+
+							DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+							MainActor->f_Destroy().f_CallSync();
+						}
+					}
+					DestroyPromise.f_SetResult();
+				}
+
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+			};
+			DMibTestSuite("Destroy Delegated 3")
+			{
+				TCFuture<void> DestroyFuture;
+				{
+					TCPromise<void> DestroyPromise;
+					{
+						TCActor<CActor> MainActor = fg_Construct();
+						{
+							TCActor<CTestDestroyDelegatedActor> Delegated{fg_Construct(), MainActor};
+							{
+								TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), Delegated};
+
+								DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+								MainActor->f_Destroy().f_CallSync();
+							}
+						}
+					}
+					DestroyPromise.f_SetResult();
+				}
+
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+			};
+		}
+
 		void f_DoTests()
 		{
 #if DMibEnableSafeCheck > 0
@@ -949,6 +1051,7 @@ namespace
 #endif
 			f_TestGeneral();
 			f_TestAuditor();
+			f_TestDestroy();
 		}
 	};
 

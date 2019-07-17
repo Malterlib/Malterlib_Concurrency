@@ -3,6 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/ActorSubscription>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -13,6 +14,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NEncoding;
 	using namespace NContainer;
+	using namespace NAtomic;
 
 	CDistributedAppActor::CCommandLine::CCommandLine(TCWeakActor<CDistributedAppActor> const &_Actor)
 		: mp_Actor(_Actor)
@@ -21,8 +23,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
 		(
-			 NStr::CStr const &_Command
-			 , NEncoding::CEJSON const &_Params
+			 CStr const &_Command
+			 , CEJSON const &_Params
 			 , CCommandLineControl &&_CommandLine
 		)
 	{
@@ -41,14 +43,11 @@ namespace NMib::NConcurrency
 	{
 		CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 
-		TCPromise<void> Promise;
-
 		auto ExpectedAddress = fp_GetLocalAddress();
 
-		fg_Dispatch
+		bool bAlreadySetup = co_await
 			(
-				mp_FileOperationsActor
-				, [Promise, CommandLineTrustPath, ExpectedAddress]()
+				g_Dispatch(mp_FileOperationsActor) / [CommandLineTrustPath, ExpectedAddress]()
 				{
 					if (!CFile::fs_FileExists(CommandLineTrustPath))
 						return false;
@@ -84,113 +83,73 @@ namespace NMib::NConcurrency
 					return false;
 				}
 			)
-			> Promise / [this, Promise, CommandLineTrustPath](bool _bAlreadySetup)
+		;
+
+		if (bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+			co_return {};
+
+		TCSharedPointer<TCAtomic<bool>> pSuccessful = fg_Construct(false);
+
+		// Remove trust database if anything went wrong during setup
+		auto CleanupTrustDatabase = g_ActorSubscription(mp_FileOperationsActor) / [CommandLineTrustPath, pSuccessful]
 			{
-				if (_bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
-				{
-					// Already setup
-					Promise.f_SetResult();
+				if (pSuccessful->f_Load())
 					return;
-				}
 
-				// Remove trust database if anything went wrong during setup
-				auto pCleanup = fg_OnScopeExitShared
-					(
-						[CommandLineTrustPath, FileOperationsActor = mp_FileOperationsActor]
-						{
-							fg_Dispatch
-								(
-									FileOperationsActor
-									, [CommandLineTrustPath]
-									{
-										if (CFile::fs_FileExists(CommandLineTrustPath))
-											CFile::fs_DeleteDirectoryRecursive(CommandLineTrustPath);
-									}
-								)
-								> fg_DiscardResult()
-							;
-						}
-					)
-				;
-
-				{
-					struct CState
-					{
-						TCActor<ICDistributedActorTrustManagerDatabase> m_TrustManagerDatabase;
-						TCActor<CDistributedActorTrustManager> m_TrustManager;
-					};
-
-					TCSharedPointer<CState> pState = fg_Construct();
-					auto &State = *pState;
-					State.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(CommandLineTrustPath);
-
-					CDistributedActorTrustManager::COptions Options;
-
-					Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
-						}
-					;
-					Options.m_KeySetting = mp_Settings.m_KeySetting;
-					Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-					Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
-					Options.m_Enclave = CStr();
-					Options.m_TranslateHostnames = fp_GetTranslateHostnames();
-					Options.m_DefaultConnectionConcurrency = 1;
-
-					State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(State.m_TrustManagerDatabase, fg_Move(Options));
-
-					State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) > Promise / [this, Promise, pState, pCleanup](CStr const &_HostID)
-						{
-							mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, _HostID) > Promise / [this, Promise, pState, _HostID, pCleanup](bool _bHasClient)
-								{
-									auto fContinue = [this, Promise, pState, _HostID, pCleanup]
-										{
-											CDistributedActorTrustManager_Address LocalListenAddress;
-											LocalListenAddress.m_URL = fp_GetLocalAddress();
-
-											mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr, nullptr)
-												> Promise / [this, Promise, pState, _HostID, pCleanup]
-												(CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult &&_TrustTicket)
-												{
-													auto &State = *pState;
-													State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket.m_Ticket, 60.0, -1)
-														> Promise / [this, Promise, _HostID, pCleanup, pState]
-														{
-															pCleanup->f_Clear();
-															auto &Setting = mp_State.m_StateDatabase.m_Data["CommandLineHostID"];
-															if (!Setting.f_IsString() || Setting.f_String() != _HostID)
-															{
-																mp_State.m_StateDatabase.m_Data["CommandLineHostID"] = _HostID;
-																mp_State.m_StateDatabase.f_Save() > Promise % "Failed to save state database";
-															}
-															else
-																Promise.f_SetResult();
-														}
-													;
-												}
-											;
-										}
-									;
-
-									if (!_bHasClient)
-										fContinue();
-									else
-									{
-										mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID) > Promise / [fContinue = fg_Move(fContinue)]()
-											{
-												fContinue();
-											}
-										;
-									}
-								}
-							;
-						}
-					;
-				}
+				if (CFile::fs_FileExists(CommandLineTrustPath))
+					CFile::fs_DeleteDirectoryRecursive(CommandLineTrustPath);
 			}
 		;
-		return Promise.f_MoveFuture();
+
+		TCActor<ICDistributedActorTrustManagerDatabase> TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(CommandLineTrustPath);
+
+		CDistributedActorTrustManager::COptions Options;
+
+		Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
+			{
+				return fg_ConstructActor<NConcurrency::CActorDistributionManager>(_Settings);
+			}
+		;
+		Options.m_KeySetting = mp_Settings.m_KeySetting;
+		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
+		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+		Options.m_Enclave = CStr();
+		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
+		Options.m_DefaultConnectionConcurrency = 1;
+
+		TCActor<CDistributedActorTrustManager> TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(fg_Move(TrustManagerDatabase), fg_Move(Options));
+		TrustManagerDatabase.f_Clear();
+
+		auto CleanupTrustManager = g_ActorSubscription / [TrustManager]() -> TCFuture<void>
+			{
+				co_await TrustManager->f_Destroy();
+				co_return {};
+			}
+		;
+
+		CStr HostID = co_await TrustManager(&CDistributedActorTrustManager::f_Initialize);
+
+		if (co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasClient, HostID))
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, HostID);
+
+		CDistributedActorTrustManager_Address LocalListenAddress;
+		LocalListenAddress.m_URL = fp_GetLocalAddress();
+
+		auto TrustTicket = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, LocalListenAddress, nullptr, nullptr);
+
+		co_await TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 60.0, -1);
+		*pSuccessful = true;
+
+		auto &Setting = mp_State.m_StateDatabase.m_Data["CommandLineHostID"];
+		if (!Setting.f_IsString() || Setting.f_String() != HostID)
+		{
+			mp_State.m_StateDatabase.m_Data["CommandLineHostID"] = HostID;
+			co_await (mp_State.m_StateDatabase.f_Save() % "Failed to save state database");
+		}
+
+		co_await CleanupTrustManager->f_Destroy();
+
+		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()

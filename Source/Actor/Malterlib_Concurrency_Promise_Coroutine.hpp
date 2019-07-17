@@ -213,10 +213,13 @@ namespace NMib::NConcurrency::NPrivate
 		if (!mp_pPromiseData)
 			return;
 
-		m_Actor.f_GetRealActor()->f_QueueProcess
+		auto pRealActor = m_Actor.f_GetRealActor();
+
+		pRealActor->f_QueueProcess
 			(
-			 	[pPromiseData = fg_Move(mp_pPromiseData)]
+			 	[Actor = fg_Move(m_Actor), pPromiseData = fg_Move(mp_pPromiseData)]() mutable
 			 	{
+					pPromiseData.f_Clear();
 				}
 			)
 		;

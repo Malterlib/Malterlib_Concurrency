@@ -230,7 +230,7 @@ namespace NMib::NConcurrency
 	protected:
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, bool _bDestroy) override;
 
-		TCActorHolderWeakPointer<CActorHolder> mp_pDelegateTo;
+		TCActorHolderSharedPointer<CActorHolder> mp_pDelegateTo;
 		COnTerminate *mp_pOnTerminateEntry = nullptr;
 	};
 

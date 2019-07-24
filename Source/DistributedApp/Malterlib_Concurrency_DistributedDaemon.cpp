@@ -46,6 +46,7 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
+					(void)_Exception;
 					DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Exception stopping app: {}", _Exception);
 				}
 

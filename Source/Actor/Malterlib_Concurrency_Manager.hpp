@@ -82,9 +82,22 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_FOnScopeExit>
-		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) const
+		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) &&
 		{
-			return fg_OnScopeExitActor(m_Actor, fg_Move(_fOnExitFunctor));
+			return fg_Construct<TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>>
+				(
+					[Actor = fg_Move(m_Actor), fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
+					{
+						fg_Dispatch
+							(
+								fg_Move(Actor)
+								, fg_Move(fOnExitFunctor)
+							)
+							> fg_DiscardResult()
+						;
+					}
+				)
+			;
 		}
 
 		TCActor<CActor> m_Actor;
@@ -95,9 +108,21 @@ namespace NMib::NConcurrency
 		template <typename tf_FOnScopeExit>
 		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) const
 		{
-			auto CurrentActor = fg_CurrentActor();
-			DMibFastCheck(CurrentActor);
-			return fg_OnScopeExitActor(CurrentActor, fg_Move(_fOnExitFunctor));
+			DMibFastCheck(fg_CurrentActor());
+			return fg_Construct<TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>>
+				(
+					[Actor = fg_CurrentActor(), fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
+					{
+						fg_Dispatch
+							(
+								fg_Move(Actor)
+								, fg_Move(fOnExitFunctor)
+							)
+							> fg_DiscardResult()
+						;
+					}
+				)
+			;
 		}
 
 		COnScopeExitActorHelperWithActor operator () (TCActor<CActor> const &_Actor) const
@@ -107,4 +132,9 @@ namespace NMib::NConcurrency
 	};
 
 	extern COnScopeExitActorHelper const &g_OnScopeExitActor;
+}
+
+namespace NMib
+{
+	extern template class TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>;
 }

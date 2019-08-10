@@ -5,51 +5,18 @@
 
 namespace NMib::NConcurrency
 {
-	namespace NPrivate
-	{
-		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction, typename t_CReturn = typename NTraits::TCMemberFunctionPointerTraits<t_CMemberFunction>::CReturn>
-		struct TCCallToFuture
-		{
-			template <typename tf_CClass, typename ...tfp_CParam>
-			static TCFuture<t_CReturn> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
-			{
-				return fg_Explicit((_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...));
-			}
-		};
-
-		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction, typename t_CReturn>
-		struct TCCallToFuture<t_CMemberFunction, t_fMemberFunction, TCFuture<t_CReturn>>
-		{
-			template <typename tf_CClass, typename ...tfp_CParam>
-			static TCFuture<t_CReturn> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
-			{
-				return (_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...);
-			}
-		};
-
-		template <typename t_CMemberFunction, t_CMemberFunction t_fMemberFunction>
-		struct TCCallToFuture<t_CMemberFunction, t_fMemberFunction, void>
-		{
-			template <typename tf_CClass, typename ...tfp_CParam>
-			static TCFuture<void> fs_Call(tf_CClass *_pObject, tfp_CParam && ...p_Params)
-			{
-				(_pObject->*t_fMemberFunction)(fg_Forward<tfp_CParam>(p_Params)...);
-				return fg_Explicit();
-			}
-		};
-	}
-
-	template 
+	template
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params)
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params)
 	{
 		constexpr static uint32 c_NameHash = ::NMib::fg_GetMemberFunctionHash<tf_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(tf_NameHash));
 		using CMemberFunction = decltype(tf_pMemberFunction);
+		using COriginalReturn = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CReturn;
 		using CReturn = typename NPrivate::TCRemoveFuture<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CReturn>::CType;
 		
 		NFunction::TCFunctionMovable<TCFuture<CReturn> ()> ToDispatch;
@@ -68,9 +35,7 @@ namespace NMib::NConcurrency
 				{
 					ToDispatch = []
 						{
-							TCPromise<CReturn> Promise;
-							Promise.f_SetException(DMibErrorInstance("The remote is using an older protocol version not supported for this function"));
-							return Promise.f_MoveFuture();
+							return TCPromise<CReturn>() <<= DMibErrorInstance("The remote is using an older protocol version not supported for this function");
 						}
 					;
 					DispatchActor = fg_DirectCallActor();
@@ -98,9 +63,7 @@ namespace NMib::NConcurrency
 				{
 					ToDispatch = []
 						{
-							TCPromise<CReturn> Promise;
-							Promise.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
-							return Promise.f_MoveFuture();
+							return TCPromise<CReturn>() <<= DMibErrorInstance("Remote actor host no longer available");
 						}
 					;
 					DispatchActor = fg_DirectCallActor();
@@ -123,28 +86,30 @@ namespace NMib::NConcurrency
 				TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
 
 				if (!DistributionManager)
-					DispatchActor = _Actor;
-				else
-					DispatchActor = DistributionManager;
+				{
+					ToDispatch = []
+						{
+							return TCPromise<CReturn>() <<= DMibErrorInstance("Actor distribution manager for actor no longer exists");
+						}
+					;
+					DispatchActor = fg_DirectCallActor();
+					break;
+				}
+
+				auto pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
+				DispatchActor = fg_Move(DistributionManager);
 
 				ToDispatch =
 					[
-						 DistributionManager = fg_Move(DistributionManager)
-						 , Data = Stream.f_MoveVector()
-						 , pActorData = fg_Move(pActorData)
-						 , Context
-						 , ProtocolVersion
+						pDistributionManager
+					 	, Data = Stream.f_MoveVector()
+						, pActorData = fg_Move(pActorData)
+						, Context
+						, ProtocolVersion
 					]
 					() mutable
 					{
 						TCPromise<CReturn> Promise;
-
-						if (!DistributionManager)
-						{
-							Promise.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
-							return Promise.f_MoveFuture();
-						}
-						auto *pDistributionManager = NPrivate::fg_GetInternalActor(DistributionManager);
 						pDistributionManager->f_CallRemote(fg_Move(pActorData), fg_Move(Data), Context)
 							> [Promise, Context, ProtocolVersion](TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 							{
@@ -170,27 +135,66 @@ namespace NMib::NConcurrency
 			}
 			else // When local
 			{
-				DispatchActor = _Actor;
+				auto pActor = NPrivate::fg_GetInternalActor(_Actor);
+				DispatchActor = fg_Move(_Actor);
 				using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CMoveList;
 				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CType;
-				ToDispatch = [_Actor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
-					{
-						return NStorage::fg_TupleApplyAs<CMoveList>
-							(
-								[&](auto &&..._Params) mutable -> TCFuture<CReturn>
-								{
-									auto *pActor = NPrivate::fg_GetInternalActor(_Actor);
-									return NPrivate::TCCallToFuture<CMemberFunction, tf_pMemberFunction>::fs_Call(pActor, fg_Forward<decltype(_Params)>(_Params)...);
-								}
-								, fg_Move(Params) 
-							)
-						;
-					}
-				;
+				if constexpr (NPrivate::TCIsFuture<COriginalReturn>::mc_Value)
+				{
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug
+						-> TCFuture<CReturn>
+						{
+							return NStorage::fg_TupleApplyAs<CMoveList>
+								(
+									[&](auto &&..._Params) mutable mark_no_coroutine_debug-> TCFuture<CReturn>
+									{
+										return (pActor->*tf_pMemberFunction)(fg_Forward<decltype(_Params)>(_Params)...);
+									}
+									, fg_Move(Params)
+								)
+							;
+						}
+					;
+				}
+				else if constexpr (NTraits::TCIsVoid<COriginalReturn>::mc_Value)
+				{
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
+						{
+							return NStorage::fg_TupleApplyAs<CMoveList>
+								(
+									[&](auto &&..._Params) mutable -> TCFuture<CReturn>
+									{
+										TCPromise<void> Promise;
+										(pActor->*tf_pMemberFunction)(fg_Forward<decltype(_Params)>(_Params)...);
+										return Promise <<= g_Void;
+									}
+									, fg_Move(Params)
+								)
+							;
+						}
+					;
+				}
+				else
+				{
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
+						{
+							return NStorage::fg_TupleApplyAs<CMoveList>
+								(
+									[&](auto &&..._Params) mutable -> TCFuture<CReturn>
+									{
+										return TCPromise<CReturn>() <<= (pActor->*tf_pMemberFunction)(fg_Forward<decltype(_Params)>(_Params)...);
+									}
+									, fg_Move(Params)
+								)
+							;
+						}
+					;
+				}
 			}
 		}
 		while (false)
 			;
-		return DispatchActor.f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturn>>>(fg_Move(ToDispatch));
+		_Actor.f_Clear();
+		return fg_Move(DispatchActor).f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturn>>>(fg_Move(ToDispatch));
 	}
 }

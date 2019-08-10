@@ -29,6 +29,25 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	struct TCDistributedActorWrapper;
 
+	template <typename t_CActor>
+	struct TCIsActorAlwaysAlive<TCDistributedActorWrapper<t_CActor>> : public TCIsActorAlwaysAlive<t_CActor>
+	{
+	};
+
+	template <typename t_CActor>
+	struct TCIsDistributedActorWrapper
+	{
+		static constexpr bool mc_Value = false;
+		using CActor = t_CActor;
+	};
+
+	template <typename t_CActor>
+	struct TCIsDistributedActorWrapper<TCDistributedActorWrapper<t_CActor>>
+	{
+		static constexpr bool mc_Value = true;
+		using CActor = t_CActor;
+	};
+
 	template <typename t_CActor = CActor>
 	using TCDistributedActor = TCActor<TCDistributedActorWrapper<t_CActor>>;
 
@@ -144,7 +163,7 @@ namespace NMib::NConcurrency
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> const &_Actor, tfp_CParams && ...p_Params);
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params);
 
 	struct CActorDistributionCryptographyRemoteServer
 	{
@@ -714,7 +733,21 @@ namespace NMib::NConcurrency
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
 			, NPrivate::CDistributedActorStreamContext&
-		) const
+		) const &
+	;
+
+	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
+		<
+			&CActorDistributionManager::f_CallRemote
+			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
+		>
+		(
+			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NPrivate::CDistributedActorStreamContext&
+		) &&
 	;
 #endif
 }

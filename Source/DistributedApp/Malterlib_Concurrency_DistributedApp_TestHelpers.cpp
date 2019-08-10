@@ -24,23 +24,22 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedApp_LaunchInfoData::f_Destroy()
 	{
-		TCFuture<void> DestroyFuture;
+		TCPromise<void> Promise;
 		if (m_InProcess)
-			DestroyFuture = m_InProcess->f_Destroy();
+			return Promise <<= fg_Move(m_InProcess).f_Destroy();
 		else if (m_Launch)
-			DestroyFuture = m_Launch->f_Destroy();
+			return Promise <<= fg_Move(m_Launch).f_Destroy();
 		else
-			DestroyFuture = fg_Explicit();
-
-		return DestroyFuture;
+			return Promise <<= g_Void;
 	}
 
 #if DMibConfig_Tests_Enable
 	TCFuture<NEncoding::CEJSON> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
+		TCPromise<NEncoding::CEJSON> Promise;
 		if (!m_InProcess)
-			DMibError("No in process actor");
-		return m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
+			return Promise <<= DMibErrorInstance("No in process actor");
+		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
 	}
 
 	TCFuture<uint32> CDistributedApp_LaunchInfoData::f_RunCommandLine
@@ -51,9 +50,10 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
+		TCPromise<uint32> Promise;
 		if (!m_InProcess)
-			DMibError("No in process actor");
-		return m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+			return Promise <<= DMibErrorInstance("No in process actor");
+		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
 	}
 #endif
 
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!_ClientInterface)
-			return DMibErrorInstance("Invalid client interface");
+			co_return DMibErrorInstance("Invalid client interface");
 
 		auto *pThis = m_pThis;
 		auto &CallingHostInfo = fg_GetCallingHostInfo();
@@ -140,14 +140,14 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			return fg_Explicit(g_ActorSubscription / []{});
+			co_return g_ActorSubscription / []{};
 		}
 		auto &PendingLaunch = pThis->m_PendingLaunches[HostID];
 		PendingLaunch.m_pClientInterface = fg_Construct(fg_Move(_ClientInterface));
 		if (_TrustInterface)
 			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 		
-		return fg_Explicit(g_ActorSubscription / []{});
+		co_return g_ActorSubscription / []{};
 	}
 
 	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
@@ -187,26 +187,25 @@ namespace NMib::NConcurrency
 			Destroy.f_MoveFuture() > Destroys.f_AddResult();
 		m_PendingDestroys.f_Clear();
 
-		TCPromise<void> Promise;
-		Destroys.f_GetResults() > [=](auto &&_Results)
-			{
-				m_AppInterfaceServer.f_Destroy() > Promise;
-			}
-		;
-		return Promise.f_MoveFuture();
+		co_await Destroys.f_GetResults();
+
+		co_await m_AppInterfaceServer.f_Destroy();
+
+		co_return {};
 	}
 	
 	CActorSubscription CDistributedApp_LaunchHelper::fp_GetLaunchSubscription(NStr::CStr const &_LaunchID)
 	{
 		return g_ActorSubscription / [this, _LaunchID]() -> TCFuture<void>
 			{
+				TCPromise<void> Promise;
+
 				auto *pLaunch = m_Launches.f_FindEqual(_LaunchID);
 				if (!pLaunch)
 				{
 					DMibLog(Info, "Launch subscription goes out of scope: {} has no launch", _LaunchID);
-					return fg_Explicit();
+					return Promise <<= g_Void;
 				}
-				TCPromise<void> Promise;
 				DMibLog(Info, "Launch subscription goes out of scope: {} {}", _LaunchID, pLaunch->m_HostID);
 				pLaunch->f_Destroy() > [=, Pending = m_PendingDestroys[_LaunchID], HostID = pLaunch->m_HostID](auto &&_Result)
 					{
@@ -247,7 +246,7 @@ namespace NMib::NConcurrency
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
 					pLaunch->m_HostID = _HostID;
-					return fg_Explicit();
+					co_return {};
 				}
 				, _Description
 				, true
@@ -308,11 +307,11 @@ namespace NMib::NConcurrency
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
 					pLaunch->m_HostID = _HostID;
-					return fg_Explicit();
+					co_return {};
 				}
 				, g_ActorFunctor / [](NStr::CStr const &_Error) -> TCFuture<void>
 				{
-					return fg_Explicit();
+					co_return {};
 				}
 				, _Description
 				, true

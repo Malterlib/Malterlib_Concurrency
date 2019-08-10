@@ -11,6 +11,7 @@ namespace NMib::NConcurrency
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
 		using CFunction = NFunction::TCFunctionMovable<t_CFunction>;
 		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value, "You need to return a future");
+		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&) = default;
@@ -23,7 +24,7 @@ namespace NMib::NConcurrency
 		TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
 		
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params) const;
+		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
 		
 		TCActor<CActor> const &f_GetActor() const;
 		NFunction::TCFunctionMovable<t_CFunction> const &f_GetFunctor() const;
@@ -32,8 +33,9 @@ namespace NMib::NConcurrency
 		TCActor<CActor> &f_GetActor();
 		NFunction::TCFunctionMovable<t_CFunction> &f_GetFunctor();
 		CActorSubscription &f_GetSubscription();
-		TCFuture<void> f_Destroy();
-		
+		TCFuture<void> f_Destroy() &;
+		TCFuture<void> f_Destroy() &&;
+
 		void f_Clear();
 		
 		bool f_IsEmpty() const;

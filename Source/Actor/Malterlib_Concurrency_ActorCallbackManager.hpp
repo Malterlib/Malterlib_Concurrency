@@ -75,8 +75,11 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		if (!t_bSupportMultiple && !Internal.mp_Callbacks.f_IsEmpty())
-			f_Clear();
+		if constexpr (!t_bSupportMultiple)
+		{
+			if (!Internal.mp_Callbacks.f_IsEmpty())
+				f_Clear();
+		}
 
 		CCallbackHandle &CallbackHandle = Internal.mp_Callbacks.f_Insert(fg_Construct(fg_Forward<tfp_CParam>(p_ExtraData)...));
 		CallbackHandle.m_pCallback = _pCallback;
@@ -157,7 +160,7 @@ namespace NMib::NConcurrency
 		Internal.mp_bDeferrCallbacks = false;
 	}
 
-
+#ifdef DCompiler_MSVC_Workaround
 	namespace NPrivate
 	{
 		template <typename tf_CReturn, typename tf_CCallback, mint... tfp_Indices, typename... tfp_CParams, typename... tfp_COriginalTypes>
@@ -169,27 +172,11 @@ namespace NMib::NConcurrency
 				, NMeta::TCTypeList<tfp_COriginalTypes...> const &
 			)
 		{
-#if DMibEnableSafeCheck > 0
-			if constexpr (TCIsFuture<tf_CReturn>::mc_Value)
-			{
-				tf_CReturn ReturnFuture;
-
-				NPrivate::fg_WrapDispatchWithReturn
-					(
-						[&]
-						{
-							ReturnFuture = _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
-						}
-					)
-				;
-
-				return ReturnFuture;
-			}
-			else
-#endif
-				return _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
+			return _Callback(fg_Forward<tfp_COriginalTypes>(fg_Get<tfp_Indices>(_Params))...);
 		}
 	}
+#endif
+
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 	auto TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::operator ()(tp_CCallbackParams... p_Params)
@@ -208,6 +195,7 @@ namespace NMib::NConcurrency
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
+#ifdef DCompiler_MSVC_Workaround
 					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						bool bFound = false;
@@ -238,6 +226,31 @@ namespace NMib::NConcurrency
 							break;
 						}
 					}
+#else
+					[this, Promise, ...Params = fg_Forward<tp_CCallbackParams>(p_Params)]() mutable
+					{
+						bool bFound = false;
+						auto &Internal = *mp_pInternal;
+						for (auto &Callback : Internal.mp_Callbacks)
+						{
+							auto Actor = Callback.m_Actor.f_Lock();
+							if (!Actor)
+								continue;
+							fg_Dispatch
+								(
+									Actor
+									, [pCallback = Callback.m_pCallback, ...Params = fg_Move(Params)]() mutable mark_no_coroutine_debug -> t_CReturn
+									{
+										return (*pCallback)(fg_Move(Params)...);
+									}
+								)
+								> Promise;
+							;
+							bFound = true;
+							break;
+						}
+					}
+#endif
 				)
 			;
 			return Promise.f_MoveFuture();
@@ -250,6 +263,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					Actor
+#ifdef DCompiler_MSVC_Workaround
 					, [pCallback = Callback.m_pCallback, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						 return NPrivate::fg_CallCallback<t_CReturn>
@@ -261,12 +275,18 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
+#else
+					, [pCallback = Callback.m_pCallback, ...Params = fg_Forward<tp_CCallbackParams>(p_Params)]() mutable mark_no_coroutine_debug -> t_CReturn
+					{
+						return (*pCallback)(fg_Move(Params)...);
+					}
+#endif
 				)
 				> Promise
 			;
 			return Promise.f_MoveFuture();
 		}
-		return DMibErrorInstance("No callback registered");
+		return Promise <<= DMibErrorInstance("No callback registered");
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -275,11 +295,13 @@ namespace NMib::NConcurrency
 		-> typename TCEnableIf<tf_bSupportMultiple, TCFuture<NContainer::TCVector<TCAsyncResult<CReturn>>>>::CType
 	{
 		TCPromise<NContainer::TCVector<TCAsyncResult<CReturn>>> Promise;
+
 		auto &Internal = *mp_pInternal;
 		if (Internal.mp_Callbacks.f_IsEmpty() && Internal.mp_bDeferrCallbacks)
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
+#ifdef DCompiler_MSVC_Workaround
 					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						auto &Internal = *mp_pInternal;
@@ -309,6 +331,30 @@ namespace NMib::NConcurrency
 						}
 						Results.f_GetResults() > Promise;
 					}
+#else
+					[this, Promise, ...Params = fg_Forward<tp_CCallbackParams>(p_Params)]() mutable
+					{
+						auto &Internal = *mp_pInternal;
+						TCActorResultVector<CReturn> Results;
+						for (auto &Callback : Internal.mp_Callbacks)
+						{
+							auto Actor = Callback.m_Actor.f_Lock();
+							if (!Actor)
+								continue;
+							fg_Dispatch
+								(
+									Actor
+									, [pCallback = Callback.m_pCallback, ...Params = Params]() mutable mark_no_coroutine_debug -> t_CReturn
+									{
+										return (*pCallback)(fg_Move(Params)...);
+									}
+								)
+								> Results.f_AddResult();
+							;
+						}
+						Results.f_GetResults() > Promise;
+					}
+#endif
 				)
 			;
 			return Promise.f_MoveFuture();
@@ -316,6 +362,7 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<CReturn> Results;
 
+#ifdef DCompiler_MSVC_Workaround
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		for (auto &Callback : Internal.mp_Callbacks)
@@ -341,6 +388,24 @@ namespace NMib::NConcurrency
 				> Results.f_AddResult();
 			;
 		}
+#else
+		for (auto &Callback : Internal.mp_Callbacks)
+		{
+			auto Actor = Callback.m_Actor.f_Lock();
+			if (!Actor)
+				continue;
+			fg_Dispatch
+				(
+					Actor
+					, [pCallback = Callback.m_pCallback, ...Params = p_Params]() mutable mark_no_coroutine_debug -> t_CReturn
+					{
+						return (*pCallback)(fg_Move(Params)...);
+					}
+				)
+				> Results.f_AddResult();
+			;
+		}
+#endif
 
 		Results.f_GetResults() > Promise;
 		return Promise.f_MoveFuture();
@@ -365,6 +430,7 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			return;
 
+#ifdef DCompiler_MSVC_Workaround
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		_fDoCall
@@ -391,6 +457,25 @@ namespace NMib::NConcurrency
 				, static_cast<t_CExtraData &>(Callback)
 			)
 		;
+#else
+		_fDoCall
+			(
+				[&]
+				{
+					return fg_Dispatch
+						(
+							Actor
+							, [pCallback = Callback.m_pCallback, ...Params = fg_Forward<tp_CCallbackParams>(p_Params)]() mutable mark_no_coroutine_debug -> t_CReturn
+							{
+								return (*pCallback)(fg_Move(Params)...);
+							}
+						)
+					;
+				}
+				, static_cast<t_CExtraData &>(Callback)
+			)
+		;
+#endif
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -402,6 +487,7 @@ namespace NMib::NConcurrency
 		if (Internal.mp_bDeferrCallbacks)
 			DMibError("Deferred callbacks not supported");
 
+#ifdef DCompiler_MSVC_Workaround
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		for (auto &Callback : Internal.mp_Callbacks)
@@ -434,6 +520,31 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+#else
+		for (auto &Callback : Internal.mp_Callbacks)
+		{
+			auto Actor = Callback.m_Actor.f_Lock();
+			if (!Actor)
+				continue;
+			_fDoCall
+				(
+					[&]
+				 	{
+						return fg_Dispatch
+							(
+								Actor
+								, [pCallback = Callback.m_pCallback, ...Params = p_Params]() mutable mark_no_coroutine_debug -> t_CReturn
+								{
+									return (*pCallback)(fg_Move(Params)...);
+								}
+							)
+						;
+					}
+					, static_cast<t_CExtraData &>(Callback)
+				)
+			;
+		}
+#endif
 	}
 
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
@@ -462,9 +573,9 @@ namespace NMib::NConcurrency
 
 						fg_Dispatch
 							(
-							 	DestroyActor
-							 	, [pCallback = fg_Move(pHandle->m_pCallback)]
-							 	{
+								DestroyActor
+								, [pCallback = fg_Move(pHandle->m_pCallback)]
+								{
 								}
 							)
 							> fg_DiscardResult()

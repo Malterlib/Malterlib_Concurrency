@@ -17,13 +17,13 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	CConcurrencyManager &CActorHolder::f_ConcurrencyManager() const
+	inline_always CConcurrencyManager &CActorHolder::f_ConcurrencyManager() const
 	{
 		return *mp_pConcurrencyManager;
 	}
 
-	EPriority CActorHolder::f_GetPriority() const
+	inline_always EPriority CActorHolder::f_GetPriority() const
 	{
-		return mp_Priority;
+		return (EPriority)mp_Priority;
 	}
 }

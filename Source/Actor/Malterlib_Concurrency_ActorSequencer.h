@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Core/Core>
+#include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
 {

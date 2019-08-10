@@ -5,6 +5,7 @@
 
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/WeakActor>
+#include <Mib/Concurrency/ActorFunctor>
 
 namespace NMib::NConcurrency
 {
@@ -14,15 +15,14 @@ namespace NMib::NConcurrency
 	public:
 		TCActorCallOnce
 			(
-				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
+				TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
 				, bool _bSupportRetry
 				, NStr::CStr const &_ErrorOnRunning = NStr::CStr()
 			)
 		;
 		~TCActorCallOnce();
 
-		TCFuture<t_CResult> operator()(tp_CParams const &...p_Params);
+		TCFuture<t_CResult> operator()(tp_CParams ...p_Params);
 
 	private:
 		struct CCallState : public CActor
@@ -31,16 +31,14 @@ namespace NMib::NConcurrency
 
 			CCallState
 				(
-				 	TCActor<CActor> const &_Actor
-					, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
+					TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 					, NStr::CStr const &_ErrorOnRunning
 					, bool _bSupportRetry
 				)
 			;
-			TCFuture<t_CResult> f_Call(tp_CParams const &...p_Params);
+			TCFuture<t_CResult> f_Call(tp_CParams ...p_Params);
 
-			TCWeakActor<CActor> m_Actor;
-			NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
+			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
 			NStr::CStr m_ErrorOnRunning;
 			NContainer::TCVector<TCPromise<t_CResult>> m_Promises;
 			bool m_bRunning = false;

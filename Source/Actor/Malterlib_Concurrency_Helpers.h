@@ -55,9 +55,10 @@ namespace NMib::NConcurrency
 
 	struct CTimerActor;
 	struct CConcurrentActor;
+	class CActorHolder;
+
 	struct CAnyConcurrentActor;
 	struct CAnyConcurrentActorLowPrio;
-	class CActorHolder;
 
 	struct CCurrentActorScope
 	{
@@ -79,13 +80,15 @@ namespace NMib::NConcurrency
 	private:
 		DMibThreadLocalScopeDebugMember;
 		CActor *mp_pLastActor;
+#if DMibEnableSafeCheck > 0
 		CActorHolder *mp_pLastProcessingActorHolder;
+#endif
 	};
 
 	namespace NPrivate
 	{
 		struct CDirectResultActor;
-		
+
 		struct CDiscardResultFunctor
 		{
 			template <typename tf_CResult>
@@ -107,21 +110,38 @@ namespace NMib::NConcurrency
 		};
 		
 #if DMibConfig_Concurrency_DebugActorCallstacks
-		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks);
+		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks, CAsyncCallstacks *_pPredicate);
 
 		struct CAsyncCallstacksScope
 		{
 			CAsyncCallstacksScope(CAsyncCallstacks &_New)
-				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New))
+				: m_pOld(NPrivate::fg_SetConcurrentCallstacks(&_New, nullptr))
+				, m_pThis(&_New)
 			{
-			}
-			~CAsyncCallstacksScope()
-			{
-				NPrivate::fg_SetConcurrentCallstacks(m_pOld);
 			}
 
-			DMibThreadLocalScopeDebugMember;
+			CAsyncCallstacksScope(CAsyncCallstacksScope const &_Other)
+				: m_pOld(_Other.m_pOld)
+				, m_pThis(_Other.m_pThis)
+			{
+			}
+
+			CAsyncCallstacksScope(CAsyncCallstacksScope &&_Other)
+				: m_pOld(_Other.m_pOld)
+				, m_pThis(_Other.m_pThis)
+			{
+				_Other.m_bValid = false;
+			}
+
+			~CAsyncCallstacksScope()
+			{
+				if (m_bValid)
+					NPrivate::fg_SetConcurrentCallstacks(m_pOld, m_pThis);
+			}
+
 			CAsyncCallstacks *m_pOld;
+			CAsyncCallstacks *m_pThis;
+			bool m_bValid = true;
 		};
 #endif
 	}

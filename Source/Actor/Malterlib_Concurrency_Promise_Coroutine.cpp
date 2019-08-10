@@ -10,11 +10,23 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		m_pPromiseData->f_SetResult();
 	}
+
+	void TCFutureCoroutineContextValue<void>::return_value(CVoidTag const &_Value)
+	{
+		m_pPromiseData->f_SetResult();
+	}
+
+#if DMibEnableSafeCheck > 0
+	void TCFutureCoroutineContextValue<void>::f_SetOwner(TCWeakActor<> const &_CoroutineOwner)
+	{
+		m_pPromiseData->m_CoroutineOwner = _CoroutineOwner;
+	}
+#endif
 }
 
 namespace NMib::NConcurrency
 {
-	CSuspendAlways CFutureCoroutineContext::final_suspend()
+	CSuspendNever CFutureCoroutineContext::final_suspend()
 	{
 		if (m_pPreviousCoroutineHandler != this)
 		{
@@ -26,13 +38,24 @@ namespace NMib::NConcurrency
 		return {};
 	}
 
-	void CFutureCoroutineContext::f_Suspend()
+	void CActor::fp_AbortSuspendedCoroutines()
+	{
+		while (!mp_SuspendedCoroutines.f_IsEmpty())
+			mp_SuspendedCoroutines.f_GetFirst()->f_Abort();
+	}
+
+	void CActor::f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext)
+	{
+		mp_SuspendedCoroutines.f_Insert(_CoroutineContext);
+	}
+
+	void CFutureCoroutineContext::f_Suspend(bool _bAddToActor)
 	{
 		DMibFastCheck(this->m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
 
 		auto &ThreadLocal = **g_SystemThreadLocal;
-		
+
 		auto iHandler = this->m_ThreadLocalHandlers.f_GetIterator();
 		iHandler.f_Reverse(this->m_ThreadLocalHandlers);
 
@@ -43,6 +66,20 @@ namespace NMib::NConcurrency
 		DMibFastCheck(this->m_pPreviousCoroutineHandler != this);
 
 		ThreadLocal.m_pCurrentCoroutineHandler = this->m_pPreviousCoroutineHandler;
+		if (_bAddToActor)
+		{
+			auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+			auto pCurrentActor = ConcurrencyThreadLocal.m_pCurrentActor;
+
+			// This can happen when trying to suspend a coroutine while destroying an actor.
+			// In this case use fg_ContinueRunningOnActor to transfer control of the coroutine to another actor
+			// Make sure that you don't access any state that is dangling after the resumtion of the coroutine
+
+			DMibFastCheck(pCurrentActor && pCurrentActor != ConcurrencyThreadLocal.m_pCurrentlyDestructingActor);
+
+			if (pCurrentActor)
+				pCurrentActor->f_SuspendCoroutine(*this);
+		}
 		this->m_pPreviousCoroutineHandler = this;
 	}
 
@@ -53,6 +90,8 @@ namespace NMib::NConcurrency
 #endif
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
+
+		m_Link.f_Unlink();
 
 		DMibFastCheck(this->m_pPreviousCoroutineHandler == this);
 		DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler != this);
@@ -78,56 +117,30 @@ namespace NMib::NConcurrency
 #endif
 	}
 
+#if DMibConcurrencySupportCoroutineFreeFunctionDebug
+	extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite)
+	{
+		auto &ThreadLocal = **g_SystemThreadLocal;
+		ThreadLocal.m_bExpectCoroutineCall = false;
+	}
+#endif
+
 #if DMibEnableSafeCheck > 0
+
 	bool CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck = false;
 
-	inline_never CSuspendNever CFutureCoroutineContext::initial_suspend() noexcept
+	inline_never void CFutureCoroutineContext::fp_UpdateSafeCall(bool _bSafeCall)
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
 		if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
-			fp_UpdateUnsafeThisPointer();
+			fp_UpdateUnsafeThisPointer(_bSafeCall);
 		else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
-			fp_UpdateUnsafeReferenceParams();
-		return {};
+			fp_UpdateUnsafeReferenceParams(_bSafeCall);
 	}
 
-	CMibCodeAddress CFutureCoroutineContext::msp_DequeueProcessAddress_ReferenceThis = nullptr;
-	mint CFutureCoroutineContext::msp_DequeueProcessLocaction_ReferenceParam = 0;
-
-	namespace NPrivate
+	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeReferenceParams(bool _bSafeCall)
 	{
-		inline_never void *fg_GetInstructionPointer()
-		{
-#if defined(DCompiler_clang)
-			return __builtin_return_address(0);
-#elif defined(DCompiler_MSVC)
-			return _ReturnAddress();
-#else
-#			error "Implement this"
-#endif
-		}
-
-		volatile mint g_WrapActorCallUnoptimizer = 0;
-		uint8 *g_pDequeueProcessFunctionPointer = nullptr;
-
-		inline_never mint fg_WrapActorCall(NFunction::TCFunctionNoAllocMovable<void ()> &&_fDoDisptach)
-		{
-			if (!g_pDequeueProcessFunctionPointer)
-				g_pDequeueProcessFunctionPointer = (uint8 *)fg_GetInstructionPointer();
-
-			NAtomic::fg_CompilerFence();
-
-			mint Return = ++g_WrapActorCallUnoptimizer;
-			_fDoDisptach();
-			return Return;
-		}
-	}
-
-	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeReferenceParams()
-	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
-
 		m_Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace
 			(
 				m_Callstack.m_Callstack
@@ -135,59 +148,17 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		mint DequeueCallstackLocation = msp_DequeueProcessLocaction_ReferenceParam;
-		if (DequeueCallstackLocation == 0)
-		{
-			smint BestOffset = TCLimitsInt<smint>::mc_Max;
-			for (mint iCallstack = 0; iCallstack < m_Callstack.m_CallstackLen; ++iCallstack)
-			{
-				smint Offset = (uint8 *)m_Callstack.m_Callstack[iCallstack] - NPrivate::g_pDequeueProcessFunctionPointer;
-				if (Offset >= 0 && Offset < BestOffset)
-				{
-					BestOffset = Offset;
-					msp_DequeueProcessLocaction_ReferenceParam = DequeueCallstackLocation = iCallstack;
-					msp_DequeueProcessAddress_ReferenceThis = m_Callstack.m_Callstack[iCallstack];
-				}
-			}
-			DMibFastCheck(DequeueCallstackLocation != 0);
-		}
+		m_bIsCalledSafely = _bSafeCall;
 
-		m_bIsCalledSafely = ThreadLocal.m_bExpectCoroutineCall
-			&& m_Callstack.m_Callstack[DequeueCallstackLocation] == msp_DequeueProcessAddress_ReferenceThis
-		;
 		if (!m_bIsCalledSafely)
 		{
 			int x = 0;
 			++x;
 		}
-		ThreadLocal.m_bExpectCoroutineCall = false;
 	}
 
-	mint CFutureCoroutineContext::msp_WrapDispatchWithReturnLocaction_ReferenceThis = 0;
-	CMibCodeAddress CFutureCoroutineContext::msp_WrapDispatchWithReturnAddress_ReferenceThis = nullptr;
-
-	namespace NPrivate
+	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeThisPointer(bool _bSafeCall)
 	{
-		volatile mint g_WrapDispatchWithReturnUnoptimizer = 0;
-		uint8 *g_pWrapDispatchWithReturnFunctionPointer = nullptr;
-
-		inline_never mint fg_WrapDispatchWithReturn(NFunction::TCFunction<void ()> const &_fDoDisptach)
-		{
-			if (!g_pWrapDispatchWithReturnFunctionPointer)
-				g_pWrapDispatchWithReturnFunctionPointer = (uint8 *)fg_GetInstructionPointer();
-
-			NAtomic::fg_CompilerFence();
-
-			mint Return = ++g_WrapDispatchWithReturnUnoptimizer;
-			_fDoDisptach();
-			return Return;
-		}
-	}
-
-	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeThisPointer()
-	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
-
 		m_Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace
 			(
 				m_Callstack.m_Callstack
@@ -195,32 +166,13 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		mint WrapDispatchWithReturnLocation = msp_WrapDispatchWithReturnLocaction_ReferenceThis;
-		if (WrapDispatchWithReturnLocation == 0)
-		{
-			smint BestOffset = TCLimitsInt<smint>::mc_Max;
-			for (mint iCallstack = 0; iCallstack < m_Callstack.m_CallstackLen; ++iCallstack)
-			{
-				smint Offset = (uint8 *)m_Callstack.m_Callstack[iCallstack] - NPrivate::g_pWrapDispatchWithReturnFunctionPointer;
-				if (Offset >= 0 && Offset < BestOffset)
-				{
-					BestOffset = Offset;
-					msp_WrapDispatchWithReturnLocaction_ReferenceThis = WrapDispatchWithReturnLocation = iCallstack;
-					msp_WrapDispatchWithReturnAddress_ReferenceThis = m_Callstack.m_Callstack[iCallstack];
-				}
-			}
-			DMibFastCheck(WrapDispatchWithReturnLocation != 0);
-		}
+		m_bIsCalledSafely = _bSafeCall;
 
-		m_bIsCalledSafely = ThreadLocal.m_bExpectCoroutineCall
-			&& m_Callstack.m_Callstack[WrapDispatchWithReturnLocation] == msp_WrapDispatchWithReturnAddress_ReferenceThis
-		;
 		if (!m_bIsCalledSafely)
 		{
 			int x = 0;
 			++x;
 		}
-		ThreadLocal.m_bExpectCoroutineCall = false;
 	}
 
 	inline_never void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()

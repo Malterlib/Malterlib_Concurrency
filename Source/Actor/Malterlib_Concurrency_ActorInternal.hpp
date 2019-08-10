@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	inline_always EPriority TCActorInternal<t_CActor>::f_GetPriority() const
 	{
-		return this->mp_Priority;
+		return (EPriority)this->mp_Priority;
 	}
 
 	template <typename t_CActor>
@@ -63,7 +63,6 @@ namespace NMib::NConcurrency
 		this->fp_DestroyThreaded();
 	}
 
-
 	template <typename t_CActor>
 	t_CActor &TCActorInternal<t_CActor>::f_AccessInternal()
 	{
@@ -81,38 +80,47 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CToDelete>
-	auto fg_DeleteWeakObject(CInternalActorAllocator& _Allocator, tf_CToDelete *_pObject)
+	auto fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
 		-> typename TCEnableIf<NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value, void>::CType
 	{
-		if (_pObject->f_ImmediateDelete())
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (_pObject == ThreadLocal.m_pCurrentlyDestructingActorHolder)
+			return;
+
+		smint Expected = 0;
+		if (_pObject->mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
+		{
+			DMibFastCheck(!_pObject->f_ImmediateDelete()); // Should have been terminated first
+			return _pObject->fp_DestroyActorHolder(nullptr, nullptr);
+		}
+
+		if (_pObject->f_ImmediateDelete() || (!ThreadLocal.m_bCurrentlyProcessingInActorHolder && ThreadLocal.m_pThisQueue))
 		{
 			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 			_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
 			if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 			{
 				if (CapturedDelete.m_Size)
-					_Allocator.f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
+					CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 				else
-					_Allocator.f_FreeNoSize(CapturedDelete.m_pMemory);
+					CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
 			}
 		}
 		else
 		{
-			auto *pAllocator = &_Allocator;
-
-			_pObject->f_ConcurrencyManager().f_DispatchFirstOnCurrentThread
+			_pObject->f_ConcurrencyManager().f_DispatchOnCurrentThreadOrConcurrentFirst
 				(
 					_pObject->f_GetPriority()
-					, [_pObject, pAllocator]
+					, g_OnScopeExit > [_pObject]
 					{
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 						_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
 						if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
 						{
 							if (CapturedDelete.m_Size)
-								pAllocator->f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
+								CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 							else
-								pAllocator->f_FreeNoSize(CapturedDelete.m_pMemory);
+								CInternalActorAllocator::f_FreeNoSize(CapturedDelete.m_pMemory);
 						}
 					}
 				)
@@ -132,7 +140,7 @@ namespace NMib::NConcurrency
 	bool TCActorInternal<t_CActor>::f_Call
 		(
 			tf_CFunctor &&_ToCall
-			, TCActor<tf_CResultActor> const &_pResultActor
+			, TCActor<tf_CResultActor> &&_pResultActor
 			, tf_CResultFunctor &&_ResultFunctor
 		)
 	{
@@ -158,9 +166,9 @@ namespace NMib::NConcurrency
 		}
 #endif
 		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
-			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, (TCActorInternal<tf_CActor> *)this}();
+			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this}();
 		else
-			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), _pResultActor, (TCActorInternal<tf_CActor> *)this}, false);
+			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this});
 
 		return true; // Dummy return to allow for fg_Swallow on arguments
 	}

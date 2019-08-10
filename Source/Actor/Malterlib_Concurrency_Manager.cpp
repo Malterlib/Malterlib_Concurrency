@@ -13,7 +13,14 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		struct CSubSystem_Concurrency : public CSubSystem
+		struct CSubSystem_ConcurrencyInit : public CSubSystem
+		{
+			CSubSystem_ConcurrencyInit()
+			{
+				*NMisc::g_Random; // Fix deadlock
+			}
+		};
+		struct CSubSystem_Concurrency : public CSubSystem_ConcurrencyInit
 		{
 			NThread::CMutual m_ConcurrencyManagerLock;
 			NStorage::TCUniquePointer<NConcurrency::CConcurrencyManager, NMemory::CAllocator_NonTrackedHeap> m_pConcurrencyManager;
@@ -156,6 +163,11 @@ namespace NMib::NConcurrency
 		{
 			auto &Queues = m_Queues[Priority];
 			Queues.f_SetLen(nThreads);
+
+			auto &nActors = m_nActorsPerQueue[Priority];
+			nActors.f_SetLen(nThreads);
+			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
+
 			for (mint i = 0; i < nThreads; ++i)
 			{
 				auto *pQueue = &Queues[i];
@@ -166,13 +178,22 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActor>());
-		m_AnyConcurrentActor = f_ConstructActor(fg_Construct<CAnyConcurrentActor>());
-		m_AnyConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CAnyConcurrentActorLowPrio>());
-		m_DynamicConcurrentActor = f_ConstructActor(fg_Construct<CDynamicConcurrentActor>());
-		m_DynamicConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CDynamicConcurrentActorLowPrio>());
+		m_ActorsOtherMask = fg_RoundPowerOfTwoUp(nThreads) - 1;
+		m_nActorsOther = NContainer::TCVector<CNumActorsOther>(m_ActorsOtherMask + 1);
 
-		m_DirectResultActor = f_ConstructActor(fg_Construct<NPrivate::CDirectResultActor>());
+		m_DirectCallActor = f_ConstructActor(fg_Construct<CDirectCallActorImpl>());
+		m_AnyConcurrentActor = f_ConstructActor(fg_Construct<CAnyConcurrentActorImpl>());
+		m_AnyConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CAnyConcurrentActorLowPrioImpl>());
+		m_DynamicConcurrentActor = f_ConstructActor(fg_Construct<CDynamicConcurrentActorImpl>());
+		m_DynamicConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CDynamicConcurrentActorLowPrioImpl>());
+		m_DirectResultActor = f_ConstructActor(fg_Construct<NPrivate::CDirectResultActorImpl>());
+
+		m_DirectCallActorRef = m_DirectCallActor;
+		m_AnyConcurrentActorRef = m_AnyConcurrentActor;
+		m_AnyConcurrentActorLowPrioRef = m_AnyConcurrentActorLowPrio;
+		m_DynamicConcurrentActorRef = m_DynamicConcurrentActor;
+		m_DynamicConcurrentActorLowPrioRef = m_DynamicConcurrentActorLowPrio;
+		m_DirectResultActorRef = m_DirectResultActor;
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -241,10 +262,7 @@ namespace NMib::NConcurrency
 		{
 			DMibLock(m_pTimerActorLock);
 			if (m_pTimerActor)
-			{
-				m_pTimerActor->f_DestroyNoResult(DMibPFile, DMibPLine);
-				m_pTimerActor = nullptr;
-			}
+				fg_Move(m_pTimerActor).f_Destroy() > fg_DiscardResult();
 		}
 
 		auto fProcessQueues = [&]()
@@ -258,14 +276,14 @@ namespace NMib::NConcurrency
 						auto &Queue = m_Queues[Prio];
 						for (auto &Queue : Queue)
 						{
-							Queue.m_JobQueue.f_TransferThreadSafeQueue();
-							if (!Queue.m_JobQueue.f_FirstQueueEntry())
+							Queue.m_JobQueue.f_TransferThreadSafeQueue(Queue.m_JobQueueLocal);
+							if (!Queue.m_JobQueue.f_FirstQueueEntry(Queue.m_JobQueueLocal))
 								continue;
 							bDoneSomething = true;
-							while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry())
+							while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry(Queue.m_JobQueueLocal))
 							{
 								(*pEntry)();
-								Queue.m_JobQueue.f_PopQueueEntry(pEntry);
+								Queue.m_JobQueue.f_PopQueueEntry(pEntry, Queue.m_JobQueueLocal);
 							}
 						}
 					}
@@ -281,7 +299,7 @@ namespace NMib::NConcurrency
 			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 			{
 				for (auto &Actor : m_ConcurrentActors[Prio])
-					Actor->fp_Terminate(nullptr);
+					Actor->fp_Terminate();
 			}
 			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				m_ConcurrentActors[Prio].f_Clear();
@@ -301,7 +319,7 @@ namespace NMib::NConcurrency
 			{
 				(void)Queue;
 				DMibCheck(Queue.m_pThread.f_IsEmpty());
-				DMibCheck(Queue.m_JobQueue.f_IsEmpty());
+				DMibCheck(Queue.m_JobQueue.f_IsEmpty(Queue.m_JobQueueLocal));
 			}
 		}
 	}
@@ -356,32 +374,46 @@ namespace NMib::NConcurrency
 			fp_CreateThread(_pThis);
 	}
 
-	void CConcurrencyManager::f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue)
 		{
-			ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocal(fg_Move(_ToQueue));
+			ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocalFirst(fg_Move(_ToQueue), ThreadLocal.m_pThisQueue->m_JobQueueLocal);
 			return;
 		}
 
-		auto &Queue = m_Queues[_Priority].f_GetArray()[0]; // Otherwise dipsatch on first queue, rely on work stealing to distribute
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		if (!nActors)
+			nActors = fp_InitConcurrentActors();
+
+		if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
+			ThreadLocal.m_iConcurrentActor[_Priority] = 0;
+		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
+		++ThreadLocal.m_iConcurrentActor[_Priority];
+
 		if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 			Queue.f_Signal(this);
 	}
 
-	void CConcurrencyManager::f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mint iQueue = 0;
 		if (ThreadLocal.m_pThisQueue)
 		{
-			iQueue = ThreadLocal.m_pThisQueue->m_iQueue + 1;
-			if (iQueue >= m_nThreads)
-				iQueue = 0;
+			ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocal(fg_Move(_ToQueue), ThreadLocal.m_pThisQueue->m_JobQueueLocal);
+			return;
 		}
 
-		auto &Queue = m_Queues[_Priority].f_GetArray()[iQueue];
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		if (!nActors)
+			nActors = fp_InitConcurrentActors();
+
+		if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
+			ThreadLocal.m_iConcurrentActor[_Priority] = 0;
+		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
+		++ThreadLocal.m_iConcurrentActor[_Priority];
+
 		if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
 			Queue.f_Signal(this);
 	}
@@ -401,7 +433,7 @@ namespace NMib::NConcurrency
 					iThisQueue = ThreadLocal.m_pThisQueue->m_iQueue;
 				if (ThreadLocal.m_pCurrentActor)
 				{
-					mint iCurrentCore = ((TCActorInternal<CActor> *)ThreadLocal.m_pCurrentActor->self.m_pThis)->mp_iFixedCore;
+					mint iCurrentCore = ThreadLocal.m_pCurrentActor->self.m_pThis->mp_iFixedCore;
 					if (iCurrentCore < m_nThreads)
 					{
 						iJobQueue = iCurrentCore;
@@ -433,10 +465,10 @@ namespace NMib::NConcurrency
 
 		if (ThreadLocal.m_pThisQueue == &_Queue)
 		{
-			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor));
+			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
 			return false;
 		}
-		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor));
+		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor), _Queue.m_JobQueueLocal);
 
 		mint Value = _Queue.m_Working.f_FetchAdd(1);
 		return Value == 0;
@@ -484,9 +516,9 @@ namespace NMib::NConcurrency
 						while (bDoneSomething)
 						{
 							bDoneSomething = false;
-							if (_Queue.m_JobQueue.f_TransferThreadSafeQueue())
+							if (_Queue.m_JobQueue.f_TransferThreadSafeQueue(_Queue.m_JobQueueLocal))
 								bDoneSomething = true;
-							while (auto *pJob = _Queue.m_JobQueue.f_FirstQueueEntry())
+							while (auto *pJob = _Queue.m_JobQueue.f_FirstQueueEntry(_Queue.m_JobQueueLocal))
 							{
 #if DMibPPtrBits > 32
 								if (!Checkout.f_IsCheckedOut())
@@ -494,7 +526,7 @@ namespace NMib::NConcurrency
 #endif
 
 								(*pJob)();
-								_Queue.m_JobQueue.f_PopQueueEntry(pJob);
+								_Queue.m_JobQueue.f_PopQueueEntry(pJob, _Queue.m_JobQueueLocal);
 								bDoneSomething = true;
 							}
 						}
@@ -504,11 +536,52 @@ namespace NMib::NConcurrency
 #if DMibPPtrBits > 32
 				Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
-				if (Clock.f_GetTime() > 0.000035) // Loop for at least 35 µs before going to kernel
+				if (Clock.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
 					break;
 			}
 			_Queue.m_Event.f_Wait();
 		}
+	}
+
+	void CConcurrencyManager::fp_AddedActor()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pThisQueue)
+		{
+			auto &Queue = *ThreadLocal.m_pThisQueue;
+			++m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors;
+			return;
+		}
+
+		++m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors;
+	}
+
+	void CConcurrencyManager::fp_RemovedActor()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pThisQueue)
+		{
+			auto &Queue = *ThreadLocal.m_pThisQueue;
+			--m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors;
+			return;
+		}
+
+		--m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors;
+	}
+
+	mint CConcurrencyManager::fp_NumActors()
+	{
+		smint nActorsSum = 0;
+		for (auto &nActors : m_nActorsOther)
+			nActorsSum += nActors.m_nActors.f_Load();
+
+		for (auto &nActorsPerQueue : m_nActorsPerQueue)
+		{
+			for (auto &nActors : nActorsPerQueue)
+				nActorsSum += nActors.m_nActors;
+		}
+
+		return nActorsSum;
 	}
 
 	void CConcurrencyManager::f_BlockOnDestroy()
@@ -534,7 +607,7 @@ namespace NMib::NConcurrency
 #endif
 			TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
 
-			while (m_nActors.f_Load() > nExpectedActors)
+			while (fp_NumActors() > nExpectedActors)
 			{
 				if (TimerClock.f_GetTime() > 0.010)
 				{
@@ -558,14 +631,15 @@ namespace NMib::NConcurrency
 						{
 							if
 								(
-									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActor") >= 0
+									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorImpl") >= 0
+								 	|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorLowPrioImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActor") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActor") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActorLowPrio") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActor") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrio") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::NPrivate::CDirectResultActor") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActorImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActorImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CAnyConcurrentActorLowPrioImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrioImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::NPrivate::CDirectResultActorImpl") >= 0
 								)
 							{
 								continue;
@@ -638,49 +712,82 @@ namespace NMib::NConcurrency
 			{
 				DMibLock(m_pTimerActorLock);
 				if (m_pTimerActor)
-				{
-					m_pTimerActor->f_DestroyNoResult(DMibPFile, DMibPLine);
-					m_pTimerActor = nullptr;
-				}
+					fg_Move(m_pTimerActor).f_Destroy().f_CallSync();
 			}
 			mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + nDirectDeleteActors;
-			while (m_nActors.f_Load() > nExpectedActors)
+			while (fp_NumActors() > nExpectedActors)
 				NSys::fg_Thread_SmallestSleep();
+		}
+
+		// Sync up to make sure nothing is still waiting to process on actors
+
+		for (bool bAllDone = false; !bAllDone;)
+		{
+			TCActorResultVector<bool> ConcurrentActorSyncs;
+			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+			{
+				for (auto &Actor : m_ConcurrentActors[Prio])
+				{
+					g_Dispatch(Actor) / []() -> bool
+						{
+							auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
+							return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
+						}
+						> ConcurrentActorSyncs.f_AddResult()
+					;
+				}
+			}
+
+			auto Done = ConcurrentActorSyncs.f_GetResults().f_CallSync();
+			bAllDone = true;
+			for (auto &bDone : Done)
+			{
+				if (!bDone)
+				{
+					bAllDone = false;
+					break;
+				}
+			}
 		}
 
 		// Delete the concurrent actors
 		{
+			TCActorResultVector<void> Destroys;
 			{
 				DMibLock(m_pConcurrentActorLock);
 				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				{
 					for (auto &Actor : m_ConcurrentActors[Prio])
-						Actor->fp_Terminate(nullptr);
+						fg_Move(Actor).f_Destroy() > Destroys.f_AddResult();
 				}
 				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					m_ConcurrentActors[Prio].f_Clear();
 
 				m_nThreads = 0;
 			}
-			while (m_nActors.f_Load() > nDirectDeleteActors)
+			Destroys.f_GetResults().f_CallSync();
+			while (fp_NumActors() > nDirectDeleteActors)
 				NSys::fg_Thread_SmallestSleep();
 		}
 
 		// Finally delete the direct call actor
-		m_DirectCallActor->fp_Terminate(nullptr);
-		m_DirectCallActor.f_Clear();
-		m_AnyConcurrentActor->fp_Terminate(nullptr);
-		m_AnyConcurrentActor.f_Clear();
-		m_AnyConcurrentActorLowPrio->fp_Terminate(nullptr);
-		m_AnyConcurrentActorLowPrio.f_Clear();
-		m_DynamicConcurrentActor->fp_Terminate(nullptr);
-		m_DynamicConcurrentActor.f_Clear();
-		m_DynamicConcurrentActorLowPrio->fp_Terminate(nullptr);
-		m_DynamicConcurrentActorLowPrio.f_Clear();
-		m_DirectResultActor->fp_Terminate(nullptr);
-		m_DirectResultActor.f_Clear();
 
-		while (m_nActors.f_Load() > 0)
+		{
+			m_AnyConcurrentActor->fp_Terminate();
+			m_AnyConcurrentActor.f_Clear();
+			m_AnyConcurrentActorLowPrio->fp_Terminate();
+			m_AnyConcurrentActorLowPrio.f_Clear();
+			m_DynamicConcurrentActor->fp_Terminate();
+			m_DynamicConcurrentActor.f_Clear();
+			m_DynamicConcurrentActorLowPrio->fp_Terminate();
+			m_DynamicConcurrentActorLowPrio.f_Clear();
+			m_DirectCallActor->fp_Terminate();
+			m_DirectCallActor.f_Clear();
+			m_DirectResultActor->fp_Terminate();
+			m_DirectResultActor.f_Clear();
+		}
+
+		while (fp_NumActors() > 0)
 			NSys::fg_Thread_SmallestSleep();
 	}
 
@@ -693,7 +800,10 @@ namespace NMib::NConcurrency
 			nActors = m_nThreads;
 
 			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+			{
 				m_ConcurrentActors[Prio].f_SetLen(nActors);
+				m_ConcurrentActorsRef[Prio].f_SetLen(nActors);
+			}
 
 			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 			{
@@ -701,10 +811,11 @@ namespace NMib::NConcurrency
 				for (auto &Actor : m_ConcurrentActors[Prio])
 				{
 					if (Prio == EPriority_Normal)
-						Actor = fg_ConstructActor<CConcurrentActor>();
+						Actor = fg_ConstructActor<CConcurrentActorImpl>();
 					else if (Prio == EPriority_Low)
-						Actor = fg_ConstructActor<CConcurrentActorLowPrio>();
+						Actor = fg_ConstructActor<CConcurrentActorLowPrioImpl>();
 					Actor->f_SetFixedCore(iActor);
+					m_ConcurrentActorsRef[Prio][iActor] = Actor;
 					++iActor;
 				}
 			}
@@ -723,13 +834,29 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue && ThreadLocal.m_pThisQueue->m_Priority == _Priority)
 		{
-			auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[ThreadLocal.m_pThisQueue->m_iQueue];
+			auto &ToReturn = m_ConcurrentActorsRef[_Priority].f_GetArray()[ThreadLocal.m_pThisQueue->m_iQueue];
 			return ToReturn;
 		}
 		if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
 			ThreadLocal.m_iConcurrentActor[_Priority] = 0;
-		auto &ToReturn = m_ConcurrentActors[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
+		auto &ToReturn = m_ConcurrentActorsRef[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
 		++ThreadLocal.m_iConcurrentActor[_Priority];
+		return ToReturn;
+	}
+
+	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor(TCWeakActor<CActor> const &_Actor)
+	{
+		// Returns a actor that is consistent based on weak pointer
+
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		if (!nActors)
+			nActors = fp_InitConcurrentActors();
+
+		mint HashData = reinterpret_cast<mint>(static_cast<void const *>(_Actor.fp_Get()));
+
+		mint iActor = fg_JenkinsHash((ch8 const *)&HashData, sizeof(HashData), 0) % nActors;
+
+		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[iActor];
 		return ToReturn;
 	}
 
@@ -742,7 +869,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_iConcurrentActor[EPriority_Normal] >= nActors)
 			ThreadLocal.m_iConcurrentActor[EPriority_Normal] = 0;
-		auto &ToReturn = m_ConcurrentActors[EPriority_Normal].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Normal]];
+		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Normal].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Normal]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_Normal];
 		return ToReturn;
 	}
@@ -756,39 +883,39 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_iConcurrentActor[EPriority_Low] >= nActors)
 			ThreadLocal.m_iConcurrentActor[EPriority_Low] = 0;
-		auto &ToReturn = m_ConcurrentActors[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
+		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_Low];
 		return ToReturn;
 	}
 
 	TCActor<CDirectCallActor> const &CConcurrencyManager::f_GetDirectCallActor()
 	{
-		return m_DirectCallActor;
+		return m_DirectCallActorRef;
 	}
 
 	TCActor<CAnyConcurrentActor> const &CConcurrencyManager::f_GetAnyConcurrentActor()
 	{
-		return m_AnyConcurrentActor;
+		return m_AnyConcurrentActorRef;
 	}
 
 	TCActor<CAnyConcurrentActorLowPrio> const &CConcurrencyManager::f_GetAnyConcurrentActorLowPrio()
 	{
-		return m_AnyConcurrentActorLowPrio;
+		return m_AnyConcurrentActorLowPrioRef;
 	}
 
 	TCActor<NPrivate::CDirectResultActor> const &CConcurrencyManager::f_GetDirectResultActor()
 	{
-		return m_DirectResultActor;
+		return m_DirectResultActorRef;
 	}
 
 	TCActor<CDynamicConcurrentActor> const &CConcurrencyManager::f_GetDynamicConcurrentActor()
 	{
-		return m_DynamicConcurrentActor;
+		return m_DynamicConcurrentActorRef;
 	}
 
 	TCActor<CDynamicConcurrentActorLowPrio> const &CConcurrencyManager::f_GetDynamicConcurrentActorLowPrio()
 	{
-		return m_DynamicConcurrentActorLowPrio;
+		return m_DynamicConcurrentActorLowPrioRef;
 	}
 
 	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
@@ -823,6 +950,36 @@ namespace NMib::NConcurrency
 		return Actor;
 	}
 
+	TCWeakActor<CActor> fg_CurrentActorWeak()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pCurrentActor)
+		{
+			DMibFastCheck(fg_ThisActor(ThreadLocal.m_pCurrentActor) != fg_DirectCallActor()); // It's not safe to use the direct call actor
+			return fg_ThisActorWeak(ThreadLocal.m_pCurrentActor);
+		}
+
+		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			return {};
+
+		TCWeakActor<> Actor(TCActorHolderWeakPointer<TCActorInternal<CActor>>(static_cast<TCActorInternal<CActor> *>(ThreadLocal.m_pCurrentlyProcessingActorHolder)));
+
+		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
+
+		return Actor;
+	}
+
+	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription)
+	{
+		if (!_Subscription)
+			return TCPromise<void>() <<= g_Void;
+
+		TCFuture<void> Future = _Subscription->f_Destroy();
+		_Subscription.f_Clear();
+
+		return Future;
+	}
+
 	CConcurrencyManager &fg_CurrentConcurrencyManager()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -833,41 +990,24 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager();
 	}
 
-	auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor())
+	auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor())
 	{
-		return NConcurrency::TCActor<NConcurrency::CConcurrentActor>() / NPrivate::CDiscardResultFunctor();
+		return NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor();
 	}
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 	namespace NPrivate
 	{
-		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks)
+		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks, CAsyncCallstacks *_pPredicate)
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pOld = ThreadLocal.m_pCallstacks;
-			ThreadLocal.m_pCallstacks = _pCallstacks;
+			if (!_pPredicate || pOld == _pPredicate)
+				ThreadLocal.m_pCallstacks = _pCallstacks;
 			return pOld;
 		}
 	}
 #endif
-
-	COnScopeExitShared fg_OnScopeExitActor(TCActor<> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnExitFunctor)
-	{
-		return fg_OnScopeExitShared
-			(
-				[_Actor, fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
-				{
-					fg_Dispatch
-						(
-							_Actor
-							, fg_Move(fOnExitFunctor)
-						)
-						> fg_DiscardResult()
-					;
-				}
-			)
-		;
-	}
 
 	constexpr COnScopeExitActorHelper g_OnScopeExitActorInit{};
 	COnScopeExitActorHelper const &g_OnScopeExitActor = g_OnScopeExitActorInit;
@@ -878,4 +1018,9 @@ namespace NMib::NConcurrency
 	{
 		return fg_Explicit();
 	}
+}
+
+namespace NMib
+{
+	template class TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>;
 }

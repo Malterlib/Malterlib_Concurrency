@@ -11,6 +11,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	TCActor<t_CActor>::~TCActor()
+	{
+		if constexpr (!mc_bIsAlwaysAlive)
+			m_pInternalActor.~CPointerType();
+	}
+
+
+	template <typename t_CActor>
 	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
 	TCActor<t_CActor>::TCActor(TCConstruct<tf_CType, tfp_CParams...> &&_Construct, tfp_CHolderParams && ...p_HolderParams)
 		: TCActor(fg_CurrentConcurrencyManager().f_ConstructActor(fg_MakeConcreteConstruct<t_CActor>(fg_Move(_Construct)), fg_Forward<tfp_CHolderParams>(p_HolderParams)...))
@@ -53,47 +61,121 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	TCActor<t_CActor>::TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor)
-		: m_pInternalActor(_pActor)
+		: m_pInternalActor
+		(
+		 	[&]
+		 	{
+				if constexpr (mc_bIsAlwaysAlive)
+					return _pActor.f_Get();
+				else
+					return _pActor;
+			}
+		 	()
+		)
 	{
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor>::TCActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor)
-		: m_pInternalActor(fg_Move(_pActor))
+		: m_pInternalActor
+		(
+		 	[&]
+		 	{
+				if constexpr (mc_bIsAlwaysAlive)
+					return _pActor.f_Get();
+				else
+					return fg_Move(_pActor);
+			}
+		 	()
+		)
 	{
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor>::TCActor(TCActor const &_Other)
 		: m_pInternalActor(_Other.m_pInternalActor)
 	{
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor>::TCActor(TCActor &&_Other)
 		: m_pInternalActor(fg_Move(_Other.m_pInternalActor))
 	{
+		if constexpr (mc_bIsAlwaysAlive)
+			_Other.m_pInternalActor = nullptr;
+	}
+
+	template <typename tf_CActor>
+	decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor)
+	{
+		return _Actor.m_pInternalActor;
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorHolderSharedPointer<TCActorInternal<tf_CActorSource>> const &_pActorHolder)
+	{
+		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderSharedPointer<TCActorInternal<tf_CActor>> const &>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorHolderSharedPointer<TCActorInternal<tf_CActorSource>> &&_pActorHolder)
+	{
+		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderSharedPointer<TCActorInternal<tf_CActor>> &&>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorInternal<tf_CActorSource> *_pActorHolder)
+	{
+		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder);
+		else
+			return TCActorHolderSharedPointer<TCActorInternal<tf_CActor>>(fg_Explicit(reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder)));
 	}
 
 	template <typename tf_CActor, typename tf_CActorSource>
 	TCActor<tf_CActor> fg_StaticCast(TCActor<tf_CActorSource> const &_Actor)
 	{
-		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
-		(void)pDummy;
+		return TCActor<tf_CActor>(fg_StaticCast<tf_CActor>(fg_GetActorInternal(_Actor)));
+	}
 
-		return reinterpret_cast<TCActor<tf_CActor> const &>(_Actor);
+	template <typename tf_CActor, typename tf_CActorSource>
+	TCActor<tf_CActor> fg_StaticCast(TCActor<tf_CActorSource> &&_Actor)
+	{
+		return TCActor<tf_CActor>(fg_StaticCast<tf_CActor>(fg_GetActorInternal(fg_Move(_Actor))));
 	}
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
 	TCActor<t_CActor>::TCActor(TCActor<tf_CActor> const &_Other)
-		: m_pInternalActor(reinterpret_cast<TCActor const &>(_Other).m_pInternalActor)
+		: m_pInternalActor(fg_StaticCast<t_CActor>(_Other.m_pInternalActor))
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
 	}
+
 	template <typename t_CActor>
 	template <typename tf_CActor>
 	TCActor<t_CActor>::TCActor(TCActor<tf_CActor> &&_Other)
-		: m_pInternalActor(fg_Move(reinterpret_cast<TCActor &>(_Other).m_pInternalActor))
+		: m_pInternalActor(fg_StaticCast<t_CActor>(_Other.m_pInternalActor))
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
+
+		if constexpr (tf_CActor::mc_bIsAlwaysAlive)
+			_Other.m_pInternalActor = nullptr;
 	}
 
 	template <typename t_CActor>
@@ -102,22 +184,28 @@ namespace NMib::NConcurrency
 		m_pInternalActor = _pActor;
 		return *this;
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCActorHolderSharedPointer<CActorInternal> &&_pActor)
 	{
 		m_pInternalActor = fg_Move(_pActor);
 		return *this;
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCActor const &_Other)
 	{
 		m_pInternalActor = _Other.m_pInternalActor;
 		return *this;
 	}
+
 	template <typename t_CActor>
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCActor &&_Other)
 	{
 		m_pInternalActor = fg_Move(_Other.m_pInternalActor);
+
+		if constexpr (mc_bIsAlwaysAlive)
+			_Other.m_pInternalActor = nullptr;
 		return *this;
 	}
 
@@ -133,28 +221,39 @@ namespace NMib::NConcurrency
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCActor<tf_CActor> const &_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
-		m_pInternalActor = reinterpret_cast<TCActor const &>(_Other).m_pInternalActor;
+		m_pInternalActor = fg_StaticCast<t_CActor>(_Other.m_pInternalActor);
 		return *this;
 	}
+
 	template <typename t_CActor>
 	template <typename tf_CActor>
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCActor<tf_CActor> &&_Other)
 	{
 		static_assert(NStorage::NPrivate::TCIsValidConversion<t_CActor, tf_CActor, CInternalActorAllocator, CInternalActorAllocator>::mc_Value, "Not a valid conversion");
-		m_pInternalActor = fg_Move(reinterpret_cast<TCActor &>(_Other).m_pInternalActor);
+
+		m_pInternalActor = fg_StaticCast<t_CActor>(fg_Move(_Other.m_pInternalActor));
+
+		if constexpr (tf_CActor::mc_bIsAlwaysAlive)
+			_Other.m_pInternalActor = nullptr;
 		return *this;
 	}
 
 	template <typename t_CActor>
-	typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::operator ->() const
+	inline_always typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::operator ->() const
 	{
-		return m_pInternalActor.f_Get();
+		if constexpr (mc_bIsAlwaysAlive)
+			return m_pInternalActor;
+		else
+			return m_pInternalActor.f_Get();
 	}
 
 	template <typename t_CActor>
-	typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::f_Get() const
+	inline_always typename TCActor<t_CActor>::CActorInternal *TCActor<t_CActor>::f_Get() const
 	{
-		return m_pInternalActor.f_Get();
+		if constexpr (mc_bIsAlwaysAlive)
+			return m_pInternalActor;
+		else
+			return m_pInternalActor.f_Get();
 	}
 
 	template <typename t_CActor>
@@ -191,13 +290,19 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	void TCActor<t_CActor>::f_Clear()
 	{
-		m_pInternalActor.f_Clear();
+		if constexpr (mc_bIsAlwaysAlive)
+			m_pInternalActor = nullptr;
+		else
+			m_pInternalActor.f_Clear();
 	}
 
 	template <typename t_CActor>
 	bool TCActor<t_CActor>::f_IsEmpty() const
 	{
-		return m_pInternalActor.f_IsEmpty();
+		if constexpr (mc_bIsAlwaysAlive)
+			return !m_pInternalActor;
+		else
+			return m_pInternalActor.f_IsEmpty();
 	}
 
 	template <typename t_CActor>
@@ -264,7 +369,48 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+	auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+	{
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty());
+
+		// If you get this, use f_CallActor instead of calling directly
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, false
+			>
+			(
+				fg_Move(*this)
+				, fg_Forward<tf_CMemberFunction>(_pMemberFunction)
+				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
 	{
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
@@ -305,7 +451,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) const
+	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) const &
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
@@ -347,7 +493,49 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const
+	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) &&
+	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty());
+
+		// If you get this, use f_CallActor instead of calling directly
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, true
+			>
+			(
+				fg_Move(*this)
+				, tf_pMemberFunction
+				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
@@ -388,6 +576,49 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	template <typename t_CActor>
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
+	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty());
+
+		// If you get this, use f_CallActor instead of calling directly
+		DMibFastCheck((NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value) || !(*this)->f_GetDistributedActorData() || (*this)->f_GetDistributedActorData()->f_IsValidForCall());
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, false
+			>
+			(
+				fg_Move(*this)
+				, tf_pMemberFunction
+				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
 	template
 	<
 		auto tf_pMemberFunction
@@ -395,7 +626,7 @@ namespace NMib::NConcurrency
 		, typename tf_CActor
 		, typename... tfp_CCallParams
 	>
-	auto fg_CallActor(TCActor<tf_CActor> const &_Actor, tfp_CCallParams && ...p_CallParams)
+	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CCallParams && ...p_CallParams)
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
@@ -434,7 +665,7 @@ namespace NMib::NConcurrency
 				, false
 			>
 			(
-				_Actor
+				fg_Move(_Actor)
 				, tf_pMemberFunction
 				, fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...)
 			)
@@ -448,14 +679,26 @@ namespace NMib::NConcurrency
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 		, typename... tfp_CCallParams
 	>
-	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const
+	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(*this, fg_Forward<tfp_CCallParams>(p_CallParams)...);
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_TempCopy(*this), fg_Forward<tfp_CCallParams>(p_CallParams)...);
+	}
+
+	template <typename t_CActor>
+	template
+	<
+		auto tf_pMemberFunction
+		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, typename... tfp_CCallParams
+	>
+	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&
+	{
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(*this), fg_Forward<tfp_CCallParams>(p_CallParams)...);
 	}
 
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const
+	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
@@ -497,6 +740,55 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&
+	{
+		using CMemberFunction = decltype(tf_pMemberFunction);
+#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+#endif
+#ifdef DMibConcurrency_CheckFunctionCalls
+		static_assert
+			(
+				NTraits::TCIsCallableWith
+				<
+					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
+					, void (tfp_CCallParams...)
+				>::mc_Value
+				, "Invalid params for function"
+			)
+		;
+
+#endif
+		// If you get this you are probably calling an empty actor
+		DMibFastCheck(!f_IsEmpty());
+
+		// If you get this, use f_CallActor instead of calling directly
+		DMibFastCheck
+			(
+			 	(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+			 	|| !(*this)->f_GetDistributedActorData()
+			 	|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
+			)
+		;
+
+		return TCActorCall
+			<
+				TCActor
+				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
+				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NMeta::TCTypeList<tfp_CCallParams...>
+				, true
+			>
+			(
+				fg_Move(*this)
+				, tf_pMemberFunction
+				, NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...)
+			)
+		;
+	}
+
+	template <typename t_CActor>
 	template <typename tf_CStr>
 	void TCActor<t_CActor>::f_Format(tf_CStr &o_Str) const
 	{
@@ -504,18 +796,18 @@ namespace NMib::NConcurrency
 		{
 			auto *pDistributedData = m_pInternalActor->f_GetDistributedActorData().f_Get();
 			if (pDistributedData)
-				o_Str += typename tf_CStr::CFormat("Remote({}) 0x{}") << pDistributedData->m_ActorID << m_pInternalActor.f_Get();
+				o_Str += typename tf_CStr::CFormat("Remote({}) 0x{}") << pDistributedData->m_ActorID << f_Get();
 			else
-				o_Str += typename tf_CStr::CFormat("Local 0x{}") << m_pInternalActor.f_Get();
+				o_Str += typename tf_CStr::CFormat("Local 0x{}") << f_Get();
 		}
 		else
-			o_Str += typename tf_CStr::CFormat("Null 0x{}") << m_pInternalActor.f_Get();
+			o_Str += typename tf_CStr::CFormat("Null 0x{}") << f_Get();
 	}
 
 	template <typename tf_CType>
 	bool CActor::fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise)
 	{
-		if (mp_bDestroyed)
+		if (f_IsDestroyed())
 		{
 			o_Promise.f_SetException(fp_CheckDestroyed());
 			return true;
@@ -523,34 +815,16 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
-#if DMibEnableSafeCheck > 0
-	namespace NPrivate
+	inline_always CConcurrencyManager &CActor::f_ConcurrencyManager() const
 	{
-		mint fg_WrapDispatchWithReturn(NFunction::TCFunction<void ()> const &_fDoDisptach);
+		return *(self.m_pThis->mp_pConcurrencyManager);
 	}
 
 	template <typename tf_CReturnType>
-	inline_never tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
-	{
-		tf_CReturnType Return;
-
-		NPrivate::fg_WrapDispatchWithReturn
-			(
-				[&]
-				{
-					Return = _fToDisptach();
-				}
-			)
-		;
-		return Return;
-	}
-#else
-	template <typename tf_CReturnType>
-	tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
+	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
 	{
 		return _fToDisptach();
 	}
-#endif
 
 	template <typename t_CActor>
 	TCRoundRobinActors<t_CActor>::TCRoundRobinActors(mint _nActors)
@@ -602,4 +876,92 @@ namespace NMib::NConcurrency
 		mp_iCurrentActor = (mp_iCurrentActor + 1) % mp_Actors.f_GetLen();
 		return mp_Actors[iCurrentActor];
 	}
+
+	struct [[nodiscard]] CCoroutineTransferOwnershipAwaiter
+	{
+		CCoroutineTransferOwnershipAwaiter(TCActor<> &&_Actor)
+			: mp_Actor(fg_Move(_Actor))
+		{
+		}
+
+		bool await_ready() noexcept
+		{
+			return false;
+		}
+
+		template <typename tf_CCoroutineContext>
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
+		{
+			DMibFastCheck(fg_CurrentActor());
+
+			auto &CoroutineContext = _Handle.promise();
+			CoroutineContext.f_Suspend(false);
+			auto pCleanup = g_OnScopeExitShared > [_Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
+				{
+					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+#if DMibEnableSafeCheck > 0
+					auto &CoroutineContext = _Handle.promise();
+					CoroutineContext.f_SetOwner(fg_CurrentActor().f_Weak());
+#endif
+					_Handle.destroy();
+				}
+			;
+			mp_Actor.f_GetRealActor()->f_QueueProcess
+				(
+					[this, pCleanup = fg_Move(pCleanup), _Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
+					{
+						DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+						DMibFastCheck(mp_Actor == fg_CurrentActor());
+
+						pCleanup->f_Clear();
+
+						(void)this;
+						auto &CoroutineContext = _Handle.promise();
+						CCurrentActorScope CurrentActorScope(mp_Actor);
+#if DMibEnableSafeCheck > 0
+						CoroutineContext.f_SetOwner(mp_Actor.f_Weak());
+						mp_pDebugException = CoroutineContext.f_Resume();
+#else
+						CoroutineContext.f_Resume();
+#endif
+						_Handle.resume();
+					}
+				)
+			;
+
+			return true;
+		}
+
+		void await_resume()
+		{
+#if DMibEnableSafeCheck > 0
+			if (mp_pDebugException)
+				std::rethrow_exception(mp_pDebugException);
+#endif
+		}
+
+	private:
+		TCActor<> mp_Actor;
+#if DMibEnableSafeCheck > 0
+		NException::CExceptionPointer mp_pDebugException;
+#endif
+	};
+
+	struct [[nodiscard]] CCoroutineTransferOwnership
+	{
+		CCoroutineTransferOwnership(TCActor<> &&_Actor)
+			: mp_Actor(fg_Move(_Actor))
+		{
+		}
+
+		auto operator co_await()
+		{
+			return CCoroutineTransferOwnershipAwaiter(fg_Move(mp_Actor));
+		}
+
+	private:
+		TCActor<> mp_Actor;
+	};
+
+	CCoroutineTransferOwnership fg_ContinueRunningOnActor(TCActor<> const &_Actor);
 }

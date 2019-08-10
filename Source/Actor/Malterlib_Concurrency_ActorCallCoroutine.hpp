@@ -48,7 +48,13 @@ namespace NMib::NConcurrency
 				, fg_CurrentActor()
 				, [=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
 				{
+					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+
+#if DMibEnableSafeCheck > 0
+					auto CurrentActor = fg_CurrentActor();
+					DMibFastCheck(fg_CurrentActor());
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
+#endif
 
 					mp_Result = fg_Move(_Result);
 					if (!(mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Set) & ECoroutineAwaiterResult_Observed))
@@ -68,7 +74,7 @@ namespace NMib::NConcurrency
 		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
 			return false;
 
-		CoroutineContext.f_Suspend();
+		CoroutineContext.f_Suspend(true);
 		return true;
 	}
 
@@ -144,7 +150,7 @@ namespace NMib::NConcurrency
 	void TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_ActorCall
 		(
 		 	tf_CResultFunctor &&_ResultFunctor
-		 	, TCActor<> const &_ResultActor
+		 	, TCActor<> &&_ResultActor
 		 	, NMeta::TCIndices<tfp_Indices...>
 		)
 	{
@@ -155,15 +161,7 @@ namespace NMib::NConcurrency
 		;
 		typedef NPrivate::TCCallMutipleActorStorage<false, tf_CResultFunctor, TCActor<>, CTypeList> CStorage;
 
-#ifdef DMibContractConfigure_CheckEnabled
-		auto Cleanup = g_OnScopeExit > [&]
-			{
-				fg_Swallow([this]{fg_Get<tfp_Indices>(mp_Calls).mp_Actor.f_Clear(); return 0;}()...);
-			}
-		;
-#endif
-
-		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultActor, fg_Forward<tf_CResultFunctor>(_ResultFunctor));
+		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultActor), fg_Forward<tf_CResultFunctor>(_ResultFunctor));
 
 		auto &DirectActor = NPrivate::fg_DirectResultActor();
 		TCInitializerList<bool> Dummy =
@@ -248,7 +246,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		auto CurrentActor = fg_CurrentActor();
-		DMibFastCheck(fg_CurrentActor());
+		DMibFastCheck(CurrentActor);
 #endif
 		auto &CoroutineContext = _Handle.promise();
 
@@ -256,7 +254,12 @@ namespace NMib::NConcurrency
 			(
 				[=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
 				{
+					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+#if DMibEnableSafeCheck > 0
+					auto CurrentActor = fg_CurrentActor();
+					DMibFastCheck(CurrentActor);
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
+#endif
 					mp_Results = fg_Move(_Results);
 
 					if (!(mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Set) & ECoroutineAwaiterResult_Observed))
@@ -278,7 +281,7 @@ namespace NMib::NConcurrency
 		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
 			return false;
 
-		CoroutineContext.f_Suspend();
+		CoroutineContext.f_Suspend(true);
 		return true;
 	}
 

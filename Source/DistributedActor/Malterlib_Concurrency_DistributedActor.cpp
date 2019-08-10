@@ -727,7 +727,21 @@ namespace NMib::NConcurrency
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
 			, NPrivate::CDistributedActorStreamContext&
-		) const
+		) const &
+	;
+
+	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
+		<
+			&CActorDistributionManager::f_CallRemote
+			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
+		>
+		(
+			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
+			, NMib::NContainer::CSecureByteVector &&
+			, NPrivate::CDistributedActorStreamContext&
+		) &&
 	;
 #endif
 }

@@ -8,12 +8,11 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::TCActorCallOnce
 		(
-			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
+			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fFunction
 			, bool _bSupportRetry
 			, NStr::CStr const &_ErrorOnRunning
 		)
-		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_Actor), _Actor, fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
+		: m_CallState(fg_ConstructActor<CCallState>(fg_Construct(_fFunction.f_GetActor()), fg_Move(_fFunction), _ErrorOnRunning, _bSupportRetry))
 	{
 	}
 
@@ -23,28 +22,27 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams const &...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams ...p_Params)
 	{
-		return m_CallState.template f_CallByValue<&CCallState::f_Call>(p_Params...);
+		TCPromise<t_CResult> Promise;
+		return Promise <<= m_CallState.template f_CallByValue<&CCallState::f_Call>(fg_Forward<tp_CParams>(p_Params)...);
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::CCallState
 		(
-			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
+			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> &&_fToPerform
 			, NStr::CStr const &_ErrorOnRunning
 			, bool _bSupportRetry
 		)
-		: m_Actor(_Actor)
-		, m_fToPerform(fg_Move(_fToPerform))
+		: m_fToPerform(fg_Move(_fToPerform))
 		, m_ErrorOnRunning(_ErrorOnRunning)
 		, m_bSupportRetry(_bSupportRetry)
 	{
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams const &...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams ...p_Params)
 	{
 		if (m_Result.f_IsSet())
 			return m_Result;
@@ -59,15 +57,7 @@ namespace NMib::NConcurrency
 
 		m_bRunning = true;
 
-		TCPromise<t_CResult> Promise;
-
-		auto Actor = m_Actor.f_Lock();
-		if (!Actor)
-			return DMibErrorInstance("Actor destroyed");
-
-		CCurrentActorScope CurrentActor(Actor);
-
-		m_fToPerform(p_Params...) > [this, Promise](TCAsyncResult<t_CResult> const &_Result)
+		m_fToPerform(fg_Forward<tp_CParams>(p_Params)...) > [this, Promise](TCAsyncResult<t_CResult> const &_Result)
 			{
 				Promise.f_SetResult(_Result);
 

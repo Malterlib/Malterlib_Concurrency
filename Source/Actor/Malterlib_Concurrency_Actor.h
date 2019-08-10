@@ -5,7 +5,7 @@
 
 namespace NMib::NConcurrency
 {
-	class CActor;
+	struct CActor;
 	namespace NPrivate
 	{
 		struct CThisActor
@@ -18,9 +18,9 @@ namespace NMib::NConcurrency
 
 			operator TCActor<> () const;
 
-			void *m_pThis = nullptr;
+			NStorage::TCBitStorePointer<CActorHolder> m_pThis = nullptr;
 		private:
-			friend class NConcurrency::CActor;
+			friend struct NConcurrency::CActor;
 
 			CThisActor() = default;
 			CThisActor(CThisActor &&) = default;
@@ -39,29 +39,25 @@ namespace NMib::NConcurrency
 #endif
 	};
 
-	class CActor /// \brief Base class for all types used with \ref TCActor
+	struct CActor /// \brief Base class for all types used with \ref TCActor
 	{
-		template <typename tf_CActor>
-		friend TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
-		friend class CConcurrencyManager;
-		template <typename t_CActor>
-		friend class TCActorInternal;
+		using CActorHolder = CDefaultActorHolder;
 
-		template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
-		friend class TCActorSubscriptionManager;
+		CActor();
+		CActor(CActor &&) = delete;
+		CActor(CActor const &) = delete;
+		virtual ~CActor();
 
-		friend class CActorHolder;
+		CActor &operator = (CActor &&) = delete;
+		CActor &operator = (CActor const &) = delete;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		bool f_IsDestroyed() const;
+		void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
+		template <typename tf_CReturnType>
+		tf_CReturnType f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach);
+		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
-	protected:
-		CConcurrencyManager *mp_pConcurrencyManager = nullptr;
-		bool mp_bDestroyed = false;
-
-	private:
-		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
-
-		TCFuture<void> fp_DestroyInternal();
+		void f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
 
 	protected:
 		virtual void fp_Construct();
@@ -72,35 +68,37 @@ namespace NMib::NConcurrency
 		template <typename tf_CType>
 		bool fp_CheckDestroyed(TCPromise<tf_CType> const &o_Promise);
 
+	private:
+		template <typename tf_CActor>
+		friend TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
+		friend class CConcurrencyManager;
+		template <typename t_CActor>
+		friend class TCActorInternal;
+
+		template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
+		friend class TCActorSubscriptionManager;
+
+		friend class NConcurrency::CActorHolder;
+		friend struct NConcurrency::CActorCommon;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+
+		void fp_AbortSuspendedCoroutines();
+
+		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
+
+		TCFuture<void> fp_DestroyInternal();
+
 	public:
+		static constexpr bool mc_bAllowInternalAccess = false;
+		static constexpr bool mc_bImmediateDelete = false;
+		static constexpr EPriority mc_Priority = EPriority_Normal;
+		static constexpr bool mc_bIsAlwaysAlive = false;
+
 		NPrivate::CThisActor self;
 
-		typedef CDefaultActorHolder CActorHolder;
-
-		inline_always CConcurrencyManager &f_ConcurrencyManager() const
-		{
-			return *mp_pConcurrencyManager;
-		}
-
-		CActor();
-		CActor(CActor &&) = delete;
-		CActor(CActor const &) = delete;
-		CActor &operator = (CActor &&) = delete;
-		CActor &operator = (CActor const &) = delete;
-
-		bool f_IsDestroyed() const;
-
-		virtual ~CActor();
-		void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
-		template <typename tf_CReturnType>
-		tf_CReturnType f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach);
-
-		enum
-		{
-			mc_bAllowInternalAccess = false
-			, mc_bImmediateDelete = false
-			, mc_Priority = EPriority_Normal
-		};
+	private:
+		DMibListLinkDS_List(CFutureCoroutineContext, m_Link) mp_SuspendedCoroutines;
 	};
 
 	class CSeparateThreadActorHolder;

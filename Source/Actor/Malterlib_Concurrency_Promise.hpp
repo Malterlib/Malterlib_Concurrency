@@ -35,89 +35,6 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	template <typename tf_CType>
-	TCFuture<t_CReturnValue>::TCFuture(TCExplicit<tf_CType> &&_Data)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetResult(*_Data);
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(TCExplicit<void> &&_Data)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetResult();
-	}
-
-	template <typename t_CReturnValue>
-	template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> *>
-	TCFuture<t_CReturnValue>::TCFuture(tf_CType &&_Exception)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetException(fg_Forward<tf_CType>(_Exception));
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(NException::CExceptionPointer &&_pException)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetException(fg_Move(_pException));
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(NException::CExceptionPointer const &_pException)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetException(_pException);
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(TCAsyncResult<t_CReturnValue> const &_Result)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetResult(_Result);
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue>::TCFuture(TCAsyncResult<t_CReturnValue> &&_Result)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		mp_pData->f_SetResult(fg_Move(_Result));
-	}
-
-	template <typename t_CReturnValue>
-	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-	TCFuture<t_CReturnValue>::TCFuture(TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
-		: mp_pData(fg_Construct())
-	{
-#if DMibEnableSafeCheck > 0
-		mp_pData->m_bFutureGotten = true;
-#endif
-		fg_Move(_ActorCall) > TCPromise<t_CReturnValue>(mp_pData);
-	}
-
-	template <typename t_CReturnValue>
 	TCPromise<t_CReturnValue>::TCPromise(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &_pData)
 		: mp_pData(_pData)
 	{
@@ -151,50 +68,6 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	template <typename t_CReturnValue>
-	template <typename tf_CType>
-	TCPromise<t_CReturnValue>::TCPromise(TCExplicit<tf_CType> &&_Data)
-		: mp_pData(fg_Construct())
-	{
-		f_SetResult(*_Data);
-	}
-
-	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(TCExplicit<void> &&_Data)
-		: mp_pData(fg_Construct())
-	{
-		f_SetResult();
-	}
-
-	template <typename t_CReturnValue>
-	template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> *>
-	TCPromise<t_CReturnValue>::TCPromise(tf_CType &&_Exception)
-		: mp_pData(fg_Construct())
-	{
-		f_SetException(fg_Forward<tf_CType>(_Exception));
-	}
-
-	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(NException::CExceptionPointer const &_pException)
-		: mp_pData(fg_Construct())
-	{
-		f_SetException(_pException);
-	}
-
-	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(TCAsyncResult<t_CReturnValue> const &_Result)
-		: mp_pData(fg_Construct())
-	{
-		f_SetResult(_Result);
-	}
-
-	template <typename t_CReturnValue>
-	TCPromise<t_CReturnValue>::TCPromise(TCAsyncResult<t_CReturnValue> &&_Result)
-		: mp_pData(fg_Construct())
-	{
-		f_SetResult(fg_Move(_Result));
-	}
-
 	enum EFutureResultFlag
 	{
 		EFutureResultFlag_None = 0
@@ -204,7 +77,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::f_Future() const
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::f_Future() const
 	{
 #if DMibEnableSafeCheck > 0
 		DMibFastCheck(mp_pData);
@@ -215,7 +88,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::f_MoveFuture()
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::f_MoveFuture()
 	{
 #if DMibEnableSafeCheck > 0
 		DMibFastCheck(mp_pData);
@@ -263,6 +136,58 @@ namespace NMib::NConcurrency
 	void TCPromise<t_CReturnValue>::f_SetCurrentException() const
 	{
 		this->mp_pData->f_SetCurrentException();
+	}
+
+	template <typename t_CReturnValue>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (CVoidTag const &)
+	{
+		this->mp_pData->f_SetResult();
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult, TCEnableIfType<!NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CResult>::CType, NException::CExceptionBase>::mc_Value> *>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (tf_CResult &&_Result)
+	{
+		this->mp_pData->f_SetResult(fg_Forward<tf_CResult>(_Result));
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> *>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (tf_CType &&_Exception)
+	{
+		this->mp_pData->f_SetException(fg_Forward<tf_CType>(_Exception));
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (NException::CExceptionPointer &&_pException)
+	{
+		this->mp_pData->f_SetException(fg_Move(_pException));
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (NException::CExceptionPointer const &_pException)
+	{
+		this->mp_pData->f_SetException(_pException);
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
+	{
+		fg_Move(_ActorCall) > *this;
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (TCFuture<t_CReturnValue> &&_Future)
+	{
+		fg_Move(_Future) > *this;
+		return f_MoveFuture();
 	}
 
 	namespace NPrivate
@@ -431,8 +356,8 @@ namespace NMib::NConcurrency
 		template <typename tf_FToRun>
 		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator / (tf_FToRun &&_ToRun) const
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
 			TCPromise<t_CReturnValue> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
 			try
 			{
 				Result.f_SetResult(_ToRun());
@@ -448,8 +373,8 @@ namespace NMib::NConcurrency
 		template <typename tf_FToRun>
 		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, void>::operator / (tf_FToRun &&_ToRun) const
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
 			TCPromise<t_CReturnValue> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
 			try
 			{
 				Result.f_SetResult(_ToRun());
@@ -465,8 +390,8 @@ namespace NMib::NConcurrency
 		template <typename tf_FToRun>
 		TCFuture<void> TCRunProtectedFutureHelper<void, t_CException>::operator / (tf_FToRun &&_ToRun) const
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
 			TCPromise<void> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
 			try
 			{
 				_ToRun();
@@ -482,8 +407,8 @@ namespace NMib::NConcurrency
 		template <typename tf_FToRun>
 		TCFuture<void> TCRunProtectedFutureHelper<void, void>::operator / (tf_FToRun &&_ToRun) const
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
 			TCPromise<void> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
 			try
 			{
 				_ToRun();
@@ -495,7 +420,6 @@ namespace NMib::NConcurrency
 			}
 			return Result.f_MoveFuture();
 		}
-
 	}
 
 	template <typename t_CReturnValue>
@@ -714,6 +638,8 @@ namespace NMib::NConcurrency
 	bool TCFuture<t_CReturnValue>::f_OnResultSetOrAvailable(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
 	{
 		auto pData = mp_pData.f_Get();
+		DMibFastCheck(!pData->m_bOnResultSetAtInit);
+
 		pData->m_fOnResult = fg_Move(_fOnResult);
 
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet);
@@ -732,6 +658,8 @@ namespace NMib::NConcurrency
 	void TCFuture<t_CReturnValue>::f_OnResultSet(NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> &&_fOnResult)
 	{
 		auto pData = mp_pData.f_Get();
+		DMibFastCheck(!pData->m_bOnResultSetAtInit);
+
 		pData->m_fOnResult = fg_Move(_fOnResult);
 
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_ResultFunctorSet);
@@ -763,13 +691,15 @@ namespace NMib::NConcurrency
 	void TCFuture<t_CReturnValue>::f_DiscardResult()
 	{
 		auto pData = mp_pData.f_Get();
-		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult);// , NAtomic::EMemoryOrder_Relaxed);
+		pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DiscardResult, pData->f_MemoryOrder());
 	}
 
 	template <typename t_CReturnValue>
 	bool TCFuture<t_CReturnValue>::f_ObserveIfAvailable()
 	{
 		auto pData = mp_pData.f_Get();
+		DMibFastCheck(!pData->m_bOnResultSetAtInit);
+
 		mint Expected = EFutureResultFlag_DataSet;
 		return pData->m_OnResultSet.f_CompareExchangeWeak(Expected, EFutureResultFlag_DataSet | EFutureResultFlag_DiscardResult);
 	}
@@ -778,7 +708,7 @@ namespace NMib::NConcurrency
 	TCAsyncResult<t_CReturnValue> &&TCFuture<t_CReturnValue>::f_MoveResult()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_OnResultSet.f_Load() & EFutureResultFlag_DataSet);
+		DMibFastCheck(pData->m_OnResultSet.f_Load(pData->f_MemoryOrder()) & EFutureResultFlag_DataSet);
 		return fg_Move(pData->m_Result);
 	}
 
@@ -786,7 +716,7 @@ namespace NMib::NConcurrency
 	TCAsyncResult<t_CReturnValue> &&TCPromise<t_CReturnValue>::f_MoveResult()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_OnResultSet.f_Load() & EFutureResultFlag_DataSet);
+		DMibFastCheck(pData->m_OnResultSet.f_Load(pData->f_MemoryOrder()) & EFutureResultFlag_DataSet);
 		return fg_Move(pData->m_Result);
 	}
 
@@ -795,7 +725,7 @@ namespace NMib::NConcurrency
 	void TCPromise<t_CReturnValue>::f_Abandon(tf_FOnEmpty &&_fOnEmpty)
 	{
 		auto pData = mp_pData.f_Get();
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)pData->m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet, pData->f_MemoryOrder());
 		if ((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet)) == EFutureResultFlag_ResultFunctorSet)
 		{
 			pData->m_Result.f_SetException(_fOnEmpty());
@@ -808,7 +738,7 @@ namespace NMib::NConcurrency
 	bool TCFuture<t_CReturnValue>::f_IsObserved() const
 	{
 		auto pData = mp_pData.f_Get();
-		return (pData->m_OnResultSet.f_Load() & (EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) != EFutureResultFlag_None;
+		return (pData->m_OnResultSet.f_Load(pData->f_MemoryOrder()) & (EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) != EFutureResultFlag_None;
 	}
 
 	template <typename t_CReturnValue>
@@ -827,9 +757,28 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturnValue>
+	TCPromiseData<t_CReturnValue>::TCPromiseData()
+		: m_fOnResult
+		(
+			fg_ConsumeFutureOnResultSet<t_CReturnValue>
+			(
+#if DMibEnableSafeCheck > 0
+				static_cast<CPromiseDataBase const *>(this)
+#endif
+			)
+		)
+		, m_OnResultSet(m_fOnResult ? EFutureResultFlag_ResultFunctorSet : EFutureResultFlag_None)
+		, m_bOnResultSetAtInit(m_fOnResult)
+#if DMibConfig_Concurrency_DebugFutures
+		, CPromiseDataBase(fg_GetTypeName<t_CReturnValue>())
+#endif
+	{
+	}
+
+	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::fp_ReportNothingSet()
 	{
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet, f_MemoryOrder());
 		if ((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet)) == EFutureResultFlag_ResultFunctorSet)
 		{
 			m_fOnResult(fg_Move(m_Result)); // Report nothing set
@@ -845,6 +794,31 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	TCPromiseData<t_CReturnValue>::~TCPromiseData()
 	{
+#if DMibEnableSafeCheck > 0
+		auto &ThreadLocal = **g_SystemThreadLocal;
+
+		if
+			(
+			 	ThreadLocal.m_PromiseThreadLocal.m_bCaptureDebugException
+			 	&& !(m_OnResultSet.f_Load() & EFutureResultFlag_DataSet)
+			 	&& NException::fg_UncaughtExceptions()
+			 	&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
+			)
+		{
+			try
+			{
+				std::rethrow_exception(NException::fg_CurrentException());
+			}
+			catch (NException::CDebugException const &)
+			{
+				f_SetException(NException::fg_CurrentException());
+			}
+			catch (...)
+			{
+			}
+		}
+#endif
+
 		try
 		{
 			fp_ReportNothingSet();
@@ -865,7 +839,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::fp_OnResult()
 	{
-		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet);
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder());
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
 		DMibFastCheck(m_Result.f_IsSet());
 
@@ -874,6 +848,12 @@ namespace NMib::NConcurrency::NPrivate
 			m_fOnResult(fg_Move(m_Result));
 			m_fOnResult.f_Clear();
 		}
+	}
+
+	template <typename t_CReturnValue>
+	NAtomic::EMemoryOrder TCPromiseData<t_CReturnValue>::f_MemoryOrder(NAtomic::EMemoryOrder _Default) const
+	{
+		return m_bOnResultSetAtInit ? NAtomic::EMemoryOrder_Relaxed : _Default;
 	}
 
 	template <typename t_CReturnValue>
@@ -975,5 +955,27 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		m_Result.f_SetCurrentException();
 		fp_OnResult();
+	}
+
+	template <typename tf_CReturnValue>
+	NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> fg_ConsumeFutureOnResultSet
+		(
+#if DMibEnableSafeCheck > 0
+		 	void const *_pConsumedBy
+#endif
+		)
+	{
+		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+		if (PromiseThreadLocal.m_pOnResultSet)
+		{
+#if DMibEnableSafeCheck > 0
+			DMibFastCheck(fg_GetTypeHash<tf_CReturnValue>() == PromiseThreadLocal.m_OnResultSetTypeHash);
+			PromiseThreadLocal.m_pOnResultSetConsumedBy = _pConsumedBy;
+			ThreadLocal.m_bExpectCoroutineCall = false;
+#endif
+			return fg_Move(*static_cast<NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> *>(fg_Exchange(PromiseThreadLocal.m_pOnResultSet, nullptr)));
+		}
+		return nullptr;
 	}
 }

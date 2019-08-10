@@ -109,6 +109,9 @@ namespace NMib::NConcurrency
 		CVoidTag operator *();
 		
 		void f_SetResult();
+		void f_SetResult(TCAsyncResult const &_Result);
+		void f_SetResult(TCAsyncResult &_Result);
+		void f_SetResult(TCAsyncResult &&_Result);
 
 		template <typename tf_CStream>
 		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;

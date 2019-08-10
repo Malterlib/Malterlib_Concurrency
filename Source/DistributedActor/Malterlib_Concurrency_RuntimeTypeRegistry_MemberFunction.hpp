@@ -305,49 +305,103 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
-		NStorage::TCSharedPointer<NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...>> pParamList;
+		NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
+
+		struct CState
+		{
+			t_CStreamContext m_Context;
+			NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> m_ParamList;
+			uint32 m_Version;
+		};
+
 		t_CStreamContext *pContext = (t_CStreamContext *)_ParamsStream.f_GetContext();
 
+		NStorage::TCUniquePointer<CState> pState;
 		try
 		{
-			pParamList = fg_Construct(fg_DecodeParams(_ParamsStream, _Indices, _TypeList));
+			pState = NStorage::TCUniquePointer<CState>
+				(
+				 	new CState{*pContext, fg_DecodeParams(_ParamsStream, _Indices, _TypeList), _ParamsStream.f_GetVersion()}
+				)
+			;
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return _Exception;
+			return Return <<= _Exception;
 		}
 
+		auto &State = *pState;
 
-#if DMibEnableSafeCheck > 0
-		typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CReturn Future;
-
-		auto fWrapCall = [&]()
+		NFunction::TCFunctionMovable<void (TCAsyncResult<t_CResult> &&_AsyncResult)> fOnResultSet
+			= [Return, pState = fg_Move(pState)](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
 			{
-				Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
+				Return.f_SetResult(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(_Result), &pState->m_Context, pState->m_Version));
 			}
 		;
 
-		NPrivate::fg_WrapActorCall
-			(
-				[&]
-				{
-					fWrapCall();
-				}
-			)
-		;
-#else
-		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
-#endif
-		NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
+		auto &ThreadLocal = **g_SystemThreadLocal;
 
-		Future.f_OnResultSet
+#if DMibEnableSafeCheck > 0
+		bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
+		ThreadLocal.m_bExpectCoroutineCall = true;
+		auto Cleanup = g_OnScopeExit > [&]
+			{
+				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+			}
+		;
+#endif
+
+		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+		auto pPreviousOnResultSet = PromiseThreadLocal.m_pOnResultSet;
+		PromiseThreadLocal.m_pOnResultSet = &fOnResultSet;
+
+		auto CleanupOnResultSet = g_OnScopeExit > [&]
+			{
+				PromiseThreadLocal.m_pOnResultSet = pPreviousOnResultSet;
+			}
+		;
+
+#if DMibEnableSafeCheck > 0
+		auto pPreviousOnResultSetConsumedBy = PromiseThreadLocal.m_pOnResultSetConsumedBy;
+		PromiseThreadLocal.m_pOnResultSetConsumedBy = nullptr;
+
+		auto pPreviousExpectCoroutineCallSetConsumedBy = PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy;
+		PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = nullptr;
+
+		auto bPreviousCaptureDebugException = PromiseThreadLocal.m_bCaptureDebugException;
+		PromiseThreadLocal.m_bCaptureDebugException = true;
+
+		auto CleanupOnResultSetConsumedBy = g_OnScopeExit > [&]
+			{
+				PromiseThreadLocal.m_pOnResultSetConsumedBy = pPreviousOnResultSetConsumedBy;
+				PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = pPreviousExpectCoroutineCallSetConsumedBy;
+				PromiseThreadLocal.m_bCaptureDebugException = bPreviousCaptureDebugException;
+			}
+		;
+
+		PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<t_CResult>();
+
+		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+
+		DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
+		DMibFastCheck
 			(
-				[Return, pParamList, Context = *pContext, Version = _ParamsStream.f_GetVersion()](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
-				{
-					Return.f_SetResult(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(_Result), &Context, Version));
-				}
+				ThreadLocal.m_bExpectCoroutineCall
+				|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
+				|| Future.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 			)
 		;
+
+		ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+		Cleanup.f_Clear();
+#else
+		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+#endif
+		if (PromiseThreadLocal.m_pOnResultSet)
+		{
+			DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
+			Future.f_OnResultSet(fg_Move(fOnResultSet));
+		}
 
 		return Return.f_MoveFuture();
 	}

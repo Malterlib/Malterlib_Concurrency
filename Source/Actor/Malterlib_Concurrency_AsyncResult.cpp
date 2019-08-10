@@ -109,6 +109,22 @@ namespace NMib::NConcurrency
 		return f_Get();
 	}
 
+
+	void TCAsyncResult<void>::f_SetResult(TCAsyncResult const &_Result)
+	{
+		*this = _Result;
+	}
+
+	void TCAsyncResult<void>::f_SetResult(TCAsyncResult &_Result)
+	{
+		*this = _Result;
+	}
+
+	void TCAsyncResult<void>::f_SetResult(TCAsyncResult &&_Result)
+	{
+		*this = fg_Move(_Result);
+	}
+
 	void CAsyncResult::f_SetException(NException::CExceptionPointer const &_pException)
 	{
 		m_pException = _pException;

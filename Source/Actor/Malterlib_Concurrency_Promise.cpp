@@ -13,6 +13,8 @@ namespace NMib::NFunction
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionCoroutineWrapper);
+	
+	CMakeFutureHelper g_Future;
 }
 
 namespace NMib::NConcurrency::NPrivate

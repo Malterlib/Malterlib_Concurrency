@@ -231,8 +231,7 @@ namespace NMib::NConcurrency
 			void f_Clear()
 			{
 				m_StdInSubscription.f_Clear();
-				m_StdInActor->f_Destroy() > fg_DiscardResult();
-				m_StdInActor.f_Clear();
+				fg_Move(m_StdInActor).f_Destroy() > fg_DiscardResult();
 			}
 		};
 		

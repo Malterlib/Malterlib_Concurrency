@@ -975,8 +975,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 0);
 
+				Subscription->f_Destroy().f_CallSync(60.0);
 				Subscription.f_Clear();
-				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
 				TestValue.f_Exchange(0);

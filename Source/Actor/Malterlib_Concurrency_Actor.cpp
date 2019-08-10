@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -10,25 +10,31 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
+#if DMibEnableSafeCheck > 0
+		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)_pActor->self.m_pThis;
+#endif
 	}
 
 	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(TCActor<CActor> const &_Actor)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentActor = _Actor->fp_GetActor();
+#if DMibEnableSafeCheck > 0
+		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)ThreadLocal.m_pCurrentActor->self.m_pThis;
+#endif
 	}
 
 	CCurrentlyProcessingActorScope::~CCurrentlyProcessingActorScope()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		ThreadLocal.m_pCurrentActor = mp_pLastActor;
+#if DMibEnableSafeCheck > 0
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = mp_pLastProcessingActorHolder;
+#endif
 	}
 
 	CActor::CActor()
@@ -37,14 +43,14 @@ namespace NMib::NConcurrency
 
 		DMibFastCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
 
-		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActor = fg_Explicit(this); 
+		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActor = fg_Explicit(this);
 		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-		mp_pConcurrencyManager = &ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager();
 		ThreadLocal.m_pCurrentActor = this;
 	}
 
 	CActor::~CActor()
 	{
+		DMibFastCheck(mp_SuspendedCoroutines.f_IsEmpty());
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -64,7 +70,7 @@ namespace NMib::NConcurrency
 
 	bool CActor::f_IsDestroyed() const
 	{
-		return mp_bDestroyed;
+		return !!self.m_pThis.f_GetBits();
 	}
 
 	void CActor::fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach)
@@ -83,41 +89,41 @@ namespace NMib::NConcurrency
 
 	NException::CExceptionPointer CActor::fp_CheckDestroyed()
 	{
-		if (mp_bDestroyed)
+		if (f_IsDestroyed())
 			return NException::fg_ExceptionPointer(DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Actor is being destroyed"));
 		return nullptr;
 	}
 
 	TCFuture<void> CActor::fp_DestroyInternal()
 	{
-		if (mp_bDestroyed)
-			return DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
+		if (f_IsDestroyed())
+			return TCPromise<void>() <<= DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
 
-		mp_bDestroyed = true;
-		
+		self.m_pThis.f_SetBits(1);
+
 		return fp_Destroy();
 	}
-	
+
 	TCFuture<void> CActor::fp_Destroy()
 	{
-		return fg_Explicit();
+		return TCPromise<void>() <<= g_Void;
 	}
-	
+
 	NPrivate::CThisActor::operator TCActor<> () const
 	{
-		TCActorInternal<CActor> *pActor = (TCActorInternal<CActor> *)m_pThis;
+		TCActorInternal<CActor> *pActor = (TCActorInternal<CActor> *)m_pThis.f_Get();
 		DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
 		return TCActor<>{fg_Explicit(pActor)};
 	}
-	
+
 	CCanDestroyTracker::CCanDestroyTracker() = default;
-		
+
 	CCanDestroyTracker::~CCanDestroyTracker()
 	{
 		if (!m_Promise.f_IsSet())
 			m_Promise.f_SetResult();
 	}
-	
+
 	CCanDestroyTracker::CCanDestroyResultFunctor CCanDestroyTracker::f_Track()
 	{
 		return CCanDestroyResultFunctor{fg_Explicit(this)};
@@ -130,16 +136,16 @@ namespace NMib::NConcurrency
 
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor &&) = default;
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(CCanDestroyResultFunctor const &) = default;
-	
+
 	CCanDestroyTracker::CCanDestroyResultFunctor::CCanDestroyResultFunctor(NStorage::TCSharedPointer<CCanDestroyTracker> &&_pThis)
 		: m_pThis(fg_Move(_pThis))
 	{
 	}
-	
+
 	void CCanDestroyTracker::CCanDestroyResultFunctor::operator () (TCAsyncResult<void> &&)
 	{
 	}
-	
+
 	template <>
 	auto TCPromise<void>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>
 	{
@@ -148,10 +154,15 @@ namespace NMib::NConcurrency
 
 	constexpr CDispatchHelper g_DispatchInit{};
 	CDispatchHelper const &g_Dispatch = g_DispatchInit;
-	
+
 	constexpr CConcurrentDispatchHelper g_ConcurrentDispatchInit{};
 	CConcurrentDispatchHelper const &g_ConcurrentDispatch = g_ConcurrentDispatchInit;
 
 	constexpr CDirectDispatchHelper g_DirectDispatchInit{};
 	CDirectDispatchHelper const &g_DirectDispatch = g_DirectDispatchInit;
+
+	CCoroutineTransferOwnership fg_ContinueRunningOnActor(TCActor<> const &_Actor)
+	{
+		return CCoroutineTransferOwnership(fg_TempCopy(_Actor));
+	}
 }

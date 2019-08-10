@@ -596,7 +596,7 @@ namespace
 
 		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
-			return g_Dispatch(_pDevices->f_FileActor()) / [=]() -> CUsageResult
+			return g_Future <<= g_Dispatch(_pDevices->f_FileActor()) / [=]() -> CUsageResult
 				{
 					CUsageResult Result;
 					int DescriptorSize;

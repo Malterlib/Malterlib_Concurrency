@@ -312,6 +312,12 @@ namespace
 				;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
+				
+#ifdef DCompiler_MSVC
+				CStr DeletedError = "Actor 'struct NMib::NConcurrency::CActor' called has been deleted";
+#else
+				CStr DeletedError = "Actor 'NMib::NConcurrency::CActor' called has been deleted";
+#endif
 				DMibTest
 					(
 					 	DMibExpr
@@ -319,7 +325,7 @@ namespace
 						 	fg_ThrowsException
 						 	(
 							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor 'NMib::NConcurrency::CActor' called has been deleted")
+							 	, DMibImpExceptionInstance(CExceptionActorDeleted, DeletedError)
 							)
 						)
 					 	== DMibLExpr(fDoubleDestroy())

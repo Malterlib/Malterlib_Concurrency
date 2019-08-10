@@ -20,6 +20,15 @@ namespace NMib::NStorage::NPrivate
 			mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
 		};
 	};
+
+	template <typename t_CActor0, typename t_CActor1, typename t_CAllocator0, typename t_CAllocator1>
+	struct TCIsValidConversion<t_CActor0, NConcurrency::TCDistributedActorWrapper<t_CActor1>, t_CAllocator0, t_CAllocator1>
+	{
+		enum
+		{
+			mc_Value = TCIsValidConversion<t_CActor0, t_CActor1, t_CAllocator0, t_CAllocator1>::mc_Value
+		};
+	};
 }
 
 namespace NMib::NConcurrency
@@ -155,7 +164,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	TCDistributedActor<t_CType> TCDistributedActorInterfaceShare<t_CType>::f_GetActor() const
 	{
-		return fg_StaticCast<t_CType>(m_Actor);
+		return fg_StaticCast<TCDistributedActorWrapper<t_CType>>(m_Actor);
 	}
 
 	template <typename tf_CActor, typename... tfp_CParams>
@@ -333,12 +342,73 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor, typename tf_CActorSource>
-	TCActor<TCDistributedActorWrapper<tf_CActor>> fg_StaticCast(TCActor<TCDistributedActorWrapper<tf_CActorSource>> const &_Actor)
+	decltype(auto) fg_StaticCast(TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActorSource>>> const &_pActorHolder)
 	{
-		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
+		using CActor = typename TCIsDistributedActorWrapper<tf_CActor>::CActor;
+
+		auto pDummy = static_cast<CActor *>((tf_CActorSource *)nullptr);
 		(void)pDummy;
 
-		return reinterpret_cast<TCActor<TCDistributedActorWrapper<tf_CActor>> const &>(_Actor);
+		if constexpr (TCIsActorAlwaysAlive<CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderSharedPointer<TCActorInternal<tf_CActor>> const &>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorHolderSharedPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActorSource>>> &&_pActorHolder)
+	{
+		using CActor = typename TCIsDistributedActorWrapper<tf_CActor>::CActor;
+
+		auto pDummy = static_cast<CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderSharedPointer<TCActorInternal<tf_CActor>> &&>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorHolderWeakPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActorSource>>> const &_pActorHolder)
+	{
+		using CActor = typename TCIsDistributedActorWrapper<tf_CActor>::CActor;
+
+		auto pDummy = static_cast<CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderWeakPointer<TCActorInternal<tf_CActor>> const &>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorHolderWeakPointer<TCActorInternal<TCDistributedActorWrapper<tf_CActorSource>>> &&_pActorHolder)
+	{
+		using CActor = typename TCIsDistributedActorWrapper<tf_CActor>::CActor;
+
+		auto pDummy = static_cast<CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
+		else
+			return reinterpret_cast<TCActorHolderWeakPointer<TCActorInternal<tf_CActor>> &&>(_pActorHolder);
+	}
+
+	template <typename tf_CActor, typename tf_CActorSource>
+	decltype(auto) fg_StaticCast(TCActorInternal<TCDistributedActorWrapper<tf_CActorSource>> *_pActorHolder)
+	{
+		using CActor = typename TCIsDistributedActorWrapper<tf_CActor>::CActor;
+
+		auto pDummy = static_cast<CActor *>((tf_CActorSource *)nullptr);
+		(void)pDummy;
+
+		if constexpr (TCIsActorAlwaysAlive<CActor>::mc_Value)
+			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder);
+		else
+			return TCActorHolderSharedPointer<TCActorInternal<tf_CActor>>(fg_Explicit(reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder)));
 	}
 
 	template <typename tf_CFirst>
@@ -501,7 +571,7 @@ namespace NMib::NConcurrency
 	TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
 	{
 		auto Actor = f_GetActor(DMibConstantTypeHash(tf_CType), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
-		return fg_Move(reinterpret_cast<TCDistributedActor<tf_CType> &>(Actor));
+		return fg_StaticCast<TCDistributedActorWrapper<tf_CType>>(fg_Move(Actor));
 	}
 
 	inline NStr::CStr const &CAbstractDistributedActor::f_GetUniqueHostID() const

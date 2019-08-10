@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 				if (State.m_bDestroyed)
 					return DMibErrorInstance("Sequencer has been aborted");
 
-				auto &ToSequence = State.m_ToSequence.f_Insert();
+				auto &ToSequence = State.m_ToSequence.f_Insert(CToSequenceEntry{fg_Move(Promise)});
 				ToSequence.m_fToSequence = fg_Move(fToSequence);
 
 				auto Promise = ToSequence.m_Promise;

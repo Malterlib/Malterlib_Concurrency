@@ -59,16 +59,16 @@ namespace NMib::NConcurrency
 
 	template <typename t_CFunction>
 	template <typename ...tfp_CParams>
-	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const
+	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
 	{
 		if (!mp_Actor || !*mp_pFunctor)
 		{
 			return fg_Dispatch
 				(
-					fg_DirectCallActor()
-					, []() -> CReturn
+					TCActor<>(fg_DirectCallActor())
+					, []() mutable -> CReturn
 					{
-						return DMibErrorInstance("Functor is empty");
+						return TCPromise<typename NPrivate::TCIsFuture<CReturn>::CType>() <<= DMibErrorInstance("Functor is empty");
 					}
 				)
 			;
@@ -80,30 +80,15 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				mp_Actor
-				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable -> CReturn
+				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable mark_no_coroutine_debug -> CReturn
 				{
 					return NStorage::fg_TupleApplyAs<CMoveList>
 						(
-							[&](auto &&..._Params) mutable
+							[&](auto &&..._Params) mutable mark_no_coroutine_debug -> CReturn
 							{
-#if DMibEnableSafeCheck > 0
-								CReturn ReturnFuture;
-
-								NPrivate::fg_WrapDispatchWithReturn
-									(
-										[&]
-										{
-											ReturnFuture = (*pFunctor)(fg_Move(_Params)...);
-										}
-									)
-								;
-
-								return ReturnFuture;
-#else
 								return (*pFunctor)(fg_Move(_Params)...);
-#endif
 							}
-							, fg_Move(Params) 
+							, fg_Move(Params)
 						)
 					;
 				}
@@ -148,7 +133,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
-	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy()
+	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &
 	{
 		co_await ECoroutineFlag_AllowReferences;
 
@@ -162,7 +147,23 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
+	template <typename t_CFunction>
+	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &&
+	{
+		co_await ECoroutineFlag_AllowReferences;
+
+		auto Subscription = fg_Move(f_GetSubscription());
+
+		if (mp_Actor && mp_pFunctor)
+			co_await fg_Dispatch(fg_Move(mp_Actor), [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
+
+		if (Subscription)
+			co_await Subscription->f_Destroy();
+
+		co_return {};
+	}
+
 	template <typename t_CFunction>
 	void TCActorFunctor<t_CFunction>::f_Clear()
 	{

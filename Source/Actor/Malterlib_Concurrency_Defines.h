@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 #	define DMibConcurrency_CheckFunctionCalls
 
-	class CActor;
+	struct CActor;
 	class CDefaultActorHolder;
 	template <typename t_CActor>
 	class TCActorInternal;
@@ -51,24 +51,39 @@ namespace NMib::NConcurrency
 		>
 	;
 
-	template <typename t_CReturn, bool t_bDirectCall = false>
-	using TCDispatchedWeakActorCall =
-		TCActorCall
-		<
-			TCWeakActor<CActor>
-			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, t_bDirectCall
-		>
-	;
-
 	struct CInternalActorAllocator : public NMemory::CAllocator_Heap
 	{
 		enum
 		{
 			mc_bIsDefault = false
 		};
+	};
+
+	namespace NPrivate
+	{
+		template <typename t_CActor, bool t_bIsComplete = NTraits::TCIsComplete<t_CActor>::mc_Value>
+		struct TCIsActorAlwaysAliveImpl
+		{
+			static constexpr bool mc_Value = false;
+		};
+
+		template <typename t_CActor>
+		struct TCIsActorAlwaysAliveImpl<t_CActor, true>
+		{
+			static constexpr bool mc_Value = t_CActor::mc_bIsAlwaysAlive;
+		};
+	}
+
+	template <typename t_CActor>
+	struct TCIsActorAlwaysAlive : public NPrivate::TCIsActorAlwaysAliveImpl<t_CActor>
+	{
+	};
+
+#define DMibDefineActorType(d_Type, d_AlwaysAlive) \
+	template <>\
+	struct ::NMib::NConcurrency::TCIsActorAlwaysAlive<d_Type>\
+	{\
+		static constexpr bool mc_Value = d_AlwaysAlive;\
 	};
 
 	template <typename t_CHolder>
@@ -87,8 +102,18 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	class TCWeakActor;
 
+	template <typename tf_CActor>
+	decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
+
+	struct CActorCommon
+	{
+		TCFuture<void> f_Destroy() &;
+		TCFuture<void> f_Destroy() &&;
+	};
+
 	template <typename t_CActor>
 	class TCActor /// \brief Contain an instance of a CActor
+		: public TCChooseType<TCIsActorAlwaysAlive<t_CActor>::mc_Value, CEmpty, CActorCommon>::CType
 	{
 		friend class CConcurrencyManager;
 		template <typename t_CActor2>
@@ -98,23 +123,43 @@ namespace NMib::NConcurrency
 		template <typename t_CActor2>
 		friend class TCActorInternal;
 
+		friend class CActorHolder;
 		friend class CDelegatedActorHolder;
+		friend struct CActorCommon;
+
+		template <typename tf_CActor>
+		friend decltype(auto) fg_GetActorInternal(tf_CActor &&_Actor);
 
 	public:
 		using CActorInternal = TCActorInternal<t_CActor>;
 		using CContainedActor = t_CActor;
 
 		static constexpr bool mc_bIsWeak = false;
+		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<t_CActor>::mc_Value;
 		using CNonWeak = TCActor;
+		using CWeak = TCWeakActor<t_CActor>;
 
 	private:
-		TCActorHolderSharedPointer<CActorInternal> m_pInternalActor;
+		using CPointerType = typename TCChooseType
+			<
+				TCIsActorAlwaysAlive<t_CActor>::mc_Value
+				, CActorInternal *
+				, TCActorHolderSharedPointer<CActorInternal>
+			>
+			::CType
+		;
+		union
+		{
+			CPointerType m_pInternalActor = nullptr;
+			uint8 m_Dummy[sizeof(TCActorHolderWeakPointer<CActorInternal>)];
+		};
 
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams, mint... tfp_Indidies>
 		void fp_Construct(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct, NMeta::TCIndices<tfp_Indidies...> const&);
 
 	public:
 		TCActor();
+		~TCActor();
 		template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
 		TCActor(TCConstruct<tf_CType, tfp_CParams...> &&_Construct, tfp_CHolderParams && ...p_HolderParams);
 		TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
@@ -159,7 +204,9 @@ namespace NMib::NConcurrency
 		inline_small explicit operator bool() const;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &;
+		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&;
 
 		template
 		<
@@ -167,16 +214,30 @@ namespace NMib::NConcurrency
 			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 			, typename... tfp_CCallParams
 		>
-		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const;
+		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &;
+
+		template
+		<
+			auto tf_pMemberFunction
+			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+			, typename... tfp_CCallParams
+		>
+		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const;
+		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const &;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) &&;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const;
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const;
+		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &;
+		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
+		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&;
 
 		template <typename tf_FResult>
 		auto operator / (tf_FResult &&_fResult) const
@@ -199,16 +260,25 @@ namespace NMib::NConcurrency
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCActor<tf_CActor> const &_Actor, tfp_CParams && ...p_Params);
+	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CParams && ...p_Params);
 
 #	define f_CallActor(d_PointerToMemberFunction) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
 
 	template <typename tf_CActor>
 	TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
 
+	template <typename tf_CActor>
+	TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor);
+
 	struct CConcurrentActor;
 	struct CConcurrentActorLowPrio;
 	struct CTimerActor;
+	struct CAnyConcurrentActor;
+	struct CAnyConcurrentActorLowPrio;
+	namespace NPrivate
+	{
+		struct CDirectResultActor;
+	}
 
 	template <typename t_CType, typename t_CLock>
 	class TCLockActor;
@@ -230,14 +300,22 @@ namespace NMib::NConcurrency
 
 	typedef NStorage::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;
 
+	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);
 	CConcurrencyManager &fg_CurrentConcurrencyManager();
 	CConcurrencyManager &fg_ConcurrencyManager();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
 	TCActor<CActor> fg_CurrentActor();
+	TCWeakActor<CActor> fg_CurrentActorWeak();
 
 	TCActor<CTimerActor> fg_TimerActor();
 }
+
+DMibDefineActorType(NMib::NConcurrency::NPrivate::CDirectResultActor, true);
+DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
+DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActor, true);
+DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActorLowPrio, true);
 
 template <>
 struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>

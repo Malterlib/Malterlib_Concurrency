@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 		bool f_Call
 			(
 				tf_CFunctor &&_ToCall
-				, TCActor<tf_CResultActor> const &_pResultActor
+				, TCActor<tf_CResultActor> &&_pResultActor
 				, tf_CResultFunctor &&_ResultFunctor
 			)
 		;

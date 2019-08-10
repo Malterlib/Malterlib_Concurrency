@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>
-	void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor _pResultActor, tf_CResult &&_Result)
+	void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor &&_pResultActor, tf_CResult &&_Result)
 	{
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		auto &Callstack = _Result.m_Callstacks;

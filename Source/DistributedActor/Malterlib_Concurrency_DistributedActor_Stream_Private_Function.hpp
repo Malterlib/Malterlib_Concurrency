@@ -175,46 +175,104 @@ namespace NMib::NConcurrency
 					, NMeta::TCIndices<tfp_Indices...> const &_Indices
 				)
 			{
-				NStorage::TCUniquePointer<NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...>> pParamList;
+				NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
+
+				struct CState
+				{
+					CDistributedActorStreamContext m_Context;
+					NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> m_ParamList;
+					uint32 m_Version;
+				};
+				
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
-				
+
+				NStorage::TCUniquePointer<CState> pState;
+
 				try
 				{
-					pParamList = fg_Construct(fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>()));
+					pState = NStorage::TCUniquePointer<CState>(new CState{*pContext, fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>()), _Stream.f_GetVersion()});
 				}
 				catch (NException::CException const &_Exception)
 				{
-					return _Exception;
+					return Return <<= _Exception;
 				}
 
-		#if DMibEnableSafeCheck > 0
-				TCFuture<t_CReturn> Future;
+				auto &State = *pState;
 
-				NPrivate::fg_WrapDispatchWithReturn
-					(
-						[&]
-						{
-							Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
-						}
-					)
+				NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturn> &&_AsyncResult)> fOnResultSet
+					= [Return, pState = fg_Move(pState)](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
+					{
+						auto &State = *pState;
+						// We need to keep ParamList alive until result is available to make coroutines safe
+						Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &State.m_Context, State.m_Version));
+					}
 				;
-		#else
-				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(*pParamList))...);
+
+				auto &ThreadLocal = **g_SystemThreadLocal;
+
+		#if DMibEnableSafeCheck > 0
+				bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
+				ThreadLocal.m_bExpectCoroutineCall = true;
+				auto Cleanup = g_OnScopeExit > [&]
+					{
+						ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+					}
+				;
 		#endif
 
-				NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
-				
-				Future.f_OnResultSet
+				auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+				auto pPreviousOnResultSet = PromiseThreadLocal.m_pOnResultSet;
+				PromiseThreadLocal.m_pOnResultSet = &fOnResultSet;
+
+				auto CleanupOnResultSet = g_OnScopeExit > [&]
+					{
+						PromiseThreadLocal.m_pOnResultSet = pPreviousOnResultSet;
+					}
+				;
+
+		#if DMibEnableSafeCheck > 0
+				auto pPreviousOnResultSetConsumedBy = PromiseThreadLocal.m_pOnResultSetConsumedBy;
+				PromiseThreadLocal.m_pOnResultSetConsumedBy = nullptr;
+
+				auto pPreviousExpectCoroutineCallSetConsumedBy = PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy;
+				PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = nullptr;
+
+				auto bPreviousCaptureDebugException = PromiseThreadLocal.m_bCaptureDebugException;
+				PromiseThreadLocal.m_bCaptureDebugException = true;
+
+				auto CleanupOnResultSetConsumedBy = g_OnScopeExit > [&]
+					{
+						PromiseThreadLocal.m_pOnResultSetConsumedBy = pPreviousOnResultSetConsumedBy;
+						PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = pPreviousExpectCoroutineCallSetConsumedBy;
+						PromiseThreadLocal.m_bCaptureDebugException = bPreviousCaptureDebugException;
+					}
+				;
+
+				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<t_CReturn>();
+
+				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+
+				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
+				DMibFastCheck
 					(
-						[Return, Context = *pContext, Version = _Stream.f_GetVersion(), pParamList = fg_Move(pParamList)](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
-						{
-							// We need to keep pParamList alive until result is available to make coroutines safe
-							Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &Context, Version));
-						}
+					 	ThreadLocal.m_bExpectCoroutineCall
+					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
+					 	|| Future.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
 				;
-				
+
+				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+				Cleanup.f_Clear();
+		#else
+				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+		#endif
+				if (PromiseThreadLocal.m_pOnResultSet)
+				{
+					DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
+					Future.f_OnResultSet(fg_Move(fOnResultSet));
+				}
+
 				return Return.f_MoveFuture();
 			}
 		};

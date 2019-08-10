@@ -48,6 +48,7 @@ namespace NMib::NConcurrency
 
 		void f_BlockOnDestroy();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor();
+		TCActor<CConcurrentActor> const &f_GetConcurrentActor(TCWeakActor<CActor> const &_Actor);
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 		TCActor<CTimerActor> const &f_GetTimerActor();
@@ -58,15 +59,15 @@ namespace NMib::NConcurrency
 		TCActor<CDynamicConcurrentActor> const &f_GetDynamicConcurrentActor();
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
 
-		void f_DispatchFirstOnCurrentThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
-		void f_DispatchOnNextThread(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 
 	private:
 		template <typename t_CActor>
 		friend class TCActorInternal;
 
 		friend class CActorHolder;
-		friend class CActor;
+		friend struct CActor;
 		friend class CDefaultActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
@@ -75,10 +76,12 @@ namespace NMib::NConcurrency
 		friend struct NPrivate::CPromiseDataBase;
 #endif
 
+
 		struct CQueue
 		{
-			align_cacheline NAtomic::TCAtomic<mint> m_Working;
-			CConcurrentRunQueue m_JobQueue;
+			align_cacheline CConcurrentRunQueue m_JobQueue;
+			NAtomic::TCAtomic<mint> m_Working;
+			align_cacheline CConcurrentRunQueue::CLocalQueueData m_JobQueueLocal;
 			mint m_iQueue;
 			EPriority m_Priority;
 			NThread::CEventAutoReset m_Event;
@@ -94,7 +97,25 @@ namespace NMib::NConcurrency
 		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
 		inline_never mint fp_InitConcurrentActors();
 
-		NAtomic::TCAtomic<mint> m_nActors;
+		void fp_AddedActor();
+		void fp_RemovedActor();
+		mint fp_NumActors();
+
+		struct align_cacheline CNumActorsPerQueue
+		{
+			smint m_nActors = 0;
+		};
+
+		struct align_cacheline CNumActorsOther
+		{
+			NAtomic::TCAtomic<smint> m_nActors = 0;
+		};
+
+		NContainer::TCVector<CNumActorsPerQueue> m_nActorsPerQueue[EPriority_Max];
+		CNumActorsPerQueue *m_nActorsPerQueueArray[EPriority_Max];
+		NContainer::TCVector<CNumActorsOther> m_nActorsOther;
+		mint m_ActorsOtherMask;
+
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NThread::CMutual m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
@@ -111,16 +132,27 @@ namespace NMib::NConcurrency
 
 		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
 		NThread::CMutual m_pConcurrentActorLock;
-		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActors[EPriority_Max];
+
+		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
+		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
+
 		NThread::CMutual m_pTimerActorLock;
 		TCActor<CTimerActor> m_pTimerActor;
 		NThread::CMutual m_ThreadCreateLock;
-		TCActor<CDirectCallActor> m_DirectCallActor;
-		TCActor<CAnyConcurrentActor> m_AnyConcurrentActor;
-		TCActor<CAnyConcurrentActorLowPrio> m_AnyConcurrentActorLowPrio;
-		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActor;
-		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrio;
-		TCActor<NPrivate::CDirectResultActor> m_DirectResultActor;
+
+		TCActor<CDirectCallActorImpl> m_DirectCallActor;
+		TCActor<CAnyConcurrentActorImpl> m_AnyConcurrentActor;
+		TCActor<CAnyConcurrentActorLowPrioImpl> m_AnyConcurrentActorLowPrio;
+		TCActor<CDynamicConcurrentActorImpl> m_DynamicConcurrentActor;
+		TCActor<CDynamicConcurrentActorLowPrioImpl> m_DynamicConcurrentActorLowPrio;
+		TCActor<NPrivate::CDirectResultActorImpl> m_DirectResultActor;
+
+		TCActor<CDirectCallActor> m_DirectCallActorRef;
+		TCActor<CAnyConcurrentActor> m_AnyConcurrentActorRef;
+		TCActor<CAnyConcurrentActorLowPrio> m_AnyConcurrentActorLowPrioRef;
+		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
+		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
+		TCActor<NPrivate::CDirectResultActor> m_DirectResultActorRef;
 	};
 
 	struct CConcurrencyThreadLocal
@@ -130,18 +162,23 @@ namespace NMib::NConcurrency
 
 		CActor *m_pCurrentActor = nullptr;
 		CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
-#if DMibConfig_Concurrency_DebugActorCallstacks
-		CAsyncCallstacks *m_pCallstacks = nullptr;
-#endif
+		CActorHolder *m_pCurrentlyDestructingActorHolder = nullptr;
 		CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
 		mint m_iConcurrentActor[EPriority_Max];
 		mint m_JobQueueIndex[EPriority_Max];
+		mint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
+		bool m_bCurrentlyProcessingInActorHolder = false;
+
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		CAsyncCallstacks *m_pCallstacks = nullptr;
+#endif
+
 #if DMibEnableSafeCheck > 0
 		CActor *m_pCurrentlyConstructingActor = nullptr;
 		CActor *m_pCurrentlyDestructingActor = nullptr;
+		CActorHolder *m_pCurrentlyOverridenProcessingActorHolder = nullptr;
 		mint m_AllowWrongThreadDestroySequence = 0;
 #endif
-		CActorHolder *m_pCurrentlyOverridenProcessingActorHolder = nullptr;
 	};
 
 	struct CAllowWrongThreadDestroy
@@ -162,9 +199,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
 	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params);
 
-	auto fg_DiscardResult() -> decltype(fg_ConcurrentActor() / NPrivate::CDiscardResultFunctor());
-
-	COnScopeExitShared fg_OnScopeExitActor(TCActor<> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnExitFunctor);
+	auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor());
 }
 
 #include "Malterlib_Concurrency_ActorHelpers.h"

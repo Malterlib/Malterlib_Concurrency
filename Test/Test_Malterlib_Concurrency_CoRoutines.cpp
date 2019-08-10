@@ -39,12 +39,12 @@ namespace
 
 		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> fp_StopApp() override
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<uint32> f_Test()
@@ -98,7 +98,7 @@ namespace
 
 		TCFuture<void> f_TestVoid()
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 	};
 
@@ -436,7 +436,7 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return self / [=, Value2 = 20]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -446,7 +446,7 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursive()
 		{
-			return self / [=, Value2 = 20]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
 					return [=]() -> TCFuture<uint32>
 						{
@@ -461,9 +461,9 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
 		{
-			return self / [=, Value2 = 20]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
 				{
-					return self / [=]() -> TCFuture<uint32>
+					return g_Future <<= self / [=]() -> TCFuture<uint32>
 						{
 							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 							co_return Value + Value2;
@@ -574,16 +574,16 @@ namespace
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoro()
 		{
-			uint32 RefValue = 20;
 			TCPromise<uint32> Promise;
+			uint32 RefValue = 20;
 			f_TestParameterReference(RefValue) > Promise;
 			return Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroCorrected()
 		{
-			uint32 RefValue = 20;
 			TCPromise<uint32> Promise;
+			uint32 RefValue = 20;
 			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
 			return Promise.f_MoveFuture();
 		}
@@ -597,7 +597,7 @@ namespace
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnCorrected()
 		{
 			uint32 RefValue = 20;
-			return self(&CTestActor::f_TestParameterReference, RefValue);
+			return g_Future <<= self(&CTestActor::f_TestParameterReference, RefValue);
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams(uint32 const &_Param)
@@ -609,29 +609,29 @@ namespace
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParamsCorrected(uint32 const &_Param)
 		{
 			uint32 RefValue = 20;
-			return self(&CTestActor::f_TestParameterReference, RefValue);
+			return g_Future <<= self(&CTestActor::f_TestParameterReference, RefValue);
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatched()
 		{
-			uint32 RefValue = 20;
 			TCPromise<uint32> Promise;
+			uint32 RefValue = 20;
 			f_TestParameterReference(RefValue) > Promise;
 			return Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatchedCorrected()
 		{
-			uint32 RefValue = 20;
 			TCPromise<uint32> Promise;
+			uint32 RefValue = 20;
 			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
 			return Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterNonReferenceRecursiveNoCoro()
 		{
-			uint32 RefValue = 20;
 			TCPromise<uint32> Promise;
+			uint32 RefValue = 20;
 			f_TestParameter(RefValue) > Promise;
 			return Promise.f_MoveFuture();
 		}
@@ -970,8 +970,8 @@ namespace
 					{
 						TCActor<CTestDestroyActor> TestDestroyActor = fg_Construct();
 
-						DestroyFuture = TestDestroyActor(&CTestDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
-						TestDestroyActor->f_Destroy().f_CallSync();
+						DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
+						TestDestroyActor.f_Destroy().f_CallSync();
 					}
 					DestroyPromise.f_SetResult();
 				}
@@ -988,8 +988,8 @@ namespace
 						{
 							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
 
-							DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-							TestDestroyActor->f_Destroy().f_CallSync();
+							DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+							TestDestroyActor.f_Destroy().f_CallSync();
 						}
 					}
 					DestroyPromise.f_SetResult();
@@ -1007,8 +1007,8 @@ namespace
 						{
 							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
 
-							DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-							MainActor->f_Destroy().f_CallSync();
+							DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+							MainActor.f_Destroy().f_CallSync();
 						}
 					}
 					DestroyPromise.f_SetResult();
@@ -1028,8 +1028,8 @@ namespace
 							{
 								TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), Delegated};
 
-								DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-								MainActor->f_Destroy().f_CallSync();
+								DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+								MainActor.f_Destroy().f_CallSync();
 							}
 						}
 					}

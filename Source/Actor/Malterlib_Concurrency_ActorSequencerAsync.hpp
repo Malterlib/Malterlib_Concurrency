@@ -20,23 +20,25 @@ namespace NMib::NConcurrency
 	{
 		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCFuture<t_CReturnType>
 			{
+				TCPromise<t_CReturnType> Promise;
+
 				auto &State = *mp_pState;
 				if (State.m_bDestroyed)
-					return DMibErrorInstance("Sequencer has been aborted");
+					return Promise <<= DMibErrorInstance("Sequencer has been aborted");
 
 				auto &ToSequence = State.m_ToSequence.f_Insert(CToSequenceEntry{fg_Move(Promise)});
 				ToSequence.m_fToSequence = fg_Move(fToSequence);
 
-				auto Promise = ToSequence.m_Promise;
+				auto Future = ToSequence.m_Promise.f_Future();
 
 				fp_ProcessSequence();
 
-				return Promise.f_MoveFuture();
+				return fg_Move(Future);
 			}
 		;
 		if (fg_CurrentActorRunning())
 			return fQueueSequence();
-		return g_Dispatch / fg_Move(fQueueSequence);
+		return g_Future <<= g_Dispatch / fg_Move(fQueueSequence);
 	}
 	
 	template <typename t_CReturnType>
@@ -56,6 +58,8 @@ namespace NMib::NConcurrency
 	{
 		auto fDoAbort = [this]() -> TCFuture<void>
 			{
+				TCPromise<void> AbortPromise;
+
 				auto &State = *mp_pState;
 
 				for (auto &ToSequence : State.m_ToSequence)
@@ -65,14 +69,14 @@ namespace NMib::NConcurrency
 				State.m_bDestroyed = true;
 
 				if (State.m_nRunning)
-					return State.m_AbortPromise.f_Future();
+					return (*(State.m_AbortPromise = fg_Move(AbortPromise))).f_Future();
 				else
-					return fg_Explicit();
+					return AbortPromise <<= g_Void;
 			}
 		;
 		if (fg_CurrentActorRunning())
 			return fDoAbort();
-		return g_Dispatch / fg_Move(fDoAbort);
+		return g_Future <<= g_Dispatch / fg_Move(fDoAbort);
 	}
 	
 	template <typename t_CReturnType>
@@ -100,8 +104,8 @@ namespace NMib::NConcurrency
 							{
 								if (State.m_nRunning == 0)
 								{
-									if (!State.m_AbortPromise.f_IsSet())
-										State.m_AbortPromise.f_SetResult();
+									if (State.m_AbortPromise && !(*State.m_AbortPromise).f_IsSet())
+										(*State.m_AbortPromise).f_SetResult();
 								}
 								return;
 							}

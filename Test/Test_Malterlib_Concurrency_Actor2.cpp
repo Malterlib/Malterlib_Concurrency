@@ -130,7 +130,7 @@ namespace
 				
 				CEvent Event;
 				
-				pActor->f_Destroy() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
+				pActor.f_Destroy() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
 					{
 						Event.f_SetSignaled();
 					}
@@ -296,7 +296,7 @@ namespace
 								{
 									DMibNeverGetHere;
 									
-									return fg_Explicit();
+									co_return {};
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -323,7 +323,7 @@ namespace
 											HandlersFinished.f_SetSignaled();
 									}
 									
-									return fg_Explicit();
+									co_return {};
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -349,7 +349,7 @@ namespace
 											HandlersFinished.f_SetSignaled();
 									}
 									
-									return fg_Explicit();
+									co_return {};
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -701,7 +701,7 @@ namespace
 					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(100.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
-					pActor->f_DestroyNoResult(DMibPFile, DMibPLine);
+					pActor.f_Destroy() > fg_DiscardResult();
 					
 					DMibLock(TimersLock);
 				}

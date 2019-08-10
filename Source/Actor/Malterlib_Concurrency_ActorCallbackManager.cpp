@@ -10,13 +10,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CCombinedCallbackReference::f_Destroy()
 	{
+		TCPromise<void> Promise;
+
 		TCActorResultVector<void> Results;
 		for (auto &Reference : m_References)
 			Reference->f_Destroy() > Results.f_AddResult();
 
 		m_References.f_Clear();
 
-		TCPromise<void> Promise;
 		Results.f_GetResults() > fg_DirectCallActor() / [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
 			{
 				if (!fg_CombineResults(Promise, fg_Move(_Results)))

@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 		}
 
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
-			co_await Internal.m_ActorDistributionManager->f_Destroy();
+			co_await Internal.m_ActorDistributionManager.f_Destroy();
 
 		co_return {};
 	}
@@ -100,8 +100,9 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
+
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -127,8 +128,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedActorTrustManager::f_EnumClients() -> TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>>
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<NContainer::TCMap<NStr::CStr, CHostInfo>> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -156,8 +157,8 @@ namespace NMib::NConcurrency
 	
 	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<bool> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -182,8 +183,8 @@ namespace NMib::NConcurrency
 	
 	TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> CDistributedActorTrustManager::f_GetDistributionManager() const
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -199,8 +200,8 @@ namespace NMib::NConcurrency
 	
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostID() const
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<NStr::CStr> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -238,6 +239,8 @@ namespace NMib::NConcurrency
 	
 	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)
 	{
+		TCPromise<CHostInfo> Promise;
+
 		CHostInfo HostInfo;
 		HostInfo.m_HostID = _HostID;
 		auto &Internal = *mp_pInternal;
@@ -245,7 +248,7 @@ namespace NMib::NConcurrency
 		if (pHost && !pHost->m_FriendlyName.f_IsEmpty())
 		{
 			HostInfo.m_FriendlyName = pHost->m_FriendlyName;
-			return fg_Explicit(HostInfo);
+			return Promise <<= HostInfo;
 		}
 		for (auto &ClientConnection : Internal.m_ClientConnections)
 		{
@@ -254,10 +257,9 @@ namespace NMib::NConcurrency
 				continue;
 			if (ClientHostInfo.m_FriendlyName.f_IsEmpty())
 				continue;
-			return fg_Explicit(ClientHostInfo);
+			return Promise <<= ClientHostInfo;
 		}
-		TCPromise<CHostInfo> Promise;
-		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) 
+		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID)
 			> [Promise, HostInfo = fg_Move(HostInfo)](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CClient> &&_Client) mutable
 			{
 				if (_Client)

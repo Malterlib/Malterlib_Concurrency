@@ -48,11 +48,12 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFuture<void> TCActorSubscriptionCleanupFunctor<t_CReturnValue>::f_Destroy()
 	{
+		TCPromise<void> Promise;
 		if (!mp_DispatchActor)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 		
 		auto pDispatchActor = fg_Move(mp_DispatchActor);
-		return fg_Dispatch(pDispatchActor, fg_Move(mp_fCleanup));
+		return Promise <<= fg_Dispatch(pDispatchActor, fg_Move(mp_fCleanup));
 	}
 
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)

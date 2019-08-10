@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 			, t_CStreamParams
 			, t_CStreamResult
 			, t_CReturn
-			>::fp_Call
+		>::fp_Call
 		(
 			t_CStreamParams &_ParamsStream
 			, void *_pObject
@@ -83,6 +83,8 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
+		NConcurrency::TCPromise<NContainer::CSecureByteVector> Promise;
+
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
@@ -93,7 +95,7 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return _Exception;
+			return Promise <<= _Exception;
 		}
 
 		auto Result = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
@@ -101,7 +103,7 @@ namespace NMib::NConcurrency::NPrivate
 		NConcurrency::TCAsyncResult<t_CReturn> AsyncResult;
 		AsyncResult.f_SetResult(fg_Move(Result));
 
-		return fg_Explicit(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion()));
+		return Promise <<= fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
 	template
@@ -192,6 +194,8 @@ namespace NMib::NConcurrency::NPrivate
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
+		NConcurrency::TCPromise<NContainer::CSecureByteVector> Promise;
+
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
@@ -202,7 +206,7 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return _Exception;
+			return Promise <<= _Exception;
 		}
 
 		(((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
@@ -210,7 +214,7 @@ namespace NMib::NConcurrency::NPrivate
 		NConcurrency::TCAsyncResult<void> AsyncResult;
 		AsyncResult.f_SetResult();
 
-		return fg_Explicit(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion()));
+		return Promise <<= fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
 	template

@@ -550,17 +550,19 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename... tp_CCallbackParams, bool t_bSupportMultiple, typename t_CExtraData>
 	TCFuture<void> TCActorSubscriptionManager<t_CReturn (tp_CCallbackParams...), t_bSupportMultiple, t_CExtraData>::CCallbackReference::fp_RemoveCallback()
 	{
+		TCPromise<void> Promise;
+
 		if (!m_pHandle)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 
 		auto Actor = m_Actor.f_Lock();
 		if (!Actor)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 
 		auto pHandle = m_pHandle;
 		m_pHandle = nullptr;
 
-		return Actor
+		return Promise <<= Actor
 			(
 				&CActor::fp_DisptachInternal
 				, [pHandle, pCallbackManager = m_pCallbackManager]
@@ -618,14 +620,8 @@ namespace NMib::NConcurrency
 	{
 		if (!m_pHandle)
 			return;
-		fg_AnyConcurrentActor().f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<void>>>
-			(
-				[Future = fp_RemoveCallback()]() mutable
-				{
-					return fg_Move(Future);
-				}
-			)
-			> NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&_Result)
+
+		fp_RemoveCallback() > NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
 				{

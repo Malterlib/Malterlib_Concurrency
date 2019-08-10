@@ -22,14 +22,14 @@ namespace NMib::NConcurrency
 	private:
 		struct CToSequenceEntry
 		{
-			NFunction::TCFunctionMovable<TCFuture<t_CReturnType> ()> m_fToSequence;
 			TCPromise<t_CReturnType> m_Promise;
+			NFunction::TCFunctionMovable<TCFuture<t_CReturnType> ()> m_fToSequence;
 		};
 		
 		struct CState
 		{
 			NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
-			TCPromise<void> m_AbortPromise;
+			NStorage::TCOptional<TCPromise<void>> m_AbortPromise;
 			mint m_MaxConcurrency = 1;
 			mint m_nRunning = 0;
 			bool m_bDestroyed = false;

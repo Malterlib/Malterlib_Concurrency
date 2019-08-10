@@ -62,11 +62,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedToolAppActor::fp_StartApp(NEncoding::CEJSON const &_Params)
 	{
-		return fg_Explicit();
+		co_return {};
 	}
 
 	TCFuture<void> CDistributedToolAppActor::fp_StopApp()
 	{
-		return fg_Explicit();
+		co_return {};
 	}
 }

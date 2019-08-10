@@ -68,13 +68,13 @@ namespace NMib::NConcurrency
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
-			return fg_Explicit();
+			co_return {};
 
 		Host.m_AuthenticationHandler = _AuthenticationHandler;
 		Host.m_ClaimedUserID = _UserID;
 		Host.m_ClaimedUserName = _UserName;
 
-		return fg_Explicit();
+		co_return {};
 	}
 
 	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler
@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		if (Host.m_bDeleted)
-			return fg_Explicit();
+			co_return {};
 
 		if (Host.m_AuthenticationHandler == _AuthenticationHandler)
 		{
@@ -94,6 +94,6 @@ namespace NMib::NConcurrency
 			Host.m_ClaimedUserName.f_Clear();
 		}
 
-		return fg_Explicit();
+		co_return {};
 	}
 }

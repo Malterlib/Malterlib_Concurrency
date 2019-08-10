@@ -40,7 +40,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);
 		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This);
-		TCDispatchedActorCall<void> f_Disconnect();
+		TCFuture<void> f_Disconnect();
 		static void fs_LogClose
 			(
 				TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> const &_Result

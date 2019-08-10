@@ -101,25 +101,22 @@ namespace NMib::NConcurrency
 			{
 				return [_FunctionID](tp_CParams ...p_Params) -> TCFuture<t_CReturn>
 					{
+						TCPromise<t_CReturn> Promise;
+
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
 						auto *pActorDataRaw = static_cast<CDistributedActorData *>(ThreadLocal.m_pCurrentRemoteDispatchActorData);
 
 						if (!pActorDataRaw)
-							return DMibErrorInstance("This functions needs to be dispatched on a remote actor");
+							return Promise <<= DMibErrorInstance("This functions needs to be dispatched on a remote actor");
 						
 						if (!pActorDataRaw->m_bRemote)
-							return DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
+							return Promise <<= DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
 
-						TCPromise<t_CReturn> Promise;
-						
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
 						if (!pHost || pHost->m_bDeleted)
-						{
-							Promise.f_SetException(DMibErrorInstance("Remote actor host no longer available"));
-							return Promise.f_MoveFuture();
-						}
-						
+							return Promise <<= DMibErrorInstance("Remote actor host no longer available");
+
 						CDistributedActorWriteStream Stream;
 						Stream << uint8(0); // Dummy command
 						Stream << uint64(0); // Dummy packet ID
@@ -137,10 +134,7 @@ namespace NMib::NConcurrency
 						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
 						
 						if (!DistributionManager)
-						{
-							Promise.f_SetException(DMibErrorInstance("Actor distribution manager for actor no longer exists"));
-							return Promise.f_MoveFuture();
-						}
+							return Promise <<= DMibErrorInstance("Actor distribution manager for actor no longer exists");
 
 						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
 							> [Promise, Context, Version = pActorDataRaw->m_ProtocolVersion]

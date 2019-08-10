@@ -44,15 +44,17 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams ...p_Params)
 	{
+		TCPromise<t_CResult> Promise;
+
 		if (m_Result.f_IsSet())
-			return m_Result;
+			return Promise <<= m_Result;
 
 		if (m_bRunning)
 		{
 			if (m_ErrorOnRunning.f_IsEmpty())
-				return m_Promises.f_Insert().f_Future();
+				return m_Promises.f_Insert(fg_Move(Promise)).f_Future();
 			else
-				return DMibErrorInstance(m_ErrorOnRunning);
+				return Promise <<= DMibErrorInstance(m_ErrorOnRunning);
 		}
 
 		m_bRunning = true;

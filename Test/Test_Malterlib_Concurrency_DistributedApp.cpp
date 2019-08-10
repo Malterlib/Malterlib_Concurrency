@@ -52,7 +52,7 @@ namespace
 					}
 					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						return fg_Explicit(_Params["Integer"].f_Integer());
+						co_return _Params["Integer"].f_Integer();
 					}
 				)
 			;
@@ -60,12 +60,12 @@ namespace
 		
 		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> fp_StopApp() override 
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 	};
 	

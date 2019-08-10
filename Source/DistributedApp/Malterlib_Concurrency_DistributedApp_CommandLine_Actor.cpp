@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 			 , CCommandLineControl &&_CommandLine
 		)
 	{
-		return mp_Actor
+		co_return co_await mp_Actor
 			(
 				&CDistributedAppActor::f_RunCommandLine
 				, fg_GetCallingHostInfo()
@@ -120,9 +120,9 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedActorTrustManager> TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(fg_Move(TrustManagerDatabase), fg_Move(Options));
 		TrustManagerDatabase.f_Clear();
 
-		auto CleanupTrustManager = g_ActorSubscription / [TrustManager]() -> TCFuture<void>
+		auto CleanupTrustManager = g_ActorSubscription / [TrustManager]() mutable -> TCFuture<void>
 			{
-				co_await TrustManager->f_Destroy();
+				co_await fg_Move(TrustManager).f_Destroy();
 				co_return {};
 			}
 		;
@@ -154,66 +154,41 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineListen()
 	{
-		TCPromise<void> Promise;
-
 		CDistributedActorTrustManager_Address LocalListenAddress;
 		LocalListenAddress.m_URL = fp_GetLocalAddress();
 
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress) > Promise / [this, Promise, LocalListenAddress](bool _bHasListen)
-			{
-				if (_bHasListen)
-				{
-					Promise.f_SetResult();
-					return;
-				}
-				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress) > Promise / [Promise]()
-					{
-						Promise.f_SetResult();
-					}
-				;
-			}
-		;
-		return Promise.f_MoveFuture();
+		if (co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, LocalListenAddress))
+			co_return {};
+
+		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
+
+		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_PublishCommandLine()
 	{
-		TCPromise<void> Promise;
 		mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
-		mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline")
-			> Promise / [this, Promise](CDistributedActorPublication &&_Publication)
-			{
-				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line published");
-				mp_CommandLinePublication = fg_Move(_Publication);
-				Promise.f_SetResult();
-			}
-		;
+		mp_CommandLinePublication = co_await mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline");
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line published");
 
-		return Promise.f_MoveFuture();
+		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_SetupCommandLineTrust()
 	{
-		TCPromise<void> Promise;
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 
-		fg_ThisActor(this)(&CDistributedAppActor::fp_SetupCommandLineListen) > Promise / [this, Promise]()
-			{
-				fg_ThisActor(this)(&CDistributedAppActor::fp_CreateCommandLineTrust) > Promise / [this, Promise]
-					{
-						if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
-							mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
+		co_await self(&CDistributedAppActor::fp_SetupCommandLineListen);
+		co_await self(&CDistributedAppActor::fp_CreateCommandLineTrust);
 
-						DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished setting up command line trust");
-						Promise.f_SetResult();
-					}
-				;
-			}
-		;
+		if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+			mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
 
-		return Promise.f_MoveFuture();
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished setting up command line trust");
+
+		co_return {};
 	}
 
 	bool CDistributedAppActor::fp_HasCommandLineAccess(CStr const &_HostID)

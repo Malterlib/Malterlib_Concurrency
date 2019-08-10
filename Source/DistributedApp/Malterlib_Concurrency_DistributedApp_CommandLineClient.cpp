@@ -59,72 +59,76 @@ namespace NMib::NConcurrency
 		{
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
 
-				TCPromise<TCActorSubscriptionWithID<>> Promise;
-				m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags) > Promise / [=](NConcurrency::CActorSubscription &&_Subscription)
-					{
-						Promise.f_SetResult(fg_Move(_Subscription));
-					}
-				;
-
-				return Promise.f_MoveFuture();
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags);
 			}
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
 
-				TCPromise<TCActorSubscriptionWithID<>> Promise;
-				m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags) > Promise / [=](NConcurrency::CActorSubscription &&_Subscription)
-					{
-						Promise.f_SetResult(fg_Move(_Subscription));
-					}
-				;
-
-				return Promise.f_MoveFuture();
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags);
 			}
 
 			TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
-				return m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
 			}
 
 			TCFuture<NStr::CStrSecure> f_ReadLine() override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
-				return m_InputActor(&NProcess::CStdInActor::f_ReadLine);
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadLine);
 			}
 
 			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
-				return m_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
 			}
 
 			TCFuture<void> f_AbortReads() override
 			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
 				fp_CreateInputActor();
-				return m_InputActor(&NProcess::CStdInActor::f_AbortReads);
+				co_return co_await m_InputActor(&NProcess::CStdInActor::f_AbortReads);
 			}
 
 			TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
 			{
 				DMibConOutRaw(_Output);
-				return fg_Explicit();
+				co_return {};
 			}
 
 			TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
 			{
 				NSys::fg_ConsoleOutputBinary(_Output);
-				return fg_Explicit();
+				co_return {};
 			}
 
 			TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
 			{
 				DMibConErrOutRaw(_Output);
-				return fg_Explicit();
+				co_return {};
 			}
 
 		private:
@@ -132,9 +136,10 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> fp_Destroy() override
 			{
-				if (!m_InputActor)
-					return fg_Explicit();
-				return m_InputActor->f_Destroy();
+				if (m_InputActor)
+					co_await fg_Move(m_InputActor).f_Destroy();
+
+				co_return {};
 			}
 
 			void fp_CreateInputActor()
@@ -334,7 +339,7 @@ namespace NMib::NConcurrency
 				pState->m_Event.f_Wait();
 			}
 
-			pCommandLineControl->f_Destroy().f_CallSync();
+			fg_Move(pCommandLineControl).f_Destroy().f_CallSync();
 
 			return *Result;
 		}
@@ -425,7 +430,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedAppCommandLineClient> CDistributedAppActor::f_GetCommandLineClient()
 	{
-		return fg_Explicit(CDistributedAppCommandLineClient(mp_Settings, mp_pCommandLineSpec, fp_GetTranslateHostnames()));
+		co_return CDistributedAppCommandLineClient(mp_Settings, mp_pCommandLineSpec, fp_GetTranslateHostnames());
 	}
 
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient(CDistributedAppCommandLineClient &&_Other) = default;

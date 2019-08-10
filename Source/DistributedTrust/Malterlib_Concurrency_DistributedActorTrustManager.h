@@ -63,8 +63,8 @@ namespace NMib::NConcurrency
 		{
 			NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
 			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
-			TCDispatchedWeakActorCall<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
-			TCDispatchedWeakActorCall<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
+			TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
+			TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
 			
 			TCTrustedActorSubscription *m_pSubscription;
 		};
@@ -423,18 +423,18 @@ namespace NMib::NConcurrency
 	class CDistributedActorTrustManagerProxy;
 
 	template<typename t_CType>
-	TCFuture<NStr::CStr> fg_ExportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	TCFuture<NStr::CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
 	template<typename t_CType>
-	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserData);
-	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
-	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> const &_TrustManager, NStr::CStr const &_UserID, bool _bIncludePrivate);
+	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	extern template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
 	extern template TCFuture<NStr::CStr> fg_ExportUser
 		(
-		 	TCDistributedActor<CDistributedActorTrustManagerInterface> const &_TrustManager
-		 	, NStr::CStr const &_UserID
+		 	TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager
+		 	, NStr::CStr _UserID
 		 	, bool _bIncludePrivate
 		)
 	;

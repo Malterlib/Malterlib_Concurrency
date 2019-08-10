@@ -51,12 +51,12 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCFuture<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
 	{
-		if (mp_DistributedActor.f_IsSet())
-			return mp_DistributedActor;
-
 		TCPromise<TCDistributedActor<t_CActor>> Promise;
-		mp_GetActorPromises.f_Insert(Promise);
-		return Promise.f_MoveFuture();
+
+		if (mp_DistributedActor.f_IsSet())
+			return Promise <<= mp_DistributedActor;
+
+		return mp_GetActorPromises.f_Insert(fg_Move(Promise)).f_Future();
 	}
 
 	template <typename t_CActor>

@@ -14,8 +14,7 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		Internal.m_pInitOnce = fg_Construct
 			(
-				self
-				, [this]
+				g_ActorFunctor / [this]
 				{
 					auto &Internal = *mp_pInternal; 
 					return Internal.f_InitAttempt();
@@ -138,8 +137,8 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_bConnectionsInitialized)
-			return fg_Explicit();
-		return Internal.m_AwaitingConnection.f_Insert().f_Future();
+			co_return {};
+		co_return co_await Internal.m_AwaitingConnection.f_Insert().f_Future();
 	}
 
 	void CDistributedActorTrustManager::CInternal::f_Init
@@ -608,24 +607,25 @@ namespace NMib::NConcurrency
 
 						m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 
-						TCFuture<void> PublishFuture;
+						TCPromise<void> PublishPromise;
 						if (m_bSupportAuthentication)
 						{
-							PublishFuture = m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
+							m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
 								(
 								 	m_ActorDistributionManager
 								 	, m_pThis
 								 	, ICDistributedActorAuthentication::mc_pDefaultNamespace
 								)
+								> PublishPromise
 							;
 						}
 						else
-							PublishFuture = fg_Explicit();
+							PublishPromise.f_SetResult();
 
 						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 						
 						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
-							+ fg_Move(PublishFuture)
+							+ PublishPromise.f_MoveFuture()
 							> [this, _Promise]
 							(TCAsyncResult<CDistributedActorPublication> &&_Result, TCAsyncResult<void> &&_Published)
 							{

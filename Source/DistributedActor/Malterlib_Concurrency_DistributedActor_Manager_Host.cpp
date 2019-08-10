@@ -69,11 +69,13 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorDistributionManager::f_KickHost(NStr::CStr const &_HostID)
 	{
+		TCPromise<void> Promise;
+
 		auto &Internal = *mp_pInternal;
 
 		auto *pHosts = Internal.m_HostsByRealHostID.f_FindEqual(_HostID);
 		if (!pHosts)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 
 		TCActorResultVector<void> Results;
 
@@ -90,8 +92,7 @@ namespace NMib::NConcurrency
 			Internal.fp_DestroyHost(Host, nullptr, "host was kicked");
 		}
 
-		TCPromise<void> Promise;
-		Results.f_GetResults() > fg_ConcurrentActor() / [Promise](auto &&_Results)
+		Results.f_GetResults() > fg_DirectCallActor() / [Promise](auto &&_Results)
 			{
 				// Ignore errors
 				Promise.f_SetResult();
@@ -106,7 +107,7 @@ namespace NMib::NConcurrency
 
 		auto *pHost = Internal.m_Hosts.f_FindEqual(_UniqueHostID);
 		if (!pHost)
-			return fg_Explicit();
+			co_return {};
 
 		auto &Host = **pHost;
 
@@ -116,7 +117,7 @@ namespace NMib::NConcurrency
 		ReturnState.m_LastConnectionError = Host.m_LastError;
 		ReturnState.m_LastConnectionErrorTime = Host.m_LastErrorTime;
 
-		return fg_Explicit(fg_Move(ReturnState));
+		co_return fg_Move(ReturnState);
 	}
 
 	void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)

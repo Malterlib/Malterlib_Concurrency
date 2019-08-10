@@ -265,14 +265,10 @@ namespace NMib::NConcurrency
 		Internal.m_pTimerThread.f_Clear();
 #if DMibEnableSafeCheck > 0
 		Internal.m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
-		auto Cleanup
-			= fg_OnScopeExit
-			(
-				[&]
-				{
-					Internal.m_ProcessingThread = 0;
-				}
-			)
+		auto Cleanup = g_OnScopeExit > [&]
+			{
+				Internal.m_ProcessingThread = 0;
+			}
 		;
 #endif
 		DMibFastCheck(Internal.m_RegisteredTimers.f_IsEmpty());
@@ -280,7 +276,7 @@ namespace NMib::NConcurrency
 
 		Internal.m_OneshotTimers.f_Clear();
 
-		return fg_Explicit();
+		co_return {};
 	}
 
 	CTimerActor::~CTimerActor()
@@ -599,7 +595,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
+	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -607,7 +603,7 @@ namespace NMib::NConcurrency
 		if (!pActor)
 			pActor = fg_CurrentActor();
 
-		return fg_UnsafeDirectDispatch
+		return g_Future <<= fg_UnsafeDirectDispatch
 			(
 				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
@@ -627,7 +623,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
+	TCFuture<CActorSubscription> fg_RegisterTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -635,7 +631,7 @@ namespace NMib::NConcurrency
 		if (!pActor)
 			pActor = fg_CurrentActor();
 
-		return fg_UnsafeDirectDispatch
+		return g_Future <<= fg_UnsafeDirectDispatch
 			(
 				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{
@@ -655,7 +651,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<CActorSubscription, true> fg_RegisterExactTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
+	TCFuture<CActorSubscription> fg_RegisterExactTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -663,7 +659,7 @@ namespace NMib::NConcurrency
 		if (!pActor)
 			pActor = fg_CurrentActor();
 
-		return fg_UnsafeDirectDispatch
+		return g_Future <<= fg_UnsafeDirectDispatch
 			(
 				[_Period, pActor = fg_Move(pActor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
 				{

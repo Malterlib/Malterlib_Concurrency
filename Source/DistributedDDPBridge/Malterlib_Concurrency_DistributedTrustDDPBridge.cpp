@@ -98,74 +98,69 @@ namespace NMib::NConcurrency
 		if (Internal.m_bStartedUp)
 		{
 			if (Internal.m_pStartupFailedException)
-				return *Internal.m_pStartupFailedException;
-			return fg_Explicit();
+				co_return Internal.m_pStartupFailedException->f_ExceptionPointer();
+			co_return {};
 		}
 		
 		auto Promise = Internal.m_OnStartup.f_Insert();
-		
-		if (!Internal.m_bStartedUp)
-		{
-			Internal.m_bStartedUp = true;
-			Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) 
-				> [this](TCAsyncResult<TCActor<CActorDistributionManager>> &&_DistributionManager)
+		Internal.m_bStartedUp = true;
+		Internal.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager) > [this](TCAsyncResult<TCActor<CActorDistributionManager>> &&_DistributionManager)
+			{
+				auto &Internal = *mp_pInternal;
+				if (!_DistributionManager)
 				{
-					auto &Internal = *mp_pInternal;
-					if (!_DistributionManager)
-					{
-						CStr Error = fg_Format("Failed to get distribution manager: {}", _DistributionManager.f_GetExceptionStr()); 
-						DMibLogWithCategory
-							(
-								Mib/Concurrency/DistributedActorDDPBridge
-								, Error
-								, "{}"
-								, Error
-							)
-						;
-						Internal.fp_StartupFailed(DMibErrorInstance(Error));
-						return;
-					}
-					Internal.m_DistributionManager = fg_Move(*_DistributionManager);
-					Internal.m_DistributionManager
+					CStr Error = fg_Format("Failed to get distribution manager: {}", _DistributionManager.f_GetExceptionStr());
+					DMibLogWithCategory
 						(
-							&CActorDistributionManager::f_RegisterWebsocketHandler
-							, "/ActorDDPBridge"
-							, fg_ThisActor(this)
-							, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCFuture<void>
-							{
-								auto &Internal = *mp_pInternal;
-								Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
-								return fg_Explicit();
-							}
+							Mib/Concurrency/DistributedActorDDPBridge
+							, Error
+							, "{}"
+							, Error
 						)
-						> [this](TCAsyncResult<CActorSubscription> &&_Result)
+					;
+					Internal.fp_StartupFailed(DMibErrorInstance(Error));
+					return;
+				}
+				Internal.m_DistributionManager = fg_Move(*_DistributionManager);
+				Internal.m_DistributionManager
+					(
+						&CActorDistributionManager::f_RegisterWebsocketHandler
+						, "/ActorDDPBridge"
+						, fg_ThisActor(this)
+						, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCFuture<void>
 						{
 							auto &Internal = *mp_pInternal;
-							if (!_Result)
-							{
-								CStr Error = fg_Format("Failed to register websocket handler: {}", _Result.f_GetExceptionStr()); 
-								DMibLogWithCategory
-									(
-										Mib/Concurrency/DistributedActorDDPBridge
-										, Error
-										, "{}"
-										, Error
-									)
-								;
-								Internal.fp_StartupFailed(DMibErrorInstance(Error));
-								return;
-							}
-							Internal.m_WebsocketHandlerSubscription = fg_Move(*_Result);
-							for (auto &OnStartup : Internal.m_OnStartup)
-								OnStartup.f_SetResult();
-							Internal.m_OnStartup.f_Clear();
+							Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
+							co_return {};
 						}
-					;
-				}
-			;
-		}
-		
-		return Promise.f_MoveFuture();
+					)
+					> [this](TCAsyncResult<CActorSubscription> &&_Result)
+					{
+						auto &Internal = *mp_pInternal;
+						if (!_Result)
+						{
+							CStr Error = fg_Format("Failed to register websocket handler: {}", _Result.f_GetExceptionStr());
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/DistributedActorDDPBridge
+									, Error
+									, "{}"
+									, Error
+								)
+							;
+							Internal.fp_StartupFailed(DMibErrorInstance(Error));
+							return;
+						}
+						Internal.m_WebsocketHandlerSubscription = fg_Move(*_Result);
+						for (auto &OnStartup : Internal.m_OnStartup)
+							OnStartup.f_SetResult();
+						Internal.m_OnStartup.f_Clear();
+					}
+				;
+			}
+		;
+
+		co_return co_await Promise.f_MoveFuture();
 	}
 	
 	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods
@@ -180,9 +175,9 @@ namespace NMib::NConcurrency
 		{
 			auto pOldHandler = Internal.m_MethodHandlers.f_FindEqual(Method.m_Name);
 			if (pOldHandler)
-				return DMibErrorInstance(fg_Format("Handler already registered for this method name: {}", Method.m_Name));
+				co_return DMibErrorInstance(fg_Format("Handler already registered for this method name: {}", Method.m_Name));
 			if (!MethodNames(Method.m_Name).f_WasCreated())
-				return DMibErrorInstance(fg_Format("Duplicate method name: {}", Method.m_Name));
+				co_return DMibErrorInstance(fg_Format("Duplicate method name: {}", Method.m_Name));
 		}
 		
 		for (auto &Method : _Methods)
@@ -201,7 +196,7 @@ namespace NMib::NConcurrency
 			}
 		;
 		
-		return fg_Explicit(fg_Move(Subscription));
+		co_return fg_Move(Subscription);
 	}
 	
 	CEJSON CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details)
@@ -333,7 +328,7 @@ namespace NMib::NConcurrency
 									}
 								;
 								
-								return fg_Explicit();
+								co_return {};
 							}
 						)
 						> [this, _MethodInfo](TCAsyncResult<void> &&_Result)

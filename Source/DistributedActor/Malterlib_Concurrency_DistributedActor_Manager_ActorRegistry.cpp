@@ -34,20 +34,21 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorPublication::f_Destroy()
 	{
-		if (!mp_DistributionManager)
-			return fg_Explicit();
+		TCPromise<void> Promise;
 
-		TCFuture<void> RemovePublicationFuture;
+		if (!mp_DistributionManager)
+			return Promise <<= g_Void;
+
 		if (auto DistributionManager = mp_DistributionManager.f_Lock())
-			RemovePublicationFuture = DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID);
+			DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID) > Promise;
 		else
-			RemovePublicationFuture = fg_Explicit();
+			Promise.f_SetResult();
 
 		mp_DistributionManager.f_Clear();
 		mp_Namespace.f_Clear();
 		mp_ActorID.f_Clear();
 
-		return RemovePublicationFuture;
+		return Promise.f_MoveFuture();
 	}
 
 	void CDistributedActorPublication::f_Republish(NStr::CStr const &_HostID) const
@@ -71,10 +72,11 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorInterfaceInfo const &_ClassesToPublish
 		)
 	{
-		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return DMibErrorInstance("Invalid namespace name");
-
 		TCPromise<CDistributedActorPublication> Promise;
+
+		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+			return Promise <<= DMibErrorInstance("Invalid namespace name");
+
 		auto &Internal = *mp_pInternal;
 		auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
 		auto pDistributedActorData = static_cast<NPrivate::CDistributedActorData const *>(_Actor->f_GetDistributedActorData().f_Get());
@@ -83,10 +85,7 @@ namespace NMib::NConcurrency
 		auto &PublishedActor = LocalNamespace.m_Actors[pDistributedActorData->m_ActorID];
 
 		if (PublishedActor.m_Actor)
-		{
-			Promise.f_SetException(DMibErrorInstance("This actor has already been published in this namespace"));
-			return Promise.f_MoveFuture();
-		}
+			return Promise <<= DMibErrorInstance("This actor has already been published in this namespace");
 
 		PublishedActor.m_pNamespace = &LocalNamespace;
 		Internal.m_PublishedActors.f_Insert(PublishedActor);
@@ -118,14 +117,11 @@ namespace NMib::NConcurrency
 			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
 		}
 
-		Promise.f_SetResult(CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID));
-
-		return Promise.f_MoveFuture();
+		return Promise <<= CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
 	}
 
 	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID)
 	{
-		TCPromise<CDistributedActorPublication> Promise;
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_NamespaceID);
 		if (!pLocalNamespace)
@@ -449,7 +445,7 @@ namespace NMib::NConcurrency
 			for (auto &Namespace : _NameSpaces)
 			{
 				if (!CActorDistributionManager::fs_IsValidNamespaceName(Namespace))
-					return DMibErrorInstance("Invalid namespace name");
+					co_return DMibErrorInstance("Invalid namespace name");
 			}
 
 			for (auto &Namespace : _NameSpaces)
@@ -481,6 +477,6 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		return fg_Explicit(fg_Move(pCallback));
+		co_return fg_Move(pCallback);
 	}
 }

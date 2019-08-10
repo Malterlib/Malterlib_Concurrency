@@ -74,19 +74,21 @@ namespace NMib::NConcurrency::NPrivate
 
 	TCFuture<void> CDistributedActorSubscriptionReferenceState::f_Destroy()
 	{
+		TCPromise<void> Promise;
+
 		auto DistributionManager = m_DistributionManager.f_Lock();
 		if (!DistributionManager)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 		
 		m_DistributionManager.f_Clear();
 		
-		return DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
 	}
 	
 	TCFuture<void> CDistributedActorSubscriptionReference::f_Destroy()
 	{
 		if (!m_pState)
-			return fg_Explicit();
+			return TCPromise<void>() <<= g_Void;
 		
 		return m_pState->f_Destroy();
 	}

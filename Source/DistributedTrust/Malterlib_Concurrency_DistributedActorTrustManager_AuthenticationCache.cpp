@@ -218,7 +218,7 @@ namespace NMib::NConcurrency
 		if (mp_AuthenticatedPermissions.f_IsEmpty() && mp_PreauthenticatedPatterns.f_IsEmpty())
 			mp_PeriodicCleanupSubscription.f_Clear();
 
-		return fg_Explicit();
+		co_return {};
 	}
 
 	void CDistributedActorTrustManagerAuthenticationCache::f_StartPeriodicCleanup()

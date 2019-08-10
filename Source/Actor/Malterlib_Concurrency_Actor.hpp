@@ -857,6 +857,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCFuture<void> TCRoundRobinActors<t_CActor>::f_Destroy()
 	{
+		TCPromise<void> Promise;
+
 		TCActorResultVector<void> Results;
 		for (auto &Actor : mp_Actors)
 		{
@@ -864,7 +866,6 @@ namespace NMib::NConcurrency
 				Actor->f_Destroy() > Results.f_AddResult();
 		}
 
-		TCPromise<void> Promise;
 		Results.f_GetResults() > Promise.f_ReceiveAny();
 		return Promise.f_MoveFuture();
 	}

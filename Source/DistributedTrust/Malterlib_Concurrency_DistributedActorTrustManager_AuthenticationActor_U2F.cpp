@@ -257,6 +257,8 @@ namespace
 
 			static TCFuture<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
+				TCPromise<CDevice> Promise;
+
 				static mint const c_InitNonceSize = 8;
 
 				struct CInitResponse
@@ -273,7 +275,6 @@ namespace
 				CSecureByteVector Nonce;
 				NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
 
-				TCPromise<CDevice> Promise;
 				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Promise / [=](CSecureByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() != (c_InitNonceSize + 4 + 5))
@@ -300,9 +301,9 @@ namespace
 
 			static TCFuture<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
-				TCSharedPointer<CReadFrameState> pState = fg_Construct();
-
 				TCPromise<CFrame> Promise;
+
+				TCSharedPointer<CReadFrameState> pState = fg_Construct();
 
 				auto fTry = [Device = _Device, Promise](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
 					{
@@ -373,6 +374,7 @@ namespace
 
 			static TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
 			{
+				TCPromise<CSecureByteVector> Promise;
 
 				TCSharedPointer<CSendState> pSendState = fg_Construct(_Send);
 
@@ -410,8 +412,6 @@ namespace
 				;
 
 				pSendState->m_fDoSend(pSendState, SendPromise);
-
-				TCPromise<CSecureByteVector> Promise;
 
 				SendPromise.f_MoveFuture() > Promise / [=]
 					{
@@ -485,6 +485,8 @@ namespace
 
 			TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector const &_Data, uint8 _UserPresence) const
 			{
+				TCPromise<CSecureByteVector> Promise;
+
 				auto DataLength = _Data.f_GetLen();
 
 				CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
@@ -492,7 +494,6 @@ namespace
 				Buffer.f_Insert((uint8)0);
 				Buffer.f_Insert((uint8)0);
 
-				TCPromise<CSecureByteVector> Promise;
 				f_SendReceive(U2FHID_MSG, Buffer) > Promise / [=](CSecureByteVector &&_Response)
 					{
 						if (_Response.f_GetLen() < 2)
@@ -620,15 +621,15 @@ namespace
 #else
 		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
-			return fg_Explicit(CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage});
+			co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
 		}
 #endif
 
 		static TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
 		{
-			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
-
 			TCPromise<TCSharedPointer<CU2FDevices>> Promise;
+
+			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
 
 			pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0) > Promise / [=](TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> &&_HIDDevices)
 				{
@@ -1177,10 +1178,7 @@ namespace
 			*/
 
 			if (_Response.m_Signature.f_GetLen() < 1 + U2F_COUNTER_LEN)
-			{
-				Promise.f_SetException(DMibErrorInstance("Length mismatch"));
-				return Promise.f_MoveFuture();
-			}
+				return Promise <<= DMibErrorInstance("Length mismatch");
 
 			auto *pData = _Response.m_Signature.f_GetArray();
 			Result.m_UserPresence = *pData++;
@@ -1190,10 +1188,7 @@ namespace
 			ERR_clear_error();
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
-			{
-				Promise.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)")));
-				return Promise.f_MoveFuture();
-			}
+				return Promise <<= DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
 
 			CHash_SHA256 Hash;
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
@@ -1211,16 +1206,15 @@ namespace
 			if (Verified != 1)
 			{
 				if (Verified == -1)
-					Promise.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)")));
+					return Promise <<= DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)"));
 				else
-					Promise.f_SetException(DMibErrorInstance("Invalid signature"));;
-				return Promise.f_MoveFuture();
+					return Promise <<= DMibErrorInstance("Invalid signature");
 			}
 			// Change endianess
 			Result.m_Counter = fg_ByteSwapBE(Result.m_Counter);
 			Result.m_bVerified = true;
-			Promise.f_SetResult(Result);
-			return Promise.f_MoveFuture();
+
+			return Promise <<= fg_Move(Result);
 		}
 
 		CSecureByteVector m_SignatureBytes;
@@ -1373,13 +1367,13 @@ namespace NMib::NConcurrency
 
 		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 		if (!pValue || !pValue->f_IsBinary())
-			return fg_Explicit(CVerifyAuthenticationReturn{});
+			return Promise <<= CVerifyAuthenticationReturn{};
 
 		CU2FContext::CAuthenticationResponse AuthenticationResponse;
 		AuthenticationResponse.m_Signature = _Response.m_Signature;
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-		return g_ConcurrentDispatch / [=]
+		return Promise <<= g_ConcurrentDispatch / [=]
 			{
 				TCPromise<CVerifyAuthenticationReturn> Promise;
 				CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");

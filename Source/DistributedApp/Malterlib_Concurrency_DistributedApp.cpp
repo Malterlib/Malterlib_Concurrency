@@ -159,8 +159,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
-		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up listen config");
 		TCPromise<void> Promise;
+
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up listen config");
 
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 
@@ -174,27 +175,33 @@ namespace NMib::NConcurrency
 			for (auto &Object : pListen->f_Array())
 			{
 				if (!Object.f_IsObject())
-					return DMibErrorInstance("Invalid listen entry. Entry needs to be an object with 'Address' specified");
+					return Promise <<= DMibErrorInstance("Invalid listen entry. Entry needs to be an object with 'Address' specified");
 
 				CDistributedActorTrustManager_Address Address;
 				if (auto pAddress = Object.f_GetMember("Address"))
 				{
 					if (pAddress->f_Type() != EJSONType_String)
-						return DMibErrorInstance("Listen 'Address' has wrong type, only string is supported");
+						return Promise <<= DMibErrorInstance("Listen 'Address' has wrong type, only string is supported");
 					if (!Address.m_URL.f_Decode(pAddress->f_String()))
-						return DMibErrorInstance(fg_Format("Invalid listen URL '{}'", pAddress->f_String()));
+						return Promise <<= DMibErrorInstance(fg_Format("Invalid listen URL '{}'", pAddress->f_String()));
 					if (Address.m_URL.f_GetScheme() != "wss")
-						return DMibErrorInstance(fg_Format("Invalid scheme in URL '{}': Only wss is currently supported", pAddress->f_String()));
+						return Promise <<= DMibErrorInstance(fg_Format("Invalid scheme in URL '{}': Only wss is currently supported", pAddress->f_String()));
 				}
 				else
-					return DMibErrorInstance("Missing 'Address' for listen entry");
+					return Promise <<= DMibErrorInstance("Missing 'Address' for listen entry");
 
 				if (bFirst)
 					mp_PrimaryListen = Address;
 				bFirst = false;
 
 				if (Address == LocalListen)
-					return DMibErrorInstance(fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode()));
+				{
+					return Promise <<= DMibErrorInstance
+						(
+							fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode())
+						)
+					;
+				}
 				WantedListens[Address];
 			}
 		}
@@ -321,6 +328,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
 	{
 		TCPromise<void> Promise;
+
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
 		fp_CleanupEnclaveSockets();
@@ -390,7 +398,7 @@ namespace NMib::NConcurrency
 								{
 									if (mp_Settings.m_bSeparateDistributionManager)
 									{
-										_DistributionManager->f_Destroy() > [Promise](TCAsyncResult<void> &&)
+										fg_Move(_DistributionManager).f_Destroy() > [Promise](TCAsyncResult<void> &&)
 											{
 												Promise.f_SetException(DMibErrorInstance("Startup aborted"));
 											}
@@ -401,8 +409,7 @@ namespace NMib::NConcurrency
 								}
 								mp_State.m_DistributionManager = fg_Move(_DistributionManager);
 								mp_State.m_HostID = fg_Move(_HostID);
-								fp_SetupListen()
-									+ fp_SetupAppServerInterface(_Params)
+								fp_SetupListen() + fp_SetupAppServerInterface(_Params)
 									> Promise % "Failed to setup listen config or app server interface" / [this, Promise]()
 									{
 										if (mp_State.m_bStoppingApp)
@@ -527,8 +534,7 @@ namespace NMib::NConcurrency
 
 			mp_pInitOnce = fg_Construct
 				(
-					self
-					, [this, _Params]() -> TCFuture<void>
+					g_ActorFunctor / [this, _Params]() -> TCFuture<void>
 					{
 						return fp_Initialize(_Params);
 					}
@@ -587,73 +593,51 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppActor::f_StopApp()
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App shutting down");
-		TCPromise<void> Promise;
 
 		mp_State.m_bStoppingApp = true;
 
-		self / [this]() -> TCFuture<void>
-			{
-				if (mp_CommandLine)
-				{
-					TCPromise<void> Promise;
-					mp_CommandLine->f_Destroy() > Promise;
-					mp_CommandLine = nullptr;
-					return Promise.f_MoveFuture();
-				}
-				mp_pStdInCleanup.f_Clear();
-				return fg_Explicit();
-			}
-			> Promise % "Failed to stop command line interface" / [this, Promise]
-			{
-				self(&CDistributedAppActor::fp_StopApp) > Promise % "Failed to stop app" / [this, Promise]
-					{
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
+		if (mp_CommandLine)
+			co_await (fg_Move(mp_CommandLine).f_Destroy() % "Failed to stop command line interface");
 
-						self / [this]() -> TCFuture<void>
-							{
-								TCActorResultVector<void> Destroys;
+		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
 
-								if (mp_AppInterfaceClientTrustProxy)
-									mp_AppInterfaceClientTrustProxy->f_Destroy() > Destroys.f_AddResult();
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
-								if (mp_AppInterfaceClientRegistrationSubscription)
-									mp_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
+		{
+			TCActorResultVector<void> Destroys;
 
-								mp_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
-								mp_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
+			if (mp_AppInterfaceClientTrustProxy)
+				mp_AppInterfaceClientTrustProxy.f_Destroy() > Destroys.f_AddResult();
 
-								co_await Destroys.f_GetResults().f_Timeout(10.0, "Timed out waiting for destroy of app interface");
+			if (mp_AppInterfaceClientRegistrationSubscription)
+				mp_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
 
-								co_return {};
-							}
-							> Promise / [Promise]
-							{
-								DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");
-								Promise.f_SetResult();
-							}
-						;
-					}
-				;
-			}
-		;
+			mp_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
+			mp_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
 
-		return Promise.f_MoveFuture();
+			co_await Destroys.f_GetResults().f_Timeout(10.0, "Timed out waiting for destroy of app interface");
+		}
+
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");
+
+		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
-			mp_State.m_DistributionManager->f_Destroy() > Destroys.f_AddResult();
+			mp_State.m_DistributionManager.f_Destroy() > Destroys.f_AddResult();
 		if (mp_State.m_TrustManager)
-			mp_State.m_TrustManager->f_Destroy() > Destroys.f_AddResult();
+			mp_State.m_TrustManager.f_Destroy() > Destroys.f_AddResult();
 
 		if (mp_FileOperationsActor)
-			mp_FileOperationsActor->f_Destroy() > Destroys.f_AddResult();
+			mp_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
 		if (mp_CleanupFilesActor)
-			mp_CleanupFilesActor->f_Destroy() > Destroys.f_AddResult();
+			mp_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
 		co_await Destroys.f_GetResults();
+
 		co_return {};
 	}
 
@@ -815,12 +799,12 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable
 	TCFuture<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
-		return self(&CDistributedAppActor::fp_Test_Command, _Command, _Params);
+		return g_Future <<= self(&CDistributedAppActor::fp_Test_Command, _Command, _Params);
 	}
 
 	TCFuture<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
-		return fg_Explicit();
+		co_return {};
 	}
 #endif
 }

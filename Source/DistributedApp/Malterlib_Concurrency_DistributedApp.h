@@ -254,9 +254,9 @@ namespace NMib::NConcurrency
 		;
         TCFuture<CActorSubscription> fp_EnableAuthentication
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 	NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 			 	, int64 _AuthenticationLifetime
-			 	, NStr::CStr const &_UserID
+			 	, NStr::CStr _UserID
 			)
 		;
 
@@ -296,9 +296,9 @@ namespace NMib::NConcurrency
 #endif
 
 		TCFuture<void> fp_SetupListen();
-		TCFuture<void> fp_SetupAppServerInterface(NEncoding::CEJSON const &_Params);
-		TCFuture<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON const &_Params);
-		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr const &_RequestMagic);
+		TCFuture<void> fp_SetupAppServerInterface(NEncoding::CEJSON _Params);
+		TCFuture<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params);
+		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr _RequestMagic);
 
 		TCFuture<void> fp_CreateCommandLineTrust();
 		TCFuture<void> fp_SetupCommandLineListen();

@@ -32,12 +32,10 @@ namespace NMib::NConcurrency
 	template <typename t_CInterface>
 	TCFuture<void> TCActorInterface<t_CInterface>::f_Destroy()
 	{
-		TCFuture<void> DestroyFuture;
 		if (f_GetSubscription())
-			DestroyFuture = f_GetSubscription()->f_Destroy();
+			return f_GetSubscription()->f_Destroy();
 		else
-			DestroyFuture = fg_Explicit();
-		return DestroyFuture;
+			return TCPromise<void>() <<= g_Void;
 	}
 		
 	template <typename t_CInterface>

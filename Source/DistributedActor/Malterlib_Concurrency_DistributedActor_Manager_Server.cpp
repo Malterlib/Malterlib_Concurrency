@@ -38,45 +38,21 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	auto CDistributedActorListenReference::f_Stop()
-		-> TCActorCall
-		<
-			TCActor<CConcurrentActor>
-			, TCFuture<void> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<void> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<void> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<void> ()>>
-			, false
-		>
+	TCFuture<void> CDistributedActorListenReference::f_Stop()
 	{
+		TCPromise<void> Promise;
+
 		bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		mp_DistributionManager.f_Clear();
-		return fg_ConcurrentActor().f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<void>>>
-			(
-				NFunction::TCFunctionMovable<TCFuture<void> ()>
-				(
-					[bAlreadyStopped, DistributionManager = fg_Move(DistributionManager), ListenID = fg_Move(mp_ListenID)]
-					{
-						TCPromise<void> Promise;
-						if (DistributionManager)
-						{
-							DistributionManager(&CActorDistributionManager::fp_RemoveListen, ListenID) > [Promise](TCAsyncResult<void> &&_Result)
-								{
-									Promise.f_SetResult(fg_Move(_Result));
-								}
-							;
-							return Promise.f_MoveFuture();
-						}
-						if (bAlreadyStopped)
-							Promise.f_SetException(DMibErrorInstance("Listen has already been stopped"));
-						else
-							Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
 
-						return Promise.f_MoveFuture();
-					}
-				)
-			)
-		;
+		if (DistributionManager)
+			return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
+
+		if (bAlreadyStopped)
+			return Promise <<= DMibErrorInstance("Listen has already been stopped");
+		else
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 	}
 
 	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
@@ -123,21 +99,20 @@ namespace NMib::NConcurrency
 			&&_fNewWebsocketConnection
 		)
 	{
+		TCPromise<CActorSubscription> Promise;
+
 		auto &Internal = *mp_pInternal;
 		if (Internal.m_WebsocketHandlers.f_FindEqual(_Path))
-			return DMibErrorInstance("Path already registered");
+			return Promise <<= DMibErrorInstance("Path already registered");
 		auto &Handler = Internal.m_WebsocketHandlers[_Path];
 		Handler.m_Actor = _Actor.f_Weak();
 		Handler.m_fNewWebsocketConnection = fg_Move(_fNewWebsocketConnection);
 
-		return fg_Explicit
-			(
-				g_ActorSubscription / [this, _Path]
-				{
-					auto &Internal = *mp_pInternal;
-					Internal.m_WebsocketHandlers.f_Remove(_Path);
-				}
-			)
+		return Promise <<= g_ActorSubscription / [this, _Path]
+			{
+				auto &Internal = *mp_pInternal;
+				Internal.m_WebsocketHandlers.f_Remove(_Path);
+			}
 		;
 	}
 
@@ -624,8 +599,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorListenReference> CActorDistributionManager::f_Listen(CActorDistributionListenSettings const &_Settings)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<CDistributedActorListenReference> Promise;
+
+		auto &Internal = *mp_pInternal;
 
 		Internal.fp_Listen(NCryptography::fg_RandomID(), _Settings, fg_Construct(Promise));
 
@@ -635,16 +611,14 @@ namespace NMib::NConcurrency
 	TCFuture<void> CActorDistributionManager::fp_RemoveListen(NStr::CStr const &_ListenID)
 	{
 		TCPromise<void> Promise;
+		
 		auto &Internal = *mp_pInternal;
 		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
 		if (pListen)
 		{
 			pListen->m_ListenCallbackSubscription.f_Clear();
 			if (pListen->m_WebsocketServer)
-			{
-				pListen->m_WebsocketServer->f_Destroy() > Promise;
-				pListen->m_WebsocketServer.f_Clear();
-			}
+				fg_Move(pListen->m_WebsocketServer).f_Destroy() > Promise;
 			else
 				Promise.f_SetResult();
 			Internal.m_Listens.f_Remove(pListen);

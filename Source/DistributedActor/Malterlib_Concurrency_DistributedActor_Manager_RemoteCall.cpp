@@ -213,30 +213,31 @@ namespace NMib::NConcurrency
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
-		if (mp_bDestroyed)
-			return DMibErrorInstance("Distribution manager destroyed");
+		TCPromise<NContainer::CSecureByteVector> Promise;
+
+		if (f_IsDestroyed())
+			return Promise <<= DMibErrorInstance("Distribution manager destroyed");
 
 		auto &State = *_Context.m_pState; 
 		auto &DistributedData = *_pDistributedActorData.f_Get();
 
 		if (DistributedData.m_bWasDestroyed)
-			return DMibErrorInstance("Remote actor longer available");
+			return Promise <<= DMibErrorInstance("Remote actor longer available");
 
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 		
 		if (!pHostInterface || pHostInterface->m_bDeleted)
-			return DMibErrorInstance("Remote actor host no longer available");
+			return Promise <<= DMibErrorInstance("Remote actor host no longer available");
 
 		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
 
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
-			return DMibErrorInstance("Remote host restarted with new actor protocol");
+			return Promise <<= DMibErrorInstance("Remote host restarted with new actor protocol");
 
 		State.m_pHost = pHost;
 		State.m_DistributionManager = fg_ThisActor(this);
 		State.m_LastExecutionID = pHost->m_LastExecutionID;
 		
-		TCPromise<NContainer::CSecureByteVector> Promise;
 		if (!fg_RegisterActorFunctorsForCall(State, *pHost, Promise))
 			return Promise.f_MoveFuture();
 			
@@ -681,41 +682,43 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
-			return fg_Explicit();
-		auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
-		if (!pSubscription)
-			return fg_Explicit(); // Host destroyed
-
-		uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
-
-		if (HostActorProtocolVersion >= 0x105)
 		{
-			auto pPendingDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(_SubscriptionID);
-			if (pPendingDestroy)
-				return DMibErrorInstance("This subscription has already been destroyed");
+			if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
+				co_return {};
+			auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
+			if (!pSubscription)
+				co_return {}; // Host destroyed
+
+			uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
+
+			if (HostActorProtocolVersion >= 0x105)
+			{
+				auto pPendingDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(_SubscriptionID);
+				if (pPendingDestroy)
+					co_return DMibErrorInstance("This subscription has already been destroyed");
+			}
+
+			for (auto &FunctionID : pSubscription->m_Functions)
+				Host.f_DestroyImplicitFunction(FunctionID);
+			for (auto &ActorID : pSubscription->m_Actors)
+				Host.m_ImplicitlyPublishedActors.f_Remove(ActorID);
+			for (auto &ActorID : pSubscription->m_Interfaces)
+				Host.m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
+
+			CDistributedActorCommand_DestroySubscription Result;
+			Result.m_SubscriptionID = _SubscriptionID;
+
+			auto &Internal = *mp_pInternal;
+
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			Stream << Result;
+			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
+
+			if (HostActorProtocolVersion < 0x105)
+				co_return {};
 		}
 		
-		for (auto &FunctionID : pSubscription->m_Functions)
-			Host.f_DestroyImplicitFunction(FunctionID);
-		for (auto &ActorID : pSubscription->m_Actors)
-			Host.m_ImplicitlyPublishedActors.f_Remove(ActorID);
-		for (auto &ActorID : pSubscription->m_Interfaces)
-			Host.m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
-
-		CDistributedActorCommand_DestroySubscription Result;
-		Result.m_SubscriptionID = _SubscriptionID;
-		
-		auto &Internal = *mp_pInternal;
-		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-		Stream << Result;
-		Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
-
-		if (HostActorProtocolVersion < 0x105)
-			return fg_Explicit();
-		
-		return Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID].f_Future();
+		co_return co_await Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID].f_Future();
 	}
 
 	void CActorDistributionManagerInternal::fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID)

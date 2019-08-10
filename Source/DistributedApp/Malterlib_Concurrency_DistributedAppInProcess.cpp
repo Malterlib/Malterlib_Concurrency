@@ -115,30 +115,24 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppInProcessActor::fp_Destroy()
 	{
-		TCPromise<void> Promise;
 		if (mp_DistributedApp)
 		{
-			mp_DistributedApp(&CDistributedAppActor::f_StopApp) > [Promise, this](auto &&)
-				{
-					mp_DistributedApp->f_Destroy() > Promise;
-					mp_DistributedApp.f_Clear();
-				}
-			;
+			co_await mp_DistributedApp(&CDistributedAppActor::f_StopApp);
+			co_await fg_Move(mp_DistributedApp).f_Destroy();
 		}
-		else
-			Promise.f_SetResult();
-		return Promise.f_MoveFuture();
+
+		co_return {};
 	}
 
 	TCFuture<CDistributedActorTrustManager::CTrustTicket> CDistributedAppInProcessActor::fp_HandleTicketRequest()
 	{
+		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
+
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 		
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID();
 
-		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
-		
-		mp_TrustManager
+		auto Ticket = co_await mp_TrustManager
 			(
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				, mp_Address
@@ -148,66 +142,58 @@ namespace NMib::NConcurrency
 					{
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
-							return fg_Explicit();
+							co_return {};
 						
-						TCFuture<void> DestroyFuture;
 						if (pHandleRequest->m_NotificationsSubscription)
-							DestroyFuture = pHandleRequest->m_NotificationsSubscription->f_Destroy();
-						else
-							DestroyFuture = fg_Explicit();
-						
+							co_await pHandleRequest->m_NotificationsSubscription->f_Destroy();
+
 						mp_HandleRequests.f_Remove(HandleRequestID);
 						
-						return DestroyFuture;
+						co_return {};
 					}
 				)
 				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
 				{
-					TCPromise<void> Promise;
-					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Promise](TCAsyncResult<void> &&_Result)
-						{
-							mp_HandleRequests.f_Remove(HandleRequestID);
-							Promise.f_SetResult(fg_Move(_Result));
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
+
+					mp_HandleRequests.f_Remove(HandleRequestID);
+
+					co_return {};
 				}
 			 	, nullptr
 			)
-			> [this, HandleRequestID, Promise](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
-			{
-				if (!_Ticket)
-				{
-					DMibLogWithCategory
-						(
-							Malterlib/Concurrency
-							, Error
-							, "Failed to generate ticket for '{}': {}"
-							, mp_Description
-							, _Ticket.f_GetExceptionStr()
-						)
-					;
-					Promise.f_SetException(_Ticket);
-					return;
-				}
-
-				auto &Request = mp_HandleRequests[HandleRequestID];
-				Request.m_NotificationsSubscription = fg_Move(_Ticket->m_NotificationsSubscription);
-				DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
-				Promise.f_SetResult(fg_Move(_Ticket->m_Ticket));
-			}
+			.f_Wrap()
 		;
 
-		return Promise.f_MoveFuture();
+		if (!Ticket)
+		{
+			DMibLogWithCategory
+				(
+					Malterlib/Concurrency
+					, Error
+					, "Failed to generate ticket for '{}': {}"
+					, mp_Description
+					, Ticket.f_GetExceptionStr()
+				)
+			;
+			co_return Ticket.f_GetException();
+		}
+
+		auto &Request = mp_HandleRequests[HandleRequestID];
+		Request.m_NotificationsSubscription = fg_Move(Ticket->m_NotificationsSubscription);
+
+		DMibLogWithCategory(Malterlib/Concurrency, Info, "Sending ticket to '{}'", mp_Description);
+		co_return fg_Move(Ticket->m_Ticket);
 	}
 
 #if DMibConfig_Tests_Enable
 	TCFuture<NEncoding::CEJSON> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
 	{
+		TCPromise<NEncoding::CEJSON> Promise;
 		if (!mp_DistributedApp)
-			DMibError("No distributed app");
+			return Promise <<= DMibErrorInstance("No distributed app");
 		
-		return mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
+		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
 	}
 
 	TCFuture<uint32> CDistributedAppInProcessActor::f_RunCommandLine
@@ -218,10 +204,11 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
+		TCPromise<uint32> Promise;
 		if (!mp_DistributedApp)
-			DMibError("No distributed app");
+			return Promise <<= DMibErrorInstance("No distributed app");
 
-		return mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
 	}
 #endif
 }

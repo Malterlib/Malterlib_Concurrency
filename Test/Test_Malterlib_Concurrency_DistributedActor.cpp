@@ -60,7 +60,7 @@ class CActorSubscriptionReferenceDummy : public CActorSubscriptionReference
 public:
 	TCFuture<void> f_Destroy() override
 	{
-		return fg_Explicit();
+		co_return {};
 	}
 };
 
@@ -98,8 +98,8 @@ public:
 	TCFuture<> f_SetSubscriptionNonPublished(CActorSubscription &&_Subscription, bool _bError)
 	{
 		if (_bError)
-			return DMibErrorInstance("Error");
-		return fg_Explicit();
+			co_return DMibErrorInstance("Error");
+		co_return {};
 	}
 };
 
@@ -332,12 +332,12 @@ public:
 
 	TCFuture<uint32> f_CallSetInterface()
 	{
-		return m_SetDistributedActorInterface.f_CallActor(&CDistributedActorInterface::f_Test)();
+		co_return co_await m_SetDistributedActorInterface.f_CallActor(&CDistributedActorInterface::f_Test)();
 	}
 
 	TCFuture<CActorSubscription> f_GetSubscription()
 	{
-		return fg_Explicit
+		co_return
 			(
 				g_ActorSubscription / []
 				{
@@ -350,9 +350,9 @@ public:
 	TCFuture<> f_SetSubscription(CActorSubscription &&_Subscription, bool _bError)
 	{
 		if (_bError)
-			return DMibErrorInstance("Error");
+			co_return DMibErrorInstance("Error");
 		m_Subscription = fg_Move(_Subscription);
-		return fg_Explicit();
+		co_return {};
 	}
 
 	CMultipleSubscriptions f_RegisterActorFunctors
@@ -425,14 +425,14 @@ public:
 
 	TCFuture<CStr> f_CallActorFunctor(uint32 _iCallback, CStr const &_Message)
 	{
-		return m_ActorFunctors[_iCallback].m_ActorFunctor(_Message);
+		co_return co_await m_ActorFunctors[_iCallback].m_ActorFunctor(_Message);
 	}
 
 	TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> f_GetActorFunctorWithoutSubscription()
 	{
 		return g_ActorFunctor / [] (CStr const &_Test) -> TCFuture<CStr>
 			{
-				return fg_Explicit(_Test + "WithoutSubscription");
+				co_return _Test + "WithoutSubscription";
 			}
 		;
 	}
@@ -448,7 +448,7 @@ public:
 			)
 			/ [] (CStr const &_Test) -> TCFuture<CStr>
 			{
-				return fg_Explicit(_Test + "WithSubscription");
+				co_return _Test + "WithSubscription";
 			}
 		;
 	}
@@ -524,7 +524,7 @@ public:
 
 	TCFuture<CActorSubscription> f_RegisterWithError(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr const &_Test)> &&_Callback)
 	{
-		return DMibErrorInstance("Register failed");
+		co_return DMibErrorInstance("Register failed");
 	}
 
 	void f_RegisterNoSubscription(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr const &_Test)> &&_Callback)
@@ -638,13 +638,14 @@ public:
 
 	TCFuture<CStr> f_TestOnDisconnect()
 	{
+		TCPromise<CStr> Promise;
+
 		auto &HostInfo = CActorDistributionManager::fs_GetCallingHostInfo();
 		CStr HostID = HostInfo.f_GetRealHostID();
 
 		if (HostID.f_IsEmpty())
-			return fg_Explicit(CStr());
+			return Promise <<= CStr();
 
-		TCPromise<CStr> Promise;
 		HostInfo.f_OnDisconnect
 			(
 				fg_ThisActor(this)
@@ -742,12 +743,12 @@ public:
 
 	TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> &&_pValue)
 	{
-		return fg_Explicit(_pValue->f_ToInt());
+		co_return _pValue->f_ToInt();
 	}
 
 	TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> &&_pValue)
 	{
-		return fg_Explicit(_pValue->f_ToInt());
+		co_return _pValue->f_ToInt();
 	}
 };
 
@@ -836,11 +837,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 
-			TCFuture<uint32> SharedPointerFuture = Actor.f_CallActor(&CDistributedActor::f_SharedPointer)(fg_Construct(CStr("5")));
+			TCFuture<uint32> SharedPointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_SharedPointer)(fg_Construct(CStr("5")));
 			uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(60.0);
 			DMibExpect(SharedPointerResult, ==, 5);
 
-			TCFuture<uint32> UniquePointerFuture = Actor.f_CallActor(&CDistributedActor::f_UniquePointer)(fg_Construct(CStr("5")));
+			TCFuture<uint32> UniquePointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_UniquePointer)(fg_Construct(CStr("5")));
 			uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(60.0);
 			DMibExpect(UniquePointerResult, ==, 5);
 		};
@@ -1003,8 +1004,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						/ [](CStr const &_Message) -> TCFuture<CStr>
 						{
 							if (_Message == "TestMessageException")
-								return DMibErrorInstance("Test exception 0");
-							return fg_Explicit(_Message + "0");
+								co_return DMibErrorInstance("Test exception 0");
+							co_return _Message + "0";
 						}
 						, g_ActorFunctor(_TestActor)
 						(
@@ -1016,8 +1017,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						/ [](CStr const &_Message) -> TCFuture<CStr>
 						{
 							if (_Message == "TestMessageException")
-								return DMibErrorInstance("Test exception 1");
-							return fg_Explicit(_Message + "1");
+								co_return DMibErrorInstance("Test exception 1");
+							co_return _Message + "1";
 						}
 					).f_CallSync(60.0)
 				;
@@ -1042,8 +1043,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					/ [](CStr const &_Message) -> TCFuture<CStr>
 					{
 						if (_Message == "TestMessageException")
-							return DMibErrorInstance("Test exception 0");
-						return fg_Explicit(_Message + "0");
+							co_return DMibErrorInstance("Test exception 0");
+						co_return _Message + "0";
 					}
 				;
 				Functors.f_Insert() = g_ActorFunctor(_TestActor)
@@ -1056,8 +1057,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					/ [](CStr const &_Message) -> TCFuture<CStr>
 					{
 						if (_Message == "TestMessageException")
-							return DMibErrorInstance("Test exception 1");
-						return fg_Explicit(_Message + "1");
+							co_return DMibErrorInstance("Test exception 1");
+						co_return _Message + "1";
 					}
 				;
 				Functors[0].f_SetID(0);
@@ -1278,11 +1279,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			CStr Message;
 			auto fCallBack = [&](CStr const &_Message) -> TCFuture<CStr>
 				{
+					TCPromise<CStr> Promise;
 					DMibLock(Lock);
 					Message = _Message;
 					Event.f_Signal();
 
-					return fg_Explicit(Message);
+					return Promise <<= _Message;
 				}
 			;
 
@@ -1328,17 +1330,19 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fCallback0 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCFuture<CStr>
 				{
+					TCPromise<CStr> Promise;
 					if (_Message == "TestMessageException")
-						return DMibErrorInstance("Test exception 0");
-					return fg_Explicit(_Message + "0");
+						return Promise <<= DMibErrorInstance("Test exception 0");
+					return Promise <<= _Message + "0";
 				}
 			;
 
 			auto fCallback1 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCFuture<CStr>
 				{
+					TCPromise<CStr> Promise;
 					if (_Message == "TestMessageException")
-						return DMibErrorInstance("Test exception 1");
-					return fg_Explicit(_Message + "1");
+						return Promise <<= DMibErrorInstance("Test exception 1");
+					return Promise <<= _Message + "1";
 				}
 			;
 

@@ -11,8 +11,8 @@ namespace NMib::NConcurrency
 {
 	TCFuture<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<CActorDistributionListenSettings> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -161,8 +161,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -232,8 +232,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<bool> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -252,8 +252,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<NContainer::TCSet<CDistributedActorTrustManager_Address>> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -272,8 +272,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -340,10 +340,10 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain
 		)
 	{
-		if (_CertificateChain.f_IsEmpty())
-			return DMibErrorInstance("Empty certificate chain");
-
 		TCPromise<NStr::CStr> Promise;
+
+		if (_CertificateChain.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Empty certificate chain");
 
 		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [Promise, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
 			{

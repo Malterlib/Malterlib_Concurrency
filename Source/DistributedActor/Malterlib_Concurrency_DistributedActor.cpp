@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 			return *g_MalterlibSubSystem_Concurrency_DistributedActor;
 		}
 		
-		TCDispatchedActorCall<CDistributedActorPublication> fg_PublishActor
+		TCFuture<CDistributedActorPublication> fg_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
@@ -102,38 +102,22 @@ namespace NMib::NConcurrency
 			TCActor<CActorDistributionManager> DistributionManager;
 			
 			if (!pDistributedData)
-				Promise.f_SetException(DMibErrorInstance("Not a distributed actor"));
+				return Promise <<= DMibErrorInstance("Not a distributed actor");
 			else if (pDistributedData->m_bRemote)
-				Promise.f_SetException(DMibErrorInstance("You cannot publish a remote actor"));
+				return Promise <<= DMibErrorInstance("You cannot publish a remote actor");
 			else
 			{
 				DistributionManager = pDistributedData->m_DistributionManager.f_Lock();
 				if (!DistributionManager)
-					Promise.f_SetException(DMibErrorInstance("Distribution manager has been deleted"));
+					return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 			}
 			
-			return fg_ConcurrentDispatch
+			return Promise <<= DistributionManager
 				(
-					[
-						DistributionManager = fg_Move(DistributionManager)
-						, Promise = fg_Move(Promise)
-						, Actor = fg_Move(_Actor)
-						, InterfaceInfo = fg_Move(_InterfaceInfo)
-						, _Namespace
-					]
-					() mutable -> TCFuture<CDistributedActorPublication>
-					{
-						if (Promise.f_IsSet())
-							return Promise.f_MoveFuture();
-						return DistributionManager
-							(
-								&CActorDistributionManager::fp_PublishActor
-								, fg_Move(Actor)
-								, _Namespace
-								, InterfaceInfo
-							)
-						;
-					}
+					&CActorDistributionManager::fp_PublishActor
+					, fg_Move(_Actor)
+					, _Namespace
+					, fg_Move(_InterfaceInfo)
 				)
 			;
 		}
@@ -463,29 +447,15 @@ namespace NMib::NConcurrency
 		return mp_pHost.f_Lock();
 	}
 
-	TCDispatchedActorCall<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const
+	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const
 	{
-		return fg_ConcurrentDispatch
-			(
-				[
-					WeakDistributionManager = mp_DistributionManager
-					, fOnDisconnect = fg_Move(_fOnDisconnect)
-					, UniqueHostID = mp_UniqueHostID
-					, LastExecutionID = mp_LastExecutionID
-					, _Actor
-				]
-				() mutable -> TCFuture<CActorSubscription>
-				{
-					auto DistributionManager = WeakDistributionManager.f_Lock();
-					if (!DistributionManager)
-						return DMibErrorInstance("Distribution manager was deleted");
-					
-					TCPromise<CActorSubscription> Promise;
-					DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(fOnDisconnect), UniqueHostID, LastExecutionID) > Promise;
-					return Promise.f_MoveFuture();
-				}
-			)
-		;
+		TCPromise<CActorSubscription> Promise;
+
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+		if (!DistributionManager)
+			return Promise <<= DMibErrorInstance("Distribution manager was deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(_fOnDisconnect), mp_UniqueHostID, mp_LastExecutionID);
 	}
 
 	CHostInfo::CHostInfo()

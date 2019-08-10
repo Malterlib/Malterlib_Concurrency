@@ -125,29 +125,23 @@ namespace NMib::NConcurrency
 					{
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
-							return fg_Explicit();
+							co_return {};
 						
-						TCFuture<void> DestroyFuture;
 						if (pHandleRequest->m_NotificationsSubscription)
-							DestroyFuture = pHandleRequest->m_NotificationsSubscription->f_Destroy();
-						else
-							DestroyFuture = fg_Explicit();
-						
+							co_await pHandleRequest->m_NotificationsSubscription->f_Destroy();
+
 						mp_HandleRequests.f_Remove(HandleRequestID);
 						
-						return DestroyFuture;
+						co_return {};
 					}
 				)
 				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
 				{
-					TCPromise<void> Promise;
-					mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest) > [this, HandleRequestID, Promise](TCAsyncResult<void> &&_Result)
-						{
-							mp_HandleRequests.f_Remove(HandleRequestID);
-							Promise.f_SetResult(fg_Move(_Result));
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
+
+					mp_HandleRequests.f_Remove(HandleRequestID);
+
+					co_return {};
 				}
 			 	, nullptr
 			)

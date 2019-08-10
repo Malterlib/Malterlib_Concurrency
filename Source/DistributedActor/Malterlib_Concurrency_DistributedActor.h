@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 			bool m_bDeleted = false;
 		};
 
-		TCDispatchedActorCall<CDistributedActorPublication> fg_PublishActor
+		TCFuture<CDistributedActorPublication> fg_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, CDistributedActorInterfaceInfo &&_InterfaceInfo
@@ -389,16 +389,7 @@ namespace NMib::NConcurrency
 		CDistributedActorListenReference &operator = (CDistributedActorListenReference &&);
 
 		void f_Clear();
-		auto f_Stop() ->
-			TCActorCall
-			<
-				TCActor<CConcurrentActor>
-				, TCFuture<void> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<void> ()> &&)
-				, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<void> ()>>
-				, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<void> ()>>
-				, false
-			>
-		;
+		TCFuture<void> f_Stop();
 
 	private:
 		CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
@@ -430,9 +421,9 @@ namespace NMib::NConcurrency
 		CDistributedActorConnectionReference &operator = (CDistributedActorConnectionReference &&);
 
 		void f_Clear();
-		TCDispatchedActorCall<void> f_Disconnect(bool _bPreserveHost = false);
-		TCDispatchedActorCall<CDistributedActorConnectionStatus> f_GetStatus();
-		TCDispatchedActorCall<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
+		TCFuture<void> f_Disconnect(bool _bPreserveHost = false);
+		TCFuture<CDistributedActorConnectionStatus> f_GetStatus();
+		TCFuture<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
 		bool f_IsValid() const;
 
 		NContainer::TCVector<NContainer::CByteVector> const &f_GetCertificateChain() const;
@@ -477,7 +468,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const &f_LastExecutionID() const;
 		TCActor<CActorDistributionManager> f_GetDistributionManager() const;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
-		TCDispatchedActorCall<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const;
+		TCFuture<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const;
 		uint32 f_GetProtocolVersion() const;
 		NStr::CStr const &f_GetClaimedUserID() const;
 		NStr::CStr const &f_GetClaimedUserName() const;
@@ -688,7 +679,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		friend TCDispatchedActorCall<CDistributedActorPublication> NPrivate::fg_PublishActor
+		friend TCFuture<CDistributedActorPublication> NPrivate::fg_PublishActor
 			(
 				TCDistributedActor<CActor> &&_Actor
 				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo

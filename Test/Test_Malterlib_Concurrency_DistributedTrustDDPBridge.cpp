@@ -48,28 +48,28 @@ namespace
 				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
 				
 				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(20.0);
+
+				auto WeakActor = fg_ConcurrentActor().f_Weak();
 				
 				CActorSubscription HandlerSubscription = DdpBridge
 					(
 						&CDistributedTrustDDPBridge::f_RegisterMethods
-						, fg_ConcurrentActor().f_Weak()
+						, fg_Move(WeakActor)
 						, fg_CreateVector<CDistributedTrustDDPBridge::CMethod>
 						(
 							{
 								"testMethod"
 								, [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCFuture<NEncoding::CEJSON> 
 								{
+									TCPromise<NEncoding::CEJSON> Promise;
 									if (_Params[0].f_GetMember("Invalid"))
-										return DMibErrorInstance("Invalid params");
+										return Promise <<= DMibErrorInstance("Invalid params");
 									auto &HostInfo = fg_GetCallingHostInfo();
-									return fg_Explicit
-										(
-											NEncoding::CEJSON
-											{
-												"Result"_= 5
-												, "HostID"_= HostInfo.f_GetRealHostID()
-											}
-										)
+									return Promise <<= NEncoding::CEJSON
+										{
+											"Result"_= 5
+											, "HostID"_= HostInfo.f_GetRealHostID()
+										}
 									;
 								}
 							}

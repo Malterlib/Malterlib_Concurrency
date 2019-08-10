@@ -26,8 +26,8 @@ namespace NMib::NConcurrency::NPrivate
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual TCDispatchedWeakActorCall<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
-		virtual TCDispatchedWeakActorCall<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
+		virtual TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
+		virtual TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
 	};
 	
 	struct CTrustedPermissionSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>
@@ -49,9 +49,9 @@ namespace NMib::NConcurrency::NPrivate
 		TCWeakActor<CActor> m_DispatchActor;
 		NContainer::TCVector<NStr::CStr> m_Wildcards;
 
-		TCDispatchedWeakActorCall<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded);
-		TCDispatchedWeakActorCall<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
-		TCDispatchedWeakActorCall<void> f_SetAuthenticatedPermissionPattern
+		TCFuture<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded);
+		TCFuture<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity, NContainer::TCSet<NStr::CStr> const &_PermissionsRemoved);
+		TCFuture<void> f_SetAuthenticatedPermissionPattern
 			(
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr &&_Pattern
@@ -60,7 +60,7 @@ namespace NMib::NConcurrency::NPrivate
 			 	, NTime::CTime const &_CacheTime
 			)
 		;
-		TCDispatchedWeakActorCall<void> f_AddAuthenticatedPermission
+		TCFuture<void> f_AddAuthenticatedPermission
 			(
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr const &_Permission

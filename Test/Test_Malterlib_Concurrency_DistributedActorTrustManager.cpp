@@ -41,7 +41,7 @@ namespace NTestTrustManager
 			Result.m_PublicData["Public"] = "PublicData1";
 			Result.m_PrivateData["Private"] = "PrivateData1";
 
-			return fg_Explicit(Result);
+			co_return fg_Move(Result);
 		}
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
@@ -52,7 +52,6 @@ namespace NTestTrustManager
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -61,8 +60,8 @@ namespace NTestTrustManager
 				Response.m_FactorID = _Factors.fs_GetKey(RegisteredFactor);
 				Response.m_FactorName = RegisteredFactor.m_Name;
 			}
-			Promise.f_SetResult(fg_Move(Response));
-			return Promise.f_MoveFuture();
+
+			co_return fg_Move(Response);
 		};
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
@@ -72,7 +71,7 @@ namespace NTestTrustManager
 				, CAuthenticationData const &_AuthenticationData
 			) override
 		{
-			return fg_Explicit(CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))});
+			co_return CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))};
 		}
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
@@ -96,7 +95,7 @@ namespace NTestTrustManager
 			Result.m_PublicData["Public"] = "PublicData2";
 			Result.m_PrivateData["Private"] = "PrivateData2";
 
-			return fg_Explicit(Result);
+			co_return fg_Move(Result);
 		}
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
@@ -107,7 +106,6 @@ namespace NTestTrustManager
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -117,8 +115,7 @@ namespace NTestTrustManager
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			Promise.f_SetResult(fg_Move(Response));
-			return Promise.f_MoveFuture();
+			co_return fg_Move(Response);
 		};
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
@@ -128,7 +125,7 @@ namespace NTestTrustManager
 				, CAuthenticationData const &_AuthenticationData
 			) override
 		{
-			return fg_Explicit(CVerifyAuthenticationReturn{false});
+			co_return CVerifyAuthenticationReturn{false};
 		}
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
@@ -2473,7 +2470,7 @@ namespace NTestTrustManager
 				DMibAssert(PermissionFiles.f_GetLen(), ==, 1);
 				DMibExpect(NFile::CFile::fs_GetFile(PermissionFiles[0]), ==, "H_8MJEEHW9rbRfQKcf8.json");
 
-				DatabaseActor->f_Destroy().f_CallSync(60.0);
+				DatabaseActor.f_Destroy().f_CallSync(60.0);
 
 				{
 					DMibTestPath("After reload");

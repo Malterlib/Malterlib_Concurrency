@@ -5,6 +5,7 @@
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Internal.h"
 
 #include <Mib/Concurrency/ActorSubscription>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Cryptography/RandomData>
 
 namespace NMib::NConcurrency
@@ -24,27 +25,27 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!_Handler)
-			return DMibErrorInstance("Invalid authentication handler");
+			co_return DMibErrorInstance("Invalid authentication handler");
 
 		auto &Internal = *m_pThis->mp_pInternal;
 		auto &CallingHostInfo = fg_GetCallingHostInfo();
 		auto &UniqueHostID = CallingHostInfo.f_GetUniqueHostID();
 		auto pHost = CallingHostInfo.f_GetHost();
 		if (!pHost)
-			return DMibErrorInstance("Host is not valid");
+			co_return DMibErrorInstance("Host is not valid");
 
 		auto pWeakHost = pHost.f_Weak();
 
 		DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Registering authentication handler for host '{}' user '{}'", UniqueHostID, _UserID);
-
-		TCPromise<TCActorSubscriptionWithID<>> Promise;
 
 		NStr::CStr UserName = "(Unknown)";
 
 		if (auto pUser = Internal.m_Users.f_FindEqual(_UserID))
 			UserName = pUser->m_UserInfo.m_UserName;
 
-		Internal.m_ActorDistributionManager
+		auto pWeakHandler = _Handler.f_Weak();
+
+		co_await Internal.m_ActorDistributionManager
 			(
 			 	&CActorDistributionManager::f_SetAuthenticationHandler
 			 	, pHost
@@ -53,30 +54,25 @@ namespace NMib::NConcurrency
 			 	, _UserID
 			 	, UserName
 			)
-			> Promise / [pThis = m_pThis, Promise, UniqueHostID, pWeakHost, pWeakHandler = _Handler.f_Weak()]
+		;
+
+		co_return g_ActorSubscription / [pThis = m_pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCFuture<void>
 			{
-				auto ActorSubscription = g_ActorSubscription / [pThis, UniqueHostID, pWeakHost, pWeakHandler]() -> TCFuture<void>
-					{
-						DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler for {}", UniqueHostID);
-						auto pHost = pWeakHost.f_Lock();
-						if (!pHost)
-							return fg_Explicit();
+				DMibLogWithCategory(Mib/Concurrency/Trust, Info, "Deregistering authentication handler for {}", UniqueHostID);
+				auto pHost = pWeakHost.f_Lock();
+				if (!pHost)
+					co_return {};
 
-						auto &Internal = *pThis->mp_pInternal;
-						return Internal.m_ActorDistributionManager
-							(
-							 	&CActorDistributionManager::f_RemoveAuthenticationHandler
-							 	, pHost
-							 	, pWeakHandler
-							)
-						;
-					}
+				auto &Internal = *pThis->mp_pInternal;
+				co_return co_await Internal.m_ActorDistributionManager
+					(
+						&CActorDistributionManager::f_RemoveAuthenticationHandler
+						, fg_Move(pHost)
+						, pWeakHandler
+					)
 				;
-
-				Promise.f_SetResult(fg_Move(ActorSubscription));
 			}
 		;
-		return Promise.f_MoveFuture();
 	}
 
 	TCFuture<bool> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_AuthenticatePermissionPattern
@@ -87,14 +83,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Internal = *m_pThis->mp_pInternal;
-		return Internal.f_AuthenticatePermissionPattern
-			(
-				_Pattern
-				, _AuthenticationFactors
-				, fg_GetCallingHostInfo()
-			 	, _RequestID
-			)
-		;
+		return fg_CallSafe(Internal, &CDistributedActorTrustManager::CInternal::f_AuthenticatePermissionPattern, _Pattern, _AuthenticationFactors, fg_GetCallingHostInfo(), _RequestID);
 	}
 
 	ICDistributedActorAuthenticationHandler::CChallenge CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID)
@@ -112,16 +101,17 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
 		)
 	{
+		using namespace NStr;
+
 		if (_Responses.f_IsEmpty())
-			return fg_Explicit();
+			co_return {};
 
 		if (!CActorDistributionManager::fs_IsValidUserID(_Challenge.m_UserID))
-			return DMibErrorInstance("Invalid user ID");
+			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
 
 		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
-		TCPromise<NContainer::TCVector<bool>> Promise;
 
 		TCActorResultVector<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> VerificationResults;
 
@@ -131,8 +121,7 @@ namespace NMib::NConcurrency
 			{
 				FactorIDs.f_Insert();
 				TCPromise<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
-				Result.f_SetResult(ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{});
-				Result.f_MoveFuture() > VerificationResults.f_AddResult();
+				(Result <<= ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{}) > VerificationResults.f_AddResult();
 			}
 		;
 
@@ -189,57 +178,44 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		VerificationResults.f_GetResults()
-			> Promise / [this, Promise, _Challenge, FactorIDs](TCVector<TCAsyncResult<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn>> &&_Results)
-			{
-				auto &Internal = *mp_pInternal;
-				NContainer::TCVector<bool> Results;
-				auto iFactorID = FactorIDs.f_GetIterator();
-				for (auto &AuthenticationResult : _Results)
-				{
-					if (!AuthenticationResult)
-						return Promise.f_SetException(AuthenticationResult.f_GetException());
+		auto UnwrappedResults = co_await VerificationResults.f_GetResults();
 
-					if (AuthenticationResult->m_bVerified && (!AuthenticationResult->m_UpdatedPrivateData.f_IsEmpty() ||  !AuthenticationResult->m_UpdatedPublicData.f_IsEmpty()))
-					{
-						auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
-						if (pRegisteredFactors)
-						{
-							auto &FactorID = *iFactorID;
-							auto *pRegisteredFactor = pRegisteredFactors->f_FindEqual(FactorID);
-							if (pRegisteredFactor)
-							{
-								CAuthenticationData NewData;
-								NewData = pRegisteredFactor->m_AuthenticationFactor;
+		NContainer::TCVector<bool> Results;
+		auto iFactorID = FactorIDs.f_GetIterator();
+		for (auto iAuthenticationResult = UnwrappedResults.f_GetIterator(); iAuthenticationResult; ++iAuthenticationResult, ++iFactorID)
+		{
+			auto &AuthenticationResult = *iAuthenticationResult;
 
-								for (auto &Value : AuthenticationResult->m_UpdatedPrivateData)
-									NewData.m_PrivateData[AuthenticationResult->m_UpdatedPrivateData.fs_GetKey(Value)] = fg_Move(Value);
-								for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
-									NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
+			if (!AuthenticationResult)
+				co_return AuthenticationResult.f_GetException();
 
-								f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData)) > [UserID = _Challenge.m_UserID](TCAsyncResult<void> &&_Result)
-									{
-										DMibLogWithCategory
-											(
-											 	Mib/Concurrency/Trust
-											 	, Error
-											 	, "Failed to update authentication factor after verifying responses for user '{}': {}"
-											 	, UserID
-											 	, _Result.f_GetExceptionStr()
-											)
-										;
-									}
-								;
-							}
-						}
-					}
+			Results.f_InsertLast(AuthenticationResult->m_bVerified);
 
-					Results.f_InsertLast(AuthenticationResult->m_bVerified);
-					++iFactorID;
-				}
-				Promise.f_SetResult(Results);
-			}
-		;
-		return Promise.f_MoveFuture();
+			if (!AuthenticationResult->m_bVerified || (AuthenticationResult->m_UpdatedPrivateData.f_IsEmpty() && AuthenticationResult->m_UpdatedPublicData.f_IsEmpty()))
+				continue;
+
+			auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
+			if (!pRegisteredFactors)
+				continue;
+
+			auto &FactorID = *iFactorID;
+			auto *pRegisteredFactor = pRegisteredFactors->f_FindEqual(FactorID);
+			if (!pRegisteredFactor)
+				continue;
+
+			CAuthenticationData NewData;
+			NewData = pRegisteredFactor->m_AuthenticationFactor;
+
+			for (auto &Value : AuthenticationResult->m_UpdatedPrivateData)
+				NewData.m_PrivateData[AuthenticationResult->m_UpdatedPrivateData.fs_GetKey(Value)] = fg_Move(Value);
+			for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
+				NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
+
+			f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData))
+				> fg_LogError("Mib/Concurrency/Trust", "Failed to update authentication factor after verifying responses for user '{}'"_f << _Challenge.m_UserID)
+			;
+		}
+
+		co_return fg_Move(Results);
 	}
 }

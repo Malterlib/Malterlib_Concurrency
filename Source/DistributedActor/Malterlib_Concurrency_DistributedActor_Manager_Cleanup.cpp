@@ -34,6 +34,9 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionManagerInternal::fp_CleanupUpdateTimer()
 	{
+		if (m_pThis->f_IsDestroyed())
+			return;
+
 		if (m_InactiveHosts.f_IsEmpty())
 		{
 			m_CleanupTimerSubscription.f_Clear();

@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 				Promise.f_SetException(DMibErrorInstance("Authentication handler destroyed"));
 		}
 		mp_PreauthenticationInfos.f_Clear();
-		return fg_Explicit();
+		co_return {};
 	}
 
 	void CDistributedAppAuthenticationHandler::fp_TryOneFactorAtATime(TCSharedPointer<CAuthenticationState> const &_pState)
@@ -497,8 +497,8 @@ namespace NMib::NConcurrency
 		 	, CStr const &_MultipleRequestID
 		)
 	{
-		if (mp_bDestroyed)
-			return DMibErrorInstance("Authentication handler destroyed");
+		if (f_IsDestroyed())
+			co_return DMibErrorInstance("Authentication handler destroyed");
 
 		TCSharedPointer<CPreauthenticationInfo> pInfo;
 		if (_MultipleRequestID.f_IsEmpty())
@@ -514,12 +514,12 @@ namespace NMib::NConcurrency
 		{
 			auto *pMultipleInfo = mp_PreauthenticationInfos.f_FindEqual(_MultipleRequestID);
 			if (!pMultipleInfo)
-				return DMibErrorInstance("No such multiple request ID exists");
+				co_return DMibErrorInstance("No such multiple request ID exists");
 			pInfo = *pMultipleInfo;
 			auto &Info = *pInfo;
 
 			if (Info.m_bAuthenticationCompleted || Info.m_bResultsSet) // Ooops. Too late
-				return fg_Explicit(TCVector<CResponse>{});
+				co_return {};
 		}
 
 		auto &Info = *pInfo;
@@ -535,9 +535,9 @@ namespace NMib::NConcurrency
 		else
 		{
 			if (Info.m_Request != _Request)
-				return DMibErrorInstance("Internal error - request mismatch between requests");
+				co_return DMibErrorInstance("Internal error - request mismatch between requests");
 			if (Info.m_UserID != _Challenge.m_UserID)
-				return DMibErrorInstance("Internal error - UserID mismatch between requests");
+				co_return DMibErrorInstance("Internal error - UserID mismatch between requests");
 		}
 
 		if (--Info.m_nHosts == 0)
@@ -554,15 +554,16 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		return Info.m_Promises[HostID].f_Future();
+		auto Future = fg_Exchange(pInfo, nullptr)->m_Promises[HostID].f_Future();
+		co_return co_await fg_Move(Future);
 	}
 
 	TCFuture<CDistributedAppAuthenticationHandler::CMultipleRequestData> CDistributedAppAuthenticationHandler::f_GetMultipleRequestSubscription(uint32 _nHosts)
 	{
 		if (_nHosts == 0)
-			return DMibErrorInstance("You have to have at least one host to request subscription for");
-		if (mp_bDestroyed)
-			return DMibErrorInstance("Authentication handler destroyed");
+			co_return DMibErrorInstance("You have to have at least one host to request subscription for");
+		if (f_IsDestroyed())
+			co_return DMibErrorInstance("Authentication handler destroyed");
 
 		auto MultipleRequestID = NCryptography::fg_RandomID();
 		auto &Info = *(mp_PreauthenticationInfos[MultipleRequestID] = fg_Construct());
@@ -581,10 +582,10 @@ namespace NMib::NConcurrency
 					}
 					mp_PreauthenticationInfos.f_Remove(pInfo);
 				}
-				return fg_Explicit();
+				co_return {};
 			}
 		;
-		return fg_Explicit(CMultipleRequestData{fg_Move(Subscription), fg_Move(MultipleRequestID)});
+		co_return CMultipleRequestData{fg_Move(Subscription), fg_Move(MultipleRequestID)};
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
@@ -594,21 +595,22 @@ namespace NMib::NConcurrency
 		 	, CStr const &_UserID
 		)
 	{
+		TCPromise<CActorSubscription> Promise;
 		if (!mp_Settings.m_bSupportUserAuthentication)
-			return fg_Explicit();
+			return Promise <<= g_Void;
 
-		return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
+		return Promise <<= self(&CDistributedAppActor::fp_EnableAuthentication, _pCommandLine, _AuthenticationLifetime, _UserID);
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
 		(
-		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
+		 	TCSharedPointer<CCommandLineControl> _pCommandLine
 		 	, int64 _AuthenticationLifetime
-		 	, CStr const &_UserID
+		 	, CStr _UserID
 		)
 	{
 		if (mp_AuthenticationHandlerImplementation)
-			return DMibErrorInstance("Authentication already enabled");
+			co_return DMibErrorInstance("Authentication already enabled");
 
 		mp_AuthenticationHandlerImplementation
 			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
@@ -628,10 +630,7 @@ namespace NMib::NConcurrency
 				mp_AuthenticationRegistrationSubscriptions.f_Clear();
 
 				if (mp_AuthenticationHandlerImplementation)
-				{
-					mp_AuthenticationHandlerImplementation->f_Destroy() > Destroys.f_AddResult();
-					mp_AuthenticationHandlerImplementation.f_Clear();
-				}
+					fg_Move(mp_AuthenticationHandlerImplementation).f_Destroy() > Destroys.f_AddResult();
 
 				co_await Destroys.f_GetResults().f_Wrap();
 
@@ -639,105 +638,89 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		TCPromise<CActorSubscription> Promise;
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser)
-			> Promise / [this, Promise, Subscription = fg_Move(Subscription), _UserID](CStr &&_DefaultUserID) mutable
+		CStr DefaultUserID = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser);
+
+		CStr UserID = _UserID;
+		if (UserID.f_IsEmpty())
+			UserID = DefaultUserID;
+
+		if (!UserID)	// No use setting up authentication without a default user
+			co_return {};
+
+		mp_AuthenticationRemotes = co_await mp_State.m_TrustManager
+			(
+				&CDistributedActorTrustManager::f_SubscribeTrustedActors<ICDistributedActorAuthentication>
+				, ICDistributedActorAuthentication::mc_pDefaultNamespace
+				, fg_ThisActor(this)
+			)
+		;
+
+		auto fOnActor = [=, UserID = fg_Move(UserID)](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
 			{
-				CStr UserID = _UserID;
-				if (UserID.f_IsEmpty())
-					UserID = _DefaultUserID;
+				TCPromise<void> Promise;
 
-				if (!UserID)	// No use setting up authentication without a default user
-				{
-					Promise.f_SetResult();
-					return;
-				}
-				mp_State.m_TrustManager
+				mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
+
+				_NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
 					(
-						&CDistributedActorTrustManager::f_SubscribeTrustedActors<ICDistributedActorAuthentication>
-						, ICDistributedActorAuthentication::mc_pDefaultNamespace
-						, fg_ThisActor(this)
+						mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
+						, UserID
 					)
-					> Promise /[=, Subscription = fg_Move(Subscription)](TCTrustedActorSubscription<ICDistributedActorAuthentication> &&_Subscription) mutable
+					> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
 					{
-						mp_AuthenticationRemotes = fg_Move(_Subscription);
+						if (!_Subscription)
+						{
+							Promise.f_SetException(_Subscription);
+							DMibLogWithCategory
+								(
+									Mib/Concurrency/App
+									, Error
+									, "Registeration of authentication handler interface for server {} failed: {}"
+									, HostInfo.f_GetDesc()
+									, _Subscription.f_GetExceptionStr()
+								)
+							;
+							return;
+						}
 
-						auto fOnActor = [=, UserID = fg_Move(UserID)](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
-							{
-								TCPromise<void> Promise;
+						DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler for remote {}", HostInfo.f_GetDesc());
 
-								mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
+						if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
+							pSubscription->m_Subscription = fg_Move(*_Subscription);
 
-								_NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
-									(
-										mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
-										, UserID
-									) > [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
-									{
-										if (!_Subscription)
-										{
-											Promise.f_SetException(_Subscription);
-											DMibLogWithCategory
-												(
-													Mib/Concurrency/App
-													, Error
-													, "Registeration of authentication handler interface for server {} failed: {}"
-													, HostInfo.f_GetDesc()
-													, _Subscription.f_GetExceptionStr()
-												)
-											;
-											return;
-										}
-
-										DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler for remote {}", HostInfo.f_GetDesc());
-
-										if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
-											pSubscription->m_Subscription = fg_Move(*_Subscription);
-
-										Promise.f_SetResult();
-									}
-								;
-
-								return Promise.f_MoveFuture();
-							}
-						;
-
-						mp_AuthenticationRemotes.f_OnActor
-							(
-								[fOnActor](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
-								{
-									fOnActor(_NewActor, _ActorInfo) > fg_DiscardResult();
-								}
-								, false
-							)
-						;
-						mp_AuthenticationRemotes.f_OnRemoveActor
-							(
-								[this](TCWeakDistributedActor<CActor> const &_RemovedActor)
-								{
-									mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
-								}
-							)
-						;
-
-						TCActorResultVector<void> SubscribeResults;
-						for (auto &Actor : mp_AuthenticationRemotes.m_Actors)
-							fOnActor(Actor.m_Actor, Actor.m_TrustInfo) > SubscribeResults.f_AddResult();
-
-						SubscribeResults.f_GetResults() > Promise / [Promise, Subscription = fg_Move(Subscription)](TCVector<TCAsyncResult<void>> &&_SubscribeResults) mutable
-							{
-								if (!fg_CombineResults(Promise, fg_Move(_SubscribeResults)))
-									return;
-
-								Promise.f_SetResult(fg_Move(Subscription));
-							}
-						;
+						Promise.f_SetResult();
 					}
 				;
+
+				return Promise.f_MoveFuture();
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		mp_AuthenticationRemotes.f_OnActor
+			(
+				[fOnActor](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
+				{
+					fOnActor(_NewActor, _ActorInfo) > fg_DiscardResult();
+				}
+				, false
+			)
+		;
+		mp_AuthenticationRemotes.f_OnRemoveActor
+			(
+				[this](TCWeakDistributedActor<CActor> const &_RemovedActor)
+				{
+					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
+				}
+			)
+		;
+
+		TCActorResultVector<void> SubscribeResults;
+		for (auto &Actor : mp_AuthenticationRemotes.m_Actors)
+			fOnActor(Actor.m_Actor, Actor.m_TrustInfo) > SubscribeResults.f_AddResult();
+
+		co_await SubscribeResults.f_GetResults() | g_Unwrap;
+
+		co_return fg_Move(Subscription);
 	}
 }
 

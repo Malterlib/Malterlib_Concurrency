@@ -1016,7 +1016,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorSubscriptionReference::f_Destroy()
 	{
-		return fg_Explicit();
+		co_return {};
 	}
 }
 

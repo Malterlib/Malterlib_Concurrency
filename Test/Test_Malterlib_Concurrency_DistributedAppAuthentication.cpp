@@ -221,7 +221,8 @@ namespace NTestAuthentication
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.malterlib/*")
 						 , fg_ThisActor(this)
-					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
+					)
+					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
 					{
 						mp_Permissions = fg_Move(_TrustedSubscription);
 						Promise.f_SetResult();
@@ -245,25 +246,22 @@ namespace NTestAuthentication
 		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CServerActor::CServer>(fg_Construct(self), mp_State);
-			return mp_ServerActor(&CServer::f_SubscribePermissions);
+			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
+			co_return {};
 		}
 
 		TCFuture<void> fp_StopApp() override
 		{
-			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
-
 			if (mp_ServerActor)
 			{
 				DMibLogWithCategory(Mib/Concurrency/CServerActor, Info, "Shutting down server");
 
-				mp_ServerActor->f_Destroy() > [pCanDestroy](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(Mib/Concurrency/CServerActor, Error, "Failed to shut down server: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/CServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
-			return pCanDestroy->f_Future();
+
+			co_return {};
 		}
 
 		TCActor<CServerActor::CServer> mp_ServerActor;
@@ -396,7 +394,8 @@ namespace NTestAuthentication
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription1, CTrustedPermissionSubscription &&_TrustedSubscription2)
+					)
+					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription1, CTrustedPermissionSubscription &&_TrustedSubscription2)
 					{
 						mp_Permissions1 = fg_Move(_TrustedSubscription1);
 						mp_Permissions2 = fg_Move(_TrustedSubscription2);
@@ -415,7 +414,8 @@ namespace NTestAuthentication
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription3)
+					)
+					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription3)
 					{
 						mp_Permissions3 = fg_Move(_TrustedSubscription3);
 						Promise.f_SetResult();
@@ -433,7 +433,8 @@ namespace NTestAuthentication
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
-					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription4)
+					)
+					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription4)
 					{
 						mp_Permissions4 = fg_Move(_TrustedSubscription4);
 						Promise.f_SetResult();
@@ -459,50 +460,38 @@ namespace NTestAuthentication
 	private:
 		TCFuture<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params) override
 		{
-			TCPromise<NEncoding::CEJSON> Promise;
 			if (_Command == "SubscribePermissions3")
 			{
-				mp_ServerActor(&CServer::f_SubscribePermissions3) > Promise / [Promise]
-					{
-						Promise.f_SetResult(CEJSON{});
-					}
-				;
-				return Promise.f_MoveFuture();
+				co_await mp_ServerActor(&CServer::f_SubscribePermissions3);
+				co_return {};
 			}
 			if (_Command == "SubscribePermissions4")
 			{
-				mp_ServerActor(&CServer::f_SubscribePermissions4) > Promise / [Promise]
-					{
-						Promise.f_SetResult(CEJSON{});
-					}
-				;
-				return Promise.f_MoveFuture();
+				co_await mp_ServerActor(&CServer::f_SubscribePermissions4);
+				co_return {};
 			}
-			return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
+			co_return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
 		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CManyServerActor::CServer>(fg_Construct(self), mp_State);
-			return mp_ServerActor(&CServer::f_SubscribePermissions);
+			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
+
+			co_return {};
 		}
 
 		TCFuture<void> fp_StopApp() override
 		{
-			TCSharedPointer<CCanDestroyTracker> pCanDestroy = fg_Construct();
-
 			if (mp_ServerActor)
 			{
 				DMibLogWithCategory(Mib/Concurrency/CManyServerActor, Info, "Shutting down server");
 
-				mp_ServerActor->f_Destroy() > [pCanDestroy](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(Mib/Concurrency/CManyServerActor, Error, "Failed to shut down server: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/CManyServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
-			return pCanDestroy->f_Future();
+			co_return {};
 		}
 
 		TCActor<CManyServerActor::CServer> mp_ServerActor;
@@ -564,14 +553,7 @@ namespace NTestAuthentication
 			{
 				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions);
 				}
 
 				CServer *m_pThis;
@@ -581,18 +563,15 @@ namespace NTestAuthentication
 			{
 				TCPromise<void> Promise;
 
-				mp_AppState.m_TrustManager
+				mp_Permissions = co_await mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.slowmalterlib/*")
 						 , fg_ThisActor(this)
-					) > Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
-					{
-						mp_Permissions = fg_Move(_TrustedSubscription);
-						Promise.f_SetResult();
-					}
+					)
 				;
-				return Promise.f_MoveFuture();
+
+				co_return {};
 			}
 
 		private:
@@ -610,7 +589,9 @@ namespace NTestAuthentication
 		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CSlowServerActor::CServer>(fg_Construct(self), mp_State);
-			return mp_ServerActor(&CServer::f_SubscribePermissions);
+			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
+
+			co_return {};
 		}
 
 		TCFuture<void> fp_StopApp() override
@@ -621,14 +602,12 @@ namespace NTestAuthentication
 			{
 				DMibLogWithCategory(Mib/Concurrency/CSlowServerActor, Info, "Shutting down server");
 
-				mp_ServerActor->f_Destroy() > [pCanDestroy](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(Mib/Concurrency/CSlowServerActor, Error, "Failed to shut down server: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/CSlowServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
-			return pCanDestroy->f_Future();
+
+			co_return {};
 		}
 
 		TCActor<CSlowServerActor::CServer> mp_ServerActor;
@@ -668,93 +647,45 @@ namespace NTestAuthentication
 		{
 			TCPromise<NEncoding::CEJSON> Promise;
 			if (_Command == "CommandLineHostID")
-			{
-				Promise.f_SetResult(mp_State.m_CommandLineHostID);
-				return Promise.f_MoveFuture();
-			}
-			return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
+				co_return mp_State.m_CommandLineHostID;
+
+			co_return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
 	private:
 		TCFuture<void> fp_StartApp(CEJSON const &_Params) override
 		{
-			TCPromise<void> Promise;
-
 			// Have to create the user and set it as default user before registering the authentication handler.
-			mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User") > Promise / [this, Promise]
-				{
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID)  > Promise / [this, Promise]
-						{
-							mp_State.m_TrustManager
-								(
-									&CDistributedActorTrustManager::f_SubscribeTrustedActors<CServerInterface>
-									, CServerInterface::mc_pDefaultNamespace
-									, fg_ThisActor(this)
-								)
-								+ mp_State.m_TrustManager
-								(
-									&CDistributedActorTrustManager::f_SubscribeTrustedActors<CManyServerInterface>
-									, CManyServerInterface::mc_pDefaultNamespace
-									, fg_ThisActor(this)
-								)
-								+ mp_State.m_TrustManager
-								(
-									&CDistributedActorTrustManager::f_SubscribeTrustedActors<CSlowServerInterface>
-									, CSlowServerInterface::mc_pDefaultNamespace
-									, fg_ThisActor(this)
-								)
-								> [this, Promise]
-								(
-									TCAsyncResult<TCTrustedActorSubscription<CServerInterface>> &&_Subscription
-									, TCAsyncResult<TCTrustedActorSubscription<CManyServerInterface>> &&_ManySubscription
-									, TCAsyncResult<TCTrustedActorSubscription<CSlowServerInterface>> &&_SlowSubscription
-								)
-								{
-									if (!_Subscription)
-									{
-										DMibLogWithCategory(Malterlib/Concurrency/TestDistAppAuthentication, Error, "Failed to subscribe to server: {}", _Subscription.f_GetExceptionStr());
-										Promise.f_SetException(_Subscription);
-										return;
-									}
-									if (!_ManySubscription)
-									{
-										DMibLogWithCategory
-											(
-											 	Malterlib/Concurrency/TestDistAppAuthentication
-											 	, Error, "Failed to subscribe to many server: {}"
-											 	, _ManySubscription.f_GetExceptionStr()
-											)
-										;
-										Promise.f_SetException(_ManySubscription);
-										return;
-									}
-									if (!_SlowSubscription)
-									{
-										DMibLogWithCategory
-											(
-											 	Malterlib/Concurrency/TestDistAppAuthentication
-											 	, Error
-											 	, "Failed to subscribe to slow server: {}"
-											 	, _SlowSubscription.f_GetExceptionStr()
-											)
-										;
-										Promise.f_SetException(_SlowSubscription);
-										return;
-									}
-
-									mp_TestServers = fg_Move(*_Subscription);
-									mp_ManyTestServers = fg_Move(*_ManySubscription);
-									mp_SlowTestServers = fg_Move(*_SlowSubscription);
-
-									Promise.f_SetResult();
-								}
-							;
-						}
-					;
-				}
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User");
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID);
+			auto [Subscription, ManySubscription, SlowSubscription] = co_await
+				(
+					mp_State.m_TrustManager
+					(
+						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CServerInterface>
+						, CServerInterface::mc_pDefaultNamespace
+						, fg_ThisActor(this)
+					)
+					+ mp_State.m_TrustManager
+					(
+						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CManyServerInterface>
+						, CManyServerInterface::mc_pDefaultNamespace
+						, fg_ThisActor(this)
+					)
+					+ mp_State.m_TrustManager
+					(
+						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CSlowServerInterface>
+						, CSlowServerInterface::mc_pDefaultNamespace
+						, fg_ThisActor(this)
+					)
+				)
 			;
 
-			return fg_Explicit();
+			mp_TestServers = fg_Move(Subscription);
+			mp_ManyTestServers = fg_Move(ManySubscription);
+			mp_SlowTestServers = fg_Move(SlowSubscription);
+
+			co_return {};
 		}
 
 		TCVector<CStr> fs_GetCommandPermissions(CEJSON const &_Permissions)
@@ -779,7 +710,7 @@ namespace NTestAuthentication
 					}
 					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						return fg_Explicit(0);
+						co_return 0;
 					}
 				)
 			;
@@ -798,46 +729,21 @@ namespace NTestAuthentication
 				}
 			;
 
-			struct CTestCommandOutput
-			{
-				CTestCommandOutput(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
-					: m_pCommandLine(_pCommandLine)
-
-				{
-				}
-
-				~CTestCommandOutput()
-				{
-					*m_pCommandLine += m_Results.f_ToString("\t", true);
-					if (!m_Promise.f_IsSet())
-						m_Promise.f_SetResult(0);
-				}
-
-				CEJSON m_Results;
-				TCPromise<uint32> m_Promise;
-				NStorage::TCSharedPointer<CCommandLineControl> m_pCommandLine;
-			};
-
 			Section.f_RegisterCommand
 				(
 					{ "Names"_= {"--perform-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
 						if (!pTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -847,25 +753,20 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
 						if (!pTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						TCVector<CPermissionQueryLocal> Permissions;
 						for (auto &QueryJSON : _Params["Permissions"].f_Array())
 							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
 
-						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions)
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions);
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -875,12 +776,10 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Object)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
 						if (!pTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						TCMap<CStr, TCVector<CPermissionQueryLocal>> Permissions;
 						for (auto &Queries : _Params["Permissions"].f_Object())
@@ -890,15 +789,15 @@ namespace NTestAuthentication
 								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
 						}
 
-						pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions)
-							> pOutput->m_Promise / [=](TCMap<CStr, bool> &&_Results)
-							{
-								for (auto &Result : _Results)
-									pOutput->m_Results[_Results.fs_GetKey(Result)] = Result;
-							}
-						;
+						auto Results = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions);
 
-						return pOutput->m_Promise.f_Future();
+						CEJSON Output;
+						for (auto &Result : Results)
+							Output[Results.fs_GetKey(Result)] = Result;
+
+						*_pCommandLine += Output.f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -908,21 +807,16 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-many-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
 						if (!pManyTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -932,21 +826,16 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-many-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
 						if (!pManyTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -956,21 +845,16 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-many-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
 						if (!pManyTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -980,21 +864,16 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-many-call-4"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
 						if (!pManyTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -1004,21 +883,16 @@ namespace NTestAuthentication
 					{ "Names"_= {"--perform-slow-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
-						TCSharedPointer<CTestCommandOutput> pOutput = fg_Construct(_pCommandLine);
-
 						CStr Error;
 						auto pSlowTestServer = mp_SlowTestServers.f_GetOneActor("", Error);
 						if (!pSlowTestServer)
-							return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
+							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
-						pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]))
-							> pOutput->m_Promise / [=](bool _bSuccess)
-							{
-								pOutput->m_Results = _bSuccess;
-							}
-						;
+						bool bSuccess = co_await pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						return pOutput->m_Promise.f_Future();
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+
+						co_return 0;
 					}
 				)
 			;
@@ -1057,48 +931,48 @@ namespace NTestAuthentication
 		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<NStr::CStrSecure> f_ReadLine() override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
 		{
-			return fg_Explicit(m_ReturnValues.f_PopBack());
+			co_return m_ReturnValues.f_PopBack();
 		}
 
 		TCFuture<void> f_AbortReads() override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
 		{
 			m_StdOut += _Output;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
 		{
 			DMibNeverGetHere;
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
@@ -1108,13 +982,13 @@ namespace NTestAuthentication
 			else
 				m_StdErr += _Output;
 
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCFuture<void> f_ReturnString(NStr::CStrSecure const &_String)
 		{
 			m_ReturnValues.f_InsertLast(_String);
-			return fg_Explicit();
+			co_return {};
 		}
 
 		CStrSecure f_ReturnStdOut()
@@ -1136,7 +1010,7 @@ namespace NTestAuthentication
 	private:
 		TCFuture<void> fp_Destroy() override
 		{
-			return fg_Explicit();
+			co_return {};
 		}
 
 		TCVector<NStr::CStrSecure> m_ReturnValues;
@@ -1188,7 +1062,7 @@ namespace NTestAuthentication
 			Result.m_Category = m_Category;
 			Result.m_Name = m_Name;
 
-			return fg_Explicit(Result);
+			co_return fg_Move(Result);
 		}
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
@@ -1199,7 +1073,6 @@ namespace NTestAuthentication
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -1209,12 +1082,9 @@ namespace NTestAuthentication
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			g_CallCount(&CCallCount::f_AddCall, m_Name) > Promise / [Promise, Response = fg_Move(Response)]() mutable
-				{
-					Promise.f_SetResult(fg_Move(Response));
-				}
-			;
-			return Promise.f_MoveFuture();
+			co_await g_CallCount(&CCallCount::f_AddCall, m_Name);
+
+			co_return fg_Move(Response);
 		};
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
@@ -1224,7 +1094,7 @@ namespace NTestAuthentication
 				, CAuthenticationData const &_AuthenticationData
 			) override
 		{
-			return fg_Explicit(CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))});
+			co_return CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))};
 		}
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
@@ -1249,7 +1119,7 @@ namespace NTestAuthentication
 			Result.m_Category = EAuthenticationFactorCategory_None;
 			Result.m_Name = "Fail1";
 
-			return fg_Explicit(Result);
+			co_return fg_Move(Result);
 		}
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
@@ -1260,7 +1130,6 @@ namespace NTestAuthentication
 				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		{
-			TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
 			ICDistributedActorAuthenticationHandler::CResponse Response;
 			for (auto const &RegisteredFactor : _Factors)
 			{
@@ -1270,12 +1139,9 @@ namespace NTestAuthentication
 				Response.m_FactorName = RegisteredFactor.m_Name;
 				break;
 			}
-			g_CallCount(&CCallCount::f_AddCall, m_Name) > Promise / [Promise, Response = fg_Move(Response)]() mutable
-				{
-					Promise.f_SetResult(fg_Move(Response));
-				}
-			;
-			return Promise.f_MoveFuture();
+			co_await g_CallCount(&CCallCount::f_AddCall, m_Name);
+
+			co_return fg_Move(Response);
 		};
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
@@ -1285,7 +1151,7 @@ namespace NTestAuthentication
 				, CAuthenticationData const &_AuthenticationData
 			) override
 		{
-			return fg_Explicit(CVerifyAuthenticationReturn{false});
+			co_return CVerifyAuthenticationReturn{false};
 		}
 
 		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;

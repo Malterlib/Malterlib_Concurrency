@@ -36,25 +36,16 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_ResolveActor)
-		{
-			Internal.m_ResolveActor->f_Destroy() > Results.f_AddResult();
-			Internal.m_ResolveActor.f_Clear();
-		}
+			fg_Move(Internal.m_ResolveActor).f_Destroy() > Results.f_AddResult();
 
 		if (Internal.m_WebsocketClientConnector)
-		{
-			Internal.m_WebsocketClientConnector->f_Destroy() > Results.f_AddResult();
-			Internal.m_WebsocketClientConnector.f_Clear();
-		}
+			fg_Move(Internal.m_WebsocketClientConnector).f_Destroy() > Results.f_AddResult();
 
 		for (auto &Listen : Internal.m_Listens)
 		{
 			Listen.m_ListenCallbackSubscription.f_Clear();
 			if (Listen.m_WebsocketServer)
-			{
-				Listen.m_WebsocketServer->f_Destroy() > Results.f_AddResult();
-				Listen.m_WebsocketServer.f_Clear();
-			}
+				fg_Move(Listen.m_WebsocketServer).f_Destroy() > Results.f_AddResult();
 		}
 
 		for (auto &pConnection : Internal.m_ClientConnections)
@@ -66,7 +57,7 @@ namespace NMib::NConcurrency
 		if (Internal.m_CleanupTimerSubscription)
 			Internal.m_CleanupTimerSubscription->f_Destroy() > Results.f_AddResult();
 
-		co_await Results.f_GetResults();
+		co_await fg_ExchangeMove(Results).f_GetResults();
 
 		co_return {};
 	}
@@ -134,37 +125,34 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCDispatchedActorCall<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
+	TCFuture<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
 	{
-		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
+		return g_Future <<= g_ConcurrentDispatch /
+			[
+				bIsLastConnection = m_HostLink.f_IsAloneInList()
+				, ConnectionID = f_GetConnectionID()
+				, ServerURL = f_GetServerURL()
+				, Desc = f_GetHostInfo().f_GetDesc()
+				, Connection = fg_Move(m_Connection)
+			]
+			() mutable
+			{
+				TCPromise<void> Promise;
+				if (!Connection)
+					return Promise <<= g_Void;
 
-		auto ConnectionID = f_GetConnectionID();
-		auto ServerURL = f_GetServerURL();
-		auto Desc = f_GetHostInfo().f_GetDesc();
-
-		return fg_ConcurrentDispatch
-			(
-				[=, Connection = fg_Move(m_Connection)]() mutable
-				{
-					TCPromise<void> Promise;
-					if (!Connection)
+				Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0)
+					> fg_ConcurrentActor() / [=, Connection = Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
 					{
-						Promise.f_SetResult();
-						return Promise.f_MoveFuture();
+						fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
+						if (_Result)
+							Promise.f_SetResult();
+						else
+							Promise.f_SetException(fg_Move(_Result));
 					}
-					Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0)
-						> fg_ConcurrentActor() / [=, Connection = Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
-						{
-							fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
-							if (_Result)
-								Promise.f_SetResult();
-							else
-								Promise.f_SetException(fg_Move(_Result));
-						}
-					;
-					return Promise.f_MoveFuture();
-				}
-			)
+				;
+				return Promise.f_MoveFuture();
+			}
 		;
 	}
 

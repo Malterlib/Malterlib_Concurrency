@@ -1233,7 +1233,7 @@ namespace NMib::NConcurrency
 		auto &Section = *pSection;
 		auto &Internal = *mp_pInternal;
 		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
-		pCommand->m_pActorRunCommand = fg_Construct(fg_Move(_fRunCommand));
+		pCommand->m_pActorRunCommand = fg_Construct(g_ActorFunctor / fg_Move(_fRunCommand));
 		pCommand->m_Flags = _Flags;
 		return CCommand(mp_pInternal, pCommand);
 	}

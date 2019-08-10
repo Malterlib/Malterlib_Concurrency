@@ -7,6 +7,7 @@
 #include <Mib/Encoding/Base64>
 #include <Mib/Cryptography/Certificate>
 #include <Mib/Concurrency/ActorSubscription>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -23,15 +24,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::f_SignCertificate
 		(
-			NStr::CStr const &_Token
-			, NContainer::CByteVector const &_CertificateRequest
-			, CCallingHostInfo const &_HostInfo
+			NStr::CStr _Token
+			, NContainer::CByteVector _CertificateRequest
+			, CCallingHostInfo _HostInfo
 		)
 	{
 		auto *pTicket = m_Tickets.f_FindEqual(_Token);
 
 		if (!pTicket)
-			return DMibErrorInstance("Invalid token");
+			co_return DMibErrorInstance("Invalid token");
 
 		auto Age = m_TicketTimer.f_Elapsed() - pTicket->m_CreationTime;
 
@@ -41,170 +42,101 @@ namespace NMib::NConcurrency
 		m_Tickets.f_Remove(_Token);
 
 		if (Age.f_GetTime() > 60.0*60.0) // 1 hour ticket time
-			return DMibErrorInstance("Invalid token");
+			co_return DMibErrorInstance("Invalid token");
 
 		auto HostID = CActorDistributionManager::fs_GetCertificateRequestHostID(_CertificateRequest);
 
 		if (HostID.f_IsEmpty())
-			return DMibErrorInstance("Certificate request has no host ID");
+			co_return DMibErrorInstance("Certificate request has no host ID");
 
-		TCPromise<NContainer::CByteVector> Promise;
-
-		m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID)
-			> Promise % "Failed to check for existing client" /
-			[
-				=
-				, fOnUseTicket = fg_Move(fOnUseTicket)
-				, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
-			]
-			(NStorage::TCUniquePointer<CClient> &&_ExistingClient) mutable
+		auto pExistingClient = co_await (m_Database(&ICDistributedActorTrustManagerDatabase::f_TryGetClient, HostID) % "Failed to check for existing client");
+		bool bExistingClient = !pExistingClient.f_IsEmpty();
+		if (bExistingClient)
+		{
+			try
 			{
-				bool bExistingClient = !_ExistingClient.f_IsEmpty();
-				if (bExistingClient)
+				NException::CDisableExceptionTraceScope DisableTrace;
+				NCryptography::CCertificate::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, pExistingClient->m_PublicCertificate);
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr()));
+			}
+		}
+
+		if (fOnUseTicket)
+			co_await (fOnUseTicket(HostID, _HostInfo, _CertificateRequest) % "Certificate validation failed");
+
+		int32 Serial = co_await (m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) % "Failed to get new certificate serial");
+
+		struct CResults
+		{
+			NContainer::CByteVector m_SignedCertificate;
+			NStr::CStr m_HostID;
+		};
+
+		CResults Results = co_await
+			(
+				g_ConcurrentDispatch /
+				[
+					CaCertificate = m_BasicConfig.m_CACertificate
+					, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
+					, _CertificateRequest
+					, Serial
+				]
 				{
+					CResults Results;
 					try
 					{
+						NCryptography::CCertificateSignOptions SignOptions;
+						SignOptions.m_Serial = Serial;
+						SignOptions.m_Days = 10*365;
+
 						NException::CDisableExceptionTraceScope DisableTrace;
-						NCryptography::CCertificate::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, _ExistingClient->m_PublicCertificate);
+						NCryptography::CCertificate::fs_SignClientCertificate
+							(
+								CaCertificate
+								, CaPrivateKey
+								, _CertificateRequest
+								, Results.m_SignedCertificate
+								, SignOptions
+							)
+						;
+
+						Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
+						if (Results.m_HostID.f_IsEmpty())
+							DMibError("Missing host ID in certificate request");
 					}
 					catch (NException::CException const &_Exception)
 					{
-						Promise.f_SetException(DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr())));
-						return;
+						DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
 					}
+
+					return Results;
 				}
-
-				TCFuture<void> ValidateSignRequestFuture;
-
-				if (fOnUseTicket)
-					ValidateSignRequestFuture = fOnUseTicket(HostID, _HostInfo, _CertificateRequest);
-				else
-					ValidateSignRequestFuture = fg_Explicit();
-
-				fg_Move(ValidateSignRequestFuture)
-					>
-					[
-						=
-						, fOnUseTicket = fg_Move(fOnUseTicket)
-						, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
-					]
-					(TCAsyncResult<void> &&_ValidationResult) mutable
-					{
-						if (!_ValidationResult)
-						{
-							Promise.f_SetException(DMibErrorInstance(fg_Format("Certificate validation failed: {}", _ValidationResult.f_GetExceptionStr())));
-							return;
-						}
-
-						m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial)
-							> Promise % "Failed to get new certificate serial" /
-							[
-								=
-								, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
-							]
-							(int32 _Serial) mutable
-							{
-								struct CResults
-								{
-									NContainer::CByteVector m_SignedCertificate;
-									NStr::CStr m_HostID;
-								};
-
-								fg_ConcurrentDispatch
-									(
-										[
-											CaCertificate = m_BasicConfig.m_CACertificate
-											, CaPrivateKey = m_BasicConfig.m_CAPrivateKey
-											, _CertificateRequest
-											, Serial = _Serial
-										]
-										{
-											CResults Results;
-											try
-											{
-												NCryptography::CCertificateSignOptions SignOptions;
-												SignOptions.m_Serial = Serial;
-												SignOptions.m_Days = 10*365;
-
-												NException::CDisableExceptionTraceScope DisableTrace;
-												NCryptography::CCertificate::fs_SignClientCertificate
-													(
-														CaCertificate
-														, CaPrivateKey
-														, _CertificateRequest
-														, Results.m_SignedCertificate
-														, SignOptions
-													)
-												;
-
-												Results.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(Results.m_SignedCertificate);
-												if (Results.m_HostID.f_IsEmpty())
-													DMibError("Missing host ID in certificate request");
-											}
-											catch (NException::CException const &_Exception)
-											{
-												DMibError(fg_Format("Failed to sign client certificate request: {}", _Exception.f_GetErrorStr()));
-											}
-
-											return Results;
-										}
-									)
-									> Promise / [=, fOnCertificateSigned = fg_Move(fOnCertificateSigned)](CResults &&_Results) mutable
-									{
-										ICDistributedActorTrustManagerDatabase::CClient Client;
-										Client.m_PublicCertificate = _Results.m_SignedCertificate;
-										m_Database
-											(
-												bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
-												, _Results.m_HostID
-												, Client
-											)
-											> Promise % "Failed to add client to trust database" /
-											[
-												=
-												, Certificate = fg_Move(_Results.m_SignedCertificate)
-												, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
-											]
-											() mutable
-											{
-												if (!fOnCertificateSigned)
-													return Promise.f_SetResult(fg_Move(Certificate));
-
-												fOnCertificateSigned(HostID, _HostInfo) >
-													[
-														=
-														, fOnCertificateSigned = fg_Move(fOnCertificateSigned)
-														, Certificate = fg_Move(Certificate)
-													]
-													(TCAsyncResult<void> &&_Result) mutable
-													{
-														if (!_Result)
-														{
-															DMibLogWithCategory
-																(
-																	Mib/Concurrency/Trust
-																	, Error
-																	, "On certifigace signed notification failed: {}"
-																	, _Result.f_GetExceptionStr()
-																)
-															;
-														}
-
-														return Promise.f_SetResult(fg_Move(Certificate));
-													}
-												;
-											}
-										;
-									}
-								;
-							}
-						;
-					}
-				;
-			}
+			)
 		;
 
-		return Promise.f_MoveFuture();
+		ICDistributedActorTrustManagerDatabase::CClient Client;
+		Client.m_PublicCertificate = Results.m_SignedCertificate;
+		co_await
+			(
+				m_Database
+				(
+					bExistingClient ? &ICDistributedActorTrustManagerDatabase::f_SetClient : &ICDistributedActorTrustManagerDatabase::f_AddClient
+					, Results.m_HostID
+					, Client
+				)
+				% "Failed to add client to trust database"
+			)
+		;
+
+		if (!fOnCertificateSigned)
+			co_return fg_Move(Results.m_SignedCertificate);
+
+		fOnCertificateSigned(HostID, _HostInfo) > fg_LogError("Mib/Concurrency/Trust", "On certifigace signed notification failed");
+
+		co_return fg_Move(Results.m_SignedCertificate);
 	}
 
 	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate
@@ -213,7 +145,8 @@ namespace NMib::NConcurrency
 			, NContainer::CByteVector const &_CertificateRequest
 		)
 	{
-		return fg_Dispatch
+		TCPromise<NContainer::CByteVector> Promise;
+		return Promise <<= fg_Dispatch
 			(
 				mp_ThisActor
 				, [pInternal = mp_pInternal, _Token, _CertificateRequest, CallingHostInfo = fg_GetCallingHostInfo()]
@@ -248,8 +181,9 @@ namespace NMib::NConcurrency
 			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 		)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> Promise;
+
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -294,7 +228,7 @@ namespace NMib::NConcurrency
 
 								auto *pTicket = Internal.m_Tickets.f_FindEqual(Token);
 								if (!pTicket)
-									return fg_Explicit();
+									co_return {};
 
 								TCActorResultVector<void> Destroys;
 								pTicket->m_fOnUseTicket.f_Destroy() > Destroys.f_AddResult();
@@ -302,9 +236,9 @@ namespace NMib::NConcurrency
 
 								Internal.m_Tickets.f_Remove(Token);
 
-								TCPromise<void> Promise;
-								Destroys.f_GetResults() > Promise.f_ReceiveAny();
-								return Promise.f_MoveFuture();
+								co_await Destroys.f_GetResults();
+
+								co_return {};
 							}
 						;
 					}
@@ -385,6 +319,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
 	{
+		TCPromise<CHostInfo> Promise;
+
 		// Connect to remote host with anonymous connection
 		// Subscribe to internal interface (time out if no publication arrives)
 		// Generate certificate request and send to remote host
@@ -392,7 +328,6 @@ namespace NMib::NConcurrency
 		// Connect again to remote host with signed client certificate (if failure, remove from database again)
 
 		auto &Internal = *mp_pInternal;
-		TCPromise<CHostInfo> Promise;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -768,8 +703,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -825,11 +760,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
+		TCPromise<CHostInfo> Promise;
 		// Connect with insecure connection to server to get server certificate
 		// Connect with server certificate to verify that trust is correct
 		// Connect with server certificate and client certificate at the end
 		auto &Internal = *mp_pInternal;
-		TCPromise<CHostInfo> Promise;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -978,8 +913,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<void> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -1035,8 +970,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedActorTrustManager::f_EnumClientConnections() -> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>>
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -1096,8 +1031,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<bool> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise
@@ -1113,8 +1048,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState()
 	{
-		auto &Internal = *mp_pInternal;
 		TCPromise<CDistributedActorTrustManager::CConnectionState> Promise;
+		auto &Internal = *mp_pInternal;
 		Internal.f_RunAfterInit
 			(
 				Promise

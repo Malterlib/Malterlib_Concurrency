@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 	{
 		return NContainer::TCMap<CDistributedActorTrustManager_Address, CAddressConnectionState>::fs_GetKey(*this);
 	}
-	
+
 	NStr::CStr const &CDistributedActorTrustManager::CHostConnectionState::f_GetHostID() const
 	{
 		return NContainer::TCMap<NStr::CStr, CHostConnectionState>::fs_GetKey(*this);
@@ -27,52 +27,58 @@ namespace NMib::NConcurrency
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
 	}
-	
+
 	template <typename t_CActor>
 	auto TCTrustedActorSubscription<t_CActor>::operator =(TCTrustedActorSubscription &&_Other) -> TCTrustedActorSubscription &
 	{
-		mp_pState = fg_Move(_Other.mp_pState); 
+		mp_pState = fg_Move(_Other.mp_pState);
 		m_Actors = fg_Move(_Other.m_Actors);
 		if (mp_pState)
 			mp_pState->m_pSubscription = this;
 		return *this;
 	}
-	
+
 	template <typename t_CActor>
 	TCTrustedActorSubscription<t_CActor>::~TCTrustedActorSubscription()
 	{
 		f_Destroy() > fg_DiscardResult();
 	}
-	
+
 	template <typename t_CActor>
 	TCFuture<void> TCTrustedActorSubscription<t_CActor>::f_Destroy()
 	{
-		if (!mp_pState)
-			return fg_Explicit();
-		
-		auto &State = *mp_pState;
+		co_await ECoroutineFlag_AllowReferences;
+
+		auto pState = fg_Move(mp_pState);
+
+		if (!pState)
+			co_return {};
+
+		m_Actors.f_Clear();
+
+		auto &State = *pState;
 		auto TrustManager = State.m_TrustManager.f_Lock();
-		TCFuture<void> UnsubscribeFuture;
-		if (TrustManager)
-			UnsubscribeFuture = TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeTrustedActors, mp_pState);
-		else
-			UnsubscribeFuture = fg_Explicit();
 
 		State.m_pSubscription = nullptr;
 		State.m_fOnNewActor.f_Clear();
 		State.m_fOnRemovedActor.f_Clear();
-		mp_pState = nullptr;
-		m_Actors.f_Clear();
 
-		return UnsubscribeFuture;
+		if (!TrustManager)
+			co_return {};
+
+		co_await fg_ContinueRunningOnActor(TrustManager);
+
+		co_await TrustManager(&CDistributedActorTrustManager::fp_UnsubscribeTrustedActors, fg_Move(pState));
+
+		co_return {};
 	}
-		
+
 	template <typename t_CActor>
 	bool TCTrustedActorSubscription<t_CActor>::f_IsEmpty() const
 	{
 		return mp_pState.f_IsEmpty();
 	}
-	
+
 	template <typename t_CActor>
 	TCTrustedActor<t_CActor> const *TCTrustedActorSubscription<t_CActor>::f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const
 	{
@@ -94,7 +100,7 @@ namespace NMib::NConcurrency
 			}
 			pMatched = &TrustedActor;
 		}
-	
+
 		if (!pMatched)
 		{
 			if (m_Actors.f_IsEmpty())
@@ -102,7 +108,7 @@ namespace NMib::NConcurrency
 			else
 				o_Error = "No suitable found";
 		}
-		
+
 		return pMatched;
 	}
 
@@ -130,10 +136,14 @@ namespace NMib::NConcurrency
 		 	, CDistributedActorProtocolVersions const &_Versions
 		)
 	{
+		TCPromise<TCTrustedActorSubscription<t_CActor>> Promise;
+
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return DMibErrorInstance("Invalid namespace name");
+			return Promise <<= DMibErrorInstance("Invalid namespace name");
+
 		if (!_Actor)
-			return DMibErrorInstance("Invalid destination actor");
+			return Promise <<= DMibErrorInstance("Invalid destination actor");
+
 		NStorage::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
@@ -141,10 +151,8 @@ namespace NMib::NConcurrency
 		State.m_TypeHash = DMibConstantTypeHash(t_CActor);
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
-		
-		TCPromise<TCTrustedActorSubscription<t_CActor>> Promise;
-		
-		fg_ThisActor(this)(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState) 
+
+		self(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState)
 			> Promise / [pState, Promise](NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 			{
 				TCTrustedActorSubscription<t_CActor> Result;
@@ -155,7 +163,7 @@ namespace NMib::NConcurrency
 					auto &TrustedActor = Result.m_Actors[Actor.f_GetIdentifier()];
 					TrustedActor.m_TrustInfo = Actor.m_TrustInfo;
 					TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
-					TrustedActor.m_Actor = (TCDistributedActor<t_CActor> &)Actor.m_Actor; 
+					TrustedActor.m_Actor = (TCDistributedActor<t_CActor> &)Actor.m_Actor;
 				}
 				Promise.f_SetResult(fg_Move(Result));
 			}
@@ -178,7 +186,7 @@ namespace NMib::NConcurrency
 		for (auto &Actor : m_Actors)
 			mp_pState->m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo);
 	}
-	
+
 	template <typename t_CActor>
 	void TCTrustedActorSubscription<t_CActor>::f_OnRemoveActor
 		(
@@ -187,11 +195,11 @@ namespace NMib::NConcurrency
 	{
 		mp_pState->m_fOnRemovedActor = fg_Move(_fOnRemovedActor);
 	}
-	
+
 	template <typename t_CActor>
-	TCDispatchedWeakActorCall<void> TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
+	TCFuture<void> TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
 	{
-		return fg_Dispatch
+		return g_Future <<= fg_Dispatch
 			(
 				m_DispatchActor
 				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
@@ -201,9 +209,9 @@ namespace NMib::NConcurrency
 
 					for (auto &Actor : _Actors)
 					{
-						auto &Identifier = Actor.f_GetIdentifier(); 
-						TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)Actor; 
-						
+						auto &Identifier = Actor.f_GetIdentifier();
+						TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)Actor;
+
 						auto &Subscription = *m_pSubscription;
 						if (Subscription.m_Actors(Identifier, TypedActor).f_WasCreated())
 						{
@@ -215,18 +223,18 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
-	
+
 	template <typename t_CActor>
-	TCDispatchedWeakActorCall<void> TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
+	TCFuture<void> TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
 	{
-		return fg_Dispatch
+		return g_Future <<= fg_Dispatch
 			(
 				m_DispatchActor
 				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
 				{
 					if (!m_pSubscription)
 						return;
-					
+
 					for (auto &Actor : _Actors)
 					{
 						auto &Subscription = *m_pSubscription;

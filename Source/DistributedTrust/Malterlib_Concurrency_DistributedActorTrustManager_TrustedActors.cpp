@@ -19,6 +19,8 @@ namespace NMib::NConcurrency
 {
 	auto CDistributedActorTrustManager::f_EnumNamespacePermissions(bool _bIncludeHostInfo) -> TCFuture<NContainer::TCMap<NStr::CStr, CNamespacePermissions>>
 	{
+		TCPromise<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> Promise;
+
 		auto &Internal = *mp_pInternal;
 		NContainer::TCMap<NStr::CStr, CNamespacePermissions> Return;
 		NContainer::TCSet<NStr::CStr> HostIDs;
@@ -44,7 +46,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		if (!_bIncludeHostInfo)
-			return fg_Explicit(fg_Move(Return));
+			return Promise <<= fg_Move(Return);
 			
 		TCActorResultMap<NStr::CStr, CHostInfo> HostInfos;
 		
@@ -52,8 +54,6 @@ namespace NMib::NConcurrency
 		for (auto &HostID : HostIDs)
 			ThisActor(&CDistributedActorTrustManager::fp_GetHostInfo, HostID) > HostInfos.f_AddResult(HostID);
 
-		TCPromise<NContainer::TCMap<NStr::CStr, CNamespacePermissions>> Promise;
-			
 		HostInfos.f_GetResults() 
 			> Promise / [Promise, Return = fg_Move(Return)] 
 			(NContainer::TCMap<NStr::CStr, TCAsyncResult<CHostInfo>> &&_HostInfos) mutable
@@ -89,12 +89,12 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return DMibErrorInstance("Invalid namespace name");
+			co_return DMibErrorInstance("Invalid namespace name");
 		
 		for (auto &HostID : _Hosts)
 		{
 			if (!CActorDistributionManager::fs_IsValidHostID(HostID))
-				return DMibErrorInstance("Invalid host id");
+				co_return DMibErrorInstance("Invalid host id");
 		}
 		
 		auto &Internal = *mp_pInternal;
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 				HostsAdded[Host];
 		}
 		if (HostsAdded.f_IsEmpty())
-			return fg_Explicit();
+			co_return {};
 
 		TCActorResultVector<void> SubscriptionResults;
 
@@ -140,30 +140,20 @@ namespace NMib::NConcurrency
 			}
 		}
 		
-		TCPromise<void> SaveDatabasePromise;
 		if (Namespace.m_bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace) > SaveDatabasePromise;
+			co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace);
 		else
 		{
 			Namespace.m_bExistsInDatabase = true;
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, Namespace.m_Namespace) > SaveDatabasePromise;
+			co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, Namespace.m_Namespace);
 		}
 
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-		{
-			TCPromise<void> Promise;
-			SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()
-				> Promise / [Promise](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
-				{
-					Promise.f_SetResult();
-				}
-			;
-			return Promise.f_MoveFuture();
-		}
+			co_await SubscriptionResults.f_GetResults(); // Intentionally ignore results
+		else
+			SubscriptionResults.f_GetResults() > fg_DiscardResult();
 
-		SubscriptionResults.f_GetResults() > fg_DiscardResult();
-
-		return SaveDatabasePromise.f_MoveFuture();
+		co_return {};
 	}
 	
 	TCFuture<void> CDistributedActorTrustManager::f_DisallowHostsForNamespace
@@ -174,18 +164,18 @@ namespace NMib::NConcurrency
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return DMibErrorInstance("Invalid namespace name");
+			co_return DMibErrorInstance("Invalid namespace name");
 		
 		for (auto &HostID : _Hosts)
 		{
 			if (!CActorDistributionManager::fs_IsValidHostID(HostID))
-				return DMibErrorInstance("Invalid host id");
+				co_return DMibErrorInstance("Invalid host id");
 		}
 		
 		auto &Internal = *mp_pInternal;
 		auto *pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
 		if (!pNamespace)
-			return fg_Explicit();
+			co_return {};
 		auto &Namespace = *pNamespace;
 		
 		NContainer::TCSet<NStr::CStr> HostsRemoved;
@@ -195,7 +185,7 @@ namespace NMib::NConcurrency
 				HostsRemoved[Host];
 		}
 		if (HostsRemoved.f_IsEmpty())
-			return fg_Explicit();
+			co_return {};
 		
 		TCActorResultVector<void> SubscriptionResults;
 
@@ -216,17 +206,13 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCPromise<void> SaveDatabasePromise;
-
 		if (Namespace.m_Namespace.m_AllowedHosts.f_IsEmpty())
 		{
 			if (Namespace.m_bExistsInDatabase)
 			{
 				Namespace.m_bExistsInDatabase = false;
-				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveNamespace, _Namespace) > SaveDatabasePromise;
+				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveNamespace, _Namespace);
 			}
-			else
-				SaveDatabasePromise.f_SetResult();
 
 			if (Namespace.m_nSubscriptions == 0)
 				Internal.m_Namespaces.f_Remove(_Namespace);
@@ -234,29 +220,20 @@ namespace NMib::NConcurrency
 		else
 		{
 			if (Namespace.m_bExistsInDatabase)
-				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace) > SaveDatabasePromise;
+				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace);
 			else
 			{
 				Namespace.m_bExistsInDatabase = true;
-				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, Namespace.m_Namespace) > SaveDatabasePromise;
+				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, Namespace.m_Namespace);
 			}
 		}
 
 		if (_OrderingFlags & EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions)
-		{
-			TCPromise<void> Promise;
-			SaveDatabasePromise.f_MoveFuture() + SubscriptionResults.f_GetResults()
-				> Promise / [Promise](CVoidTag, NContainer::TCVector<TCAsyncResult<void>> &&) // Intentionally ignore results
-				{
-					Promise.f_SetResult();
-				}
-			;
-			return Promise.f_MoveFuture();
-		}
+			co_await SubscriptionResults.f_GetResults(); // Intentionally ignore results
+		else
+			SubscriptionResults.f_GetResults() > fg_DiscardResult();
 
-		SubscriptionResults.f_GetResults() > fg_DiscardResult();
-
-		return SaveDatabasePromise.f_MoveFuture();
+		co_return {};
 	}
 	
 	auto CDistributedActorTrustManager::CInternal::CNamespaceTypeState::f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State)
@@ -280,6 +257,8 @@ namespace NMib::NConcurrency
 	auto CDistributedActorTrustManager::fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 		-> TCFuture<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
 	{
+		TCPromise<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>> Promise;
+
 		auto &Internal = *mp_pInternal;
 		auto &Namespace = Internal.m_Namespaces[_pState->m_NamespaceName];
 		auto NamespaceName = _pState->m_NamespaceName;
@@ -289,10 +268,9 @@ namespace NMib::NConcurrency
 			auto &Type = Namespace.m_Types[_pState->m_TypeHash];
 			Type.m_Subscriptions[_pState];
 			++Namespace.m_nSubscriptions;
-			return fg_Explicit(Type.f_GetAllowed(*_pState));
+			return Promise <<= Type.f_GetAllowed(*_pState);
 		}
 	
-		TCPromise<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>> Promise;
 		auto fOnSubscribe = [_pState, NamespaceName, Promise](TCAsyncResult<void> const &_Result, CInternal::CNamespaceState &_Namespace) -> bool
 			{
 				if (!_Result)

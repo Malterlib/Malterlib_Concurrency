@@ -225,9 +225,9 @@ namespace NMib::NConcurrency
 
 		TCFuture<NContainer::CByteVector> f_SignCertificate
 			(
-				NStr::CStr const &_Token
-				, NContainer::CByteVector const &_CertificateRequest
-				, CCallingHostInfo const &_HostInfo
+				NStr::CStr _Token
+				, NContainer::CByteVector _CertificateRequest
+				, CCallingHostInfo _HostInfo
 			)
 		;
 		TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain);

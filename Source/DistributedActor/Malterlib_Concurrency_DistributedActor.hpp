@@ -226,11 +226,7 @@ namespace NMib::NConcurrency
 		co_await m_Publication.f_Destroy();
 
 		if (!m_Actor.f_IsEmpty())
-		{
-			auto DestroyFuture = m_Actor->f_Destroy();
-			m_Actor.f_Clear();
-			co_await fg_Move(DestroyFuture);
-		}
+			co_await fg_Move(m_Actor).f_Destroy();
 
 		co_return {};
 	}

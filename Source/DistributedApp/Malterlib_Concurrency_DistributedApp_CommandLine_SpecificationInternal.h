@@ -136,9 +136,9 @@ namespace NMib::NConcurrency
 
 			NStorage::TCSharedPointer
 				<
-					NFunction::TCFunctionMovable<TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)>
+					TCActorFunctor<TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)>
 				>
-				m_pActorRunCommand
+ 				m_pActorRunCommand
 			;
 			NStorage::TCSharedPointer
 				<

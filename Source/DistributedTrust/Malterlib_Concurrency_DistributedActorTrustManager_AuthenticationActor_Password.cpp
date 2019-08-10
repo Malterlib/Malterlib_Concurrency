@@ -59,8 +59,6 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		TCPromise<CAuthenticationData> Promise;
-
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 		CStdInReaderPromptParams NewPasswordPrompt1;
@@ -69,61 +67,55 @@ namespace NMib::NConcurrency
 			<< AnsiEncoding.f_Prompt()
 			<< AnsiEncoding.f_Default()
 		;
-		_pCommandLine->f_ReadPrompt(NewPasswordPrompt1) > Promise / [=](CStrSecure &&_NewPassword1) mutable
-			{
-				CStdInReaderPromptParams NewPasswordPrompt2;
-				NewPasswordPrompt2.m_bPassword = true;
-				NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
-					<< AnsiEncoding.f_Prompt()
-					<< AnsiEncoding.f_Default()
-				;
+		CStrSecure NewPassword1 = co_await _pCommandLine->f_ReadPrompt(NewPasswordPrompt1);
 
-				_pCommandLine->f_ReadPrompt(NewPasswordPrompt2) > Promise / [=, NewPassword1 = fg_Move(_NewPassword1)](CStrSecure &&_NewPassword2) mutable
-					{
-						if (NewPassword1 == _NewPassword2)
-						{
-							fg_ConcurrentDispatch
-								(
-									[=]
-									{
-										CSecureByteVector PrivateKeyData;
-										CSecureByteVector PublicKeyData;
-										CPublicCrypto::fs_GenerateKeys(PrivateKeyData, PublicKeyData);
-
-										CSecureByteVector PasswordSalt;
-										CSecureByteVector ExpansionSalt;
-										NSys::fg_Security_GenerateHighEntropyData(PasswordSalt.f_GetArray(8), 8);
-										NSys::fg_Security_GenerateHighEntropyData(ExpansionSalt.f_GetArray(8), 8);
-										CKeyExpansion KeyExpansion{_NewPassword2, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
-
-										CBinaryStreamMemory<CBinaryStreamDefault, CSecureByteVector> Stream;
-										{
-											TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
-											EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Write);
-											EncryptedStream << PrivateKeyData;
-										}
-										CSecureByteVector EncryptedPrivateKey = Stream.f_MoveVector();
-
-										CAuthenticationData Result;
-										Result.m_Category = EAuthenticationFactorCategory_Knowledge;
-										Result.m_Name = "Password";
-										Result.m_PublicData["PublicKey"] = CByteVector{PublicKeyData.f_GetArray(), PublicKeyData.f_GetLen()};
-										Result.m_PrivateData["PrivateKeyEncrypted"] = EncryptedPrivateKey.f_ToInsecure();
-										Result.m_PrivateData["PasswordSalt"] = CByteVector{PasswordSalt.f_GetArray(), PasswordSalt.f_GetLen()};
-										Result.m_PrivateData["ExpansionSalt"] = CByteVector{ExpansionSalt.f_GetArray(), ExpansionSalt.f_GetLen()};
-
-										return Result;
-									}
-								) > Promise;
-							;
-						}
-						else
-							Promise.f_SetException(DMibErrorInstance("Password mismatch"));
-					}
-				;
-			}
+		CStdInReaderPromptParams NewPasswordPrompt2;
+		NewPasswordPrompt2.m_bPassword = true;
+		NewPasswordPrompt2.m_Prompt = "{}Password (again): {}"_f
+			<< AnsiEncoding.f_Prompt()
+			<< AnsiEncoding.f_Default()
 		;
-		return Promise.f_MoveFuture();
+
+		CStrSecure NewPassword2 = co_await _pCommandLine->f_ReadPrompt(NewPasswordPrompt2);
+		if (NewPassword1 != NewPassword2)
+			co_return DMibErrorInstance("Password mismatch");
+
+		auto AuthenticationData = co_await
+			(
+				g_ConcurrentDispatch / [=]
+				{
+					CSecureByteVector PrivateKeyData;
+					CSecureByteVector PublicKeyData;
+					CPublicCrypto::fs_GenerateKeys(PrivateKeyData, PublicKeyData);
+
+					CSecureByteVector PasswordSalt;
+					CSecureByteVector ExpansionSalt;
+					NSys::fg_Security_GenerateHighEntropyData(PasswordSalt.f_GetArray(8), 8);
+					NSys::fg_Security_GenerateHighEntropyData(ExpansionSalt.f_GetArray(8), 8);
+					CKeyExpansion KeyExpansion{NewPassword2, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
+
+					CBinaryStreamMemory<CBinaryStreamDefault, CSecureByteVector> Stream;
+					{
+						TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
+						EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Write);
+						EncryptedStream << PrivateKeyData;
+					}
+					CSecureByteVector EncryptedPrivateKey = Stream.f_MoveVector();
+
+					CAuthenticationData AuthenticationData;
+					AuthenticationData.m_Category = EAuthenticationFactorCategory_Knowledge;
+					AuthenticationData.m_Name = "Password";
+					AuthenticationData.m_PublicData["PublicKey"] = CByteVector{PublicKeyData.f_GetArray(), PublicKeyData.f_GetLen()};
+					AuthenticationData.m_PrivateData["PrivateKeyEncrypted"] = EncryptedPrivateKey.f_ToInsecure();
+					AuthenticationData.m_PrivateData["PasswordSalt"] = CByteVector{PasswordSalt.f_GetArray(), PasswordSalt.f_GetLen()};
+					AuthenticationData.m_PrivateData["ExpansionSalt"] = CByteVector{ExpansionSalt.f_GetArray(), ExpansionSalt.f_GetLen()};
+
+					return AuthenticationData;
+				}
+			)
+		;
+
+		co_return fg_Move(AuthenticationData);
 	}
 
 	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
@@ -134,8 +126,6 @@ namespace NMib::NConcurrency
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
-
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 		CStdInReaderPromptParams PasswordPrompt;
@@ -147,96 +137,86 @@ namespace NMib::NConcurrency
 		
 		auto TrustManager = m_TrustManager.f_Lock();
 		if (!TrustManager)
-			return DMibErrorInstance("No trust manager");
+			co_return DMibErrorInstance("No trust manager");
 
-		_pCommandLine->f_ReadPrompt(PasswordPrompt) > Promise / [=](CStrSecure &&_Password) mutable
-			{
-				TCActorResultMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
+		CStrSecure Password = co_await _pCommandLine->f_ReadPrompt(PasswordPrompt);
 
+		TCActorResultMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
+
+		for (auto const &Factor : _Factors)
+		{
+			g_ConcurrentDispatch / [Factor, Password, FactorID = _Factors.fs_GetKey(Factor), _SignedProperties]() mutable -> ICDistributedActorAuthenticationHandler::CResponse
 				{
-					for (auto const &Factor : _Factors)
+					auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
+					if (!pKey || !pKey->f_IsBinary())
+						return {};
+					auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
+					if (!pPasswordSalt || !pPasswordSalt->f_IsBinary())
+						return {};
+					auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
+					if (!pExpansionSalt || !pExpansionSalt->f_IsBinary())
+						return {};
+
+					CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary().f_ToSecure();
+					CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary().f_ToSecure();
+					CSecureByteVector EncyptedPrivateKey = pKey->f_Binary().f_ToSecure();
+
+					CBinaryStreamMemoryPtr<> Stream;
+					Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
+
+					CKeyExpansion KeyExpansion{Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
+					NException::CDisableExceptionTraceScope Disable;
+					try
 					{
-						g_ConcurrentDispatch / [Factor, _Password, FactorID = _Factors.fs_GetKey(Factor), _SignedProperties]
-							() mutable -> ICDistributedActorAuthenticationHandler::CResponse
-							{
-								auto *pKey = Factor.m_PrivateData.f_FindEqual("PrivateKeyEncrypted");
-								if (!pKey || !pKey->f_IsBinary())
-									return {};
-								auto *pPasswordSalt = Factor.m_PrivateData.f_FindEqual("PasswordSalt");
-								if (!pPasswordSalt || !pPasswordSalt->f_IsBinary())
-									return {};
-								auto *pExpansionSalt = Factor.m_PrivateData.f_FindEqual("ExpansionSalt");
-								if (!pExpansionSalt || !pExpansionSalt->f_IsBinary())
-									return {};
+						CSecureByteVector PrivateKeyData;
+						{
+							TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
+							EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
+							EncryptedStream >> PrivateKeyData;
+						}
+						// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
 
-								CSecureByteVector PasswordSalt = pPasswordSalt->f_Binary().f_ToSecure();
-								CSecureByteVector ExpansionSalt = pExpansionSalt->f_Binary().f_ToSecure();
-								CSecureByteVector EncyptedPrivateKey = pKey->f_Binary().f_ToSecure();
+						ICDistributedActorAuthenticationHandler::CResponse Response;
+						Response.m_FactorID = FactorID;
+						Response.m_FactorName = Factor.m_Name;
+						Response.m_SignedProperties = _SignedProperties;
+						Response.m_Signature = CPublicCrypto::fs_SignMessage(_SignedProperties.f_GetSignatureBytes(), PrivateKeyData);
 
-								CBinaryStreamMemoryPtr<> Stream;
-								Stream.f_OpenRead(EncyptedPrivateKey.f_GetArray(), EncyptedPrivateKey.f_GetLen());
-
-								CKeyExpansion KeyExpansion{_Password, PasswordSalt, CKeyDerivationSettings_Scrypt{}, ExpansionSalt};
-								NException::CDisableExceptionTraceScope Disable;
-								try
-								{
-									CSecureByteVector PrivateKeyData;
-									{
-										TCBinaryStream_Encrypted<CBinaryStream *> EncryptedStream{KeyExpansion.f_GetKeyIV(), EDigestType_SHA512, KeyExpansion.f_GetHMACKey()};
-										EncryptedStream.f_Open(&Stream, NFile::EFileOpen_Read);
-										EncryptedStream >> PrivateKeyData;
-									}
-									// If we come here we know the password is correct, if it wasn't f_Open would have thrown the HMAC mismatch exception
-
-									ICDistributedActorAuthenticationHandler::CResponse Response;
-									Response.m_FactorID = FactorID;
-									Response.m_FactorName = Factor.m_Name;
-									Response.m_SignedProperties = _SignedProperties;
-									Response.m_Signature = CPublicCrypto::fs_SignMessage(_SignedProperties.f_GetSignatureBytes(), PrivateKeyData);
-
-									return Response;
-								}
-								catch (CExceptionCryptography const &_Exception)
-								{
-									// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
-									if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
-										return {};
-									throw;
-								}
-							}
-							> AuthenticationResults.f_AddResult(_Factors.fs_GetKey(Factor));
-						;
+						return Response;
+					}
+					catch (CExceptionCryptography const &_Exception)
+					{
+						// Anticipated exception: HMAC mismatch means decryption failed. Could be a tampered file, but more likely an incorrect password.
+						if (_Exception.f_GetErrorStr() == "HMAC mismatch. The file has been tampered with.")
+							return {};
+						throw;
 					}
 				}
-				AuthenticationResults.f_GetResults()
-					> Promise / [Promise, _pCommandLine](TCMap<CStr, TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse>> &&_Results)
-					{
-						for (auto const &Response : _Results)
-						{
-							if (!Response || Response->m_Signature.f_IsEmpty())
-								continue;
-							Promise.f_SetResult(*Response);
-							return;
-						}
+				> AuthenticationResults.f_AddResult(_Factors.fs_GetKey(Factor));
+			;
+		}
 
-						TCVector<CStr> Exceptions;
-						for (auto const &Response : _Results)
-						{
-							if (Response)
-								continue;
-							Exceptions.f_Insert(Response.f_GetExceptionStr());
-							return;
-						}
+		auto Results = co_await AuthenticationResults.f_GetResults();
 
-						if (Exceptions.f_IsEmpty())
-							Promise.f_SetException(DMibErrorInstance("Wrong password"));
-						else
-							Promise.f_SetException(DMibErrorInstance(CStr::fs_Join(Exceptions, "\n")));
-					}
-				;
-			}
-		;
-		return Promise.f_MoveFuture();
+		for (auto const &Response : Results)
+		{
+			if (!Response || Response->m_Signature.f_IsEmpty())
+				continue;
+			co_return *Response;
+		}
+
+		TCVector<CStr> Exceptions;
+		for (auto const &Response : Results)
+		{
+			if (Response)
+				continue;
+			Exceptions.f_Insert(Response.f_GetExceptionStr());
+		}
+
+		if (Exceptions.f_IsEmpty())
+			co_return DMibErrorInstance("Wrong password");
+		else
+			co_return DMibErrorInstance(CStr::fs_Join(Exceptions, "\n"));
 	};
 
 	auto CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
@@ -249,24 +229,22 @@ namespace NMib::NConcurrency
 	{
 		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 		if (!pValue || !pValue->f_IsBinary())
-			return fg_Explicit(CVerifyAuthenticationReturn{});
+			co_return CVerifyAuthenticationReturn{};
 
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-		TCPromise<CVerifyAuthenticationReturn> Promise;
-		
-		fg_ConcurrentDispatch
+		auto Return = co_await
 			(
-				[=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
+			 	g_ConcurrentDispatch / [=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
 				{
 					CVerifyAuthenticationReturn Return;
 					Return.m_bVerified = CPublicCrypto::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);
 					return Return;
 				}
-			) > Promise;
+			)
 		;
 
-		return Promise.f_MoveFuture();
+		co_return fg_Move(Return);
 	}
 
 	class CDistributedActorTrustManagerAuthenticationActorFactoryPassword : public ICDistributedActorTrustManagerAuthenticationActorFactory

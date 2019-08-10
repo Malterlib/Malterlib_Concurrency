@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		return fg_Explicit(Result);
+		return Promise <<= fg_Move(Result);
 	}
 
 	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCFuture<TCActor<CDevice>>
@@ -139,10 +139,10 @@ namespace NMib::NConcurrency
 		auto SerialNumber = fg_ToHidAPIStr(_SerialNumber);
 		auto pDevice = hid_open(_VendorID, _ProductID, (wchar_t const *)(SerialNumber ? SerialNumber.f_GetStr() : nullptr));
 		if (!pDevice)
-			return DMibErrorInstanceHID("hid_open error");
+			return Promise <<= DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CDevice> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return fg_Explicit(fg_Move(DeviceActor));
+		return Promise <<= fg_Move(DeviceActor);
 	}
 
 	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCFuture<TCActor<CDevice>>
@@ -153,10 +153,10 @@ namespace NMib::NConcurrency
 
 		auto pDevice = hid_open_path(_Path.f_GetStr());
 		if (!pDevice)
-			return DMibErrorInstanceHID("hid_open error");
+			return Promise <<= DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CDevice> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return fg_Explicit(fg_Move(DeviceActor));
+		return Promise <<= fg_Move(DeviceActor);
 	}
 
 	CHumanInterfaceDevicesActor::CDevice::CDevice(hid_device *_Device)
@@ -177,9 +177,9 @@ namespace NMib::NConcurrency
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_write(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
 		if (nBytes == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to write to device (hid_write)"));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to write to device (hid_write)"));
 
-		return fg_Explicit(nBytes);
+		co_return nBytes;
 	}
 
 	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
@@ -187,9 +187,9 @@ namespace NMib::NConcurrency
 		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read(m_pDevice, Buffer.f_GetArray(_Length), _Length);
 		if (nBytes == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read)"));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read)"));
 
-		return fg_Explicit(Buffer);
+		co_return Buffer;
 	}
 
 	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
@@ -197,10 +197,10 @@ namespace NMib::NConcurrency
 		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read_timeout(m_pDevice, Buffer.f_GetArray(_Length), _Length, _TimeoutMilliseconds);
 		if (nBytes == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read_timeout)"));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to read from device (hid_read_timeout)"));
 		Buffer.f_SetLen(nBytes);
 
-		return fg_Explicit(Buffer);
+		co_return Buffer;
 	}
 
 	TCFuture<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
@@ -208,9 +208,9 @@ namespace NMib::NConcurrency
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_send_feature_report(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
 		if (nBytes == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get feature report (hid_send_feature_report)"));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get feature report (hid_send_feature_report)"));
 
-		return fg_Explicit();
+		co_return {};
 	}
 
 	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
@@ -221,10 +221,10 @@ namespace NMib::NConcurrency
 
 		int nBytes = hid_get_feature_report(m_pDevice, Buffer.f_GetArray(), 1024);
 		if (nBytes == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get feature report (hid_get_feature_report)"));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get feature report (hid_get_feature_report)"));
 
 		Buffer.f_SetLen(nBytes);
-		return fg_Explicit(Buffer);
+		co_return fg_Move(Buffer);
 	}
 
 	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetManufacturerString() const
@@ -232,8 +232,8 @@ namespace NMib::NConcurrency
 		wchar_t Buffer[1024];
 		int Result = hid_get_manufacturer_string(m_pDevice, Buffer, 1024);
 		if (Result == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get manufacturer string (hid_get_manufacturer_string)"));
-		return fg_Explicit(fg_FromHidAPIStr(Buffer));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get manufacturer string (hid_get_manufacturer_string)"));
+		co_return fg_FromHidAPIStr(Buffer);
 	}
 
 	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetProductString() const
@@ -241,8 +241,8 @@ namespace NMib::NConcurrency
 		wchar_t Buffer[1024];
 		int Result = hid_get_product_string(m_pDevice, Buffer, 1024);
 		if (Result == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get product string (hid_get_product_string)"));
-		return fg_Explicit(fg_FromHidAPIStr(Buffer));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get product string (hid_get_product_string)"));
+		co_return fg_FromHidAPIStr(Buffer);
 	}
 
 	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetSerialNumberString() const
@@ -250,8 +250,8 @@ namespace NMib::NConcurrency
 		wchar_t Buffer[1024];
 		int Result = hid_get_serial_number_string(m_pDevice, Buffer, 1024);
 		if (Result == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get serial number string(hid_get_serial_number_string)"));
-		return fg_Explicit(fg_FromHidAPIStr(Buffer));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get serial number string(hid_get_serial_number_string)"));
+		co_return fg_FromHidAPIStr(Buffer);
 	}
 
 	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetIndexedString(aint _StringIndex) const
@@ -259,8 +259,8 @@ namespace NMib::NConcurrency
 		wchar_t Buffer[1024];
 		int Result = hid_get_indexed_string(m_pDevice, _StringIndex, Buffer, 1024);
 		if (Result == -1)
-			return DMibErrorInstanceHID(fp_Error("Failed to get indexed string (hid_get_indexed_string)"));
-		return fg_Explicit(fg_FromHidAPIStr(Buffer));
+			co_return DMibErrorInstanceHID(fp_Error("Failed to get indexed string (hid_get_indexed_string)"));
+		co_return fg_FromHidAPIStr(Buffer);
 	}
 
 	NStr::CStr CHumanInterfaceDevicesActor::CDevice::fp_Error(NStr::CStr const &_Description) const

@@ -25,7 +25,10 @@ namespace NMib::NConcurrency
 		
 		template <typename ...tfp_CParams>
 		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
-		
+
+		template <typename tf_FDispatcher, typename ...tfp_CParams>
+		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
+
 		TCActor<CActor> const &f_GetActor() const;
 		NFunction::TCFunctionMovable<t_CFunction> const &f_GetFunctor() const;
 		CActorSubscription const &f_GetSubscription() const;

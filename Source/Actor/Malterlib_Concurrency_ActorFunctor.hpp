@@ -95,6 +95,53 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
+
+	template <typename t_CFunction>
+	template <typename tf_FDispatcher, typename ...tfp_CParams>
+	auto TCActorFunctor<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+	{
+		if (!mp_Actor || !*mp_pFunctor)
+		{
+			return fg_Dispatch
+				(
+					TCActor<>(fg_DirectCallActor())
+					, []() mutable -> CReturn
+					{
+						return TCPromise<typename NPrivate::TCIsFuture<CReturn>::CType>() <<= DMibErrorInstance("Functor is empty");
+					}
+				)
+			;
+		}
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
+
+		return fg_Dispatch
+			(
+				mp_Actor
+				, [fDispatcher = fg_Forward<tf_FDispatcher>(_fDispatcher), Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]
+			 	() mutable mark_no_coroutine_debug -> CReturn
+				{
+					return fDispatcher
+						(
+						 	[&]
+						 	{
+								return NStorage::fg_TupleApplyAs<CMoveList>
+									(
+										[&](auto &&..._Params) mutable mark_no_coroutine_debug -> CReturn
+										{
+											return (*pFunctor)(fg_Move(_Params)...);
+										}
+										, fg_Move(Params)
+									)
+								;
+							}
+						)
+					;
+				}
+			)
+		;
+	}
 	
 	template <typename t_CFunction>
 	TCActor<CActor> const &TCActorFunctor<t_CFunction>::f_GetActor() const

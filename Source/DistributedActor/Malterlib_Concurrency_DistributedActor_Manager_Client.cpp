@@ -455,7 +455,7 @@ namespace NMib::NConcurrency
 										, pConnection->m_LastConnectionError
 									)
 								;
-								fReportError(Error, _Callback.f_GetException());
+								fReportError(Error, fg_ExceptionPointer(DMibErrorInstance("Disconnected")));
 								return;
 							}
 

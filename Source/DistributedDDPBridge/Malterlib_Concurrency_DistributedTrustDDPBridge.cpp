@@ -35,13 +35,7 @@ namespace NMib::NConcurrency
 				return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
 			}
 			
-			TCWeakActor<> m_Actor;
-			struct CHandlerFunction
-			{
-				TCFunctionMutable<TCFuture<CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandler;
-			};
-			
-			TCSharedPointer<CHandlerFunction> m_pHandlerFunction;
+			TCActorFunctor<TCFuture<CEJSON> (NContainer::TCVector<NEncoding::CEJSON> const &_Params)> m_fHandlerFunction;
 		};
 		
 		struct CConnection
@@ -163,11 +157,7 @@ namespace NMib::NConcurrency
 		co_return co_await Promise.f_MoveFuture();
 	}
 	
-	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods
-		(
-			TCWeakActor<> const &_Actor
-			, NContainer::TCVector<CMethod> &&_Methods
-		)
+	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods(NContainer::TCVector<CMethod> &&_Methods)
 	{
 		auto &Internal = *mp_pInternal;
 		TCSet<CStr> MethodNames;
@@ -183,9 +173,7 @@ namespace NMib::NConcurrency
 		for (auto &Method : _Methods)
 		{
 			auto &NewHandler = Internal.m_MethodHandlers[Method.m_Name];
-			NewHandler.m_pHandlerFunction = fg_Construct();
-			NewHandler.m_pHandlerFunction->m_fHandler = fg_Move(Method.m_fHandler);
-			NewHandler.m_Actor = _Actor;
+			NewHandler.m_fHandlerFunction = fg_Move(Method.m_fHandler);
 		}
 		
 		auto Subscription = g_ActorSubscription / [this, MethodNames]
@@ -257,7 +245,7 @@ namespace NMib::NConcurrency
 					;
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "{}", Message);
 				}
-				, [pThis = m_pThis, this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) // On method call
+				, [this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) // On method call
 				{
 					auto *pMethodHandler = m_MethodHandlers.f_FindEqual(_MethodInfo.m_Name);
 					if (!pMethodHandler)
@@ -287,54 +275,30 @@ namespace NMib::NConcurrency
 						}
 					;
 					
-					auto Actor = pMethodHandler->m_Actor.f_Lock();
-					
-					if (!Actor)
-					{
-						_MethodInfo.f_Error(fp_MethodError("actor-deleted", "Actor has been deleted"));
-						return;
-					}
-					
-					fg_Dispatch
+					pMethodHandler->m_fHandlerFunction.f_CallWrapped
 						(
-							Actor
-							, 
-							[
-								this
-								, pHandlerFunction = pMethodHandler->m_pHandlerFunction
-								, _MethodInfo
-								, ThisActor = fg_ThisActor(pThis)
-								, ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)
-							]
-							() -> TCFuture<void>
-							{
+						 	[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)](auto &&_fToDispatch)
+						 	{
 								auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 								auto OldInfo = CallingHostInfo;
 								CallingHostInfo = ThisCallingHostInfo;
 								auto Cleanup = g_OnScopeExit > [&]
 									{
-										CallingHostInfo = OldInfo; 
+										CallingHostInfo = OldInfo;
 									}
 								;
-
-								pHandlerFunction->m_fHandler(_MethodInfo.m_Parameters) > ThisActor / [this, _MethodInfo](TCAsyncResult<CEJSON> &&_Result)
-									{
-										if (!_Result)
-										{
-											_MethodInfo.f_Error(fp_MethodError("exception", _Result.f_GetExceptionStr()));
-											return;
-										}
-										_MethodInfo.f_Result(fg_Move(*_Result));
-									}
-								;
-								
-								co_return {};
+								return _fToDispatch();
 							}
+						 	, _MethodInfo.m_Parameters
 						)
-						> [this, _MethodInfo](TCAsyncResult<void> &&_Result)
+						> [this, _MethodInfo](TCAsyncResult<CEJSON> &&_Result)
 						{
 							if (!_Result)
+							{
 								_MethodInfo.f_Error(fp_MethodError("exception", _Result.f_GetExceptionStr()));
+								return;
+							}
+							_MethodInfo.f_Result(fg_Move(*_Result));
 						}
 					;
 				}

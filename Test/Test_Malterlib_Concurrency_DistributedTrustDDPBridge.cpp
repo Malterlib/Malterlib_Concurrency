@@ -49,17 +49,16 @@ namespace
 				
 				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(20.0);
 
-				auto WeakActor = fg_ConcurrentActor().f_Weak();
+				auto HandlerActor = fg_ConcurrentActor();
 				
 				CActorSubscription HandlerSubscription = DdpBridge
 					(
 						&CDistributedTrustDDPBridge::f_RegisterMethods
-						, fg_Move(WeakActor)
 						, fg_CreateVector<CDistributedTrustDDPBridge::CMethod>
 						(
 							{
 								"testMethod"
-								, [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCFuture<NEncoding::CEJSON> 
+								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCFuture<NEncoding::CEJSON>
 								{
 									TCPromise<NEncoding::CEJSON> Promise;
 									if (_Params[0].f_GetMember("Invalid"))

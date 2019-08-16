@@ -572,6 +572,7 @@ namespace NMib::NConcurrency
 		TCFuture<t_CReturnValue> operator <<= (tf_CType &&_Exception);
 
 		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &&_pException);
+		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &_pException);
 		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer const &_pException);
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>

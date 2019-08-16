@@ -176,6 +176,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
+	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (NException::CExceptionPointer &_pException)
+	{
+		this->mp_pData->f_SetException(_pException);
+		return f_MoveFuture();
+	}
+
+	template <typename t_CReturnValue>
 	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
 	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall)
 	{

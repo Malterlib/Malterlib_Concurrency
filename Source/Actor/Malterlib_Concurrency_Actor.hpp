@@ -863,7 +863,7 @@ namespace NMib::NConcurrency
 		for (auto &Actor : mp_Actors)
 		{
 			if (Actor)
-				Actor->f_Destroy() > Results.f_AddResult();
+				Actor.f_Destroy() > Results.f_AddResult();
 		}
 
 		Results.f_GetResults() > Promise.f_ReceiveAny();

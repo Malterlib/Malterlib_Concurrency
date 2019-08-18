@@ -19,6 +19,19 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
 	{
+		if (m_CallState)
+			fg_Move(m_CallState).f_Destroy() > fg_DiscardResult();
+	}
+
+	template <typename t_CResult, typename ...tp_CParams>
+	TCFuture<void> TCActorCallOnce<t_CResult, tp_CParams...>::f_Destroy()
+	{
+		TCPromise<void> Promise;
+
+		if (m_CallState)
+			return Promise <<= fg_Move(m_CallState).f_Destroy();
+
+		return Promise <<= g_Void;
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>

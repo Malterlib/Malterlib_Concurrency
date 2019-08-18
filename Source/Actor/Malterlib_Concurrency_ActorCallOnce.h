@@ -24,6 +24,8 @@ namespace NMib::NConcurrency
 
 		TCFuture<t_CResult> operator()(tp_CParams ...p_Params);
 
+		TCFuture<void> f_Destroy();
+
 	private:
 		struct CCallState : public CActor
 		{

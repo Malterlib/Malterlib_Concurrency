@@ -62,6 +62,9 @@ namespace NMib::NConcurrency
 	protected:
 		virtual void fp_Construct();
 		virtual TCFuture<void> fp_Destroy();
+#if DMibEnableSafeCheck > 0
+		virtual void fp_CheckDestroy();
+#endif
 
 		NException::CExceptionPointer fp_CheckDestroyed();
 

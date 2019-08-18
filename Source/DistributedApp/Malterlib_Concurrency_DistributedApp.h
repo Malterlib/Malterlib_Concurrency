@@ -319,6 +319,9 @@ namespace NMib::NConcurrency
 		NStr::CStr fp_GetLocalHostname(bool _bEnclaveSpecific) const;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> fp_GetTranslateHostnames() const;
 		void fp_MakeActive();
+#if DMibEnableSafeCheck > 0
+		void fp_CheckDestroy() override;
+#endif
 
 		TCActor<ICDistributedActorTrustManagerDatabase> mp_TrustManagerDatabase;
 		TCActor<CSeparateThreadActor> mp_FileOperationsActor;
@@ -343,6 +346,9 @@ namespace NMib::NConcurrency
 		EDistributedAppType mp_AppType = EDistributedAppType_Unknown;
 
 		bool mp_bDelegateTrustToAppInterface = false;
+#if DMibEnableSafeCheck > 0
+		bool mp_bDestroyCalled = false;
+#endif
 	protected:
 		struct CRegisteredAuthentication
 		{

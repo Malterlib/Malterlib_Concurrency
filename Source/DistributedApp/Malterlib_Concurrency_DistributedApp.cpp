@@ -78,9 +78,16 @@ namespace NMib::NConcurrency
 		fp_MakeActive();
 	}
 
-	CDistributedAppActor::~CDistributedAppActor()
+	CDistributedAppActor::~CDistributedAppActor() = default;
+
+#	if DMibEnableSafeCheck > 0
+	void CDistributedAppActor::fp_CheckDestroy()
 	{
+		// Did you forget to call CDistributedAppActor::fp_Destroy in your derived class?:
+		// co_await CDistributedAppActor::fp_Destroy();
+		DMibFastCheck(mp_bDestroyCalled);
 	}
+#endif
 
 	void CDistributedAppActor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo)
 	{
@@ -625,6 +632,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_Destroy()
 	{
+#if DMibEnableSafeCheck > 0
+		mp_bDestroyCalled = true;
+#endif
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
 			mp_State.m_DistributionManager.f_Destroy() > Destroys.f_AddResult();

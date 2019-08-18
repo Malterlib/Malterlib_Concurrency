@@ -109,6 +109,10 @@ namespace NMib::NConcurrency
 		return TCPromise<void>() <<= g_Void;
 	}
 
+	void CActor::fp_CheckDestroy()
+	{
+	}
+
 	NPrivate::CThisActor::operator TCActor<> () const
 	{
 		TCActorInternal<CActor> *pActor = (TCActorInternal<CActor> *)m_pThis.f_Get();

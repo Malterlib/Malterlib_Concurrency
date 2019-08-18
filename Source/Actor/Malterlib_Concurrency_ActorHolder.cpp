@@ -272,6 +272,10 @@ namespace NMib::NConcurrency
 				auto &ActorInternal = *pActorInternal;
 				if (smint Expected = 0; ActorInternal.mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 				{
+#if DMibEnableSafeCheck > 0
+					ActorInternal.mp_pActor->fp_CheckDestroy();
+#endif
+
 					ActorInternal.fp_DestroyActorHolder
 						(
 #if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging

@@ -85,6 +85,10 @@ namespace NMib::NConcurrency
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
 			co_await Internal.m_ActorDistributionManager.f_Destroy();
 
+		if (Internal.m_pInitOnce)
+			co_await Internal.m_pInitOnce->f_Destroy();
+		Internal.m_pInitOnce.f_Clear();
+
 		co_return {};
 	}
 	

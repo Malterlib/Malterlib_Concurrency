@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
 		(
-		 	NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> const &_fLazyStartApp
+		 	NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> const &_fLazyStartApp
 		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
@@ -274,8 +274,9 @@ namespace NMib::NConcurrency
 		}
 		else if (Command.m_pActorRunCommand)
 		{
+			FStopApp fStopApp;
 			if (mp_fLazyStartApp)
-				mp_fLazyStartApp(_Params, Command.m_Flags);
+				fStopApp = mp_fLazyStartApp(_Params, Command.m_Flags);
 			fp_Init();
 
 			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
@@ -294,6 +295,7 @@ namespace NMib::NConcurrency
 				NThread::CEventAutoReset m_Event;
 				NThread::CMutual m_ResultLock;
 				TCAsyncResult<uint32> m_Result;
+				bool m_bAborted = false;
 			};
 
 			TCSharedPointer<CState> pState = fg_Construct();
@@ -307,8 +309,7 @@ namespace NMib::NConcurrency
 				> NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<uint32> &&_Result)
 				{
 					DMibLock(pState->m_ResultLock);
-					if (!pState->m_Result.f_IsSet())
-						pState->m_Result = fg_Move(_Result);
+					pState->m_Result = fg_Move(_Result);
 					pState->m_Event.f_Signal();
 				}
 			;
@@ -318,12 +319,12 @@ namespace NMib::NConcurrency
 				 	[pState]
 				 	{
 						DMibLock(pState->m_ResultLock);
-						if (!pState->m_Result.f_IsSet())
-							pState->m_Result.f_SetException(DMibErrorInstance("\nAborted"));
+						pState->m_bAborted = true;
 						pState->m_Event.f_Signal();
 					}
 				)
 			;
+			bool bStopped = false;
 
 			TCAsyncResult<uint32> Result;
 			while (true)
@@ -335,8 +336,34 @@ namespace NMib::NConcurrency
 						Result = pState->m_Result;
 						break;
 					}
+					if (pState->m_bAborted)
+					{
+						DMibUnlock(pState->m_ResultLock);
+						if (fStopApp)
+						{
+							fStopApp();
+							fStopApp.f_Clear();
+							bStopped = true;
+						}
+						else if (!bStopped)
+							break;
+					}
 				}
 				pState->m_Event.f_Wait();
+			}
+
+			if (!Result.f_IsSet())
+			{
+				DMibLock(pState->m_ResultLock);
+				if (!pState->m_Result.f_IsSet())
+				{
+					if (pState->m_bAborted)
+						Result.f_SetException(DMibErrorInstance("Aborted"));
+					else
+						Result.f_SetException(DMibErrorInstance("No result"));
+				}
+				else
+					 Result = pState->m_Result;
 			}
 
 			fg_Move(pCommandLineControl).f_Destroy().f_CallSync();

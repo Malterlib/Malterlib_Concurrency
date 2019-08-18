@@ -603,10 +603,10 @@ namespace NMib::NConcurrency
 
 		mp_State.m_bStoppingApp = true;
 
+		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
+
 		if (mp_CommandLine)
 			co_await (fg_Move(mp_CommandLine).f_Destroy() % "Failed to stop command line interface");
-
-		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
@@ -647,6 +647,12 @@ namespace NMib::NConcurrency
 			mp_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
 		co_await Destroys.f_GetResults();
+
+		if (mp_TrustManagerDatabase)
+			co_await mp_TrustManagerDatabase.f_Destroy();
+
+		if (mp_pInitOnce)
+			co_await mp_pInitOnce->f_Destroy();
 
 		co_return {};
 	}
@@ -749,7 +755,7 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyStartApp
 				(
-					[&](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)
+					[&](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
 						if (_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_RunLocalApp)
@@ -769,6 +775,16 @@ namespace NMib::NConcurrency
 						}
 						else if (AppType != EDistributedAppType_Unchanged)
 							AppActor(&CDistributedAppActor::f_SetAppType, AppType).f_CallSync();
+
+						return [&]
+							{
+								if (bStartedApp)
+								{
+									bStartedApp = false;
+									AppActor(&CDistributedAppActor::f_StopApp).f_CallSync();
+								}
+							}
+						;
 					}
 				)
 			;

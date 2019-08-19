@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 
 	CDistributedAppActor::~CDistributedAppActor() = default;
 
-#	if DMibEnableSafeCheck > 0
+#if DMibEnableSafeCheck > 0
 	void CDistributedAppActor::fp_CheckDestroy()
 	{
 		// Did you forget to call CDistributedAppActor::fp_Destroy in your derived class?:

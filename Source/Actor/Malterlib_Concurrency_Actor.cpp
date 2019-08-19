@@ -109,9 +109,11 @@ namespace NMib::NConcurrency
 		return TCPromise<void>() <<= g_Void;
 	}
 
+#if DMibEnableSafeCheck > 0
 	void CActor::fp_CheckDestroy()
 	{
 	}
+#endif
 
 	NPrivate::CThisActor::operator TCActor<> () const
 	{

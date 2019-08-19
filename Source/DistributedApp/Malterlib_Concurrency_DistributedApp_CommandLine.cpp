@@ -75,7 +75,25 @@ namespace NMib::NConcurrency
 
 		try
 		{
-			uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
+			uint32 Result = co_await Command.m_pActorRunCommand->f_CallWrapped
+				(
+					[ThisCallingHostInfo = _CallingHost](auto &&_fToDispatch)
+					{
+						auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
+						auto OldInfo = CallingHostInfo;
+						CallingHostInfo = ThisCallingHostInfo;
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								CallingHostInfo = OldInfo;
+							}
+						;
+						return _fToDispatch();
+					}
+					, ValidatedParams
+					, _pCommandLine
+				)
+			;
+
 			co_return Result;
 		}
 		catch (CException const &_Exception)

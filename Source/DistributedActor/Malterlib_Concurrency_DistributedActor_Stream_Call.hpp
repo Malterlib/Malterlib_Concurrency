@@ -141,12 +141,11 @@ namespace NMib::NConcurrency
 				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CType;
 				if constexpr (NPrivate::TCIsFuture<COriginalReturn>::mc_Value)
 				{
-					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug
-						-> TCFuture<CReturn>
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug -> TCFuture<CReturn>
 						{
 							return NStorage::fg_TupleApplyAs<CMoveList>
 								(
-									[&](auto &&..._Params) mutable mark_no_coroutine_debug-> TCFuture<CReturn>
+									[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CReturn>
 									{
 										return (pActor->*tf_pMemberFunction)(fg_Forward<decltype(_Params)>(_Params)...);
 									}

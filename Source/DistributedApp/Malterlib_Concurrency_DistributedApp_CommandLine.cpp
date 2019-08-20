@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 		{
 			uint32 Result = co_await Command.m_pActorRunCommand->f_CallWrapped
 				(
-					[ThisCallingHostInfo = _CallingHost](auto &&_fToDispatch)
+					[ThisCallingHostInfo = _CallingHost](auto &&_fToDispatch) mark_no_coroutine_debug -> TCFuture<uint32>
 					{
 						auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 						auto OldInfo = CallingHostInfo;

@@ -171,14 +171,6 @@ namespace NMib::NConcurrency::NPrivate
 		return Future;
 	}
 
-#if DMibEnableSafeCheck > 0
-	template <typename t_CReturnType>
-	void TCFutureCoroutineContext<t_CReturnType>::f_ReportDebugException(NException::CDebugException const &_Exception)
-	{
-		this->m_pPromiseData->f_SetException(_Exception);
-	}
-#endif
-
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::unhandled_exception()
 	{
@@ -329,21 +321,25 @@ namespace NMib::NConcurrency
 							if (!Actor)
 								return;
 
+#if DMibEnableSafeCheck > 0
+							if (!KeepAlive.f_HasValidCoroutine())
+								return; // Can happen when f_Suspend throws
+#endif
+
 							auto pRealActor = Actor.f_GetRealActor();
 							pRealActor->f_QueueProcess
 								(
 									[this, Actor = fg_Move(Actor), _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
 									{
-										DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+#if DMibEnableSafeCheck > 0
+										if (!KeepAlive.f_HasValidCoroutine())
+											return; // Can happen when f_Suspend throws
+#endif
 
 										auto &CoroutineContext = _Handle.promise();
 										mp_Result = fg_Move(Result);
 										CCurrentActorScope CurrentActorScope(Actor);
-#if DMibEnableSafeCheck > 0
-										mp_pDebugException = CoroutineContext.f_Resume();
-#else
 										CoroutineContext.f_Resume();
-#endif
 										_Handle.resume();
 									}
 								)
@@ -360,15 +356,8 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		auto await_resume()
-#if DMibEnableSafeCheck == 0
-		noexcept(!t_bUnwrap)
-#endif
+		auto await_resume() noexcept(!t_bUnwrap)
 		{
-#if DMibEnableSafeCheck > 0
-			if (mp_pDebugException)
-				std::rethrow_exception(mp_pDebugException);
-#endif
 			if constexpr (t_bUnwrap)
 				return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
 			else
@@ -393,9 +382,6 @@ namespace NMib::NConcurrency
 		TCFuture<t_CReturnType> mp_Future;
 		TCAsyncResult<t_CReturnType> mp_Result;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
-#if DMibEnableSafeCheck > 0
-		NException::CExceptionPointer mp_pDebugException;
-#endif
 	};
 
 	template <typename t_CReturnValue>

@@ -130,13 +130,12 @@ namespace NMib::NConcurrency
 			return fg_Forward<t_CAwaitable>(_Awaitable);
 		}
 
-		void f_Suspend(bool _bAddToActor);
-#if DMibEnableSafeCheck > 0
-		NException::CExceptionPointer f_Resume();
-		virtual void f_ReportDebugException(NException::CDebugException const &_Exception) = 0;
-#else
-		void f_Resume();
+		void f_Suspend(bool _bAddToActor)
+#if DMibEnableSafeCheck <= 0
+			noexcept
 #endif
+		;
+		void f_Resume();
 		virtual void f_Abort() = 0;
 
 		CCoroutineHandler *m_pPreviousCoroutineHandler = this;
@@ -144,7 +143,6 @@ namespace NMib::NConcurrency
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
 #if DMibEnableSafeCheck > 0
-		NException::CCallstack m_Callstack;
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;
 #endif
@@ -152,8 +150,6 @@ namespace NMib::NConcurrency
 	protected:
 #if DMibEnableSafeCheck > 0
 		inline_never void fp_UpdateSafeCall(bool _bSafeCall);
-		inline_never void fp_UpdateUnsafeReferenceParams(bool _bSafeCall);
-		inline_never void fp_UpdateUnsafeThisPointer(bool _bSafeCall);
 
 		inline_never void fp_CheckUnsafeReferenceParams();
 		inline_never void fp_CheckUnsafeThisPointer();
@@ -323,9 +319,6 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCFuture<t_CReturnType> get_return_object();
 		void unhandled_exception();
-#if DMibEnableSafeCheck > 0
-		void f_ReportDebugException(NException::CDebugException const &_Exception) override;
-#endif
 	};
 
 	template <typename t_CReturnType, ECoroutineFlag t_Flags = ECoroutineFlag_None>

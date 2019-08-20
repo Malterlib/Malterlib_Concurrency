@@ -50,6 +50,9 @@ namespace NMib::NConcurrency
 	}
 
 	void CFutureCoroutineContext::f_Suspend(bool _bAddToActor)
+#if DMibEnableSafeCheck <= 0
+		noexcept
+#endif
 	{
 		DMibFastCheck(this->m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
@@ -81,13 +84,16 @@ namespace NMib::NConcurrency
 				pCurrentActor->f_SuspendCoroutine(*this);
 		}
 		this->m_pPreviousCoroutineHandler = this;
-	}
 
 #if DMibEnableSafeCheck > 0
-	NException::CExceptionPointer CFutureCoroutineContext::f_Resume()
-#else
-	void CFutureCoroutineContext::f_Resume()
+		if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
+			fp_CheckUnsafeThisPointer();
+		else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
+			fp_CheckUnsafeReferenceParams();
 #endif
+	}
+
+	void CFutureCoroutineContext::f_Resume()
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -101,20 +107,6 @@ namespace NMib::NConcurrency
 		for (auto &Handler : this->m_ThreadLocalHandlers)
 			Handler.f_Resume();
 
-#if DMibEnableSafeCheck > 0
-		try
-		{
-			if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
-				fp_CheckUnsafeThisPointer();
-			else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
-				fp_CheckUnsafeReferenceParams();
-		}
-		catch (NException::CDebugException const &_Exception)
-		{
-			return _Exception.f_ExceptionPointer();
-		}
-		return nullptr;
-#endif
 	}
 
 #if DMibConcurrencySupportCoroutineFreeFunctionDebug
@@ -133,46 +125,7 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
-		if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
-			fp_UpdateUnsafeThisPointer(_bSafeCall);
-		else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
-			fp_UpdateUnsafeReferenceParams(_bSafeCall);
-	}
-
-	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeReferenceParams(bool _bSafeCall)
-	{
-		m_Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace
-			(
-				m_Callstack.m_Callstack
-				, sizeof(m_Callstack.m_Callstack) / sizeof(m_Callstack.m_Callstack[0])
-			)
-		;
-
 		m_bIsCalledSafely = _bSafeCall;
-
-		if (!m_bIsCalledSafely)
-		{
-			int x = 0;
-			++x;
-		}
-	}
-
-	inline_never void CFutureCoroutineContext::fp_UpdateUnsafeThisPointer(bool _bSafeCall)
-	{
-		m_Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace
-			(
-				m_Callstack.m_Callstack
-				, sizeof(m_Callstack.m_Callstack) / sizeof(m_Callstack.m_Callstack[0])
-			)
-		;
-
-		m_bIsCalledSafely = _bSafeCall;
-
-		if (!m_bIsCalledSafely)
-		{
-			int x = 0;
-			++x;
-		}
 	}
 
 	inline_never void CFutureCoroutineContext::fp_CheckUnsafeReferenceParams()
@@ -189,53 +142,64 @@ namespace NMib::NConcurrency
 			else
 			{
 				NSys::fg_DebugOutput("Unsafe call to coroutine with reference parameters:\n");
-				m_Callstack.f_Trace(4);
+
+				NException::CCallstack Callstack;
+				Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
+				Callstack.f_Trace(4);
+
 				DMibFastCheck(false);
 			}
 		}
 
+		#if 0
+
 		// If you hit this assert you have called a coroutine with reference parameters in an unsafe way.
 		// Instead of calling coroutine directly do it through self:
 
-		#if 0
-			TCFuture<void> f_MyOtherCoroutineFunction(uint32 const &);
+		TCFuture<void> f_MyOtherCoroutineFunction(uint32 const &);
 
-			TCFuture<void> f_MyCoroutineFunction()
-			{
-				uint32 ByReference = 5;
-				co_await self(&CMyActor::f_MyOtherCoroutineFunction, ByReference);
-				co_return {};
-			}
-		#endif
+		TCFuture<void> f_MyCoroutineFunction()
+		{
+			uint32 ByReference = 5;
+			co_await self(&CMyActor::f_MyOtherCoroutineFunction, ByReference);
+			co_return {};
+		}
+
+		TCFuture<void> fg_MyOtherCoroutineFunction(uint32 const &);
+
+		TCFuture<void> fg_MyCoroutineFunction()
+		{
+			uint32 ByReference = 5;
+			co_await fg_CallSafe(&fg_MyOtherCoroutineFunction, ByReference);
+			co_return {};
+		}
 
 		// If you are sure that the reference usage is safe you can instead use co_await ECoroutineFlag_AllowReferences:
 
-		#if 0
-			TCFuture<void> f_MyOtherCoroutineFunction(uint32 const &)
-			{
-				co_await ECoroutineFlag_AllowReferences;
-				...
-			}
+		TCFuture<void> f_MyOtherCoroutineFunction(uint32 const &)
+		{
+			co_await ECoroutineFlag_AllowReferences;
+			...
+		}
 
-			TCFuture<void> f_MyCoroutineFunction()
-			{
-				uint32 ByReference = 5;
-				co_await f_MyOtherCoroutineFunction(ByReference);
-				co_return {};
-			}
-		#endif
+		TCFuture<void> f_MyCoroutineFunction()
+		{
+			uint32 ByReference = 5;
+			co_await f_MyOtherCoroutineFunction(ByReference);
+			co_return {};
+		}
 
 		// Or change the parameter to be non reference:
 
-		#if 0
-			TCFuture<void> f_MyOtherCoroutineFunction(uint32);
+		TCFuture<void> f_MyOtherCoroutineFunction(uint32);
 
-			TCFuture<void> f_MyCoroutineFunction()
-			{
-				uint32 ByReference = 5;
-				co_await f_MyOtherCoroutineFunction(ByReference);
-				co_return {};
-			}
+		TCFuture<void> f_MyCoroutineFunction()
+		{
+			uint32 ByReference = 5;
+			co_await f_MyOtherCoroutineFunction(ByReference);
+			co_return {};
+		}
+
 		#endif
 	}
 
@@ -253,35 +217,41 @@ namespace NMib::NConcurrency
 			else
 			{
 				NSys::fg_DebugOutput("Unsafe call to coroutine with reference this pointer:\n");
-				m_Callstack.f_Trace(4);
+				
+				NException::CCallstack Callstack;
+				Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
+				Callstack.f_Trace(4);
+
 				DMibFastCheck(false);
 			}
 		}
 
+		#if 0
+
 		// If you hit this assert you have called a coroutine (probably a lamdba) in an unsafe way.
 		// Instead of calling coroutine directly, dispatch it instead:
-		#if 0
-			self / [=] () -> TCFuture<void>
+		self / [=] () -> TCFuture<void>
+			{
+				co_await self(&CMyActor::f_MyOtherCoroutineFunction);
+				co_return {};
+			}
+			> [](TCAsyncResult<void> &&_Result)
+			{
+				// Handle error here
+			}
+		;
+
+		// Or
+		co_await
+			(
+				self / [=] () -> TCFuture<void>
 				{
 					co_await self(&CMyActor::f_MyOtherCoroutineFunction);
 					co_return {};
 				}
-				> [](TCAsyncResult<void> &&_Result)
-				{
-					// Handle error here
-				}
-			;
+			)
+		;
 
-			// Or
-			co_await
-				(
-					self / [=] () -> TCFuture<void>
-					{
-						co_await self(&CMyActor::f_MyOtherCoroutineFunction);
-						co_return {};
-					}
-				)
-			;
 		#endif
 	}
 #endif

@@ -335,20 +335,13 @@ namespace NMib::NConcurrency
 		bool await_ready() const noexcept;
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
-#if DMibEnableSafeCheck > 0
-		auto await_resume();
-#else
 		auto await_resume() noexcept(!t_bUnwrap);
-#endif
 
 	private:
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CCalls...> mp_Calls;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
-#if DMibEnableSafeCheck > 0
-		NException::CExceptionPointer mp_pDebugException;
-#endif
 	};
 
 	template <typename t_CActorCall, typename... tp_CCalls>
@@ -559,20 +552,13 @@ namespace NMib::NConcurrency
 		bool await_ready() const noexcept;
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
-#if DMibEnableSafeCheck > 0
-		auto await_resume();
-#else
 		auto await_resume() noexcept(!t_bUnwrap);
-#endif
 
 	private:
 		t_CActorCall mp_ActorCall;
 		TCAsyncResult<t_CReturnType> mp_Result;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
 		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
-#if DMibEnableSafeCheck > 0
-		NException::CExceptionPointer mp_pDebugException;
-#endif
 	};
 
 	template <typename t_CActorCall, typename t_CReturnType>

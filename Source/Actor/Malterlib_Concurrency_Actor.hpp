@@ -921,10 +921,8 @@ namespace NMib::NConcurrency
 						CCurrentActorScope CurrentActorScope(mp_Actor);
 #if DMibEnableSafeCheck > 0
 						CoroutineContext.f_SetOwner(mp_Actor.f_Weak());
-						mp_pDebugException = CoroutineContext.f_Resume();
-#else
-						CoroutineContext.f_Resume();
 #endif
+						CoroutineContext.f_Resume();
 						_Handle.resume();
 					}
 				)
@@ -933,19 +931,12 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		void await_resume()
+		void await_resume() noexcept
 		{
-#if DMibEnableSafeCheck > 0
-			if (mp_pDebugException)
-				std::rethrow_exception(mp_pDebugException);
-#endif
 		}
 
 	private:
 		TCActor<> mp_Actor;
-#if DMibEnableSafeCheck > 0
-		NException::CExceptionPointer mp_pDebugException;
-#endif
 	};
 
 	struct [[nodiscard]] CCoroutineTransferOwnership

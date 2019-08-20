@@ -124,7 +124,7 @@ namespace NMib::NConcurrency
 				{
 					return fDispatcher
 						(
-						 	[&]
+						 	[&]() mark_no_coroutine_debug -> CReturn
 						 	{
 								return NStorage::fg_TupleApplyAs<CMoveList>
 									(

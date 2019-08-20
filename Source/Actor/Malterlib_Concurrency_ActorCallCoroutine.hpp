@@ -48,9 +48,10 @@ namespace NMib::NConcurrency
 				, fg_CurrentActor()
 				, [=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
 				{
-					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
-
 #if DMibEnableSafeCheck > 0
+					if (!KeepAlive.f_HasValidCoroutine())
+						return; // Can happen when f_Suspend throws
+
 					auto CurrentActor = fg_CurrentActor();
 					DMibFastCheck(fg_CurrentActor());
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
@@ -61,11 +62,7 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
-#if DMibEnableSafeCheck > 0
-					mp_pDebugException = CoroutineContext.f_Resume();
-#else
 					CoroutineContext.f_Resume();
-#endif
 					_Handle.resume();
 				}
 			)
@@ -100,15 +97,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
-	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume()
-#if DMibEnableSafeCheck == 0
-		noexcept(!t_bUnwrap)
-#endif
+	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume() noexcept(!t_bUnwrap)
 	{
-#if DMibEnableSafeCheck > 0
-		if (mp_pDebugException)
-			std::rethrow_exception(mp_pDebugException);
-#endif
 		if constexpr (t_bUnwrap)
 			return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
 		else
@@ -254,8 +244,10 @@ namespace NMib::NConcurrency
 			(
 				[=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
 				{
-					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
 #if DMibEnableSafeCheck > 0
+					if (!KeepAlive.f_HasValidCoroutine())
+						return; // Can happen when f_Suspend throws
+
 					auto CurrentActor = fg_CurrentActor();
 					DMibFastCheck(CurrentActor);
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
@@ -266,11 +258,7 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
-#if DMibEnableSafeCheck > 0
-					mp_pDebugException = CoroutineContext.f_Resume();
-#else
 					CoroutineContext.f_Resume();
-#endif
 					_Handle.resume();
 				}
 				, fg_CurrentActor()
@@ -286,15 +274,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
-	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_resume()
-#if DMibEnableSafeCheck == 0
-		noexcept(!t_bUnwrap)
-#endif
+	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_resume() noexcept(!t_bUnwrap)
 	{
-#if DMibEnableSafeCheck > 0
-		if (mp_pDebugException)
-			std::rethrow_exception(mp_pDebugException);
-#endif
 		if constexpr (t_bUnwrap)
 		{
 			CUnwrappedType Results;

@@ -137,6 +137,8 @@ namespace NMib::NConcurrency
 			Flags |= EAnsiEncodingFlag_Color24Bit;
 		if (fs_ColorLightBackgroundDefault())
 			Flags |= EAnsiEncodingFlag_ColorLightBackground;
+		if (fs_BoxDrawingDefault())
+			Flags |= EAnsiEncodingFlag_BoxDrawing;
 		return Flags;
 	}
 
@@ -183,6 +185,20 @@ namespace NMib::NConcurrency
 					return true;
 #endif
 				return false;
+			}
+			()
+		;
+		return bValue;
+	}
+
+	bool CDistributedAppActor::fs_BoxDrawingDefault()
+	{
+		static bool bValue = []
+			{
+				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibBoxDrawing", ""))
+					return Value == "true";
+
+				return true;
 			}
 			()
 		;

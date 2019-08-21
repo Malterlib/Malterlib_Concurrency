@@ -223,6 +223,7 @@ namespace NMib::NConcurrency
 		static bool fs_ColorEnabledDefault();
 		static bool fs_Color24BitEnabledDefault();
 		static bool fs_ColorLightBackgroundDefault();
+		static bool fs_BoxDrawingDefault();
 
 	protected:
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;

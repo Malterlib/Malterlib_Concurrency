@@ -204,6 +204,8 @@ namespace NMib::NConcurrency
 			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color24Bit;
 		if (_Params.f_GetMemberValue("ColorLight", CDistributedAppActor::fs_ColorLightBackgroundDefault()).f_Boolean())
 			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
+		if (_Params.f_GetMemberValue("BoxDrawing", CDistributedAppActor::fs_BoxDrawingDefault()).f_Boolean())
+			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_BoxDrawing;
 
 		auto ConsoleProperties = NSys::fg_GetConsoleProperties();
 
@@ -247,6 +249,7 @@ namespace NMib::NConcurrency
 					, f_ColorEnabled() ? "--color" : "--no-color"
 					, f_Color24BitEnabled() ? "--color-24bit" : "--no-color-24bit"
 					, f_ColorLightBackground() ? "--color-light" : "--no-color-light"
+					, (Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_BoxDrawing) ? "--box-drawing" : "--no-box-drawing"
 					, "--terminal-width={}"_f << _Params.f_GetMemberValue("TerminalWidth", -1).f_Integer()
 					, "--terminal-height={}"_f << _Params.f_GetMemberValue("TerminalHeight", -1).f_Integer()
 					, _Command

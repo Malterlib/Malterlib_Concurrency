@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 
 	TCVector<CStr> CDistributedAppCommandLineSpecification::fs_RelevantHelpGlobalOptions()
 	{
-		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color", "Color24Bit", "ColorLight", "TerminalWidth", "TerminalHeight"};
+		return {"HelpCurrentCommand", "HelpCurrentCommandVerbose", "Color", "Color24Bit", "ColorLight", "BoxDrawing", "TerminalWidth", "TerminalHeight"};
 	}
 
 	void CDistributedAppCommandLineSpecification::f_AddHelpCommand()

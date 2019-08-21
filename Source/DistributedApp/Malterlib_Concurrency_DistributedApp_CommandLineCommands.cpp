@@ -78,6 +78,18 @@ namespace NMib::NConcurrency
 			o_CommandLine.f_RegisterGlobalOptions
 				(
 					{
+						"BoxDrawing?"_=
+						{
+							"Names"_= {"--box-drawing"}
+							, "Default"_= fs_BoxDrawingDefault()
+							, "Description"_= "Enable box drawing characters.\n"\
+						}
+					}
+				)
+			;
+			o_CommandLine.f_RegisterGlobalOptions
+				(
+					{
 						"TerminalWidth?"_=
 						{
 							"Names"_= {"--terminal-width"}

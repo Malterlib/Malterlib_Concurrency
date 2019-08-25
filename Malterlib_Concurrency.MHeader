@@ -71,7 +71,6 @@ Target
 {
 	&
 	{
-		MalterlibConcurrency_DistributedActors true
 		LanguageFamily Native
 		TargetIsExecutable "true"
 	}
@@ -116,34 +115,37 @@ Target
 
 Property
 {
-/*
-	MalterlibConcurrency_DistributedActorsInAnyTarget_Template "true"
+	MalterlibConcurrencyTargetInDependenciesTemplate_TargetName "@(Builtin.Function->GetProperty('Property', 'TargetIdentity', '@(Explodee)'))"
+	MalterlibConcurrencyTargetInDependenciesTemplate true
 	{
-		&
-		{
-			!Explodee ""
-			"true" "@(Builtin.Function->GetProperty('Property', 'MalterlibConcurrency_DistributedActors', '@(Explodee)'))"
-			"true" "@(Builtin.Function->GetProperty('Property', 'TargetIsExecutable', '@(Explodee)'))"
-		}
+		!!MalterlibConcurrencyTargetInDependenciesTemplate_TargetName "Lib_Malterlib_Concurrency"
 	}
-	MalterlibConcurrency_DistributedActorsInAnyTarget "@(Builtin.Function->ExplodeList('@(Workspace.AllTargets)', ';', 'MalterlibConcurrency_DistributedActorsInAnyTarget_Template'))"
-	MalterlibConcurrency_DistributedActors false
-	{
-		!!MalterlibConcurrency_DistributedActors ""
-	}
-	*/
+
+	MalterlibConcurrencyTargetInDependencies "@(Builtin.Function->ExplodeList('@(Target.Dependencies)', ';', 'MalterlibConcurrencyTargetInDependenciesTemplate'))"
 	MalterlibConcurrency_DistributedActors true
 	{
-		!!MalterlibConcurrency_DistributedActors ""
+		!!MalterlibConcurrencyTargetInDependencies true
 	}
 }
 
 Compile
 {
 	!!CompileDialect "C"
-	PreprocessorDefines "DMibEnableDistributedActors;@(Compile.PreprocessorDefines)"
+
+	PrefixHeader "@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h"
 	{
-		!!MalterlibConcurrency_DistributedActors true
+		&
+		{
+			MalterlibConcurrency_DistributedActors true
+			|
+			{
+				Compile.PrefixHeader ""
+				Compile.PrefixHeader "@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h"
+			}
+			!DocumentationEnabled true
+			!MalterlibQtSupport "true"
+			!Target.Type Driver
+		}
 	}
 }
 

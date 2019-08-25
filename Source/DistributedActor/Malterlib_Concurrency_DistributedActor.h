@@ -12,9 +12,13 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
-#include <Mib/Web/WebSocket>
 #include <Mib/Cryptography/PublicCrypto>
 #include <Mib/CommandLine/AnsiEncoding>
+
+namespace NMib::NWeb
+{
+	struct CWebSocketNewServerConnection;
+}
 
 namespace NMib::NConcurrency
 {
@@ -712,7 +716,6 @@ namespace NMib::NConcurrency
 
 #ifndef DCompiler_MSVC_Workaround
 	extern template class TCActor<CActorDistributionManager>;
-
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
 		<
 			&CActorDistributionManager::f_CallRemote

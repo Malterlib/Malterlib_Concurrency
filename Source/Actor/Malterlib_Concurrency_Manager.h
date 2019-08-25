@@ -213,6 +213,7 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_Manager.hpp"
 #include "Malterlib_Concurrency_Promise_Coroutine.hpp"
 #include "Malterlib_Concurrency_WeakActor.hpp"
+#include "Malterlib_Concurrency_Instantiate.hpp"
 
 #ifndef DMibPNoShortCuts
 	using namespace NMib::NConcurrency;

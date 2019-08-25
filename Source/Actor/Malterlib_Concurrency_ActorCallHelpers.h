@@ -606,16 +606,15 @@ namespace NMib::NConcurrency
 		{
 		}
 
-		TCActorCall(TCActorCall const &_Other) = default;
+		TCActorCall(TCActorCall const &_Other) = delete;
 		TCActorCall(TCActorCall &&_Other) = default;
 
-#ifdef DMibContractConfigure_CheckEnabled
+#if DMibEnableSafeCheck > 0
 		~TCActorCall()
 		{
-			DMibCheck(NException::fg_UncaughtExceptions() || mp_Actor.f_IsEmpty())("Actor call without result used");
+			DMibFastCheck(NException::fg_UncaughtExceptions() || mp_Actor.f_IsEmpty()); // "Actor call without result used";
 		}
 #endif
-
 		void f_Clear()
 		{
 			mp_Actor.f_Clear();
@@ -637,18 +636,14 @@ namespace NMib::NConcurrency
 			return g_Future <<= fg_Move(*this);
 		}
 
-		TCActorCall &operator =(TCActorCall const &_Other)
-		{
-			mp_Actor = _Other.mp_Actor;
-			mp_Functor = _Other.mp_Functor;
-			mp_Params = _Other.mp_Params;
-		}
+		TCActorCall &operator =(TCActorCall const &_Other) = delete;
 
 		TCActorCall &operator =(TCActorCall &&_Other)
 		{
 			mp_Actor = fg_Move(_Other.mp_Actor);
 			mp_Functor = fg_Move(_Other.mp_Functor);
 			mp_Params = fg_Move(_Other.mp_Params);
+			return *this;
 		}
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>

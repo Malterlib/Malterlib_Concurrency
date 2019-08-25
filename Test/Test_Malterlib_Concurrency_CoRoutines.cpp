@@ -24,7 +24,6 @@ namespace
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-
 		CTestDistributedApp()
 			: CDistributedAppActor
 			(

@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 		Internal.mp_bDeferrCallbacks = false;
 	}
 
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 	namespace NPrivate
 	{
 		template <typename tf_CReturn, typename tf_CCallback, mint... tfp_Indices, typename... tfp_CParams, typename... tfp_COriginalTypes>
@@ -195,7 +195,7 @@ namespace NMib::NConcurrency
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						bool bFound = false;
@@ -263,7 +263,7 @@ namespace NMib::NConcurrency
 			fg_Dispatch
 				(
 					Actor
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 					, [pCallback = Callback.m_pCallback, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						 return NPrivate::fg_CallCallback<t_CReturn>
@@ -301,7 +301,7 @@ namespace NMib::NConcurrency
 		{
 			Internal.mp_DeferredCallbacks.f_Insert
 				(
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 					[this, Promise, Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...)]() mutable
 					{
 						auto &Internal = *mp_pInternal;
@@ -362,7 +362,7 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<CReturn> Results;
 
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		for (auto &Callback : Internal.mp_Callbacks)
@@ -430,7 +430,7 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			return;
 
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		_fDoCall
@@ -487,7 +487,7 @@ namespace NMib::NConcurrency
 		if (Internal.mp_bDeferrCallbacks)
 			DMibError("Deferred callbacks not supported");
 
-#ifdef DCompiler_MSVC_Workaround
+#if !DMibSupportPackExpansionsInUsingDeclarations
 		auto Params = NStorage::fg_Tuple(fg_Forward<tp_CCallbackParams>(p_Params)...);
 
 		for (auto &Callback : Internal.mp_Callbacks)

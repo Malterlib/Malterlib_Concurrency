@@ -5,7 +5,9 @@
 
 namespace NMib::NConcurrency
 {
+#if DMibEnableSafeCheck > 0
 	extern template NMib::NConcurrency::TCActorCall<NMib::NConcurrency::TCActor<NMib::NConcurrency::CDirectCallActor>, NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > (NMib::NConcurrency::CActor::*)(NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> &&), NStorage::TCTuple<NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> >, NMib::NMeta::TCTypeList<NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> >, true>::~TCActorCall();
+#endif
 	extern template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor>::~TCActor();
 	extern template NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >::~TCPromiseData();
 	extern template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor> NMib::NConcurrency::TCWeakActor<NMib::NConcurrency::CActor>::f_Lock() const;

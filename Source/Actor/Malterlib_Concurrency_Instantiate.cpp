@@ -18,17 +18,21 @@ namespace NMib::NStorage
 {
 	template NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >>::~TCSharedPointer();
 	template bool NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >>::fp_Delete();
+#ifndef DCompiler_MSVC_Workaround
 	template bool NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >>::fp_Delete<false, nullptr>();
+#endif
 
 	template NMib::NStorage::TCSharedPointer<NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor>, NMib::NStorage::CSupportWeakTag, NMib::NConcurrency::CInternalActorAllocator>::~TCSharedPointer();
 	template bool NMib::NStorage::TCSharedPointer<NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor>, NMib::NStorage::CSupportWeakTag, NMib::NConcurrency::CInternalActorAllocator>::fp_Delete();
+#ifndef DCompiler_MSVC_Workaround
 	template bool NMib::NStorage::TCSharedPointer<NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor>, NMib::NStorage::CSupportWeakTag, NMib::NConcurrency::CInternalActorAllocator>::fp_Delete<true, nullptr>();
+#endif
 	template NMib::NStorage::TCSharedPointer<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >>::TCSharedPointer();
 	template NMib::NStorage::TCSharedPointer<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >>::TCSharedPointer(TCConstruct<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >, NMib::NFunction::TCFunctionMovable<void ()> > &&);
 }
 namespace NMib::NContainer
 {
-	template NMib::NContainer::TCVector<NException::CExceptionPointer, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault>::TCVector();
+	template NMib::NContainer::TCVector<NException::CExceptionPointer, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault>::TCVector() noexcept;
 	template NMib::NContainer::TCVector<NException::CExceptionPointer, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault>::TCVector(NMib::NContainer::TCVector<NException::CExceptionPointer, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> &&);
 }
 namespace NMib

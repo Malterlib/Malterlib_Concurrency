@@ -365,10 +365,8 @@ namespace NMib::NConcurrency
 		if (m_bLogToStderr)
 			Launch.m_ToLog = NProcess::CProcessLaunchActor::ELogFlag_All | NProcess::CProcessLaunchActor::ELogFlag_AdditionallyOutputToStdErr;
 			
-#ifdef DPlatformFamily_Windows
 		Launch.m_Params.m_bCreateNewProcessGroup = true;
-#endif
-		
+
 		LaunchInfo.m_Launch(&NProcess::CProcessLaunchActor::f_Launch, Launch, fg_ThisActor(this)) > Promise / [this, LaunchID](NConcurrency::CActorSubscription &&_Subscription)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);

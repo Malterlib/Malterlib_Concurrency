@@ -2,9 +2,9 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/CommandLine/CommandLineImplementation>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
-#include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
 namespace NMib::NConcurrency
 {
@@ -13,6 +13,48 @@ namespace NMib::NConcurrency
 	using namespace NCommandLine;
 	using namespace NException;
 
+	template <typename t_CCommandLineSpecification>
+	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable
+			<
+				TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+			> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+	{
+		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
+		auto &Section = *pSection;
+		auto &Internal = *(this->mp_pInternal);
+		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
+		pCommand->m_pActorRunCommand = fg_Construct(g_ActorFunctor / fg_Move(_fRunCommand));
+		pCommand->m_Flags = _Flags;
+		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
+	}
+
+	template auto
+	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
+	f_RegisterCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable
+			<
+				TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+			> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
+	;
+}
+
+namespace NMib::NCommandLine
+{
+	template struct TCCommandLineSpecification<NConcurrency::CCommandLineSpecificationDistributedAppCustomization>;
+}
+
+namespace NMib::NConcurrency
+{
 	TCFuture<void> CDistributedAppActor::fp_PreRunCommandLine
 		(
 			 CStr const &_Command
@@ -34,7 +76,7 @@ namespace NMib::NConcurrency
 		if (!fp_HasCommandLineAccess(_CallingHost.f_GetRealHostID()))
 			co_return DMibErrorInstance("Access denied");
 
-		auto &SpecInternal = *(mp_pCommandLineSpec->mp_pInternal);
+		auto &SpecInternal = mp_pCommandLineSpec->f_AccessInternal();
 		auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 
 		if (!pCommand)
@@ -50,7 +92,7 @@ namespace NMib::NConcurrency
 			co_return _Exception.f_ExceptionPointer();
 		}
 
-		if ((*pCommand)->m_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes)
+		if ((*pCommand)->m_Flags & EDistributedAppCommandFlag_WaitForRemotes)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection);
 
 		CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
@@ -127,142 +169,4 @@ namespace NMib::NConcurrency
 	void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)
 	{
 	}
-
-	EAnsiEncodingFlag CDistributedAppActor::fs_ColorAnsiFlagsDefault()
-	{
-		EAnsiEncodingFlag Flags = EAnsiEncodingFlag_None;
-		if (fs_ColorEnabledDefault())
-			Flags |= EAnsiEncodingFlag_Color;
-		if (fs_Color24BitEnabledDefault())
-			Flags |= EAnsiEncodingFlag_Color24Bit;
-		if (fs_ColorLightBackgroundDefault())
-			Flags |= EAnsiEncodingFlag_ColorLightBackground;
-		if (fs_BoxDrawingDefault())
-			Flags |= EAnsiEncodingFlag_BoxDrawing;
-		return Flags;
-	}
-
-	bool CDistributedAppActor::fs_ColorEnabledDefault()
-	{
-		static bool bValue = []
-			{
-				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor", ""))
-					return Value == "true";
-
-				if (NSys::fg_System_BeingDebugged())
-					return false;
-
-				auto ColorTerm = fg_GetSys()->f_GetEnvironmentVariable("COLORTERM", "");
-				if (ColorTerm == "truecolor" || ColorTerm == "24bit")
-					return true;
-
-#ifdef DPlatformFamily_Windows
-				if (CSystem::ms_PlatformVersion >= 10'0'015063)
-					return true;
-				else
-					return false;
-#endif
-				return true;
-			}
-			()
-		;
-		return bValue;
-	}
-
-	bool CDistributedAppActor::fs_Color24BitEnabledDefault()
-	{
-		static bool bValue = []
-			{
-				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColor24Bit", ""))
-					return Value == "true";
-
-				auto ColorTerm = fg_GetSys()->f_GetEnvironmentVariable("COLORTERM", "");
-				if (ColorTerm == "truecolor" || ColorTerm == "24bit")
-					return true;
-
-#ifdef DPlatformFamily_Windows
-				if (CSystem::ms_PlatformVersion >= 10'0'015063)
-					return true;
-#endif
-				return false;
-			}
-			()
-		;
-		return bValue;
-	}
-
-	bool CDistributedAppActor::fs_BoxDrawingDefault()
-	{
-		static bool bValue = []
-			{
-				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibBoxDrawing", ""))
-					return Value == "true";
-
-				return true;
-			}
-			()
-		;
-		return bValue;
-	}
-
-	bool CDistributedAppActor::fs_ColorLightBackgroundDefault()
-	{
-		static bool bValue = []
-			{
-				if (auto Value = fg_GetSys()->f_GetEnvironmentVariable("MalterlibColorLight", ""); Value == "true")
-					return true;
-				else if (Value != "auto")
-					return false;
-
-				struct CState
-				{
-					NThread::CEvent m_Event;
-					CStr m_Buffer;
-					bool m_bLight = false;
-				};
-
-				TCSharedPointer<CState> pState = fg_Construct();
-
-				auto Params = CStdInReaderParams::fs_Create
-					(
-						[pState](EStdInReaderOutputType _Type, CStrSecure const &_Input)
-						{
-							if (_Type != EStdInReaderOutputType_StdIn)
-								return;
-							CByteVector Data((uint8 const *)_Input.f_GetStr(), _Input.f_GetLen());
-
-							pState->m_Buffer += _Input;
-							if (auto iFound = pState->m_Buffer.f_Find("\x1B]11;rgb:"); iFound >= 0)
-							{
-								CStr Buffer = pState->m_Buffer.f_Extract(iFound);
-
-								uint8 Red;
-								uint8 Green;
-								uint8 Blue;
-								aint nParsed;
-								(CStr::CParse("\x1B]11;rgb:{nfh}/{nfh}/{nfh}\x07") >> Red >> Green >> Blue).f_Parse(Buffer, nParsed);
-								if (nParsed == 3)
-								{
-									pState->m_bLight = (fp32(Red) * 0.3f + fp32(Green) * 0.59f + fp64(Blue) * 0.11f) > 128.0f;
-									pState->m_Event.f_SetSignaled();
-								}
-							}
-						}
-					)
-				;
-
-				CStdInReader StdIn(fg_Move(Params));
-
-				DMibConOut2("\x1B]11;?\x1B\\");
-
-				if (pState->m_Event.f_WaitTimeout(1.0))
-					return false;
-
-				return pState->m_bLight;
-			}
-			()
-		;
-		return bValue;
-	}
-
 }

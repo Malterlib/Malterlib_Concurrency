@@ -8,6 +8,7 @@
 #include <Mib/Encoding/EJSON>
 #include <Mib/Process/StdIn>
 #include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/CommandLine/CommandLine>
 
 namespace NMib::NCommandLine
 {
@@ -105,112 +106,76 @@ namespace NMib::NConcurrency
 	struct CDistributedAppActor;
 	struct CDistributedAppCommandLineClient;
 
-	struct COneOf
+	enum EDistributedAppCommandFlag
 	{
-		inline_always COneOf(NEncoding::CEJSON const &_Config);
-		template <typename ...tfp_CParams>
-		inline_always COneOf(tfp_CParams const &...p_Config);
-
-		inline_always operator NEncoding::CEJSON () &&;
-		inline_always operator NEncoding::CEJSON () const &;
-
-		NEncoding::CEJSON m_Config;
+		EDistributedAppCommandFlag_None = 0
+		, EDistributedAppCommandFlag_RunLocalApp = DMibBit(0)
+		, EDistributedAppCommandFlag_WaitForRemotes = DMibBit(1)
 	};
 
-	struct COneOfType
+	struct CCommandLineSpecificationDistributedAppCustomization
 	{
-		inline_always COneOfType(NEncoding::CEJSON const &_Config);
-		template <typename ...tfp_CParams>
-		inline_always COneOfType(tfp_CParams const &...p_Config);
+		template <typename t_CCommandLineSpecification>
+		struct TCSection
+		{
+			struct CSection : public t_CCommandLineSpecification::CSectionCommon
+			{
+				friend t_CCommandLineSpecification;
+				using t_CCommandLineSpecification::CSectionCommon::CSectionCommon;
 
-		inline_always operator NEncoding::CEJSON () &&;
-		inline_always operator NEncoding::CEJSON () const &;
+				typename t_CCommandLineSpecification::CCommand f_RegisterCommand
+					(
+						NEncoding::CEJSON const &_CommandDescription
+						, NFunction::TCFunctionMovable
+						<
+							TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+						> &&_fRunCommand
+						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
+					)
+				;
+			};
+		};
 
-		NEncoding::CEJSON m_Config;
+		template <typename t_CCommand>
+		struct TCInternalCommand
+		{
+			struct CCommand : public t_CCommand
+			{
+				using t_CCommand::t_CCommand;
+
+				NStorage::TCSharedPointer
+					<
+						TCActorFunctor<TCFuture<uint32> (NEncoding::CEJSON const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)>
+					>
+					m_pActorRunCommand
+				;
+				EDistributedAppCommandFlag m_Flags = EDistributedAppCommandFlag_None;
+			};
+		};
+
+		using CCommandLineClient = CDistributedAppCommandLineClient;
 	};
 
-	struct CDistributedAppCommandLineSpecification
-	{
-		friend struct CDistributedAppActor;
-		friend struct CDistributedAppCommandLineClient;
-		struct CInternal;
-		struct CSection;
+	using CDistributedAppCommandLineSpecification = NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>;
 
-		struct CCommand
-		{
-			friend struct CDistributedAppCommandLineSpecification;
-			friend struct CSection;
+	extern template auto
+	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
+	f_RegisterCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable
+			<
+				TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+			> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
+	;
+}
 
-			void f_RegisterOptions(NEncoding::CEJSON const &_Options);
-		private:
-			CCommand(CInternal *_pInternal, void *_pCommand);
-			void *mp_pCommand;
-			CInternal *mp_pInternal;
-		};
-
-		enum ECommandFlag
-		{
-			ECommandFlag_None = 0
-			, ECommandFlag_RunLocalApp = DMibBit(0)
-			, ECommandFlag_WaitForRemotes = DMibBit(1)
-		};
-
-		struct CSection
-		{
-			friend struct CDistributedAppCommandLineSpecification;
-			void f_RegisterSectionOptions(NEncoding::CEJSON const &_Options);
-
-			CCommand f_RegisterCommand
-				(
-					NEncoding::CEJSON const &_CommandDescription
-					, NFunction::TCFunctionMovable
-				 	<
-				 		TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
-				 	> &&_fRunCommand
-					, ECommandFlag _Flags = ECommandFlag_None
-				)
-			;
-
-			CCommand f_RegisterDirectCommand
-				(
-					NEncoding::CEJSON const &_CommandDescription
-					, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)> &&_fRunCommand
-				)
-			;
-
-		private:
-			CSection(CInternal *_pInternal, void *_pSection);
-			void *mp_pSection;
-			CInternal *mp_pInternal;
-		};
-
-		struct CParsedCommandLine
-		{
-			NStr::CStr m_Command;
-			NEncoding::CEJSON m_Params;
-		};
-
-		CDistributedAppCommandLineSpecification();
-		~CDistributedAppCommandLineSpecification() noexcept;
-
-		CDistributedAppCommandLineSpecification(CDistributedAppCommandLineSpecification const &_Other);
-		CDistributedAppCommandLineSpecification(CDistributedAppCommandLineSpecification &&_Other);
-		CDistributedAppCommandLineSpecification &operator =(CDistributedAppCommandLineSpecification const &_Other);
-		CDistributedAppCommandLineSpecification &operator =(CDistributedAppCommandLineSpecification &&_Other);
-
-		void f_AddHelpCommand();
-		static NContainer::TCVector<NStr::CStr> fs_RelevantHelpGlobalOptions();
-
-		CSection f_GetDefaultSection();
-		CSection f_AddSection(NStr::CStr const &_Heading, NStr::CStr const &_Description, NStr::CStr const &_AfterSection = {});
-		void f_SetDefaultCommand(CCommand const &_Command);
-		void f_SetProgramDescription(NStr::CStr const &_Heading, NStr::CStr const &_Description);
-		void f_RegisterGlobalOptions(NEncoding::CEJSON const &_Options);
-		CParsedCommandLine f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params, NCommandLine::EAnsiEncodingFlag _AnsiFlags);
-
-	private:
-		NStorage::TCUniquePointer<CInternal> mp_pInternal;
-	};
+namespace NMib::NCommandLine
+{
+	extern template struct TCCommandLineSpecification<NConcurrency::CCommandLineSpecificationDistributedAppCustomization>;
 }
 
 #include "Malterlib_Concurrency_DistributedApp_CommandLine.hpp"

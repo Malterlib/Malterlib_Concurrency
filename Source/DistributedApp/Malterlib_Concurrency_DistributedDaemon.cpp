@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 					"Daemon_Mode?"_=
 					{
 						"Names"_= {"--mode"}
-						, "Type"_= COneOf{"global", "user", "all-users"}
+						, "Type"_= NCommandLine::COneOf{"global", "user", "all-users"}
 						, "Default"_= DaemonSettings["Mode"].f_String()
 						, "Description"_= "Specify the mode of the daemon.\n"
 						"@Indent=16\r"

@@ -17,103 +17,8 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities)
 	{
-		o_CommandLine.f_RegisterGlobalOptions
-			(
-				{
-					"MalterlibCommand?"_=
-					{
-						"Names"_= {"--malterlib-command-BA49ADC8-6CAA-4E8C-BA13-3A9273859D89"}
-						, "Type"_= ""
-						, "Description"_= "Override the command to run anywhere on the command line."
-						, "Hidden"_= true
-					}
-				}
-			)
-		;
-
-		if (_Functionalities & EDefaultCommandLineFunctionality_Color)
-		{
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"Color?"_=
-						{
-							"Names"_= {"--color"}
-							, "Default"_= fs_ColorEnabledDefault()
-							, "Description"_= "Display text output with ansi colors where supported.\n"\
-							"You can override behaviour with MalterlibColor env var. Set it to true or false. "\
-						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"Color24Bit?"_=
-						{
-							"Names"_= {"--color-24bit"}
-							, "Default"_= fs_Color24BitEnabledDefault()
-							, "Description"_= "Display text output with 24 bit ansi colors.\n"\
-							"By default detected through COLORTERM. "\
-							"You can override behaviour with MalterlibColor24Bit env var. Set it to true or false. "\
-						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"ColorLight?"_=
-						{
-							"Names"_= {"--color-light"}
-							, "Default"_= fs_ColorLightBackgroundDefault()
-							, "Description"_= "Force light background.\n"\
-							"You can override behaviour with MalterlibColorLight env var. Set it to true, false or auto. "\
-							"With auto a xterm secquence will be used to determine background color. "\
-							"Can interfere with commands that use std input processing."
-						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"BoxDrawing?"_=
-						{
-							"Names"_= {"--box-drawing"}
-							, "Default"_= fs_BoxDrawingDefault()
-							, "Description"_= "Enable box drawing characters.\n"\
-						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"TerminalWidth?"_=
-						{
-							"Names"_= {"--terminal-width"}
-							, "Default"_= fg_GetSys()->f_GetEnvironmentVariable("MalterlibTerminalWidth", "-1").f_ToInt(int64(-1))
-							, "Description"_= "Override detected terminal width.\n"\
-							"Useful for when for whatever reason tty is not accessible. "\
-						}
-					}
-				)
-			;
-			o_CommandLine.f_RegisterGlobalOptions
-				(
-					{
-						"TerminalHeight?"_=
-						{
-							"Names"_= {"--terminal-height"}
-							, "Default"_= fg_GetSys()->f_GetEnvironmentVariable("MalterlibTerminalHeight", "-1").f_ToInt(int64(-1))
-							, "Description"_= "Override detected terminal height.\n"\
-							"Useful for when for whatever reason tty is not accessible. "\
-						}
-					}
-				)
-			;
-		}
+		if (_Functionalities & EDefaultCommandLineFunctionality_Terminal)
+			o_CommandLine.f_AddTerminalOptions();
 
 		if (_Functionalities & EDefaultCommandLineFunctionality_Help)
 			o_CommandLine.f_AddHelpCommand();
@@ -295,7 +200,7 @@ namespace NMib::NConcurrency
 					{
 						return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetConnetionStatus, _pCommandLine, _Params["TableType"].f_String());
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -353,7 +258,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -399,7 +304,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -443,7 +348,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -473,7 +378,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Category = "Incoming connections trust";
@@ -501,7 +406,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -750,7 +655,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -873,7 +778,7 @@ namespace NMib::NConcurrency
 							)
 						;
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 			Distributed.f_RegisterCommand
@@ -1417,7 +1322,7 @@ namespace NMib::NConcurrency
 					{
 						return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern, _pCommandLine, _Params);
 					}
-					, CDistributedAppCommandLineSpecification::ECommandFlag_WaitForRemotes
+					, EDistributedAppCommandFlag_WaitForRemotes
 				)
 			;
 		}

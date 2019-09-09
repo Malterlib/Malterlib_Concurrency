@@ -34,19 +34,19 @@ namespace NMib::NConcurrency
 		, EDefaultCommandLineFunctionality_Logging = DMibBit(1)
 		, EDefaultCommandLineFunctionality_DistributedComputing = DMibBit(2)
 		, EDefaultCommandLineFunctionality_Authentication = DMibBit(3)
-		, EDefaultCommandLineFunctionality_Color = DMibBit(4)
+		, EDefaultCommandLineFunctionality_Terminal = DMibBit(4)
 
 		, EDefaultCommandLineFunctionality_AllNoDistributedComputing
 		= EDefaultCommandLineFunctionality_Help
 		| EDefaultCommandLineFunctionality_Logging
-		| EDefaultCommandLineFunctionality_Color
+		| EDefaultCommandLineFunctionality_Terminal
 
 		, EDefaultCommandLineFunctionality_All
 		= EDefaultCommandLineFunctionality_Help
 		| EDefaultCommandLineFunctionality_Logging
 		| EDefaultCommandLineFunctionality_DistributedComputing
 		| EDefaultCommandLineFunctionality_Authentication
-		| EDefaultCommandLineFunctionality_Color
+		| EDefaultCommandLineFunctionality_Terminal
 	};
 
 	struct CDistributedAppActor_InterfaceSettings

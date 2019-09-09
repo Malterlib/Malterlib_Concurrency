@@ -2,12 +2,17 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedApp.h"
-#include "Malterlib_Concurrency_DistributedApp_CommandLine_SpecificationInternal.h"
 
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Process/StdInActor>
 #include <Mib/Process/Platform>
+#include <Mib/CommandLine/CommandLineImplementation>
+
+namespace NMib::NCommandLine
+{
+	template struct NCommandLine::TCCommandLineClient<NConcurrency::CCommandLineSpecificationDistributedAppCustomization, NConcurrency::CDistributedAppCommandLineClient>;
+}
 
 namespace NMib::NConcurrency
 {
@@ -16,18 +21,14 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCActor<TCDistributedActorSingleSubscription<ICCommandLine>> m_CommandLineSubscription;
-		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpecification;
 		CDistributedAppActor_Settings m_Settings;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 		bool m_bInitialized = false;
-		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
-		uint32 m_CommandLineWidth;
-		uint32 m_CommandLineHeight;
 	};
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
 		(
-		 	NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags)> const &_fLazyStartApp
+		 	NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
 		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
@@ -36,21 +37,6 @@ namespace NMib::NConcurrency
 	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyPreRunDirectCommand)
 	{
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
-	}
-
-	CDistributedAppCommandLineSpecification::CParsedCommandLine CDistributedAppCommandLineClient::f_ParseCommandLine(NContainer::TCVector<NStr::CStr> const &_Params)
-	{
-		auto &Internal = *mp_pInternal;
-		NException::CDisableExceptionTraceScope DisableTrace;
-		return Internal.m_pCommandLineSpecification->f_ParseCommandLine(_Params, f_AnsiEncodingFlags());
-	}
-
-	aint CDistributedAppCommandLineClient::f_RunCommandLine(NContainer::TCVector<NStr::CStr> const &_CommandLine)
-	{
-		auto &Internal = *mp_pInternal;
-		NException::CDisableExceptionTraceScope DisableTrace;
-		auto ParsedCommandLine = Internal.m_pCommandLineSpecification->f_ParseCommandLine(_CommandLine, f_AnsiEncodingFlags());
-		return f_RunCommand(ParsedCommandLine.m_Command, ParsedCommandLine.m_Params);
 	}
 
 	namespace
@@ -150,123 +136,14 @@ namespace NMib::NConcurrency
 		};
 	}
 
-	bool CDistributedAppCommandLineClient::f_ColorEnabled() const
+	uint32 CDistributedAppCommandLineClient::fp_RunCommand
+		(
+			void const *_pCommand
+			, NEncoding::CEJSON const &_Params
+		)
 	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_Color;
-	}
-
-	bool CDistributedAppCommandLineClient::f_Color24BitEnabled() const
-	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_Color24Bit;
-	}
-
-	bool CDistributedAppCommandLineClient::f_ColorLightBackground() const
-	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
-	}
-
-	NCommandLine::EAnsiEncodingFlag CDistributedAppCommandLineClient::f_AnsiEncodingFlags() const
-	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_AnsiFlags;
-	}
-
-	NCommandLine::CAnsiEncoding CDistributedAppCommandLineClient::f_AnsiEncoding() const
-	{
-		auto &Internal = *mp_pInternal;
-		return NCommandLine::CAnsiEncoding(Internal.m_AnsiFlags);
-	}
-
-	uint32 CDistributedAppCommandLineClient::f_CommandLineWidth() const
-	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_CommandLineWidth;
-	}
-
-	uint32 CDistributedAppCommandLineClient::f_CommandLineHeight() const
-	{
-		auto &Internal = *mp_pInternal;
-		return Internal.m_CommandLineHeight;
-	}
-
-	aint CDistributedAppCommandLineClient::f_RunCommand(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
-	{
-		auto &Internal = *mp_pInternal;
-		auto &CommandLineSpec = *(Internal.m_pCommandLineSpecification->mp_pInternal);
-
-		Internal.m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
-		if (_Params.f_GetMemberValue("Color", CDistributedAppActor::fs_ColorEnabledDefault()).f_Boolean())
-			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color;
-		if (_Params.f_GetMemberValue("Color24Bit", CDistributedAppActor::fs_Color24BitEnabledDefault()).f_Boolean())
-			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_Color24Bit;
-		if (_Params.f_GetMemberValue("ColorLight", CDistributedAppActor::fs_ColorLightBackgroundDefault()).f_Boolean())
-			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_ColorLightBackground;
-		if (_Params.f_GetMemberValue("BoxDrawing", CDistributedAppActor::fs_BoxDrawingDefault()).f_Boolean())
-			Internal.m_AnsiFlags |= NCommandLine::EAnsiEncodingFlag_BoxDrawing;
-
-		auto ConsoleProperties = NSys::fg_GetConsoleProperties();
-
-		Internal.m_CommandLineWidth = ConsoleProperties.m_Width;
-		Internal.m_CommandLineHeight = ConsoleProperties.m_Height;
-
-		if (auto Value = _Params.f_GetMemberValue("TerminalWidth", -1).f_Integer(); Value > 0)
-			Internal.m_CommandLineWidth = Value;
-		if (auto Value = _Params.f_GetMemberValue("TerminalHeight", -1).f_Integer(); Value > 0)
-			Internal.m_CommandLineHeight = Value;
-
-		enum EHelpCommand
-		{
-			EHelpCommand_None
-			, EHelpCommand_Normal
-			, EHelpCommand_Verbose
-		};
-
-		auto fCommandHelp = [&]() -> EHelpCommand
-			{
-				if (auto pValue = _Params.f_GetMember("HelpCurrentCommandVerbose"))
-				{
-					if (pValue->f_Boolean())
-						return EHelpCommand_Verbose;
-				}
-				if (auto pValue = _Params.f_GetMember("HelpCurrentCommand"))
-				{
-					if (pValue->f_Boolean())
-						return EHelpCommand_Normal;
-				}
-				return EHelpCommand_None;
-			}
-		;
-
-		if (auto HelpCommand = fCommandHelp())
-		{
-			TCVector<CStr> Params =
-				{
-					CFile::fs_GetFile(CFile::fs_GetProgramPath())
-					, "--help"
-					, f_ColorEnabled() ? "--color" : "--no-color"
-					, f_Color24BitEnabled() ? "--color-24bit" : "--no-color-24bit"
-					, f_ColorLightBackground() ? "--color-light" : "--no-color-light"
-					, (Internal.m_AnsiFlags & NCommandLine::EAnsiEncodingFlag_BoxDrawing) ? "--box-drawing" : "--no-box-drawing"
-					, "--terminal-width={}"_f << _Params.f_GetMemberValue("TerminalWidth", -1).f_Integer()
-					, "--terminal-height={}"_f << _Params.f_GetMemberValue("TerminalHeight", -1).f_Integer()
-					, _Command
-				}
-			;
-
-			if (HelpCommand == EHelpCommand_Verbose)
-				Params.f_Insert("-v");
-
-			return f_RunCommandLine(Params);
-		}
-
-		auto pFoundCommand = CommandLineSpec.m_CommandByName.f_FindEqual(_Command);
-		if (!pFoundCommand)
-			DMibError(fg_Format("Command not found: {}", pFoundCommand));
-
-		auto &Command = **pFoundCommand;
+		CDistributedAppCommandLineSpecification::CInternal::CCommand const *pCommand = fg_AutoStaticCast(_pCommand);
+		auto &Command = *pCommand;
 
 		if (Command.m_pDirectRunCommand)
 		{
@@ -282,6 +159,8 @@ namespace NMib::NConcurrency
 				fStopApp = mp_fLazyStartApp(_Params, Command.m_Flags);
 			fp_Init();
 
+			auto &Internal = *mp_pInternal;
+
 			TCDistributedActor<CCommandLineControlActor> pCommandLineControl = Internal.m_DistributionManager->f_ConstructActor<CCommandLineControlActor>();
 
 			auto CommandLineActor = Internal.m_CommandLineSubscription(&TCDistributedActorSingleSubscription<ICCommandLine>::f_GetActor).f_CallSync(10.0);
@@ -289,9 +168,9 @@ namespace NMib::NConcurrency
 			CCommandLineControl CommandLineControl;
 			CommandLineControl.m_ControlActor = pCommandLineControl->f_ShareInterface<ICCommandLineControl>();
 
-			CommandLineControl.m_CommandLineWidth = Internal.m_CommandLineWidth;
-			CommandLineControl.m_CommandLineHeight = Internal.m_CommandLineHeight;
-			CommandLineControl.m_AnsiFlags = Internal.m_AnsiFlags;
+			CommandLineControl.m_CommandLineWidth = mp_CommandLineWidth;
+			CommandLineControl.m_CommandLineHeight = mp_CommandLineHeight;
+			CommandLineControl.m_AnsiFlags = mp_AnsiFlags;
 
 			struct CState
 			{
@@ -301,7 +180,7 @@ namespace NMib::NConcurrency
 				bool m_bAborted = false;
 			};
 
-			TCSharedPointer<CState> pState = fg_Construct();
+			NStorage::TCSharedPointer<CState> pState = fg_Construct();
 
 			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)
 				(
@@ -382,7 +261,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Internal = *mp_pInternal;
-		_fMutate(*Internal.m_pCommandLineSpecification, Internal.m_Settings);
+		_fMutate(*mp_pCommandLineSpecification, Internal.m_Settings);
 	}
 
 	CDistributedAppCommandLineClient::CDistributedAppCommandLineClient
@@ -391,13 +270,12 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> const &_pCommandLineSpecification
 			, NContainer::TCMap<NStr::CStr, NStr::CStr> &&_TranslateHostnames
 		)
-		: mp_pInternal(fg_Construct())
+		: NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>(_pCommandLineSpecification)
+		, mp_pInternal(fg_Construct())
 	{
 		auto &Internal = *mp_pInternal;
-		Internal.m_pCommandLineSpecification = _pCommandLineSpecification;
 		Internal.m_Settings = _Settings;
 		Internal.m_TranslateHostnames = fg_Move(_TranslateHostnames);
-		Internal.m_AnsiFlags = CDistributedAppActor::fs_ColorAnsiFlagsDefault();
 	}
 
 	CDistributedAppCommandLineClient::~CDistributedAppCommandLineClient()
@@ -405,15 +283,6 @@ namespace NMib::NConcurrency
 		if (mp_pInternal && mp_pInternal->m_TrustManager)
 			mp_pInternal->m_TrustManager->f_BlockDestroy();
 	}
-
-	class CDistributedActorTrustManagerDatabase_JSONDirectory_CommandLine : public CDistributedActorTrustManagerDatabase_JSONDirectory
-	{
-		CDistributedActorTrustManagerDatabase_JSONDirectory_CommandLine(CStr const &_BaseDirectory, CStr const &_Enclave)
-			: CDistributedActorTrustManagerDatabase_JSONDirectory(_BaseDirectory)
-		{
-		}
-	private:
-	};
 
 	void CDistributedAppCommandLineClient::fp_Init()
 	{

@@ -755,10 +755,10 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyStartApp
 				(
-					[&](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineSpecification::ECommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
+					[&](NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
-						if (_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_RunLocalApp)
+						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
 							AppType = EDistributedAppType_ForceLocal;
 						else if (_bStartApp)
 							AppType = EDistributedAppType_Local;
@@ -768,7 +768,7 @@ namespace NMib::NConcurrency
 						TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
 						if (LogActor)
 							bInstalledLogDispatcher = true;
-						if (_bStartApp || (_Flags & CDistributedAppCommandLineSpecification::ECommandFlag_RunLocalApp))
+						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))
 						{
 							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor, AppType).f_CallSync();
 							bStartedApp = true;

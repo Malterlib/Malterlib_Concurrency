@@ -219,12 +219,6 @@ namespace NMib::NConcurrency
 		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
 #endif
 
-		static NCommandLine::EAnsiEncodingFlag fs_ColorAnsiFlagsDefault();
-		static bool fs_ColorEnabledDefault();
-		static bool fs_Color24BitEnabledDefault();
-		static bool fs_ColorLightBackgroundDefault();
-		static bool fs_BoxDrawingDefault();
-
 	protected:
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;

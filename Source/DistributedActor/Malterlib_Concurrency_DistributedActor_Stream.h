@@ -25,7 +25,11 @@ namespace NMib::NConcurrency
 		TCActorSubscriptionWithID(CActorSubscription &&_Subscription, uint32 _SubscriptionID = t_SubscriptionID);
 		
 		TCActorSubscriptionWithID &operator = (CActorSubscription &&_Subscription);
-		
+
+		CActorSubscription &&f_GetSubscription() &&;
+		CActorSubscription &f_GetSubscription() &;
+		CActorSubscription const &f_GetSubscription() const &;
+
 		uint32 f_GetID() const;
 		void f_SetID(uint32 _SubcriptionID);
 		

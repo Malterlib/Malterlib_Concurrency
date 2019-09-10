@@ -24,6 +24,24 @@ namespace NMib::NConcurrency
 	}
 
 	template <uint32 t_SubscriptionID>
+	CActorSubscription &&TCActorSubscriptionWithID<t_SubscriptionID>::f_GetSubscription() &&
+	{
+		return fg_Move(*this);
+	}
+
+	template <uint32 t_SubscriptionID>
+	CActorSubscription &TCActorSubscriptionWithID<t_SubscriptionID>::f_GetSubscription() &
+	{
+		return *this;
+	}
+
+	template <uint32 t_SubscriptionID>
+	CActorSubscription const &TCActorSubscriptionWithID<t_SubscriptionID>::f_GetSubscription() const &
+	{
+		return *this;
+	}
+
+	template <uint32 t_SubscriptionID>
 	uint32 TCActorSubscriptionWithID<t_SubscriptionID>::f_GetID() const
 	{
 		return mp_ID;

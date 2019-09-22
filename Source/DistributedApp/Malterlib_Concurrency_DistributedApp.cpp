@@ -61,18 +61,23 @@ namespace NMib::NConcurrency
 	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState const &) = default;
 	CDistributedAppState &CDistributedAppState::operator = (CDistributedAppState &&) = default;
 
+	CDistributedAppActor::CInternal::CInternal() = default;
+	CDistributedAppActor::CInternal::~CInternal() = default;
+
 	CDistributedAppActor::CDistributedAppActor(CDistributedAppActor_Settings const &_Settings)
 		: mp_State(_Settings, *this)
 		, mp_Settings(_Settings)
-		, mp_AppType(fg_DistributedAppThreadLocal().m_DefaultAppType)
+		, mp_pInternal(fg_Construct())
 	{
 		mp_State.m_LocalAddress = fp_GetLocalAddress();
 
-		if (mp_AppType != EDistributedAppType_InProcess)
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_AppType != EDistributedAppType_InProcess)
 		{
 			fg_GetSys()->f_SetDefaultLogFileName(fg_Format("{}.log", _Settings.m_AppName));
-			mp_CurrentLogDirectory = _Settings.m_RootDirectory + "/Log";
-			fg_GetSys()->f_SetDefaultLogFileDirectory(mp_CurrentLogDirectory);
+			Internal.m_CurrentLogDirectory = _Settings.m_RootDirectory + "/Log";
+			fg_GetSys()->f_SetDefaultLogFileDirectory(Internal.m_CurrentLogDirectory);
 		}
 
 		fp_MakeActive();
@@ -83,9 +88,11 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 	void CDistributedAppActor::fp_CheckDestroy()
 	{
+		auto &Internal = *mp_pInternal;
+
 		// Did you forget to call CDistributedAppActor::fp_Destroy in your derived class?:
 		// co_await CDistributedAppActor::fp_Destroy();
-		DMibFastCheck(mp_bDestroyCalled);
+		DMibFastCheck(Internal.m_bDestroyCalled);
 	}
 #endif
 
@@ -175,6 +182,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManager_Address LocalListen;
 		LocalListen.m_URL = fp_GetLocalAddress();
 
+		auto &Internal = *mp_pInternal;
+
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 		if (pListen)
 		{
@@ -198,7 +207,7 @@ namespace NMib::NConcurrency
 					return Promise <<= DMibErrorInstance("Missing 'Address' for listen entry");
 
 				if (bFirst)
-					mp_PrimaryListen = Address;
+					Internal.m_PrimaryListen = Address;
 				bFirst = false;
 
 				if (Address == LocalListen)
@@ -258,13 +267,15 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_CleanupEnclaveSockets()
 	{
+		auto &Internal = *mp_pInternal;
+
 		if (mp_Settings.m_Enclave.f_IsEmpty())
 			return;
 
-		if (!mp_CleanupFilesActor)
-			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
+		if (!Internal.m_CleanupFilesActor)
+			Internal.m_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
 
-		g_Dispatch(mp_CleanupFilesActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+		g_Dispatch(Internal.m_CleanupFilesActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
 			{
 				try
 				{
@@ -305,10 +316,10 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 	void CDistributedAppActor::fp_CleanupOldExecutables()
 	{
-		if (!mp_CleanupFilesActor)
-			mp_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
+		if (!m_CleanupFilesActor)
+			m_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
 
-		g_Dispatch(mp_CleanupFilesActor) / []
+		g_Dispatch(m_CleanupFilesActor) / []
 			{
 				try
 				{
@@ -388,7 +399,9 @@ namespace NMib::NConcurrency
 				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
 				Options.m_bSupportAuthentication = bSupportAuthentication;
 
-				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(mp_TrustManagerDatabase, fg_Move(Options));
+				auto &Internal = *mp_pInternal;
+
+				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Internal.m_TrustManagerDatabase, fg_Move(Options));
 
 				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
 					> Promise % "Failed to initialize trust manager" / [this, Promise, _Params]()
@@ -467,13 +480,15 @@ namespace NMib::NConcurrency
 		NProcess::CVersionInfo VersionInfo;
 		NProcess::NPlatform::fg_Process_GetVersionInfo(ProgramPath, VersionInfo);
 
+		auto &Internal = *mp_pInternal;
+
 		DMibLogWithCategory
 			(
 			 	Mib/Concurrency/App
 			 	, Info
 			 	, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
 			 	, mp_Settings.m_AppName
-			 	, fg_GetAppTypeName(mp_AppType)
+			 	, fg_GetAppTypeName(Internal.m_AppType)
 			 	, CFile::fs_GetFileNoExt(ProgramPath)
 				, VersionInfo.m_Major
 				, VersionInfo.m_Minor
@@ -491,10 +506,12 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(_AppType != EDistributedAppType_Unknown);
 
-		if (mp_AppType == _AppType || _AppType == EDistributedAppType_Unchanged)
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_AppType == _AppType || _AppType == EDistributedAppType_Unchanged)
 			return;
 
-		mp_AppType = _AppType;
+		Internal.m_AppType = _AppType;
 
 		CStr NewLogDirectory;
 		switch (_AppType)
@@ -516,9 +533,9 @@ namespace NMib::NConcurrency
 			break;
 		}
 
-		if (!NewLogDirectory.f_IsEmpty() && NewLogDirectory != mp_CurrentLogDirectory)
+		if (!NewLogDirectory.f_IsEmpty() && NewLogDirectory != Internal.m_CurrentLogDirectory)
 		{
-			mp_CurrentLogDirectory = NewLogDirectory;
+			Internal.m_CurrentLogDirectory = NewLogDirectory;
 			fg_GetSys()->f_SetDefaultLogFileDirectory(NewLogDirectory);
 		}
 
@@ -536,18 +553,20 @@ namespace NMib::NConcurrency
 		if (mp_State.m_bStoppingApp)
 			co_return DMibErrorInstance("Startup aborted");
 
+		auto &Internal = *mp_pInternal;
+
 		mp_State.m_LogActor = _LogActor;
 
-		if (!mp_pInitOnce)
+		if (!Internal.m_pInitOnce)
 		{
-			mp_FileOperationsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Distributed app file access"));
-			mp_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
+			Internal.m_FileOperationsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Distributed app file access"));
+			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
 				(
 					mp_Settings.m_RootDirectory + fg_Format("/TrustDatabase.{}", mp_Settings.m_AppName)
 				)
 			;
 
-			mp_pInitOnce = fg_Construct
+			Internal.m_pInitOnce = fg_Construct
 				(
 					g_ActorFunctor / [this, _Params]() -> TCFuture<void>
 					{
@@ -560,7 +579,9 @@ namespace NMib::NConcurrency
 
 		auto InitializeCall = self / [this, _Params]() -> TCFuture<void>
 			{
-				co_await ((*mp_pInitOnce)() % "Failed to initialize");
+				auto &Internal = *mp_pInternal;
+
+				co_await ((*Internal.m_pInitOnce)() % "Failed to initialize");
 
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
@@ -580,17 +601,17 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		mp_AppStartupResult = co_await fg_Move(InitializeCall).f_Wrap();
+		Internal.m_AppStartupResult = co_await fg_Move(InitializeCall).f_Wrap();
 
-		for (auto &StartupResult : mp_DeferredAppStartupResults)
-			StartupResult.f_SetResult(mp_AppStartupResult);
+		for (auto &StartupResult : Internal.m_DeferredAppStartupResults)
+			StartupResult.f_SetResult(Internal.m_AppStartupResult);
 
-		mp_DeferredAppStartupResults.f_Clear();
+		Internal.m_DeferredAppStartupResults.f_Clear();
 
-		if (!mp_AppStartupResult)
+		if (!Internal.m_AppStartupResult)
 		{
-			DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", mp_AppStartupResult.f_GetExceptionStr());
-			co_return mp_AppStartupResult.f_GetException();
+			DMibLogWithCategory(Mib/Concurrency/App, Error, "{}", Internal.m_AppStartupResult.f_GetExceptionStr());
+			co_return Internal.m_AppStartupResult.f_GetException();
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App startup finished: {}", mp_Settings.m_AppName);
@@ -600,9 +621,12 @@ namespace NMib::NConcurrency
 	void CDistributedAppActor::fp_Construct()
 	{
 		mp_State.m_AppActor = fg_ThisActor(this);
-		mp_pCommandLineSpec = fg_Construct();
-		fp_BuildDefaultCommandLine(*mp_pCommandLineSpec, mp_Settings.m_DefaultCommandLineFunctionality);
-		fp_BuildCommandLine(*mp_pCommandLineSpec);
+
+		auto &Internal = *mp_pInternal;
+
+		Internal.m_pCommandLineSpec = fg_Construct();
+		fp_BuildDefaultCommandLine(*Internal.m_pCommandLineSpec, mp_Settings.m_DefaultCommandLineFunctionality);
+		fp_BuildCommandLine(*Internal.m_pCommandLineSpec);
 	}
 
 	TCFuture<void> CDistributedAppActor::f_StopApp()
@@ -613,22 +637,24 @@ namespace NMib::NConcurrency
 
 		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
 
-		if (mp_CommandLine)
-			co_await (fg_Move(mp_CommandLine).f_Destroy() % "Failed to stop command line interface");
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_CommandLine)
+			co_await (fg_Move(Internal.m_CommandLine).f_Destroy() % "Failed to stop command line interface");
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
 		{
 			TCActorResultVector<void> Destroys;
 
-			if (mp_AppInterfaceClientTrustProxy)
-				mp_AppInterfaceClientTrustProxy.f_Destroy() > Destroys.f_AddResult();
+			if (Internal.m_AppInterfaceClientTrustProxy)
+				Internal.m_AppInterfaceClientTrustProxy.f_Destroy() > Destroys.f_AddResult();
 
-			if (mp_AppInterfaceClientRegistrationSubscription)
-				mp_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
+			if (Internal.m_AppInterfaceClientRegistrationSubscription)
+				Internal.m_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
 
-			mp_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
-			mp_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
+			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
+			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
 
 			co_await Destroys.f_GetResults().f_Timeout(10.0, "Timed out waiting for destroy of app interface");
 		}
@@ -640,8 +666,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_Destroy()
 	{
+		auto &Internal = *mp_pInternal;
+
 #if DMibEnableSafeCheck > 0
-		mp_bDestroyCalled = true;
+		Internal.m_bDestroyCalled = true;
 #endif
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
@@ -649,18 +677,18 @@ namespace NMib::NConcurrency
 		if (mp_State.m_TrustManager)
 			mp_State.m_TrustManager.f_Destroy() > Destroys.f_AddResult();
 
-		if (mp_FileOperationsActor)
-			mp_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
-		if (mp_CleanupFilesActor)
-			mp_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
+		if (Internal.m_FileOperationsActor)
+			Internal.m_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
+		if (Internal.m_CleanupFilesActor)
+			Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
 		co_await Destroys.f_GetResults();
 
-		if (mp_TrustManagerDatabase)
-			co_await mp_TrustManagerDatabase.f_Destroy();
+		if (Internal.m_TrustManagerDatabase)
+			co_await Internal.m_TrustManagerDatabase.f_Destroy();
 
-		if (mp_pInitOnce)
-			co_await mp_pInitOnce->f_Destroy();
+		if (Internal.m_pInitOnce)
+			co_await Internal.m_pInitOnce->f_Destroy();
 
 		co_return {};
 	}

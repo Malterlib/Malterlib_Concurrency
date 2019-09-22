@@ -5,6 +5,7 @@
 #include <Mib/CommandLine/CommandLineImplementation>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -75,7 +76,9 @@ namespace NMib::NConcurrency
 		if (!fp_HasCommandLineAccess(fg_GetCallingHostInfo().f_GetRealHostID()))
 			co_return DMibErrorInstance("Access denied");
 
-		auto &SpecInternal = mp_pCommandLineSpec->f_AccessInternal();
+		auto &Internal = *mp_pInternal;
+
+		auto &SpecInternal = Internal.m_pCommandLineSpec->f_AccessInternal();
 		auto *pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 
 		if (!pCommand)

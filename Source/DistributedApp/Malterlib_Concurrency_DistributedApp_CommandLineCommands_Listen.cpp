@@ -6,6 +6,7 @@
 #include <Mib/CommandLine/TableRenderer>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -78,6 +79,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
 	{
+		auto &Internal = *mp_pInternal;
+
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, Address);
@@ -92,7 +95,7 @@ namespace NMib::NConcurrency
 
 		if (bPrimary)
 		{
-			mp_PrimaryListen = Address;
+			Internal.m_PrimaryListen = Address;
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Add primary listen '{}' saved to database from command line", _URL);
 		}
 		else
@@ -103,6 +106,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
 	{
+		auto &Internal = *mp_pInternal;
+
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, Address);
@@ -114,9 +119,9 @@ namespace NMib::NConcurrency
 
 		co_await mp_State.m_ConfigDatabase.f_Save();
 
-		if (NewPrimary != mp_PrimaryListen.m_URL.f_Encode())
+		if (NewPrimary != Internal.m_PrimaryListen.m_URL.f_Encode())
 		{
-			mp_PrimaryListen.m_URL = NewPrimary;
+			Internal.m_PrimaryListen.m_URL = NewPrimary;
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Remove listen '{}' saved to database and new primary listen set to '{}' from command line", _URL, NewPrimary);
 		}
 		else
@@ -127,6 +132,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
 	{
+		auto &Internal = *mp_pInternal;
+
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
 		bool bHasListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_HasListen, Address);
@@ -141,7 +148,7 @@ namespace NMib::NConcurrency
 		co_await mp_State.m_ConfigDatabase.f_Save();
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Set primary listen '{}' from command line", EncodedURL);
-		mp_PrimaryListen = Address;
+		Internal.m_PrimaryListen = Address;
 
 		co_return 0;
 	}

@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/ActorSubscription>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -40,13 +41,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 	{
+		auto &Internal = *mp_pInternal;
+
 		CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 
 		auto ExpectedAddress = fp_GetLocalAddress();
 
 		bool bAlreadySetup = co_await
 			(
-				g_Dispatch(mp_FileOperationsActor) / [CommandLineTrustPath, ExpectedAddress]()
+				g_Dispatch(Internal.m_FileOperationsActor) / [CommandLineTrustPath, ExpectedAddress]()
 				{
 					if (!CFile::fs_FileExists(CommandLineTrustPath))
 						return false;
@@ -90,7 +93,7 @@ namespace NMib::NConcurrency
 		TCSharedPointer<TCAtomic<bool>> pSuccessful = fg_Construct(false);
 
 		// Remove trust database if anything went wrong during setup
-		auto CleanupTrustDatabase = g_ActorSubscription(mp_FileOperationsActor) / [CommandLineTrustPath, pSuccessful]
+		auto CleanupTrustDatabase = g_ActorSubscription(Internal.m_FileOperationsActor) / [CommandLineTrustPath, pSuccessful]
 			{
 				if (pSuccessful->f_Load())
 					return;
@@ -166,10 +169,12 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_PublishCommandLine()
 	{
-		mp_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
+		auto &Internal = *mp_pInternal;
+
+		Internal.m_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
-		mp_CommandLinePublication = co_await mp_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline");
+		Internal.m_CommandLinePublication = co_await Internal.m_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline");
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line published");
 
 		co_return {};

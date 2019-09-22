@@ -20,11 +20,12 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
 		auto pThis = m_pThis;
+		auto &Internal = *pThis->mp_pInternal;
+
+		if (Internal.m_AppStartupResult.f_IsSet())
+			co_return Internal.m_AppStartupResult;
 		
-		if (pThis->mp_AppStartupResult.f_IsSet())
-			co_return pThis->mp_AppStartupResult;
-		
-		co_return co_await pThis->mp_DeferredAppStartupResults.f_Insert().f_Future();
+		co_return co_await Internal.m_DeferredAppStartupResults.f_Insert().f_Future();
 	}
 	
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
@@ -130,20 +131,22 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params)
 	{
-		mp_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
+		auto &Internal = *mp_pInternal;
+
+		Internal.m_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
 		
-		if (mp_bDelegateTrustToAppInterface)
+		if (Internal.m_bDelegateTrustToAppInterface)
 		{
 			CDistributedActorTrustManagerProxy::CPermissions Permissions;
 			Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
-			mp_AppInterfaceClientTrustProxy = mp_State.m_DistributionManager->f_ConstructActor<CDistributedActorTrustManagerProxy>(mp_State.m_TrustManager, Permissions);
+			Internal.m_AppInterfaceClientTrustProxy = mp_State.m_DistributionManager->f_ConstructActor<CDistributedActorTrustManagerProxy>(mp_State.m_TrustManager, Permissions);
 		}
 		
 		CDistributedAppInterfaceServer::CRegisterInfo RegisterInfo;
 		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
 		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
 		
-		mp_AppInteraceServerSubscription = co_await mp_State.m_TrustManager
+		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager
 			(
 				&CDistributedActorTrustManager::f_SubscribeTrustedActors<CDistributedAppInterfaceServer>
 				, CDistributedAppInterfaceServer::mc_pDefaultNamespace
@@ -151,22 +154,24 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		mp_AppInteraceServerSubscription.f_OnActor
+		Internal.m_AppInteraceServerSubscription.f_OnActor
 			(
 				[=, RegisterInfo = fg_Move(RegisterInfo)](TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
 				{
+					auto &Internal = *mp_pInternal;
+
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Registering with app interface server {}", _ActorInfo.m_HostInfo.f_GetDesc());
 
 					TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> ClientInterface
 						{
-							mp_AppInterfaceClientImplementation.m_Actor->f_ShareInterface<CDistributedAppInterfaceClient>()
+							Internal.m_AppInterfaceClientImplementation.m_Actor->f_ShareInterface<CDistributedAppInterfaceClient>()
 						}
 					;
 
 					TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> TrustInterface;
 
-					if (mp_AppInterfaceClientTrustProxy)
-						TrustInterface = mp_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
+					if (Internal.m_AppInterfaceClientTrustProxy)
+						TrustInterface = Internal.m_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 
 					_NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
 						> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
@@ -185,7 +190,10 @@ namespace NMib::NConcurrency
 								return;
 							}
 							DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", HostInfo.f_GetDesc());
-							mp_AppInterfaceClientRegistrationSubscription = fg_Move(*_Subscription);
+
+							auto &Internal = *mp_pInternal;
+
+							Internal.m_AppInterfaceClientRegistrationSubscription = fg_Move(*_Subscription);
 						}
 					;
 				}
@@ -197,7 +205,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorTrustManager::CTrustTicket> CDistributedAppActor::fp_GetTicketThroughStdIn(NStr::CStr _RequestMagic)
 	{
-		if (mp_pStdInCleanup)
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_pStdInCleanup)
 			co_return DMibErrorInstance("A ticket is already being requested");
 		
 		struct CState
@@ -214,7 +224,7 @@ namespace NMib::NConcurrency
 		
 		NStorage::TCSharedPointer<CState> pState = fg_Construct();
 		
-		mp_pStdInCleanup = g_OnScopeExitActor > [pState]
+		Internal.m_pStdInCleanup = g_OnScopeExitActor > [pState]
 			{
 				pState->f_Clear();
 			}
@@ -234,6 +244,8 @@ namespace NMib::NConcurrency
 				]
 				(EStdInReaderOutputType _Type, const NStr::CStrSecure &_Input) mutable -> TCFuture<void>
 				{
+					auto &Internal = *mp_pInternal;
+
 					if (_Type != EStdInReaderOutputType_StdIn)
 						co_return {};
 					Buffer += _Input;
@@ -251,8 +263,8 @@ namespace NMib::NConcurrency
 								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to parse trust ticket: {}", _Exception)));
 							}
 							pState->f_Clear();
-							mp_pStdInCleanup->f_Clear();
-							mp_pStdInCleanup.f_Clear();
+							Internal.m_pStdInCleanup->f_Clear();
+							Internal.m_pStdInCleanup.f_Clear();
 						}
 					}
 					co_return {};
@@ -271,10 +283,12 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON _Params)
 	{
+		auto &Internal = *mp_pInternal;
+
 		CStr ServerAddress = mp_Settings.m_InterfaceSettings.m_ServerAddress;
 		CStr RequestTicketMagic = mp_Settings.m_InterfaceSettings.m_RequestTicketMagic;
 		auto pRequestTicket = mp_Settings.m_InterfaceSettings.m_pRequestTicket;
-		mp_bDelegateTrustToAppInterface = (mp_Settings.m_InterfaceSettings.m_Options & CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface) != CDistributedAppActor_InterfaceSettings::EOption_None;
+		Internal.m_bDelegateTrustToAppInterface = (mp_Settings.m_InterfaceSettings.m_Options & CDistributedAppActor_InterfaceSettings::EOption_DelegateTrustToAppInterface) != CDistributedAppActor_InterfaceSettings::EOption_None;
 
 		if (ServerAddress.f_IsEmpty() || (RequestTicketMagic.f_IsEmpty() && pRequestTicket.f_IsEmpty()))
 			co_return co_await fp_SubscribeAppServerInterface(_Params);

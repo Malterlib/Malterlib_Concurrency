@@ -17,10 +17,43 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_BackupRoot
 			) override
 		;
-		
+
 		CDistributedAppActor *m_pThis;
 #		ifdef DMibDebug
 			CEmpty self; // Hide dangerous self
 #		endif
+	};
+
+	struct CDistributedAppActor::CInternal
+	{
+		CInternal();
+		~CInternal();
+
+		TCActor<ICDistributedActorTrustManagerDatabase> m_TrustManagerDatabase;
+		TCActor<CSeparateThreadActor> m_FileOperationsActor;
+		TCActor<CSeparateThreadActor> m_CleanupFilesActor;
+		TCDistributedActor<CCommandLine> m_CommandLine;
+		CDistributedActorPublication m_CommandLinePublication;
+		CDistributedActorTrustManager_Address m_PrimaryListen;
+		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpec;
+		NStorage::TCUniquePointer<TCActorCallOnce<void>> m_pInitOnce;
+		COnScopeExitShared m_pStdInCleanup;
+
+		TCTrustedActorSubscription<CDistributedAppInterfaceServer> m_AppInteraceServerSubscription;
+		TCDistributedActorInstance<CDistributedAppInterfaceClientImplementation> m_AppInterfaceClientImplementation;
+		TCDistributedActor<CDistributedActorTrustManagerInterface> m_AppInterfaceClientTrustProxy;
+		CActorSubscription m_AppInterfaceClientRegistrationSubscription;
+		TCAsyncResult<void> m_AppStartupResult;
+		NContainer::TCVector<TCPromise<void>> m_DeferredAppStartupResults;
+
+		NContainer::TCMap<NStr::CStr, CActorSubscription> m_TicketPermissionSubscriptions;
+
+		NStr::CStr m_CurrentLogDirectory;
+		EDistributedAppType m_AppType = fg_DistributedAppThreadLocal().m_DefaultAppType;
+
+		bool m_bDelegateTrustToAppInterface = false;
+#if DMibEnableSafeCheck > 0
+		bool m_bDestroyCalled = false;
+#endif
 	};
 }

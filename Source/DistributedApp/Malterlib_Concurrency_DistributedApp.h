@@ -220,6 +220,12 @@ namespace NMib::NConcurrency
 #endif
 
 	protected:
+		struct CRegisteredAuthentication
+		{
+			CTrustedActorInfo m_ActorInfo;
+			CActorSubscription m_Subscription;
+		};
+
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
@@ -281,6 +287,11 @@ namespace NMib::NConcurrency
 		CLocalAppState mp_State;
 		CDistributedAppActor_Settings mp_Settings;
 
+		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
+		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
+		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> mp_AuthenticationRegistrationSubscriptions;
+
+
 	private:
 		struct CDistributedAppInterfaceClientImplementation;
 
@@ -318,42 +329,9 @@ namespace NMib::NConcurrency
 		void fp_CheckDestroy() override;
 #endif
 
-		TCActor<ICDistributedActorTrustManagerDatabase> mp_TrustManagerDatabase;
-		TCActor<CSeparateThreadActor> mp_FileOperationsActor;
-		TCActor<CSeparateThreadActor> mp_CleanupFilesActor;
-		TCDistributedActor<CCommandLine> mp_CommandLine;
-		CDistributedActorPublication mp_CommandLinePublication;
-		CDistributedActorTrustManager_Address mp_PrimaryListen;
-		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> mp_pCommandLineSpec;
-		NStorage::TCUniquePointer<TCActorCallOnce<void>> mp_pInitOnce;
-		COnScopeExitShared mp_pStdInCleanup;
+		struct CInternal;
 
-		TCTrustedActorSubscription<CDistributedAppInterfaceServer> mp_AppInteraceServerSubscription;
-		TCDistributedActorInstance<CDistributedAppInterfaceClientImplementation> mp_AppInterfaceClientImplementation;
-		TCDistributedActor<CDistributedActorTrustManagerInterface> mp_AppInterfaceClientTrustProxy;
-		CActorSubscription mp_AppInterfaceClientRegistrationSubscription;
-		TCAsyncResult<void> mp_AppStartupResult;
-		NContainer::TCVector<TCPromise<void>> mp_DeferredAppStartupResults;
-
-		NContainer::TCMap<NStr::CStr, CActorSubscription> mp_TicketPermissionSubscriptions;
-
-		NStr::CStr mp_CurrentLogDirectory;
-		EDistributedAppType mp_AppType = EDistributedAppType_Unknown;
-
-		bool mp_bDelegateTrustToAppInterface = false;
-#if DMibEnableSafeCheck > 0
-		bool mp_bDestroyCalled = false;
-#endif
-	protected:
-		struct CRegisteredAuthentication
-		{
-			CTrustedActorInfo m_ActorInfo;
-			CActorSubscription m_Subscription;
-		};
-
-		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
-		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
-		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> mp_AuthenticationRegistrationSubscriptions;
+		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);

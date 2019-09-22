@@ -5,6 +5,7 @@
 #include <Mib/CommandLine/TableRenderer>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
+#include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 namespace NMib::NConcurrency
 {
@@ -135,12 +136,14 @@ namespace NMib::NConcurrency
 			, CEJSON const &_AuthenticationFactors
 		)
 	{
+		auto &Internal = *mp_pInternal;
+
 		CDistributedActorTrustManager_Address ForListen;
 		if (_ForListen.f_IsEmpty())
 		{
-			if (!mp_PrimaryListen.m_URL.f_IsValid())
+			if (!Internal.m_PrimaryListen.m_URL.f_IsValid())
 				co_return DMibErrorInstance("The app has not been configured to listen, so ticket cannot be generated");
-			ForListen = mp_PrimaryListen;
+			ForListen = Internal.m_PrimaryListen;
 		}
 		else
 			ForListen.m_URL = _ForListen;
@@ -155,7 +158,9 @@ namespace NMib::NConcurrency
 		{
 			pCleanup = g_OnScopeExitActor > [this, TicketPermissionRequestID]
 				{
-					mp_TicketPermissionSubscriptions.f_Remove(TicketPermissionRequestID);
+					auto &Internal = *mp_pInternal;
+
+					Internal.m_TicketPermissionSubscriptions.f_Remove(TicketPermissionRequestID);
 				}
 			;
 		}
@@ -197,7 +202,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		if (bHasPermissions)
-			mp_TicketPermissionSubscriptions[TicketPermissionRequestID] = fg_Move(Ticket.m_NotificationsSubscription);
+			Internal.m_TicketPermissionSubscriptions[TicketPermissionRequestID] = fg_Move(Ticket.m_NotificationsSubscription);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
 		*_pCommandLine += CStrSecure::CFormat("{}\n") << Ticket.m_Ticket.f_ToStringTicket();

@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Host : Permissions.m_DisallowedHosts)
 				{
-					TCVector<CStr> HostDesc = Host.f_GetDescColored(_pCommandLine->m_AnsiFlags).f_Split(" ");
+					TCVector<CStr> HostDesc = Host.f_GetDescColored(_pCommandLine->m_AnsiFlags).f_Split<true>(" ");
 					if (!HostDesc.f_IsEmpty())
 						HostDesc[0] = AnsiEncoding.f_StatusWarning(HostDesc[0]);
 					fg_AddStrSep(Untrusted, CStr::fs_Join(HostDesc, " "), "\n");

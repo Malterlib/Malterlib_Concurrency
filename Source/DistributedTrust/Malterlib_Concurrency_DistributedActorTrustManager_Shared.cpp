@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	{
 		CPermissionIdentifiers Key;
 
-		for (auto &IDString : _FileName.f_Split("-"))
+		for (auto &IDString : _FileName.f_Split<true>("-"))
 		{
 			CPermissionIdentifier Identifier;
 

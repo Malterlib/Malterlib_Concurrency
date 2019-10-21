@@ -111,11 +111,35 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass const *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CFuncPtrParams ...) const, tfp_CParams &&...p_Params) -> tf_CReturn
+	{
+		return fg_CallSafeImpl<tf_CReturn>
+			(
+			 	NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...) const, tf_CClass const *>(_pPtr, _pClassPtr)
+			 	, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+			 	, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
+	}
+
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafe(tf_CClass &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params) -> tf_CReturn
 	{
 		return fg_CallSafeImpl<tf_CReturn>
 			(
 			 	NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...), tf_CClass *>(_pPtr, &_ClassRef)
+			 	, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+			 	, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
+	}
+
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass const &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...) const, tfp_CParams &&...p_Params) -> tf_CReturn
+	{
+		return fg_CallSafeImpl<tf_CReturn>
+			(
+			 	NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...) const, tf_CClass const *>(_pPtr, &_ClassRef)
 			 	, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
 			 	, fg_Forward<tfp_CParams>(p_Params)...
 			)

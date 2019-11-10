@@ -881,6 +881,8 @@ namespace NMib::NConcurrency
 		{
 			switch (fp_HasPermissionForQuery(Permission, _CallingHostInfo, PowerSet, CollectedRequestedPermissions))
 			{
+			case CPermissionQuery::EQueryResult_HasPermission:
+				break;
 			case CPermissionQuery::EQueryResult_NoPermission:
 				return CPermissionQuery::EQueryResult_NoPermission;
 			case CPermissionQuery::EQueryResult_NeedAuthentication:
@@ -1042,9 +1044,10 @@ namespace NMib::NConcurrency
 		{
 		case CPermissionQuery::EQueryResult_NoPermission:
 			co_return false;
-
 		case CPermissionQuery::EQueryResult_HasPermission:
 			co_return true;
+		case CPermissionQuery::EQueryResult_NeedAuthentication:
+			break;
 		}
 
 		co_return co_await fp_AuthenticatePermissions({fg_Move(Query)}, fg_Move(Request), _CallingHostInfo);
@@ -1071,9 +1074,10 @@ namespace NMib::NConcurrency
 		{
 		case CPermissionQuery::EQueryResult_NoPermission:
 			co_return false;
-
 		case CPermissionQuery::EQueryResult_HasPermission:
 			co_return true;
+		case CPermissionQuery::EQueryResult_NeedAuthentication:
+			break;
 		}
 
 		co_return co_await fp_AuthenticatePermissions(_PermissionsQueries, fg_Move(Request), _CallingHostInfo);
@@ -1106,6 +1110,9 @@ namespace NMib::NConcurrency
 			{
 			case CPermissionQuery::EQueryResult_HasPermission:
 				Results[_NamedPermissionQueries.fs_GetKey(PermissionQueries)] = true;
+				break;
+			case CPermissionQuery::EQueryResult_NoPermission:
+			case CPermissionQuery::EQueryResult_NeedAuthentication:
 				break;
 			}
 		}

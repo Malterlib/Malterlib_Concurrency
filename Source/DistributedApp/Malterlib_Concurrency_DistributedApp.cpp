@@ -445,12 +445,16 @@ namespace NMib::NConcurrency
 		{
 			switch (_AppType)
 			{
+			case EDistributedAppType_Unknown: return "unknown";
 			case EDistributedAppType_InProcess: return "in process";
 			case EDistributedAppType_Daemon: return "as daemon";
 			case EDistributedAppType_Local: return "as local";
 			case EDistributedAppType_ForceLocal: return "as forced local";
 			case EDistributedAppType_CommandLine:  return "as command line";
 			case EDistributedAppType_DirectCommandLine:  return "as direct command line";
+			case EDistributedAppType_Unchanged:
+				DMibNeverGetHere;
+				break;
 			}
 			return "invalid app type";
 		}
@@ -487,7 +491,7 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(_AppType != EDistributedAppType_Unknown);
 
-		if (mp_AppType == _AppType || mp_AppType == EDistributedAppType_Unchanged)
+		if (mp_AppType == _AppType || _AppType == EDistributedAppType_Unchanged)
 			return;
 
 		mp_AppType = _AppType;
@@ -505,6 +509,10 @@ namespace NMib::NConcurrency
 		case EDistributedAppType_CommandLine:
 		case EDistributedAppType_DirectCommandLine:
 			NewLogDirectory = mp_Settings.m_RootDirectory + "/Log/CommandLine";
+			break;
+		case EDistributedAppType_Unknown:
+		case EDistributedAppType_Unchanged:
+			DMibNeverGetHere;
 			break;
 		}
 

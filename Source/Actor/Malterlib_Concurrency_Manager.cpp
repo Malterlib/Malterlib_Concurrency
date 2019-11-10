@@ -349,6 +349,9 @@ namespace NMib::NConcurrency
 			break;
 		case EPriority_Normal:
 			break;
+		case EPriority_Max:
+			DMibFastCheck(false);
+			break;
 		}
 
 		m_pThread =

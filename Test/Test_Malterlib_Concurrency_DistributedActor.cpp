@@ -1228,6 +1228,13 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		};
 		DMibTestSuite("SetInterface")
 		{
+			{
+				// Init distribution manager
+				uint16 Port = 31413;
+				CDistributedActorTestHelperCombined TestState(Port);
+				TestState.f_InitServer();
+			}
+
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
 

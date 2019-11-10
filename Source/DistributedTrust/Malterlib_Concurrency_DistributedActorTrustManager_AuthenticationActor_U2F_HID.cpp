@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 			TCActor<CHumanInterfaceDevicesActor> m_Actor = {fg_Construct(), "Human Interface Device Actor"};
 		};
 
-		TCSubSystem<CSubSystem_Concurrency_U2FHID, ESubSystemDestruction_BeforeMemoryManager>
+		constinit TCSubSystem<CSubSystem_Concurrency_U2FHID, ESubSystemDestruction_BeforeMemoryManager>
 			g_MalterlibSubSystem_Concurrency_U2FHID = {DAggregateInit}
 		;
 

@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
-	NStorage::TCAggregate<CThreadPool> g_ThreadPool = {DAggregateInit};
+	constinit NStorage::TCAggregate<CThreadPool> g_ThreadPool = {DAggregateInit};
 
 	CThreadPool &fg_DefaultThreadPool()
 	{

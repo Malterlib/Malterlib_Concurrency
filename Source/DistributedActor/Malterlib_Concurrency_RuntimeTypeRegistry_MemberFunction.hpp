@@ -504,7 +504,7 @@ namespace NMib::NConcurrency::NPrivate
 		, typename t_CStreamParams
 		, typename t_CStreamResult
 	>
-	NStorage::TCAggregate
+	constinit NStorage::TCAggregate
 		<
 			TCRuntimeTypeRegistryEntry_MemberFunction
 			<

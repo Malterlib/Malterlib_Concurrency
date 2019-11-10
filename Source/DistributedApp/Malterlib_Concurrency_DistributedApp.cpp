@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		{
 		}
 
-		TCSubSystem<CSubSystem_Concurrency_DistributedApp, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedApp = {DAggregateInit};
+		constinit TCSubSystem<CSubSystem_Concurrency_DistributedApp, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedApp = {DAggregateInit};
 
 		CSubSystem_Concurrency_DistributedApp &fg_DistributedAppSubSystem()
 		{

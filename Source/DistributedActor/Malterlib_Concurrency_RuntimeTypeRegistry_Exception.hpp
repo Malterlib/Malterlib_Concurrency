@@ -189,7 +189,7 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CException>
-	NStorage::TCAggregate<TCRuntimeTypeRegistryEntry_Exception<t_CException>> TCExceptionRegistryImpl<t_CException>::ms_Entry = {DAggregateInit};
+	constinit NStorage::TCAggregate<TCRuntimeTypeRegistryEntry_Exception<t_CException>> TCExceptionRegistryImpl<t_CException>::ms_Entry = {DAggregateInit};
 
 	template <typename t_CException>
 	TCRuntimeTypeRegistryEntry_ExceptionInit<t_CException>::TCRuntimeTypeRegistryEntry_ExceptionInit()

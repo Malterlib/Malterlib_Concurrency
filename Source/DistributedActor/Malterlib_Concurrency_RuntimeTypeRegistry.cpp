@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 {
 	namespace NPrivate
 	{
-		TCSubSystem<CSubSystem_Concurrency_RuntimeTypeRegistry, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_RuntimeTypeRegistry = {DAggregateInit};
+		constinit TCSubSystem<CSubSystem_Concurrency_RuntimeTypeRegistry, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_RuntimeTypeRegistry = {DAggregateInit};
 	}
 
 	CSubSystem_Concurrency_RuntimeTypeRegistry &fg_RuntimeTypeRegistry()

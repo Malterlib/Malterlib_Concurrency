@@ -79,11 +79,11 @@ namespace NMib::NConcurrency
 		{
 		}
 		
-		TCSubSystem<CSubSystem_Concurrency_DistributedActorDefaultManager, ESubSystemDestruction_BeforeMemoryManager> 
+		constinit TCSubSystem<CSubSystem_Concurrency_DistributedActorDefaultManager, ESubSystemDestruction_BeforeMemoryManager>
 			g_MalterlibSubSystem_Concurrency_DistributedActorDefaultManager = {DAggregateInit}
 		;
 		
-		TCSubSystem<CSubSystem_Concurrency_DistributedActor, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedActor = {DAggregateInit};
+		constinit TCSubSystem<CSubSystem_Concurrency_DistributedActor, ESubSystemDestruction_BeforeMemoryManager> g_MalterlibSubSystem_Concurrency_DistributedActor = {DAggregateInit};
 		
 		CSubSystem_Concurrency_DistributedActor &fg_DistributedActorSubSystem()
 		{

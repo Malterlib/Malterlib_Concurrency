@@ -21,7 +21,7 @@
 		BaseFileName "TrustDDPBridge"
 	}
 	
-	%Group Source
+	%Group "Source"
 	{
 		%File "Source/*"
 	}

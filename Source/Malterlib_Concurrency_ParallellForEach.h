@@ -17,6 +17,7 @@ namespace NMib::NConcurrency
 		void f_Dispatch(NFunction::TCFunction<void ()> && _Functor);
 		void f_Dispatch(NFunction::TCFunction<void ()> const& _Functor);
 		bool f_DispatchOne();
+		bool f_IsSingleThreaded() const;
 
 	private:
 		NContainer::TCVector<NStorage::TCUniquePointer<NThread::CThreadObject>> m_Threads;

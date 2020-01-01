@@ -110,6 +110,11 @@ namespace NMib::NConcurrency
 		m_Semaphore.f_Signal();
 	}
 
+	bool CThreadPool::f_IsSingleThreaded() const
+	{
+		return m_Threads.f_IsEmpty();
+	}
+
 	bool CThreadPool::f_DispatchOne()
 	{
 		if (auto ToDispatch = m_DispatchQueue.f_Pop())

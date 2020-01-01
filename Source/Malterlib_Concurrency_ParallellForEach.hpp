@@ -13,6 +13,12 @@ namespace NMib::NConcurrency
 		if (_Container.f_IsEmpty())
 			return;
 		auto &ThreadPool = _ThreadPool;
+		if (ThreadPool.f_IsSingleThreaded())
+		{
+			for (auto &Value : _Container)
+				_Functor(Value);
+			return;
+		}
 
 		NThread::CEventAutoReset DoneEvent;
 		align_cacheline NAtomic::TCAtomic<mint> nDispatched;

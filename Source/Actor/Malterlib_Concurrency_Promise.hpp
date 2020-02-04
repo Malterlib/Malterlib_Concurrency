@@ -376,6 +376,23 @@ namespace NMib::NConcurrency
 			return Result.f_MoveFuture();
 		}
 
+		template <typename t_CReturnValue, typename t_CException>
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
+		{
+			TCPromise<t_CReturnValue> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
+			try
+			{
+				Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
+			}
+			catch (t_CException const &)
+			{
+				Result.f_SetCurrentException();
+			}
+			return Result.f_MoveFuture();
+		}
+
 		template <typename t_CReturnValue>
 		template <typename tf_FToRun>
 		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, void>::operator / (tf_FToRun &&_ToRun) const
@@ -385,6 +402,23 @@ namespace NMib::NConcurrency
 			try
 			{
 				Result.f_SetResult(_ToRun());
+			}
+			catch (...)
+			{
+				Result.f_SetCurrentException();
+			}
+			return Result.f_MoveFuture();
+		}
+
+		template <typename t_CReturnValue>
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, void>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
+		{
+			TCPromise<t_CReturnValue> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
+			try
+			{
+				Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
 			}
 			catch (...)
 			{
@@ -411,6 +445,24 @@ namespace NMib::NConcurrency
 			return Result.f_MoveFuture();
 		}
 
+		template <typename t_CException>
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<void> TCRunProtectedFutureHelper<void, t_CException>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
+		{
+			TCPromise<void> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
+			try
+			{
+				_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
+				Result.f_SetResult();
+			}
+			catch (t_CException const &)
+			{
+				Result.f_SetCurrentException();
+			}
+			return Result.f_MoveFuture();
+		}
+
 		template <typename tf_FToRun>
 		TCFuture<void> TCRunProtectedFutureHelper<void, void>::operator / (tf_FToRun &&_ToRun) const
 		{
@@ -419,6 +471,23 @@ namespace NMib::NConcurrency
 			try
 			{
 				_ToRun();
+				Result.f_SetResult();
+			}
+			catch (...)
+			{
+				Result.f_SetCurrentException();
+			}
+			return Result.f_MoveFuture();
+		}
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<void> TCRunProtectedFutureHelper<void, void>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
+		{
+			TCPromise<void> Result;
+			NException::CDisableExceptionTraceScope DisableTrace;
+			try
+			{
+				_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
 				Result.f_SetResult();
 			}
 			catch (...)

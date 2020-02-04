@@ -820,10 +820,14 @@ namespace NMib::NConcurrency
 		return *(self.m_pThis->mp_pConcurrencyManager);
 	}
 
-	template <typename tf_CReturnType>
-	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach)
+	template <typename tf_CReturnType, typename ...tfp_CParams>
+	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturn
+		(
+			NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
+			, typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params
+		)
 	{
-		return _fToDisptach();
+		return _fToDisptach(fg_Move(p_Params)...);
 	}
 
 	template <typename t_CActor>

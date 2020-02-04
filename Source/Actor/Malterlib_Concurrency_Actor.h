@@ -53,8 +53,13 @@ namespace NMib::NConcurrency
 
 		bool f_IsDestroyed() const;
 		void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
-		template <typename tf_CReturnType>
-		tf_CReturnType f_DispatchWithReturn(NFunction::TCFunctionMovable<tf_CReturnType ()> &&_fToDisptach);
+		template <typename tf_CReturnType, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturn
+			(
+				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
+				, typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params
+			)
+		;
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
 		void f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);

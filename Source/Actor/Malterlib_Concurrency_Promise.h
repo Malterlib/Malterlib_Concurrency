@@ -187,6 +187,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		template <typename tf_FToRun>
 		TCAsyncResult<void> operator / (tf_FToRun &&_ToRun) const;
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 	};
 
 	template <typename t_CReturnValue, typename t_CException = void>
@@ -194,6 +197,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		template <typename tf_FToRun>
 		TCFuture<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<t_CReturnValue> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 	};
 
 	template <typename t_CReturnValue>
@@ -201,6 +207,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		template <typename tf_FToRun>
 		TCFuture<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<t_CReturnValue> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 	};
 
 	template <typename t_CException>
@@ -208,6 +217,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		template <typename tf_FToRun>
 		TCFuture<void> operator / (tf_FToRun &&_ToRun) const;
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 	};
 
 	template <>
@@ -215,6 +227,9 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		template <typename tf_FToRun>
 		TCFuture<void> operator / (tf_FToRun &&_ToRun) const;
+
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 	};
 
 	template <typename t_FFunctor>

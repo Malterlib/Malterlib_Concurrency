@@ -1273,7 +1273,7 @@ namespace NMib::NConcurrency
 
 		fg_ActorCall() > [=]
 			{
-				self / [=]() -> TCContinutaion<void>
+				self / [=]() -> TCFuture<void>
 					{
 						co_await fg_AsyncCall();
 					}

@@ -16,6 +16,9 @@ namespace NMib::NConcurrency
 			template <typename tf_FFunction>
 			auto operator / (tf_FFunction &&_fFunction) const;
 
+			template <typename tf_FFunction, typename... tfp_CCallParams>
+			auto f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams &&... p_CallParams) const;
+
 			operator TCActor<> () const;
 
 			NStorage::TCBitStorePointer<CActorHolder> m_pThis = nullptr;

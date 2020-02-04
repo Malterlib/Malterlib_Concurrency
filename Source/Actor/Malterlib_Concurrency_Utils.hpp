@@ -880,6 +880,12 @@ namespace NMib::NConcurrency
 		{
 			return fg_DirectDispatch(fg_Forward<tf_FFunction>(_fFunction));
 		}
+
+		template <typename tf_FFunction, typename... tfp_CCallParams>
+		auto CThisActor::f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams && ...p_CallParams) const
+		{
+			return fg_DirectDispatch(fg_Forward<tf_FFunction>(_fFunction), fg_Forward<tfp_CCallParams>(p_CallParams)...);
+		}
 	}
 
 	template <typename t_CReturnValue>

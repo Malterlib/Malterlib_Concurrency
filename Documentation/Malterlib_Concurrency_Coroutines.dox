@@ -1,0 +1,61 @@
+// Copyright © 2015 Hansoft AB
+// Distributed under the MIT license, see license text in LICENSE.Malterlib
+
+/**
+
+\page p_Malterlib_Concurrency_Coroutines Coroutines
+
+\section p_Malterlib_Concurrency_Coroutines_Helpers Helpers
+
+ Helpers that make it easier to work with coroutines
+
+- \ref p_Malterlib_Concurrency_Coroutines_Helpers_OnResume
+
+\subsection p_Malterlib_Concurrency_Coroutines_Helpers_OnResume On resume
+
+ To help with checking preconditions that need to be checked after every resumption point in the coroutine
+ you can use `g_OnResume` to check the preconditions.
+
+ Any exception you throw in this functor is forwarded as the error result for the coroutine.
+
+ The functor is run once in the constructor so preconditions are checked at once.
+
+~~~
+struct CMyActor : public CActor
+{
+	TCFuture<void> f_DoAnotherThing(CByteVector const &_Data);
+
+	TCFuture<CByteVector> f_DoThing(CStr const &_Name)
+	{
+		CDependency *pDependency = nullptr;
+
+		auto OnResume = g_OnResume / [&]
+			{
+				if (f_IsDestroyed())
+					DError("Shutting down");
+
+				pDependency = mp_Dependencies.f_FindEqual(_Name);
+				if (!pDependency)
+					DError("Dependency no longer exists");
+			}
+		;
+
+		// Here you can trust that pDependency is valid as OnResume is run once on construction
+		co_await self(&CMyActor::f_DoAnotherThing, pDependency->m_Data);
+
+		// Here you can trust that pDependency is valid as OnResume has been run and updated the
+		// pointer when the coroutine was resumed after the co_await
+		co_return pDependency->m_Data;
+	}
+
+private:
+	struct CDependency
+	{
+		CByteVector m_Data;
+	};
+
+	TCMap<CStr, CDependency> mp_Dependencies;
+};
+~~~
+
+*/

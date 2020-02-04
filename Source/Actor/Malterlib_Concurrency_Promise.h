@@ -137,6 +137,7 @@ namespace NMib::NConcurrency
 		;
 		void f_Resume();
 		virtual void f_Abort() = 0;
+		virtual void f_ResumeException() = 0;
 
 		CCoroutineHandler *m_pPreviousCoroutineHandler = this;
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
@@ -331,6 +332,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCFutureCoroutineKeepAlive<t_CReturnType> f_KeepAlive(TCActor<> &&_Actor);
 		TCFutureCoroutineKeepAliveImplicit<t_CReturnType> f_KeepAliveImplicit();
 		void f_Abort() override;
+		void f_ResumeException() override;
 
 		TCFuture<t_CReturnType> get_return_object();
 		void unhandled_exception();
@@ -643,7 +645,7 @@ namespace NMib::NConcurrency
 
 	using FUnitVoidFutureFunction = NFunction::TCFunctionMovable<TCFuture<void> ()>;
 
-	struct CMakeFutureHelper
+	struct CFutureMakeHelper
 	{
 		template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool t_bDirectCall>
 		auto operator <<= (TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, t_bDirectCall> &&_ActorCall)
@@ -652,7 +654,45 @@ namespace NMib::NConcurrency
 		}
 	};
 
-	extern CMakeFutureHelper g_Future;
+	extern CFutureMakeHelper g_Future;
+
+	struct CCoroutineOnSuspendScope final : public CCoroutineThreadLocalHandler
+	{
+		CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend);
+		~CCoroutineOnSuspendScope();
+		void f_Suspend() override;
+		void f_Resume() override;
+		void operator ()();
+
+	private:
+		NFunction::TCFunctionMovable<void ()> m_fOnSuspend;
+	};
+
+	struct CCoroutineOnResumeScope final : public CCoroutineThreadLocalHandler
+	{
+		CCoroutineOnResumeScope(NFunction::TCFunctionMovable<void ()> &&_fOnResume);
+		~CCoroutineOnResumeScope();
+		void f_Suspend() override;
+		void f_Resume() override;
+
+		void operator ()();
+
+	private:
+		NFunction::TCFunctionMovable<void ()> m_fOnResume;
+	};
+
+	struct CCoroutineOnSuspendHelper
+	{
+		CCoroutineOnSuspendScope operator / (NFunction::TCFunctionMovable<void ()> &&_fOnSuspend) const;
+	};
+
+	struct CCoroutineOnResumeHelper
+	{
+		CCoroutineOnResumeScope operator / (NFunction::TCFunctionMovable<void ()> &&_fOnResume) const;
+	};
+
+	extern CCoroutineOnSuspendHelper g_OnSuspend;
+	extern CCoroutineOnResumeHelper g_OnResume;
 }
 
 namespace NMib::NFunction

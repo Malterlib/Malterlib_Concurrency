@@ -104,9 +104,21 @@ namespace NMib::NConcurrency
 		this->m_pPreviousCoroutineHandler = ThreadLocal.m_pCurrentCoroutineHandler;
 		ThreadLocal.m_pCurrentCoroutineHandler = this;
 
-		for (auto &Handler : this->m_ThreadLocalHandlers)
-			Handler.f_Resume();
-
+		auto iHandler = this->m_ThreadLocalHandlers.f_GetIterator();
+		try
+		{
+			for (; iHandler; ++iHandler)
+				iHandler->f_Resume();
+		}
+		catch (...)
+		{
+			if (iHandler)
+				--iHandler;
+			for (; iHandler; --iHandler)
+				iHandler->f_Suspend();
+			f_ResumeException();
+			f_Abort();
+		}
 	}
 
 #if DMibConcurrencySupportCoroutineFreeFunctionDebug

@@ -14,7 +14,73 @@ namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionCoroutineWrapper);
 	
-	CMakeFutureHelper g_Future;
+	CFutureMakeHelper g_Future;
+	CCoroutineOnSuspendHelper g_OnSuspend;
+	CCoroutineOnResumeHelper g_OnResume;
+
+	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
+		: m_fOnSuspend(fg_Move(_fOnSuspend))
+	{
+	}
+
+	CCoroutineOnSuspendScope::~CCoroutineOnSuspendScope()
+	{
+	}
+
+	void CCoroutineOnSuspendScope::f_Suspend()
+	{
+		m_fOnSuspend();
+	}
+
+	void CCoroutineOnSuspendScope::f_Resume()
+	{
+	}
+
+	void CCoroutineOnSuspendScope::operator ()()
+	{
+		m_fOnSuspend();
+	}
+
+	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<void ()> &&_fOnResume)
+		: m_fOnResume(fg_Move(_fOnResume))
+	{
+	}
+
+	CCoroutineOnResumeScope::~CCoroutineOnResumeScope()
+	{
+	}
+
+	void CCoroutineOnResumeScope::f_Suspend()
+	{
+	}
+
+	void CCoroutineOnResumeScope::f_Resume()
+	{
+		m_fOnResume();
+	}
+
+	void CCoroutineOnResumeScope::operator ()()
+	{
+		m_fOnResume();
+	}
+
+	CCoroutineOnSuspendScope CCoroutineOnSuspendHelper::operator / (NFunction::TCFunctionMovable<void ()> &&_fOnSuspend) const
+	{
+		return CCoroutineOnSuspendScope(fg_Move(_fOnSuspend));
+	}
+
+	CCoroutineOnResumeScope CCoroutineOnResumeHelper::operator / (NFunction::TCFunctionMovable<void ()> &&_fOnResume) const
+	{
+		try
+		{
+			_fOnResume();
+		}
+		catch (...)
+		{
+			DMibErrorCoroutineWrapper("Exception on initial 'on resume'", NException::fg_CurrentException());
+		}
+		return CCoroutineOnResumeScope(fg_Move(_fOnResume));
+	}
 }
 
 namespace NMib::NConcurrency::NPrivate

@@ -279,6 +279,23 @@ namespace NMib::NConcurrency::NPrivate
 		pPromiseData->m_Coroutine.destroy();
 		pPromiseData->m_Coroutine = nullptr;
 	}
+
+	template <typename t_CReturnType>
+	void TCFutureCoroutineContext<t_CReturnType>::f_ResumeException()
+	{
+		try
+		{
+			throw;
+		}
+		catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
+		{
+			this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+		}
+		catch (...)
+		{
+			this->m_pPromiseData->f_SetCurrentException();
+		}
+	}
 }
 
 namespace NMib::NConcurrency

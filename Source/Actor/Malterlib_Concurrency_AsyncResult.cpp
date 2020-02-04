@@ -24,11 +24,14 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	NException::CExceptionPointer CAsyncResult::f_GetException() const
+	NException::CExceptionPointer CAsyncResult::f_GetException() const &
 	{
-		if (m_pException != nullptr)
-			return m_pException;
-		return nullptr;
+		return m_pException;
+	}
+
+	NException::CExceptionPointer &&CAsyncResult::f_GetException() &&
+	{
+		return fg_Move(m_pException);
 	}
 
 	NStr::CStr CAsyncResult::f_GetExceptionStr() const

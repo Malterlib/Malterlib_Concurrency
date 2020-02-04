@@ -575,6 +575,9 @@ namespace NMib::NConcurrency
 		auto operator co_await() &&;
 		CNoUnwrapAsyncResult f_Wrap() &&;
 		TCFutureWithError<t_CReturnType> f_Future() &&;
+		TCFuture<t_CReturnType> f_Dispatch() &&;
+		template <typename tf_CRight>
+		auto operator > (tf_CRight &&_Right) &&;
 
 	private:
 

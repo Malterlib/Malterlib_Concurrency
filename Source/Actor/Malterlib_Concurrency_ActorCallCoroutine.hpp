@@ -369,6 +369,32 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActorCall, typename t_CReturnType>
+	template <typename tf_CRight>
+	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::operator > (tf_CRight &&_Right) &&
+	{
+		return fg_Move(*this).f_Dispatch() > fg_Forward<tf_CRight>(_Right);
+	}
+
+	template <typename t_CActorCall, typename t_CReturnType>
+	TCFuture<t_CReturnType> TCActorCallWithError<t_CActorCall, t_CReturnType>::f_Dispatch() &&
+	{
+		TCPromise<t_CReturnType> Promise;
+		fg_Move(*mp_pActorCall) > NPrivate::fg_DirectResultActor() / [Promise, fTransformer = fp_GetTransformer()](TCAsyncResult<t_CReturnType> &&_Result)
+			{
+				if (!_Result)
+					return Promise.f_SetException(fTransformer(fg_Move(_Result).f_GetException()));
+
+				if constexpr (NTraits::TCIsVoid<t_CReturnType>::mc_Value)
+					Promise.f_SetResult();
+				else
+					Promise.f_SetResult(fg_Move(*_Result));
+			}
+		;
+
+		return Promise.f_MoveFuture();
+	}
+
+	template <typename t_CActorCall, typename t_CReturnType>
 	auto TCActorCallWithError<t_CActorCall, t_CReturnType>::operator co_await() &&
 	{
 		return TCActorCallAwaiter

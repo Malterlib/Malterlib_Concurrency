@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	void TCTrustedActorSubscription<t_CActor>::f_OnRemoveActor
 		(
-			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor
+			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
 		)
 	{
 		mp_pState->m_fOnRemovedActor = fg_Move(_fOnRemovedActor);
@@ -240,10 +240,12 @@ namespace NMib::NConcurrency
 						auto &Subscription = *m_pSubscription;
 						if (auto pActor = Subscription.m_Actors.f_FindEqual(Actor))
 						{
+							TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)*pActor;
+							auto TrustInfo = fg_Move(TypedActor.m_TrustInfo);
 							auto Actor = pActor->m_Actor;
 							Subscription.m_Actors.f_Remove(pActor);
 							if (m_fOnRemovedActor)
-								m_fOnRemovedActor(Actor.f_Weak());
+								m_fOnRemovedActor(Actor.f_Weak(), fg_Move(TrustInfo));
 						}
 					}
 				}

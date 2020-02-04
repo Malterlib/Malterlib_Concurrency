@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 		bool f_IsEmpty() const;
 
 		void f_OnActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor, bool _bReportCurrent = true);
-		void f_OnRemoveActor(NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> &&_fOnRemovedActor);
+		void f_OnRemoveActor(NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor);
 		
 	private:
 		friend class CDistributedActorTrustManager;
@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
 			NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
-			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor)> m_fOnRemovedActor;
+			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> m_fOnRemovedActor;
 			TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
 			TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
 			

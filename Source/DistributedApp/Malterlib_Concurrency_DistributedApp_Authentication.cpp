@@ -707,7 +707,7 @@ namespace NMib::NConcurrency
 		;
 		mp_AuthenticationRemotes.f_OnRemoveActor
 			(
-				[this](TCWeakDistributedActor<CActor> const &_RemovedActor)
+				[this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)
 				{
 					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
 				}

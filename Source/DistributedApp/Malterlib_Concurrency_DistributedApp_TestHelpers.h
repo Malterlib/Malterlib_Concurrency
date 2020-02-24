@@ -77,6 +77,9 @@ namespace NMib::NConcurrency
 			;
 
 			CDistributedApp_LaunchHelper *m_pThis = nullptr;
+#			ifdef DMibDebug
+				CEmpty self; // Hide dangerous self
+#			endif
 		};
 
 		struct CLaunchInfo : public CDistributedApp_LaunchInfoData

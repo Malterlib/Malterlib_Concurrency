@@ -195,6 +195,17 @@ namespace NMib::NConcurrency
 	TCDistributedInterfaceDelegator<t_CInterface, t_CDelegateTo>::TCDistributedInterfaceDelegator(t_CDelegateTo *_pDelegateTo, tfp_CParams && ...p_Params)
 		: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
 	{
+#ifdef DMibDebug
+		static_assert(NTraits::TCIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface::*)>::mc_Value);
+// 		If you get this static assert, add a dummy self like below:
+//
+//		CMyActor *m_pThis;
+//#		ifdef DMibDebug
+//			CEmpty self; // Hide dangerous self
+//#		endif
+//
+#endif
+
 		t_CInterface::m_pThis = _pDelegateTo;
 	}
 

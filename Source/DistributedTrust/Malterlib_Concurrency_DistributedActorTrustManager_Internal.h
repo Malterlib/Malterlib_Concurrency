@@ -180,6 +180,9 @@ namespace NMib::NConcurrency
 			;
 
 			CDistributedActorTrustManager *m_pThis;
+#			ifdef DMibDebug
+				CEmpty self; // Hide dangerous self
+#			endif
 		};
 
 		struct CActorDistributionManagerAccessHandler : public ICActorDistributionManagerAccessHandler
@@ -191,6 +194,9 @@ namespace NMib::NConcurrency
 			CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
 
 			CDistributedActorTrustManager::CInternal *m_pThis;
+#			ifdef DMibDebug
+				CEmpty self; // Hide dangerous self
+#			endif
 		};
 
 		CInternal

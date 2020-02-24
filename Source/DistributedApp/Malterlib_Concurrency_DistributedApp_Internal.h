@@ -19,5 +19,8 @@ namespace NMib::NConcurrency
 		;
 		
 		CDistributedAppActor *m_pThis;
+#		ifdef DMibDebug
+			CEmpty self; // Hide dangerous self
+#		endif
 	};
 }

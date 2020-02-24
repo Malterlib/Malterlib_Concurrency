@@ -696,6 +696,9 @@ struct CMyActor : public CActor
 		}
 
 		CMyActor *m_pThis;
+#		ifdef DMibDebug
+			CEmpty self; // Hide dangerous self
+#		endif
 	};
 
 	int32 f_CalcResult()

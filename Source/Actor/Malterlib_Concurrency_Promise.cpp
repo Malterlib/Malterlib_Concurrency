@@ -73,6 +73,7 @@ namespace NMib::NConcurrency
 	{
 		try
 		{
+			NException::CDisableExceptionTraceScope DisableTrace;
 			_fOnResume();
 		}
 		catch (...)

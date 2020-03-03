@@ -210,6 +210,9 @@ namespace NTestAuthentication
 				}
 
 				CServer *m_pThis;
+#				ifdef DMibDebug
+					CEmpty self; // Hide dangerous self
+#				endif
 			};
 
 			TCFuture<void> f_SubscribePermissions()
@@ -377,6 +380,9 @@ namespace NTestAuthentication
 				}
 
 				CServer *m_pThis;
+#				ifdef DMibDebug
+					CEmpty self; // Hide dangerous self
+#				endif
 			};
 
 			TCFuture<void> f_SubscribePermissions()
@@ -557,6 +563,9 @@ namespace NTestAuthentication
 				}
 
 				CServer *m_pThis;
+#				ifdef DMibDebug
+					CEmpty self; // Hide dangerous self
+#				endif
 			};
 
 			TCFuture<void> f_SubscribePermissions()

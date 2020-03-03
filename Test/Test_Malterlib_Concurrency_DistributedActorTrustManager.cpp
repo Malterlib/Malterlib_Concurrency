@@ -1309,7 +1309,7 @@ namespace NTestTrustManager
 
 					TrustedSubscription0.f_OnRemoveActor
 						(
-							[&](TCWeakDistributedActor<CActor> const &_Actor)
+							[&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo)
 							{
 								--nActors;
 							}

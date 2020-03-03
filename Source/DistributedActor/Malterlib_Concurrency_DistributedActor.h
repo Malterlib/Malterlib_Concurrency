@@ -94,6 +94,14 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
 
+	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
+	bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
+
+	template <typename t_CActor>
+	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
+	template <typename t_CActor>
+	bool operator < (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
+
 	struct CDistributedActorIdentifier
 	{
 		CDistributedActorIdentifier();
@@ -109,6 +117,13 @@ namespace NMib::NConcurrency
 		friend bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
 		friend bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
 		friend bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
+
+		template <typename t_CActor>
+		friend bool operator < (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
+		template <typename t_CActor>
+		friend bool operator < (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
+		friend bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
+		friend bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
 
 		NStorage::TCWeakPointer<NPrivate::ICHost> mp_pHost;
 		NStr::CStr mp_ActorID;

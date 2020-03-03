@@ -630,6 +630,18 @@ namespace NMib::NConcurrency
 		return (TCActor<> const &)_Left == _Right;
 	}
 
+	template <typename t_CActor>
+	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right)
+	{
+		return _Left < (TCActor<> const &)_Right;
+	}
+
+	template <typename t_CActor>
+	bool operator < (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right)
+	{
+		return (TCActor<> const &)_Left < _Right;
+	}
+
 	template <typename tf_CStream>
 	void CDistributedActorProtocolVersions::f_Feed(tf_CStream &_Stream) const
 	{

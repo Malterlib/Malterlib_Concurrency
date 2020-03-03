@@ -608,28 +608,58 @@ namespace NMib::NConcurrency
 	{
 		if (!_Right)
 			return false;
+
 		auto const &pRightData = _Right->f_GetDistributedActorData();
 		if (!pRightData)
 			return false;
-		NPrivate::CDistributedActorData const *pRightInternal 
-			= (NPrivate::CDistributedActorData const *)pRightData.f_Get()
-		;
-		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID); 
+
+		NPrivate::CDistributedActorData const *pRightInternal = (NPrivate::CDistributedActorData const *)pRightData.f_Get();
+
+		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
 	}
-	
+
 	bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
 	{
 		if (!_Left)
 			return false;
+
 		auto const &pLeftData = _Left->f_GetDistributedActorData();
 		if (!pLeftData)
 			return false;
-		NPrivate::CDistributedActorData const *pLeftInternal 
-			= (NPrivate::CDistributedActorData const *)pLeftData.f_Get()
-		;
-		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID); 
+
+		NPrivate::CDistributedActorData const *pLeftInternal = (NPrivate::CDistributedActorData const *)pLeftData.f_Get();
+
+		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID);
 	}
-	
+
+	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right)
+	{
+		if (!_Right)
+			return false;
+
+		auto const &pRightData = _Right->f_GetDistributedActorData();
+		if (!pRightData)
+			return false;
+
+		NPrivate::CDistributedActorData const *pRightInternal = (NPrivate::CDistributedActorData const *)pRightData.f_Get();
+
+		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) < NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
+	}
+
+	bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
+	{
+		if (!_Left)
+			return false;
+
+		auto const &pLeftData = _Left->f_GetDistributedActorData();
+		if (!pLeftData)
+			return false;
+
+		NPrivate::CDistributedActorData const *pLeftInternal = (NPrivate::CDistributedActorData const *)pLeftData.f_Get();
+
+		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) < NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID);
+	}
+
 	NPrivate::ICHost::~ICHost()
 	{
 	}

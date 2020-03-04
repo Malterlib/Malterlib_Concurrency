@@ -13,7 +13,7 @@
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedAppInterfaceBackup : public NConcurrency::CActor
+	struct CDistributedAppInterfaceBackup : public CActor
 	{
 		enum : uint32
 		{
@@ -24,59 +24,51 @@ namespace NMib::NConcurrency
 		CDistributedAppInterfaceBackup();
 		~CDistributedAppInterfaceBackup();
 
-		virtual NConcurrency::TCFuture<void> f_AppendManifest(NFile::CDirectoryManifestConfig const &_Config) = 0;
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_SubscribeInitialFinished
-			(
-				NConcurrency::TCActorFunctorWithID<TCFuture<void> ()> &&_fOnInitialFinished
-			) = 0
-		;
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_SubscribeBackupStopped
-			(
-				NConcurrency::TCActorFunctorWithID<TCFuture<void> ()> &&_fOnStopped
-			) = 0
-		;
+		virtual TCFuture<void> f_AppendManifest(NFile::CDirectoryManifestConfig const &_Config) = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeInitialFinished(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnInitialFinished) = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeBackupStopped(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnStopped) = 0;
 	};
-	
-	struct CDistributedAppInterfaceClient : public NConcurrency::CActor
+
+	struct CDistributedAppInterfaceClient : public CActor
 	{
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x103
 		};
-		
+
 		CDistributedAppInterfaceClient();
 		~CDistributedAppInterfaceClient();
 
-		virtual NConcurrency::TCFuture<void> f_GetAppStartResult() = 0;
-		virtual NConcurrency::TCFuture<void> f_PreUpdate() = 0;
-		virtual NConcurrency::TCFuture<void> f_PreStop() = 0;
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
+		virtual TCFuture<void> f_GetAppStartResult() = 0;
+		virtual TCFuture<void> f_PreUpdate() = 0;
+		virtual TCFuture<void> f_PreStop() = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_StartBackup
 			(
-				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
-				, NConcurrency::CActorSubscription &&_ManifestFinished
+				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
+				, CActorSubscription &&_ManifestFinished
 				, NStr::CStr const &_BackupRoot
 			) = 0
 		;
 	};
-	
-	struct CDistributedAppInterfaceServer : public NConcurrency::CActor
+
+	struct CDistributedAppInterfaceServer : public CActor
 	{
 		static constexpr ch8 const *mc_pDefaultNamespace = "com.malterlib/Concurrency/DistributedAppInterfaceServer";
-		
+
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
 			, EProtocolVersion = 0x103
 		};
-		
+
 		struct CRegisterInfo
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
-			
+
 			bool operator == (CRegisterInfo const &_Right) const;
-			
+
 			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 			NStorage::TCOptional<uint32> m_Resources_Files;
 			NStorage::TCOptional<uint32> m_Resources_FilesPerProcess;
@@ -86,11 +78,11 @@ namespace NMib::NConcurrency
 
 		CDistributedAppInterfaceServer();
 		~CDistributedAppInterfaceServer();
-		
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterDistributedApp
+
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 			(
-				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-				, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
+				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
+				, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
 				, CRegisterInfo const &_RegisterInfo
 			) = 0
 		;

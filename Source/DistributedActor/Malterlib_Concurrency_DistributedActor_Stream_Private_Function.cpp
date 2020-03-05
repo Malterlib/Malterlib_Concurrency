@@ -21,15 +21,15 @@ namespace NMib::NConcurrency
 	{
 		auto &State = f_GetState();
 		
-		NStr::CStr FunctionID = NCryptography::fg_RandomID();
-		*this << FunctionID;
-		
 		auto &ActorFunctors = State.m_ActorFunctors[TCLimitsInt<uint32>::mc_Max];
 		if (ActorFunctors.m_ActorFunctors.f_IsEmpty())
 			ActorFunctors.m_ActorFunctors.f_Insert();
 		DMibCheck(ActorFunctors.m_ActorFunctors.f_GetLen() == 1); // This could happen if you use -1 as subscription ID. This has been reserved for free actors/functions. 
 		auto &ActorFunctor = ActorFunctors.m_ActorFunctors.f_GetFirst();
-		
+
+		NStr::CStr FunctionID = NCryptography::fg_RandomID(ActorFunctor.m_Functions);
 		ActorFunctor.m_Functions[FunctionID] = fg_Move(_pFunction);
+		
+		*this << FunctionID;
 	}
 }

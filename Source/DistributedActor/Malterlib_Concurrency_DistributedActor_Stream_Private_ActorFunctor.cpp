@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 			ActorFunctor.m_ActorID = ActorID;
 			ActorFunctor.m_Actor = fg_Move(_Actor);
 			
-			FunctionID = NCryptography::fg_RandomID();
+			FunctionID = NCryptography::fg_RandomID(ActorFunctor.m_Functions);
 			ActorFunctor.m_Functions[FunctionID] = fg_Move(_pFunction);
 		}
 

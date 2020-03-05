@@ -197,7 +197,7 @@ namespace NMib::NConcurrency
 		
 		auto &ConcurrentActor = fg_ConcurrentActor();
 		
-		NStr::CStr SubscriptionID = NCryptography::fg_RandomID();
+		NStr::CStr SubscriptionID = NCryptography::fg_RandomID(mp_Subscriptions);
 		
 		auto &Subscription = mp_Subscriptions[SubscriptionID];
 		

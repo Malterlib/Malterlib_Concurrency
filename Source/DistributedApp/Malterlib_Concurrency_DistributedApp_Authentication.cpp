@@ -565,7 +565,7 @@ namespace NMib::NConcurrency
 		if (f_IsDestroyed())
 			co_return DMibErrorInstance("Authentication handler destroyed");
 
-		auto MultipleRequestID = NCryptography::fg_RandomID();
+		auto MultipleRequestID = NCryptography::fg_RandomID(mp_PreauthenticationInfos);
 		auto &Info = *(mp_PreauthenticationInfos[MultipleRequestID] = fg_Construct());
 		Info.m_nHosts = _nHosts;
 

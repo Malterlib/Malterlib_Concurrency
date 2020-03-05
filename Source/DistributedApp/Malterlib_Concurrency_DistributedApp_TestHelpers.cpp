@@ -233,7 +233,7 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<NStr::CStr> &&_Params
 		)
 	{
-		NStr::CStr LaunchID = NCryptography::fg_RandomID();
+		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
 		auto Promise = LaunchInfo.m_Promise;
 		LaunchInfo.m_LaunchID = LaunchID;
@@ -294,7 +294,7 @@ namespace NMib::NConcurrency
 	auto CDistributedApp_LaunchHelper::f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
-		NStr::CStr LaunchID = NCryptography::fg_RandomID();
+		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
 		auto Promise = LaunchInfo.m_Promise;
 		LaunchInfo.m_LaunchID = LaunchID;

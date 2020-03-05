@@ -629,7 +629,7 @@ namespace NMib::NConcurrency
 		if (!Internal.m_WebsocketClientConnector)
 			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>();
 
-		NStr::CStr ConnectionID = NCryptography::fg_RandomID();
+		NStr::CStr ConnectionID = NCryptography::fg_RandomID(Internal.m_ClientConnections);
 
 		auto pConnection = Internal.m_ClientConnections[ConnectionID] = fg_Construct();
 

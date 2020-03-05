@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 
-		NStr::CStr HandleRequestID = NCryptography::fg_RandomID();
+		NStr::CStr HandleRequestID = NCryptography::fg_RandomID(mp_HandleRequests);
 
 		auto Ticket = co_await mp_TrustManager
 			(

@@ -1,4 +1,4 @@
-﻿// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 	{
 		auto PublicationRef = _Actor->template f_Publish<tfp_CDistributedActors...>(_Namespace).f_CallSync(60.0);
 		
-		NStr::CStr PublicationID = NCryptography::fg_RandomID();
+		NStr::CStr PublicationID = NCryptography::fg_RandomID(mp_Publications);
 
 		auto &Publication = mp_Publications[PublicationID];
 		Publication.m_Publication = fg_Move(PublicationRef);

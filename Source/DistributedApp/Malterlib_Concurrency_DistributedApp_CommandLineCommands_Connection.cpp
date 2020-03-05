@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 		else
 			ForListen.m_URL = _ForListen;
 
-		CStr TicketPermissionRequestID = NCryptography::fg_RandomID();
+		CStr TicketPermissionRequestID = NCryptography::fg_RandomID(Internal.m_TicketPermissionSubscriptions);
 
 		COnScopeExitShared pCleanup;
 

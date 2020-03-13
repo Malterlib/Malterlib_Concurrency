@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 		, mp_bDelegateTrust(_bDelegateTrust)
 	{
 	}
-	
+
 	CDistributedAppInProcessActor::~CDistributedAppInProcessActor()
 	{
 	}
@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
 
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
-		
+
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID();
 
 		auto Ticket = co_await mp_TrustManager
@@ -143,12 +143,12 @@ namespace NMib::NConcurrency
 						auto pHandleRequest = mp_HandleRequests.f_FindEqual(HandleRequestID);
 						if (!pHandleRequest)
 							co_return {};
-						
+
 						if (pHandleRequest->m_NotificationsSubscription)
 							co_await pHandleRequest->m_NotificationsSubscription->f_Destroy();
 
 						mp_HandleRequests.f_Remove(HandleRequestID);
-						
+
 						co_return {};
 					}
 				)
@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 		TCPromise<NEncoding::CEJSON> Promise;
 		if (!mp_DistributedApp)
 			return Promise <<= DMibErrorInstance("No distributed app");
-		
+
 		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
 	}
 
@@ -208,7 +208,8 @@ namespace NMib::NConcurrency
 		if (!mp_DistributedApp)
 			return Promise <<= DMibErrorInstance("No distributed app");
 
-		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+		CCallingHostInfoScope Scope(fg_TempCopy(_CallingHost));
+		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _Command, _Params, _pCommandLine);
 	}
 #endif
 }

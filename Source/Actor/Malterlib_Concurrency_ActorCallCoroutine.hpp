@@ -62,8 +62,10 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
-					CoroutineContext.f_Resume();
-					_Handle.resume();
+					bool bAborted = false;
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+					if (!bAborted)
+						_Handle.resume();
 				}
 			)
 		;
@@ -258,8 +260,10 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
-					CoroutineContext.f_Resume();
-					_Handle.resume();
+					bool bAborted;
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+					if (!bAborted)
+						_Handle.resume();
 				}
 				, fg_CurrentActor()
 				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()

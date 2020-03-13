@@ -926,8 +926,10 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 						CoroutineContext.f_SetOwner(mp_Actor.f_Weak());
 #endif
-						CoroutineContext.f_Resume();
-						_Handle.resume();
+						bool bAborted = false;
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+						if (!bAborted)
+							_Handle.resume();
 					}
 				)
 			;

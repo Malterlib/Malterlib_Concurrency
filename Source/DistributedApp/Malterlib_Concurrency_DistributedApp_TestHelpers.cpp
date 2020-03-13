@@ -53,6 +53,7 @@ namespace NMib::NConcurrency
 		TCPromise<uint32> Promise;
 		if (!m_InProcess)
 			return Promise <<= DMibErrorInstance("No in process actor");
+
 		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
 	}
 #endif

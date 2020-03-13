@@ -9,6 +9,7 @@
 #include <Mib/Cryptography/Certificate>
 #include <Mib/Encoding/EJSON>
 #include <Mib/CommandLine/AnsiEncoding>
+#include <Mib/Storage/Optional>
 
 #include "Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedActor_Internal.h"
@@ -154,28 +155,77 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
+		mp_pPrevScope = ThreadLocal.m_pCurrentCallingHostInfoScope;
 		ThreadLocal.m_CallingHostInfo = fg_Move(_NewInfo);
+		ThreadLocal.m_pCurrentCallingHostInfoScope = this;
 	}
 	
 	CCallingHostInfoScope::~CCallingHostInfoScope()
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
+		ThreadLocal.m_pCurrentCallingHostInfoScope = mp_pPrevScope;
 	}
 
 	void CCallingHostInfoScope::f_Suspend()
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
+		ThreadLocal.m_pCurrentCallingHostInfoScope = mp_pPrevScope;
+		CCrossActorCallStateScope::f_Suspend();
 	}
 
 	void CCallingHostInfoScope::f_Resume()
 	{
+		CCrossActorCallStateScope::f_Resume();
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
-		ThreadLocal.m_CallingHostInfo = mp_NewInfo;
+		mp_pPrevScope = ThreadLocal.m_pCurrentCallingHostInfoScope;
+		ThreadLocal.m_CallingHostInfo = fg_Move(mp_NewInfo);
+		ThreadLocal.m_pCurrentCallingHostInfoScope = this;
 	}
-	
+
+	NFunction::TCFunctionMovable<void ()> CCallingHostInfoScope::f_StoreState()
+	{
+		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+		if (ThreadLocal.m_pCurrentCallingHostInfoScope != this)
+			return nullptr;
+
+		struct CState
+		{
+			CState(CCallingHostInfo const &_CallingHostInfo)
+				: m_NewInfo(_CallingHostInfo)
+			{
+			}
+			CState(CState &&) = default;
+			CState(CState const &) = delete;
+			~CState()
+			{
+				if (!m_Scope)
+					return;
+
+				DMibFastCheck(m_StoredThreadID == NSys::fg_Thread_GetCurrentUID());
+				m_Scope.f_Clear();
+			}
+
+			CCallingHostInfo m_NewInfo;
+			NStorage::TCOptional<CCallingHostInfoScope> m_Scope;
+#if DMibEnableSafeCheck > 0
+			mint m_StoredThreadID = 0;
+#endif
+		};
+
+		return [State = CState{ThreadLocal.m_CallingHostInfo}]() mutable
+			{
+				DMibFastCheck(!State.m_Scope);
+#if DMibEnableSafeCheck > 0
+				State.m_StoredThreadID = NSys::fg_Thread_GetCurrentUID();
+#endif
+				State.m_Scope = fg_Move(State.m_NewInfo);
+			}
+		;
+	}
+
 	CCallingHostInfo const &fg_GetCallingHostInfo()
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo();

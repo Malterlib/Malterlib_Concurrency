@@ -166,9 +166,9 @@ namespace NMib::NConcurrency
 		}
 #endif
 		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
-			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this}();
+			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this, false}();
 		else
-			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this});
+			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this, true});
 
 		return true; // Dummy return to allow for fg_Swallow on arguments
 	}

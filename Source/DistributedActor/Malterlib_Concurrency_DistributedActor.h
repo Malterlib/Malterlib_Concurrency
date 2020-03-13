@@ -548,16 +548,19 @@ namespace NMib::NConcurrency
 		TCActor<TCDistributedActorWrapper<TCDistributedInterfaceDelegator<tf_CActor, tf_CDelegateTo>>> f_ConstructInterface(tf_CDelegateTo *_pDelegateTo, tfp_CParams &&...p_Params);
 	};
 
-	struct CCallingHostInfoScope final : public CCoroutineThreadLocalHandler
+	struct CCallingHostInfoScope final : public CCrossActorCallStateScope
 	{
 		CCallingHostInfoScope(CCallingHostInfo &&_NewInfo);
+		CCallingHostInfoScope(CCallingHostInfoScope &&_Other) = default;
 		~CCallingHostInfoScope();
 		void f_Suspend() override;
 		void f_Resume() override;
+		NFunction::TCFunctionMovable<void ()> f_StoreState() override;
 
 	private:
 		CCallingHostInfo mp_NewInfo;
 		CCallingHostInfo mp_PrevInfo;
+		CCallingHostInfoScope *mp_pPrevScope = nullptr;
 	};
 
 	struct CActorDistributionManager : public CActor

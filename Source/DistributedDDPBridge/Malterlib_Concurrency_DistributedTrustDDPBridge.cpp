@@ -277,16 +277,9 @@ namespace NMib::NConcurrency
 					
 					pMethodHandler->m_fHandlerFunction.f_CallWrapped
 						(
-						 	[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)](auto &&_fToDispatch) mark_no_coroutine_debug -> TCFuture<CEJSON>
+						 	[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)](auto &&_fToDispatch) mutable mark_no_coroutine_debug -> TCFuture<CEJSON>
 						 	{
-								auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
-								auto OldInfo = CallingHostInfo;
-								CallingHostInfo = ThisCallingHostInfo;
-								auto Cleanup = g_OnScopeExit > [&]
-									{
-										CallingHostInfo = OldInfo;
-									}
-								;
+								CCallingHostInfoScope Scope(fg_Move(ThisCallingHostInfo));
 								return _fToDispatch();
 							}
 						 	, _MethodInfo.m_Parameters

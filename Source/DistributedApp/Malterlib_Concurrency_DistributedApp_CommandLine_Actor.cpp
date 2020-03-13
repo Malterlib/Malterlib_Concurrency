@@ -31,7 +31,6 @@ namespace NMib::NConcurrency
 		co_return co_await mp_Actor
 			(
 				&CDistributedAppActor::f_RunCommandLine
-				, fg_GetCallingHostInfo()
 				, _Command
 				, _Params
 				, NStorage::TCSharedPointer<CCommandLineControl>{fg_Construct(fg_Move(_CommandLine))}

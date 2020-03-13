@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 			noexcept
 #endif
 		;
-		void f_Resume();
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_Resume(bool &o_bAborted);
 		virtual void f_Abort() = 0;
 		virtual void f_ResumeException() = 0;
 
@@ -143,6 +143,7 @@ namespace NMib::NConcurrency
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> m_RestoreScopes;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;

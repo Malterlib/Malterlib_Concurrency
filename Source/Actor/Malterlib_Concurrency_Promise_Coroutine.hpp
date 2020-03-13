@@ -356,8 +356,10 @@ namespace NMib::NConcurrency
 										auto &CoroutineContext = _Handle.promise();
 										mp_Result = fg_Move(Result);
 										CCurrentActorScope CurrentActorScope(Actor);
-										CoroutineContext.f_Resume();
-										_Handle.resume();
+										bool bAborted = false;
+										auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+										if (!bAborted)
+											_Handle.resume();
 									}
 								)
 							;

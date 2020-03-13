@@ -171,4 +171,28 @@ namespace NMib::NConcurrency
 	{
 		return CCoroutineTransferOwnership(fg_TempCopy(_Actor));
 	}
+
+	CReportLocalState::CReportLocalState() = default;
+	CReportLocalState::~CReportLocalState() = default;
+
+	void CReportLocalState::f_StoreCallStates()
+	{
+		auto &ThreadLocal = **g_SystemThreadLocal;
+		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
+		{
+			auto State = Scope.f_StoreState();
+			if (State)
+				m_RestoreStates.f_Insert(fg_Move(State));
+		}
+	}
+
+	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CReportLocalState::f_RestoreCallStates()
+	{
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> Return = fg_Move(m_RestoreStates);
+
+		for (auto &fRestoreState : Return)
+			fRestoreState();
+
+		return Return;
+	}
 }

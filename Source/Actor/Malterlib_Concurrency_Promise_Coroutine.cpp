@@ -59,6 +59,13 @@ namespace NMib::NConcurrency
 
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
+		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
+		{
+			auto fRestoreScope = Scope.f_StoreState();
+			if (fRestoreScope)
+				m_RestoreScopes.f_Insert(fg_Move(fRestoreScope));
+		}
+
 		auto iHandler = this->m_ThreadLocalHandlers.f_GetIterator();
 		iHandler.f_Reverse(this->m_ThreadLocalHandlers);
 
@@ -93,7 +100,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	void CFutureCoroutineContext::f_Resume()
+	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CFutureCoroutineContext::f_Resume(bool &o_bAborted)
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -109,6 +116,13 @@ namespace NMib::NConcurrency
 		{
 			for (; iHandler; ++iHandler)
 				iHandler->f_Resume();
+
+			auto RestoreScopes = fg_Move(m_RestoreScopes);
+
+			for (auto &fRestoreScope : RestoreScopes)
+				fRestoreScope();
+
+			return RestoreScopes;
 		}
 		catch (...)
 		{
@@ -118,6 +132,10 @@ namespace NMib::NConcurrency
 				iHandler->f_Suspend();
 			f_ResumeException();
 			f_Abort();
+
+			o_bAborted = true;
+			
+			return {};
 		}
 	}
 

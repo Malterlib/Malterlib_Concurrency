@@ -994,6 +994,19 @@ namespace NMib::NConcurrency
 		(void)Dummy;
 	}
 
+	struct CReportLocalState
+	{
+		CReportLocalState();
+		~CReportLocalState();
+		void f_StoreCallStates();
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_RestoreCallStates();
+
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> m_RestoreStates;
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		CAsyncCallstacks m_Callstacks;
+#endif
+	};
+
 	template
 	<
 		typename t_CActor
@@ -1009,7 +1022,7 @@ namespace NMib::NConcurrency
 		using CResultFunctorReturnType = typename NTraits::TCIsCallableWith<t_CResultFunctor, void (CResultType &&)>::CReturnType;
 		using CResultFunctor = NFunction::TCFunctionMovable<void (CResultType &&_Result)>;
 
-		struct CState
+		struct CState : public CReportLocalState
 		{
 			CState(t_CFunctor &&_ToCall, CResultFunctor &&_ResultFunctor, TCActor<t_CResultActor> &&_ResultActor)
 				: m_ToCall(fg_Move(_ToCall))
@@ -1021,9 +1034,6 @@ namespace NMib::NConcurrency
 			t_CFunctor m_ToCall;
 			CResultFunctor m_ResultFunctor;
 			TCActor<t_CResultActor> m_ResultActor;
-#if DMibConfig_Concurrency_DebugActorCallstacks
-			CAsyncCallstacks m_Callstacks;
-#endif
 		};
 
 		TCReportLocal(TCReportLocal &&_Other)
@@ -1039,10 +1049,14 @@ namespace NMib::NConcurrency
 				, t_CResultFunctor &&_ResultFunctor
 				, TCActor<t_CResultActor> &&_ResultActor
 				, TCActorInternal<t_CActor> *_pActorInternal
+				, bool _bStoreCallStates
 			)
 			: m_pState(fg_Construct(fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_ResultActor)))
 			, m_pActorInternal(_pActorInternal)
 		{
+			if (_bStoreCallStates)
+				m_pState->f_StoreCallStates();
+
 #if DMibConfig_Concurrency_DebugActorCallstacks
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			if (ThreadLocal.m_pCallstacks)
@@ -1096,6 +1110,8 @@ namespace NMib::NConcurrency
 		void operator ()()
 		{
 			DMibFastCheck(m_pActorInternal);
+
+			auto States = m_pState->f_RestoreCallStates();
 
 			if constexpr (NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value)
 			{

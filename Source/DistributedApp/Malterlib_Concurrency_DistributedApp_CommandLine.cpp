@@ -67,13 +67,12 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_RunCommandLine
 		(
-			CCallingHostInfo const &_CallingHost
-			, CStr const &_Command
+			CStr const &_Command
 			, CEJSON const &_Params
 			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		if (!fp_HasCommandLineAccess(_CallingHost.f_GetRealHostID()))
+		if (!fp_HasCommandLineAccess(fg_GetCallingHostInfo().f_GetRealHostID()))
 			co_return DMibErrorInstance("Access denied");
 
 		auto &SpecInternal = mp_pCommandLineSpec->f_AccessInternal();
@@ -95,8 +94,6 @@ namespace NMib::NConcurrency
 		if ((*pCommand)->m_Flags & EDistributedAppCommandFlag_WaitForRemotes)
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_WaitForInitialConnection);
 
-		CCallingHostInfoScope CallingHostInfoScope{fg_TempCopy(_CallingHost)};
-
 		int64 AuthenticationLifetime = ValidatedParams.f_GetMemberValue("AuthenticationLifetime", CPermissionRequirements::mc_OverrideLifetimeNotSet).f_Integer();
 		if (AuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet && _Command == "--trust-user-authenticate-pattern")
 			AuthenticationLifetime = CPermissionRequirements::mc_DefaultMaximumLifetime;
@@ -117,25 +114,7 @@ namespace NMib::NConcurrency
 
 		try
 		{
-			uint32 Result = co_await Command.m_pActorRunCommand->f_CallWrapped
-				(
-					[ThisCallingHostInfo = _CallingHost](auto &&_fToDispatch) mark_no_coroutine_debug -> TCFuture<uint32>
-					{
-						auto &CallingHostInfo = NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
-						auto OldInfo = CallingHostInfo;
-						CallingHostInfo = ThisCallingHostInfo;
-						auto Cleanup = g_OnScopeExit > [&]
-							{
-								CallingHostInfo = OldInfo;
-							}
-						;
-						return _fToDispatch();
-					}
-					, ValidatedParams
-					, _pCommandLine
-				)
-			;
-
+			uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
 			co_return Result;
 		}
 		catch (CException const &_Exception)

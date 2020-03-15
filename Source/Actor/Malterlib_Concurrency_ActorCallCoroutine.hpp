@@ -260,7 +260,7 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
-					bool bAborted;
+					bool bAborted = false;
 					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 					if (!bAborted)
 						_Handle.resume();

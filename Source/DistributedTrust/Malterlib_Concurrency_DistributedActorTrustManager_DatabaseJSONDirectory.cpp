@@ -1058,7 +1058,7 @@ namespace NMib::NConcurrency
 		CStr FileName = NFile::CFile::fs_GetFileNoExt(_Name);
 
 		if (f_GetNameHash(Address) != FileName)
-			DMibError(fg_Format("Address does not match the hashed file name '{}'", _Name));
+			DMibError(fg_Format("Address does not match the hashed file name '{}'. Expected '{}'", _Name, f_GetNameHash(Address)));
 
 		return Address;
 	}

@@ -150,8 +150,9 @@ namespace NMib::NConcurrency
 		return NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal->m_CallingHostInfo;
 	}
 	
-	CCallingHostInfoScope::CCallingHostInfoScope(CCallingHostInfo &&_NewInfo)
-		: mp_NewInfo(_NewInfo)
+	CCallingHostInfoScope::CCallingHostInfoScope(CCallingHostInfo &&_NewInfo, bool _bAddToCoroutine)
+		: CCrossActorCallStateScope(_bAddToCoroutine)
+		, mp_NewInfo(_NewInfo)
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
@@ -221,7 +222,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 				State.m_StoredThreadID = NSys::fg_Thread_GetCurrentUID();
 #endif
-				State.m_Scope = fg_Move(State.m_NewInfo);
+				State.m_Scope = fg_Construct(fg_Move(State.m_NewInfo), false);
 			}
 		;
 	}

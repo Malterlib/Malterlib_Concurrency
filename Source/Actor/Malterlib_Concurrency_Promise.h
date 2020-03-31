@@ -719,6 +719,5 @@ namespace NMibOperators
 	};
 }
 
-#include "Malterlib_Concurrency_Promise.hpp"
 #include <Mib/Concurrency/Actor/Timer>
 #include "Malterlib_Concurrency_CallSafe.h"

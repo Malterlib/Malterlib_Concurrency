@@ -206,10 +206,11 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_ActorCallHelpers.h"
 #include "Malterlib_Concurrency_Utils.h"
 
-
+#include "Malterlib_Concurrency_ReceiveAnyFunctor.hpp"
 #include "Malterlib_Concurrency_Actor.hpp"
 #include "Malterlib_Concurrency_ActorHolder.hpp"
 #include "Malterlib_Concurrency_ActorInternal.hpp"
+#include "Malterlib_Concurrency_Promise.hpp"
 #include "Malterlib_Concurrency_Manager.hpp"
 #include "Malterlib_Concurrency_Promise_Coroutine.hpp"
 #include "Malterlib_Concurrency_WeakActor.hpp"

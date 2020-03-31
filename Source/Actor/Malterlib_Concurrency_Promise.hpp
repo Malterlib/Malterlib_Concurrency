@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 	}
 
 	enum EFutureResultFlag
-	{
+ 	{
 		EFutureResultFlag_None = 0
 		, EFutureResultFlag_DataSet = DMibBit(0)
 		, EFutureResultFlag_ResultFunctorSet = DMibBit(1)
@@ -195,88 +195,6 @@ namespace NMib::NConcurrency
 	{
 		fg_Move(_Future) > *this;
 		return f_MoveFuture();
-	}
-
-	namespace NPrivate
-	{
-		template <typename t_CPromise>
-		struct TCPromiseReceiveAnyFunctor
-		{
-			TCPromiseReceiveAnyFunctor(t_CPromise const &_Promise)
-				: m_Promise(_Promise)
-			{
-			}
-
-			template <typename ...tfp_CResult>
-			void operator () (tfp_CResult && ...p_Result);
-
-			t_CPromise m_Promise;
-		};
-
-		template <typename t_CPromise>
-		template <typename ...tfp_CResult>
-		void TCPromiseReceiveAnyFunctor<t_CPromise>::operator () (tfp_CResult && ...p_Result)
-		{
-			if (m_Promise.f_IsSet())
-				return;
-
-			TCInitializerList<bool> Dummy =
-				{
-					[&]
-					{
-						if (m_Promise.f_IsSet())
-							return true;
-						if (!p_Result)
-							m_Promise.f_SetException(fg_Move(p_Result));
-						return true;
-					}
-					()...
-				}
-			;
-			(void)Dummy;
-			if (m_Promise.f_IsSet())
-				return;
-
-			TCInitializerList<bool> Dummy2 =
-				{
-					[&]
-					{
-						if (m_Promise.f_IsSet())
-							return true;
-						if (p_Result)
-							m_Promise.f_SetResult(fg_Move(*p_Result));
-						return true;
-					}
-					()...
-				}
-			;
-			(void)Dummy2;
-		}
-
-		template <>
-		template <typename ...tfp_CResult>
-		void TCPromiseReceiveAnyFunctor<TCPromise<void>>::operator () (tfp_CResult && ...p_Result)
-		{
-			if (m_Promise.f_IsSet())
-				return;
-			TCInitializerList<bool> Dummy =
-				{
-					[&]
-					{
-						if (m_Promise.f_IsSet())
-							return true;
-						if (!p_Result)
-							m_Promise.f_SetException(fg_Move(p_Result));
-						return true;
-					}
-					()...
-				}
-			;
-			(void)Dummy;
-			if (m_Promise.f_IsSet())
-				return;
-			m_Promise.f_SetResult();
-		}
 	}
 
 	template <typename t_CReturnValue>
@@ -902,6 +820,7 @@ namespace NMib::NConcurrency::NPrivate
 		catch (...)
 		{
 		}
+
 		if (m_Coroutine)
 		{
 #if DMibEnableSafeCheck > 0

@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 Import "../Core/Lib_Malterlib.MTarget"
@@ -9,7 +9,7 @@ Import "Apps/*/*.MHeader"
 	Repository
 	{
 		Type "External"
-		Remotes "upstream=https://github.com/signal11/hidapi.git;@(Repository.Remotes)"
+		Remotes "upstream=https://github.com/libusb/hidapi.git;@(Repository.Remotes)"
 	}
 }
 
@@ -188,7 +188,7 @@ Property
 Property
 {
 	!!MalterlibEnableInternalTests true
-	
+
 	MalterlibTests "Malterlib_Concurrency;@(MalterlibTests)"
 	MalterlibTestExtraGroups_Malterlib_Concurrency "{Test}/{Malterlib_Concurrency}"
 	MalterlibTestFiles_Malterlib_Concurrency ""
@@ -200,12 +200,12 @@ Property
 	{
 		MalterlibEnableInternalWorkspaces true
 	}
-	
+
 	Property.MalterlibPostCopyProject "Malterlib_Concurrency"
 	{
 		!!TargetIsExecutable true
 	}
-	
+
 	Property.MalterlibLog_Severities "Error;Critical;Warning;Info"
 	{
 		!!MalterlibLog_EnableVerboseDebugLog false

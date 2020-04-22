@@ -911,20 +911,28 @@ namespace NMib::NConcurrency
 					_Handle.destroy();
 				}
 			;
-			mp_Actor.f_GetRealActor()->f_QueueProcess
+			auto pRealActor = mp_Actor.f_GetRealActor();
+			pRealActor->f_QueueProcess
 				(
-					[this, pCleanup = fg_Move(pCleanup), _Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
+					[
+						this
+						, pCleanup = fg_Move(pCleanup)
+						, _Handle
+						, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))
+						, ProcessingActor = fg_ThisActor(pRealActor)
+					]
+					() mutable
 					{
 						DMibFastCheck(KeepAlive.f_HasValidCoroutine());
-						DMibFastCheck(mp_Actor == fg_CurrentActor());
+						DMibFastCheck(ProcessingActor == fg_CurrentActor());
 
 						pCleanup->f_Clear();
 
 						(void)this;
 						auto &CoroutineContext = _Handle.promise();
-						CCurrentActorScope CurrentActorScope(mp_Actor);
+						CCurrentActorScope CurrentActorScope(ProcessingActor);
 #if DMibEnableSafeCheck > 0
-						CoroutineContext.f_SetOwner(mp_Actor.f_Weak());
+						CoroutineContext.f_SetOwner(ProcessingActor.f_Weak());
 #endif
 						bool bAborted = false;
 						auto RestoreStates = CoroutineContext.f_Resume(bAborted);

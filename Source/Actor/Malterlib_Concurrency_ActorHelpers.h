@@ -14,6 +14,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
+	TCActor<tf_CActor> fg_ThisActor(TCActorInternal<tf_CActor> *_pActor)
+	{
+		return TCActor<tf_CActor>(fg_Explicit(_pActor));
+	}
+
+	template <typename tf_CActor>
 	TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor)
 	{
 		TCActorInternal<tf_CActor> *pActor = static_cast<TCActorInternal<tf_CActor> *>(_pActor->self.m_pThis.f_Get());

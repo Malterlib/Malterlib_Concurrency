@@ -22,6 +22,13 @@ namespace NMib::NConcurrency
 			return false;
 		}
 
+		if (_pConnection->m_pHost)
+		{
+			auto &Host = *_pConnection->m_pHost;
+			Host.m_nReceivedBytes += _pMessage->f_GetLen();
+			++Host.m_nReceivedPackets;
+		}
+
 		NStream::CBinaryStreamMemoryPtr<> Stream;
 		Stream.f_OpenRead(_pMessage->f_GetArray(), _pMessage->f_GetLen());
 		uint8 Command;

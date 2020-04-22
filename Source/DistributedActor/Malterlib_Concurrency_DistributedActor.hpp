@@ -673,6 +673,61 @@ namespace NMib::NConcurrency
 			return {};
 		return fg_GetRemoteActorID(Actor);
 	}
+
+	template <typename tf_CStream>
+	void CActorDistributionManager::CWebsocketDebugStats::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_nSentBytes;
+		_Stream % m_nReceivedBytes;
+		_Stream % m_IncomingDataBufferBytes;
+		_Stream % m_OutgoingDataBufferBytes;
+		_Stream % m_SecondsSinceLastSend;
+		_Stream % m_SecondsSinceLastReceive;
+		_Stream % m_State;
+	}
+
+	template <typename tf_CStream>
+	void CActorDistributionManager::CConnectionDebugStats::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_URL;
+		_Stream % m_WebsocketStats;
+		_Stream % m_bIncoming;
+		_Stream % m_bIdentified;
+	}
+
+	template <typename tf_CStream>
+	void CActorDistributionManager::CDebugHostStats::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_HostID;
+		_Stream % m_UniqueHostID;
+		_Stream % m_Connections;
+		_Stream % m_Incoming_PacketsQueueLength;
+		_Stream % m_Incoming_NextPacketID;
+		_Stream % m_Outgoing_PacketsQueueLength;
+		_Stream % m_Outgoing_SentPacketsQueueLength;
+		_Stream % m_Outgoing_CurrentPacketID;
+
+		_Stream % m_nSentPackets;
+		_Stream % m_nSentBytes;
+
+		_Stream % m_nReceivedPackets;
+		_Stream % m_nReceivedBytes;
+
+		_Stream % m_nDiscardedPackets;
+		_Stream % m_nDiscardedBytes;
+
+		_Stream % m_LastExecutionID;
+		_Stream % m_ExecutionID;
+		_Stream % m_FriendlyName;
+		_Stream % m_LastError;
+		_Stream % m_LastErrorTime;
+	}
+
+	template <typename tf_CStream>
+	void CActorDistributionManager::CConnectionsDebugStats::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Hosts;
+	}
 }
 
 #include "Malterlib_Concurrency_DistributedActor_Stream.hpp"

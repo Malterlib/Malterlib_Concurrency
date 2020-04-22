@@ -242,6 +242,15 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_LastError;
 		NTime::CTime m_LastErrorTime;
 
+		uint64 m_nSentPackets = 0;
+		uint64 m_nSentBytes = 0;
+
+		uint64 m_nReceivedPackets = 0;
+		uint64 m_nReceivedBytes = 0;
+
+		uint64 m_nDiscardedPackets = 0;
+		uint64 m_nDiscardedBytes = 0;
+
 		bool m_bAllowAllNamespaces = false;
 
 		bool m_bIncoming = false;
@@ -293,6 +302,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		TCActor<NWeb::CWebSocketServerActor> m_WebsocketServer;
 		CActorSubscription m_ListenCallbackSubscription;
 		NStr::CStr m_LastReportedError;
+		NContainer::TCVector<NWeb::NHTTP::CURL> m_ListenAddresses;
 
 		NStr::CStr const &f_GetID() const
 		{

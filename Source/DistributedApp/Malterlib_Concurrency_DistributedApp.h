@@ -115,6 +115,7 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_CommandLine_GetHostID(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 
 		TCFuture<uint32> f_CommandLine_GetConnetionStatus(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
+		TCFuture<uint32> f_CommandLine_GetDebugStats(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
 
 		TCFuture<uint32> f_CommandLine_ListConnections(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName, NStr::CStr const &_TableType);
 		TCFuture<uint32> f_CommandLine_RemoveConnection(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_URL);

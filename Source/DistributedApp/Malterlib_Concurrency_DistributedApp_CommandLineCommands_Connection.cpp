@@ -376,4 +376,108 @@ namespace NMib::NConcurrency
 
 		co_return 0;
 	}
+
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDebugStats(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	{
+		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
+		CTableRenderHelper ConnectionTableRenderer = _pCommandLine->f_TableRenderer();
+		CAnsiEncoding AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
+
+		auto fFormatAsJSON = [&](CEJSON const &_JSON)
+			{
+				return _JSON.f_ToStringColored(AnsiEncoding.f_Flags()).f_Trim();
+			}
+		;
+
+		TableRenderer.f_AddDescription("Connected Hosts");
+		TableRenderer.f_AddHeadings("Host", "Host Info", "Incoming Queue", "Outgoing Queue", "Sent Queue", "Stats", "Last Error");
+
+		ConnectionTableRenderer.f_AddDescription("Connections");
+		ConnectionTableRenderer.f_AddHeadings("Host", "URL", "Direction", "Identified", "Sent (b)", "Received (b)", "IncomingBuf (b)", "OutgoingBuf (b)", "LastSend (s)", "LastReceive (s)", "State");
+		ConnectionTableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
+
+		auto DebugStats = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetConnectionsDebugStats);
+
+		for (auto &Host : DebugStats.m_DebugStats.m_Hosts)
+		{
+			CHostInfo HostInfo{Host.m_UniqueHostID, Host.m_FriendlyName};
+
+			auto fFormatQueue = [&](auto &_Length, auto &_Bytes, auto &_IDs) -> CStr
+				{
+					return "Length: {0}{2}{1}\n"
+						"Bytes: {0}{3}{1}\n"
+						"IDs: {4}"_f
+						<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+						<< AnsiEncoding.f_Default()
+						<< _Length
+						<< _Bytes
+						<< fFormatAsJSON(_IDs)
+					;
+				}
+			;
+
+			TableRenderer.f_AddRow
+				(
+					HostInfo.f_GetDescColored(AnsiEncoding.f_Flags())
+					, "HostID: {}\nExecutionID: {}\nLastExecutionID: {}"_f
+					<< fFormatAsJSON(Host.m_HostID)
+					<< fFormatAsJSON(Host.m_ExecutionID)
+					<< fFormatAsJSON(Host.m_LastExecutionID)
+					, "{}\n\nNext PacketID: {}{}{}"_f
+					<< fFormatQueue(Host.m_Incoming_PacketsQueueLength, Host.m_Incoming_PacketsQueueBytes, Host.m_Incoming_PacketsQueueIDs)
+					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+					<< Host.m_Incoming_NextPacketID
+					<< AnsiEncoding.f_Default()
+					, "{}\n\nCurrent PacketID: {}{}{}"_f
+					<< fFormatQueue(Host.m_Outgoing_PacketsQueueLength, Host.m_Outgoing_PacketsQueueBytes, Host.m_Outgoing_PacketsQueueIDs)
+					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+					<< Host.m_Outgoing_CurrentPacketID
+					<< AnsiEncoding.f_Default()
+					, fFormatQueue(Host.m_Outgoing_SentPacketsQueueLength, Host.m_Outgoing_SentPacketsQueueBytes, Host.m_Outgoing_SentPacketsQueueIDs)
+					, "Sent     : {0}{2,nt32,l6}{1} ({0}{3,nt32,l9}{1} b)\n"
+					"Received : {0}{4,nt32,l6}{1} ({0}{5,nt32,l9}{1} b)\n"
+					"Discarded: {0}{6,nt32,l6}{1} ({0}{7,nt32,l9}{1} b)"_f
+					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
+					<< AnsiEncoding.f_Default()
+		 			<< Host.m_nSentPackets
+					<< Host.m_nSentBytes
+					<< Host.m_nReceivedPackets
+					<< Host.m_nReceivedBytes
+					<< Host.m_nDiscardedPackets
+					<< Host.m_nDiscardedBytes
+					, "{}\n\n{}"_f << (Host.m_LastErrorTime.f_IsValid() ? ("{}"_f << Host.m_LastErrorTime).f_GetStr() : "") << Host.m_LastError
+				)
+			;
+
+			for (auto &Connection : Host.m_Connections)
+			{
+				ConnectionTableRenderer.f_AddRow
+					(
+						HostInfo.f_GetDescColored(AnsiEncoding.f_Flags())
+						, Connection.m_URL
+						, Connection.m_bIncoming
+						? ("{}<--{}"_f << AnsiEncoding.f_ForegroundRGB(215, 133, 255) << AnsiEncoding.f_Default()).f_GetStr()
+						: ("{}-->{}"_f << AnsiEncoding.f_ForegroundRGB(141, 213, 128) << AnsiEncoding.f_Default()).f_GetStr()
+						, fFormatAsJSON(Connection.m_bIdentified)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_nSentBytes)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_nReceivedBytes)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_IncomingDataBufferBytes)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_OutgoingDataBufferBytes)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_SecondsSinceLastSend)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_SecondsSinceLastReceive)
+						, fFormatAsJSON(Connection.m_WebsocketStats.m_State)
+					)
+				;
+			}
+			ConnectionTableRenderer.f_ForceRowSeparator();
+		}
+
+		TableRenderer.f_Output(_TableType);
+		ConnectionTableRenderer.f_Output(_TableType);
+
+		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported debug connection stats to command line");
+
+		co_return 0;
+	}
 }

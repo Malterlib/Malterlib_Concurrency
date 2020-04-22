@@ -1160,4 +1160,17 @@ namespace NMib::NConcurrency
 		;
 		return Promise.f_MoveFuture();
 	}
+
+	TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> CDistributedActorTrustManager::f_GetConnectionsDebugStats()
+	{
+		auto &Internal = *mp_pInternal;
+
+		co_await Internal.f_WaitForInit();
+
+		CDistributedActorTrustManagerInterface::CConnectionsDebugStats DebugStats;
+
+		DebugStats.m_DebugStats = co_await Internal.m_ActorDistributionManager(&CActorDistributionManager::f_GetConnectionsDebugStats);
+
+		co_return fg_Move(DebugStats);
+	}
 }

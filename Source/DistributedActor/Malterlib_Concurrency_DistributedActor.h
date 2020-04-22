@@ -589,6 +589,82 @@ namespace NMib::NConcurrency
 			bool m_bActive = false;
 		};
 
+		struct CWebsocketDebugStats
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			uint64 m_nSentBytes = 0;
+			uint64 m_nReceivedBytes = 0;
+			uint64 m_IncomingDataBufferBytes = 0;
+ 			uint64 m_OutgoingDataBufferBytes = 0;
+			fp64 m_SecondsSinceLastSend = 0.0;
+			fp64 m_SecondsSinceLastReceive = 0.0;
+			uint8 m_State = 0;
+		};
+
+		struct CConnectionDebugStats
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NWeb::NHTTP::CURL m_URL;
+			CWebsocketDebugStats m_WebsocketStats;
+			bool m_bIncoming = false;
+			bool m_bIdentified = false;
+		};
+
+		struct CDebugHostStats
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NStr::CStr m_HostID;
+			NStr::CStr m_UniqueHostID;
+
+			NContainer::TCVector<CConnectionDebugStats> m_Connections;
+
+			uint64 m_Incoming_NextPacketID = 0;
+			uint64 m_Incoming_PacketsQueueLength = 0;
+			uint64 m_Incoming_PacketsQueueBytes = 0;
+			NContainer::TCVector<uint64> m_Incoming_PacketsQueueIDs;
+
+			uint64 m_Outgoing_CurrentPacketID = 0;
+			uint64 m_Outgoing_PacketsQueueLength = 0;
+			uint64 m_Outgoing_PacketsQueueBytes = 0;
+			NContainer::TCVector<uint64> m_Outgoing_PacketsQueueIDs;
+
+			uint64 m_Outgoing_SentPacketsQueueLength = 0;
+			uint64 m_Outgoing_SentPacketsQueueBytes = 0;
+			NContainer::TCVector<uint64> m_Outgoing_SentPacketsQueueIDs;
+
+			uint64 m_nSentPackets = 0;
+			uint64 m_nSentBytes = 0;
+
+			uint64 m_nReceivedPackets = 0;
+			uint64 m_nReceivedBytes = 0;
+
+			uint64 m_nDiscardedPackets = 0;
+			uint64 m_nDiscardedBytes = 0;
+
+			NStr::CStr m_LastExecutionID;
+			NStr::CStr m_ExecutionID;
+			NStr::CStr m_FriendlyName;
+			NStr::CStr m_LastError;
+			NTime::CTime m_LastErrorTime;
+		};
+
+
+		struct CConnectionsDebugStats
+		{
+			static constexpr uint32 mc_Version = 0x101;
+
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDebugHostStats> m_Hosts;
+		};
+
 		CActorDistributionManager(CActorDistributionManagerInitSettings const &_InitSettings);
 		~CActorDistributionManager();
 
@@ -661,6 +737,8 @@ namespace NMib::NConcurrency
 		static bool fs_IsValidHostID(NStr::CStr const &_String);
 		static bool fs_IsValidEnclave(NStr::CStr const &_String);
 		static bool fs_IsValidUserID(NStr::CStr const &_String);
+
+		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats();
 
 	private:
 		TCFuture<void> fp_Destroy() override;

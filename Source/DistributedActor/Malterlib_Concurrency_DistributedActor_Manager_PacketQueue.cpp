@@ -22,7 +22,23 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> &&_pMessage)
 	{
 		if (!_pConnection->m_Connection)
+		{
+			if (_pConnection->m_pHost)
+			{
+				auto &Host = *_pConnection->m_pHost;
+				Host.m_nDiscardedBytes += _pMessage->f_GetLen();
+				++Host.m_nDiscardedPackets;
+			}
 			return;
+		}
+
+		if (_pConnection->m_pHost)
+		{
+			auto &Host = *_pConnection->m_pHost;
+			Host.m_nSentBytes += _pMessage->f_GetLen();
+			++Host.m_nSentPackets;
+		}
+
 		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(_pMessage), 0)
 			> [](TCAsyncResult<void> &&_Result)
 			{

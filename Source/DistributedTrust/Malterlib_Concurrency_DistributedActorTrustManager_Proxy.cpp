@@ -348,4 +348,11 @@ namespace NMib::NConcurrency
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, _FactorID);
 	}
+
+	auto CDistributedActorTrustManagerProxy::f_GetConnectionsDebugStats() -> TCFuture<CConnectionsDebugStats>
+	{
+ 		if (!fp_CheckPermissions(EPermission_ConnectionsDebugStats_Read))
+			co_return fp_AccessDenied();
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_GetConnectionsDebugStats);
+	}
 }

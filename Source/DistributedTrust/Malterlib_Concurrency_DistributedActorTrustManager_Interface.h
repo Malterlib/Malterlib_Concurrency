@@ -240,6 +240,14 @@ namespace NMib::NConcurrency
 			bool m_bPreserveHost = false;
 		};
 
+		struct CConnectionsDebugStats
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			CActorDistributionManager::CConnectionsDebugStats m_DebugStats;
+		};
+
 		CDistributedActorTrustManagerInterface();
 		~CDistributedActorTrustManagerInterface();
 
@@ -289,6 +297,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
 		virtual TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) = 0;
 		virtual TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
+
+		virtual TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats() = 0;
 	};
 }
 

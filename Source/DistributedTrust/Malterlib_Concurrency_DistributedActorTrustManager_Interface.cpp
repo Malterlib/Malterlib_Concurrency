@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager_Interface.h"
@@ -49,25 +49,25 @@ namespace NMib::NConcurrency
 		_Stream << m_AllowedHosts;
 		_Stream << m_DisallowedHosts;
 	}
-	
+
 	void CDistributedActorTrustManagerInterface::CNamespacePermissions::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		_Stream >> m_AllowedHosts;
 		_Stream >> m_DisallowedHosts;
-	}		
+	}
 
 	void CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult::f_Feed(CDistributedActorWriteStream &_Stream) &&
 	{
 		_Stream << m_Ticket;
 		_Stream << fg_Move(m_NotificationsSubscription);
 	}
-	
+
 	void CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult::f_Consume(CDistributedActorReadStream &_Stream)
 	{
 		_Stream >> m_Ticket;
 		_Stream >> m_NotificationsSubscription;
 	}
-		
+
 	template <typename tf_CStream>
 	void CDistributedActorTrustManagerInterface::CClientConnectionInfo::f_Stream(tf_CStream &_Stream)
 	{
@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 	{
 		return NStorage::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) == NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
 	}
-		
+
 	bool CDistributedActorTrustManagerInterface::CClientConnectionInfo::operator < (CClientConnectionInfo const &_Right) const
 	{
 		return NStorage::fg_TupleReferences(m_HostInfo, m_ConnectionConcurrency) < NStorage::fg_TupleReferences(_Right.m_HostInfo, _Right.m_ConnectionConcurrency);
@@ -350,4 +350,19 @@ namespace NMib::NConcurrency
 		if (_Stream.f_GetVersion() >= 0x107)
 			_Stream % m_bPreserveHost;
 	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CRemoveClientConnection);
+
+	template <typename tf_CStream>
+	void CDistributedActorTrustManagerInterface::CConnectionsDebugStats::f_Stream(tf_CStream &_Stream)
+	{
+		static_assert(CActorDistributionManager::CConnectionsDebugStats::mc_Version == 0x101); // Implement mapping
+
+		uint32 DebugStatsVersion = 0;
+		if (_Stream.f_GetVersion() >= 0x107)
+			DebugStatsVersion = 0x101;
+
+		DMibBinaryStreamVersion(_Stream, DebugStatsVersion);
+		_Stream % m_DebugStats;
+	}
+	DMibDistributedStreamImplement(CDistributedActorTrustManagerInterface::CConnectionsDebugStats);
 }

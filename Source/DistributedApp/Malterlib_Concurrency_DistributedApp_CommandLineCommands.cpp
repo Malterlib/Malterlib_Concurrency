@@ -206,6 +206,26 @@ namespace NMib::NConcurrency
 			Distributed.f_RegisterCommand
 				(
 					{
+						"Names"_= {"--trust-connection-debug-stats"}
+						, "Category"_= Category
+						, "Description"_= "Show debug info for connections.\n"
+						, "Output"_= "A table with debug info for connected hosts."
+						, "Options"_=
+						{
+							CTableRenderHelper::fs_OutputTypeOption()
+						}
+
+					}
+					, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+					{
+						return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetDebugStats, _pCommandLine, _Params["TableType"].f_String());
+					}
+					, EDistributedAppCommandFlag_WaitForRemotes
+				)
+			;
+			Distributed.f_RegisterCommand
+				(
+					{
 						"Names"_= {"--trust-connection-add"}
 						, "Category"_= Category
 						, "Description"_= "Add a connection to a remote distributed actor host.\n"

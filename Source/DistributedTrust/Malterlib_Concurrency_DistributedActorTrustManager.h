@@ -389,6 +389,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> f_GetConnectionsDebugStats();
+
 		// Handle renewal of certificates
 		
 	private:

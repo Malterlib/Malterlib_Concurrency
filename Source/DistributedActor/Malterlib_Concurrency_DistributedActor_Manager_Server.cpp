@@ -244,6 +244,7 @@ namespace NMib::NConcurrency
 
 				NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
 
+				pListenState->m_ListenAddresses = _Settings.m_ListenAddresses;
 				pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>();
 				pListenState->m_WebsocketServer
 					(

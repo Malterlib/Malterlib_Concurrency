@@ -51,6 +51,8 @@ namespace NMib::NConcurrency
 
 			, EPermission_UserPrivate_Read = DMibBit(19)
 
+			, EPermission_ConnectionsDebugStats_Read = DMibBit(20)
+
 			, EPermission_All =
 			(
 				EPermission_HostID_Read 
@@ -61,6 +63,7 @@ namespace NMib::NConcurrency
 				| EPermission_Permissions
 				| EPermission_UserPermissions
 				| EPermission_UserPrivate_Read
+				| EPermission_ConnectionsDebugStats_Read
 			)
 		};
 		
@@ -123,6 +126,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
 		TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data) override;
 		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) override;
+
+		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats() override;
 
 	private:
 		NException::CException fp_AccessDenied() const;

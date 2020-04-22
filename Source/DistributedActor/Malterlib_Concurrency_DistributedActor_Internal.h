@@ -36,6 +36,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		virtual ~CConnection()
 		{
 			f_DiscardIdentifyPromise("Destroyed");
+
+			if (m_Connection)
+				fg_Move(m_Connection).f_Destroy() > fg_DiscardResult();
 		}
 
 		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);

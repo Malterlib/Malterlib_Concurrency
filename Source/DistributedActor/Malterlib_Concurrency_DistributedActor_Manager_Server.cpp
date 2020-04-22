@@ -198,6 +198,12 @@ namespace NMib::NConcurrency
 					return;
 				}
 
+				if (m_pThis->f_IsDestroyed())
+				{
+					fReportListenFailure(_Results.f_GetException(), "Shutting down");
+					return;
+				}
+
 				NContainer::TCVector<NNetwork::CNetAddress> Addresses;
 
 				mint iResult = 0;
@@ -245,7 +251,7 @@ namespace NMib::NConcurrency
 						, fg_Move(Addresses)
 						, _Settings.m_ListenFlags
 						, fg_ThisActor(m_pThis)
-						, [this](NWeb::CWebSocketNewServerConnection &&_NewServerConnection)
+						, [this, _ListenID](NWeb::CWebSocketNewServerConnection &&_NewServerConnection)
 						{
 							NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> pNewServerConnection = fg_Construct(fg_Move(_NewServerConnection));
 
@@ -261,6 +267,12 @@ namespace NMib::NConcurrency
 							if (m_WebsocketHandlers.f_IsEmpty() && NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
 							{
 								fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
+								return;
+							}
+
+							if (m_pThis->f_IsDestroyed())
+							{
+								fReject("Shutting down");
 								return;
 							}
 

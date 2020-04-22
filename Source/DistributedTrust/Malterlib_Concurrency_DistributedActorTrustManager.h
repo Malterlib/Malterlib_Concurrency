@@ -269,6 +269,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<void> f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout);
 
 		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
 		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket
@@ -296,6 +297,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency = -1);
 		TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost = false);
 		TCFuture<bool> f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<void> f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout);
 
 		TCFuture<CConnectionState> f_GetConnectionState();
 		

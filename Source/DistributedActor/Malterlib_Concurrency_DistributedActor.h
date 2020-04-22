@@ -409,6 +409,7 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		TCFuture<void> f_Stop();
+		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout);
 
 	private:
 		CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
@@ -441,6 +442,7 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		TCFuture<void> f_Disconnect(bool _bPreserveHost = false);
+		TCFuture<void> f_Debug_Break(fp64 _Timeout);
 		TCFuture<CDistributedActorConnectionStatus> f_GetStatus();
 		TCFuture<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
 		bool f_IsValid() const;
@@ -687,7 +689,10 @@ namespace NMib::NConcurrency
 		;
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		TCFuture<void> fp_RemoveListen(NStr::CStr const &_ListenID);
+		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout);
+
 		void fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost);
+		TCFuture<void> fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout);
 		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 		void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
 		void fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID);

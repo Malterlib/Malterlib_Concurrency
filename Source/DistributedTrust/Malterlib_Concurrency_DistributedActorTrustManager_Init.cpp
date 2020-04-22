@@ -8,6 +8,21 @@
 
 namespace NMib::NConcurrency
 {
+	TCFuture<void> CDistributedActorTrustManager::CInternal::f_WaitForInit()
+	{
+		if (m_Initialize == EInitialize_Success)
+			co_return {};
+		else if (m_Initialize == EInitialize_Failure)
+			co_return DMibErrorInstance(fg_Format("Trust manager failed to initialize: {}", m_InitializeError));
+
+		auto Result = co_await (*m_pInitOnce)().f_Wrap();
+
+		if (!Result)
+			co_return DMibErrorInstance(fg_Format("Trust manager failed to initialize: {}", Result.f_GetExceptionStr()));
+
+		co_return {};
+	}
+
 	void CDistributedActorTrustManager::fp_Init()
 	{
 		fg_InitDistributedActorSystem();

@@ -51,43 +51,60 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<CDistributedActorConnectionStatus> Promise;
 
-		bool bAlreadyRemoved = mp_DistributionManager.f_IsEmpty();
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
-		if (DistributionManager)
-			return Promise <<= DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
-
-		if (bAlreadyRemoved)
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
-		else
+		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
+	}
+
+	TCFuture<void> CDistributedActorConnectionReference::f_Debug_Break(fp64 _Timeout)
+	{
+		TCPromise<void> Promise;
+
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+
+		if (!DistributionManager)
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Disconnect(bool _bPreserveHost)
 	{
 		TCPromise<void> Promise;
 
-		bool bAlreadyRemoved = mp_DistributionManager.f_IsEmpty();
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+
 		auto DistributionManager = mp_DistributionManager.f_Lock();
+
 		mp_DistributionManager.f_Clear();
 
-		if (DistributionManager)
-			return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, _bPreserveHost);
-
-		if (bAlreadyRemoved)
-			return Promise <<= DMibErrorInstance("Connection has already been disconnected");
-		else
+		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, _bPreserveHost);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings)
 	{
 		TCPromise<void> Promise;
 
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Conection disconnected");
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 
 		return Promise <<= DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, mp_ConnectionID, _Settings);
 	}
@@ -656,22 +673,38 @@ namespace NMib::NConcurrency
 		return Promise <<= Return;
 	}
 
+	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout)
+	{
+		auto &Internal = *mp_pInternal;
+
+		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
+		if (!pConnection)
+			co_return {};
+
+		auto &Connection = **pConnection;
+		if (Connection.m_Connection)
+			co_await Connection.m_Connection(&NWeb::CWebSocketActor::f_DebugStopProcessing, _Timeout);
+
+		co_return {};
+	}
+
 	void CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost)
 	{
 		auto &Internal = *mp_pInternal;
+
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
-		if (pConnection)
-		{
-			auto &Connection = **pConnection;
-			Internal.fp_DestroyClientConnection
-				(
-				 	Connection
-				 	, false
-				 	, _bPreserveHost ? "Remove connection (preserve host)" : "Remove connection"
-				 	, !_bPreserveHost && Connection.m_Link.f_IsAloneInList()
-				)
-			;
-		}
+		if (!pConnection)
+			return;
+
+		auto &Connection = **pConnection;
+		Internal.fp_DestroyClientConnection
+			(
+				Connection
+				, false
+				, _bPreserveHost ? "Remove connection (preserve host)" : "Remove connection"
+				, !_bPreserveHost && Connection.m_Link.f_IsAloneInList()
+			)
+		;
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)

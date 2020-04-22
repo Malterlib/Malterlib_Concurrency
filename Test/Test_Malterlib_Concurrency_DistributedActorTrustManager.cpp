@@ -767,6 +767,92 @@ namespace NTestTrustManager
 
 			};
 
+			DMibTestSuite("Broken Connections")
+			{
+				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+				auto CleanupTestActor = g_OnScopeExit > [&]
+					{
+						HelperActor->f_BlockDestroy();
+					}
+				;
+				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
+
+				CState State{_fDatabaseFactory, _fCleanup};
+
+				TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
+				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
+
+				CDistributedActorTrustManager_Address ServerAddress;
+				ServerAddress.m_URL = "wss://localhost:31399/";
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+				{
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, 10).f_CallSync(60.0);
+				}
+
+				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
+				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
+
+				ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
+				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
+
+				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
+				TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
+
+				ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(60.0);
+				ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(60.0);
+
+				fp64 TestTime = 1.5;
+
+				CStr DispatchError;
+				mint nCalls = 0;
+				fg_Dispatch
+					(
+						DispatchActor
+						, [&]
+						{
+							NTime::CClock Clock;
+							Clock.f_Start();
+							while (Clock.f_GetTime() < TestTime)
+							{
+								try
+								{
+									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(10.0);
+									++nCalls;
+								}
+								catch (NException::CException const &_Exception)
+								{
+									DispatchError = _Exception.f_GetErrorStr();
+									break;
+								}
+							}
+						}
+					)
+					> fg_DiscardResult();
+				;
+
+				NTime::CClock Clock;
+				Clock.f_Start();
+				while (Clock.f_GetTime() < TestTime)
+				{
+					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(60.0);
+					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(60.0);
+					NSys::fg_Thread_Sleep(0.2f);
+				}
+
+				DispatchActor->f_BlockDestroy();
+
+				DMibExpect(DispatchError, ==, "");
+				DMibExpect(nCalls, >, 1u);
+
+				ServerTrustManager->f_BlockDestroy();
+				ClientTrustManager->f_BlockDestroy();
+
+				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+			};
+
 			DMibTestSuite("Security")
 			{
 				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
@@ -1601,7 +1687,7 @@ namespace NTestTrustManager
 					}
 				;
 				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
-				
+
 				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
 				using CKeys = TCSet<CStr>;
 				NStorage::TCSharedPointer<CCommandLineControl> pCommandLine;

@@ -55,6 +55,18 @@ namespace NMib::NConcurrency
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 	}
 
+	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout)
+	{
+		TCPromise<void> Promise;
+
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+
+		if (DistributionManager)
+			return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakAllListenConnections, mp_ListenID, _Timeout);
+
+		return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+	}
+
 	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
 	{
 		auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
@@ -309,7 +321,7 @@ namespace NMib::NConcurrency
 								}
 							}
 
-							auto fFinishConnection = [this, UniqueHostID, RealHostID, bAnonymous, fReject, pNewServerConnection, WebPath]() mutable
+							auto fFinishConnection = [this, UniqueHostID, RealHostID, bAnonymous, fReject, pNewServerConnection, WebPath, _ListenID]() mutable
 								{
 									NWeb::CWebSocketNewServerConnection &NewServerConnection = *pNewServerConnection;
 
@@ -349,6 +361,8 @@ namespace NMib::NConcurrency
 									mint ConnectionID = m_NextConnectionID++;
 
 									NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
+
+									pConnection->m_ListenID = _ListenID;
 
 									auto MappedHost = m_Hosts(UniqueHostID);
 
@@ -627,5 +641,24 @@ namespace NMib::NConcurrency
 			Promise.f_SetResult();
 
 		return Promise.f_MoveFuture();
+	}
+
+	TCFuture<void> CActorDistributionManager::fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout)
+	{
+		auto &Internal = *mp_pInternal;
+		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
+		if (!pListen)
+			co_return DMibErrorInstance("No such listen");
+
+		TCActorResultVector<void> Results;
+		for (auto &pServerConnection : Internal.m_ServerConnections)
+		{
+			if (pServerConnection->m_ListenID == _ListenID && pServerConnection->m_Connection)
+				pServerConnection->m_Connection(&NWeb::CWebSocketActor::f_DebugStopProcessing, _Timeout) > Results.f_AddResult();
+		}
+
+		co_await Results.f_GetResults() | g_Unwrap;
+
+		co_return {};
 	}
 }

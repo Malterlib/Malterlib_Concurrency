@@ -911,6 +911,44 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout)
+	{
+		using namespace NMib::NStr;
+
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnection)
+			co_return DMibErrorInstance("Could not find client connection for '{}'"_f << _Address);
+
+		TCActorResultVector<void> BreakResults;
+		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
+			ConnectionReference.f_Debug_Break(_Timeout) > BreakResults.f_AddResult();
+
+		co_await (BreakResults.f_GetResults() % "Failed to break client connections") | g_Unwrap;
+
+		co_return {};
+	}
+
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout)
+	{
+		using namespace NMib::NStr;
+
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		CListenConfig Config{_Address};
+
+		auto pListen = Internal.m_Listen.f_FindEqual(Config);
+		if (!pListen)
+			co_return DMibErrorInstance("Could not find listen for '{}'"_f << _Address);
+
+		co_await (pListen->m_ListenReference.f_Debug_BreakAllConnections(_Timeout) % "Failed to break listen connections");
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
 	{
 		TCPromise<void> Promise;

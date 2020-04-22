@@ -226,6 +226,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CReturn>
 		void f_RunAfterInit(TCPromise<tf_CReturn> const &_Promise, NFunction::TCFunctionMovable<void ()> &&_fToRun);
+		TCFuture<void> f_WaitForInit();
 
 		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
 

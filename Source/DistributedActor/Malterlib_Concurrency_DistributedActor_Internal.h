@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -21,7 +21,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 {
 	struct CHost;
 }
-			
+
 DMibDefineSharedPointerType(NMib::NConcurrency::NActorDistributionManagerInternal::CHost, true, false);
 
 namespace NMib::NConcurrency
@@ -93,6 +93,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr f_GetConnectionID() const override;
 
 		mint const m_ConnectionID;
+		NStr::CStr m_ListenID;
 	};
 
 	struct CPacket
@@ -319,14 +320,14 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		;
 	};
 }
-	
+
 namespace NMib::NConcurrency
 {
 	struct CActorDistributionManagerInternal
 	{
 		using CConnection = NActorDistributionManagerInternal::CConnection;
-		using CClientConnection = NActorDistributionManagerInternal::CClientConnection; 
-		using CServerConnection = NActorDistributionManagerInternal::CServerConnection; 
+		using CClientConnection = NActorDistributionManagerInternal::CClientConnection;
+		using CServerConnection = NActorDistributionManagerInternal::CServerConnection;
 		using CPacket = NActorDistributionManagerInternal::CPacket;
 		using CRemoteActor = NActorDistributionManagerInternal::CRemoteActor;
 		using CRemoteNamespace = NActorDistributionManagerInternal::CRemoteNamespace;
@@ -339,43 +340,43 @@ namespace NMib::NConcurrency
 		using CWebsocketHandler = NActorDistributionManagerInternal::CWebsocketHandler;
 
 		friend struct NActorDistributionManagerInternal::CHost;
-		
+
 		CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings);
 		~CActorDistributionManagerInternal();
-		
+
 		NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag>> m_ClientConnections;
 		NContainer::TCMap<mint, NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag>> m_ServerConnections;
 		mint m_NextConnectionID = 0;
-		
+
 		NContainer::TCMap<NStr::CStr, NStorage::TCSharedPointerSupportWeak<CHost>> m_Hosts;
 		NContainer::TCMap<NStr::CStr, DMibListLinkDS_List(CHost, m_RealHostsLink)> m_HostsByRealHostID;
 		CActorDistributionManager *m_pThis;
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_Enclave;
-		
+
 		TCActorSubscriptionManager<void (CHostInfo const &_HostInfo), true> m_OnHostInfoChanged;
-		
+
 		NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
 
 		NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
 		NContainer::TCSet<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;
 		NContainer::TCSet<NStr::CStr> m_AllowedBothNamespaces;
-		
+
 		NContainer::TCMap<NStr::CStr, CListen> m_Listens;
-		
+
 		TCActor<NWeb::CWebSocketClientActor> m_WebsocketClientConnector;
-		
+
 		TCActor<NNetwork::CResolveActor> m_ResolveActor;
-		
+
 		NContainer::TCMap<NStr::CStr, CLocalNamespace> m_LocalNamespaces;
 		NContainer::TCMap<NStr::CStr, CRemoteNamespace> m_RemoteNamespaces;
 
 		NIntrusive::TCAVLTree<&CPublishedActor::m_TreeLink, CPublishedActor::CSortActorID> m_PublishedActors;
-		
+
 		TCActor<ICActorDistributionManagerAccessHandler> m_AccessHandler;
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
-		
+
 		NContainer::TCMap<NStr::CStr, CWebsocketHandler> m_WebsocketHandlers;
 
 		DMibListLinkDS_List(CHost, m_InactiveHostsLink) m_InactiveHosts;
@@ -408,10 +409,10 @@ namespace NMib::NConcurrency
 		;
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
 		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
-		
+
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
-		
+
 		template <typename tf_CReturnType>
 		bool fp_DecodeClientConnectionSettings
 			(
@@ -441,7 +442,7 @@ namespace NMib::NConcurrency
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
 		void fp_NotifyNewActor(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor);
 		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor);
-		
+
 		void fp_ReplyToRemoteCallWithException
 			(
 				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
@@ -470,7 +471,7 @@ namespace NMib::NConcurrency
 			(
 				CHost &_Host
 				, NPrivate::CDistributedActorStreamContextState &_State
-				, CResultSubscriptionData const *_pSubscriptionData 
+				, CResultSubscriptionData const *_pSubscriptionData
 			)
 		;
 		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);

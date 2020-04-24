@@ -42,29 +42,46 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<void> Promise;
 
-		bool bAlreadyStopped = mp_DistributionManager.f_IsEmpty();
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Listen has already been stopped");
+
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		mp_DistributionManager.f_Clear();
 
-		if (DistributionManager)
-			return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
-
-		if (bAlreadyStopped)
-			return Promise <<= DMibErrorInstance("Listen has already been stopped");
-		else
+		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
 	}
 
 	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout)
 	{
 		TCPromise<void> Promise;
 
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Listen has already been stopped");
+
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
-		if (DistributionManager)
-			return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakAllListenConnections, mp_ListenID, _Timeout);
+		if (!DistributionManager)
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakAllListenConnections, mp_ListenID, _Timeout);
+	}
+
+	TCFuture<void> CDistributedActorListenReference::f_Debug_SetServerBroken(bool _bBroken)
+	{
+		TCPromise<void> Promise;
+
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Listen has already been stopped");
+
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+
+		if (!DistributionManager)
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_SetListenServerBroken, mp_ListenID, _bBroken);
 	}
 
 	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
@@ -671,6 +688,18 @@ namespace NMib::NConcurrency
 		}
 
 		co_await Results.f_GetResults() | g_Unwrap;
+
+		co_return {};
+	}
+
+	TCFuture<void> CActorDistributionManager::fp_Debug_SetListenServerBroken(NStr::CStr const &_ListenID, bool _bBroken)
+	{
+		auto &Internal = *mp_pInternal;
+		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
+		if (!pListen)
+			co_return DMibErrorInstance("No such listen");
+
+		co_await pListen->m_WebsocketServer(&NWeb::CWebSocketServerActor::f_Debug_SetBroken, _bBroken);
 
 		co_return {};
 	}

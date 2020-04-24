@@ -246,6 +246,8 @@ namespace NMib::NConcurrency
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 			fp64 m_InitialConnectionTimeout = 5.0;
+			fp64 m_HostTimeout = 10.0 * 60.0; // 10 minutes
+			fp64 m_HostDaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
 			int32 m_DefaultConnectionConcurrency = 1;
 			bool m_bRetryOnListenFailureDuringInit = true;
 			bool m_bWaitForConnectionsDuringInit = true;
@@ -270,6 +272,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<void> f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout);
+		TCFuture<void> f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address const &_Address, bool _bBroken);
 
 		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients();
 		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket

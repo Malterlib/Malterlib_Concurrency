@@ -309,6 +309,8 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<TCPromise<void>> m_AwaitingConnection;
 
 		fp64 m_InitialConnectionTimeout = 5.0;
+		fp64 m_HostTimeout;
+		fp64 m_HostDaemonTimeout;
 
 		int32 m_DefaultConnectionConcurrency = 1;
 

@@ -264,6 +264,8 @@ namespace NMib::NConcurrency
 		, m_FriendlyName(_InitSettings.m_FriendlyName)
 		, m_HostID(_InitSettings.m_HostID)
 		, m_Enclave(_InitSettings.m_Enclave)
+		, m_HostTimeout(_InitSettings.m_HostTimeout)
+		, m_HostDaemonTimeout(_InitSettings.m_HostDaemonTimeout)
 	{
 		if (m_FriendlyName.f_IsEmpty())
 			m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());

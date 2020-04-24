@@ -949,6 +949,24 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address const &_Address, bool _bBroken)
+	{
+		using namespace NMib::NStr;
+
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
+		CListenConfig Config{_Address};
+
+		auto pListen = Internal.m_Listen.f_FindEqual(Config);
+		if (!pListen)
+			co_return DMibErrorInstance("Could not find listen for '{}'"_f << _Address);
+
+		co_await (pListen->m_ListenReference.f_Debug_SetServerBroken(_bBroken) % "Failed to set listen server broken");
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
 	{
 		TCPromise<void> Promise;

@@ -41,6 +41,8 @@ namespace NMib::NConcurrency
 		, m_bRetryOnListenFailureDuringInit(_Options.m_bRetryOnListenFailureDuringInit)
 		, m_bWaitForConnectionsDuringInit(_Options.m_bWaitForConnectionsDuringInit)
 		, m_bSupportAuthentication(_Options.m_bSupportAuthentication)
+		, m_HostTimeout(_Options.m_HostTimeout)
+		, m_HostDaemonTimeout(_Options.m_HostDaemonTimeout)
 	{
 	}
 	

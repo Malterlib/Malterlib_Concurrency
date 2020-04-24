@@ -29,9 +29,6 @@ namespace NMib::NConcurrency
 		fp_CleanupUpdateTimer();
 	}
 
-	static constexpr double gc_NormalTimeout = 10.0 * 60.0; // 10 minutes
-	static constexpr double gc_DaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
-
 	void CActorDistributionManagerInternal::fp_CleanupUpdateTimer()
 	{
 		if (m_pThis->f_IsDestroyed())
@@ -56,7 +53,7 @@ namespace NMib::NConcurrency
 			{
 				m_CleanupTimerSubscription = co_await fg_RegisterTimer
 					(
-						gc_NormalTimeout / 10.0
+						fg_Min(m_HostTimeout, m_HostDaemonTimeout) / 10.0
 						, [this]() -> TCFuture<void>
 						{
 							fp_CleanupPerform();
@@ -81,9 +78,9 @@ namespace NMib::NConcurrency
 			auto &Host = *iHost;
 			++iHost;
 
-			fp64 CleanupTimeout = gc_NormalTimeout;
+			fp64 CleanupTimeout = m_HostTimeout;
 			if (m_Enclave.f_IsEmpty() && Host.f_IsDaemon())
-				CleanupTimeout = gc_DaemonTimeout;
+				CleanupTimeout = m_HostDaemonTimeout;
 
 			if (Host.m_InactiveClock.f_GetTime() > CleanupTimeout)
 				fp_DestroyHost(Host, nullptr, "of host inactivity ({} s)"_f << CleanupTimeout);

@@ -394,6 +394,8 @@ namespace NMib::NConcurrency
 
 		DMibListLinkDS_List(CHost, m_InactiveHostsLink) m_InactiveHosts;
 		CActorSubscription m_CleanupTimerSubscription;
+		fp64 m_HostTimeout;
+		fp64 m_HostDaemonTimeout;
 		bool m_bCleanupSetup = false;
 
 		void fp_CleanupUpdateTimer();

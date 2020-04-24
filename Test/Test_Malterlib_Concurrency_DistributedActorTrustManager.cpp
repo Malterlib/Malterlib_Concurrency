@@ -216,9 +216,9 @@ namespace NTestTrustManager
 
 		struct CState
 		{
-			auto f_CreateServerTrustManager(CStr const &_SessionID = {}) const
+			auto f_CreateServerTrustManager(CDistributedActorTrustManager::COptions &&_Options = {}) const
 			{
-				CDistributedActorTrustManager::COptions Options;
+				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
 					{
 						return fg_ConstructActor<CActorDistributionManager>(_Settings);
@@ -227,16 +227,15 @@ namespace NTestTrustManager
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
 				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestServer";
-				Options.m_Enclave = _SessionID;
 				Options.m_InitialConnectionTimeout = 30.0;
 				Options.m_bRetryOnListenFailureDuringInit = false;
 
 				return fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
 			}
 
-			auto f_CreateClientTrustManager(CStr const &_SessionID = {}) const
+			auto f_CreateClientTrustManager(CDistributedActorTrustManager::COptions &&_Options = {}) const
 			{
-				CDistributedActorTrustManager::COptions Options;
+				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
 					{
 						return fg_ConstructActor<CActorDistributionManager>(_Settings);
@@ -245,7 +244,6 @@ namespace NTestTrustManager
 				Options.m_KeySetting = CDistributedActorTestKeySettings{};
 				Options.m_ListenFlags = NNetwork::ENetFlag_None;
 				Options.m_FriendlyName = "TestClient";
-				Options.m_Enclave = _SessionID;
 				Options.m_InitialConnectionTimeout = 30.0;
 				Options.m_bRetryOnListenFailureDuringInit = false;
 
@@ -853,6 +851,108 @@ namespace NTestTrustManager
 				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 			};
 
+			DMibTestSuite("Host Cleanup")
+			{
+				for (mint i = 0; i < 2; ++i)
+				{
+					DMibTestPath(i == 0 ? "Server" : "Client");
+
+					TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
+					auto CleanupTestActor = g_OnScopeExit > [&]
+						{
+							HelperActor->f_BlockDestroy();
+						}
+					;
+					CCurrentlyProcessingActorScope CurrentActor{HelperActor};
+
+					CState State{_fDatabaseFactory, _fCleanup};
+
+					CDistributedActorTrustManager::COptions ServerOptions;
+					CDistributedActorTrustManager::COptions ClientOptions;
+
+					if (i == 0)
+						ServerOptions.m_HostTimeout = ServerOptions.m_HostDaemonTimeout = 0.5;
+					else
+						ClientOptions.m_HostTimeout = ClientOptions.m_HostDaemonTimeout = 0.5;
+
+					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager(fg_Move(ServerOptions));
+					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager(fg_Move(ClientOptions));
+
+					CDistributedActorTrustManager_Address ServerAddress;
+					ServerAddress.m_URL = "wss://localhost:31414/";
+					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+
+					{
+						auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
+						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
+					}
+
+					CDistributedActorTestHelper ServerHelper{ServerTrustManager};
+					CDistributedActorTestHelper ClientHelper{ClientTrustManager};
+
+					ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
+					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
+
+					TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
+
+					TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
+
+					fp64 TestTime = 2.0;
+
+					CStr DispatchError;
+					mint nCalls = 0;
+					fg_Dispatch
+						(
+							DispatchActor
+							, [&]
+							{
+								NTime::CClock Clock;
+								Clock.f_Start();
+								while (Clock.f_GetTime() < TestTime)
+								{
+									try
+									{
+										Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(10.0);
+										++nCalls;
+									}
+									catch (NException::CException const &_Exception)
+									{
+										DispatchError = _Exception.f_GetErrorStr();
+										break;
+									}
+								}
+							}
+						)
+						> fg_DiscardResult();
+					;
+
+					NSys::fg_Thread_Sleep(0.1f);
+
+					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, true).f_CallSync(60.0);
+					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(60.0);
+					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(60.0);
+
+					NSys::fg_Thread_Sleep(1.0f);
+
+					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, false).f_CallSync(60.0);
+
+					NSys::fg_Thread_Sleep(0.5f);
+
+					NTime::CClock Clock;
+					Clock.f_Start();
+					while (Clock.f_GetTime() < TestTime)
+						NSys::fg_Thread_Sleep(0.05f);
+
+					DispatchActor->f_BlockDestroy();
+
+					DMibExpect(DispatchError, ==, "Remote host no longer running");
+					DMibExpect(nCalls, >, 1u);
+
+					ServerTrustManager->f_BlockDestroy();
+					ClientTrustManager->f_BlockDestroy();
+				}
+			};
+
 			DMibTestSuite("Security")
 			{
 				TCActor<CSeparateThreadActor> HelperActor{fg_Construct(), "Test actor"};
@@ -972,7 +1072,11 @@ namespace NTestTrustManager
 
 				TCVector<TCActor<CDistributedActorTrustManager>> ClientTrustManagers;
 				for (mint i = 0; i < 64; ++i)
-					ClientTrustManagers.f_Insert() = State.f_CreateClientTrustManager(NCryptography::fg_RandomID());
+				{
+					CDistributedActorTrustManager::COptions Options;
+					Options.m_Enclave = NCryptography::fg_RandomID();
+					ClientTrustManagers.f_Insert() = State.f_CreateClientTrustManager(fg_Move(Options));
+				}
 
 				TCLinkedList<CDistributedActorTestHelper> ClientHelpers;
 				TCLinkedList<TCDistributedActor<CTestActor>> ClientActors;

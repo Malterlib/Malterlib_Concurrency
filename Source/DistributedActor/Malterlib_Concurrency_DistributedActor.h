@@ -410,6 +410,7 @@ namespace NMib::NConcurrency
 		void f_Clear();
 		TCFuture<void> f_Stop();
 		TCFuture<void> f_Debug_BreakAllConnections(fp64 _Timeout);
+		TCFuture<void> f_Debug_SetServerBroken(bool _bBroken);
 
 	private:
 		CDistributedActorListenReference(TCWeakActor<CActorDistributionManager> const &_DistributionManager, NStr::CStr const &_ListenID);
@@ -520,6 +521,9 @@ namespace NMib::NConcurrency
 		NStr::CStr m_HostID;
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_Enclave; // Hosts with the same enclave are assumed to be from the same distribution manager instance. If two use the same enclave they will disconnect each other.
+
+		fp64 m_HostTimeout = 10.0 * 60.0; // 10 minutes
+		fp64 m_HostDaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
 	};
 
 	template <typename t_CInterface, typename t_CDelegateTo>
@@ -768,6 +772,7 @@ namespace NMib::NConcurrency
 		void fp_CleanupRemoteContext(NFunction::TCFunction<void (CActorDistributionManagerInternal &_Internal)> const &_fCleanup);
 		TCFuture<void> fp_RemoveListen(NStr::CStr const &_ListenID);
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout);
+		TCFuture<void> fp_Debug_SetListenServerBroken(NStr::CStr const &_ListenID, bool _bBroken);
 
 		void fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout);

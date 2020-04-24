@@ -232,12 +232,17 @@ namespace NMib::NConcurrency
 			return;
 		}
 
+		CActorDistributionManagerInitSettings DistributionManagerInitSettings{m_BasicConfig.m_HostID, m_Enclave, m_FriendlyName};
+
+		DistributionManagerInitSettings.m_HostTimeout = m_HostTimeout;
+		DistributionManagerInitSettings.m_HostDaemonTimeout = m_HostDaemonTimeout;
+
 		if (m_fDistributionManagerFactory)
-			m_ActorDistributionManager = m_fDistributionManagerFactory(CActorDistributionManagerInitSettings{m_BasicConfig.m_HostID, m_Enclave, m_FriendlyName});
+			m_ActorDistributionManager = m_fDistributionManagerFactory(fg_Move(DistributionManagerInitSettings));
 		else
 		{
 			CActorDistributionManagerInitSettings ResultingSettings 
-				= fg_InitDistributionManager(CActorDistributionManagerInitSettings{m_BasicConfig.m_HostID, m_Enclave, m_FriendlyName})
+				= fg_InitDistributionManager(fg_Move(DistributionManagerInitSettings))
 			;
 			if (ResultingSettings.m_HostID != m_BasicConfig.m_HostID)
 			{

@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 		NException::CExceptionPointer m_pException;
 	};
 
-	DMibImpErrorSpecificClassDefine(CExceptionCoroutineWrapper, NMib::NException::CException, CExceptionCoroutineData);
+	DMibImpErrorSpecificClassDefine(CExceptionCoroutineWrapper, NMib::NException::CExceptionBase, CExceptionCoroutineData);
 #	define DMibErrorCoroutineWrapper(d_Description, d_Specific) DMibImpErrorSpecific(NMib::NConcurrency::CExceptionCoroutineWrapper, d_Description, d_Specific, false)
 #	define DMibErrorInstanceCoroutineWrapper(d_Description, d_Specific) DMibImpExceptionInstanceSpecific(NMib::NWeb::CExceptionCoroutineWrapper, d_Description, d_Specific, false)
 

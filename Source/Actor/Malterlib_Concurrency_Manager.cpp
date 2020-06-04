@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		{
 			CSubSystem_ConcurrencyInit()
 			{
-				*NMisc::g_Random; // Fix deadlock
+				NMisc::fg_Random(); // Fix deadlock
 			}
 		};
 		struct CSubSystem_Concurrency : public CSubSystem_ConcurrencyInit

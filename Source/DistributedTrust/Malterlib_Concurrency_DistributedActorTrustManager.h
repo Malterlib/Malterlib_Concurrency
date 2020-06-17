@@ -198,9 +198,25 @@ namespace NMib::NConcurrency
 		mutable CDistributedActorTrustManagerAuthenticationCache mp_AuthenticationCache;
 	};
 	
+	struct CDistributedActorTrustManagerHolder : public CDefaultActorHolder
+	{
+		CDistributedActorTrustManagerHolder
+			(
+				CConcurrencyManager *_pConcurrencyManager
+				, bool _bImmediateDelete
+				, EPriority _Priority
+				, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+			)
+		;
+
+		template <typename tf_CActor>
+		auto f_SubscribeTrustedActors(TCActor<CActor> &&_Actor = fg_CurrentActor());
+	};
+
 	class CDistributedActorTrustManager : public NConcurrency::CActor
 	{
 	public:
+		using CActorHolder = CDistributedActorTrustManagerHolder;
 		using CNamespacePermissions = CDistributedActorTrustManagerInterface::CNamespacePermissions;
 		using CTrustTicket = CDistributedActorTrustManagerInterface::CTrustTicket;
 		using CTrustGenerateConnectionTicketResult = CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult;

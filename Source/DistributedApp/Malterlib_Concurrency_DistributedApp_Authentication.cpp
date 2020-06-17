@@ -647,13 +647,7 @@ namespace NMib::NConcurrency
 		if (!UserID)	// No use setting up authentication without a default user
 			co_return {};
 
-		mp_AuthenticationRemotes = co_await mp_State.m_TrustManager
-			(
-				&CDistributedActorTrustManager::f_SubscribeTrustedActors<ICDistributedActorAuthentication>
-				, ICDistributedActorAuthentication::mc_pDefaultNamespace
-				, fg_ThisActor(this)
-			)
-		;
+		mp_AuthenticationRemotes = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<ICDistributedActorAuthentication>();
 
 		auto fOnActor = [=, UserID = fg_Move(UserID)](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
 			{

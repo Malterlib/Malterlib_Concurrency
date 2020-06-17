@@ -118,6 +118,18 @@ namespace NMib::NConcurrency
 		return NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>>::fs_GetKey(*this);
 	}
 
+	template <typename tf_CActor>
+	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(TCActor<CActor> &&_Actor)
+	{
+		return this->template fp_GetAsActor<CDistributedActorTrustManager>()
+			(
+				&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>
+				, tf_CActor::mc_pDefaultNamespace
+				, fg_Move(_Actor)
+			)
+		;
+	}
+
 	template <typename t_CActor>
 	TCFuture<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
 		(

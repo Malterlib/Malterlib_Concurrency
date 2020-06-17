@@ -726,14 +726,7 @@ void CMyActor::f_Publish()
 ~~~
 TCFuture<void> f_SubscribeToInterface()
 {
-	mp_RemoteActors = TCTrustedActorSubscription<CMyActorInterface> Subscription = co_await m_TrustManager
-		(
-			&CDistributedActorTrustManager::f_SubscribeTrustedActors<CMyActorInterface>
-			, "MyActorNamespace"
-			, fg_ThisActor(this)
-		)
-	;
-
+	mp_RemoteActors = co_await m_TrustManager->f_SubscribeTrustedActors<CMyActorInterface>()
 	mp_RemoteActors.f_OnActor
 		(
 			[this](TCDistributedActor<CMyActorInterface> const &_NewActor, CTrustedActorInfo const &_ActorInfo)

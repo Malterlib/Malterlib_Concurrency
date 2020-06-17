@@ -146,13 +146,7 @@ namespace NMib::NConcurrency
 		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
 		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
 		
-		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager
-			(
-				&CDistributedActorTrustManager::f_SubscribeTrustedActors<CDistributedAppInterfaceServer>
-				, CDistributedAppInterfaceServer::mc_pDefaultNamespace
-				, fg_ThisActor(this)
-			)
-		;
+		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<CDistributedAppInterfaceServer>();
 
 		Internal.m_AppInteraceServerSubscription.f_OnActor
 			(

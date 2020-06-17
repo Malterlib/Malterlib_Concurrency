@@ -282,6 +282,17 @@ namespace NMib::NConcurrency
 		
 		return Internal.m_AccessHandler;
 	}
+
+	CDistributedActorTrustManagerHolder::CDistributedActorTrustManagerHolder
+		(
+			CConcurrencyManager *_pConcurrencyManager
+			, bool _bImmediateDelete
+			, EPriority _Priority
+			, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData
+		)
+		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
+	{
+	}
 }
 
 #ifndef DMibPNoShortCuts

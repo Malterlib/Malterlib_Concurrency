@@ -67,7 +67,14 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			mp_DistributedApp = _fDistributedAppFactory();
+			try
+			{
+				mp_DistributedApp = _fDistributedAppFactory();
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return _Exception.f_ExceptionPointer();
+			}
 		}
 
 		NEncoding::CEJSON AppParams;
@@ -97,6 +104,9 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NStr::CStr> Params{"InApp", "--daemon-run-in-app"};
 
 			Params.f_Insert(fg_Move(_Params));
+
+			if (auto iRunStandalone = Params.f_Contains("--daemon-run-standalone"); iRunStandalone >= 0)
+				Params.f_Remove(iRunStandalone);
 
 			CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
 			try
@@ -154,7 +164,8 @@ namespace NMib::NConcurrency
 				)
 				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
 				{
-					co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
+					if (mp_fOnUseTicket)
+						co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
 
 					mp_HandleRequests.f_Remove(HandleRequestID);
 

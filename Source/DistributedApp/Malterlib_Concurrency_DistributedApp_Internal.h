@@ -51,6 +51,10 @@ namespace NMib::NConcurrency
 		NStr::CStr m_CurrentLogDirectory;
 		EDistributedAppType m_AppType = fg_DistributedAppThreadLocal().m_DefaultAppType;
 
+		NContainer::TCMap<NStr::CStr, TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)>>
+			m_AppInterfaceServerChangeSubscriptions
+		;
+
 		bool m_bDelegateTrustToAppInterface = false;
 #if DMibEnableSafeCheck > 0
 		bool m_bDestroyCalled = false;

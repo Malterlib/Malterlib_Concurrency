@@ -5,6 +5,7 @@
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Process/StdInActor>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
+#include <Mib/Concurrency/LogError>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
@@ -16,6 +17,7 @@ namespace NMib::NConcurrency
 	using namespace NWeb::NHTTP;
 	using namespace NProcess;
 	using namespace NContainer;
+	using namespace NCryptography;
 	
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
@@ -128,7 +130,38 @@ namespace NMib::NConcurrency
 	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
 	{
 	}
-	
+
+	TCFuture<CActorSubscription> CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
+		(
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)> &&_fOnChangeInterfaceServer
+		)
+	{
+		if (f_IsDestroyed())
+			co_return DMibErrorInstance("Shutting down");
+
+		auto &Internal = *mp_pInternal;
+
+		CStr SubscriptionID = fg_RandomID(Internal.m_AppInterfaceServerChangeSubscriptions);
+
+		auto &fOnChangeInterfaceServer = Internal.m_AppInterfaceServerChangeSubscriptions[SubscriptionID];
+		fOnChangeInterfaceServer = fg_Move(_fOnChangeInterfaceServer);
+
+		if (mp_State.m_AppInterfaceServer)
+		{
+			fOnChangeInterfaceServer(mp_State.m_AppInterfaceServer, mp_State.m_AppInterfaceServerActorInfo)
+				> fg_LogError("Mib/Concurrency/App", "Exception when reporting app interface server change")
+			;
+		}
+
+		co_return g_ActorSubscription / [this, SubscriptionID]
+			{
+				auto &Internal = *mp_pInternal;
+
+				Internal.m_AppInterfaceServerChangeSubscriptions.f_Remove(SubscriptionID);
+			}
+		;
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params)
 	{
 		auto &Internal = *mp_pInternal;
@@ -168,7 +201,7 @@ namespace NMib::NConcurrency
 						TrustInterface = Internal.m_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 
 					_NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
-						> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
+						> [=](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
 						{
 							if (!_Subscription)
 							{
@@ -177,17 +210,26 @@ namespace NMib::NConcurrency
 										Mib/Concurrency/App
 										, Error
 										, "Register with app interface server {} failed: {}"
-										, HostInfo.f_GetDesc()
+										, _ActorInfo.m_HostInfo.f_GetDesc()
 										, _Subscription.f_GetExceptionStr()
 									)
 								;
 								return;
 							}
-							DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", HostInfo.f_GetDesc());
+							DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", _ActorInfo.m_HostInfo.f_GetDesc());
+							
 
 							auto &Internal = *mp_pInternal;
 
 							Internal.m_AppInterfaceClientRegistrationSubscription = fg_Move(*_Subscription);
+							mp_State.m_AppInterfaceServer = _NewActor;
+							mp_State.m_AppInterfaceServerActorInfo = _ActorInfo;
+
+							for (auto &fOnChangeInterfaceServer : Internal.m_AppInterfaceServerChangeSubscriptions)
+							{
+								if (fOnChangeInterfaceServer)
+									fOnChangeInterfaceServer(_NewActor, _ActorInfo) > fg_LogError("Mib/Concurrency/App", "Exception when reporting app interface server change");
+							}
 						}
 					;
 				}

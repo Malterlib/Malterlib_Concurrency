@@ -28,6 +28,7 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedActorTrustManager> m_TrustManager;
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer;
+		CTrustedActorInfo m_AppInterfaceServerActorInfo;
 		TCActor<CActor> m_LogActor;
 		NWeb::NHTTP::CURL m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
@@ -272,6 +273,15 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_SaveConfigDatabase();
 
 		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr const &_Description);
+
+		TCFuture<CActorSubscription> fp_RegisterForAppInterfaceServerChanges
+			(
+				TCActorFunctor
+				<
+					TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)
+				> &&_fOnChangeInterfaceServer
+			)
+		;
 
 		struct CLocalAppState : public CDistributedAppState
 		{

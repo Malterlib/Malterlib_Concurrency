@@ -56,6 +56,97 @@ namespace NMib::NConcurrency
 		};
 	}
 
+	template <typename t_CFunction>
+	template <typename ...tfp_CParams>
+	auto TCActorFunctor<t_CFunction>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+	{
+		if (!mp_Actor || !*mp_pFunctor)
+		{
+			return fg_Dispatch
+				(
+					TCActor<>(fg_DirectCallActor())
+					, []() mutable -> TCFuture<CStripedReturn>
+					{
+						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
+					}
+				)
+				.f_Future()
+			;
+		}
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
+		if (mp_Actor->f_CurrentlyProcessing())
+		{
+			return fg_DirectDispatch
+				(
+					[Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
+					{
+						return NStorage::fg_TupleApplyAs<CMoveList>
+							(
+								[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
+								{
+									if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
+									{
+										TCPromise<CStripedReturn> Promise;
+										try
+										{
+											Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+										}
+										catch (...)
+										{
+											Promise.f_SetException(NException::fg_CurrentException());
+										}
+										return Promise.f_MoveFuture();
+									}
+									else
+										return (*pFunctor)(fg_Move(_Params)...);
+								}
+								, fg_Move(Params)
+							)
+						;
+					}
+				)
+				.f_Future()
+			;
+		}
+		else
+		{
+			return fg_Dispatch
+				(
+					mp_Actor
+					, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
+					{
+						return NStorage::fg_TupleApplyAs<CMoveList>
+							(
+								[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
+								{
+									if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
+									{
+										TCPromise<CStripedReturn> Promise;
+										try
+										{
+											Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+										}
+										catch (...)
+										{
+											Promise.f_SetException(NException::fg_CurrentException());
+										}
+										return Promise.f_MoveFuture();
+									}
+									else
+										return (*pFunctor)(fg_Move(_Params)...);
+								}
+								, fg_Move(Params)
+							)
+						;
+					}
+				)
+				.f_Future()
+			;
+		}
+	}
+
 
 	template <typename t_CFunction>
 	template <typename ...tfp_CParams>

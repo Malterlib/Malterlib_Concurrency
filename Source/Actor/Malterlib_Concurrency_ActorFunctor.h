@@ -26,6 +26,9 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CParams>
 		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
 
+		template <typename ...tfp_CParams>
+		auto f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>;
+
 		template <typename tf_FDispatcher, typename ...tfp_CParams>
 		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
 

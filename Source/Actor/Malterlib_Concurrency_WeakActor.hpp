@@ -449,7 +449,7 @@ namespace NMib::NConcurrency
 		static_assert(CIsCallableWith::mc_Value);
 		using CReturnType = typename CIsCallableWith::CReturnType;
 
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value)
+		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 		{
 			return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
 				(

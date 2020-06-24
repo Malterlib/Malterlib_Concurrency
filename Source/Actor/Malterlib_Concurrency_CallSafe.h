@@ -8,13 +8,13 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params) -> tf_CReturn;
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params);
 
 	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params) -> tf_CReturn;
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params);
 
 	template <typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CReturn (* _pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params) -> tf_CReturn;
+	mark_artificial inline_always auto fg_CallSafe(tf_CReturn (* _pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params);
 }
 
 #include "Malterlib_Concurrency_CallSafe.hpp"

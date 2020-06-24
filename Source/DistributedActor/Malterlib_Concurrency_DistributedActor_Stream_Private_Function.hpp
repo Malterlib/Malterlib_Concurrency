@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -91,76 +91,170 @@ namespace NMib::NConcurrency
 	{
 		template <typename t_FFunctionSignature>
 		struct TCStreamingFunctionHelper;
-		
+
 		template <typename t_CReturn, typename ...tp_CParams>
-		struct TCStreamingFunctionHelper<TCFuture<t_CReturn> (tp_CParams...)>
+		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams...)>
 		{
 			static constexpr mint mc_nParams = sizeof...(tp_CParams);
-			
+			static constexpr bool mc_bIsFuture = TCIsFuture<t_CReturn>::mc_Value;
+			using CPromiseType = typename TCChooseType<mc_bIsFuture, TCPromise<typename TCIsFuture<t_CReturn>::CType>, CEmpty>::CType;
+			using CReturnType = typename NPrivate::TCGetReturnType<t_CReturn>::CType;
+			using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
+			using CAsyncGeneratorType = typename TCIsAsyncGenerator<t_CReturn>::CType;
+
+			static_assert(TCIsFuture<t_CReturn>::mc_Value || TCIsAsyncGenerator<t_CReturn>::mc_Value);
+
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
 			{
-				return [_FunctionID](tp_CParams ...p_Params) -> TCFuture<t_CReturn>
+				return [_FunctionID](tp_CParams ...p_Params) -> t_CReturn
 					{
-						TCPromise<t_CReturn> Promise;
-
+						CPromiseType Promise;
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
 						auto *pActorDataRaw = static_cast<CDistributedActorData *>(ThreadLocal.m_pCurrentRemoteDispatchActorData);
 
+						auto fReportError = [&](NStr::CStr const &_Error)
+							{
+								if constexpr (mc_bIsFuture)
+									return Promise <<= DMibErrorInstance(_Error);
+								else
+								{
+									return g_ActorFunctor / [_Error]() -> TCFuture<NStorage::TCOptional<CAsyncGeneratorType>>
+										{
+											return TCPromise<NStorage::TCOptional<CAsyncGeneratorType>>() <<= DMibErrorInstance(_Error);
+										}
+									;
+								}
+							}
+						;
+
 						if (!pActorDataRaw)
-							return Promise <<= DMibErrorInstance("This functions needs to be dispatched on a remote actor");
-						
+							return fReportError("This functions needs to be dispatched on a remote actor");
+
 						if (!pActorDataRaw->m_bRemote)
-							return Promise <<= DMibErrorInstance("Internal error (missing or incorrect distributed actor data)");
+							return fReportError("Internal error (missing or incorrect distributed actor data)");
 
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
 						if (!pHost || pHost->m_bDeleted)
-							return Promise <<= DMibErrorInstance("Remote actor host no longer available");
+							return fReportError("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;
 						Stream << uint8(0); // Dummy command
 						Stream << uint64(0); // Dummy packet ID
-						Stream << pActorDataRaw->m_ActorID;				
+						Stream << pActorDataRaw->m_ActorID;
 						Stream << uint32(0);
 						Stream << pActorDataRaw->m_ProtocolVersion;
 						Stream << _FunctionID;
-						
-						CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
-						
-						TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, pActorDataRaw->m_ProtocolVersion, fg_Forward<tp_CParams>(p_Params)...);
-						
-						auto pActorData = NStorage::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
-						
-						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
-						
-						if (!DistributionManager)
-							return Promise <<= DMibErrorInstance("Actor distribution manager for actor no longer exists");
 
-						DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
-							> [Promise, Context, Version = pActorDataRaw->m_ProtocolVersion]
-							(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
-							{
-								if (!_Result)
+						CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
+
+						TCStreamArguments<NMeta::TCTypeList<tp_CParams...>>::fs_Stream(Stream, Context, pActorDataRaw->m_ProtocolVersion, fg_Forward<tp_CParams>(p_Params)...);
+
+						auto pActorData = NStorage::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
+
+						TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
+
+						if (!DistributionManager)
+							return fReportError("Actor distribution manager for actor no longer exists");
+
+						if constexpr (mc_bIsFuture)
+						{
+							DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context)
+								> [Promise, Context, Version = pActorDataRaw->m_ProtocolVersion]
+								(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
 								{
-									Promise.f_SetException(fg_Move(_Result));
-									return;
+									if (!_Result)
+									{
+										Promise.f_SetException(fg_Move(_Result));
+										return;
+									}
+									try
+									{
+										NException::CDisableExceptionTraceScope DisableTrace;
+										fg_CopyReplyToPromise(Promise, *_Result, Context, Version);
+									}
+									catch (NException::CException const &_Exception)
+									{
+										Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+									}
 								}
-								try
+							;
+							return Promise.f_MoveFuture();
+						}
+						else
+						{
+							return g_ActorFunctor /
+								[
+									fRemoteFunctor = NStorage::TCOptional<TCActorFunctor<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()>>()
+									, Context
+									, pActorData = fg_Move(pActorData)
+									, Version = pActorDataRaw->m_ProtocolVersion
+									, bInProgress = false
+									, StreamData = Stream.f_MoveVector()
+								]
+								() mutable -> TCFuture<NStorage::TCOptional<CAsyncGeneratorType>>
 								{
-									NException::CDisableExceptionTraceScope DisableTrace;
-									fg_CopyReplyToPromise(Promise, *_Result, Context, Version);
+									if (bInProgress)
+										co_return DMibErrorInstance("Iteration already in progress");
+									bInProgress = true;
+
+									if (!fRemoteFunctor)
+									{
+										TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
+
+										if (!DistributionManager)
+											co_return DMibErrorInstance("Actor distribution manager for actor no longer exists");
+
+										auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(StreamData), Context);
+
+										NException::CDisableExceptionTraceScope DisableTrace;
+										try
+										{
+											CDistributedActorReadStream ReplyStream;
+											ReplyStream.f_OpenRead(Data);
+
+											DMibBinaryStreamContext(ReplyStream, &Context);
+											DMibBinaryStreamVersion(ReplyStream, Version);
+
+											TCActorFunctorWithID<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()> fRemoteFunctorStream;
+
+											bool bException;
+											ReplyStream >> bException;
+											if (bException)
+												co_return DMibErrorInstance("Unexpected exception in async generator");
+
+											bool bHasGenerator;
+											ReplyStream >> bHasGenerator;
+											if (bHasGenerator)
+											{
+												ReplyStream >> fRemoteFunctorStream;
+												fRemoteFunctor = fg_Move(fRemoteFunctorStream);
+												if (!*fRemoteFunctor)
+													co_return DMibErrorInstance("Invalid iteration functor");
+											}
+
+											NStr::CStr Error;
+											if (!Context.f_ValidateContext(Error))
+												co_return DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error));
+										}
+										catch (NException::CException const &_Exception)
+										{
+											co_return DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr()));
+										}
+									}
+
+									auto Result = co_await (*fRemoteFunctor)();
+
+									bInProgress = false;
+
+									co_return fg_Move(Result);
 								}
-								catch (NException::CException const &_Exception)
-								{
-									Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
-								}								
-							}
-						;
-						return Promise.f_MoveFuture();
+							;
+						}
 					}
 				;
 			}
-			
+
 			template <typename tf_FFunction, mint... tfp_Indices>
 			static NConcurrency::TCFuture<NContainer::CSecureByteVector> fs_Call
 				(
@@ -173,19 +267,26 @@ namespace NMib::NConcurrency
 
 				struct CState
 				{
+					CState(CDistributedActorStreamContext const &_Context, NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> &&_ParamList, uint32 _Version)
+						: m_Context(_Context)
+						, m_ParamList(fg_Move(_ParamList))
+						, m_Version(_Version)
+					{
+					}
+
 					CDistributedActorStreamContext m_Context;
 					NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> m_ParamList;
 					uint32 m_Version;
 				};
-				
+
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
 
-				NStorage::TCUniquePointer<CState> pState;
+				typename TCChooseType<mc_bIsFuture, NStorage::TCUniquePointer<CState>, NStorage::TCSharedPointer<CState>>::CType pState;
 
 				try
 				{
-					pState = NStorage::TCUniquePointer<CState>(new CState{*pContext, fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>()), _Stream.f_GetVersion()});
+					pState = fg_Construct(*pContext, fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>()), _Stream.f_GetVersion());
 				}
 				catch (NException::CException const &_Exception)
 				{
@@ -194,13 +295,29 @@ namespace NMib::NConcurrency
 
 				auto &State = *pState;
 
-				NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturn> &&_AsyncResult)> fOnResultSet
-					= [Return, pState = fg_Move(pState)](NConcurrency::TCAsyncResult<t_CReturn> &&_Result) mutable
+				NFunction::TCFunctionMovable<void (CResultType &&_AsyncResult)> fOnResultSet
+					=
+					[&]
 					{
-						auto &State = *pState;
-						// We need to keep ParamList alive until result is available to make coroutines safe
-						Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &State.m_Context, State.m_Version));
+						if constexpr (mc_bIsFuture)
+						{
+							return [Return, pState = fg_Move(pState)](CResultType &&_Result) mutable
+								{
+									auto &State = *pState;
+									// We need to keep ParamList alive until result is available to make coroutines safe
+									Return.f_SetResult(fg_StreamAsyncResult<CDistributedActorWriteStream>(fg_Move(_Result), &State.m_Context, State.m_Version));
+								}
+							;
+						}
+						else
+						{
+							return [pState](CResultType &&_AsyncResult)
+								{
+								}
+							;
+						}
 					}
+					()
 				;
 
 				auto &ThreadLocal = **g_SystemThreadLocal;
@@ -243,30 +360,41 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<t_CReturn>();
+				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<CReturnType>();
 
-				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+				auto Result = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
 
-				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
+				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Result.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 				DMibFastCheck
 					(
 					 	ThreadLocal.m_bExpectCoroutineCall
 					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
-					 	|| Future.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
+					 	|| Result.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
 				;
 
 				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 				Cleanup.f_Clear();
 		#else
-				auto Future = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+				auto Result = _fFunction(fg_Forward<tp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
 		#endif
-				if (PromiseThreadLocal.m_pOnResultSet)
+				if constexpr (mc_bIsFuture)
 				{
-					DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
-					Future.f_OnResultSet(fg_Move(fOnResultSet));
+					if (PromiseThreadLocal.m_pOnResultSet)
+					{
+						DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
+						Result.f_OnResultSet(fg_Move(fOnResultSet));
+					}
 				}
-
+				else
+				{
+					CDistributedActorWriteStream Stream;
+					DMibBinaryStreamContext(Stream, &State.m_Context);
+					DMibBinaryStreamVersion(Stream, State.m_Version);
+					Stream << false; // No exception
+					Stream << fg_Move(Result);
+					Return.f_SetResult(Stream.f_MoveVector());
+				}
 				return Return.f_MoveFuture();
 			}
 		};
@@ -344,10 +472,9 @@ namespace NMib::NConcurrency::NPrivate
 		: m_fFunction(fg_Move(_fFunction))
 	{
 	}
-	
+
 	template <typename t_FFunction, typename t_FFunctionSignature>
-	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream)
-		-> NConcurrency::TCFuture<NContainer::CSecureByteVector> 
+	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream) -> NConcurrency::TCFuture<NContainer::CSecureByteVector>
 	{
 		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
 			(
@@ -363,7 +490,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		return m_fFunction.f_IsEmpty();
 	}
-	
+
 	template <typename t_FFunction, typename t_FFunctionSignature>
 	void const *TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_GetFunctionPointer() const
 	{

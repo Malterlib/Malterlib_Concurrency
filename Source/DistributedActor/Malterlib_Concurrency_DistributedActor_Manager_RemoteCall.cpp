@@ -173,6 +173,7 @@ namespace NMib::NConcurrency
 					{
 						auto &FunctionID = Functor.m_Functions.fs_GetKey(pFunction);
 						ActorFuntor.m_ImplicitlyPublishedFunctions[FunctionID];
+
 						auto &Function = _Host.m_ImplicitlyPublishedFunctions[FunctionID];
 						Function.m_pFunction = fg_Move(pFunction);
 						Function.m_AllowedDisptachActorID = Functor.m_ActorID;

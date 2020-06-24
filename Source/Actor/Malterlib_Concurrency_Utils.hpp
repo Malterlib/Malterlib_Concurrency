@@ -711,7 +711,7 @@ namespace NMib::NConcurrency
 		static_assert(CIsCallableWith::mc_Value);
 		using CReturnType = typename CIsCallableWith::CReturnType;
 
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value)
+		if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 		{
 			return reinterpret_cast<CCallActor const &>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
 				(
@@ -722,13 +722,15 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			static_assert(!NPrivate::TCIsPromise<typename CIsCallableWith::CReturnType>::mc_Value);
+			static_assert(!NPrivate::TCIsPromise<CReturnType>::mc_Value);
 
-			return reinterpret_cast<CCallActor const &>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>, tfp_CParams...>>
+			using CProtectedReturn = typename NPrivate::TCRunProtectedFutureHelper<CReturnType>::CReturn;
+
+			return reinterpret_cast<CCallActor const &>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CProtectedReturn, tfp_CParams...>>
 				(
-					NFunction::TCFunctionMovable<TCFuture<CReturnType> (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
+					NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
 					(
-						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable -> TCFuture<CReturnType>
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable mark_no_coroutine_debug -> CProtectedReturn
 						{
 							return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
 						}
@@ -753,7 +755,7 @@ namespace NMib::NConcurrency
 		static_assert(CIsCallableWith::mc_Value);
 		using CReturnType = typename CIsCallableWith::CReturnType;
 
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value)
+		if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 		{
 			return reinterpret_cast<CCallActor &&>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
 				(
@@ -764,13 +766,15 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			static_assert(!NPrivate::TCIsPromise<typename CIsCallableWith::CReturnType>::mc_Value);
+			static_assert(!NPrivate::TCIsPromise<CReturnType>::mc_Value);
 
-			return reinterpret_cast<CCallActor &&>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>, tfp_CParams...>>
+			using CProtectedReturn = typename NPrivate::TCRunProtectedFutureHelper<CReturnType>::CReturn;
+
+			return reinterpret_cast<CCallActor &&>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CProtectedReturn, tfp_CParams...>>
 				(
-					NFunction::TCFunctionMovable<TCFuture<CReturnType> (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
+					NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
 					(
-						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable -> TCFuture<CReturnType>
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable mark_no_coroutine_debug -> CProtectedReturn
 						{
 							return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
 						}
@@ -793,7 +797,7 @@ namespace NMib::NConcurrency
 		static_assert(CIsCallableWith::mc_Value);
 		using CReturnType = typename CIsCallableWith::CReturnType;
 
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value)
+		if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 		{
 			return fg_Move(fg_CurrentActor()).f_CallByValueDirect<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
 				(
@@ -804,13 +808,15 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			static_assert(!NPrivate::TCIsPromise<typename CIsCallableWith::CReturnType>::mc_Value);
+			static_assert(!NPrivate::TCIsPromise<CReturnType>::mc_Value);
 
-			return fg_Move(fg_CurrentActor()).f_CallByValueDirect<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>, tfp_CParams...>>
+			using CProtectedReturn = typename NPrivate::TCRunProtectedFutureHelper<CReturnType>::CReturn;
+
+			return fg_Move(fg_CurrentActor()).f_CallByValueDirect<&CActor::f_DispatchWithReturn<CProtectedReturn, tfp_CParams...>>
 				(
-					NFunction::TCFunctionMovable<TCFuture<CReturnType> (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
+					NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
 					(
-						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable -> TCFuture<CReturnType>
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable mark_no_coroutine_debug -> CProtectedReturn
 						{
 							return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
 						}
@@ -833,7 +839,7 @@ namespace NMib::NConcurrency
 		static_assert(CIsCallableWith::mc_Value);
 		using CReturnType = typename CIsCallableWith::CReturnType;
 
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value)
+		if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 		{
 			return fg_DirectCallActor().f_CallByValueDirect<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
 				(
@@ -844,13 +850,15 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			static_assert(!NPrivate::TCIsPromise<typename CIsCallableWith::CReturnType>::mc_Value);
+			static_assert(!NPrivate::TCIsPromise<CReturnType>::mc_Value);
 
-			return fg_DirectCallActor().f_CallByValueDirect<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>, tfp_CParams...>>
+			using CProtectedReturn = typename NPrivate::TCRunProtectedFutureHelper<CReturnType>::CReturn;
+
+			return fg_DirectCallActor().f_CallByValueDirect<&CActor::f_DispatchWithReturn<CProtectedReturn, tfp_CParams...>>
 				(
-					NFunction::TCFunctionMovable<TCFuture<CReturnType> (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
+					NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
 					(
-						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable -> TCFuture<CReturnType>
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable mark_no_coroutine_debug -> CProtectedReturn
 						{
 							return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
 						}

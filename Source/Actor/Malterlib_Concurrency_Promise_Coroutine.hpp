@@ -32,13 +32,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturnType>
-	TCFutureCoroutineContextValue<t_CReturnType>::~TCFutureCoroutineContextValue() noexcept
-	{
-		if (m_pPromiseData)
-			m_pPromiseData->m_Coroutine = nullptr;
-	}
-
-	inline_always TCFutureCoroutineContextValue<void>::~TCFutureCoroutineContextValue() noexcept
+	TCFutureCoroutineContextShared<t_CReturnType>::~TCFutureCoroutineContextShared() noexcept
 	{
 		if (m_pPromiseData)
 			m_pPromiseData->m_Coroutine = nullptr;
@@ -46,25 +40,25 @@ namespace NMib::NConcurrency::NPrivate
 
 #if DMibEnableSafeCheck > 0
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContextValue<t_CReturnType>::f_SetOwner(TCWeakActor<> const &_CoroutineOwner)
+	void TCFutureCoroutineContextShared<t_CReturnType>::f_SetOwner(TCWeakActor<> const &_CoroutineOwner)
 	{
 		m_pPromiseData->m_CoroutineOwner = _CoroutineOwner;
 	}
 #endif
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContextValue<t_CReturnType>::return_value(t_CReturnType &&_Value)
+	void TCFutureCoroutineContext<t_CReturnType>::return_value(t_CReturnType &&_Value)
 	{
-		m_pPromiseData->f_SetResult(fg_Move(_Value));
+		this->m_pPromiseData->f_SetResult(fg_Move(_Value));
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
-	void TCFutureCoroutineContextValue<t_CReturnType>::return_value(tf_CReturnType &&_Value)
+	void TCFutureCoroutineContext<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
-			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
 		{
 			static_assert
@@ -74,7 +68,7 @@ namespace NMib::NConcurrency::NPrivate
 				 	, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
-			m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
@@ -84,19 +78,19 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
-				m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
 			}
 			catch (...)
 			{
-				m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
 			}
 		}
 		else
-			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 	}
 
 	template <typename tf_CReturnType>
-	void TCFutureCoroutineContextValue<void>::return_value(tf_CReturnType &&_Value)
+	void TCFutureCoroutineContext<void>::return_value(tf_CReturnType &&_Value)
 	{
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		static_assert
@@ -109,7 +103,7 @@ namespace NMib::NConcurrency::NPrivate
 		;
 
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value)
-			m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 		else
 		{
 			if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
@@ -121,7 +115,7 @@ namespace NMib::NConcurrency::NPrivate
 						, "Only safe to newly created exceptions, otherwise use exception pointers"
 					)
 				;
-				m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
 			}
 			else
 			{
@@ -131,18 +125,18 @@ namespace NMib::NConcurrency::NPrivate
 				}
 				catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 				{
-					m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+					this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
 				}
 				catch (...)
 				{
-					m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+					this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
 				}
 			}
 		}
 	}
 
 	template <typename t_CReturnType>
-	mark_no_coroutine_debug TCFuture<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::get_return_object()
+	NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> TCFutureCoroutineContextShared<t_CReturnType>::fp_GetReturnObject()
 	{
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = **g_SystemThreadLocal;
@@ -153,26 +147,30 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 		pPromiseDataShared->m_bFutureGotten = true;
 #endif
-		TCFuture<t_CReturnType> Future{fg_Move(pPromiseDataShared)};
-
-		auto *pPromiseData = Future.mp_pData.f_Get();
-		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContext>::from_promise(*this);
+		auto *pPromiseData = pPromiseDataShared.f_Get();
+		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContextShared>::from_promise(*this);
 #if DMibEnableSafeCheck > 0
 		pPromiseData->m_CoroutineOwner = fg_CurrentActor();
 		this->fp_UpdateSafeCall(bSafeCall);
 		if (bSafeCall)
 		{
-			DMibCheck(ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == pPromiseData);
+			DMibFastCheck(ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == pPromiseData || ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == this);
 			ThreadLocal.m_PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = static_cast<CPromiseDataBase const *>(pPromiseData);
 		}
 #endif
 		this->m_pPromiseData = pPromiseData;
 
-		return Future;
+		return pPromiseDataShared;
 	}
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContext<t_CReturnType>::unhandled_exception()
+	mark_no_coroutine_debug TCFuture<t_CReturnType> TCFutureCoroutineContextShared<t_CReturnType>::get_return_object()
+	{
+		return TCFuture<t_CReturnType>(fp_GetReturnObject());
+	}
+
+	template <typename t_CReturnType>
+	void TCFutureCoroutineContextShared<t_CReturnType>::unhandled_exception()
 	{
 		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 		{
@@ -255,7 +253,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	TCFutureCoroutineKeepAlive<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::f_KeepAlive(TCActor<> &&_Actor)
+	TCFutureCoroutineKeepAlive<t_CReturnType> TCFutureCoroutineContextShared<t_CReturnType>::f_KeepAlive(TCActor<> &&_Actor)
 	{
 		DMibFastCheck(_Actor);
 		if (this->m_Flags & ECoroutineFlag_BreakSelfReference)
@@ -265,13 +263,13 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	TCFutureCoroutineKeepAliveImplicit<t_CReturnType> TCFutureCoroutineContext<t_CReturnType>::f_KeepAliveImplicit()
+	TCFutureCoroutineKeepAliveImplicit<t_CReturnType> TCFutureCoroutineContextShared<t_CReturnType>::f_KeepAliveImplicit()
 	{
 		return TCFutureCoroutineKeepAliveImplicit<t_CReturnType>(fg_Explicit(this->m_pPromiseData));
 	}
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContext<t_CReturnType>::f_Abort()
+	void TCFutureCoroutineContextShared<t_CReturnType>::f_Abort()
 	{
 		auto pPromiseData = this->m_pPromiseData;
 		if (!pPromiseData || !pPromiseData->m_Coroutine)
@@ -281,7 +279,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContext<t_CReturnType>::f_ResumeException()
+	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException()
 	{
 		try
 		{
@@ -401,7 +399,7 @@ namespace NMib::NConcurrency
 	private:
 		TCFuture<t_CReturnType> mp_Future;
 		TCAsyncResult<t_CReturnType> mp_Result;
-		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CReturnValue>

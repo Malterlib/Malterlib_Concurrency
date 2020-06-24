@@ -214,205 +214,127 @@ namespace NMib::NConcurrency
 		{
 			NException::CDisableExceptionTraceScope DisableTrace;
 			TCAsyncResult<t_CReturnValue> Result;
-			try
+			if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
 			{
-				Result.f_SetResult(_ToRun());
+				if constexpr (NTraits::TCIsVoid<t_CException>::mc_Value)
+				{
+					try
+					{
+						_ToRun();
+						Result.f_SetResult();
+					}
+					catch (...)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
+				else
+				{
+					try
+					{
+						_ToRun();
+						Result.f_SetResult();
+					}
+					catch (t_CException const &)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
 			}
-			catch (t_CException const &)
+			else
 			{
-				Result.f_SetCurrentException();
-			}
-			return Result;
-		}
-
-		template <typename t_CReturnValue>
-		template <typename tf_FToRun>
-		TCAsyncResult<t_CReturnValue> TCRunProtectedHelper<t_CReturnValue, void>::operator / (tf_FToRun &&_ToRun) const
-		{
-			NException::CDisableExceptionTraceScope DisableTrace;
-			TCAsyncResult<t_CReturnValue> Result;
-			try
-			{
-				Result.f_SetResult(_ToRun());
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result;
-		}
-
-		template <typename t_CException>
-		template <typename tf_FToRun>
-		TCAsyncResult<void> TCRunProtectedHelper<void, t_CException>::operator / (tf_FToRun &&_ToRun) const
-		{
-			NException::CDisableExceptionTraceScope DisableTrace;
-			TCAsyncResult<void> Result;
-			try
-			{
-				_ToRun();
-				Result.f_SetResult();
-			}
-			catch (t_CException const &)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result;
-		}
-
-		template <typename tf_FToRun>
-		TCAsyncResult<void> TCRunProtectedHelper<void, void>::operator / (tf_FToRun &&_ToRun) const
-		{
-			NException::CDisableExceptionTraceScope DisableTrace;
-			TCAsyncResult<void> Result;
-			try
-			{
-				_ToRun();
-				Result.f_SetResult();
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
+				if constexpr (NTraits::TCIsVoid<t_CException>::mc_Value)
+				{
+					try
+					{
+						Result.f_SetResult(_ToRun());
+					}
+					catch (...)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
+				else
+				{
+					try
+					{
+						Result.f_SetResult(_ToRun());
+					}
+					catch (t_CException const &)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
 			}
 			return Result;
 		}
 
 		template <typename t_CReturnValue, typename t_CException>
-		template <typename tf_FToRun>
-		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator / (tf_FToRun &&_ToRun) const
+		template <typename tf_FToRun, typename ...tfp_CParams>
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
 		{
 			TCPromise<t_CReturnValue> Result;
 			NException::CDisableExceptionTraceScope DisableTrace;
-			try
+			if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
 			{
-				Result.f_SetResult(_ToRun());
+				if constexpr (NTraits::TCIsVoid<t_CException>::mc_Value)
+				{
+					try
+					{
+						_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
+						Result.f_SetResult();
+					}
+					catch (...)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
+				else
+				{
+					try
+					{
+						_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
+						Result.f_SetResult();
+					}
+					catch (t_CException const &)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
 			}
-			catch (t_CException const &)
+			else
 			{
-				Result.f_SetCurrentException();
+				if constexpr (NTraits::TCIsVoid<t_CException>::mc_Value)
+				{
+					try
+					{
+						Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
+					}
+					catch (...)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
+				else
+				{
+					try
+					{
+						Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
+					}
+					catch (t_CException const &)
+					{
+						Result.f_SetCurrentException();
+					}
+				}
 			}
 			return Result.f_MoveFuture();
 		}
 
 		template <typename t_CReturnValue, typename t_CException>
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
-		{
-			TCPromise<t_CReturnValue> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
-			}
-			catch (t_CException const &)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename t_CReturnValue>
 		template <typename tf_FToRun>
-		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, void>::operator / (tf_FToRun &&_ToRun) const
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, t_CException>::operator / (tf_FToRun &&_ToRun) const
 		{
-			TCPromise<t_CReturnValue> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				Result.f_SetResult(_ToRun());
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename t_CReturnValue>
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<t_CReturnValue> TCRunProtectedFutureHelper<t_CReturnValue, void>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
-		{
-			TCPromise<t_CReturnValue> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				Result.f_SetResult(_ToRun(fg_Forward<tfp_CParams>(p_Params)...));
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename t_CException>
-		template <typename tf_FToRun>
-		TCFuture<void> TCRunProtectedFutureHelper<void, t_CException>::operator / (tf_FToRun &&_ToRun) const
-		{
-			TCPromise<void> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				_ToRun();
-				Result.f_SetResult();
-			}
-			catch (t_CException const &)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename t_CException>
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<void> TCRunProtectedFutureHelper<void, t_CException>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
-		{
-			TCPromise<void> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
-				Result.f_SetResult();
-			}
-			catch (t_CException const &)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename tf_FToRun>
-		TCFuture<void> TCRunProtectedFutureHelper<void, void>::operator / (tf_FToRun &&_ToRun) const
-		{
-			TCPromise<void> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				_ToRun();
-				Result.f_SetResult();
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
-		}
-
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<void> TCRunProtectedFutureHelper<void, void>::operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const
-		{
-			TCPromise<void> Result;
-			NException::CDisableExceptionTraceScope DisableTrace;
-			try
-			{
-				_ToRun(fg_Forward<tfp_CParams>(p_Params)...);
-				Result.f_SetResult();
-			}
-			catch (...)
-			{
-				Result.f_SetCurrentException();
-			}
-			return Result.f_MoveFuture();
+			return (*this)(fg_Forward<tf_FToRun>(_ToRun));
 		}
 	}
 
@@ -758,6 +680,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 #if DMibEnableSafeCheck > 0
 				static_cast<CPromiseDataBase const *>(this)
+				, EConsumeFutureOnResultSetFlag_ResetSafeCall
 #endif
 			)
 		)
@@ -770,6 +693,22 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_Reset()
+	{
+		m_fOnResult = fg_ConsumeFutureOnResultSet<t_CReturnValue>
+			(
+#if DMibEnableSafeCheck > 0
+				static_cast<CPromiseDataBase const *>(this)
+				, EConsumeFutureOnResultSetFlag_ResetSafeCall
+#endif
+			)
+		;
+		m_OnResultSet = m_fOnResult ? EFutureResultFlag_ResultFunctorSet : EFutureResultFlag_None;
+		m_bOnResultSetAtInit = !!m_fOnResult;
+		m_Result = TCAsyncResult<t_CReturnValue>();
+	}
+
+	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::fp_ReportNothingSet()
 	{
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet, f_MemoryOrder());
@@ -778,7 +717,7 @@ namespace NMib::NConcurrency::NPrivate
 			m_fOnResult(fg_Move(m_Result)); // Report nothing set
 			m_fOnResult.f_Clear();
 		}
-		else if ((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) == EFutureResultFlag_DataSet)
+		else if (((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) == EFutureResultFlag_DataSet) && !m_bIsGenerator)
 		{
 			if (!m_Result)
 				fg_ReportUnobservedException(m_Result.f_GetException());
@@ -957,6 +896,7 @@ namespace NMib::NConcurrency::NPrivate
 		(
 #if DMibEnableSafeCheck > 0
 		 	void const *_pConsumedBy
+			, EConsumeFutureOnResultSetFlag _Flags
 #endif
 		)
 	{
@@ -967,7 +907,8 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 			DMibFastCheck(fg_GetTypeHash<tf_CReturnValue>() == PromiseThreadLocal.m_OnResultSetTypeHash);
 			PromiseThreadLocal.m_pOnResultSetConsumedBy = _pConsumedBy;
-			ThreadLocal.m_bExpectCoroutineCall = false;
+			if (_Flags & EConsumeFutureOnResultSetFlag_ResetSafeCall)
+				ThreadLocal.m_bExpectCoroutineCall = false;
 #endif
 			return fg_Move(*static_cast<NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> *>(fg_Exchange(PromiseThreadLocal.m_pOnResultSet, nullptr)));
 		}

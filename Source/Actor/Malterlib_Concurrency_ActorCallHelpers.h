@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CCalls...> mp_Calls;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
-		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CActorCall, typename... tp_CCalls>
@@ -558,7 +558,7 @@ namespace NMib::NConcurrency
 		t_CActorCall mp_ActorCall;
 		TCAsyncResult<t_CReturnType> mp_Result;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
-		/*[[no_unique_address]]*/ t_FExceptionTransform mp_fExceptionTransform;
+		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CActorCall, typename t_CReturnType>
@@ -1017,8 +1017,9 @@ namespace NMib::NConcurrency
 	>
 	struct TCReportLocal
 	{
-		using CResultType = NConcurrency::TCAsyncResult<typename NPrivate::TCGetReturnType<t_CRet>::CType>;
 		using CReturnType = typename NPrivate::TCGetReturnType<t_CRet>::CType;
+		using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
+		using CAsyncType = typename NPrivate::TCGetAsyncType<t_CRet>::CType;
 		using CResultFunctorReturnType = typename NTraits::TCIsCallableWith<t_CResultFunctor, void (CResultType &&)>::CReturnType;
 		using CResultFunctor = NFunction::TCFunctionMovable<void (CResultType &&_Result)>;
 
@@ -1113,7 +1114,7 @@ namespace NMib::NConcurrency
 
 			auto States = m_pState->f_RestoreCallStates();
 
-			if constexpr (NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value)
+			if constexpr (mc_bIsFuture || NPrivate::TCIsAsyncGenerator<typename t_CFunctor::CReturnType>::mc_Value)
 			{
 				auto pThis = this;
 				auto &State = *pThis->m_pState;
@@ -1138,28 +1139,44 @@ namespace NMib::NConcurrency
 
 				NFunction::TCFunctionMovable<void (TCAsyncResult<CReturnType> &&_AsyncResult)> fOnResultSet
 					=
-					[
-					 	Local = fg_Move(*pThis)
-#if DMibConfig_Concurrency_DebugActorCallstacks
-					 	, CallstacksScope
-#endif
-					]
-					(TCAsyncResult<CReturnType> &&_Result) mutable
+					[&]
 					{
-						if constexpr (!mc_ShouldDiscardResults)
+						if constexpr (mc_bIsFuture)
 						{
-							if (_Result.f_IsSet())
-							{
-#if DMibConfig_Concurrency_DebugActorCallstacks
-								_Result.m_Callstacks = fg_Move(Local.m_pState->m_Callstacks);
-#endif
-							}
-							else
-								_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set", false));
+							return
+								[
+									Local = fg_Move(*pThis)
+			#if DMibConfig_Concurrency_DebugActorCallstacks
+									, CallstacksScope
+			#endif
+								]
+								(TCAsyncResult<CReturnType> &&_Result) mutable
+								{
+									if constexpr (!mc_ShouldDiscardResults)
+									{
+										if (_Result.f_IsSet())
+										{
+			#if DMibConfig_Concurrency_DebugActorCallstacks
+											_Result.m_Callstacks = fg_Move(Local.m_pState->m_Callstacks);
+			#endif
+										}
+										else
+											_Result.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set", false));
 
-							Local.f_ResultAvailable(fg_Move(_Result));
+										Local.f_ResultAvailable(fg_Move(_Result));
+									}
+								}
+							;
+						}
+						else
+						{
+							return [pState = m_pState](TCAsyncResult<CReturnType> &&_AsyncResult)
+								{
+								}
+							;
 						}
 					}
+					()
 				;
 
 				auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
@@ -1172,6 +1189,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
+				using CLocalResultType = typename TCChooseType<mc_bIsFuture, typename t_CFunctor::CReturnType, CResultType>::CType;
 #if DMibEnableSafeCheck > 0
 				auto pPreviousOnResultSetConsumedBy = PromiseThreadLocal.m_pOnResultSetConsumedBy;
 				PromiseThreadLocal.m_pOnResultSetConsumedBy = nullptr;
@@ -1191,23 +1209,47 @@ namespace NMib::NConcurrency
 				;
 
 				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<CReturnType>();
-				TCFuture<CReturnType> Future;
-				try
+				CLocalResultType Result;
+				if constexpr (mc_bIsFuture)
 				{
-					Future = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+					try
+					{
+						Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+					}
+					catch (NException::CDebugException const &)
+					{
+						if (PromiseThreadLocal.m_pOnResultSet)
+							Result = TCPromise<CReturnType>() <<= NException::fg_CurrentException();
+					}
 				}
-				catch (NException::CDebugException const &)
+				else
 				{
-					if (PromiseThreadLocal.m_pOnResultSet)
-						Future = TCPromise<CReturnType>() <<= NException::fg_CurrentException();
+					try
+					{
+						Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
+					}
+					catch (NException::CDebugException const &)
+					{
+						Result.f_SetException(NException::fg_CurrentException());
+					}
 				}
 
-				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
+				auto &ResultDeref = [&]() -> decltype(auto)
+					{
+						if constexpr (mc_bIsFuture)
+							return (Result);
+						else
+							return (Result.f_Get());
+					}
+					()
+				;
+
+				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || ResultDeref.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 				DMibFastCheck
 					(
 					 	ThreadLocal.m_bExpectCoroutineCall
 					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
-					 	|| Future.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
+					 	|| ResultDeref.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
 				;
 
@@ -1215,23 +1257,35 @@ namespace NMib::NConcurrency
 
 				Cleanup.f_Clear();
 #else
-				TCFuture<CReturnType> Future = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+				CLocalResultType Result;
+				if constexpr (mc_bIsFuture)
+					Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+				else
+					Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
 #endif
 
-				if constexpr (mc_ShouldDiscardResults)
+				if constexpr (mc_bIsFuture)
 				{
-					if (!Future.f_IsCoroutine())
+					if constexpr (mc_ShouldDiscardResults)
 					{
-						Future.f_DiscardResult();
-						return;
+						if (!Result.f_IsCoroutine())
+						{
+							Result.f_DiscardResult();
+							return;
+						}
+						// Coroutine param state needs to be kept alive until coroutine has resloved
 					}
-					// Coroutine param state needs to be kept alive until coroutine has resloved
-				}
 
-				if (PromiseThreadLocal.m_pOnResultSet)
+					if (PromiseThreadLocal.m_pOnResultSet)
+					{
+						DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
+						Result.f_OnResultSet(fg_Move(fOnResultSet));
+					}
+				}
+				else
 				{
-					DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
-					Future.f_OnResultSet(fg_Move(fOnResultSet));
+					DMibFastCheck(!PromiseThreadLocal.m_pOnResultSet || PromiseThreadLocal.m_pOnResultSet == &fOnResultSet);
+					(*this).f_ResultAvailable(fg_Move(Result));
 				}
 			}
 			else
@@ -1286,7 +1340,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		static_assert(NTraits::TCIsSame<CResultFunctorReturnType, void>::mc_Value, "Result handlers cannot return");
+		static_assert(NTraits::TCIsSame<CResultFunctorReturnType, void>::mc_Value, "Result handlers cannot return a value");
 #if 0
 		// Coroutines in result handlers are not allowed as any errors will go unobserved. Instead do this:
 
@@ -1307,8 +1361,9 @@ namespace NMib::NConcurrency
 
 		constexpr static const bool mc_ShouldCallResultDirect = NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
 		constexpr static const bool mc_ShouldDiscardResults = NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
+		constexpr static const bool mc_bIsFuture = NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value;
 
-		NStorage::TCUniquePointer<CState> m_pState;
+		typename TCChooseType<mc_bIsFuture, NStorage::TCUniquePointer<CState>, NStorage::TCSharedPointer<CState>>::CType m_pState;
 		TCActorInternal<t_CActor> *m_pActorInternal;
 
 	private:

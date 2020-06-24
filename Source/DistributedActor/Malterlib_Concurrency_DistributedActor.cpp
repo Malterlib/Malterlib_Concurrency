@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
 	}
-	
+
 	NCryptography::CPublicKeySetting CActorDistributionCryptographySettings::fs_DefaultKeySetting()
 	{
 		return NCryptography::CPublicKeySettings_EC_secp521r1{};

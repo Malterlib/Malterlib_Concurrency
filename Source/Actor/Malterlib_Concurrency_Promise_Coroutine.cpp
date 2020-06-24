@@ -6,22 +6,15 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	void TCFutureCoroutineContextValue<void>::return_value(CVoidTag &&_Value)
+	void TCFutureCoroutineContext<void>::return_value(CVoidTag &&_Value)
 	{
 		m_pPromiseData->f_SetResult();
 	}
 
-	void TCFutureCoroutineContextValue<void>::return_value(CVoidTag const &_Value)
+	void TCFutureCoroutineContext<void>::return_value(CVoidTag const &_Value)
 	{
 		m_pPromiseData->f_SetResult();
 	}
-
-#if DMibEnableSafeCheck > 0
-	void TCFutureCoroutineContextValue<void>::f_SetOwner(TCWeakActor<> const &_CoroutineOwner)
-	{
-		m_pPromiseData->m_CoroutineOwner = _CoroutineOwner;
-	}
-#endif
 }
 
 namespace NMib::NConcurrency

@@ -3,6 +3,12 @@
 
 #pragma once
 
+namespace NMib::NConcurrency
+{
+	template <typename t_CReturnType>
+	struct TCAsyncGenerator;
+}
+
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturn>
@@ -17,60 +23,76 @@ namespace NMib::NConcurrency::NPrivate
 		typedef t_CReturn CType;
 	};
 
+	template <typename t_CReturn>
+	struct TCGetAsyncType
+	{
+		typedef t_CReturn CType;
+	};
+
+	template <typename t_CReturn>
+	struct TCGetAsyncType<TCFuture<t_CReturn>>
+	{
+		typedef t_CReturn CType;
+	};
+
+	template <typename t_CReturn>
+	struct TCGetAsyncType<TCAsyncGenerator<t_CReturn>>
+	{
+		typedef t_CReturn CType;
+	};
+
 	template <typename t_CType>
 	struct TCIsPromise
 	{
-		enum
-		{
-			mc_Value = false
-		};
+		using CType = t_CType;
+		static constexpr bool mc_Value = false;
 	};
 
 	template <typename t_CType>
 	struct TCIsPromise<TCPromise<t_CType>>
 	{
 		using CType = t_CType;
-		enum
-		{
-			mc_Value = true
-		};
+		static constexpr bool mc_Value = true;
 	};
 
 	template <typename t_CType>
 	struct TCIsFuture
 	{
-		enum
-		{
-			mc_Value = false
-		};
+		using CType = t_CType;
+		static constexpr bool mc_Value = false;
 	};
 
 	template <typename t_CType>
 	struct TCIsFuture<TCFuture<t_CType>>
 	{
 		using CType = t_CType;
-		enum
-		{
-			mc_Value = true
-		};
+		static constexpr bool mc_Value = true;
 	};
 
 	template <typename t_CType>
 	struct TCIsPromiseWithError
 	{
-		enum
-		{
-			mc_Value = false
-		};
+		static constexpr bool mc_Value = false;
 	};
 
 	template <typename t_CReturnValue>
 	struct TCIsPromiseWithError<TCPromiseWithError<t_CReturnValue>>
 	{
-		enum
-		{
-			mc_Value = true
-		};
+		static constexpr bool mc_Value = true;
+	};
+
+	template <typename t_CType>
+	struct TCIsAsyncGenerator
+	{
+		using CType = t_CType;
+		static constexpr bool mc_Value = false;
+	};
+
+	template <typename t_CType>
+	struct TCIsAsyncGenerator<TCAsyncGenerator<t_CType>>
+	{
+		using CType = t_CType;
+		static constexpr bool mc_Value = true;
 	};
 
 	template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>

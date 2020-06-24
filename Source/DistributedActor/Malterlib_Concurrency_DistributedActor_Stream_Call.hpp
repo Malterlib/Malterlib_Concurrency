@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -18,9 +18,9 @@ namespace NMib::NConcurrency
 		using CMemberFunction = decltype(tf_pMemberFunction);
 		using COriginalReturn = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CReturn;
 		using CReturn = typename NPrivate::TCRemoveFuture<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CReturn>::CType;
-		
+
 		NFunction::TCFunctionMovable<TCFuture<CReturn> ()> ToDispatch;
-		
+
 		auto *pActorDataRaw = static_cast<NPrivate::CDistributedActorData *>(_Actor->f_GetDistributedActorData().f_Get());
 
 		TCActor<> DispatchActor;
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 
 				Stream << NameHash;
 				Stream << ProtocolVersion;
-				
+
 				auto pHost = pActorDataRaw->m_pHost.f_Lock();
 				if (!pHost || pHost->m_bDeleted)
 				{
@@ -69,9 +69,9 @@ namespace NMib::NConcurrency
 					DispatchActor = fg_DirectCallActor();
 					break;
 				}
-				
+
 				NPrivate::CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
-				
+
 				NPrivate::TCStreamArguments<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::fs_Stream
 					(
 						Stream
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 						, fg_Forward<tfp_CParams>(p_Params)...
 					)
 				;
-				
+
 				auto pActorData = NStorage::TCSharedPointer<NPrivate::CDistributedActorData>{pActorDataRaw};
 
 				TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 								catch (NException::CException const &_Exception)
 								{
 									Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
-								}								
+								}
 							}
 						;
 						return Promise.f_MoveFuture();
@@ -135,11 +135,35 @@ namespace NMib::NConcurrency
 			}
 			else // When local
 			{
-				auto pActor = NPrivate::fg_GetInternalActor(_Actor);
-				DispatchActor = fg_Move(_Actor);
 				using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CMoveList;
 				using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CParams>::CType;
-				if constexpr (NPrivate::TCIsFuture<COriginalReturn>::mc_Value)
+
+				auto pActor = NPrivate::fg_GetInternalActor(_Actor);
+				DispatchActor = fg_Move(_Actor);
+
+				if constexpr (NPrivate::TCIsAsyncGenerator<COriginalReturn>::mc_Value)
+				{
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug -> TCFuture<CReturn>
+						{
+							return NStorage::fg_TupleApplyAs<CMoveList>
+								(
+									[&](auto &&..._Params) mutable -> TCFuture<CReturn>
+									{
+										return TCPromise<CReturn>() <<= fg_CallSafe
+											(
+												static_cast<typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CClass *>(pActor)
+												, tf_pMemberFunction
+												, fg_Forward<decltype(_Params)>(_Params)...
+											)
+										;
+									}
+									, fg_Move(Params)
+								)
+							;
+						}
+					;
+				}
+				else if constexpr (NPrivate::TCIsFuture<COriginalReturn>::mc_Value)
 				{
 					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug -> TCFuture<CReturn>
 						{

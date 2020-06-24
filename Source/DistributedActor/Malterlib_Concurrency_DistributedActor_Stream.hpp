@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Concurrency/AsyncGenerator>
+
 namespace NMib::NConcurrency
 {
 	template <uint32 t_SubscriptionID>
@@ -151,6 +153,26 @@ namespace NMib::NConcurrency
 	{
 		return mp_ProtocolVersions;
 	}
+
+	template <typename t_CReturnType>
+	template <typename tf_CStream>
+	void TCAsyncGenerator<t_CReturnType>::f_Stream(tf_CStream &_Stream)
+	{
+		bool bHasGenerator = !!mp_pData;
+		_Stream % bHasGenerator;
+		if (bHasGenerator)
+		{
+			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+			{
+				TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired> fGetNext;
+				_Stream % fg_Move(fGetNext);
+				mp_pData = fg_Construct(fg_Move(fGetNext));
+			}
+			else
+				_Stream % TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired>(fg_Move(mp_pData->m_fGetNext));
+		}
+	}
 }
+
 
 #include "Malterlib_Concurrency_DistributedActor_Stream_Call.hpp"

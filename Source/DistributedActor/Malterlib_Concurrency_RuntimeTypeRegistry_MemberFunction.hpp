@@ -98,10 +98,12 @@ namespace NMib::NConcurrency::NPrivate
 			return Promise <<= _Exception;
 		}
 
-		auto Result = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
-
 		NConcurrency::TCAsyncResult<t_CReturn> AsyncResult;
-		AsyncResult.f_SetResult(fg_Move(Result));
+
+		if constexpr (TCIsAsyncGenerator<t_CReturn>::mc_Value)
+			AsyncResult.f_SetResult(fg_CallSafe((CClass *)_pObject, t_pMemberFunction, fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...));
+		else
+			AsyncResult.f_SetResult((((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...));
 
 		return Promise <<= fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}

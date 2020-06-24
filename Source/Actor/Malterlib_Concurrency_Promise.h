@@ -170,68 +170,16 @@ namespace NMib::NConcurrency::NPrivate
 		TCAsyncResult<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
 	};
 
-	template <typename t_CReturnValue>
-	struct TCRunProtectedHelper<t_CReturnValue, void>
-	{
-		template <typename tf_FToRun>
-		TCAsyncResult<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
-	};
-
-	template <typename t_CException>
-	struct TCRunProtectedHelper<void, t_CException>
-	{
-		template <typename tf_FToRun>
-		TCAsyncResult<void> operator / (tf_FToRun &&_ToRun) const;
-	};
-
-	template <>
-	struct TCRunProtectedHelper<void, void>
-	{
-		template <typename tf_FToRun>
-		TCAsyncResult<void> operator / (tf_FToRun &&_ToRun) const;
-
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
-	};
-
 	template <typename t_CReturnValue, typename t_CException = void>
 	struct TCRunProtectedFutureHelper
 	{
-		template <typename tf_FToRun>
-		TCFuture<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
+		using CReturn = TCFuture<t_CReturnValue>;
 
 		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<t_CReturnValue> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
-	};
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
 
-	template <typename t_CReturnValue>
-	struct TCRunProtectedFutureHelper<t_CReturnValue, void>
-	{
 		template <typename tf_FToRun>
-		TCFuture<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
-
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<t_CReturnValue> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
-	};
-
-	template <typename t_CException>
-	struct TCRunProtectedFutureHelper<void, t_CException>
-	{
-		template <typename tf_FToRun>
-		TCFuture<void> operator / (tf_FToRun &&_ToRun) const;
-
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
-	};
-
-	template <>
-	struct TCRunProtectedFutureHelper<void, void>
-	{
-		template <typename tf_FToRun>
-		TCFuture<void> operator / (tf_FToRun &&_ToRun) const;
-
-		template <typename tf_FToRun, typename ...tfp_CParams>
-		TCFuture<void> operator () (tf_FToRun &&_ToRun, tfp_CParams && ...p_Params) const;
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator / (tf_FToRun &&_ToRun) const;
 	};
 
 	template <typename t_FFunctor>
@@ -242,49 +190,6 @@ namespace NMib::NConcurrency::NPrivate
 
 	template <typename t_CReturnValue>
 	struct TCPromiseData;
-
-	template <typename t_CReturnType>
-	struct TCFutureCoroutineContextValue : public CFutureCoroutineContext
-	{
-		TCFutureCoroutineContextValue(ECoroutineFlag _Flags) noexcept
-			: CFutureCoroutineContext{_Flags}
-		{
-		}
-
-		~TCFutureCoroutineContextValue() noexcept;
-
-		template <typename tf_CReturnType>
-		void return_value(tf_CReturnType &&_Value);
-		void return_value(t_CReturnType &&_Value);
-
-#if DMibEnableSafeCheck > 0
-		void f_SetOwner(TCWeakActor<> const &_CoroutineOwner);
-#endif
-
-		TCPromiseData<t_CReturnType> *m_pPromiseData = nullptr;
-	};
-
-	template <>
-	struct TCFutureCoroutineContextValue<void> : public CFutureCoroutineContext
-	{
-		TCFutureCoroutineContextValue(ECoroutineFlag _Flags) noexcept
-			: CFutureCoroutineContext{_Flags}
-		{
-		}
-
-		~TCFutureCoroutineContextValue() noexcept;
-
-		template <typename tf_CReturnType>
-		void return_value(tf_CReturnType &&_Value);
-		void return_value(CVoidTag &&_Value);
-		void return_value(CVoidTag const &_Value);
-
-#if DMibEnableSafeCheck > 0
-		void f_SetOwner(TCWeakActor<> const &_CoroutineOwner);
-#endif
-
-		TCPromiseData<void> *m_pPromiseData = nullptr;
-	};
 
 	template <typename t_CReturnType>
 	struct TCFutureCoroutineKeepAlive
@@ -318,25 +223,61 @@ namespace NMib::NConcurrency::NPrivate
 	};
 
 	template <typename t_CReturnType>
-	struct TCFutureCoroutineContext : public TCFutureCoroutineContextValue<t_CReturnType>
+	struct TCFutureCoroutineContextShared : public CFutureCoroutineContext
 	{
 		using CReturnType = t_CReturnType;
 
-		TCFutureCoroutineContext(ECoroutineFlag _Flags = ECoroutineFlag_None) noexcept
-			: TCFutureCoroutineContextValue<t_CReturnType>(_Flags)
+		TCFutureCoroutineContextShared(ECoroutineFlag _Flags = ECoroutineFlag_None) noexcept
+			: CFutureCoroutineContext(_Flags)
 		{
 		}
 
-		TCFutureCoroutineContext(TCFutureCoroutineContext &&) = delete;
-		~TCFutureCoroutineContext() = default;
+		TCFutureCoroutineContextShared(TCFutureCoroutineContextShared &&) = delete;
+		~TCFutureCoroutineContextShared() noexcept;
 
 		TCFutureCoroutineKeepAlive<t_CReturnType> f_KeepAlive(TCActor<> &&_Actor);
 		TCFutureCoroutineKeepAliveImplicit<t_CReturnType> f_KeepAliveImplicit();
 		void f_Abort() override;
 		void f_ResumeException() override;
 
-		TCFuture<t_CReturnType> get_return_object();
+		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();
 		void unhandled_exception();
+
+#if DMibEnableSafeCheck > 0
+		void f_SetOwner(TCWeakActor<> const &_CoroutineOwner);
+#endif
+
+		TCPromiseData<t_CReturnType> *m_pPromiseData = nullptr;
+
+	protected:
+		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> fp_GetReturnObject();
+	};
+
+	template <typename t_CReturnType>
+	struct TCFutureCoroutineContext : public TCFutureCoroutineContextShared<t_CReturnType>
+	{
+		TCFutureCoroutineContext(ECoroutineFlag _Flags) noexcept
+			: TCFutureCoroutineContextShared<t_CReturnType>(_Flags)
+		{
+		}
+
+		template <typename tf_CReturnType>
+		void return_value(tf_CReturnType &&_Value);
+		void return_value(t_CReturnType &&_Value);
+	};
+
+	template <>
+	struct TCFutureCoroutineContext<void> : public TCFutureCoroutineContextShared<void>
+	{
+		TCFutureCoroutineContext(ECoroutineFlag _Flags) noexcept
+			: TCFutureCoroutineContextShared<void>(_Flags)
+		{
+		}
+
+		template <typename tf_CReturnType>
+		void return_value(tf_CReturnType &&_Value);
+		void return_value(CVoidTag &&_Value);
+		void return_value(CVoidTag const &_Value);
 	};
 
 	template <typename t_CReturnType, ECoroutineFlag t_Flags = ECoroutineFlag_None>
@@ -350,11 +291,18 @@ namespace NMib::NConcurrency::NPrivate
 
 	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception);
 
+	enum EConsumeFutureOnResultSetFlag : uint32
+	{
+		EConsumeFutureOnResultSetFlag_None = 0
+		, EConsumeFutureOnResultSetFlag_ResetSafeCall = DMibBit(0)
+	};
+
 	template <typename tf_CReturnValue>
 	NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> fg_ConsumeFutureOnResultSet
 		(
 #if DMibEnableSafeCheck > 0
 		 	void const *_pConsumedBy
+			, EConsumeFutureOnResultSetFlag _Flags
 #endif
 		)
 	;
@@ -377,6 +325,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCPromiseData();
 		~TCPromiseData();
+
+		void f_Reset();
 
 		void fp_ReportNothingSet();
 		void fp_OnResult();
@@ -408,7 +358,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCAsyncResult<t_CReturnValue> m_Result;
 		NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> m_fOnResult;
 		NAtomic::TCAtomic<mint> m_OnResultSet;
-		TCCoroutineHandle<TCFutureCoroutineContext<t_CReturnValue>> m_Coroutine;
+		TCCoroutineHandle<TCFutureCoroutineContextShared<t_CReturnValue>> m_Coroutine;
 		bool m_bOnResultSetAtInit = false;
 #if DMibEnableSafeCheck > 0
 		TCWeakActor<> m_CoroutineOwner;
@@ -475,6 +425,11 @@ namespace NMib::NConcurrency
 		#define DMibConcurrencyInstrumentFunctionEnter
 	#endif
 
+	namespace NPrivate
+	{
+		template <typename t_CReturnType>
+		struct TCAsyncGeneratorCoroutineContext;
+	}
 
 	/// \brief Used to defer the return of a value to allow async programming
 	template <typename t_CReturnValue = void>
@@ -539,7 +494,9 @@ namespace NMib::NConcurrency
 	private:
 		friend struct TCPromise<t_CReturnValue>;
 		template <typename t_CReturnType>
-		friend struct NPrivate::TCFutureCoroutineContext;
+		friend struct NPrivate::TCFutureCoroutineContextShared;
+		template <typename t_CReturnType>
+		friend struct NPrivate::TCAsyncGeneratorCoroutineContext;
 
 		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> const &_pData);
 		TCFuture(NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> &&_pData);
@@ -572,22 +529,22 @@ namespace NMib::NConcurrency
 		TCAsyncResult<t_CReturnValue> &&f_MoveResult();
 
 		TCPromise &&f_Move();
-		TCFuture<t_CReturnValue> f_Future() const;
-		TCFuture<t_CReturnValue> f_MoveFuture();
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> f_Future() const;
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> f_MoveFuture();
 
-		TCFuture<t_CReturnValue> operator <<= (CVoidTag const &);
-		TCFuture<t_CReturnValue> operator <<= (TCFuture<t_CReturnValue> &&_Future);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (CVoidTag const &);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (TCFuture<t_CReturnValue> &&_Future);
 		template <typename tf_CResult, TCEnableIfType<!NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CResult>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
-		TCFuture<t_CReturnValue> operator <<= (tf_CResult &&_Result);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (tf_CResult &&_Result);
 		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
-		TCFuture<t_CReturnValue> operator <<= (tf_CType &&_Exception);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (tf_CType &&_Exception);
 
-		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &&_pException);
-		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &_pException);
-		TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer const &_pException);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &&_pException);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &_pException);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer const &_pException);
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-		TCFuture<t_CReturnValue> operator <<= (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
+		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall);
 
 
 		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>

@@ -19,6 +19,8 @@
 #include <Mib/Function/Function>
 #include <Mib/File/File>
 
+#include <Mib/Concurrency/AsyncGenerator>
+
 using namespace NMib;
 using namespace NMib::NStorage;
 using namespace NMib::NMeta;
@@ -268,6 +270,10 @@ public:
 		DMibPublishActorFunction(CDistributedActor::f_AddIntDeferredException);
 		DMibPublishActorFunction(CDistributedActor::f_SharedPointer);
 		DMibPublishActorFunction(CDistributedActor::f_UniquePointer);
+		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGenerator);
+		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorSend);
+		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorFunctor);
+		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorFunctorSend);
 	}
 
 	void f_AddInt(uint32 _Value)
@@ -333,6 +339,54 @@ public:
 	TCFuture<uint32> f_CallSetInterface()
 	{
 		co_return co_await m_SetDistributedActorInterface.f_CallActor(&CDistributedActorInterface::f_Test)();
+	}
+
+	TCFuture<int32> f_TestFuture()
+	{
+		co_return 7;
+	}
+
+	TCAsyncGenerator<int32> f_TestAsyncGenerator()
+	{
+		co_yield 5;
+		co_yield 6;
+		co_yield co_await f_TestFuture();
+		co_yield 8;
+
+		co_return {};
+	}
+
+	TCActorFunctorWithID<TCAsyncGenerator<int32> (int32 const &_Value), gc_SubscriptionNotRequired> f_TestAsyncGeneratorFunctor()
+	{
+		return g_ActorFunctor(g_ActorSubscription / [] {}) / [this] (int32 const &_Value) -> TCAsyncGenerator<int32>
+			{
+				co_yield 5;
+				co_yield 6;
+				co_yield co_await f_TestFuture();
+				co_yield 8;
+				co_yield _Value;
+
+				co_return {};
+			}
+		;
+	}
+
+	TCFuture<int32> f_TestAsyncGeneratorSend(TCAsyncGenerator<int32> &&_Generator)
+	{
+		int32 Return = 0;
+		for (auto iValue = co_await fg_Move(_Generator).f_GetIterator(); iValue; co_await ++iValue)
+			Return += *iValue;
+		co_return Return;
+	}
+
+	TCFuture<int32> f_TestAsyncGeneratorFunctorSend(TCActorFunctorWithID<TCAsyncGenerator<int32> (int32 const &_Value), gc_SubscriptionNotRequired> &&_fGenerator)
+	{
+		int32 Return = 0;
+		for (auto iValue = co_await (co_await _fGenerator(5)).f_GetIterator(); iValue; co_await ++iValue)
+			Return += *iValue;
+		for (auto iValue = co_await (co_await _fGenerator(7)).f_GetIterator(); iValue; co_await ++iValue)
+			Return += *iValue;
+		co_return Return;
 	}
 
 	TCFuture<CActorSubscription> f_GetSubscription()
@@ -1203,6 +1257,100 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				ActorFunctor.f_Clear();
 			}
+		};
+		DMibTestSuite("Return Async Generator")
+		{
+			auto TestActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActorScope(TestActor);
+
+			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+			auto Generator = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGenerator)().f_CallSync(60.0);
+
+			auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+			DMibExpect(*iIterator, ==, 5);
+			(++iIterator).f_CallSync(60.0);
+			DMibExpect(*iIterator, ==, 6);
+			(++iIterator).f_CallSync(60.0);
+			DMibExpect(*iIterator, ==, 7);
+			(++iIterator).f_CallSync(60.0);
+			DMibExpect(*iIterator, ==, 8);
+			(++iIterator).f_CallSync(60.0);
+			DMibExpectFalse(!!iIterator);
+		};
+		DMibTestSuite("Return Async Generator Functor")
+		{
+			auto TestActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActorScope(TestActor);
+
+			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(60.0);
+
+			for (mint i = 0; i < 2; ++i)
+			{
+				DMibTestPath("Iteration {}"_f << i);
+				auto Generator = Functor(i).f_CallSync();
+
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				DMibExpect(*iIterator, ==, 5);
+				(++iIterator).f_CallSync(60.0);
+				DMibExpect(*iIterator, ==, 6);
+				(++iIterator).f_CallSync(60.0);
+				DMibExpect(*iIterator, ==, 7);
+				(++iIterator).f_CallSync(60.0);
+				DMibExpect(*iIterator, ==, 8);
+				(++iIterator).f_CallSync(60.0);
+				DMibExpect(*iIterator, ==, i);
+				(++iIterator).f_CallSync(60.0);
+				DMibExpectFalse(!!iIterator);
+				fg_Move(Generator).f_Destroy().f_CallSync(60.0);
+			}
+			fg_Move(Functor).f_Destroy().f_CallSync(60.0);
+		};
+		DMibTestSuite("Send Async Generator")
+		{
+			auto TestActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActorScope(TestActor);
+
+			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+			auto Value = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorSend)
+				(
+					fg_CallSafe
+					(
+						[]() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							co_yield 2;
+							co_yield 3;
+							co_yield 4;
+							co_return {};
+						}
+					)
+				).f_CallSync(60.0)
+			;
+
+			DMibExpect(Value, ==, 10);
+		};
+		DMibTestSuite("Send Async Generator Functor")
+		{
+			auto TestActor = fg_ConcurrentActor();
+			CCurrentActorScope CurrentActorScope(TestActor);
+
+			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
+			auto Value = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctorSend)
+				(
+					g_ActorFunctor(g_ActorSubscription / [] {}) / [](int32 const &_Value) -> TCAsyncGenerator<int32>
+					{
+						co_yield 1;
+						co_yield 2;
+						co_yield 3;
+						co_yield 4;
+						co_yield _Value;
+						co_return {};
+					}
+				).f_CallSync(60.0)
+			;
+
+			DMibExpect(Value, ==, 32);
 		};
 		DMibTestSuite("GetInterface")
 		{

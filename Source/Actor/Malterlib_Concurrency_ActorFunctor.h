@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
 		using CFunction = NFunction::TCFunctionMovable<t_CFunction>;
-		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value, "You need to return a future");
+		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value, "You need to return a future or async generator");
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
 
 		TCActorFunctor() = default;

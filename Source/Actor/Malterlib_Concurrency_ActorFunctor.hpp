@@ -157,9 +157,9 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					TCActor<>(fg_DirectCallActor())
-					, []() mutable -> CReturn
+					, []() mutable -> TCFuture<CStripedReturn>
 					{
-						return TCPromise<typename NPrivate::TCIsFuture<CReturn>::CType>() <<= DMibErrorInstance("Functor is empty");
+						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
 					}
 				)
 			;
@@ -171,13 +171,27 @@ namespace NMib::NConcurrency
 		return fg_Dispatch
 			(
 				mp_Actor
-				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable mark_no_coroutine_debug -> CReturn
+				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]() mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
 				{
 					return NStorage::fg_TupleApplyAs<CMoveList>
 						(
-							[&](auto &&..._Params) mutable mark_no_coroutine_debug -> CReturn
+							[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
 							{
-								return (*pFunctor)(fg_Move(_Params)...);
+								if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
+								{
+									TCPromise<CStripedReturn> Promise;
+									try
+									{
+										Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+									}
+									catch (...)
+									{
+										Promise.f_SetException(NException::fg_CurrentException());
+									}
+									return Promise.f_MoveFuture();
+								}
+								else
+									return (*pFunctor)(fg_Move(_Params)...);
 							}
 							, fg_Move(Params)
 						)
@@ -196,9 +210,9 @@ namespace NMib::NConcurrency
 			return fg_Dispatch
 				(
 					TCActor<>(fg_DirectCallActor())
-					, []() mutable -> CReturn
+					, []() mutable -> TCFuture<CStripedReturn>
 					{
-						return TCPromise<typename NPrivate::TCIsFuture<CReturn>::CType>() <<= DMibErrorInstance("Functor is empty");
+						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
 					}
 				)
 			;
@@ -211,17 +225,31 @@ namespace NMib::NConcurrency
 			(
 				mp_Actor
 				, [fDispatcher = fg_Forward<tf_FDispatcher>(_fDispatcher), Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor]
-			 	() mutable mark_no_coroutine_debug -> CReturn
+			 	() mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
 				{
 					return fDispatcher
 						(
-						 	[&]() mark_no_coroutine_debug -> CReturn
+						 	[&]() mark_no_coroutine_debug -> TCFuture<CStripedReturn>
 						 	{
 								return NStorage::fg_TupleApplyAs<CMoveList>
 									(
-										[&](auto &&..._Params) mutable mark_no_coroutine_debug -> CReturn
+										[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CStripedReturn>
 										{
-											return (*pFunctor)(fg_Move(_Params)...);
+											if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
+											{
+												TCPromise<CStripedReturn> Promise;
+												try
+												{
+													Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+												}
+												catch (...)
+												{
+													Promise.f_SetException(NException::fg_CurrentException());
+												}
+												return Promise.f_MoveFuture();
+											}
+											else
+												return (*pFunctor)(fg_Move(_Params)...);
 										}
 										, fg_Move(Params)
 									)

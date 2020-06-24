@@ -58,4 +58,41 @@ private:
 };
 ~~~
 
+\section p_Malterlib_Concurrency_Coroutines_AsyncGenerator Async Generator
+
+ Async generators can be used for a pull based interface. Support for remote interfaces is provided.
+
+~~~
+struct CMyActor : public CActor
+{
+	TCFuture<int32> f_DoAction();
+
+	TCAsyncGenerator<int32> f_GetGenerator()
+	{
+		co_yield 5;
+		co_yield co_await f_DoAction();
+		co_yield 5;
+
+		co_return {};
+	}
+
+	TCFuture<int32> f_ConsumeGenerator()
+	{
+		int32 Return = 0;
+		for (auto iValue = co_await f_GetGenerator().f_GetIterator(); iValue; co_await ++iValue)
+			Return += *iValue;
+		co_return Return;
+	}
+
+	// Only supported in Coroutines TS, support in MSVC and clang might be removed
+	TCFuture<int32> f_ConsumeGeneratorForCoAwait()
+	{
+		int32 Return = 0;
+		for co_await(auto Value : f_GetGenerator())
+			Return += Value;
+		co_return Return;
+	}
+}
+~~~
+
 */

@@ -92,9 +92,10 @@ namespace NMib::NConcurrency
 		auto ToSequence = State.m_ToSequence.f_Pop();
 		g_Dispatch / [this, pState = mp_pState, fToSequence = fg_Move(ToSequence.m_fToSequence)]() mutable -> TCFuture<t_CReturnType>
 			{
-				return fToSequence
+				return fg_CallSafe
 					(
-					 	g_ActorSubscription / [this, pState = mp_pState]
+						fg_Move(fToSequence)
+					 	, g_ActorSubscription / [this, pState = mp_pState]
 						{
 							auto &State = *pState;
 

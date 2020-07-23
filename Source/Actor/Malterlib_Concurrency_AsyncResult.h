@@ -31,6 +31,8 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
 		NException::CExceptionPointer f_GetException() const &; ///< Returns the contained exception as an exception pointer
 		NException::CExceptionPointer &&f_GetException() &&; ///< Returns the contained exception as an exception pointer
+		template <typename tf_CException>
+		bool f_HasExceptionType() const; ///< Returns true if the contained exception is of the specified exception type
 
 		void f_SetCurrentException(); ///< Sets the result to the current exception. Usually only used from TCPromise implementation
 		template 

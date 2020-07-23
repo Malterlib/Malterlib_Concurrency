@@ -12,6 +12,23 @@ namespace NMib::NConcurrency
 		DMibRequire(!m_pException);
 		m_pException = NException::fg_ExceptionPointer(fg_Forward<tf_CException>(_Exception));
 	}
+
+	template <typename tf_CException>
+	bool CAsyncResult::f_HasExceptionType() const
+	{
+		try
+		{
+			f_Access();
+		}
+		catch (tf_CException const &)
+		{
+			return true;
+		}
+		catch (...)
+		{
+		}
+		return false;
+	}
 	
 	template <typename t_CType>
 	TCAsyncResult<t_CType>::TCAsyncResult(TCAsyncResult const &_Other)

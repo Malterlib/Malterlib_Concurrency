@@ -62,10 +62,12 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> m_pSSLContext;
 		NStorage::TCSharedPointerSupportWeak<CHost> m_pHost;
 		TCPromise<bool> m_IdentifyPromise;
+		NContainer::TCVector<TCPromise<void>> m_PublishFinished;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
 		bool m_bIncoming = false;
 		bool m_bIdentified = false;
+		bool m_bPulishFinished = false;
 		bool m_bFirstConnection = false;
 
 		CHostInfo f_GetHostInfo() const;
@@ -455,7 +457,13 @@ namespace NMib::NConcurrency
 		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
-		void fp_NotifyNewActor(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor);
+		void fp_NotifyNewActor
+			(
+				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
+				, CRemoteActor &_RemoteActor
+				, TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> *_pResults
+			)
+		;
 		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor);
 
 		void fp_ReplyToRemoteCallWithException

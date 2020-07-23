@@ -268,7 +268,12 @@ namespace NMib::NConcurrency
 		return mp_InheritanceHierarchy;
 	}
 
-	void CActorDistributionManagerInternal::fp_NotifyNewActor(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, CRemoteActor &_RemoteActor)
+	void CActorDistributionManagerInternal::fp_NotifyNewActor
+		(
+			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
+			, CRemoteActor &_RemoteActor
+			, TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> *_pResults
+		)
 	{
 		CAbstractDistributedActor AbstractActor
 			{
@@ -283,11 +288,21 @@ namespace NMib::NConcurrency
 		;
 		auto pAll = m_SubscribedActors.f_FindEqual("");
 		if (pAll)
-			pAll->m_fOnNewActor(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
+		{
+			if (_pResults)
+				pAll->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > _pResults->f_AddResult();
+			else
+				pAll->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
+		}
 
 		auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 		if (pSpecific)
-			pSpecific->m_fOnNewActor(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
+		{
+			if (_pResults)
+				pSpecific->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > _pResults->f_AddResult();
+			else
+				pSpecific->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
+		}
 	}
 
 	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
@@ -319,6 +334,9 @@ namespace NMib::NConcurrency
 
 		auto Mapped = pHost->m_RemoteActors(Publish.m_ActorID);
 
+		bool bNeedResults = !_pConnection->m_bPulishFinished;
+		TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> Results;
+
 		if (Mapped.f_WasCreated())
 		{
 			auto &RemoteActor = *Mapped;
@@ -327,10 +345,13 @@ namespace NMib::NConcurrency
 			RemoteActor.m_ProtocolVersions = Publish.m_ProtocolVersions;
 			RemoteActor.m_pHost = pHost.f_Get();
 
-			fp_NotifyNewActor(pHost, RemoteActor);
+			fp_NotifyNewActor(pHost, RemoteActor, bNeedResults ? &Results : nullptr);
 
 			m_RemoteNamespaces[Publish.m_Namespace].m_RemoteActors.f_Insert(RemoteActor);
 		}
+
+		if (bNeedResults && !Results.f_IsEmpty())
+			Results.f_GetResults() > _pConnection->m_PublishFinished.f_Insert().f_ReceiveAny();
 
 		return true;
 	}

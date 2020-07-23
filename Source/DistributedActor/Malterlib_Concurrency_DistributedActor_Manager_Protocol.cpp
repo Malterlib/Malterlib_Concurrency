@@ -191,7 +191,10 @@ namespace NMib::NConcurrency
 					else
 					{
 						if (!_pConnection->m_IdentifyPromise.f_IsSet())
+						{
 							_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
+							_pConnection->m_bPulishFinished = true;
+						}
 					}
 				}
 				break;
@@ -209,8 +212,18 @@ namespace NMib::NConcurrency
 					CDistributedActorCommand_InitialPublishFinished InitialPublishFinished;
 					Stream >> InitialPublishFinished;
 
-					if (!_pConnection->m_IdentifyPromise.f_IsSet())
-						_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
+					_pConnection->m_bPulishFinished = true;
+
+					TCActorResultVector<void> PublishResults;
+					for (auto &PublishFinished : _pConnection->m_PublishFinished)
+						PublishFinished.f_Future() > PublishResults.f_AddResult();
+
+					PublishResults.f_GetResults().f_Timeout(30.0, "") > [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection))](auto &&)
+						{
+							if (!pConnection->m_IdentifyPromise.f_IsSet())
+								pConnection->m_IdentifyPromise.f_SetResult(pConnection->m_bFirstConnection);
+						}
+					;
 				}
 				break;
 			case EDistributedActorCommand_Acknowledge:

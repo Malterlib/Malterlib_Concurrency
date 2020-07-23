@@ -123,6 +123,18 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
+		for (auto &Finished : m_PublishFinished)
+		{
+			Finished.f_Abandon
+				(
+			 		[&]()
+			 		{
+						return DMibErrorInstance(_Error).f_ExceptionPointer();
+					}
+				)
+			;
+		}
+		m_PublishFinished.f_Clear();
 	}
 
 	TCFuture<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()

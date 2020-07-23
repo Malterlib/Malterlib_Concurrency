@@ -492,6 +492,7 @@ namespace NMib::NConcurrency
 
 									pConnection->f_DiscardIdentifyPromise("Reconnected");
 									pConnection->m_IdentifyPromise = TCPromise<bool>();
+									pConnection->m_bPulishFinished = false;
 
 									NWeb::NHTTP::CResponseHeader ResponseHeader;
 									ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);

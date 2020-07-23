@@ -8,6 +8,10 @@
 
 namespace NMib::NConcurrency
 {
+	DMibImpErrorClassDefine(CExceptionAsyncTimeout, NMib::NException::CException);
+#	define DMibErrorAsyncTimeout(d_Description) DMibImpError(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
+#	define DMibErrorInstanceAsyncTimeout(d_Description) DMibImpExceptionInstance(NMib::NConcurrency::CExceptionAsyncTimeout, d_Description, false)
+
 	struct CTimerActor : public CActor
 	{
 		using CActorHolder = CSeparateThreadActorHolder;

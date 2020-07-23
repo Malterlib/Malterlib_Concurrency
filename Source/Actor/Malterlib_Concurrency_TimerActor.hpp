@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 				, [pReplied, Promise, _TimeoutMessage]
 				{
 					if (!pReplied->f_TestAndSet())
-						Promise.f_SetException(DMibErrorInstance(_TimeoutMessage));
+						Promise.f_SetException(DMibErrorInstanceAsyncTimeout(_TimeoutMessage));
 				}
 				, fg_DirectCallActor()
 				, _bFireAtExit

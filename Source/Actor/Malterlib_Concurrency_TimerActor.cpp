@@ -7,6 +7,8 @@
 
 namespace NMib::NConcurrency
 {
+	DMibImpErrorClassImplement(CExceptionAsyncTimeout);
+
 	struct CTimerActor::CInternal
 	{
 		//friend class CConcurrencyManager;

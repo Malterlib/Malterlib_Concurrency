@@ -264,40 +264,43 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
-	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &
+	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &&
 	{
-		co_await ECoroutineFlag_AllowReferences;
+		TCPromise<void> Promise;
 
 		auto Subscription = fg_Move(f_GetSubscription());
+
+		TCFuture<void> DispatchFuture;
 
 		if (mp_Actor && mp_pFunctor)
 		{
-			if (mp_Actor->f_IsCurrentActor())
+			if (mp_Actor->f_IsCurrentActorAndProcessing())
+			{
 				mp_pFunctor.f_Clear();
+				mp_Actor.f_Clear();
+
+				DispatchFuture = TCPromise<void>() <<= g_Void;
+			}
 			else
-				co_await fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
+				DispatchFuture = fg_Dispatch(fg_Move(mp_Actor), [pFunctor = fg_Move(mp_pFunctor)] {}).f_Future();
 		}
+		else
+			DispatchFuture = TCPromise<void>() <<= g_Void;
 
-		if (Subscription)
-			co_await Subscription->f_Destroy();
+		fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise, Subscription = fg_Move(Subscription)](TCAsyncResult<void> &&) mutable
+			{
+				if (!Subscription)
+					return Promise.f_SetResult();
 
-		co_return {};
-	}
+				fg_Exchange(Subscription, nullptr)->f_Destroy() > NPrivate::fg_DirectResultActor() / [Promise = fg_Move(Promise)](TCAsyncResult<void> &&_Result)
+					{
+						Promise.f_SetResult(fg_Move(_Result));
+					}
+				;
+			}
+		;
 
-	template <typename t_CFunction>
-	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &&
-	{
-		co_await ECoroutineFlag_AllowReferences;
-
-		auto Subscription = fg_Move(f_GetSubscription());
-
-		if (mp_Actor && mp_pFunctor)
-			co_await fg_Dispatch(fg_Move(mp_Actor), [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
-
-		if (Subscription)
-			co_await Subscription->f_Destroy();
-
-		co_return {};
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CFunction>

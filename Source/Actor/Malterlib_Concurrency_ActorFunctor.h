@@ -39,7 +39,6 @@ namespace NMib::NConcurrency
 		TCActor<CActor> &f_GetActor();
 		NFunction::TCFunctionMovable<t_CFunction> &f_GetFunctor();
 		CActorSubscription &f_GetSubscription();
-		TCFuture<void> f_Destroy() &;
 		TCFuture<void> f_Destroy() &&;
 
 		void f_Clear();

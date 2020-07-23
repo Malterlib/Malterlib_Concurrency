@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include "Malterlib_Concurrency_DistributedActorTrustManager.h"
@@ -47,15 +47,15 @@ namespace NMib::NConcurrency
 		}
 		if (!_bIncludeHostInfo)
 			return Promise <<= fg_Move(Return);
-			
+
 		TCActorResultMap<NStr::CStr, CHostInfo> HostInfos;
-		
+
 		auto ThisActor = fg_ThisActor(this);
 		for (auto &HostID : HostIDs)
 			ThisActor(&CDistributedActorTrustManager::fp_GetHostInfo, HostID) > HostInfos.f_AddResult(HostID);
 
-		HostInfos.f_GetResults() 
-			> Promise / [Promise, Return = fg_Move(Return)] 
+		HostInfos.f_GetResults()
+			> Promise / [Promise, Return = fg_Move(Return)]
 			(NContainer::TCMap<NStr::CStr, TCAsyncResult<CHostInfo>> &&_HostInfos) mutable
 			{
 				for (auto &Permissions : Return)
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 				Promise.f_SetResult(fg_Move(Return));
 			}
 		;
-		return Promise.f_MoveFuture();				
+		return Promise.f_MoveFuture();
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_AllowHostsForNamespace
@@ -90,13 +90,13 @@ namespace NMib::NConcurrency
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
-		
+
 		for (auto &HostID : _Hosts)
 		{
 			if (!CActorDistributionManager::fs_IsValidHostID(HostID))
 				co_return DMibErrorInstance("Invalid host id");
 		}
-		
+
 		auto &Internal = *mp_pInternal;
 		auto &Namespace = Internal.m_Namespaces[_Namespace];
 
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 						{
 							auto &TrustedActor = AddedActors[Actor.f_GetIdentifier()];
 							TrustedActor.m_TrustInfo = Actor.m_TrustedInfo;
-							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(Actor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion); 
+							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(Actor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion);
 							TrustedActor.m_Actor = fg_Move(NewActor);
 						}
 					}
@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 				}
 			}
 		}
-		
+
 		if (Namespace.m_bExistsInDatabase)
 			co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace);
 		else
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedActorTrustManager::f_DisallowHostsForNamespace
 		(
 			 NStr::CStr const &_Namespace
@@ -165,19 +165,19 @@ namespace NMib::NConcurrency
 	{
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			co_return DMibErrorInstance("Invalid namespace name");
-		
+
 		for (auto &HostID : _Hosts)
 		{
 			if (!CActorDistributionManager::fs_IsValidHostID(HostID))
 				co_return DMibErrorInstance("Invalid host id");
 		}
-		
+
 		auto &Internal = *mp_pInternal;
 		auto *pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
 		if (!pNamespace)
 			co_return {};
 		auto &Namespace = *pNamespace;
-		
+
 		NContainer::TCSet<NStr::CStr> HostsRemoved;
 		for (auto &Host : _Hosts)
 		{
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 		}
 		if (HostsRemoved.f_IsEmpty())
 			co_return {};
-		
+
 		TCActorResultVector<void> SubscriptionResults;
 
 		for (auto &Type : Namespace.m_Types)
@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 					continue;
 				for (auto &Actor : pHost->m_Actors)
 					Type.m_AllowedActors.f_Remove(Actor);
-				NContainer::TCSet<CDistributedActorIdentifier> RemovedActors; 
+				NContainer::TCSet<CDistributedActorIdentifier> RemovedActors;
 				for (auto &Actor : pHost->m_Actors)
 					RemovedActors[Actor.f_GetIdentifier()];
 				for (auto &pSubscription : Type.m_Subscriptions)
@@ -235,9 +235,9 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	auto CDistributedActorTrustManager::CInternal::CNamespaceTypeState::f_GetAllowed(NPrivate::CTrustedActorSubscriptionState const &_State)
-		-> NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> 
+		-> NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>
 	{
 		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> Actors;
 		for (auto &Actor : m_AllowedActors)
@@ -247,8 +247,8 @@ namespace NMib::NConcurrency
 			{
 				auto &TrustedActor = Actors[Actor.f_GetIdentifier()];
 				TrustedActor.m_Actor = fg_Move(NewActor);
-				TrustedActor.m_TrustInfo = Actor.m_TrustedInfo; 
-				_State.m_ProtocolVersions.f_HighestSupportedVersion(Actor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion); 
+				TrustedActor.m_TrustInfo = Actor.m_TrustedInfo;
+				_State.m_ProtocolVersions.f_HighestSupportedVersion(Actor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion);
 			}
 		}
 		return Actors;
@@ -270,7 +270,7 @@ namespace NMib::NConcurrency
 			++Namespace.m_nSubscriptions;
 			return Promise <<= Type.f_GetAllowed(*_pState);
 		}
-	
+
 		auto fOnSubscribe = [_pState, NamespaceName, Promise](TCAsyncResult<void> const &_Result, CInternal::CNamespaceState &_Namespace) -> bool
 			{
 				if (!_Result)
@@ -285,14 +285,14 @@ namespace NMib::NConcurrency
 				return false;
 			}
 		;
-		
+
 		Namespace.m_OnSubscribe.f_Insert(fg_Move(fOnSubscribe));
-		
+
 		if (Namespace.m_bSubscribing)
 			return Promise.f_MoveFuture();
-		
+
 		Namespace.m_bSubscribing = true;
-		
+
 		Internal.m_ActorDistributionManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
@@ -305,11 +305,11 @@ namespace NMib::NConcurrency
 					if (!pNamespace)
 						return;
 					auto &Namespace = *pNamespace;
-					
+
 					NStr::CStr const &HostID = _NewActor.f_GetRealHostID();
-					
+
 					bool bAllowed = Namespace.m_Namespace.m_AllowedHosts.f_FindEqual(HostID);
-					
+
 					if (!bAllowed)
 					{
 						DMibLogWithCategory
@@ -318,15 +318,15 @@ namespace NMib::NConcurrency
 								, Warning
 								, "Encountered disallowed actor in namespace '{}' from host '{}'"
 								, NamespaceName
-								, _NewActor.f_GetHostInfo().f_GetDesc() 
+								, _NewActor.f_GetHostInfo().f_GetDesc()
 							)
 						;
 					}
-					
+
 					CTrustedActorInfo TrustInfo;
 					TrustInfo.m_HostInfo = _NewActor.f_GetHostInfo();
 					TrustInfo.m_UniqueHostID = _NewActor.f_GetUniqueHostID();
-					
+
 					for (auto TypeHash : _NewActor.f_GetTypeHashes())
 					{
 						auto &Type = Namespace.m_Types[TypeHash];
@@ -337,7 +337,7 @@ namespace NMib::NConcurrency
 						TypeActor.m_AbstractActor = _NewActor;
 						TypeActor.m_pHost = &Host;
 						Host.m_Actors.f_Insert(TypeActor);
-						
+
 						if (!bAllowed)
 							continue;
 						Type.m_AllowedActors.f_Insert(TypeActor);
@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 							NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> AddedActors;
 							auto &TrustedActor = AddedActors[_NewActor.f_GetIdentifier()];
 							TrustedActor.m_TrustInfo = TrustInfo;
-							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(TypeActor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion); 
+							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(TypeActor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion);
 							TrustedActor.m_Actor = fg_Move(NewActor);
 							pSubscription->f_AddDistributedActors(AddedActors) > fg_DiscardResult();
 						}
@@ -365,7 +365,7 @@ namespace NMib::NConcurrency
 					if (!pNamespace)
 						return;
 					auto &Namespace = *pNamespace;
-					
+
 					NContainer::TCVector<uint32> TypesToRemove;
 					for (auto &Type : Namespace.m_Types)
 					{
@@ -378,15 +378,15 @@ namespace NMib::NConcurrency
 							Type.m_AllowedActors.f_Remove(TypeActor);
 						auto &Host = *TypeActor.m_pHost;
 						Host.m_Actors.f_Remove(TypeActor);
-						
+
 						if (Host.m_Actors.f_IsEmpty())
 						{
 							Type.m_Hosts.f_Remove(&Host);
-						
+
 							if (Type.m_Hosts.f_IsEmpty() && Type.m_Subscriptions.f_IsEmpty())
 								TypesToRemove.f_Insert(pNamespace->m_Types.fs_GetKey(Type));
 						}
-						
+
 						if (!bWasAllowed)
 							continue;
 
@@ -414,17 +414,17 @@ namespace NMib::NConcurrency
 					Namespace.m_Subscription = fg_Move(*_Subscription);
 					Result.f_SetResult();
 				}
-				
+
 				for (auto &fOnSubscribe : Namespace.m_OnSubscribe)
 				{
 					if (fOnSubscribe(Result, Namespace))
 						return; // Deleted
 				}
 				Namespace.m_OnSubscribe.f_Clear();
-				
+
 				if (!_Subscription)
 					Namespace.m_Types.f_Clear();
-				
+
 				if (!Namespace.m_bExistsInDatabase)
 				{
 					Namespace.m_bExistsInDatabase = true;
@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 		;
 		return Promise.f_MoveFuture();
 	}
-	
+
 	void CDistributedActorTrustManager::fp_UnsubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
 	{
 		_pState->m_DispatchActor.f_Clear();
@@ -460,10 +460,10 @@ namespace NMib::NConcurrency
 		auto *pType = pNamespace->m_Types.f_FindEqual(_pState->m_TypeHash);
 		if (!pType)
 			return;
-		
+
 		pType->m_Subscriptions.f_Remove(_pState);
 		--pNamespace->m_nSubscriptions;
-		
+
 		if (pNamespace->m_nSubscriptions == 0)
 		{
 			if (pNamespace->m_bSubscribing)
@@ -482,7 +482,7 @@ namespace NMib::NConcurrency
 								return true;
 							}
 							return false;
-						}					
+						}
 					)
 				;
 				return;
@@ -493,7 +493,7 @@ namespace NMib::NConcurrency
 				Internal.m_Namespaces.f_Remove(pNamespace);
 			return;
 		}
-		
+
 		if (!pType->m_Subscriptions.f_IsEmpty())
 			return;
 		if (!pType->m_Actors.f_IsEmpty())

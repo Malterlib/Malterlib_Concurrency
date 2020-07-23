@@ -231,8 +231,8 @@ namespace NMib::NConcurrency
 									co_return {};
 
 								TCActorResultVector<void> Destroys;
-								pTicket->m_fOnUseTicket.f_Destroy() > Destroys.f_AddResult();
-								pTicket->m_fOnCertificateSigned.f_Destroy() > Destroys.f_AddResult();
+								fg_Move(pTicket->m_fOnUseTicket).f_Destroy() > Destroys.f_AddResult();
+								fg_Move(pTicket->m_fOnCertificateSigned).f_Destroy() > Destroys.f_AddResult();
 
 								Internal.m_Tickets.f_Remove(Token);
 

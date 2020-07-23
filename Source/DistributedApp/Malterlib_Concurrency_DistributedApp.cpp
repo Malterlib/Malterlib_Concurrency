@@ -683,7 +683,7 @@ namespace NMib::NConcurrency
 			Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
 		for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
-			Subscription.f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
 
 		co_await Destroys.f_GetResults();
 

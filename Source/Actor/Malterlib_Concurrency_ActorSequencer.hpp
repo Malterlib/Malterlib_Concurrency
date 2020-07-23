@@ -16,11 +16,11 @@ namespace NMib::NConcurrency
 	template <typename tf_FToSequence>
 	TCFuture<t_CReturnType> TCActorSequencer<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)
 	{
-		auto fQueueSequence = [this, fToSequence = fg_Move(_fToSequence)]() mutable -> TCFuture<t_CReturnType>
+		auto fQueueSequence = [pState = mp_pState, fToSequence = fg_Move(_fToSequence)]() mutable -> TCFuture<t_CReturnType>
 			{
 				TCPromise<t_CReturnType> Promise;
 
-				auto &State = *mp_pState;
+				auto &State = *pState;
 				if (State.m_bDestroyed)
 					return Promise <<= DMibErrorInstance("Sequencer has been aborted");
 
@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 
 				auto Future = ToSequence.m_Promise.f_Future();
 
-				fp_ProcessSequence();
+				State.f_ProcessSequence();
 
 				return fg_Move(Future);
 			}
@@ -42,6 +42,9 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	TCActorSequencer<t_CReturnType>::~TCActorSequencer()
 	{
+		if (!mp_pState)
+			return;
+		
 		auto &State = *mp_pState;
 		
 		for (auto &ToSequence : State.m_ToSequence)
@@ -54,10 +57,10 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	TCFuture<void> TCActorSequencer<t_CReturnType>::f_Abort()
 	{
-		auto fDoAbort = [this]() -> TCFuture<void>
+		auto fDoAbort = [pState = mp_pState]() -> TCFuture<void>
 			{
 				TCPromise<void> AbortPromise;
-				auto &State = *mp_pState;
+				auto &State = *pState;
 
 				for (auto &ToSequence : State.m_ToSequence)
 					ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer aborted"));
@@ -77,17 +80,16 @@ namespace NMib::NConcurrency
 	}
 	
 	template <typename t_CReturnType>
-	void TCActorSequencer<t_CReturnType>::fp_ProcessSequence()
+	void TCActorSequencer<t_CReturnType>::CState::f_ProcessSequence()
 	{
-		auto &State = *mp_pState;
-		
-		if (State.m_ToSequence.f_IsEmpty() || State.m_nRunning >= State.m_MaxConcurrency)
+		if (m_ToSequence.f_IsEmpty() || m_nRunning >= m_MaxConcurrency)
 			return;
 		
-		++State.m_nRunning;
+		++m_nRunning;
 		
-		auto ToSequence = State.m_ToSequence.f_Pop();
-		g_Dispatch / fg_Move(ToSequence.m_fToSequence) > [this, pState = mp_pState, Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
+		auto ToSequence = m_ToSequence.f_Pop();
+		g_Dispatch / fg_Move(ToSequence.m_fToSequence)
+			> [pState = NStorage::TCSharedPointer<CState>(fg_Explicit(this)), Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				Promise.f_SetResult(fg_Move(_Result));
 				
@@ -105,7 +107,7 @@ namespace NMib::NConcurrency
 					return;
 				}
 				
-				fp_ProcessSequence();
+				State.f_ProcessSequence();
 			}
 		;
 	}

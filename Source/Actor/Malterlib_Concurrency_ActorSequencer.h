@@ -13,7 +13,14 @@ namespace NMib::NConcurrency
 	{
 		TCActorSequencer(mint _MaxConcurrency = 1);
 		~TCActorSequencer();
-		
+
+		TCActorSequencer(TCActorSequencer &&_Other) = default;
+		TCActorSequencer& operator = (TCActorSequencer &&_Other) = default;
+
+		TCActorSequencer(TCActorSequencer const &_Other) = delete;
+		TCActorSequencer& operator = (TCActorSequencer const &_Other) = delete;
+
+
 		template <typename tf_FToSequence>
 		TCFuture<t_CReturnType> operator / (tf_FToSequence &&_fToSequence);
 		
@@ -26,17 +33,17 @@ namespace NMib::NConcurrency
 			NFunction::TCFunctionMovable<TCFuture<t_CReturnType> ()> m_fToSequence;
 		};
 		
-		struct CState
+		struct CState : public NStorage::TCSharedPointerIntrusiveBase<>
 		{
+			void f_ProcessSequence();
+
 			NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
 			NStorage::TCOptional<TCPromise<void>> m_AbortPromise;
 			mint m_MaxConcurrency = 1;
 			mint m_nRunning = 0;
 			bool m_bDestroyed = false;
 		};
-		
-		void fp_ProcessSequence();
-		
+
 		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 }

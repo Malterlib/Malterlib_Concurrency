@@ -118,6 +118,7 @@ namespace NMib::NConcurrency
 		try
 		{
 			uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
+			co_await _pCommandLine->f_StdOut(""); // Syncronize with output
 			co_return Result;
 		}
 		catch (CException const &_Exception)

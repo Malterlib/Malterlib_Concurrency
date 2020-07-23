@@ -139,36 +139,50 @@ namespace NMib::NConcurrency
 
 	void CCommandLineControl::operator +=(CStrSecure const &_StdOut) const
 	{
-		(void)f_StdOut(_StdOut);
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_StdOut) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStrSecure const &_StdErr) const
 	{
-		(void)f_StdErr(_StdErr);
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_StdErr) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CStr::CFormat const &_StdOut) const
 	{
-		(void)f_StdOut(CStr{_StdOut});
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(CStr{_StdOut}) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStr::CFormat const &_StdErr) const
 	{
-		(void)f_StdErr(CStr{_StdErr});
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(CStr{_StdErr}) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CStrSecure::CFormat const &_StdOut) const
 	{
-		(void)f_StdOut(_StdOut);
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_StdOut) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStrSecure::CFormat const &_StdErr) const
 	{
-		(void)f_StdErr(_StdErr);
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_StdErr) > fg_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CSecureByteVector const &_StdOut) const
 	{
-		(void)f_StdOutBinary(_StdOut);
+		if (!m_ControlActor)
+			return;
+		m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(_StdOut) > fg_DiscardResult();
 	}
 }

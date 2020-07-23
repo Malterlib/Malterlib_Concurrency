@@ -20,6 +20,9 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppActor;
 	struct CDistributedAppInterfaceClient;
+	struct CDistributedAppSensorReader_SensorFilter;
+	struct CDistributedAppSensorReader_SensorReadingFilter;
+	struct CDistributedAppSensorReader_SensorKeyAndReading;
 	struct CDistributedAppSensorStoreLocal;
 
 	struct CDistributedAppState
@@ -69,6 +72,13 @@ namespace NMib::NConcurrency
 
 		private:
 			TCWeakActor<CDistributedAppActor> mp_Actor;
+		};
+
+		enum ESensorOutputFlag : uint32
+		{
+			ESensorOutputFlag_None = 0
+			, ESensorOutputFlag_Verbose = DMibBit(0)
+			, ESensorOutputFlag_Json = DMibBit(1)
 		};
 
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
@@ -212,6 +222,49 @@ namespace NMib::NConcurrency
 		;
 		TCFuture<uint32> f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
 		TCFuture<uint32> f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCFuture<uint32> f_CommandLine_SensorList
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CDistributedAppSensorReader_SensorFilter const &_Filter
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_SensorListOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_SensorStatus
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CDistributedAppSensorReader_SensorFilter const &_Filter
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_SensorReadingsList
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+				, uint64 _MaxEntries
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_SensorReadingsOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
+	 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+				, uint64 _MaxEntries
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+			)
+		;
 
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 
@@ -235,6 +288,49 @@ namespace NMib::NConcurrency
 		void fp_BuildDefaultCommandLine_Logging(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_DistributedComputingAuthentication(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_DistributedComputing(CDistributedAppCommandLineSpecification &o_CommandLine);
+		void fp_BuildDefaultCommandLine_Sensor(CDistributedAppCommandLineSpecification &o_CommandLine);
+		void fp_BuildDefaultCommandLine_Sensor_Customizable
+			(
+				CDistributedAppCommandLineSpecification::CSection _Section
+				, NStr::CStr const &_Prefix
+				, TCActorFunctor
+				<
+					TCFuture<uint32>
+					(
+						NEncoding::CEJSON const &_Params
+						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+						, CDistributedAppSensorReader_SensorFilter const &_Filter
+						, ESensorOutputFlag _Flags
+						, NStr::CStr const &_TableType
+					)
+				> &&_fSensorList
+				, TCActorFunctor
+				<
+					TCFuture<uint32>
+					(
+						NEncoding::CEJSON const &_Params
+						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+						, CDistributedAppSensorReader_SensorFilter const &_Filter
+						, ESensorOutputFlag _Flags
+						, NStr::CStr const &_TableType
+					)
+				> &&_fSensorStatus
+				,
+				TCActorFunctor
+				<
+					TCFuture<uint32>
+					(
+						NEncoding::CEJSON const &_Params
+						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+						, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+						, uint64 _MaxEntries
+						, ESensorOutputFlag _Flags
+						, NStr::CStr const &_TableType
+					)
+				> && _fSensorReadingsList
+ 				, EDistributedAppCommandFlag _CommandFlags
+			)
+		;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
 
 		virtual TCFuture<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);

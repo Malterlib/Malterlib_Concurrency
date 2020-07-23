@@ -35,6 +35,7 @@ namespace NMib::NConcurrency
 		, EDefaultCommandLineFunctionality_DistributedComputing = DMibBit(2)
 		, EDefaultCommandLineFunctionality_Authentication = DMibBit(3)
 		, EDefaultCommandLineFunctionality_Terminal = DMibBit(4)
+		, EDefaultCommandLineFunctionality_Sensor = DMibBit(5)
 
 		, EDefaultCommandLineFunctionality_AllNoDistributedComputing
 		= EDefaultCommandLineFunctionality_Help
@@ -47,6 +48,7 @@ namespace NMib::NConcurrency
 		| EDefaultCommandLineFunctionality_DistributedComputing
 		| EDefaultCommandLineFunctionality_Authentication
 		| EDefaultCommandLineFunctionality_Terminal
+		| EDefaultCommandLineFunctionality_Sensor
 	};
 
 	struct CDistributedAppActor_InterfaceSettings

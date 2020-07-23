@@ -184,28 +184,90 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	void TCTrustedActorSubscription<t_CActor>::f_OnActor
+	TCFuture<void> TCTrustedActorSubscription<t_CActor>::f_OnActor
 		(
-			NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
-		 	, bool _bReportCurrent
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
+			, NStr::CStr const &_ErrorCategory
+			, NStr::CStr const &_ErrorPrefix
+			, bool _bReportCurrent
 		)
 	{
-		mp_pState->m_fOnNewActor = fg_Move(_fOnNewActor);
+		co_await ECoroutineFlag_AllowReferences;
+		auto pState = mp_pState;
+
+		pState->m_fOnNewActor = fg_Move(_fOnNewActor);
+		pState->m_NewActorErrorCategory = _ErrorCategory;
+		pState->m_NewActorErrorPrefix = _ErrorPrefix;
 
 		if (!_bReportCurrent)
-			return;
+			co_return {};
+
+		TCActorResultVector<void> Results;
 
 		for (auto &Actor : m_Actors)
-			mp_pState->m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo);
+			pState->m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo) > Results.f_AddResult();
+
+		for (auto &Result : co_await Results.f_GetResults())
+		{
+			if (!Result)
+			{
+				DMibLogCategoryStr(pState->f_NewActorErrorCategory());
+				DMibLog(Error, "{}: {}", pState->f_NewActorErrorPrefix(), Result.f_GetExceptionStr());
+			}
+		}
+
+		co_return {};
 	}
 
 	template <typename t_CActor>
 	void TCTrustedActorSubscription<t_CActor>::f_OnRemoveActor
 		(
-			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
+			TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
+			, NStr::CStr const &_ErrorCategory
+			, NStr::CStr const &_ErrorPrefix
 		)
 	{
-		mp_pState->m_fOnRemovedActor = fg_Move(_fOnRemovedActor);
+		auto &State = *mp_pState;
+
+		State.m_fOnRemovedActor = fg_Move(_fOnRemovedActor);
+		State.m_RemoveActorErrorCategory = _ErrorCategory;
+		State.m_RemoveActorErrorPrefix = _ErrorPrefix;
+	}
+
+	template <typename t_CActor>
+	NStr::CStr TCTrustedActorSubscription<t_CActor>::CState::f_NewActorErrorCategory() const
+	{
+		if (m_NewActorErrorCategory)
+			return m_NewActorErrorCategory;
+
+		return "Mib/Concurrency";
+	}
+
+	template <typename t_CActor>
+	NStr::CStr TCTrustedActorSubscription<t_CActor>::CState::f_NewActorErrorPrefix() const
+	{
+		if (m_NewActorErrorPrefix)
+			return m_NewActorErrorPrefix;
+
+		return "Failed to process on actor in actor subscription";
+	}
+
+	template <typename t_CActor>
+	NStr::CStr TCTrustedActorSubscription<t_CActor>::CState::f_RemoveActorErrorCategory() const
+	{
+		if (m_RemoveActorErrorCategory)
+			return m_RemoveActorErrorCategory;
+
+		return "Mib/Concurrency";
+	}
+
+	template <typename t_CActor>
+	NStr::CStr TCTrustedActorSubscription<t_CActor>::CState::f_RemoveActorErrorPrefix() const
+	{
+		if (m_RemoveActorErrorPrefix)
+			return m_RemoveActorErrorPrefix;
+
+		return "Failed to process on remove actor in actor subscription";
 	}
 
 	template <typename t_CActor>
@@ -214,10 +276,12 @@ namespace NMib::NConcurrency
 		return g_Future <<= fg_Dispatch
 			(
 				m_DispatchActor
-				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
+				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() -> TCFuture<void>
 				{
 					if (!m_pSubscription)
-						return;
+						co_return {};
+
+					TCActorResultVector<void> Results;
 
 					for (auto &Actor : _Actors)
 					{
@@ -228,9 +292,20 @@ namespace NMib::NConcurrency
 						if (Subscription.m_Actors(Identifier, TypedActor).f_WasCreated())
 						{
 							if (m_fOnNewActor)
-								m_fOnNewActor(TypedActor.m_Actor, TypedActor.m_TrustInfo);
+								m_fOnNewActor(TypedActor.m_Actor, TypedActor.m_TrustInfo) > Results.f_AddResult();
 						}
 					}
+
+					for (auto &Result : co_await Results.f_GetResults())
+					{
+						if (!Result)
+						{
+							DMibLogCategoryStr(pThis->f_NewActorErrorCategory());
+							DMibLog(Error, "{}: {}", pThis->f_NewActorErrorPrefix(), Result.f_GetExceptionStr());
+						}
+					}
+
+					co_return {};
 				}
 			)
 		;
@@ -242,10 +317,12 @@ namespace NMib::NConcurrency
 		return g_Future <<= fg_Dispatch
 			(
 				m_DispatchActor
-				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]
+				, [this, _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() -> TCFuture<void>
 				{
 					if (!m_pSubscription)
-						return;
+						co_return {};
+
+					TCActorResultVector<void> Results;
 
 					for (auto &Actor : _Actors)
 					{
@@ -257,9 +334,20 @@ namespace NMib::NConcurrency
 							auto Actor = pActor->m_Actor;
 							Subscription.m_Actors.f_Remove(pActor);
 							if (m_fOnRemovedActor)
-								m_fOnRemovedActor(Actor.f_Weak(), fg_Move(TrustInfo));
+								m_fOnRemovedActor(Actor.f_Weak(), fg_Move(TrustInfo)) > Results.f_AddResult();
 						}
 					}
+
+					for (auto &Result : co_await Results.f_GetResults())
+					{
+						if (!Result)
+						{
+							DMibLogCategoryStr(pThis->f_RemoveActorErrorCategory());
+							DMibLog(Error, "{}: {}", pThis->f_RemoveActorErrorPrefix(), Result.f_GetExceptionStr());
+						}
+					}
+
+					co_return {};
 				}
 			)
 		;

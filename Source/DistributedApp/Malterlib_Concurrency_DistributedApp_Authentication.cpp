@@ -649,70 +649,54 @@ namespace NMib::NConcurrency
 
 		mp_AuthenticationRemotes = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<ICDistributedActorAuthentication>();
 
-		auto fOnActor = [=, UserID = fg_Move(UserID)](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
-			{
-				TCPromise<void> Promise;
-
-				mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
-
-				_NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
-					(
-						mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
-						, UserID
-					)
-					> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
-					{
-						if (!_Subscription)
-						{
-							Promise.f_SetException(_Subscription);
-							DMibLogWithCategory
-								(
-									Mib/Concurrency/App
-									, Error
-									, "Registeration of authentication handler interface for server {} failed: {}"
-									, HostInfo.f_GetDesc()
-									, _Subscription.f_GetExceptionStr()
-								)
-							;
-							return;
-						}
-
-						DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler for remote {}", HostInfo.f_GetDesc());
-
-						if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
-							pSubscription->m_Subscription = fg_Move(*_Subscription);
-
-						Promise.f_SetResult();
-					}
-				;
-
-				return Promise.f_MoveFuture();
-			}
-		;
-
-		mp_AuthenticationRemotes.f_OnActor
+		co_await mp_AuthenticationRemotes.f_OnActor
 			(
-				[fOnActor](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo)
+				g_ActorFunctor / [this, UserID](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
 				{
-					fOnActor(_NewActor, _ActorInfo) > fg_DiscardResult();
+					mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
+
+					auto Subscription = co_await _NewActor.f_CallActor(&ICDistributedActorAuthentication::f_RegisterAuthenticationHandler)
+						(
+							mp_AuthenticationHandlerImplementation->f_ShareInterface<ICDistributedActorAuthenticationHandler>()
+							, UserID
+						)
+						.f_Wrap()
+					;
+
+					if (!Subscription)
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/App
+								, Error
+								, "Registration of authentication handler interface for server {} failed: {}"
+								, _ActorInfo.m_HostInfo.f_GetDesc()
+								, Subscription.f_GetExceptionStr()
+							)
+						;
+
+						co_return Subscription.f_GetException();
+					}
+
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered authentication handler for remote {}", _ActorInfo.m_HostInfo.f_GetDesc());
+
+					if (auto pSubscription = mp_AuthenticationRegistrationSubscriptions.f_FindEqual(_NewActor))
+						pSubscription->m_Subscription = fg_Move(*Subscription);
+
+					co_return {};
 				}
-				, false
 			)
 		;
 		mp_AuthenticationRemotes.f_OnRemoveActor
 			(
-				[this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)
+				g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
 				{
 					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
+					
+					co_return {};
 				}
 			)
 		;
-
-		TCActorResultVector<void> SubscribeResults;
-		for (auto &Actor : mp_AuthenticationRemotes.m_Actors)
-			fOnActor(Actor.m_Actor, Actor.m_TrustInfo) > SubscribeResults.f_AddResult();
-
-		co_await SubscribeResults.f_GetResults() | g_Unwrap;
 
 		co_return fg_Move(Subscription);
 	}

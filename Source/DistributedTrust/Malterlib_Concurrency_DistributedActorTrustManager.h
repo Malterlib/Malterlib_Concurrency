@@ -53,18 +53,42 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy();
 		bool f_IsEmpty() const;
 
-		void f_OnActor(NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor, bool _bReportCurrent = true);
-		void f_OnRemoveActor(NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor);
+		TCFuture<void> f_OnActor
+			(
+				TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
+				, NStr::CStr const &_ErrorCategory = {}
+				, NStr::CStr const &_ErrorPrefix = {}
+				, bool _bReportCurrent = true
+			)
+		;
+		void f_OnRemoveActor
+			(
+				TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
+				, NStr::CStr const &_ErrorCategory = {}
+				, NStr::CStr const &_ErrorPrefix = {}
+			)
+		;
 		
 	private:
 		friend class CDistributedActorTrustManager;
 		
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
-			NFunction::TCFunctionMovable<void (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
-			NFunction::TCFunctionMovable<void (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> m_fOnRemovedActor;
 			TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
 			TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
+
+			NStr::CStr f_NewActorErrorCategory() const;
+			NStr::CStr f_NewActorErrorPrefix() const;
+			NStr::CStr f_RemoveActorErrorCategory() const;
+			NStr::CStr f_RemoveActorErrorPrefix() const;
+
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
+			TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> m_fOnRemovedActor;
+			NStr::CStr m_NewActorErrorCategory;
+			NStr::CStr m_NewActorErrorPrefix;
+			NStr::CStr m_RemoveActorErrorCategory;
+			NStr::CStr m_RemoveActorErrorPrefix;
+
 			
 			TCTrustedActorSubscription *m_pSubscription;
 		};

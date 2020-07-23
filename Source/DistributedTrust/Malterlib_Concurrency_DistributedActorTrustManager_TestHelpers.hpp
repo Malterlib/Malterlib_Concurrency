@@ -47,8 +47,8 @@ namespace NMib::NConcurrency
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor
 					(
-						[this, Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
-						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
+						g_ActorFunctor / [this, Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
+						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable -> TCFuture<void>
 						{
 							if (!_HostID || _ActorInfo.m_HostInfo.m_HostID == _HostID)
 							{
@@ -76,8 +76,11 @@ namespace NMib::NConcurrency
 								else
 									DTestHelpersDebug("ALREADY SET {vs}\n", Actors);
 							}
+
+							co_return {};
 						}
 					)
+					> fg_DiscardResult()
 				;
 				mp_Subscriptions.f_Insert(fg_Move(pSubscription));
 			}

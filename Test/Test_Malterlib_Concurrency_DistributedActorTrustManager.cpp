@@ -1490,18 +1490,23 @@ namespace NTestTrustManager
 
 					TrustedSubscription0.f_OnActor
 						(
-							[&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo)
+							g_ActorFunctor / [&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
 							{
 								++nActors;
+
+								co_return {};
 							}
 						)
+						> fg_DiscardResult()
 					;
 
 					TrustedSubscription0.f_OnRemoveActor
 						(
-							[&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo)
+							g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
 							{
 								--nActors;
+
+								co_return {};
 							}
 						)
 					;

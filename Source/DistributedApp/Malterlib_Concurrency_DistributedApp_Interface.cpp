@@ -148,9 +148,10 @@ namespace NMib::NConcurrency
 		
 		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<CDistributedAppInterfaceServer>();
 
-		Internal.m_AppInteraceServerSubscription.f_OnActor
+		co_await Internal.m_AppInteraceServerSubscription.f_OnActor
 			(
-				[=, RegisterInfo = fg_Move(RegisterInfo)](TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable
+				g_ActorFunctor / [=, RegisterInfo = fg_Move(RegisterInfo)]
+				(TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 

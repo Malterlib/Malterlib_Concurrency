@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -10,6 +10,7 @@
 #include <Mib/File/DirectoryManifest>
 
 #include "Malterlib_Concurrency_DistributedApp_Settings.h"
+#include "Malterlib_Concurrency_DistributedApp_SensorReporter.h"
 
 namespace NMib::NConcurrency
 {
@@ -79,6 +80,7 @@ namespace NMib::NConcurrency
 		CDistributedAppInterfaceServer();
 		~CDistributedAppInterfaceServer();
 
+		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 			(
 				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface

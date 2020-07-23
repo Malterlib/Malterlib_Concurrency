@@ -101,6 +101,10 @@ Target
 		}
 	}
 
+	%Dependency "Lib_Malterlib_Database"
+	{
+		Dependency.Indirect true
+	}
 	%Dependency "Lib_Malterlib_Web"
 	{
 		Dependency.Indirect true

@@ -151,6 +151,11 @@ namespace NMib::NConcurrency
 		co_return g_ActorSubscription / []{};
 	}
 
+	TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_GetSensorReporter()
+	{
+		co_return {};
+	}
+
 	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
 		: m_Dependencies(_Dependencies)
 		, m_bLogToStderr(_bLogToStderr)

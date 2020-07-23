@@ -682,6 +682,18 @@ namespace NMib::NConcurrency
 		if (Internal.m_CleanupFilesActor)
 			Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
+		Internal.m_AppSensorStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
+		Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+
+		if (Internal.m_AppSensorStoreLocal)
+			fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys.f_AddResult();
+
+		if (Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription)
+			fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+		
+		if (Internal.m_AppSensorStoreLocalAppServerChangeSubscription)
+			fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
 		for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
 			fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
 

@@ -75,6 +75,7 @@ namespace NMib::NConcurrency
 					, CRegisterInfo const &_RegisterInfo
 				) override
 			;
+			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
 
 			CDistributedApp_LaunchHelper *m_pThis = nullptr;
 #			ifdef DMibDebug

@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <Mib/Concurrency/DistributedAppSensorStoreLocal>
+
 namespace NMib::NConcurrency
 {
-	struct CDistributedAppActor::CDistributedAppInterfaceClientImplementation : public CDistributedAppInterfaceClient 
+	struct CDistributedAppActor::CDistributedAppInterfaceClientImplementation : public CDistributedAppInterfaceClient
 	{
 		NConcurrency::TCFuture<void> f_GetAppStartResult() override;
 		NConcurrency::TCFuture<void> f_PreUpdate() override;
@@ -54,6 +56,12 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)>>
 			m_AppInterfaceServerChangeSubscriptions
 		;
+
+		TCActor<CDistributedAppSensorStoreLocal> m_AppSensorStoreLocal;
+		TCActorSequencerAsync<void> m_AppSensorStoreLocalInitSequencer;
+		CActorSubscription m_AppSensorStoreLocalAppServerChangeSubscription;
+		CActorSubscription m_AppSensorStoreLocalExtraSensorInterfaceSubscription;
+		TCActorSequencerAsync<void> m_AppSensorStoreLocalAppServerChangeSequencer;
 
 		bool m_bDelegateTrustToAppInterface = false;
 #if DMibEnableSafeCheck > 0

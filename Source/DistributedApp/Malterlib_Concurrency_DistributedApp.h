@@ -20,6 +20,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppActor;
 	struct CDistributedAppInterfaceClient;
+	struct CDistributedAppSensorStoreLocal;
 
 	struct CDistributedAppState
 	{
@@ -286,6 +287,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		auto fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>;
+		TCFuture<TCActor<CDistributedAppSensorStoreLocal>> fp_OpenSensorStoreLocal();
+
 		struct CLocalAppState : public CDistributedAppState
 		{
 			CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor);
@@ -303,7 +307,6 @@ namespace NMib::NConcurrency
 		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;
 		NContainer::TCMap<TCWeakDistributedActor<ICDistributedActorAuthentication>, CRegisteredAuthentication> mp_AuthenticationRegistrationSubscriptions;
-
 
 	private:
 		struct CDistributedAppInterfaceClientImplementation;

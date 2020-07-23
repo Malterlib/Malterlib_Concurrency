@@ -29,6 +29,7 @@ namespace NMib::NConcurrency
 	CDistributedAppInterfaceServer::CDistributedAppInterfaceServer()
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_RegisterDistributedApp);
+		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetSensorReporter);
 	}
 	
 	CDistributedAppInterfaceServer::~CDistributedAppInterfaceServer() = default;

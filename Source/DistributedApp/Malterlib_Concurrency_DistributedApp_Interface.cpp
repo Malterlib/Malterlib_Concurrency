@@ -5,6 +5,7 @@
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Process/StdInActor>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
+#include <Mib/Concurrency/LogError>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
@@ -16,7 +17,8 @@ namespace NMib::NConcurrency
 	using namespace NWeb::NHTTP;
 	using namespace NProcess;
 	using namespace NContainer;
-	
+	using namespace NCryptography;
+
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
 		auto pThis = m_pThis;
@@ -24,20 +26,20 @@ namespace NMib::NConcurrency
 
 		if (Internal.m_AppStartupResult.f_IsSet())
 			co_return Internal.m_AppStartupResult;
-		
+
 		co_return co_await Internal.m_DeferredAppStartupResults.f_Insert().f_Future();
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreUpdate()
 	{
 		return m_pThis->fp_PreUpdate();
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_PreStop()
 	{
 		return m_pThis->fp_PreStop();
 	}
-	
+
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
 		(
 			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
@@ -50,17 +52,17 @@ namespace NMib::NConcurrency
 
 		co_return co_await m_pThis->self(&CDistributedAppActor::fp_StartBackup, fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot);
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_PreUpdate()
 	{
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_PreStop()
 	{
 		co_return {};
 	}
-	
+
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_StartBackup
 		(
 			TCDistributedActorInterface<CDistributedAppInterfaceBackup> &&_BackupInterface
@@ -72,7 +74,7 @@ namespace NMib::NConcurrency
 	}
 
 	CDistributedAppActor::CLocalAppState::CLocalAppState(CDistributedAppActor_Settings const &_Settings, CDistributedAppActor &_AppActor)
-		: CDistributedAppState(_Settings) 
+		: CDistributedAppState(_Settings)
 		, mp_AppActor(_AppActor)
 	{
 	}
@@ -86,7 +88,7 @@ namespace NMib::NConcurrency
 	{
 		co_return DMibErrorInstance("Copied app state does not support this");
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::CLocalAppState::f_SaveStateDatabase()
 	{
 		return mp_AppActor.fp_SaveStateDatabase();
@@ -110,7 +112,7 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_SaveConfigDatabase()
 	{
 		auto Result = co_await mp_State.m_ConfigDatabase.f_Save().f_Wrap();
@@ -124,28 +126,59 @@ namespace NMib::NConcurrency
 
 		co_return {};
 	}
-	
+
 	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
 	{
 	}
-	
+
+	TCFuture<CActorSubscription> CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
+		(
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)> &&_fOnChangeInterfaceServer
+		)
+	{
+		if (f_IsDestroyed())
+			co_return DMibErrorInstance("Shutting down");
+
+		auto &Internal = *mp_pInternal;
+
+		CStr SubscriptionID = fg_RandomID(Internal.m_AppInterfaceServerChangeSubscriptions);
+
+		auto &fOnChangeInterfaceServer = Internal.m_AppInterfaceServerChangeSubscriptions[SubscriptionID];
+		fOnChangeInterfaceServer = fg_Move(_fOnChangeInterfaceServer);
+
+		if (mp_State.m_AppInterfaceServer)
+		{
+			auto Result = co_await fOnChangeInterfaceServer(mp_State.m_AppInterfaceServer, mp_State.m_AppInterfaceServerActorInfo).f_Wrap();
+			if (!Result)
+				DMibLogWithCategory(Mib/Concurrency/App, Error, "Exception when reporting app interface server change");
+		}
+
+		co_return g_ActorSubscription / [this, SubscriptionID]
+			{
+				auto &Internal = *mp_pInternal;
+
+				Internal.m_AppInterfaceServerChangeSubscriptions.f_Remove(SubscriptionID);
+			}
+		;
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params)
 	{
 		auto &Internal = *mp_pInternal;
 
 		Internal.m_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
-		
+
 		if (Internal.m_bDelegateTrustToAppInterface)
 		{
 			CDistributedActorTrustManagerProxy::CPermissions Permissions;
 			Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
 			Internal.m_AppInterfaceClientTrustProxy = mp_State.m_DistributionManager->f_ConstructActor<CDistributedActorTrustManagerProxy>(mp_State.m_TrustManager, Permissions);
 		}
-		
+
 		CDistributedAppInterfaceServer::CRegisterInfo RegisterInfo;
 		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
 		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
-		
+
 		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<CDistributedAppInterfaceServer>();
 
 		co_await Internal.m_AppInteraceServerSubscription.f_OnActor
@@ -168,29 +201,45 @@ namespace NMib::NConcurrency
 					if (Internal.m_AppInterfaceClientTrustProxy)
 						TrustInterface = Internal.m_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 
-					_NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
-						> [=, HostInfo = _ActorInfo.m_HostInfo](TCAsyncResult<TCActorSubscriptionWithID<>> &&_Subscription)
-						{
-							if (!_Subscription)
-							{
-								DMibLogWithCategory
-									(
-										Mib/Concurrency/App
-										, Error
-										, "Register with app interface server {} failed: {}"
-										, HostInfo.f_GetDesc()
-										, _Subscription.f_GetExceptionStr()
-									)
-								;
-								return;
-							}
-							DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", HostInfo.f_GetDesc());
-
-							auto &Internal = *mp_pInternal;
-
-							Internal.m_AppInterfaceClientRegistrationSubscription = fg_Move(*_Subscription);
-						}
+					auto Subscription = co_await _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)
+						(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
+						.f_Wrap()
 					;
+					if (!Subscription)
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/App
+								, Error
+								, "Register with app interface server {} failed: {}"
+								, _ActorInfo.m_HostInfo.f_GetDesc()
+								, Subscription.f_GetExceptionStr()
+							)
+						;
+						co_return {};
+					}
+
+					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", _ActorInfo.m_HostInfo.f_GetDesc());
+
+					Internal.m_AppInterfaceClientRegistrationSubscription = fg_Move(*Subscription);
+					mp_State.m_AppInterfaceServer = _NewActor;
+					mp_State.m_AppInterfaceServerActorInfo = _ActorInfo;
+
+					TCActorResultVector<void> OnChangeResults;
+
+					for (auto &fOnChangeInterfaceServer : Internal.m_AppInterfaceServerChangeSubscriptions)
+					{
+						if (fOnChangeInterfaceServer)
+							fOnChangeInterfaceServer(_NewActor, _ActorInfo) > OnChangeResults.f_AddResult();
+					}
+
+					for (auto &OnChangeResult : co_await OnChangeResults.f_GetResults())
+					{
+						if (!OnChangeResult)
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Exception when reporting app interface server change: {}", OnChangeResult.f_GetExceptionStr());
+					}
+
+					co_return {};
 				}
 			)
 		;
@@ -204,27 +253,27 @@ namespace NMib::NConcurrency
 
 		if (Internal.m_pStdInCleanup)
 			co_return DMibErrorInstance("A ticket is already being requested");
-		
+
 		struct CState
 		{
 			TCActor<CStdInActor> m_StdInActor;
 			CActorSubscription m_StdInSubscription;
-			
+
 			void f_Clear()
 			{
 				m_StdInSubscription.f_Clear();
 				fg_Move(m_StdInActor).f_Destroy() > fg_DiscardResult();
 			}
 		};
-		
+
 		NStorage::TCSharedPointer<CState> pState = fg_Construct();
-		
+
 		Internal.m_pStdInCleanup = g_OnScopeExitActor > [pState]
 			{
 				pState->f_Clear();
 			}
 		;
-		
+
 		pState->m_StdInActor = fg_ConstructActor<CStdInActor>();
 
 		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
@@ -272,10 +321,10 @@ namespace NMib::NConcurrency
 				pState->m_StdInSubscription = fg_Move(_Subscription);
 			}
 		;
-		
+
 		co_return co_await Promise.f_MoveFuture();
 	}
-	
+
 	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON _Params)
 	{
 		auto &Internal = *mp_pInternal;
@@ -291,7 +340,7 @@ namespace NMib::NConcurrency
 		CStr CurrentServerAddress;
 		if (auto pValue = mp_State.m_StateDatabase.m_Data.f_GetMember("DistributedAppInterfaceServerAddress", EJSONType_String))
 			CurrentServerAddress = pValue->f_String();
-		
+
 		auto [bHasCurrent, bHasExpected] = co_await
 			(
 			 	mp_State.m_TrustManager

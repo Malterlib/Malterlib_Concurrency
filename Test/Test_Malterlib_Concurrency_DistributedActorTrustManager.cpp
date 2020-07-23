@@ -882,9 +882,10 @@ namespace NTestTrustManager
 					ServerAddress.m_URL = "wss://localhost:31414/";
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
 
+					CHostInfo HostInfo;
 					{
 						auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
-						ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
+						HostInfo = ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
 					}
 
 					CDistributedActorTestHelper ServerHelper{ServerTrustManager};
@@ -945,7 +946,7 @@ namespace NTestTrustManager
 
 					DispatchActor->f_BlockDestroy();
 
-					DMibExpect(DispatchError, ==, "Remote host no longer running");
+					DMibExpect(DispatchError, ==, ("Remote host '{} [TestServer]' no longer running"_f << HostInfo.m_HostID).f_GetStr());
 					DMibExpect(nCalls, >, 1u);
 
 					ServerTrustManager->f_BlockDestroy();

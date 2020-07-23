@@ -86,10 +86,10 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception)
+	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception, NStr::CStr const &_CallStack)
 	{
-		DMibDTrace("Unobserved exception in future: {}\n", NException::fg_ExceptionString(_Exception));
-		DMibLog(Error, "Unobserved exception in future: {}", NException::fg_ExceptionString(_Exception));
+		DMibDTrace2("Unobserved exception in future: {}{}\n", NException::fg_ExceptionString(_Exception), _CallStack);
+		DMibLog(Error, "Unobserved exception in future: {}{}", NException::fg_ExceptionString(_Exception), _CallStack);
 	}
 
 #if DMibConfig_Concurrency_DebugFutures

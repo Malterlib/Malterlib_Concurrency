@@ -1,4 +1,4 @@
-// Copyright © 2015 Hansoft AB 
+// Copyright © 2015 Hansoft AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #define DMibRuntimeTypeRegistry
@@ -196,8 +196,10 @@ namespace NMib::NConcurrency
 
 		Host.m_Outgoing_CurrentPacketID = 0;
 
+		using namespace NStr;
+
 		for (auto &Call : Host.m_OutstandingCalls)
-			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host no longer running"));
+			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host '{}' no longer running"_f << Host.f_GetHostInfo()));
 		Host.m_OutstandingCalls.f_Clear();
 
 		Host.m_ImplicitlyPublishedActors.f_Clear();

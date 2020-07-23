@@ -225,6 +225,11 @@ Property
 		!!MalterlibConcurrency_DebugActorCallstacks ""
 	}
 
+	MalterlibConcurrency_DebugUnobservedException "" // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
+	{
+		!!MalterlibConcurrency_DebugUnobservedException ""
+	}
+
 	MalterlibConcurrency_DebugBlockDestroy "" // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
 	{
 		!!MalterlibConcurrency_DebugBlockDestroy ""
@@ -242,6 +247,10 @@ Compile
 	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks;@(Compile.PreprocessorDefines)"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks true
+	}
+	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedExceptions;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugUnobservedException true
 	}
 	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy;@(Compile.PreprocessorDefines)"
 	{
@@ -268,6 +277,15 @@ Compile
 	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks=0;@(Compile.PreprocessorDefines)"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks false
+	}
+
+	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedException=1;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugUnobservedException true
+	}
+	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedException=0;@(Compile.PreprocessorDefines)"
+	{
+		!!MalterlibConcurrency_DebugUnobservedException false
 	}
 
 	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy=1;@(Compile.PreprocessorDefines)"

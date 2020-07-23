@@ -289,7 +289,7 @@ namespace NMib::NConcurrency::NPrivate
 		}
 	};
 
-	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception);
+	void fg_ReportUnobservedException(NException::CExceptionPointer const &_Exception, NStr::CStr const &_CallStack = {});
 
 	enum EConsumeFutureOnResultSetFlag : uint32
 	{
@@ -364,6 +364,9 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 		TCWeakActor<> m_CoroutineOwner;
 		bool m_bFutureGotten = false;
+#endif
+#if DMibConfig_Concurrency_DebugUnobservedException
+		NException::CCallstack m_Callstack;
 #endif
 	};
 }

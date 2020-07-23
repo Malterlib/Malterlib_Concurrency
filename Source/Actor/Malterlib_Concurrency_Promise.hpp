@@ -690,6 +690,9 @@ namespace NMib::NConcurrency::NPrivate
 		, CPromiseDataBase(fg_GetTypeName<t_CReturnValue>())
 #endif
 	{
+#if DMibConfig_Concurrency_DebugUnobservedException
+		m_Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_Callstack.m_Callstack, 128);
+#endif
 	}
 
 	template <typename t_CReturnValue>
@@ -720,7 +723,13 @@ namespace NMib::NConcurrency::NPrivate
 		else if (((PreviousFlags & (EFutureResultFlag_DataSet | EFutureResultFlag_ResultFunctorSet | EFutureResultFlag_DiscardResult)) == EFutureResultFlag_DataSet) && !m_bIsGenerator)
 		{
 			if (!m_Result)
+			{
+#if DMibConfig_Concurrency_DebugUnobservedException
+				fg_ReportUnobservedException(m_Result.f_GetException(), "\n" + m_Callstack.f_GetString(4));
+#else
 				fg_ReportUnobservedException(m_Result.f_GetException());
+#endif
+			}
 		}
 	}
 

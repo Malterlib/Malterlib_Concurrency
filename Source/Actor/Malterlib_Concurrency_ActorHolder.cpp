@@ -50,6 +50,12 @@ namespace NMib::NConcurrency
 	}
 #endif
 
+	CDistributedActorHostInfo CActorHolder::f_GetHostInfo()
+	{
+		if (!mp_pDistributedActorData)
+			return {};
+		return mp_pDistributedActorData->f_GetHostInfo();
+	}
 
 	NStorage::TCSharedPointer<ICDistributedActorData> &CActorHolder::f_GetDistributedActorData()
 	{

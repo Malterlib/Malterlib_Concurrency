@@ -142,6 +142,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<ICDistributedActorData> &f_GetDistributedActorData();
 		NStorage::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
+		CDistributedActorHostInfo f_GetHostInfo();
 
 #if DMibConfig_Tests_Enable
 		void f_TestDetach();

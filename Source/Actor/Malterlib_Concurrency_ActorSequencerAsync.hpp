@@ -13,7 +13,61 @@ namespace NMib::NConcurrency
 	{
 		mp_pState->m_MaxConcurrency = _MaxConcurrency;
 	}
-	
+
+	template <typename t_CReturnType>
+	mint TCActorSequencerAsync<t_CReturnType>::f_NumWaiting() const
+	{
+		auto &State = *mp_pState;
+		return State.m_ToSequence.f_GetLen();
+	}
+
+	template <typename t_CReturnType>
+	TCFuture<CActorSubscription> TCActorSequencerAsync<t_CReturnType>::f_Sequence()
+	{
+		static_assert(NTraits::TCIsSame<t_CReturnType, void>::mc_Value);
+
+		TCPromise<CActorSubscription> Promise;
+
+		auto fQueueSequence = [this, Promise]() mutable
+			{
+				auto &State = *mp_pState;
+				if (State.m_bDestroyed)
+				{
+					Promise.f_SetException(DMibErrorInstance("Sequencer has been aborted"));
+					return;
+				}
+
+				auto &ToSequence = State.m_ToSequence.f_Insert(CToSequenceEntry{});
+				ToSequence.m_fToSequence = [Promise](CActorSubscription &&_DoneSubscription) -> TCFuture<void>
+					{
+						TCPromise<void> NewPromise;
+
+						if (!Promise.f_IsSet())
+							Promise.f_SetResult(fg_Move(_DoneSubscription));
+
+						return NewPromise <<= g_Void;
+					}
+				;
+
+				ToSequence.m_Promise.f_Future() > [Promise](TCAsyncResult<void> &&_Result)
+					{
+						if (!Promise.f_IsSet() && !_Result)
+							Promise.f_SetException(fg_Move(_Result));
+					}
+				;
+
+				fp_ProcessSequence();
+			}
+		;
+
+		if (fg_CurrentActorProcessing())
+			fQueueSequence();
+
+		g_Dispatch / fg_Move(fQueueSequence) > fg_DiscardResult();
+
+		return Promise.f_MoveFuture();
+	}
+
 	template <typename t_CReturnType>
 	template <typename tf_FToSequence>
 	TCFuture<t_CReturnType> TCActorSequencerAsync<t_CReturnType>::operator / (tf_FToSequence &&_fToSequence)

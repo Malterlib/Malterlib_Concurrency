@@ -16,8 +16,9 @@ namespace NMib::NConcurrency
 		
 		template <typename tf_FToSequence>
 		TCFuture<t_CReturnType> operator / (tf_FToSequence &&_fToSequence);
-		
+		TCFuture<CActorSubscription> f_Sequence();
 		TCFuture<void> f_Abort();
+		mint f_NumWaiting() const;
 		
 	private:
 		struct CToSequenceEntry

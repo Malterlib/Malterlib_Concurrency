@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 		~CFutureCoroutineContext() noexcept;
 
 		inline_always CSuspendNever initial_suspend() noexcept;
-		CSuspendNever final_suspend();
+		CSuspendNever final_suspend() noexcept;
 
 		template <typename t_CThis, ECoroutineFlag tf_Flags>
 		decltype(auto) await_transform(TCFutureForwardThis<t_CThis, tf_Flags> &&_MoveThis)

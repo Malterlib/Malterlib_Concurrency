@@ -19,7 +19,7 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
-	CSuspendNever CFutureCoroutineContext::final_suspend()
+	CSuspendNever CFutureCoroutineContext::final_suspend() noexcept
 	{
 		if (m_pPreviousCoroutineHandler != this)
 		{

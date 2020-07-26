@@ -438,42 +438,16 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
-	auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
+	inline_always auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CIsCallableWith = NTraits::TCIsCallableWith
-			<
-				typename NTraits::TCRemoveReference<tf_FToDispatch>::CType
-				, void (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)
-			>
+		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+
+		return NPrivate::fg_DispatchGenericImpl<false>
+			(
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				, _Actor
+				, fg_Forward<tf_FToDispatch>(_fDispatch)
+			)
 		;
-		static_assert(CIsCallableWith::mc_Value);
-		using CReturnType = typename CIsCallableWith::CReturnType;
-
-		if constexpr (NPrivate::TCIsFuture<typename CIsCallableWith::CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
-		{
-			return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CParams...>>
-				(
-					NFunction::TCFunctionMovable<CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>(fg_Forward<tf_FToDispatch>(_fDispatch))
-					, fg_CopyOrMove(fg_Forward<tfp_CParams>(p_Params))...
-				)
-			;
-		}
-		else
-		{
-			static_assert(!NPrivate::TCIsPromise<typename CIsCallableWith::CReturnType>::mc_Value);
-
-			return _Actor.f_CallByValue<&CActor::f_DispatchWithReturn<TCFuture<CReturnType>, tfp_CParams...>>
-				(
-					NFunction::TCFunctionMovable<TCFuture<CReturnType> (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)>
-					(
-						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable -> TCFuture<CReturnType>
-						{
-							return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
-						}
-					)
-					, fg_CopyOrMove(fg_Forward<tfp_CParams>(p_Params))...
-				)
-			;
-		}
 	}
 }

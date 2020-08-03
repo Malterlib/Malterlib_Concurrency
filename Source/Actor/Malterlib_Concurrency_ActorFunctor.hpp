@@ -25,7 +25,8 @@ namespace NMib::NConcurrency
 			return;
 
 		// Destroy functor on correct actor
-		fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
+		if (!mp_Actor->f_IsCurrentActorAndProcessing())
+			fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
 	}
 
 	template <typename t_CFunction>
@@ -187,7 +188,12 @@ namespace NMib::NConcurrency
 		auto Subscription = fg_Move(f_GetSubscription());
 
 		if (mp_Actor && mp_pFunctor)
-			co_await fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
+		{
+			if (mp_Actor->f_IsCurrentActor())
+				mp_pFunctor.f_Clear();
+			else
+				co_await fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_Wrap();
+		}
 
 		if (Subscription)
 			co_await Subscription->f_Destroy();
@@ -217,7 +223,10 @@ namespace NMib::NConcurrency
 		if (mp_Actor && mp_pFunctor)
 		{
 			// Destroy functor on correct actor
-			fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
+			if (mp_Actor->f_IsCurrentActorAndProcessing())
+				mp_pFunctor.f_Clear();
+			else
+				fg_Dispatch(mp_Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
 		}
 
 		mp_Actor.f_Clear();

@@ -37,7 +37,8 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		auto CurrentActor = fg_CurrentActor();
-		DMibFastCheck(fg_CurrentActor());
+		DMibFastCheck(CurrentActor);
+		DMibFastCheck(fg_CurrentActorProcessing());
 #endif
 
 		auto &CoroutineContext = _Handle.promise();
@@ -53,7 +54,7 @@ namespace NMib::NConcurrency
 						return; // Can happen when f_Suspend throws
 
 					auto CurrentActor = fg_CurrentActor();
-					DMibFastCheck(fg_CurrentActor());
+					DMibFastCheck(CurrentActor);
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
 #endif
 
@@ -239,6 +240,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
+		DMibFastCheck(fg_CurrentActorProcessing());
 #endif
 		auto &CoroutineContext = _Handle.promise();
 

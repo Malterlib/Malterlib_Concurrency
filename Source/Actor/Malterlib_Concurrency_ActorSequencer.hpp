@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 				return fg_Move(Future);
 			}
 		;
-		if (fg_CurrentActorRunning())
+		if (fg_CurrentActorProcessing())
 			return fQueueSequence();
 		return g_Future <<= g_Dispatch / fg_Move(fQueueSequence);
 	}
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 					return AbortPromise <<= g_Void;
 			}
 		;
-		if (fg_CurrentActorRunning())
+		if (fg_CurrentActorProcessing())
 			return fDoAbort();
 		return g_Future <<= g_Dispatch / fg_Move(fDoAbort);
 	}

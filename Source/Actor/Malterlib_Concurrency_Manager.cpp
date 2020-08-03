@@ -60,12 +60,16 @@ namespace NMib::NConcurrency
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
 	}
 
-	bool fg_CurrentActorRunning()
+	bool fg_CurrentActorProcessing()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (!ThreadLocal.m_pCurrentActor || !ThreadLocal.m_pCurrentlyProcessingActorHolder)
+		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return false;
-		return ThreadLocal.m_pCurrentlyProcessingActorHolder->f_OwnsActor(ThreadLocal.m_pCurrentActor);
+
+		if (ThreadLocal.m_pCurrentActor)
+			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(ThreadLocal.m_pCurrentlyProcessingActorHolder);
+		else
+			return true; // Current actor is deduced from ThreadLocal.m_pCurrentlyProcessingActorHolder so by definition it's running
 	}
 
 	NConcurrency::CConcurrencyManager &fg_ConcurrencyManager()

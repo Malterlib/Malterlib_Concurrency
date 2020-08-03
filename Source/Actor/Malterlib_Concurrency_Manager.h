@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 
 	bool fg_ActorRunning(TCActor<> &_Actor);
-	bool fg_CurrentActorRunning();
+	bool fg_CurrentActorProcessing();
 
 	template <typename tf_CActor, typename... tfp_CParams>
 	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);

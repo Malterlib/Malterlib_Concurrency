@@ -231,9 +231,30 @@ namespace NMib::NConcurrency
 		return mp_bDestroyed.f_Load() != 0;
 	}
 
-	bool CActorHolder::f_OwnsActor(CActor const *_pActor) const
+	bool CActorHolder::f_IsProcessedOnActorHolder(CActorHolder const *_pActorHolder) const
 	{
-		return mp_pActor.f_Get() == _pActor;
+		return this == _pActorHolder;
+	}
+
+	bool CActorHolder::f_IsCurrentActorAndProcessing() const
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
+		if (!mp_pActor || !ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			return false;
+
+		if (ThreadLocal.m_pCurrentActor)
+		{
+			if (ThreadLocal.m_pCurrentActor != mp_pActor.f_Get())
+				return false;
+
+			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(ThreadLocal.m_pCurrentlyProcessingActorHolder);
+		}
+
+		if (this == ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			return true;
+
+		return false;
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -241,13 +262,13 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-		if (ThreadLocal.m_pCurrentActor == mp_pActor)
+		if (ThreadLocal.m_pCurrentActor == mp_pActor.f_Get())
 			return true;
 		if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			return true;
 		if (ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder == this)
 			return true;
-		if (ThreadLocal.m_pCurrentlyDestructingActor == mp_pActor)
+		if (ThreadLocal.m_pCurrentlyDestructingActor == mp_pActor.f_Get())
 			return true;
 
 		return false;
@@ -697,6 +718,14 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
+	}
+
+	bool CDelegatedActorHolder::f_IsProcessedOnActorHolder(CActorHolder const *_pActorHolder) const
+	{
+		if (this == _pActorHolder)
+			return true;
+
+		return mp_pDelegateTo->f_IsProcessedOnActorHolder(_pActorHolder);
 	}
 
 #if DMibEnableSafeCheck > 0

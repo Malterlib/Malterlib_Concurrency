@@ -129,10 +129,11 @@ namespace NMib::NConcurrency
 		void f_QueueProcess(FActorQueueDispatch &&_Functor);
 		bool f_ImmediateDelete() const;
 		bool f_IsDestroyed() const;
-		bool f_OwnsActor(CActor const *_pActor) const;
+		virtual bool f_IsProcessedOnActorHolder(CActorHolder const *_pActorHolder) const;
 #if DMibEnableSafeCheck > 0
 		virtual bool f_CurrentlyProcessing() const;
 #endif
+		bool f_IsCurrentActorAndProcessing() const;
 
 		void f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop = CActorDestroyEventLoop());
 
@@ -250,6 +251,7 @@ namespace NMib::NConcurrency
 		;
 		~CDelegatedActorHolder();
 
+		bool f_IsProcessedOnActorHolder(CActorHolder const *_pActorHolder) const override;
 #if DMibEnableSafeCheck > 0
 		bool f_CurrentlyProcessing() const override;
 #endif

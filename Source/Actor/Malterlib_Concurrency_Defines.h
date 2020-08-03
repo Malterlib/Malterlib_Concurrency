@@ -191,6 +191,9 @@ namespace NMib::NConcurrency
 		bool f_IsEmpty() const;
 		TCWeakActor<t_CActor> f_Weak() const;
 
+		template <typename ...tfp_CObject>
+		TCFuture<void> f_DestroyObjectsOn(tfp_CObject && ...p_Objects);
+
 		template <typename tf_CActor>
 		bool operator < (TCActor<tf_CActor> const& _Right) const;
 		template <typename tf_CActor>

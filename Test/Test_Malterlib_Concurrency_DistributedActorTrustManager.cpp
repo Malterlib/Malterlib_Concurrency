@@ -1168,7 +1168,8 @@ namespace NTestTrustManager
 
 					auto fSubscribeTrusted = [&](CStr const &_Namespace)
 						{
-							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, _Namespace, TestActor).f_CallSync(60.0);
+							auto Subscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, _Namespace, TestActor).f_CallSync(60.0);
+							TestActor.f_DestroyObjectsOn(fg_Move(Subscription)).f_CallSync(60.0);
 						}
 					;
 
@@ -1257,7 +1258,7 @@ namespace NTestTrustManager
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnum);
 					}
 
-					TrustedSubscription.f_Destroy().f_CallSync(60.0);
+					HelperActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription)).f_CallSync(60.0);
 					{
 						DMibTestPath("After clear subscription");
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
@@ -1290,6 +1291,8 @@ namespace NTestTrustManager
 						auto AllowedEnum = ClientTrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, true).f_CallSync(60.0);
 						DMibExpect(AllowedEnum, ==, ExpectedAllowedEnumEmpty);
 					}
+
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription)).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("Double");
@@ -1304,6 +1307,8 @@ namespace NTestTrustManager
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
 						DMibExpect(TrustedSubscription1.m_Actors.f_GetLen(), ==, 2);
 					}
+
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription0), fg_Move(TrustedSubscription1)).f_CallSync(60.0);
 				}
 				auto fWaitForSubscribed = [&](auto &_Subscription, mint _nSubScribed)
 					{
@@ -1344,6 +1349,7 @@ namespace NTestTrustManager
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
 						DMibExpect(TrustedSubscription1.m_Actors.f_GetLen(), ==, 2);
 					}
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription0), fg_Move(TrustedSubscription1)).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("Publish while subscribed");
@@ -1366,6 +1372,7 @@ namespace NTestTrustManager
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						ServerHelper.f_Unpublish(NewPublish2);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 0), ==, 0);
+						TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription2)).f_CallSync(60.0);
 					}
 					{
 						DMibTestPath("2 types no sub unpublish");
@@ -1375,7 +1382,7 @@ namespace NTestTrustManager
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
-						TrustedSubscription2.f_Destroy().f_CallSync(60.0);
+						TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription2)).f_CallSync(60.0);
 						ServerHelper.f_Unpublish(NewPublish2);
 						NTime::CClock Clock{true};
 						while (Clock.f_GetTime() < 10.0)
@@ -1407,6 +1414,7 @@ namespace NTestTrustManager
 						DMibExpectTrue(!ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription) && !ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 						fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
 						ClientHelper.f_Unsubscribe(Subscription);
+						TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription2), fg_Move(TrustedSubscription3)).f_CallSync(60.0);
 					}
 
 					ServerHelper.f_Unpublish(NewPublish);
@@ -1420,6 +1428,7 @@ namespace NTestTrustManager
 					ServerHelper.f_Unpublish(ToUnpublish);
 					Published.f_Remove(ToUnpublish);
 					DMibExpect(fWaitForSubscribed(TrustedSubscription0, 0), ==, 0);
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription0)).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("2 hosts no sub");
@@ -1456,6 +1465,7 @@ namespace NTestTrustManager
 					DMibExpectFalse(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
 					ClientTrustManager(&CDistributedActorTrustManager::f_DisallowHostsForNamespace, "com.malterlib/Test3", ServerHosts, c_WaitForSubscriptions).f_CallSync(60.0);
 					ServerTrustManager2->f_BlockDestroy();
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription2)).f_CallSync(60.0);
 				}
 				{
 					DMibTestPath("Subscribe stress");
@@ -1488,27 +1498,36 @@ namespace NTestTrustManager
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
 					}
 
-					TrustedSubscription0.f_OnActor
+					fg_Dispatch
 						(
-							g_ActorFunctor / [&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+							[&]() -> TCFuture<void>
 							{
-								++nActors;
+								co_await TrustedSubscription0.f_OnActor
+									(
+										g_ActorFunctor / [&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+										{
+											++nActors;
+
+											co_return {};
+										}
+									)
+								;
+
+								TrustedSubscription0.f_OnRemoveActor
+									(
+										g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
+										{
+											--nActors;
+
+											co_return {};
+										}
+									)
+								;
 
 								co_return {};
 							}
 						)
-						> fg_DiscardResult()
-					;
-
-					TrustedSubscription0.f_OnRemoveActor
-						(
-							g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
-							{
-								--nActors;
-
-								co_return {};
-							}
-						)
+						.f_CallSync(60.0)
 					;
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions).f_CallSync(60.0);
@@ -1528,6 +1547,8 @@ namespace NTestTrustManager
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
 						DMibExpect(nActors.f_Load(), ==, 0);
 					}
+
+					TestActor.f_DestroyObjectsOn(fg_Move(TrustedSubscription0)).f_CallSync(60.0);
 				}
 
 				ClientTrustManager->f_BlockDestroy();
@@ -1923,15 +1944,15 @@ namespace NTestTrustManager
 					DMibTestPath("Export/Import");
 					CPermissionTestState TestState{State, 31407};
 
-					auto Exported1 = fg_ExportUser(TestState.m_ServerTrustManager, ID1, true).f_CallSync(60.0);
-					auto Exported2 = fg_ExportUser(TestState.m_ServerTrustManager, ID2, true).f_CallSync(60.0);
-					auto Exported3 = fg_ExportUser(TestState.m_ServerTrustManager, ID3, true).f_CallSync(60.0);
-					auto Exported4 = fg_ExportUser(TestState.m_ServerTrustManager, ID4, true).f_CallSync(60.0);
+					auto Exported1 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID1, true).f_CallSync(60.0);
+					auto Exported2 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID2, true).f_CallSync(60.0);
+					auto Exported3 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID3, true).f_CallSync(60.0);
+					auto Exported4 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID4, true).f_CallSync(60.0);
 
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported1).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported2).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported3).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported4).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported1).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported2).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported3).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported4).f_CallSync(60.0);
 
 					auto AllUsers = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(60.0);
 
@@ -1956,8 +1977,8 @@ namespace NTestTrustManager
 					//
 					// Export a new user
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID5, "User5").f_CallSync(60.0);
-					auto Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					auto Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto SingleUser1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
 					DMibExpectTrue(SingleUser1);
 					DMibExpect(SingleUser1->m_UserName, ==, "User5");
@@ -1966,15 +1987,15 @@ namespace NTestTrustManager
 					// Make sure we can add metadata to existing user
 					CMetadata Metadata5{{"Key5", "Value5"}};
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, NoRemove, Metadata5).f_CallSync(60.0);
-					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					SingleUser1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
 					DMibExpect(SingleUser1->m_Metadata, ==, Metadata5);
 
 					// Remove metadata, export again, and check that it wasn't removed on the client side
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, CKeys{"Key5"}, CMetadata{}).f_CallSync(60.0);
-					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto SingleUser2 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_TryGetUser, ID5).f_CallSync(60.0);
 					DMibExpectTrue(SingleUser2);
 					DMibExpect(SingleUser2->m_Metadata, ==, Metadata5);
@@ -1982,8 +2003,8 @@ namespace NTestTrustManager
 					// Add authentication factor and export with private data
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
-					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto Factors1 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
 					int nNonEmpty1 = 0;
 					for (auto &Factor : Factors1)
@@ -1994,8 +2015,8 @@ namespace NTestTrustManager
 					// Add two more, this time only export public data, check all factors exported two still have private data
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(60.0);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test2").f_CallSync(60.0);
-					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, false).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto Factors2 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
 					int nNonEmpty2 = 0;
 					for (auto &Factor : Factors2)
@@ -2004,8 +2025,8 @@ namespace NTestTrustManager
  					DMibExpect(Factors2.f_GetLen(), ==, 4);
 
 					// Export private data this time, check that all factors exported now have private data
-					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
-					fg_ImportUser(TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
+					Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TestState.m_ServerTrustManager, ID5, true).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManager>, TestState.m_ClientTrustManager, Exported5).f_CallSync(60.0);
 					auto Factors3 = TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(60.0);
 					int nNonEmpty3 = 0;
 					for (auto &Factor : Factors3)
@@ -2037,8 +2058,8 @@ namespace NTestTrustManager
 						= ClientHelper.f_GetManager()->f_ConstructActor<CDistributedActorTrustManagerProxy>(TestState.m_ClientTrustManager, Permissions)
 					;
 
-					auto Exported5 = fg_ExportUser(ServerProxy, ID5, true).f_CallSync(60.0);
-					fg_ImportUser(ClientProxy, Exported5).f_CallSync(60.0);
+					auto Exported5 = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManagerInterface>, ServerProxy, ID5, true).f_CallSync(60.0);
+					fg_CallSafeDispatched(&fg_ImportUser<CDistributedActorTrustManagerInterface>, ClientProxy, Exported5).f_CallSync(60.0);
 
 					auto AllUsers = ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUsers, true).f_CallSync(60.0);
 					DMibExpect(AllUsers.f_GetLen(), ==, 1);

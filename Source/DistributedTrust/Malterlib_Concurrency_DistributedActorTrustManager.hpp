@@ -41,7 +41,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCTrustedActorSubscription<t_CActor>::~TCTrustedActorSubscription()
 	{
-		f_Destroy() > fg_DiscardResult();
+		if (mp_pState)
+			f_Destroy() > fg_DiscardResult();
 	}
 
 	template <typename t_CActor>

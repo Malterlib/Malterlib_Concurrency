@@ -89,7 +89,6 @@ namespace NMib::NConcurrency
 			NStr::CStr m_RemoveActorErrorCategory;
 			NStr::CStr m_RemoveActorErrorPrefix;
 
-			
 			TCTrustedActorSubscription *m_pSubscription;
 		};
 		

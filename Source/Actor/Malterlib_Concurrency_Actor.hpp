@@ -789,6 +789,95 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	template <typename ...tfp_CObject>
+	TCFuture<void> TCActor<t_CActor>::f_DestroyObjectsOn(tfp_CObject && ...p_Objects)
+	{
+#ifdef DCompiler_MSVC_Workaround
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<NMeta::TCTypeList<tfp_CObject...>>::CMoveList;
+		using CTupleType = typename NPrivate::TCDecayedTupleHelper<NMeta::TCTypeList<tfp_CObject...>>::CType;
+
+		return fg_Dispatch
+			(
+				*this
+				, [Objects = CTupleType(fg_Forward<tfp_CObject>(p_Objects)...)]() mutable -> TCFuture<void>
+				{
+					return NStorage::fg_TupleApplyAs<CMoveList>
+						(
+							[&](auto && ...p_AppliedObjects) mutable
+							{
+								TCPromise<void> Promise;
+
+								TCActorResultVector<void> Results;
+								TCInitializerList<bool> Dummy =
+									{
+										[&]
+										{
+											fg_Move(p_AppliedObjects).f_Destroy() > Results.f_AddResult();
+											return false;
+										}
+										()...
+									}
+								;
+								(void)Dummy;
+
+								Results.f_GetResults() > NPrivate::fg_DirectResultActor() / [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+									{
+										if (!fg_CombineResults(Promise, fg_Move(_Results)))
+											return;
+
+										Promise.f_SetResult();
+									}
+								;
+
+								return Promise.f_MoveFuture();
+							}
+							, fg_Move(Objects)
+						)
+					;
+				}
+			)
+			.f_Future()
+		;
+#else
+		return fg_Dispatch
+			(
+				*this
+				, [...p_Objects = fg_Forward<tfp_CObject>(p_Objects)]() mutable -> TCFuture<void>
+				{
+					TCPromise<void> Promise;
+
+					TCActorResultVector<void> Results;
+					TCInitializerList<bool> Dummy =
+						{
+							[&]
+							{
+								fg_Move(p_Objects).f_Destroy() > Results.f_AddResult();
+								return false;
+							}
+							()...
+						}
+					;
+					(void)Dummy;
+
+					Results.f_GetResults() > NPrivate::fg_DirectResultActor() / [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+						{
+							if (!fg_CombineResults(Promise, fg_Move(_Results)))
+								return;
+
+							Promise.f_SetResult();
+						}
+					;
+
+					return Promise.f_MoveFuture();
+				}
+			)
+			.f_Future()
+		;
+#endif
+
+	}
+
+	template <typename t_CActor>
 	template <typename tf_CStr>
 	void TCActor<t_CActor>::f_Format(tf_CStr &o_Str) const
 	{

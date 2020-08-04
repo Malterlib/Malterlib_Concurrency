@@ -21,6 +21,8 @@ using namespace NMib::NConcurrency;
 using namespace NMib::NContainer;
 using namespace NMib::NStr;
 using namespace NMib::NCryptography;
+using namespace NMib::NAtomic;
+using namespace NMib::NFunction;
 
 namespace NTestTrustManager
 {
@@ -252,8 +254,8 @@ namespace NTestTrustManager
 
 			CState
 				(
-					NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
-					, NFunction::TCFunction<void ()> const &_fCleanup
+					TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
+					, TCFunction<void ()> const &_fCleanup
 					, CStr const &_NameDistinguish = {}
 				)
 				: m_fCleanup(_fCleanup)
@@ -274,7 +276,7 @@ namespace NTestTrustManager
 
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ServerDatabase;
 			TCActor<ICDistributedActorTrustManagerDatabase> m_ClientDatabase;
-			NFunction::TCFunction<void ()> m_fCleanup;
+			TCFunction<void ()> m_fCleanup;
 		};
 
 		struct CPermissionTestState
@@ -492,10 +494,30 @@ namespace NTestTrustManager
 			DMibExpect(Result, ==, 5);
 		}
 
+		bool fp_WaitForCondition(TCFunction<bool ()> const &_fPredicate)
+		{
+			bool bTimedOut = false;
+
+			NTime::CClock Clock;
+			Clock.f_Start();
+
+			while (!_fPredicate())
+			{
+				NSys::fg_Thread_Sleep(0.01f);
+				if (Clock.f_GetTime() > 30.0)
+				{
+					bTimedOut = true;
+					break;
+				}
+			}
+
+			return bTimedOut;
+		}
+
 		void fp_DoBasicTests
 			(
-				NFunction::TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
-				, NFunction::TCFunction<void ()> const &_fCleanup
+				TCFunction<TCActor<ICDistributedActorTrustManagerDatabase> (CStr const &_Name)> const &_fDatabaseFactory
+				, TCFunction<void ()> const &_fCleanup
 			)
 		{
 			DMibTestSuite("Basic")
@@ -719,19 +741,23 @@ namespace NTestTrustManager
 				TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
 
 				CStr DispatchError;
-				mint nCalls = 0;
+				TCAtomic<mint> nCalls = 0;
+				TCAtomic<bool> bAbort = false;
+				auto Cleanup = g_OnScopeExit > [&]
+					{
+						bAbort = true;
+					}
+				;
 				fg_Dispatch
 					(
 						DispatchActor
 						, [&]
 						{
-							NTime::CClock Clock;
-							Clock.f_Start();
-							while (Clock.f_GetTime() < 1.5)
+							while (!bAbort.f_Load())
 							{
 								try
 								{
-									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(10.0);
+									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(25.0);
 									++nCalls;
 								}
 								catch (NException::CException const &_Exception)
@@ -745,20 +771,33 @@ namespace NTestTrustManager
 					> fg_DiscardResult();
 				;
 
-				NTime::CClock Clock;
-				Clock.f_Start();
-				while (Clock.f_GetTime() < 1.5)
+				bool bTimedOut = false;
+
+				for (mint i = 0; i < 4 && !bTimedOut; ++i)
 				{
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(60.0);
+
+					mint ExpectedCalls = nCalls.f_Load() + 2;
+
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
-					NSys::fg_Thread_Sleep(0.05f);
+
+					bTimedOut = fp_WaitForCondition
+						(
+							[&]
+							{
+								return nCalls.f_Load() >= ExpectedCalls;
+							}
+						)
+					;
 				}
 
+				bAbort = true;
 				DispatchActor->f_BlockDestroy();
 
 				DMibExpect(DispatchError, ==, "");
 				DMibExpect(nCalls, >, 1u);
+				DMibExpectFalse(bTimedOut);
 
 				ServerTrustManager->f_BlockDestroy();
 				ClientTrustManager->f_BlockDestroy();
@@ -802,22 +841,24 @@ namespace NTestTrustManager
 				ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(60.0);
 				ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(60.0);
 
-				fp64 TestTime = 1.5;
-
 				CStr DispatchError;
-				mint nCalls = 0;
+				TCAtomic<mint> nCalls = 0;
+				TCAtomic<bool> bAbort = false;
+				auto Cleanup = g_OnScopeExit > [&]
+					{
+						bAbort = true;
+					}
+				;
 				fg_Dispatch
 					(
 						DispatchActor
 						, [&]
 						{
-							NTime::CClock Clock;
-							Clock.f_Start();
-							while (Clock.f_GetTime() < TestTime)
+							while (!bAbort.f_Load())
 							{
 								try
 								{
-									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(10.0);
+									Actor.f_CallActor(&CTestActor::f_Test)().f_CallSync(25.0);
 									++nCalls;
 								}
 								catch (NException::CException const &_Exception)
@@ -831,19 +872,30 @@ namespace NTestTrustManager
 					> fg_DiscardResult();
 				;
 
-				NTime::CClock Clock;
-				Clock.f_Start();
-				while (Clock.f_GetTime() < TestTime)
+				bool bTimedOut = false;
+
+				for (mint i = 0; i < 2 && !bTimedOut; ++i)
 				{
 					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(60.0);
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(60.0);
-					NSys::fg_Thread_Sleep(0.2f);
+
+					mint ExpectedCalls = nCalls.f_Load() + 2;
+					bTimedOut = fp_WaitForCondition
+						(
+							[&]
+							{
+								return nCalls.f_Load() >= ExpectedCalls;
+							}
+						)
+					;
 				}
 
+				bAbort = true;
 				DispatchActor->f_BlockDestroy();
 
 				DMibExpect(DispatchError, ==, "");
 				DMibExpect(nCalls, >, 1u);
+				DMibExpectFalse(bTimedOut);
 
 				ServerTrustManager->f_BlockDestroy();
 				ClientTrustManager->f_BlockDestroy();
@@ -898,18 +950,21 @@ namespace NTestTrustManager
 
 					TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
 
-					fp64 TestTime = 2.0;
-
 					CStr DispatchError;
-					mint nCalls = 0;
+					TCAtomic<mint> nCalls = 0;
+					TCAtomic<bool> bAbort = false;
+					TCAtomic<bool> bHasError = false;
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							bAbort = true;
+						}
+					;
 					fg_Dispatch
 						(
 							DispatchActor
 							, [&]
 							{
-								NTime::CClock Clock;
-								Clock.f_Start();
-								while (Clock.f_GetTime() < TestTime)
+								while (!bAbort.f_Load())
 								{
 									try
 									{
@@ -919,6 +974,7 @@ namespace NTestTrustManager
 									catch (NException::CException const &_Exception)
 									{
 										DispatchError = _Exception.f_GetErrorStr();
+										bHasError = true;
 										break;
 									}
 								}
@@ -927,27 +983,66 @@ namespace NTestTrustManager
 						> fg_DiscardResult();
 					;
 
-					NSys::fg_Thread_Sleep(0.1f);
+					mint ExpectedCalls = nCalls.f_Load() + 2;
+					bool bTimedOut = fp_WaitForCondition
+						(
+							[&]
+							{
+								return nCalls.f_Load() >= ExpectedCalls;
+							}
+						)
+					;
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, true).f_CallSync(60.0);
 					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(60.0);
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(60.0);
 
-					NSys::fg_Thread_Sleep(1.0f);
+					bool bTimedOut2;
+					if (i == 1)
+					{
+						bTimedOut2 = fp_WaitForCondition
+							(
+								[&]
+								{
+									return bHasError.f_Load();
+								}
+							)
+						;
+					}
+					else
+					{
+						bTimedOut2 = fp_WaitForCondition
+							(
+								[&]
+								{
+									auto DebugStats = ServerTrustManager(&CDistributedActorTrustManager::f_GetConnectionsDebugStats).f_CallSync(60.0);
+									return DebugStats.m_DebugStats.m_Hosts.f_IsEmpty();
+								}
+							)
+						;
+					}
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, false).f_CallSync(60.0);
 
-					NSys::fg_Thread_Sleep(0.5f);
+					if (i == 0)
+					{
+						bTimedOut2 = fp_WaitForCondition
+							(
+								[&]
+								{
+									return bHasError.f_Load();
+								}
+							)
+						;
+					}
 
-					NTime::CClock Clock;
-					Clock.f_Start();
-					while (Clock.f_GetTime() < TestTime)
-						NSys::fg_Thread_Sleep(0.05f);
-
+					bAbort = true;
 					DispatchActor->f_BlockDestroy();
 
 					DMibExpect(DispatchError, ==, ("Remote host '{} [TestServer]' no longer running"_f << HostInfo.m_HostID).f_GetStr());
 					DMibExpect(nCalls, >, 1u);
+					DMibExpectFalse(bTimedOut);
+					DMibExpectFalse(bTimedOut2);
 
 					ServerTrustManager->f_BlockDestroy();
 					ClientTrustManager->f_BlockDestroy();

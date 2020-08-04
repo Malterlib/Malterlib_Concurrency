@@ -16,8 +16,18 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 
+		NContainer::TCSet<NStr::CStr> HostIDs;
+
 		for (auto &pHost : Internal.m_Hosts)
+			HostIDs[Internal.m_Hosts.fs_GetKey(pHost)];
+
+		for (auto &HostID : HostIDs)
 		{
+			auto *pHostFind = Internal.m_Hosts.f_FindEqual(HostID);
+			if (!pHostFind)
+				continue;
+
+			auto pHost = *pHostFind;
 			auto &Host = *pHost;
 
 			auto &OutHost = Stats.m_Hosts.f_Insert();

@@ -544,17 +544,6 @@ namespace NMib::NConcurrency
 		 	, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
 		)
 	{
-		if (!_pSelfReference && mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal))
-		{
-			mp_pConcurrencyManager->f_DispatchOnCurrentThreadOrConcurrentFirst
-				(
-					f_GetPriority()
-					, CDestroyHandler(fg_Move(_fOnDestroyed), this, nullptr)
-				)
-			;
-			return;
-		}
-
 		fp_QueueProcessDestroy(CDestroyHandler(fg_Move(_fOnDestroyed), this, fg_Move(_pSelfReference)));
 	}
 

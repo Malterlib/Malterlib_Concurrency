@@ -91,13 +91,6 @@ namespace
 		typedef CDispatchingActorHolder CActorHolder;
 	};
 
-	class CSeparateThreadActor : public CActor
-	{
-	public:
-		typedef CSeparateThreadActorHolder CActorHolder;
-	};
-
-	
 	class CConcurrency_Tests : public NMib::NTest::CTest
 	{
 	public:
@@ -127,17 +120,54 @@ namespace
 				using namespace NMib::NThread;
 				using namespace NMib::NConcurrency;
 				auto pActor = fg_ConstructActor<CTestActor>();
-				
+
 				CEvent Event;
-				
+
 				pActor.f_Destroy() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
 					{
 						Event.f_SetSignaled();
 					}
 				;
-				
+
 				bool bTimedOut = Event.f_WaitTimeout(20.0);
-				DMibExpectFalse(bTimedOut);				
+				DMibExpectFalse(bTimedOut);
+			};
+			DMibTestSuite("Destroy Separate Thread")
+			{
+				using namespace NMib::NThread;
+				using namespace NMib::NConcurrency;
+				using namespace NMib::NStorage;
+
+				TCActor<CSeparateThreadActor> Actor(fg_Construct(), "Test Destroy");
+
+				struct CState
+				{
+					CEvent m_Event1;
+					CEvent m_Event2;
+				};
+				TCSharedPointer<CState> pState = fg_Construct();
+
+				Actor->f_QueueProcess
+					(
+						[
+							pState
+							, Cleanup = g_OnScopeExit > [pState]
+							{
+								pState->m_Event2.f_WaitTimeout(20.0);
+							}
+						]
+						{
+							pState->m_Event1.f_SetSignaled();
+						}
+					)
+				;
+
+				bool bTimedOut = pState->m_Event1.f_WaitTimeout(20.0);
+				DMibExpectFalse(bTimedOut);
+				Actor.f_Clear();
+				NSys::fg_Thread_Sleep(1.0);
+				pState->m_Event2.f_SetSignaled();
+				NSys::fg_Thread_Sleep(1.0);
 			};
 		}
 		

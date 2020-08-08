@@ -4,11 +4,7 @@
 #pragma once
 
 #ifndef DMibConfig_Concurrency_DebugActorCallstacks
-#	ifdef DMibDebug
-#		define DMibConfig_Concurrency_DebugActorCallstacks 1
-#	else
-#		define DMibConfig_Concurrency_DebugActorCallstacks 0
-#	endif
+#	define DMibConfig_Concurrency_DebugActorCallstacks 0
 #endif
 
 #ifndef DMibConfig_Concurrency_DebugBlockDestroy

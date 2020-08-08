@@ -344,12 +344,12 @@ namespace NMib::NConcurrency
 			return;
 
 		NStr::CStrNonTracked Name;
-		EThreadPriority ThreadPrio = EThreadPriority_Normal;
+		EExecutionPriority ThreadPrio = EExecutionPriority_Normal;
 		switch (m_Priority)
 		{
 		case EPriority_Low:
 			Name = "(Low)";
-			ThreadPrio = EThreadPriority_Lowest;
+			ThreadPrio = EExecutionPriority_Lowest;
 			break;
 		case EPriority_Normal:
 			break;

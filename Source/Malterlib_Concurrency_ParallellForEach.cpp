@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 								return 0;
 							}
 							, NStr::fg_Format("Thread pool numa {} thread {}", int32(*iNumaNode), nThreads)
-							, NMib::EThreadPriority_Normal
+							, NMib::EExecutionPriority_Normal
 							, 4*1024*1024
 						)
 					)

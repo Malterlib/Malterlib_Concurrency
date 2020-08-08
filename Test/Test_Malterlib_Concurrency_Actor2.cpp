@@ -690,11 +690,11 @@ namespace
 					mint nWorkObjects = ((fp64(NSys::fg_Thread_GetVirtualCores()) * fp64(5.0)) / g_SecondsToWait).f_ToInt();
 					try 
 					{			
-						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EThreadPriority_High);
+						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EExecutionPriority_High);
 					}				
 					catch(NMib::NException::CException&)
 					{
-						// Because on linux EThreadPriority_High requires root.
+						// Because on linux EExecutionPriority_High requires root.
 					}
 
 					for (mint i = 0; i < nWorkObjects; ++i)
@@ -718,7 +718,7 @@ namespace
 					}
 					try 
 					{			
-						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EThreadPriority_Normal);
+						NSys::fg_Thread_SetPriority(NSys::fg_Thread_GetCurrent(), EExecutionPriority_Normal);
 					}				
 					catch(NMib::NException::CException&)
 					{

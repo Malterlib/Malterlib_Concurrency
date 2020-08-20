@@ -771,176 +771,101 @@ namespace
 
 		static TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
 		{
-			TCPromise<CSendAPDUResult> Promise;
+			co_await ECoroutineFlag_AllowReferences;
 
-			CU2FDevices::fs_DiscoverDevices() > Promise / [=](TCSharedPointer<CU2FDevices> &&_pU2FDevices)
+			auto Data = _Data;
+			auto fPrompt = _fPrompt;
+
+			auto pU2FDevices = co_await CU2FDevices::fs_DiscoverDevices();
+
+			auto &U2FDevices = *pU2FDevices;
+
+			if (U2FDevices.m_Devices.f_IsEmpty())
+				co_return DMibErrorInstance("No U2F devices found");
+
+			TCVector<TCSet<uint32>> SkipDevice;
+			mint nIterations = 16;
+			bool bSkippedAll = true;
+			bool bDidPrompt = false;
+
+			SkipDevice.f_SetLen(_Data.f_GetLen());
+
+			while (true)
+			{
+				if (--nIterations == 0)
+					co_return DMibErrorInstance("Timed out waiting for U2F button press");
+
+				bSkippedAll = true;
+
+				for (mint iData = 0; iData < Data.f_GetLen(); ++iData)
 				{
-					auto &U2FDevices = *_pU2FDevices;
-
-					if (U2FDevices.m_Devices.f_IsEmpty())
+					for (auto &Device : U2FDevices.m_Devices)
 					{
-						Promise.f_SetException(DMibErrorInstance("No U2F devices found"));
-						return;
-					}
+						if (SkipDevice[iData].f_FindEqual(Device.m_ChannelID))
+							continue;
 
-					struct CState
-					{
-						TCVector<TCSet<uint32>> m_SkipDevice;
-						TCVector<CSecureByteVector> m_Data;
-						mint m_nIterations = 15;
-						mint m_iData = 0;
-						TCMap<CStr, CU2FDevices::CDevice>::CIteratorConst m_iDevice;
-						bool m_bSkippedAll = true;
-						bool m_bDone = false;
-						bool m_bDidPrompt = false;
-					};
+						bSkippedAll = false;
 
-					TCSharedPointer<CState> pState = fg_Construct();
-					auto &State = *pState;
-					State.m_SkipDevice.f_SetLen(_Data.f_GetLen());
-					State.m_Data = _Data;
+						auto ResponseResult = co_await Device.f_SendAPDU(_Command, Data[iData], 3).f_Wrap();
 
-					auto fIterate = [=](TCSharedPointer<CState> const &_pState, auto const &_fIterate) -> void
+						if (!ResponseResult)
 						{
-							auto &State = *_pState;
+							DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to send APDU to U2F USB device: {}", ResponseResult.f_GetExceptionStr());
 
-							if (State.m_nIterations == 0)
-								return Promise.f_SetException(DMibErrorInstance("Timed out waiting for U2F button press"));
-
-							State.m_iData = 0;
-							State.m_bSkippedAll = true;
-
-							TCPromise<void> DataPromise;
-
-							auto fLoopData = [=](auto const &_fLoopData) -> void
-								{
-									auto &State = *_pState;
-									if (State.m_bDone || State.m_iData == State.m_Data.f_GetLen())
-										return DataPromise.f_SetResult();
-
-									auto &U2FDevices = *_pU2FDevices;
-									State.m_iDevice = U2FDevices.m_Devices;
-
-									TCPromise<void> DevicesPromise;
-									auto fLoopDevices = [=](auto const &_fLoopDevices) -> void
-										{
-											auto &State = *_pState;
-											if (State.m_bDone || !State.m_iDevice)
-												return DevicesPromise.f_SetResult();
-
-											auto &Device = *State.m_iDevice;
-
-											if (State.m_SkipDevice[State.m_iData].f_FindEqual(Device.m_ChannelID))
-											{
-												++State.m_iDevice;
-												return _fLoopDevices(_fLoopDevices);
-											}
-
-											State.m_bSkippedAll = false;
-
-											Device.f_SendAPDU(_Command, State.m_Data[State.m_iData], 3) > [=](TCAsyncResult<CSecureByteVector> &&_Response) -> void
-												{
-													auto &State = *_pState;
-													if (!_Response)
-													{
-														DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to send APDU to U2F USB device: {}", _Response.f_GetExceptionStr());
-
-														State.m_SkipDevice[State.m_iData][Device.m_ChannelID];
-														++State.m_iDevice;
-														return _fLoopDevices(_fLoopDevices);
-													}
-													auto &Response = *_Response;
-
-													if (Response.f_GetLen() < 2)
-													{
-														State.m_SkipDevice[State.m_iData][Device.m_ChannelID];
-													}
-													else
-													{
-														mint ResponseLen = Response.f_GetLen();
-														uint16 StatusCode = uint16(Response[ResponseLen - 2] << 8) | uint16(Response[ResponseLen - 1]);
-
-														switch (StatusCode)
-														{
-														case 0x9000: // SW_NO_ERROR The command completed successfully without error.
-															{
-																Response.f_SetLen(ResponseLen - 2);
-
-																CSendAPDUResult Result;
-																Result.m_Data = fg_Move(Response);
-																Result.m_Index = State.m_iData;
-
-																Promise.f_SetResult(fg_Move(Result));
-																State.m_bDone = true;
-																break;
-															}
-														case 0x6985: // SW_CONDITIONS_NOT_SATISFIED The request was rejected due to test-of-user-presence being required.
-															{
-																if (!State.m_bDidPrompt)
-																{
-																	State.m_bDidPrompt = true;
-																	_fPrompt();
-																}
-																break;
-															}
-														case 0x6A80: // SW_WRONG_DATA The request was rejected due to an invalid key handle.
-														case 0x6700: // SW_WRONG_LENGTH The length of the request was invalid.
-														case 0x6E00: // SW_CLA_NOT_SUPPORTED The Class byte of the request is not supported.
-														case 0x6D00: // SW_INS_NOT_SUPPORTED The Instruction of the request is not supported.
-														default:
-															{
-																State.m_SkipDevice[State.m_iData][Device.m_ChannelID];
-																break;
-															}
-														}
-													}
-
-													++State.m_iDevice;
-													_fLoopDevices(_fLoopDevices);
-												}
-											;
-										}
-									;
-
-									fLoopDevices(fLoopDevices);
-
-									DevicesPromise.f_MoveFuture() > DataPromise / [=]() -> void
-										{
-											auto &State = *_pState;
-											++State.m_iData;
-											_fLoopData(_fLoopData);
-										}
-									;
-								}
-							;
-
-							fLoopData(fLoopData);
-
-							DataPromise.f_MoveFuture() > Promise / [=]() -> void
-								{
-									auto &State = *_pState;
-									if (State.m_bDone)
-										return;
-
-									if (State.m_bSkippedAll)
-										return Promise.f_SetException(DMibErrorInstance("No valid U2F devices"));
-
-									--State.m_nIterations;
-									fg_Timeout(0.5) > [=]
-										{
-											_fIterate(_pState, _fIterate);
-										}
-									;
-								}
-							;
-
+							SkipDevice[iData][Device.m_ChannelID];
+							continue;
 						}
-					;
-					fIterate(pState, fIterate);
-				}
-			;
 
-			return Promise.f_MoveFuture();
+						auto &Response = *ResponseResult;
+
+						if (Response.f_GetLen() < 2)
+							SkipDevice[iData][Device.m_ChannelID];
+						else
+						{
+							mint ResponseLen = Response.f_GetLen();
+							uint16 StatusCode = uint16(Response[ResponseLen - 2] << 8) | uint16(Response[ResponseLen - 1]);
+
+							switch (StatusCode)
+							{
+							case 0x9000: // SW_NO_ERROR The command completed successfully without error.
+								{
+									Response.f_SetLen(ResponseLen - 2);
+
+									CSendAPDUResult Result;
+									Result.m_Data = fg_Move(Response);
+									Result.m_Index = iData;
+
+									co_return fg_Move(Result);
+									break;
+								}
+							case 0x6985: // SW_CONDITIONS_NOT_SATISFIED The request was rejected due to test-of-user-presence being required.
+								{
+									if (!bDidPrompt)
+									{
+										bDidPrompt = true;
+										fPrompt();
+									}
+									break;
+								}
+							case 0x6A80: // SW_WRONG_DATA The request was rejected due to an invalid key handle.
+							case 0x6700: // SW_WRONG_LENGTH The length of the request was invalid.
+							case 0x6E00: // SW_CLA_NOT_SUPPORTED The Class byte of the request is not supported.
+							case 0x6D00: // SW_INS_NOT_SUPPORTED The Instruction of the request is not supported.
+							default:
+								{
+									SkipDevice[iData][Device.m_ChannelID];
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if (bSkippedAll)
+					co_return DMibErrorInstance("No valid U2F devices");
+
+				co_await fg_Timeout(0.5);
+			}
 		}
 
 		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse

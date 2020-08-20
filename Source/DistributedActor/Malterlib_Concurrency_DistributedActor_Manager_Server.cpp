@@ -499,10 +499,13 @@ namespace NMib::NConcurrency
 									auto &EntityFields = ResponseHeader.f_GetEntityFields();
 									EntityFields.f_SetUnknownField("MalterlibDistributedActors_Enclave", m_Enclave);
 
+									auto pConnectionWeak = pConnection.f_Weak();
+									auto Address = NewServerConnection.m_Info.m_PeerAddress;
+
 									pConnection->m_Connection = NewServerConnection.f_Accept
 										(
 											"MalterlibDistributedActors"
-											, fg_ThisActor(m_pThis) / [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
+											, fg_ThisActor(m_pThis) / [this, pConnectionWeak = fg_Move(pConnectionWeak), Address = fg_Move(Address)]
 											(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
 											{
 												if (_Subscription)
@@ -514,7 +517,7 @@ namespace NMib::NConcurrency
 														return;
 													if (!pConnection->m_Connection)
 														return;
-													pConnection->m_IdentifyPromise.f_Future() > [Address, pConnectionWeak](TCAsyncResult<bool> &&_Result) mutable
+													pConnection->m_IdentifyPromise.f_Future() > [=](TCAsyncResult<bool> &&_Result) mutable
 														{
 															auto pConnection = pConnectionWeak.f_Lock();
 															if (!pConnection)

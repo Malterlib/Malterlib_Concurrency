@@ -522,6 +522,8 @@ namespace NMib::NConcurrency
 												bool bIsInDatabase = Internal.m_ClientConnectionsInDatabase.f_Exists(_TrustTicket.m_ServerAddress);
 												Internal.m_ClientConnectionsInDatabase[_TrustTicket.m_ServerAddress];
 
+												auto Address = _TrustTicket.m_ServerAddress;
+
 												Internal.m_Database
 													(
 														bIsInDatabase
@@ -536,7 +538,7 @@ namespace NMib::NConcurrency
 														this
 														, pConnectionState
 														, Promise
-														, Address = _TrustTicket.m_ServerAddress
+														, Address
 														, ClientConnection
 														, ServerHostID
 													]
@@ -593,13 +595,15 @@ namespace NMib::NConcurrency
 														ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 														ConnectionSettings.m_bRetryConnectOnFailure = true;
 
+														auto Address2 = Address;
+
 														Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 															>
 															[
 																this
 																, Promise
 																, pConnectionState
-																, Address
+																, Address2
 																, ClientConnection
 																, ServerHostID
 															]
@@ -607,15 +611,16 @@ namespace NMib::NConcurrency
 															{
 																if (pConnectionState->m_bReplied)
 																	return;
+
 																auto &Internal = *mp_pInternal;
 																if (!_ConnectionResult)
 																{
 																	pConnectionState->f_Replied();
-																	Internal.m_ClientConnectionsInDatabase.f_Remove(Address);
+																	Internal.m_ClientConnectionsInDatabase.f_Remove(Address2);
 																	Internal.m_Database
 																		(
 																			&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection
-																			, Address
+																			, Address2
 																		)
 																		> fg_DiscardResult();
 																	;
@@ -638,7 +643,7 @@ namespace NMib::NConcurrency
 																auto &ConnectionResult = *_ConnectionResult;
 																DMibCheck(ConnectionResult.m_HostInfo.m_HostID == ServerHostID);
 
-																auto &LocalClientConnection = Internal.m_ClientConnections[Address];
+																auto &LocalClientConnection = Internal.m_ClientConnections[Address2];
 
 																LocalClientConnection.m_ClientConnection = ClientConnection;
 																auto &Host = Internal.m_Hosts[ServerHostID];

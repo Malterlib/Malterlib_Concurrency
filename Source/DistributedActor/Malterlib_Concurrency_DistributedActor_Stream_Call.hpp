@@ -123,9 +123,9 @@ namespace NMib::NConcurrency
 									NException::CDisableExceptionTraceScope DisableTrace;
 									NPrivate::fg_CopyReplyToPromise(Promise, *_Result, Context, ProtocolVersion);
 								}
-								catch (NException::CException const &_Exception)
+								catch (NException::CException const &)
 								{
-									Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+									Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", NException::fg_CurrentExceptionString())));
 								}
 							}
 						;

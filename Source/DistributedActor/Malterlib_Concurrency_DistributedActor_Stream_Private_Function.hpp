@@ -108,7 +108,8 @@ namespace NMib::NConcurrency
 			{
 				return [_FunctionID](tp_CParams ...p_Params) -> t_CReturn
 					{
-						CPromiseType Promise;
+						[[maybe_unused]] CPromiseType Promise;
+
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
 						auto *pActorDataRaw = static_cast<CDistributedActorData *>(ThreadLocal.m_pCurrentRemoteDispatchActorData);
@@ -168,14 +169,15 @@ namespace NMib::NConcurrency
 										Promise.f_SetException(fg_Move(_Result));
 										return;
 									}
+
 									try
 									{
 										NException::CDisableExceptionTraceScope DisableTrace;
 										fg_CopyReplyToPromise(Promise, *_Result, Context, Version);
 									}
-									catch (NException::CException const &_Exception)
+									catch (NException::CException const &)
 									{
-										Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr())));
+										Promise.f_SetException(DMibErrorInstance(fg_Format("Exception reading remote result: {}", NException::fg_CurrentExceptionString())));
 									}
 								}
 							;
@@ -237,9 +239,9 @@ namespace NMib::NConcurrency
 											if (!Context.f_ValidateContext(Error))
 												co_return DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error));
 										}
-										catch (NException::CException const &_Exception)
+										catch (NException::CException const &)
 										{
-											co_return DMibErrorInstance(fg_Format("Exception reading remote result: {}", _Exception.f_GetErrorStr()));
+											co_return DMibErrorInstance(fg_Format("Exception reading remote result: {}", NException::fg_CurrentExceptionString()));
 										}
 									}
 
@@ -301,7 +303,8 @@ namespace NMib::NConcurrency
 					{
 						if constexpr (mc_bIsFuture)
 						{
-							return [Return, pState = fg_Move(pState)](CResultType &&_Result) mutable
+							auto pState2 = fg_Move(pState);
+							return [Return, pState = fg_Move(pState2)](CResultType &&_Result) mutable
 								{
 									auto &State = *pState;
 									// We need to keep ParamList alive until result is available to make coroutines safe

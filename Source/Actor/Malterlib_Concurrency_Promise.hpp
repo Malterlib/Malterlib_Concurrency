@@ -418,9 +418,6 @@ namespace NMib::NConcurrency
 					{
 						[
 							&
-#if defined(DCompiler_MSVC_Workaround)
-							, &Promise
-#endif
 						]
 						{
 							if (!bFailed && !p_Results)

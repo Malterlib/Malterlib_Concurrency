@@ -312,7 +312,12 @@ namespace NMib::NConcurrency
 				_TrustManager.template f_CallActor(&t_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results.f_AddResult();
 		}
 
+#ifdef DCompiler_MSVC_Workaround
+		auto Temp = co_await Results.f_GetResults();
+		fg_Move(Temp) | g_Unwrap;
+#else
 		co_await Results.f_GetResults() | g_Unwrap;
+#endif
 		co_return Result.m_UserID;
 	}
 

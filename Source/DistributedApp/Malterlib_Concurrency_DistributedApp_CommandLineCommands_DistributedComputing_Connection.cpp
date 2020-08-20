@@ -257,7 +257,7 @@ namespace NMib::NConcurrency
 					else
 						Error.f_Insert(AnsiEncoding.f_StatusError("Error: ") + ConcurrentState.m_Error);
 				}
-				ErrorTime.f_Insert(ConcurrentState.m_ErrorTime.f_IsValid() ? fg_Format("{}", ConcurrentState.m_ErrorTime) : "Never");
+				ErrorTime.f_Insert(ConcurrentState.m_ErrorTime.f_IsValid() ? fg_Format("{}", ConcurrentState.m_ErrorTime) : CStr("Never"));
 			}
 
 			if (State.m_States.f_IsEmpty())
@@ -451,7 +451,7 @@ namespace NMib::NConcurrency
 					<< Host.m_nReceivedBytes
 					<< Host.m_nDiscardedPackets
 					<< Host.m_nDiscardedBytes
-					, "{}\n\n{}"_f << (Host.m_LastErrorTime.f_IsValid() ? ("{}"_f << Host.m_LastErrorTime).f_GetStr() : "") << Host.m_LastError
+					, "{}\n\n{}"_f << (Host.m_LastErrorTime.f_IsValid() ? ("{}"_f << Host.m_LastErrorTime).f_GetStr() : CStr()) << Host.m_LastError
 				)
 			;
 

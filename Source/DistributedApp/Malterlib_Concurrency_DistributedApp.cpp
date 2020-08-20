@@ -305,8 +305,8 @@ namespace NMib::NConcurrency
 				}
 				catch (NException::CException const &_Exception)
 				{
-					(void)_Exception;
-					DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave sockets: {}", _Exception);
+					[[maybe_unused]] auto &Exception = _Exception;
+					DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave sockets: {}", Exception);
 				}
 			}
 			> fg_DiscardResult()

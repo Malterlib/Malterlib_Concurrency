@@ -183,7 +183,8 @@ namespace NMib::NConcurrency
 									}
 									catch (CException const &_Exception)
 									{
-										DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", _Exception);
+										auto &Exception = _Exception;
+										DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Exception);
 										co_return _Exception.f_ExceptionPointer();
 									}
 

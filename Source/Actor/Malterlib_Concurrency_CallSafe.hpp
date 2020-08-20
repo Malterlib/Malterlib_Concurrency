@@ -216,31 +216,11 @@ namespace NMib::NConcurrency
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
 	{
-#ifdef DCompiler_MSVC_Workaround
-		using CMoveList = typename NPrivate::TCDecayedTupleHelper<NMeta::TCTypeList<tfp_CParams...>>::CMoveList;
-		using CTupleType = typename NPrivate::TCDecayedTupleHelper<NMeta::TCTypeList<tfp_CParams...>>::CType;
-
-		return g_Dispatch(_Actor) / [fFunction = fg_Forward<tf_CFunction>(_fFunction), Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable
-			{
-				return NStorage::fg_TupleApplyAs<CMoveList>
-					(
-						[&](auto && ...p_Params) mutable
-						{
-							return fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
-						}
-						, fg_Move(Params)
-					)
-				;
-				
-			}
-		;
-#else
 		return g_Dispatch(_Actor) / [fFunction = fg_Forward<tf_CFunction>(_fFunction), ...p_Params = fg_Forward<tfp_CParams>(p_Params)]() mutable
 			{
 				return fg_CallSafe(fg_Move(fFunction), fg_Move(p_Params)...);
 			}
 		;
-#endif
 	}
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	auto fg_CallSafeDispatched(tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)

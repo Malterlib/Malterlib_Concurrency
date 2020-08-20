@@ -146,15 +146,17 @@ namespace
 					CEvent m_Event2;
 				};
 				TCSharedPointer<CState> pState = fg_Construct();
+				auto Cleanup = g_OnScopeExit > [pState]
+					{
+						pState->m_Event2.f_WaitTimeout(20.0);
+					}
+				;
 
 				Actor->f_QueueProcess
 					(
 						[
 							pState
-							, Cleanup = g_OnScopeExit > [pState]
-							{
-								pState->m_Event2.f_WaitTimeout(20.0);
-							}
+							, Cleanup = fg_Move(Cleanup)
 						]
 						{
 							pState->m_Event1.f_SetSignaled();

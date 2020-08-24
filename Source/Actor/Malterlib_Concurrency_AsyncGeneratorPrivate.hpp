@@ -146,6 +146,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		auto pPromiseData = this->fp_GetReturnObject();
 		pPromiseData->m_bIsGenerator = true;
+		pPromiseData->m_bOnResultSetAtInit = false;
 
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = **g_SystemThreadLocal;
@@ -180,6 +181,7 @@ namespace NMib::NConcurrency::NPrivate
 				if (Result)
 				{
 					pPromiseData->f_Reset();
+					pPromiseData->m_bOnResultSetAtInit = false;
 
 					g_Dispatch /
 						[

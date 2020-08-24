@@ -31,6 +31,21 @@ namespace NMib::NConcurrency
 		return {};
 	}
 
+#ifdef DMibSanitizerEnabled_Address
+	inline_never bool CFutureCoroutineContext::CSupendNeverWorkaround::await_ready() const noexcept
+	{
+		return true;
+	}
+
+	inline_never void CFutureCoroutineContext::CSupendNeverWorkaround::await_suspend(TCCoroutineHandle<>) const noexcept
+	{
+	}
+
+	inline_never void CFutureCoroutineContext::CSupendNeverWorkaround::await_resume() const noexcept
+	{
+	}
+#endif
+
 	void CActor::fp_AbortSuspendedCoroutines()
 	{
 		while (!mp_SuspendedCoroutines.f_IsEmpty())

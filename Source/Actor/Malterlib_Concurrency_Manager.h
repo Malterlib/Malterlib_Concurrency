@@ -62,6 +62,8 @@ namespace NMib::NConcurrency
 		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 
+		bool f_DestroyingAlwaysAliveActors() const;
+
 	private:
 		template <typename t_CActor>
 		friend class TCActorInternal;
@@ -103,7 +105,7 @@ namespace NMib::NConcurrency
 
 		struct align_cacheline CNumActorsPerQueue
 		{
-			smint m_nActors = 0;
+			NAtomic::TCAtomic<smint> m_nActors = 0;
 		};
 
 		struct align_cacheline CNumActorsOther
@@ -136,8 +138,10 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
 		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
 
-		NThread::CMutual m_pTimerActorLock;
+		NAtomic::TCAtomic<bool> m_bTimerActorInit;
+		NThread::CMutual m_TimerActorLock;
 		TCActor<CTimerActor> m_pTimerActor;
+
 		NThread::CMutual m_ThreadCreateLock;
 
 		TCActor<CDirectCallActorImpl> m_DirectCallActor;
@@ -153,6 +157,8 @@ namespace NMib::NConcurrency
 		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
 		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
 		TCActor<NPrivate::CDirectResultActor> m_DirectResultActorRef;
+
+		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
 	};
 
 	struct CConcurrencyThreadLocal

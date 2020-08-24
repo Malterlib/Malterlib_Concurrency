@@ -176,12 +176,17 @@ namespace NMib::NConcurrency
 		auto *pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
 		if (!pNamespace)
 			co_return {};
-		auto &Namespace = *pNamespace;
+
+		auto OnResume = g_OnResume / [&]
+			{
+				pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
+			}
+		;
 
 		NContainer::TCSet<NStr::CStr> HostsRemoved;
 		for (auto &Host : _Hosts)
 		{
-			if (Namespace.m_Namespace.m_AllowedHosts.f_Remove(Host))
+			if (pNamespace->m_Namespace.m_AllowedHosts.f_Remove(Host))
 				HostsRemoved[Host];
 		}
 		if (HostsRemoved.f_IsEmpty())
@@ -189,7 +194,7 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<void> SubscriptionResults;
 
-		for (auto &Type : Namespace.m_Types)
+		for (auto &Type : pNamespace->m_Types)
 		{
 			for (auto &RemovedHost : HostsRemoved)
 			{
@@ -206,25 +211,25 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		if (Namespace.m_Namespace.m_AllowedHosts.f_IsEmpty())
+		if (pNamespace->m_Namespace.m_AllowedHosts.f_IsEmpty())
 		{
-			if (Namespace.m_bExistsInDatabase)
+			if (pNamespace->m_bExistsInDatabase)
 			{
-				Namespace.m_bExistsInDatabase = false;
+				pNamespace->m_bExistsInDatabase = false;
 				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveNamespace, _Namespace);
 			}
 
-			if (Namespace.m_nSubscriptions == 0)
+			if (pNamespace && pNamespace->m_nSubscriptions == 0)
 				Internal.m_Namespaces.f_Remove(_Namespace);
 		}
 		else
 		{
-			if (Namespace.m_bExistsInDatabase)
-				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, Namespace.m_Namespace);
+			if (pNamespace->m_bExistsInDatabase)
+				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetNamespace, _Namespace, pNamespace->m_Namespace);
 			else
 			{
-				Namespace.m_bExistsInDatabase = true;
-				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, Namespace.m_Namespace);
+				pNamespace->m_bExistsInDatabase = true;
+				co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddNamespace, _Namespace, pNamespace->m_Namespace);
 			}
 		}
 

@@ -14,6 +14,8 @@ namespace NMib::NConcurrency
 	};
 	struct CConcurrentActorImpl : public CConcurrentActor
 	{
+		~CConcurrentActorImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -25,6 +27,7 @@ namespace NMib::NConcurrency
 	};
 	struct CConcurrentActorLowPrioImpl : public CConcurrentActorLowPrio
 	{
+		~CConcurrentActorLowPrioImpl();
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -40,6 +43,8 @@ namespace NMib::NConcurrency
 
 		struct CDirectResultActorImpl : public CDirectResultActor
 		{
+			~CDirectResultActorImpl();
+
 			static constexpr bool mc_bIsAlwaysAlive = false;
 		};
 
@@ -58,6 +63,8 @@ namespace NMib::NConcurrency
 
 	struct CAnyConcurrentActorImpl : public CAnyConcurrentActor
 	{
+		~CAnyConcurrentActorImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -76,6 +83,8 @@ namespace NMib::NConcurrency
 
 	struct CAnyConcurrentActorLowPrioImpl : public CAnyConcurrentActorLowPrio
 	{
+		~CAnyConcurrentActorLowPrioImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -93,6 +102,8 @@ namespace NMib::NConcurrency
 
 	struct CDynamicConcurrentActorImpl : public CDynamicConcurrentActor
 	{
+		~CDynamicConcurrentActorImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -110,6 +121,8 @@ namespace NMib::NConcurrency
 
 	struct CDynamicConcurrentActorLowPrioImpl : public CDynamicConcurrentActorLowPrio
 	{
+		~CDynamicConcurrentActorLowPrioImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 
@@ -127,6 +140,8 @@ namespace NMib::NConcurrency
 
 	struct CDirectCallActorImpl : public CDirectCallActor
 	{
+		~CDirectCallActorImpl();
+
 		static constexpr bool mc_bIsAlwaysAlive = false;
 	};
 

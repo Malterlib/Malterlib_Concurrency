@@ -13,12 +13,12 @@ namespace NMib::NConcurrency
 	{
 		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
 		{
-			TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
-			if (LogActor)
+			m_LogActor = fg_ApplyLoggingOption(_Params);
+			if (m_LogActor)
 				m_bInstalledLogDispatcher = true;
 
 			m_Actor = _Actor;
-			m_Actor(&CDistributedAppActor::f_StartApp, _Params, LogActor, EDistributedAppType_Daemon)
+			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, EDistributedAppType_Daemon)
 				> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 				{
 					if (_Result)
@@ -55,11 +55,16 @@ namespace NMib::NConcurrency
 
 #if (DMibSysLogSeverities) != 0
 			if (m_bInstalledLogDispatcher)
+			{
 				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+				if (m_LogActor)
+					m_LogActor->f_BlockDestroy();
+			}
 #endif
 		}
 
 		TCActor<CDistributedAppActor> m_Actor;
+		TCActor<CActor> m_LogActor;
 		bool m_bInstalledLogDispatcher = false;
 	};
 

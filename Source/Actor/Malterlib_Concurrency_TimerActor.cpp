@@ -217,7 +217,7 @@ namespace NMib::NConcurrency
 			m_pTimerThread
 				= NThread::CThreadObject::fs_StartThread
 				(
-					[this](NThread::CThreadObject *_pThread) -> aint
+					[this, ThisActor = fg_ThisActor(m_pThis)](NThread::CThreadObject *_pThread) -> aint
 					{
 						aint MicroSecondsOld = 0;
 						while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
@@ -231,7 +231,7 @@ namespace NMib::NConcurrency
 								// Reset semaphore
 								if (MicroSeconds < 0 || _pThread->m_EventWantQuit.f_WaitTimeout(fp64(MicroSeconds) / fp64(1000000.0)))
 								{
-									g_Dispatch(fg_ThisActor(m_pThis)) / [this]
+									g_Dispatch(ThisActor) / [this]
 										{
 											fp_ProcessTimers();
 										}

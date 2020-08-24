@@ -320,7 +320,7 @@ namespace NMib::NConcurrency
 	{
 		auto &pHost = _pConnection->m_pHost;
 
-		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted)
+		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
 
 		CDistributedActorCommand_Publish Publish;
@@ -359,7 +359,7 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
-		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted)
+		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
 
 		CDistributedActorCommand_Unpublish Unpublish;

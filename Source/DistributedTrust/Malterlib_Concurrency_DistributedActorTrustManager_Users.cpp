@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 	}
 
 	template<typename t_CType>
-	TCFuture<CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
+	DMibSuppressUndefinedSanitizerLinux TCFuture<CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -222,7 +222,7 @@ namespace NMib::NConcurrency
 	}
 
 	template<typename t_CType>
-	TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData)
+	DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData)
 	{
 		struct CResult
 		{
@@ -321,10 +321,10 @@ namespace NMib::NConcurrency
 		co_return Result.m_UserID;
 	}
 
-	template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
-	template TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
-	template TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
-	template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
-	template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
-	template TCFuture<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
 }

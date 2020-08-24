@@ -264,13 +264,18 @@ namespace NMib::NConcurrency
 		template <typename t_CReturnType>
 		struct TCCallSyncState
 		{
-			NThread::CEvent m_WaitEvent;
-			TCAsyncResult<t_CReturnType> m_Result;
+			~TCCallSyncState()
+			{
+				DMibLock(m_Lock);
+				m_Result.f_Clear();
+			}
 
 			template <mint ...tfp_Indices, typename ...tfp_CResults>
 			void f_TransferResults(NMeta::TCIndices<tfp_Indices...> const &_Indicies, tfp_CResults && ...p_Results)
 			{
 				t_CReturnType Result;
+
+				bool bResultSet = false;
 
 				TCInitializerList<bool> Dummy =
 					{
@@ -278,8 +283,12 @@ namespace NMib::NConcurrency
 						{
 							if (!p_Results)
 							{
-								if (!m_Result.f_IsSet())
-									m_Result.f_SetException(p_Results);
+								if (!bResultSet)
+								{
+									DMibLock(m_Lock);
+									bResultSet = true;
+									m_Result.f_SetException(fg_Move(p_Results));
+								}
 							}
 							else
 								fg_Get<tfp_Indices>(Result) = fg_Move(*p_Results);
@@ -290,11 +299,18 @@ namespace NMib::NConcurrency
 				;
 				(void)Dummy;
 
-				if (!m_Result.f_IsSet())
+				if (!bResultSet)
+				{
+					DMibLock(m_Lock);
 					m_Result.f_SetResult(fg_Move(Result));
+				}
 
 				m_WaitEvent.f_SetSignaled();
 			}
+
+			NThread::CEvent m_WaitEvent;
+			NThread::CMutual m_Lock;
+			TCAsyncResult<t_CReturnType> m_Result;
 		};
 
 		template <typename t_CType>
@@ -464,6 +480,7 @@ namespace NMib::NConcurrency
 			else
 				pResult->m_WaitEvent.f_Wait();
 
+			DMibLock(pResult->m_Lock);
 			return pResult->m_Result.f_Move();
 		}
 
@@ -505,7 +522,8 @@ namespace NMib::NConcurrency
 					}
 					else
 					{
-						_ResultActor.f_GetRealActor()->f_QueueProcess
+						auto ResultActorCopy = _ResultActor; // We need to keep the actor alive here while queuing
+						ResultActorCopy.f_GetRealActor()->f_QueueProcess
 							(
 								[ResultActor = fg_Move(_ResultActor), fResultFunctor = fg_Move(_fResultFunctor)]() mutable
 								{
@@ -756,7 +774,10 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
-					pResult->m_Result = fg_Move(_Result);
+					{
+						DMibLock(pResult->m_Lock);
+						pResult->m_Result = fg_Move(_Result);
+					}
 					pResult->m_WaitEvent.f_SetSignaled();
 				}
 			;
@@ -769,6 +790,8 @@ namespace NMib::NConcurrency
 				else
 					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish", fg_GetTypeName<t_CFunctor>()));
 			}
+
+			DMibLock(pResult->m_Lock);
 			return pResult->m_Result.f_Move();
 		}
 
@@ -1039,9 +1062,11 @@ namespace NMib::NConcurrency
 
 		TCReportLocal(TCReportLocal &&_Other)
 			: m_pState(fg_Move(_Other.m_pState))
-			, m_pActorInternal(_Other.m_pActorInternal)
+			, m_pActorInternal(fg_Exchange(_Other.m_pActorInternal, nullptr))
+#if DMibConfig_Concurrency_DebugBlockDestroy
+			, m_ActorTypeName(fg_Move(_Other.m_ActorTypeName))
+#endif
 		{
-			_Other.m_pActorInternal = nullptr;
 		}
 
 		TCReportLocal
@@ -1054,6 +1079,9 @@ namespace NMib::NConcurrency
 			)
 			: m_pState(fg_Construct(fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_ResultActor)))
 			, m_pActorInternal(_pActorInternal)
+#if DMibConfig_Concurrency_DebugBlockDestroy
+			, m_ActorTypeName(_pActorInternal->m_ActorTypeName)
+#endif
 		{
 			if (_bStoreCallStates)
 				m_pState->f_StoreCallStates();
@@ -1095,7 +1123,8 @@ namespace NMib::NConcurrency
 			else
 			{
 				static_assert(!NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
-				auto pActor = State.m_ResultActor.f_GetRealActor();
+				auto Actor = State.m_ResultActor; // We need to keep the actor alive here while queuing
+				auto pActor = Actor.f_GetRealActor();
 				m_pActorInternal = nullptr;
 				pActor->f_QueueProcess
 					(
@@ -1210,6 +1239,7 @@ namespace NMib::NConcurrency
 
 				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<CReturnType>();
 				CLocalResultType Result;
+				bool bWasDebugException = false;
 				if constexpr (mc_bIsFuture)
 				{
 					try
@@ -1218,8 +1248,8 @@ namespace NMib::NConcurrency
 					}
 					catch (NException::CDebugException const &)
 					{
-						if (PromiseThreadLocal.m_pOnResultSet)
-							Result = TCPromise<CReturnType>() <<= NException::fg_CurrentException();
+						Result = TCPromise<CReturnType>() <<= NException::fg_CurrentException();
+						bWasDebugException = true;
 					}
 				}
 				else
@@ -1231,6 +1261,7 @@ namespace NMib::NConcurrency
 					catch (NException::CDebugException const &)
 					{
 						Result.f_SetException(NException::fg_CurrentException());
+						bWasDebugException = true;
 					}
 				}
 
@@ -1244,10 +1275,11 @@ namespace NMib::NConcurrency
 					()
 				;
 
-				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || ResultDeref.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
+				DMibCheck(bWasDebugException || PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || ResultDeref.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy))(PromiseThreadLocal.m_pOnResultSet)(PromiseThreadLocal.m_pOnResultSetConsumedBy)(&ResultDeref);
 				DMibFastCheck
 					(
-					 	ThreadLocal.m_bExpectCoroutineCall
+						bWasDebugException
+					 	|| ThreadLocal.m_bExpectCoroutineCall
 					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
 					 	|| ResultDeref.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
@@ -1331,7 +1363,7 @@ namespace NMib::NConcurrency
 				{
 					CResultType Result;
 #if DMibConfig_Concurrency_DebugBlockDestroy
-					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_pActorInternal->m_ActorTypeName)));
+					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, fg_Format("Actor '{}' called has been deleted", m_ActorTypeName)));
 #else
 					Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted", false));
 #endif
@@ -1365,6 +1397,9 @@ namespace NMib::NConcurrency
 
 		typename TCChooseType<mc_bIsFuture, NStorage::TCUniquePointer<CState>, NStorage::TCSharedPointer<CState>>::CType m_pState;
 		TCActorInternal<t_CActor> *m_pActorInternal;
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		NStr::CStr m_ActorTypeName;
+#endif
 
 	private:
 		TCReportLocal(TCReportLocal const &_Other);

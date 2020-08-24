@@ -43,7 +43,7 @@ namespace NMib::NConcurrency
 
 		DMibFastCheck(ThreadLocal.m_pCurrentlyConstructingActor == this); // You can only construct actors through concurrency manager
 
-		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActor = fg_Explicit(this);
+		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActorUnsafe.f_Store(this, NAtomic::EMemoryOrder_Relaxed);
 		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 		ThreadLocal.m_pCurrentActor = this;
 	}
@@ -194,5 +194,51 @@ namespace NMib::NConcurrency
 			fRestoreState();
 
 		return Return;
+	}
+}
+
+
+namespace NMib::NConcurrency
+{
+	struct CShamActorHolder;
+
+	CConcurrentActorImpl::~CConcurrentActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CConcurrentActorLowPrioImpl::~CConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	NPrivate::CDirectResultActorImpl::~CDirectResultActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CAnyConcurrentActorImpl::~CAnyConcurrentActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CAnyConcurrentActorLowPrioImpl::~CAnyConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CDynamicConcurrentActorImpl::~CDynamicConcurrentActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CDynamicConcurrentActorLowPrioImpl::~CDynamicConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CDirectCallActorImpl::~CDirectCallActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 }

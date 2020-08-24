@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 				Stream << ProtocolVersion;
 
 				auto pHost = pActorDataRaw->m_pHost.f_Lock();
-				if (!pHost || pHost->m_bDeleted)
+				if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 				{
 					ToDispatch = []
 						{

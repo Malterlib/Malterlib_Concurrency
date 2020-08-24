@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 			DMibFastCheck(m_ServerConnections.f_IsEmpty());
 			DMibFastCheck(m_OutstandingCalls.f_IsEmpty());
 
-			m_bDeleted = true;
+			m_bDeleted.f_Store(true, NAtomic::EMemoryOrder_Relaxed);
 
 			f_DeletePackets();
 		}
@@ -232,6 +232,9 @@ namespace NMib::NConcurrency
 			m_HostsByRealHostID.f_Remove(_Host.m_HostInfo.m_RealHostID);
 		else
 			_Host.m_RealHostsLink.f_Unlink();
+
+		_Host.m_InactiveHostsLink.f_Unlink();
+
 		m_Hosts.f_Remove(_Host.m_HostInfo.m_UniqueHostID);
 	}
 }

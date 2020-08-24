@@ -120,6 +120,10 @@ namespace NMib::NConcurrency
 		virtual TCActorInternal<CActor> *fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const = 0;
 		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise);
 
+		void fp_DeleteActor();
+		void fp_DetachActor();
+		CActor *fp_GetActorRelaxed() const;
+
 	public:
 		CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 		virtual ~CActorHolder();
@@ -194,7 +198,7 @@ namespace NMib::NConcurrency
 		mint mp_iFixedCore:sizeof(mint)*8 - 3;
 		mint mp_Priority:1;
 		mint mp_bImmediateDelete:1;
-		NStorage::TCUniquePointer<CActor, NMemory::CAllocator_Placement> mp_pActor;
+		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe = nullptr;
 		mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
 
 		// Alignment zone 4: Actor storage, other actor holder data

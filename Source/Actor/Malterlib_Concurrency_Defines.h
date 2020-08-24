@@ -284,7 +284,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType, typename t_CLock>
-	class TCLockActor;
+	struct TCLockActor;
 
 	struct CActorDestroyEventLoop
 	{

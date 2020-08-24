@@ -34,19 +34,24 @@ namespace NMib::NConcurrency
 #endif
 	}
 
+	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
+
 	CActorHolder::~CActorHolder()
 	{
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		DMibLock(mp_pConcurrencyManager->m_ActorListLock);
 		m_ActorLink.f_Unlink();
 #endif
+		mp_Working.f_Exchange(0);
+
+		fp_DeleteActor();
 		mp_pConcurrencyManager->fp_RemovedActor();
 	}
 
 #if DMibConfig_Tests_Enable
 	void CActorHolder::f_TestDetach()
 	{
-		mp_pActor.f_Detach();
+		fp_DetachActor();
 	}
 #endif
 
@@ -72,10 +77,26 @@ namespace NMib::NConcurrency
 		mp_iFixedCore = _iFixedCore;
 	}
 
-	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
-
 	void CActorHolder::fp_StartQueueProcessing()
 	{
+
+	}
+
+	void CActorHolder::fp_DeleteActor()
+	{
+		auto *pActor = mp_pActorUnsafe.f_Exchange(nullptr);
+		if (pActor)
+			pActor->~CActor();
+	}
+
+	void CActorHolder::fp_DetachActor()
+	{
+		mp_pActorUnsafe.f_Store(nullptr);
+	}
+
+	CActor *CActorHolder::fp_GetActorRelaxed() const
+	{
+		return mp_pActorUnsafe.f_Load(NAtomic::EMemoryOrder_Relaxed);
 	}
 
 	void CActorHolder::fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory)
@@ -116,7 +137,7 @@ namespace NMib::NConcurrency
 
 			auto CleanupConstruction = g_OnScopeExit > [&]
 				{
-					mp_pActor.f_Detach();
+					this->fp_DetachActor();
 				}
 			;
 
@@ -125,7 +146,7 @@ namespace NMib::NConcurrency
 			// Construction was successful
 			CleanupConstruction.f_Clear();
 
-			mp_pActor->fp_Construct();
+			fp_GetActorRelaxed()->fp_Construct();
 
 			bNeedKickstart = !mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal);
 		}
@@ -162,7 +183,7 @@ namespace NMib::NConcurrency
 	{
 		if (auto *pJob = mp_ConcurrentRunQueue.f_FirstQueueEntry(mp_ConcurrentRunQueueLocal))
 		{
-			if (mp_pActor != nullptr)
+			if (fp_GetActorRelaxed() != nullptr)
 				(*pJob)();
 			mp_ConcurrentRunQueue.f_PopQueueEntry(pJob, mp_ConcurrentRunQueueLocal);
 			return !!_ThreadLocal.m_pCurrentlyProcessingActorHolder;
@@ -246,12 +267,14 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-		if (!mp_pActor || !ThreadLocal.m_pCurrentlyProcessingActorHolder)
+		auto pActor = fp_GetActorRelaxed();
+
+		if (!pActor || !ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return false;
 
 		if (ThreadLocal.m_pCurrentActor)
 		{
-			if (ThreadLocal.m_pCurrentActor != mp_pActor.f_Get())
+			if (ThreadLocal.m_pCurrentActor != pActor)
 				return false;
 
 			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(ThreadLocal.m_pCurrentlyProcessingActorHolder);
@@ -268,13 +291,15 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-		if (ThreadLocal.m_pCurrentActor == mp_pActor.f_Get())
+		auto pActor = fp_GetActorRelaxed();
+
+		if (ThreadLocal.m_pCurrentActor == pActor)
 			return true;
 		if (ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 			return true;
 		if (ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder == this)
 			return true;
-		if (ThreadLocal.m_pCurrentlyDestructingActor == mp_pActor.f_Get())
+		if (ThreadLocal.m_pCurrentlyDestructingActor == pActor)
 			return true;
 
 		return false;
@@ -294,13 +319,15 @@ namespace NMib::NConcurrency
 
 	inline_always auto CActorHolder::fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise)
 	{
+		DMibFastCheck(_pActorHolder != nullptr);
+
 		return [pActorInternal = fg_Move(_pActorHolder), _Promise](TCAsyncResult<void> &&_Result) mutable
 			{
 				auto &ActorInternal = *pActorInternal;
 				if (smint Expected = 0; ActorInternal.mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 				{
 #if DMibEnableSafeCheck > 0
-					ActorInternal.mp_pActor->fp_CheckDestroy();
+					ActorInternal.fp_GetActorRelaxed()->fp_CheckDestroy();
 #endif
 
 					ActorInternal.fp_DestroyActorHolder
@@ -436,7 +463,7 @@ namespace NMib::NConcurrency
 
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-			auto pActor = This.mp_pActor.f_Get();
+			auto pActor = This.fp_GetActorRelaxed();
 			if (pActor)
 			{
 #if DMibEnableSafeCheck > 0
@@ -451,7 +478,7 @@ namespace NMib::NConcurrency
 #endif
 				pActor->self.m_pThis.f_SetBits(1);
 				pActor->fp_AbortSuspendedCoroutines();
-				This.mp_pActor.f_Clear();
+				This.fp_DeleteActor();
 			}
 			This.mp_bDestroyed.f_Exchange(2);
 
@@ -508,6 +535,7 @@ namespace NMib::NConcurrency
 						, g_OnScopeExit > [pThis = &This, fOnDestroyed = fg_Move(m_fOnDestroyed)]() mutable
 						{
 							auto &This = *pThis;
+
 							NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
 							This.f_WeakRefCountSetCapturedDelete(CapturedDelete);
 							if (This.f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
@@ -736,7 +764,7 @@ namespace NMib::NConcurrency
 			(
 				[this, Functor = fg_Move(_Functor)]() mutable
 				{
-					if (this->mp_pActor)
+					if (this->fp_GetActorRelaxed())
 						Functor();
 				}
 			)
@@ -750,7 +778,7 @@ namespace NMib::NConcurrency
 				[pThisWeak = TCActorHolderWeakPointer<CDelegatedActorHolder>{this}, Functor = fg_Move(_Functor)]() mutable
 				{
 					auto pThis = pThisWeak.f_Lock();
-					if (pThis && pThis->mp_pActor)
+					if (pThis && pThis->fp_GetActorRelaxed())
 						Functor();
 				}
 			)

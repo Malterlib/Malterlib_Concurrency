@@ -25,6 +25,8 @@ namespace NMib::NConcurrency
 		SubscriptionState.m_SubscriptionID = SubscriptionID;
 		SubscriptionState.m_LastExecutionID = State.m_LastExecutionID;
 
+		State.m_ActorFunctors[_SubscriptionSequenceID].m_PendingSubscriptions.f_Insert(pSubscription->m_pState);
+		
 		auto DistributionManager = State.m_DistributionManager.f_Lock();
 		DMibCheck(DistributionManager); // Should be called from place where distribution manager is referenced
 		if (DistributionManager)
@@ -39,7 +41,6 @@ namespace NMib::NConcurrency
 				> fg_DiscardResult()
 			;
 		}
-		State.m_ActorFunctors[_SubscriptionSequenceID].m_PendingSubscriptions.f_Insert(pSubscription->m_pState); 
 
 		_Subscription = fg_Move(pSubscription);
 	}

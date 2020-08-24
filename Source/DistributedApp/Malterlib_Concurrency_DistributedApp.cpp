@@ -760,6 +760,7 @@ namespace NMib::NConcurrency
 	{
 		bool bStartedApp = false;
 		TCActor<CDistributedAppActor> AppActor;
+		TCActor<CActor> LogActor;
 		aint Ret = 1;
 		try
 		{
@@ -786,7 +787,11 @@ namespace NMib::NConcurrency
 				{
 #if (DMibSysLogSeverities) != 0
 					if (bInstalledLogDispatcher)
+					{
 						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+						if (LogActor)
+							LogActor->f_BlockDestroy();
+					}
 #endif
 				}
 			;
@@ -816,7 +821,7 @@ namespace NMib::NConcurrency
 						else
 							AppType = EDistributedAppType_CommandLine;
 
-						TCActor<CActor> LogActor = fg_ApplyLoggingOption(_Params);
+						LogActor = fg_ApplyLoggingOption(_Params);
 						if (LogActor)
 							bInstalledLogDispatcher = true;
 						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))

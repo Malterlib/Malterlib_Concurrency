@@ -70,6 +70,8 @@ namespace NMib::NConcurrency
 		TCAsyncResult(TCAsyncResult &&_Other);
 		TCAsyncResult &operator =(TCAsyncResult &&_Other);
 
+		void f_Clear();
+
 		t_CType const &f_Get() const;
 		t_CType &f_Get();
 		t_CType f_Move();
@@ -100,11 +102,14 @@ namespace NMib::NConcurrency
 
 	public:
 		TCAsyncResult();
+		~TCAsyncResult();
 		TCAsyncResult(TCAsyncResult &&_Other);
 		TCAsyncResult(TCAsyncResult const &_Other);
 		TCAsyncResult &operator =(TCAsyncResult &&_Other);
 		TCAsyncResult &operator =(TCAsyncResult const &_Other);
-		
+
+		void f_Clear();
+
 		CVoidTag f_Get() const;
 		CVoidTag f_Get();
 		CVoidTag f_Move();

@@ -16,16 +16,8 @@ namespace NMib::NContainer
 	template <typename t_CType>
 	class TCThreadSafeQueueAtomicListEntry
 	{
-
-#if defined(DCompiler_MSVC_Workaround)
-		template <typename tf_CObjectType, typename tf_CAllocator, typename... tfp_CParams, TCEnableIfType<NTraits::TCRemoveReference<tf_CAllocator>::CType::mc_bIsDefault> *>
-		friend tf_CObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams &&...p_Params);
-		template <typename tf_CObjectType, typename tf_CAllocator, typename... tfp_CParams, TCEnableIfType<!NTraits::TCRemoveReference<tf_CAllocator>::CType::mc_bIsDefault> *>
-		friend tf_CObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams &&...p_Params);
-#else
 		template <typename tf_ObjectType, typename tf_CAllocator, typename... tfp_CParams>
 		friend tf_ObjectType *NMib::fg_ConstructObject(tf_CAllocator &&_Allocator, tfp_CParams&&... p_Params);
-#endif
 
 		template <typename t_CType0, typename t_CAllocator0, int t_DefaultSize0>
 		friend class TCThreadSafeQueueAtomic;

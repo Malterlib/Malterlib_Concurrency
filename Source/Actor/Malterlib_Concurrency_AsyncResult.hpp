@@ -67,12 +67,21 @@ namespace NMib::NConcurrency
 			m_ResultAggregate.f_Construct(fg_Move(*_Other.m_ResultAggregate));
 		return *this;
 	}
-	
+
 	template <typename t_CType>
 	TCAsyncResult<t_CType>::~TCAsyncResult()
 	{
 		if (m_bHasBeenSet)
 			m_ResultAggregate.f_Destruct();
+	}
+
+	template <typename t_CType>
+	void TCAsyncResult<t_CType>::f_Clear()
+	{
+		if (fg_Exchange(m_bHasBeenSet, false))
+			m_ResultAggregate.f_Destruct();
+		else if (m_pException)
+			m_pException = nullptr;
 	}
 	
 	template <typename t_CType>

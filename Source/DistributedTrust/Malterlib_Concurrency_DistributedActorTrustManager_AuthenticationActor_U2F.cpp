@@ -30,11 +30,13 @@ extern "C"
 
 #ifdef DPlatformFamily_OSX
 	#include <Security/Security.h>
+	#include <unistd.h>
 #elif defined DPlatformFamily_Linux
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <sys/ioctl.h>
 	#include <fcntl.h>
+	#include <unistd.h>
 #endif
 };
 
@@ -612,7 +614,7 @@ namespace
 							if (ioctl(Handle, HIDIOCGRDESC, &ReportDescriptor) >= 0 && fs_GetUsage(ReportDescriptor.value, ReportDescriptor.size, Result) >= 0)
 								return Result;
 						}
-						close (Handle);
+						close(Handle);
 					}
 					return {};
 				}
@@ -769,7 +771,7 @@ namespace
 			}
 		}
 
-		static TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
 		{
 			co_await ECoroutineFlag_AllowReferences;
 

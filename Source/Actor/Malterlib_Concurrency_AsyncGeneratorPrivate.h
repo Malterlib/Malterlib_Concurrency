@@ -45,6 +45,8 @@ namespace NMib::NConcurrency::NPrivate
 		CYieldSuspender yield_value(t_CReturnType &&_Value);
 
 		TCAsyncGenerator<t_CReturnType> get_return_object();
+
+		static constexpr bool mc_bSupportOwnershipTransfer = false;
 	};
 
 	template <typename t_CReturnType, ECoroutineFlag t_Flags = ECoroutineFlag_None>

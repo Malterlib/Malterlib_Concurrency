@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	inline_always CSuspendNever CFutureCoroutineContext::initial_suspend() noexcept
+	inline_always auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
 	{
 		return {};
 	}
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	TCFutureCoroutineContextShared<t_CReturnType>::~TCFutureCoroutineContextShared() noexcept
 	{
-		if (m_pPromiseData)
+		if (m_pPromiseData && m_pPromiseData->m_Coroutine)
 			m_pPromiseData->m_Coroutine = nullptr;
 	}
 
@@ -149,6 +149,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 		auto *pPromiseData = pPromiseDataShared.f_Get();
 		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContextShared>::from_promise(*this);
+		pPromiseData->m_bIsCoroutine = true;
 #if DMibEnableSafeCheck > 0
 		pPromiseData->m_CoroutineOwner = fg_CurrentActor();
 		this->fp_UpdateSafeCall(bSafeCall);
@@ -274,8 +275,8 @@ namespace NMib::NConcurrency::NPrivate
 		auto pPromiseData = this->m_pPromiseData;
 		if (!pPromiseData || !pPromiseData->m_Coroutine)
 			return;
-		pPromiseData->m_Coroutine.destroy();
-		pPromiseData->m_Coroutine = nullptr;
+		auto Coroutine = fg_Exchange(pPromiseData->m_Coroutine, nullptr);
+		Coroutine.destroy();
 	}
 
 	template <typename t_CReturnType>
@@ -337,15 +338,10 @@ namespace NMib::NConcurrency
 							if (!Actor)
 								return;
 
-#if DMibEnableSafeCheck > 0
-							if (!KeepAlive.f_HasValidCoroutine())
-								return; // Can happen when f_Suspend throws
-#endif
-
 							auto pRealActor = Actor.f_GetRealActor();
 							pRealActor->f_QueueProcess
 								(
-									[this, Actor = fg_Move(Actor), _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
+									[this, Actor, _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
 									{
 #if DMibEnableSafeCheck > 0
 										if (!KeepAlive.f_HasValidCoroutine())

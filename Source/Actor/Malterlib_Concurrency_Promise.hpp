@@ -588,7 +588,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	bool TCFuture<t_CReturnValue>::f_IsCoroutine() const
 	{
-		return !!mp_pData->m_Coroutine;
+		return mp_pData->m_bIsCoroutine;
 	}
 
 	template <typename t_CReturnValue>
@@ -703,9 +703,9 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 			)
 		;
-		m_OnResultSet = m_fOnResult ? EFutureResultFlag_ResultFunctorSet : EFutureResultFlag_None;
 		m_bOnResultSetAtInit = !!m_fOnResult;
 		m_Result = TCAsyncResult<t_CReturnValue>();
+		m_OnResultSet = m_fOnResult ? EFutureResultFlag_ResultFunctorSet : EFutureResultFlag_None;
 	}
 
 	template <typename t_CReturnValue>

@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	t_CActor *TCActorInternal<t_CActor>::fp_GetActor() const
 	{
-		return static_cast<t_CActor *>(this->mp_pActor.f_Get());
+		return static_cast<t_CActor *>(this->fp_GetActorRelaxed());
 	}
 
 	template <typename t_CActor>

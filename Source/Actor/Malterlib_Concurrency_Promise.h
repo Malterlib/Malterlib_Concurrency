@@ -98,7 +98,22 @@ namespace NMib::NConcurrency
 		CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept;
 		~CFutureCoroutineContext() noexcept;
 
-		inline_always CSuspendNever initial_suspend() noexcept;
+#if defined(DMibSanitizerEnabled_Address)
+		// Workaround address sanitizer bug
+
+		struct CSupendNeverWorkaround
+		{
+			inline_never bool await_ready() const noexcept;
+			inline_never void await_suspend(TCCoroutineHandle<>) const noexcept;
+			inline_never void await_resume() const noexcept;
+		};
+
+		using CInitialSuspend = CSupendNeverWorkaround;
+#else
+		using CInitialSuspend = CSuspendNever;
+#endif
+
+		CInitialSuspend initial_suspend() noexcept;
 		CSuspendNever final_suspend() noexcept;
 
 		template <typename t_CThis, ECoroutineFlag tf_Flags>
@@ -148,6 +163,7 @@ namespace NMib::NConcurrency
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;
 #endif
+		static constexpr bool mc_bSupportOwnershipTransfer = true;
 
 	protected:
 #if DMibEnableSafeCheck > 0
@@ -361,6 +377,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCCoroutineHandle<TCFutureCoroutineContextShared<t_CReturnValue>> m_Coroutine;
 		bool m_bOnResultSetAtInit = false;
 		bool m_bIsGenerator = false;
+		bool m_bIsCoroutine = false;
 #if DMibEnableSafeCheck > 0
 		TCWeakActor<> m_CoroutineOwner;
 		bool m_bFutureGotten = false;

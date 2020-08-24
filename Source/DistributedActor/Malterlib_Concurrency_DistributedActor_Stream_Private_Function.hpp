@@ -136,7 +136,7 @@ namespace NMib::NConcurrency
 							return fReportError("Internal error (missing or incorrect distributed actor data)");
 
 						auto pHost = pActorDataRaw->m_pHost.f_Lock();
-						if (!pHost || pHost->m_bDeleted)
+						if (!pHost || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 							return fReportError("Remote actor host no longer available");
 
 						CDistributedActorWriteStream Stream;

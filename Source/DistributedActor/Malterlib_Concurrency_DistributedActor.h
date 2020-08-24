@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 
 			CDistributedActorHostInfo const m_HostInfo;
 			NAtomic::TCAtomic<uint32> m_ActorProtocolVersion = 0;
-			bool m_bDeleted = false;
+			NAtomic::TCAtomic<bool> m_bDeleted = false;
 		};
 
 		TCFuture<CDistributedActorPublication> fg_PublishActor

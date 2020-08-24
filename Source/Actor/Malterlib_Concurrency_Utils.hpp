@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 			DMibError("You have already gotten the results from this result vector once");
 
 		mp_bResultsGotten = true;
-		if (mp_nFinished.f_Get() == mp_nAdded.f_Load())
+		if (mp_nFinished.f_Get() == (mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask))
 			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
 		return mp_GetResultsPromise.f_Future();
 	}
@@ -50,9 +50,10 @@ namespace NMib::NConcurrency
 	void TCActorResultMap<t_CKey, t_CValue>::CResultReceived::operator ()(TCAsyncResult<t_CValue> &&_Result) const
 	{
 		auto &Internal = mp_Actor->f_AccessInternal();
-		Internal.mp_Results[m_Key] = fg_Move(_Result);
+		[[maybe_unused]] auto Mapped = Internal.mp_Results(m_Key, fg_Move(_Result));
+		DMibFastCheck(Mapped.f_WasCreated()); // It's not valid to add the same result twice
 		mint nFinished = ++Internal.mp_nFinished;
-		if (Internal.mp_bResultsGotten && nFinished == Internal.mp_nAdded.f_Load())
+		if (Internal.mp_bResultsGotten && nFinished == (Internal.mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask))
 			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
 	}
 
@@ -67,7 +68,8 @@ namespace NMib::NConcurrency
 	TCActorResultCall<TCActor<typename TCActorResultMap<t_CKey, t_CValue>::CInternalActor>, typename TCActorResultMap<t_CKey, t_CValue>::CResultReceived> TCActorResultMap<t_CKey, t_CValue>::f_AddResult(tf_CKey &&_Key)
 	{
 		auto &Internal = mp_Actor->f_AccessInternal();
-		Internal.mp_nAdded.f_FetchAdd(1);
+		[[maybe_unused]] auto nAdded = Internal.mp_nAdded.f_FetchAdd(1);
+		DMibFastCheck(!(nAdded & NPrivate::gc_ActorResultResultsGottenMask));
 
 		return TCActorResultCall<TCActor<CInternalActor>, CResultReceived>
 			(
@@ -80,6 +82,9 @@ namespace NMib::NConcurrency
 	template <typename t_CKey, typename t_CValue>
 	auto TCActorResultMap<t_CKey, t_CValue>::f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults))
 	{
+		auto &Internal = mp_Actor->f_AccessInternal();
+		Internal.mp_nAdded.f_FetchOr(NPrivate::gc_ActorResultResultsGottenMask);
+
 		return mp_Actor(&CInternalActor::f_GetResults);
 	}
 
@@ -87,7 +92,7 @@ namespace NMib::NConcurrency
 	bool TCActorResultMap<t_CKey, t_CValue>::f_IsEmpty() const
 	{
 		auto &Internal = mp_Actor->f_AccessInternal();
-		return Internal.mp_nAdded.f_Load() == 0;
+		return (Internal.mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask) == 0;
 	}
 
 	template <typename tf_CType, typename tf_FOnResult>
@@ -1125,8 +1130,7 @@ namespace NMib::NConcurrency
 			DMibError("You have already gotten the results from this result vector once");
 		}
 
-		NAtomic::fg_CompilerFence();
-		mp_bLazyResultsGotten = true;
+		mp_bLazyResultsGotten.f_Store(true);
 
 		if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)
 		{
@@ -1161,7 +1165,7 @@ namespace NMib::NConcurrency
 	void TCActorResultVector<t_CType>::CResultReceived::operator ()(TCAsyncResult<t_CType> &&_Result) const
 	{
 		auto &Internal = *mp_pInternal;
-		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten)
+		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten.f_Load(NAtomic::EMemoryOrder_Acquire))
 			Internal.mp_Results.f_GetArray()[mp_iResult] = fg_Move(_Result);
 		else
 		{

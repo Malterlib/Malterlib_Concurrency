@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 				]
 				(CActorDistributionManagerInternal &_Internal)
 				{
-					if (pHost->m_bDeleted || pHost->m_LastExecutionID != LastExecutionID)
+					if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 						return;
 					
 					for (auto &FunctionID : ImplicitlyPublishedFunctions)
@@ -227,7 +227,7 @@ namespace NMib::NConcurrency
 
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 		
-		if (!pHostInterface || pHostInterface->m_bDeleted)
+		if (!pHostInterface || pHostInterface->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return Promise <<= DMibErrorInstance("Remote actor host no longer available");
 
 		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
@@ -324,7 +324,7 @@ namespace NMib::NConcurrency
 	{
 		auto &State = *_Context.m_pState;
 		auto &Host = *_pHost;
-		if (Host.m_bDeleted || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 		
 		CDistributedActorCommand_RemoteCallResult Result;
@@ -631,7 +631,7 @@ namespace NMib::NConcurrency
 		if (!pHost)
 			return;
 		auto &Host = *pHost;
-		if (Host.m_bDeleted || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 		
 		for (auto &Subscription : State.m_Subscriptions)
@@ -661,7 +661,7 @@ namespace NMib::NConcurrency
 		if (!pHost)
 			return;
 		auto &Host = *pHost;
-		if (Host.m_bDeleted || Host.m_LastExecutionID != State.m_LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
 
 		auto &References = Host.m_RemoteSubscriptionReferences[_SubscriptionID];
@@ -684,7 +684,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
 		{
-			if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
+			if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 				co_return {};
 			auto *pSubscription = Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
 			if (!pSubscription)
@@ -741,7 +741,7 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
-		if (pHost->m_bDeleted)
+		if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
 		
 		auto &Host = *pHost;
@@ -759,7 +759,7 @@ namespace NMib::NConcurrency
 					> [this, pHost, SubscriptionID = DestroySubscription.m_SubscriptionID, LastExecutionID = pHost->m_LastExecutionID, ActorProtocolVersion]
 					(TCAsyncResult<void> &&_Result)
 					{
-						if (pHost->m_bDeleted || pHost->m_LastExecutionID != LastExecutionID)
+						if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 							return;
 						
 						CDistributedActorCommand_SubscriptionDestroyed Result;
@@ -791,7 +791,7 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
-		if (pHost->m_bDeleted)
+		if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
 
 		auto &Host = *pHost;

@@ -60,7 +60,9 @@ namespace NMib::NConcurrency
 								while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 								{
 									{
+#if DMibPPtrBits > 32
 										auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+#endif
 										while (f_DispatchOne())
 											;
 									}

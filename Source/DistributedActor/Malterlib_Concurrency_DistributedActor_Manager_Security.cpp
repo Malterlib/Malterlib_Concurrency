@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted || Host.m_LastExecutionID != _LastExecutionID)
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != _LastExecutionID)
 			co_return {};
 
 		Host.m_AuthenticationHandler = _AuthenticationHandler;
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
-		if (Host.m_bDeleted)
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			co_return {};
 
 		if (Host.m_AuthenticationHandler == _AuthenticationHandler)

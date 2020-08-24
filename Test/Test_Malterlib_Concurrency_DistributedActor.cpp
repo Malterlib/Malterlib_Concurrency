@@ -1429,35 +1429,42 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
-			CMutual Lock;
-			CEventAutoReset Event;
-			CStr Message;
-			auto fCallBack = [&](CStr const &_Message) -> TCFuture<CStr>
+
+			struct CState
+			{
+				CMutual m_Lock;
+				CEventAutoReset m_Event;
+				CStr m_Message;
+			};
+
+			TCSharedPointer<CState> pState = fg_Construct();
+
+			auto fCallBack = [pState](CStr const &_Message) -> TCFuture<CStr>
 				{
 					TCPromise<CStr> Promise;
-					DMibLock(Lock);
-					Message = _Message;
-					Event.f_Signal();
+					DMibLock(pState->m_Lock);
+					pState->m_Message = _Message;
+					pState->m_Event.f_Signal();
 
 					return Promise <<= _Message;
 				}
 			;
 
-			auto fWaitForMessage = [&]() -> NStr::CStr
+			auto fWaitForMessage = [pState]() -> NStr::CStr
 				{
 					CStr ReceivedMessage;
 					bool bTimedOut = false;
 					while (!bTimedOut)
 					{
 						{
-							DMibLock(Lock);
-							if (!Message.f_IsEmpty())
+							DMibLock(pState->m_Lock);
+							if (!pState->m_Message.f_IsEmpty())
 							{
-								ReceivedMessage = Message;
+								ReceivedMessage = fg_Move(pState->m_Message);
 								break;
 							}
 						}
-						bTimedOut = Event.f_WaitTimeout(10.0);
+						bTimedOut = pState->m_Event.f_WaitTimeout(10.0);
 					}
 
 					return ReceivedMessage;

@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
 			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise;
 			bool mp_bDefinedSize = false;
-			bool mp_bLazyResultsGotten = false;
+			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 
 			TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
 			void fp_TransferResults();

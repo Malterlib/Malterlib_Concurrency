@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	CAsyncResult::CAsyncResult() = default;
 	CAsyncResult &CAsyncResult::operator =(CAsyncResult const &_Other) = default;
 	CAsyncResult &CAsyncResult::operator =(CAsyncResult &&_Other) = default;
-	
+
 	void CAsyncResult::f_Access() const
 	{
 		if (m_pException != nullptr)
@@ -65,7 +65,19 @@ namespace NMib::NConcurrency
 	TCAsyncResult<void>::TCAsyncResult(TCAsyncResult const &_Other) = default;
 	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
 	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
-	
+
+	TCAsyncResult<void>::~TCAsyncResult()
+	{
+		m_pException = nullptr;
+		m_bHasBeenSet = false;
+	}
+
+	void TCAsyncResult<void>::f_Clear()
+	{
+		m_pException = nullptr;
+		m_bHasBeenSet = false;
+	}
+
 	CVoidTag TCAsyncResult<void>::f_Get() const
 	{
 		if (m_pException != nullptr)

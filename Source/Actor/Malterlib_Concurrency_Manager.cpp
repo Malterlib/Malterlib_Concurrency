@@ -168,8 +168,7 @@ namespace NMib::NConcurrency
 			auto &Queues = m_Queues[Priority];
 			Queues.f_SetLen(nThreads);
 
-			auto &nActors = m_nActorsPerQueue[Priority];
-			nActors.f_SetLen(nThreads);
+			auto &nActors = (m_nActorsPerQueue[Priority] = NContainer::TCVector<CNumActorsPerQueue>(nThreads));
 			m_nActorsPerQueueArray[Priority] = nActors.f_GetArray();
 
 			for (mint i = 0; i < nThreads; ++i)
@@ -264,7 +263,7 @@ namespace NMib::NConcurrency
 
 		// Delete the timer actor
 		{
-			DMibLock(m_pTimerActorLock);
+			DMibLock(m_TimerActorLock);
 			if (m_pTimerActor)
 				fg_Move(m_pTimerActor).f_Destroy() > fg_DiscardResult();
 		}
@@ -556,11 +555,11 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			++m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors;
+			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchAdd(1, NAtomic::EMemoryOrder_Relaxed);
 			return;
 		}
 
-		++m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors;
+		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchAdd(1, NAtomic::EMemoryOrder_Relaxed);
 	}
 
 	void CConcurrencyManager::fp_RemovedActor()
@@ -569,11 +568,11 @@ namespace NMib::NConcurrency
 		if (ThreadLocal.m_pThisQueue)
 		{
 			auto &Queue = *ThreadLocal.m_pThisQueue;
-			--m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors;
+			m_nActorsPerQueueArray[Queue.m_Priority][Queue.m_iQueue].m_nActors.f_FetchSub(1, NAtomic::EMemoryOrder_Release);
 			return;
 		}
 
-		--m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors;
+		m_nActorsOther[(ThreadLocal.m_nActorsIndex & m_ActorsOtherMask)].m_nActors.f_FetchSub(1, NAtomic::EMemoryOrder_Release);
 	}
 
 	mint CConcurrencyManager::fp_NumActors()
@@ -585,7 +584,7 @@ namespace NMib::NConcurrency
 		for (auto &nActorsPerQueue : m_nActorsPerQueue)
 		{
 			for (auto &nActors : nActorsPerQueue)
-				nActorsSum += nActors.m_nActors;
+				nActorsSum += nActors.m_nActors.f_Load();
 		}
 
 		return nActorsSum;
@@ -717,7 +716,7 @@ namespace NMib::NConcurrency
 		// Delete the timer actor
 		{
 			{
-				DMibLock(m_pTimerActorLock);
+				DMibLock(m_TimerActorLock);
 				if (m_pTimerActor)
 					fg_Move(m_pTimerActor).f_Destroy().f_CallSync();
 			}
@@ -756,6 +755,13 @@ namespace NMib::NConcurrency
 				}
 			}
 		}
+
+		m_bDestroyingAlwaysAliveActors = true;
+		auto Cleanup = g_OnScopeExit > [&]
+			{
+				m_bDestroyingAlwaysAliveActors = false;
+			}
+		;
 
 		// Delete the concurrent actors
 		{
@@ -798,6 +804,11 @@ namespace NMib::NConcurrency
 			NSys::fg_Thread_SmallestSleep();
 	}
 
+	bool CConcurrencyManager::f_DestroyingAlwaysAliveActors() const
+	{
+		return m_bDestroyingAlwaysAliveActors.f_Load();
+	}
+
 	inline_never mint CConcurrencyManager::fp_InitConcurrentActors()
 	{
 		DMibLock(m_pConcurrentActorLock);
@@ -818,9 +829,9 @@ namespace NMib::NConcurrency
 				for (auto &Actor : m_ConcurrentActors[Prio])
 				{
 					if (Prio == EPriority_Normal)
-						Actor = fg_ConstructActor<CConcurrentActorImpl>();
+						Actor = f_ConstructActor(fg_Construct<CConcurrentActorImpl>());
 					else if (Prio == EPriority_Low)
-						Actor = fg_ConstructActor<CConcurrentActorLowPrioImpl>();
+						Actor = f_ConstructActor(fg_Construct<CConcurrentActorLowPrioImpl>());
 					Actor->f_SetFixedCore(iActor);
 					m_ConcurrentActorsRef[Prio][iActor] = Actor;
 					++iActor;
@@ -927,15 +938,16 @@ namespace NMib::NConcurrency
 
 	TCActor<CTimerActor> const &CConcurrencyManager::f_GetTimerActor()
 	{
+		if (!m_bTimerActorInit.f_Load(NAtomic::EMemoryOrder_Acquire))
 		{
-			if (!m_pTimerActor)
+			DMibLock(m_TimerActorLock);
+			if (!m_bTimerActorInit.f_Load())
 			{
-				DMibLock(m_pTimerActorLock);
-				if (!m_pTimerActor)
-					m_pTimerActor = fg_Construct(fg_Construct(), "Timer actor");
+				m_pTimerActor = fg_Construct(fg_Construct(), "Timer actor");
+				m_bTimerActorInit.f_Store(true);
 			}
-			return m_pTimerActor;
 		}
+		return m_pTimerActor;
 	}
 
 	TCActor<CActor> fg_CurrentActor()

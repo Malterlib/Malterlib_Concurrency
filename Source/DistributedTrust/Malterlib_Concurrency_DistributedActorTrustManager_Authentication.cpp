@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid authentication handler");
 
 		auto &Internal = *m_pThis->mp_pInternal;
-		auto &CallingHostInfo = fg_GetCallingHostInfo();
+		auto CallingHostInfo = fg_GetCallingHostInfo();
 		auto &UniqueHostID = CallingHostInfo.f_GetUniqueHostID();
 		auto pHost = CallingHostInfo.f_GetHost();
 		if (!pHost)

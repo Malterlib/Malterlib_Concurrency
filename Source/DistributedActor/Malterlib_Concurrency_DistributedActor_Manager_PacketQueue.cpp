@@ -15,7 +15,9 @@ namespace NMib::NConcurrency
 		{
 			DMibRequire(m_pData && m_pData->f_GetLen() >= sizeof(uint64));
 			uint8 const *pData = m_pData->f_GetArray() + 1;
-			return fg_ByteSwapLE(*((uint64 const *)pData));
+			uint64 PacketID;
+			NMemory::fg_MemCopy(&PacketID, pData, sizeof(PacketID));
+			return fg_ByteSwapLE(PacketID);
 		}
 	}
 

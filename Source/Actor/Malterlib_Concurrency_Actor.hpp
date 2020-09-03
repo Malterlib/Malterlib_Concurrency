@@ -967,7 +967,7 @@ namespace NMib::NConcurrency
 	TCActor<t_CActor> const &TCRoundRobinActors<t_CActor>::operator *() const
 	{
 		mint iCurrentActor = mp_iCurrentActor;
-		mp_iCurrentActor = (mp_iCurrentActor + 1) % mp_Actors.f_GetLen();
+		mp_iCurrentActor = (mp_iCurrentActor + 1) % fg_Max(mp_Actors.f_GetLen(), 1);
 		return mp_Actors[iCurrentActor];
 	}
 

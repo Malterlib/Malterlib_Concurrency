@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithAppAuditor
+	struct [[nodiscard("You need to co_await the result")]] TCFutureWithAppAuditor
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithErrorWithAppAuditor
+	struct [[nodiscard("You need to co_await the result")]] TCFutureWithErrorWithAppAuditor
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithAppAuditorWithError
+	struct [[nodiscard("You need to co_await the result")]] TCFutureWithAppAuditorWithError
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithErrorWithAppAuditorWithError
+	struct [[nodiscard("You need to co_await the result")]] TCFutureWithErrorWithAppAuditorWithError
 	{
 		struct CNoUnwrapAsyncResult
 		{

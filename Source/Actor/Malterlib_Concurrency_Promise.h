@@ -424,13 +424,13 @@ namespace NMib::NConcurrency
 #	define DMibErrorInstanceCoroutineWrapper(d_Description, d_Specific) DMibImpExceptionInstanceSpecific(NMib::NConcurrency::CExceptionCoroutineWrapper, d_Description, d_Specific, false)
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromiseWithError;
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCPromiseWithError;
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithError;
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFutureWithError;
 
 	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform = void *>
-	struct [[nodiscard]] TCFutureAwaiter;
+	struct [[nodiscard("You need to co_await the result")]] TCFutureAwaiter;
 
 	template <typename t_CReturnValue = void>
 	struct [[nodiscard]] TCPromise;
@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 
 	/// \brief Used to defer the return of a value to allow async programming
 	template <typename t_CReturnValue = void>
-	struct [[nodiscard]] DMibConcurrencyInstrumentFunctionEnter TCFuture
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] DMibConcurrencyInstrumentFunctionEnter TCFuture
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -606,7 +606,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCFutureWithError : public CActorWithErrorBase
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFutureWithError : public CActorWithErrorBase
 	{
 		struct CNoUnwrapAsyncResult
 		{

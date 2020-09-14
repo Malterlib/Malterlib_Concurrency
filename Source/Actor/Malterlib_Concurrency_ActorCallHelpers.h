@@ -361,7 +361,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CActorCall, typename... tp_CCalls>
-	struct [[nodiscard]] TCActorCallPackWithError : protected CActorWithErrorBase
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCallPackWithError : protected CActorWithErrorBase
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -380,7 +380,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename... tp_CCalls>
-	struct [[nodiscard]] TCActorCallPack
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCallPack
 	{
 		NStorage::TCTuple<tp_CCalls...> m_Calls;
 
@@ -580,7 +580,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CActorCall, typename t_CReturnType>
-	struct [[nodiscard]] TCActorCallWithError : protected CActorWithErrorBase
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCallWithError : protected CActorWithErrorBase
 	{
 		struct CNoUnwrapAsyncResult
 		{
@@ -603,7 +603,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool t_bDirectCall>
-	struct [[nodiscard]] TCActorCall
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCall
 	{
 		static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
 		static_assert(!NTraits::TCIsReference<t_CFunctor>::mc_Value, "Incorrect type");

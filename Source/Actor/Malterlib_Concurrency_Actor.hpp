@@ -922,7 +922,7 @@ namespace NMib::NConcurrency
 		return mp_Actors[iCurrentActor];
 	}
 
-	struct [[nodiscard]] CCoroutineTransferOwnershipAwaiter
+	struct [[nodiscard("You need to co_await the ownership transfer")]] CCoroutineTransferOwnershipAwaiter
 	{
 		CCoroutineTransferOwnershipAwaiter(TCActor<> &&_Actor)
 			: mp_Actor(fg_Move(_Actor))
@@ -999,7 +999,7 @@ namespace NMib::NConcurrency
 		TCActor<> mp_Actor;
 	};
 
-	struct [[nodiscard]] CCoroutineTransferOwnership
+	struct [[nodiscard("You need to co_await the ownership transfer")]] CCoroutineTransferOwnership
 	{
 		CCoroutineTransferOwnership(TCActor<> &&_Actor)
 			: mp_Actor(fg_Move(_Actor))

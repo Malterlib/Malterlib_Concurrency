@@ -16,6 +16,8 @@ namespace
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
 
+	fp64 g_Timeout = 60.0 * NMib::NTest::gc_TimeoutMultiplier;
+
 	class CTestActor : public CActor
 	{
 	public:
@@ -730,10 +732,12 @@ namespace
 					if (--nExpectedHandlers == 0)
 						HandlersFinished.f_SetSignaled();
 					
-					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(100.0);
+					bool bTimedOutWatingForTimerHandlers = HandlersFinished.f_WaitTimeout(g_Timeout * 3.0);
 					DMibTest(!DMibExpr(bTimedOutWatingForTimerHandlers));
 
-					pActor.f_Destroy() > fg_DiscardResult();
+					pActor->f_BlockDestroy();
+					pLocalActor->f_BlockDestroy();
+					pLockActor->f_BlockDestroy();
 					
 					DMibLock(TimersLock);
 				}

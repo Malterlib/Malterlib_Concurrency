@@ -8,6 +8,8 @@
 
 namespace
 {
+	fp64 g_Timeout = 60.0 * NMib::NTest::gc_TimeoutMultiplier;
+
 	using namespace NMib;
 	using namespace NMib::NStorage;
 	using namespace NMib::NMeta;
@@ -235,11 +237,11 @@ namespace
 			DMibTestSuite("General")
 			{
 				TCActor<CTestActor> TestActor = fg_Construct();
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumer).f_CallSync(60.0), ==, 21);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelfConsumer).f_CallSync(60.0), ==, 21);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelf2Consumer).f_CallSync(60.0), ==, 21);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerForCoAwait).f_CallSync(60.0), ==, 21);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerDefaulted).f_CallSync(60.0), ==, 0);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumer).f_CallSync(g_Timeout), ==, 21);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelfConsumer).f_CallSync(g_Timeout), ==, 21);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelf2Consumer).f_CallSync(g_Timeout), ==, 21);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerForCoAwait).f_CallSync(g_Timeout), ==, 21);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerDefaulted).f_CallSync(g_Timeout), ==, 0);
 			};
 			DMibTestSuite("Access Param")
 			{
@@ -248,16 +250,16 @@ namespace
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamConsumer).f_CallSync(60.0), ==, 12);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelfConsumer).f_CallSync(60.0), ==, 12);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelfMoveConsumer).f_CallSync(60.0), ==, 12);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelf2Consumer).f_CallSync(60.0), ==, 12);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamConsumer).f_CallSync(g_Timeout), ==, 12);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelfConsumer).f_CallSync(g_Timeout), ==, 12);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelfMoveConsumer).f_CallSync(g_Timeout), ==, 12);
+				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorAccessParamSelf2Consumer).f_CallSync(g_Timeout), ==, 12);
 
-				auto Generator = TestActor(&CTestActor::f_TestAsyncGeneratorAccessParam, 7).f_CallSync(60.0);
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto Generator = TestActor(&CTestActor::f_TestAsyncGeneratorAccessParam, 7).f_CallSync(g_Timeout);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 
 				DMibExpect(*iIterator, ==, 5);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 7);
 			};
 			DMibTestSuite("Eager Execution")
@@ -280,7 +282,7 @@ namespace
 						co_return {};
 					}
 				;
-				auto Generator = (g_Dispatch(TestActor) / (fg_Move(fTestEager))).f_CallSync(60.0);
+				auto Generator = (g_Dispatch(TestActor) / (fg_Move(fTestEager))).f_CallSync(g_Timeout);
 				DMibExpectTrue(pState->m_bStartedExecution);
 			};
 			DMibTestSuite("Destruction of locals when destructed early on actor")
@@ -316,7 +318,7 @@ namespace
 							{
 								auto Cleanup = g_OnScopeExit > [&]
 									{
-										pState->m_Event.f_WaitTimeout(60.0);
+										pState->m_Event.f_WaitTimeout(g_Timeout);
 										pState->m_ThreadID = NSys::fg_Thread_GetCurrentUID();
 										pState->m_bDestructed = true;
 									}
@@ -326,12 +328,12 @@ namespace
 								co_return {};
 							}
 						;
-						auto Generator = (g_Dispatch(TestActor) / fg_Move(fTestDestruction)).f_CallSync(60.0);
+						auto Generator = (g_Dispatch(TestActor) / fg_Move(fTestDestruction)).f_CallSync(g_Timeout);
 						{
 							DMibTestPath("Before");
 							DMibExpectFalse(pState->m_bDestructed);
 						}
-						auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+						auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 						{
 							DMibTestPath("After iterator");
 							DMibExpectFalse(pState->m_bDestructed);
@@ -340,8 +342,8 @@ namespace
 						DestroyIterator = fg_Move(iIterator).f_Destroy();
 					}
 					pState->m_Event.f_SetSignaled();
-					fg_Move(DestroyIterator).f_CallSync(60.0);
-					(g_Dispatch(TestActor) / []{}).f_CallSync(60.0);
+					fg_Move(DestroyIterator).f_CallSync(g_Timeout);
+					(g_Dispatch(TestActor) / []{}).f_CallSync(g_Timeout);
 					{
 						DMibTestPath("After");
 						DMibExpectTrue(pState->m_bDestructed);
@@ -390,12 +392,12 @@ namespace
 								co_return {};
 							}
 						;
-						auto Generator = (g_Dispatch(TestActor) / fg_Move(fTestDestruction)).f_CallSync(60.0);
+						auto Generator = (g_Dispatch(TestActor) / fg_Move(fTestDestruction)).f_CallSync(g_Timeout);
 						{
 							DMibTestPath("Before");
 							DMibExpectFalse(pState->m_bDestructed);
 						}
-						auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+						auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 						{
 							DMibTestPath("After iterator");
 							DMibExpectFalse(pState->m_bDestructed);
@@ -403,7 +405,7 @@ namespace
 						DMibExpect(*iIterator, ==, 1);
 					}
 					pState->m_Event.f_WaitTimeout(60.0);
-					(g_Dispatch(TestActor) / []{}).f_CallSync(60.0);
+					(g_Dispatch(TestActor) / []{}).f_CallSync(g_Timeout);
 					{
 						DMibTestPath("After");
 						DMibExpectTrue(pState->m_bDestructed);
@@ -431,12 +433,12 @@ namespace
 							return fg_CallSafe(fg_Move(fTestEager), int64(5));
 						}
 					)
-					.f_CallSync(60.0)
+					.f_CallSync(g_Timeout)
 				;
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 
 				DMibExpect(*iIterator, ==, 1);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
 			};
 			DMibTestSuite("Callsafe param conversion lambda")
@@ -463,12 +465,12 @@ namespace
 							;
 						}
 					)
-					.f_CallSync(60.0)
+					.f_CallSync(g_Timeout)
 				;
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 
 				DMibExpect(*iIterator, ==, 1);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
 			};
 			DMibTestSuite("Dispatch param conversion function")
@@ -485,11 +487,11 @@ namespace
 						co_return {};
 					}
 				;
-				auto Generator = fg_Dispatch(TestActor, fg_Move(fTestEager), int64(5)).f_CallSync(60.0);
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto Generator = fg_Dispatch(TestActor, fg_Move(fTestEager), int64(5)).f_CallSync(g_Timeout);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 
 				DMibExpect(*iIterator, ==, 1);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
 			};
 			DMibTestSuite("Dispatch param conversion lambda")
@@ -510,12 +512,12 @@ namespace
 						}
 						, int64(5)
 					)
-					.f_CallSync(60.0)
+					.f_CallSync(g_Timeout)
 				;
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 
 				DMibExpect(*iIterator, ==, 1);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
 			};
 		}
@@ -528,9 +530,9 @@ namespace
 				{
 					TCActor<> ProcessingActor = fg_Construct();
 					CCurrentActorScope ActorScope(ProcessingActor);
-					DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorException).f_CallSync(60.0).f_GetIterator().f_CallSync(60.0), DMibErrorInstance("Test error"));
+					DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorException).f_CallSync(g_Timeout).f_GetIterator().f_CallSync(g_Timeout), DMibErrorInstance("Test error"));
 				}
-				DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorExceptionSecondConsumer).f_CallSync(60.0), DMibErrorInstance("Test error"));
+				DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorExceptionSecondConsumer).f_CallSync(g_Timeout), DMibErrorInstance("Test error"));
 			};
 		}
 

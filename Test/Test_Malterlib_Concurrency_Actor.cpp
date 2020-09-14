@@ -39,6 +39,8 @@
 
 namespace
 {
+	fp64 g_Timeout = 60.0 * NMib::NTest::gc_TimeoutMultiplier;
+
 	using namespace NMib;
 	using namespace NMib::NStorage;
 	using namespace NMib::NMeta;
@@ -317,7 +319,7 @@ namespace
 
 				auto fDoubleDestroy = [&]
 					{
-						(Actor.f_Destroy() + Actor.f_Destroy()).f_CallSync(30.0);
+						(Actor.f_Destroy() + Actor.f_Destroy()).f_CallSync(g_Timeout / 2);
 					}
 				;
 
@@ -480,11 +482,11 @@ namespace
 					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
 
 					TCFuture<uint32> SharedPointerFuture = g_Future <<= TestActor(&CBaseActor::f_SharedPointer, fg_Construct(CStr("5")));
-					uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(60.0);
+					uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(g_Timeout);
 					DMibExpect(SharedPointerResult, ==, 5);
 
 					TCFuture<uint32> UniquePointerFuture = g_Future <<= TestActor(&CBaseActor::f_UniquePointer, fg_Construct(CStr("5")));
-					uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(60.0);
+					uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(g_Timeout);
 					DMibExpect(UniquePointerResult, ==, 5);
 				}
 				{
@@ -492,12 +494,12 @@ namespace
 					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
 					TCWeakActor<CBaseActor> WeakTestActor = TestActor;
 
-					uint32 Value = WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(60.0);
+					uint32 Value = WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(g_Timeout);
 					DMibExpect(Value, ==, 2);;
 
 					fg_Move(TestActor).f_Destroy().f_CallSync();
 
-					DMibExpectExceptionType(WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(60.0), NException::CException);
+					DMibExpectExceptionType(WeakTestActor(&CBaseActor::f_GetSpecificValue, 2).f_CallSync(g_Timeout), NException::CException);
 				}
 				auto fDispatchBoilerplate = [](auto _fToDispatch)
 					{
@@ -1551,7 +1553,7 @@ namespace
 								{
 									return Actor(0, nIterations);
 								}
-							).f_CallSync(20.0);
+							).f_CallSync(g_Timeout / 3);
 						;
 						fp_BlockOnAllThreads(false);
 					}
@@ -1581,7 +1583,7 @@ namespace
 									co_return co_await fs_BranchedConcurrentCoroutine(0, nIterations);
 								}
 							)
-							.f_CallSync(20.0)
+							.f_CallSync(g_Timeout / 3)
 						;
 
 						fp_BlockOnAllThreads(false);

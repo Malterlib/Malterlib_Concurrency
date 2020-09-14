@@ -35,10 +35,11 @@ using namespace NMib::NStorage;
 using namespace NMib::NNetwork;
 using namespace NMib::NStr;
 using namespace NMib::NContainer;
+using namespace NMib::NTest;
 
 #define DTestDistributredAppAuthenticationEnableLogging 0
 
-static fp64 g_Timeout = 60.0;
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
 namespace NTestAuthentication
 {
@@ -1567,12 +1568,12 @@ public:
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed2").f_CallSync(g_Timeout);
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed3").f_CallSync(g_Timeout);
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Fail1").f_CallSync(g_Timeout);
-		auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(60.0);
-		auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(60.0);
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ManyServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, SlowServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+		auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(g_Timeout);
+		auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(g_Timeout);
+		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(g_Timeout);
+		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
+		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ManyServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
+		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, SlowServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
 
 
 		// Add a permissions to Server that requires authentication
@@ -1590,7 +1591,7 @@ public:
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
 					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
-					).f_CallSync(60.0)
+					).f_CallSync(g_Timeout)
 				;
 			}
 		;
@@ -2000,10 +2001,10 @@ public:
 			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
 
-			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(60.0);
-			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(g_Timeout);
+			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
 			{
 				DMibTestPath("Correct Password");
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
@@ -2018,10 +2019,10 @@ public:
 			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(g_Timeout);
 			pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("OtherPassword").f_CallSync(g_Timeout);
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password").f_CallSync(g_Timeout);
-			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(60.0);
-			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(g_Timeout);
+			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
 			{
 				DMibTestPath("Correct Password 1");
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnString)("Password").f_CallSync(g_Timeout);
@@ -2130,7 +2131,7 @@ public:
 							, {"com.manymalterlib/Succeed3_Cacheable"}
 							, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 						}
-					).f_CallSync(60.0)
+					).f_CallSync(g_Timeout)
 				;
 				DMibExpectFalse(fPerformManyCall4(TCVector<CStr>{"com.manymalterlib/Succeed3_Cacheable"}));
 				g_CallCount(&CCallCount::f_Clear).f_CallSync(g_Timeout);
@@ -2194,7 +2195,7 @@ public:
 							, {"com.manymalterlib/Succeed2_Cacheable"}
 							, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 						}
-					).f_CallSync(60.0)
+					).f_CallSync(g_Timeout)
 				;
 				DMibExpectFalse(fPerformManyCall3(TCVector<CStr>{"com.manymalterlib/Succeed2_Cacheable"}));
 				g_CallCount(&CCallCount::f_Clear).f_CallSync(g_Timeout);
@@ -2443,7 +2444,7 @@ public:
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
 					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
-					).f_CallSync(60.0)
+					).f_CallSync(g_Timeout)
 				;
 			}
 		;
@@ -2490,19 +2491,19 @@ public:
 		{
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
 
-			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(60.0);
-			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(g_Timeout);
+			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
 
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1"}));
 
 			// Add another U2F factor - both should work for authentication
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(g_Timeout);
-			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(60.0);
-			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(60.0);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(60.0);
+			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(g_Timeout);
+			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate).f_CallSync(g_Timeout);
+			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate).f_CallSync(g_Timeout);
 
 			{
 				DMibTestPath("Still works with two registered factors");

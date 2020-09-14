@@ -31,6 +31,9 @@ using namespace NMib::NFunction;
 using namespace NMib::NStr;
 using namespace NMib::NThread;
 using namespace NMib::NAtomic;
+using namespace NMib::NTest;
+
+static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
 namespace NTest1
 {
@@ -405,6 +408,7 @@ public:
 	{
 		if (_bError)
 			co_return DMibErrorInstance("Error");
+
 		m_Subscription = fg_Move(_Subscription);
 		co_return {};
 	}
@@ -870,21 +874,21 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		DMibTestSuite("Direct")
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
 
-			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResult)().f_CallSync(60.0);
+			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResult)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
 		};
 /*		DMibTestSuite("DirectTemplate")
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
 
-			uint32 Result1 = Actor.f_CallActor(&CDistributedActor::f_GetResultTemplated<NTest1::CTest>)().f_CallSync(60.0);
+			uint32 Result1 = Actor.f_CallActor(&CDistributedActor::f_GetResultTemplated<NTest1::CTest>)().f_CallSync(g_Timeout);
 			DMibExpect(Result1, ==, 5);
 
-			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(60.0);
-			uint32 Result2 = Actor.f_CallActor(&CDistributedActor::f_GetResultTemplated<NTest2::CTest>)().f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
+			uint32 Result2 = Actor.f_CallActor(&CDistributedActor::f_GetResultTemplated<NTest2::CTest>)().f_CallSync(g_Timeout);
 			DMibExpect(Result2, ==, 5);
 		};*/ // Not supported in clang
 		DMibTestSuite("Pointers")
@@ -892,36 +896,36 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 
 			TCFuture<uint32> SharedPointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_SharedPointer)(fg_Construct(CStr("5")));
-			uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(60.0);
+			uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(g_Timeout);
 			DMibExpect(SharedPointerResult, ==, 5);
 
 			TCFuture<uint32> UniquePointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_UniquePointer)(fg_Construct(CStr("5")));
-			uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(60.0);
+			uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(g_Timeout);
 			DMibExpect(UniquePointerResult, ==, 5);
 		};
 		DMibTestSuite("Virtual")
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(g_Timeout);
 
-			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(60.0);
+			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
 		};
 		DMibTestSuite("VirtualActor")
 		{
 			TCDistributedActor<CDistributedActorBase> Actor = _fGetActor();
 
-			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(g_Timeout);
 
-			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(60.0);
+			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
 		};
 		DMibTestSuite("Deferred")
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			Actor.f_CallActor(&CDistributedActor::f_AddIntDeferred)(5).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_AddIntDeferred)(5).f_CallSync(g_Timeout);
 
-			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResultDeferred)().f_CallSync(60.0);
+			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResultDeferred)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
 		};
 		DMibTestSuite("Exception")
@@ -929,12 +933,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto fTestCall = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_AddIntException)(5).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_AddIntException)(5).f_CallSync(g_Timeout);
 				}
 			;
 			auto fTestResult = [&]
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_GetResultException)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_GetResultException)().f_CallSync(g_Timeout);
 				}
 			;
 
@@ -946,12 +950,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto fTestCall = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_AddIntDeferredException)(5).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_AddIntDeferredException)(5).f_CallSync(g_Timeout);
 				}
 			;
 			auto fTestResult = [&]
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_GetResultDeferredException)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_GetResultDeferredException)().f_CallSync(g_Timeout);
 				}
 			;
 
@@ -976,12 +980,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			;
 			auto fSetSubscription = [&](bool _bException)
 				{
-					Actor.f_CallActor(&CDistributedActor::f_SetSubscription)(fSubscription(), _bException).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_SetSubscription)(fSubscription(), _bException).f_CallSync(g_Timeout);
 				}
 			;
 			auto fSetSubscriptionNonPublished = [&](bool _bException)
 				{
-					Actor.f_CallActor(&CDistributedActor::f_SetSubscriptionNonPublished)(fSubscription(), _bException).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_SetSubscriptionNonPublished)(fSubscription(), _bException).f_CallSync(g_Timeout);
 				}
 			;
 			{
@@ -990,7 +994,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 0);
 
-				Actor.f_CallActor(&CDistributedActor::f_ClearSubscription)().f_CallSync(60.0);
+				Actor.f_CallActor(&CDistributedActor::f_ClearSubscription)().f_CallSync(g_Timeout);
 				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
@@ -1021,7 +1025,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			auto &TestValue = g_TestValueGetSubscription;
 			auto fGetSubscription = [&]()
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_GetSubscription)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_GetSubscription)().f_CallSync(g_Timeout);
 				}
 			;
 			{
@@ -1030,7 +1034,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				NSys::fg_Thread_Sleep(0.1f);
 				DMibExpect(TestValue.f_Load(), ==, 0);
 
-				Subscription->f_Destroy().f_CallSync(60.0);
+				Subscription->f_Destroy().f_CallSync(g_Timeout);
 				Subscription.f_Clear();
 				DMibExpect(TestValue.f_Load(), ==, 1);
 
@@ -1074,7 +1078,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 								co_return DMibErrorInstance("Test exception 1");
 							co_return _Message + "1";
 						}
-					).f_CallSync(60.0)
+					).f_CallSync(g_Timeout)
 				;
 			}
 		;
@@ -1117,7 +1121,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				;
 				Functors[0].f_SetID(0);
 				Functors[1].f_SetID(1);
-				return _Actor.f_CallActor(&CDistributedActor::f_RegisterActorFunctorsVector)(fg_Move(Functors)).f_CallSync(60.0);
+				return _Actor.f_CallActor(&CDistributedActor::f_RegisterActorFunctorsVector)(fg_Move(Functors)).f_CallSync(g_Timeout);
 			}
 		;
 
@@ -1133,17 +1137,17 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				auto fCallFunctor = [&](mint _iFunctor)
 					{
-						return Actor.f_CallActor(&CDistributedActor::f_CallActorFunctor)(_iFunctor, "Test").f_CallSync(60.0);
+						return Actor.f_CallActor(&CDistributedActor::f_CallActorFunctor)(_iFunctor, "Test").f_CallSync(g_Timeout);
 					}
 				;
 				auto fGetCleared = [&](mint _iFunctor)
 					{
-						return Actor.f_CallActor(&CDistributedActor::f_GetClearedActorFunctors)(_iFunctor).f_CallSync(60.0);
+						return Actor.f_CallActor(&CDistributedActor::f_GetClearedActorFunctors)(_iFunctor).f_CallSync(g_Timeout);
 					}
 				;
 				auto fClearActorFunctor = [&](mint _iFunctor)
 					{
-						return Actor.f_CallActor(&CDistributedActor::f_ClearActorFunctor)(_iFunctor).f_CallSync(60.0);
+						return Actor.f_CallActor(&CDistributedActor::f_ClearActorFunctor)(_iFunctor).f_CallSync(g_Timeout);
 					}
 				;
 
@@ -1179,7 +1183,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					DMibExpectFalse(pSubscription1Called->f_Load());
 
 					fClearActorFunctor(0);
-					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(g_Timeout);
 
 					DMibExpectTrue(pSubscription0Called->f_Load());
 				}
@@ -1190,12 +1194,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					DMibExpectFalse(pSubscription1Called->f_Load());
 
 					fClearActorFunctor(1);
-					fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+					fg_Dispatch(TestActor, []{}).f_CallSync(g_Timeout);
 
 					DMibExpectTrue(pSubscription1Called->f_Load());
 				}
 
-				Actor.f_CallActor(&CDistributedActor::f_ResetClearedActorFunctors)().f_CallSync(60.0);
+				Actor.f_CallActor(&CDistributedActor::f_ResetClearedActorFunctors)().f_CallSync(g_Timeout);
 			}
 		;
 		DMibTestSuite("MultipleActorFunctors")
@@ -1224,12 +1228,12 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			;
 			auto fGetActorSubscriptionWithoutSubscription = [&]()
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_GetActorFunctorWithoutSubscription)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_GetActorFunctorWithoutSubscription)().f_CallSync(g_Timeout);
 				}
 			;
 			auto fGetActorSubscription = [&]()
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_GetActorFunctor)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_GetActorFunctor)().f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1245,15 +1249,15 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			{
 				DMibTestPath("WithSubscription");
 				auto ActorFunctor = fGetActorSubscription();
-				CStr ReturnValue = ActorFunctor("Test").f_CallSync(60.0);
+				CStr ReturnValue = ActorFunctor("Test").f_CallSync(g_Timeout);
 				DMibExpect(ReturnValue, ==, "TestWithSubscription");
 
 				ActorFunctor.f_GetSubscription().f_Clear();
-				bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_GetActorFunctorSubscriptionCalled)().f_CallSync(60.0);
+				bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_GetActorFunctorSubscriptionCalled)().f_CallSync(g_Timeout);
 				DMibExpectTrue(bSubscriptionCalled);
 
 				if (_bRemote)
-					DMibExpectException(ActorFunctor("Test").f_CallSync(60.0), DMibErrorInstance("Subscription has been removed"));
+					DMibExpectException(ActorFunctor("Test").f_CallSync(g_Timeout), DMibErrorInstance("Subscription has been removed"));
 
 				ActorFunctor.f_Clear();
 			}
@@ -1264,17 +1268,17 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			CCurrentActorScope CurrentActorScope(TestActor);
 
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			auto Generator = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGenerator)().f_CallSync(60.0);
+			auto Generator = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGenerator)().f_CallSync(g_Timeout);
 
-			auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+			auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 			DMibExpect(*iIterator, ==, 5);
-			(++iIterator).f_CallSync(60.0);
+			(++iIterator).f_CallSync(g_Timeout);
 			DMibExpect(*iIterator, ==, 6);
-			(++iIterator).f_CallSync(60.0);
+			(++iIterator).f_CallSync(g_Timeout);
 			DMibExpect(*iIterator, ==, 7);
-			(++iIterator).f_CallSync(60.0);
+			(++iIterator).f_CallSync(g_Timeout);
 			DMibExpect(*iIterator, ==, 8);
-			(++iIterator).f_CallSync(60.0);
+			(++iIterator).f_CallSync(g_Timeout);
 			DMibExpectFalse(!!iIterator);
 		};
 		DMibTestSuite("Return Async Generator Functor")
@@ -1283,28 +1287,28 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			CCurrentActorScope CurrentActorScope(TestActor);
 
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(60.0);
+			auto Functor = Actor.f_CallActor(&CDistributedActor::f_TestAsyncGeneratorFunctor)().f_CallSync(g_Timeout);
 
 			for (mint i = 0; i < 2; ++i)
 			{
 				DMibTestPath("Iteration {}"_f << i);
 				auto Generator = Functor(i).f_CallSync();
 
-				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(60.0);
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 6);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 7);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 8);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, i);
-				(++iIterator).f_CallSync(60.0);
+				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpectFalse(!!iIterator);
-				fg_Move(Generator).f_Destroy().f_CallSync(60.0);
+				fg_Move(Generator).f_Destroy().f_CallSync(g_Timeout);
 			}
-			fg_Move(Functor).f_Destroy().f_CallSync(60.0);
+			fg_Move(Functor).f_Destroy().f_CallSync(g_Timeout);
 		};
 		DMibTestSuite("Send Async Generator")
 		{
@@ -1324,8 +1328,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 							co_return {};
 						}
 					)
-					.f_CallSync(60.0)
-				).f_CallSync(60.0)
+					.f_CallSync(g_Timeout)
+				).f_CallSync(g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 10);
@@ -1347,7 +1351,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 						co_yield _Value;
 						co_return {};
 					}
-				).f_CallSync(60.0)
+				).f_CallSync(g_Timeout)
 			;
 
 			DMibExpect(Value, ==, 32);
@@ -1355,18 +1359,18 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		DMibTestSuite("GetInterface")
 		{
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
-			auto Interface = Actor.f_CallActor(&CDistributedActor::f_GetInterface)().f_CallSync(60.0);
+			auto Interface = Actor.f_CallActor(&CDistributedActor::f_GetInterface)().f_CallSync(g_Timeout);
 
 			auto fCallInterface = [&]
 				{
-					return Interface.f_CallActor(&CDistributedActorInterface::f_Test)().f_CallSync(60.0);
+					return Interface.f_CallActor(&CDistributedActorInterface::f_Test)().f_CallSync(g_Timeout);
 				}
 			;
 
 			DMibExpect(fCallInterface(), ==, 5);
 
 			Interface.f_GetSubscription().f_Clear();
-			bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_GetInterfaceSubscriptionCalled)().f_CallSync(60.0);
+			bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_GetInterfaceSubscriptionCalled)().f_CallSync(g_Timeout);
 			DMibExpectTrue(bSubscriptionCalled);
 
 			if (_bRemote)
@@ -1399,18 +1403,18 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				}
 			;
 
-			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_SetInterface)(fg_Move(Interface)).f_CallSync(60.0);
+			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_SetInterface)(fg_Move(Interface)).f_CallSync(g_Timeout);
 
 			auto fCallInterface = [&]
 				{
-					return Actor.f_CallActor(&CDistributedActor::f_CallSetInterface)().f_CallSync(60.0);
+					return Actor.f_CallActor(&CDistributedActor::f_CallSetInterface)().f_CallSync(g_Timeout);
 				}
 			;
 
 			DMibExpect(fCallInterface(), ==, 5);
 
 			Subscription.f_Clear();
-			bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_SetInterfaceSubscriptionCalled)().f_CallSync(60.0);
+			bool bSubscriptionCalled = Actor.f_CallActor(&CDistributedActor::f_SetInterfaceSubscriptionCalled)().f_CallSync(g_Timeout);
 			DMibExpectTrue(bSubscriptionCalled);
 
 			DMibExpectFalse(pSubscriptionCalled->f_Load());
@@ -1418,8 +1422,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			if (_bRemote)
 				DMibExpectException(fCallInterface(), DMibErrorInstance("Remote actor no longer exists"));
 
-			Actor.f_CallActor(&CDistributedActor::f_ClearSetInterface)().f_CallSync(60.0);
-			fg_Dispatch(TestActor, []{}).f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_ClearSetInterface)().f_CallSync(g_Timeout);
+			fg_Dispatch(TestActor, []{}).f_CallSync(g_Timeout);
 
 			DMibExpectTrue(pSubscriptionCalled->f_Load());
 
@@ -1471,23 +1475,23 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				}
 			;
 
-			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(TestActor, fCallBack).f_CallSync(60.0);
+			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(TestActor, fCallBack).f_CallSync(g_Timeout);
 
-			bool bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(60.0);
+			bool bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(g_Timeout);
 
 			DMibExpectFalse(bCallbacksEmpty);
 
-			Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallback)("TestMessage").f_CallSync(60.0);
+			Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallback)("TestMessage").f_CallSync(g_Timeout);
 
 			DMibExpect(fWaitForMessage(), ==, "TestMessage");
 
-			CStr CallbackWithReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbackWithReturn)("TestMessage").f_CallSync(60.0);
+			CStr CallbackWithReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbackWithReturn)("TestMessage").f_CallSync(g_Timeout);
 
 			DMibExpect(CallbackWithReturn, ==, "TestMessage");
 
 			Subscription.f_Clear();
 
-			bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(60.0);
+			bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(g_Timeout);
 			DMibExpectTrue(bCallbacksEmpty);
 
 			auto fCallback0 = [AllowDestroy = g_AllowWrongThreadDestroy](CStr const &_Message) -> TCFuture<CStr>
@@ -1512,14 +1516,14 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCActor<> TestActor1 = fg_ConstructActor<CActor>();
 
 			{
-				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor0, fCallback0).f_CallSync(60.0);
-				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor1, fCallback1).f_CallSync(60.0);
+				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor0, fCallback0).f_CallSync(g_Timeout);
+				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor1, fCallback1).f_CallSync(g_Timeout);
 
-				TCVector<TCAsyncResult<CStr>> MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessage").f_CallSync(60.0);
+				TCVector<TCAsyncResult<CStr>> MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessage").f_CallSync(g_Timeout);
 				DMibExpect(*MultipleReturn[0], ==, "TestMessage0");
 				DMibExpect(*MultipleReturn[1], ==, "TestMessage1");
 
-				MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessageException").f_CallSync(60.0);
+				MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessageException").f_CallSync(g_Timeout);
 				DMibExpectException(*MultipleReturn[0], DMibErrorInstance("Test exception 0"));
 				DMibExpectException(*MultipleReturn[1], DMibErrorInstance("Test exception 1"));
 			}
@@ -1527,14 +1531,14 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fRegisterWithError = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_RegisterWithError)(TestActor0, fCallback0).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_RegisterWithError)(TestActor0, fCallback0).f_CallSync(g_Timeout);
 				}
 			;
 			DMibExpectException(fRegisterWithError(), DMibErrorInstance("Register failed"));
 
 			auto fRegisterWithoutSubscription = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_RegisterNoSubscription)(TestActor0, fCallback0).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_RegisterNoSubscription)(TestActor0, fCallback0).f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1542,7 +1546,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fCallNoSubscription = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_CallNoSubscription)("TestMessage").f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_CallNoSubscription)("TestMessage").f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1550,7 +1554,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fRegisterNoActor = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_RegisterNoActor)(fCallback0).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_RegisterNoActor)(fCallback0).f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1558,24 +1562,24 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fRegisterNoFunction = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_RegisterNoFunction)(TestActor0).f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_RegisterNoFunction)(TestActor0).f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
 				DMibExpectException(fRegisterNoFunction(), DMibErrorInstance("You must have at least one function in arguments if you include an actor"));
 
-			auto Subscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterManualCallback)(0, TestActor0, fCallback0).f_CallSync(60.0);
-			auto Subscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterManualCallback)(1, TestActor1, fCallback1).f_CallSync(60.0);
+			auto Subscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterManualCallback)(0, TestActor0, fCallback0).f_CallSync(g_Timeout);
+			auto Subscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterManualCallback)(1, TestActor1, fCallback1).f_CallSync(g_Timeout);
 
-			CStr ReturnMessage0 = Actor.f_CallActor(&CDistributedActor::f_CallCallback)(0, "TestMessage").f_CallSync(60.0);
+			CStr ReturnMessage0 = Actor.f_CallActor(&CDistributedActor::f_CallCallback)(0, "TestMessage").f_CallSync(g_Timeout);
 			DMibExpect(ReturnMessage0, ==, "TestMessage0");
 
-			CStr ReturnMessage1 = Actor.f_CallActor(&CDistributedActor::f_CallCallback)(1, "TestMessage").f_CallSync(60.0);
+			CStr ReturnMessage1 = Actor.f_CallActor(&CDistributedActor::f_CallCallback)(1, "TestMessage").f_CallSync(g_Timeout);
 			DMibExpect(ReturnMessage1, ==, "TestMessage1");
 
 			auto fCallWrong = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_CallWrong)("TestMessage").f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_CallWrong)("TestMessage").f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1583,7 +1587,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fCallWithoutDispatch = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_CallCallbackWithoutDispatch)(0, "TestMessage").f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_CallCallbackWithoutDispatch)(0, "TestMessage").f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1593,7 +1597,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fCallRemoved = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_CallCallback)(0, "TestMessage").f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_CallCallback)(0, "TestMessage").f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1603,7 +1607,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			auto fCallDestroyed = [&]
 				{
-					Actor.f_CallActor(&CDistributedActor::f_CallCallback)(1, "TestMessage").f_CallSync(60.0);
+					Actor.f_CallActor(&CDistributedActor::f_CallCallback)(1, "TestMessage").f_CallSync(g_Timeout);
 				}
 			;
 			if (_bRemote)
@@ -1616,9 +1620,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			Subscription1.f_Clear();
 
-			auto SubscriptionDual = Actor.f_CallActor(&CDistributedActor::f_RegisterDual)(TestActor0, fCallback0, fCallback1).f_CallSync(60.0);
+			auto SubscriptionDual = Actor.f_CallActor(&CDistributedActor::f_RegisterDual)(TestActor0, fCallback0, fCallback1).f_CallSync(g_Timeout);
 
-			CStr ReturnMessageDual = Actor.f_CallActor(&CDistributedActor::f_CallDual)("TestMessage").f_CallSync(60.0);
+			CStr ReturnMessageDual = Actor.f_CallActor(&CDistributedActor::f_CallDual)("TestMessage").f_CallSync(g_Timeout);
 			DMibExpect(ReturnMessageDual, ==, "TestMessage0TestMessage1");
 		};
 	}
@@ -1650,11 +1654,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		ListenSettings.f_SetCryptography(ServerCryptography);
 		ListenSettings.m_bRetryOnListenFailure = false;
 		ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
-		CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(60.0);
+		CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(g_Timeout);
 
 		TCDistributedActor<CDistributedActor> PublishedActor = ServerManager->f_ConstructActor<CDistributedActor>();
 
-		auto ActorPublication = PublishedActor->f_Publish<CDistributedActorBase>("Test").f_CallSync(60.0);
+		auto ActorPublication = PublishedActor->f_Publish<CDistributedActorBase>("Test").f_CallSync(g_Timeout);
 
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = ConnectAddress;
@@ -1714,7 +1718,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		;
 
 		CDistributedActorConnectionReference ClientConnectionReference
-			= ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference
+			= ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(g_Timeout).m_ConnectionReference
 		;
 
 		bool bConnectionSuccessful = true; // If not we would have had exceptions above
@@ -1741,11 +1745,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibAssertTrue(RemoteActorsSubscription);
 		}
 
-		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(60.0);
-		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(60.0);
+		RemoteActor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(g_Timeout);
+		uint32 Result = RemoteActor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(g_Timeout);
 		DMibExpect(Result, ==, 5);
 
-		CStr RemoteCallingHostID = (RemoteActor.f_CallActor(&CDistributedActorBase::f_GetCallingHostID)()).f_CallSync(60.0);
+		CStr RemoteCallingHostID = (RemoteActor.f_CallActor(&CDistributedActorBase::f_GetCallingHostID)()).f_CallSync(g_Timeout);
 		DMibExpect(RemoteCallingHostID, ==, ClientHostID);
 
 		ActorPublication.f_Destroy().f_CallSync();
@@ -1764,11 +1768,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		DMibAssertFalse(bTimedOutWatingForUnPublish);
 		DMibExpectTrue(bRemoved);
 
-		ClientConnectionReference.f_Disconnect().f_CallSync(60.0);
-		DMibExpectExceptionType(ClientConnectionReference.f_Disconnect().f_CallSync(60.0), NException::CException);
+		ClientConnectionReference.f_Disconnect().f_CallSync(g_Timeout);
+		DMibExpectExceptionType(ClientConnectionReference.f_Disconnect().f_CallSync(g_Timeout), NException::CException);
 
-		ListenReference.f_Stop().f_CallSync(60.0);
-		DMibExpectExceptionType(ListenReference.f_Stop().f_CallSync(60.0), NException::CException);
+		ListenReference.f_Stop().f_CallSync(g_Timeout);
+		DMibExpectExceptionType(ListenReference.f_Stop().f_CallSync(g_Timeout), NException::CException);
 	}
 	void fp_AnonymousClientTests()
 	{
@@ -1817,16 +1821,16 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		CStr SubscriptionID = TestState.f_Subscribe("Test");
 		auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
 
-		CStr HostID = Actor.f_CallActor(&CDistributedActor::f_TestOnDisconnect)().f_CallSync(60.0);
+		CStr HostID = Actor.f_CallActor(&CDistributedActor::f_TestOnDisconnect)().f_CallSync(g_Timeout);
 
 		DMibExpect(HostID, != , "");
-		bool bHasClient = Actor.f_CallActor(&CDistributedActor::f_HasOnDisconnect)(HostID).f_CallSync(60.0);
+		bool bHasClient = Actor.f_CallActor(&CDistributedActor::f_HasOnDisconnect)(HostID).f_CallSync(g_Timeout);
 		DMibExpectTrue(bHasClient);
 		TestState.f_DisconnectClient(true);
 		TestState.f_InitClient(TestState);
 		SubscriptionID = TestState.f_Subscribe("Test");
 		Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
-		bHasClient = LocalActor(&CDistributedActor::f_HasOnDisconnect, HostID).f_CallSync(60.0);
+		bHasClient = LocalActor(&CDistributedActor::f_HasOnDisconnect, HostID).f_CallSync(g_Timeout);
 		DMibExpectFalse(bHasClient);
 	}
 

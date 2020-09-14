@@ -18,9 +18,12 @@ using namespace NMib::NStr;
 using namespace NMib::NFunction;
 using namespace NMib::NWeb;
 using namespace NMib::NNetwork;
+using namespace NMib::NTest;
 
 namespace
 {
+	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+	
 	class CDistributedDDPBridge_Tests : public NMib::NTest::CTest
 	{
 	public:
@@ -37,17 +40,17 @@ namespace
 				
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = "wss://localhost:31409/";
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(60.0);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(g_Timeout);
 
 				{
-					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(60.0);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(60.0);
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(g_Timeout);
 				}
 
 				TCActor<CDistributedTrustDDPBridge> DdpBridge;
 				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
 				
-				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(20.0);
+				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(g_Timeout / 3);
 
 				auto HandlerActor = fg_ConcurrentActor();
 				
@@ -101,7 +104,7 @@ namespace
 						"Test"_= "Test"
 					}
 				;
-				CEJSON MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(20.0);
+				CEJSON MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(g_Timeout / 3);
 				
 				DMibExpect(MethodResult["HostID"].f_String(), == , ClientDatabase.m_BasicConfig.m_HostID);
 
@@ -112,7 +115,7 @@ namespace
 								"Invalid"_= "Test"
 							}
 						;
-						Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(20.0);
+						Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(g_Timeout / 3);
 					}
 				;
 				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("exception: Invalid params"));

@@ -1981,7 +1981,7 @@ namespace
 
 		void f_PerformanceTests_Create()
 		{
-			DMibTestSuite(CTestCategory("Lifetime{}") << CTestGroup("Performance"))
+			DMibTestSuite(CTestCategory("Lifetime") << CTestGroup("Performance"))
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #if DMibConfig_RefcountDebugging

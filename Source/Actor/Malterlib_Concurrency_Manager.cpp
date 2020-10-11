@@ -713,6 +713,55 @@ namespace NMib::NConcurrency
 			return;
 #endif
 
+		auto fWaitForAllDone = [&]()
+			{
+				for (bool bAllDone = false; !bAllDone;)
+				{
+					TCActorResultVector<bool> ConcurrentActorSyncs;
+					{
+						DMibLock(m_TimerActorLock);
+						if (m_pTimerActor)
+						{
+							g_Dispatch(m_pTimerActor) / []() -> bool
+								{
+									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
+									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
+								}
+								> ConcurrentActorSyncs.f_AddResult()
+							;
+						}
+					}
+
+					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+					{
+						for (auto &Actor : m_ConcurrentActors[Prio])
+						{
+							g_Dispatch(Actor) / []() -> bool
+								{
+									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
+									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
+								}
+								> ConcurrentActorSyncs.f_AddResult()
+							;
+						}
+					}
+
+					auto Done = ConcurrentActorSyncs.f_GetResults().f_CallSync();
+					bAllDone = true;
+					for (auto &bDone : Done)
+					{
+						if (!bDone)
+						{
+							bAllDone = false;
+							break;
+						}
+					}
+				}
+			}
+		;
+
+		fWaitForAllDone();
+
 		// Delete the timer actor
 		{
 			{
@@ -726,35 +775,7 @@ namespace NMib::NConcurrency
 		}
 
 		// Sync up to make sure nothing is still waiting to process on actors
-
-		for (bool bAllDone = false; !bAllDone;)
-		{
-			TCActorResultVector<bool> ConcurrentActorSyncs;
-			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
-			{
-				for (auto &Actor : m_ConcurrentActors[Prio])
-				{
-					g_Dispatch(Actor) / []() -> bool
-						{
-							auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
-							return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
-						}
-						> ConcurrentActorSyncs.f_AddResult()
-					;
-				}
-			}
-
-			auto Done = ConcurrentActorSyncs.f_GetResults().f_CallSync();
-			bAllDone = true;
-			for (auto &bDone : Done)
-			{
-				if (!bDone)
-				{
-					bAllDone = false;
-					break;
-				}
-			}
-		}
+		fWaitForAllDone();
 
 		m_bDestroyingAlwaysAliveActors = true;
 		auto Cleanup = g_OnScopeExit > [&]

@@ -48,11 +48,11 @@ namespace NMib::NConcurrency
 
 		CConcurrentRunQueue();
 		~CConcurrentRunQueue();
-		void f_AddToQueue(FActorQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
+		void f_AddToQueue(FActorQueueDispatch &&_Functor);
 		bool f_AddToQueueLocal(FActorQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
 		bool f_AddToQueueLocalFirst(FActorQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue);
 		FActorQueueDispatch *f_FirstQueueEntry(CLocalQueueData &_LocalQueue);
-		void f_PopQueueEntry(FActorQueueDispatch *_pEntry, CLocalQueueData &_LocalQueue);
+		void f_PopQueueEntry(FActorQueueDispatch *_pEntry);
 		bool f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue);
 		bool f_IsEmpty(CLocalQueueData &_LocalQueue);
 		bool f_OneOrLessInQueue(CLocalQueueData &_LocalQueue);

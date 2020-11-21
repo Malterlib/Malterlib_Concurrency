@@ -198,6 +198,9 @@ namespace NMib::NConcurrency
 
 	bool fg_ActorRunning(TCActor<> &_Actor);
 	bool fg_CurrentActorProcessing();
+#if DMibEnableSafeCheck > 0
+	bool fg_CurrentActorProcessingOrOverridden();
+#endif
 
 	template <typename tf_CActor, typename... tfp_CParams>
 	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);

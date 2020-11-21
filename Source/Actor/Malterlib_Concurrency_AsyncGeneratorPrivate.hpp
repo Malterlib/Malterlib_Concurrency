@@ -47,7 +47,7 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 		auto CurrentActor = fg_CurrentActor();
 		DMibFastCheck(CurrentActor);
-		DMibFastCheck(fg_CurrentActorProcessing());
+		DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
 #endif
 
 		auto &CoroutineContext = _Producer.promise();

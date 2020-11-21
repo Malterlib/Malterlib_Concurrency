@@ -914,6 +914,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this).f_Dispatch().f_CallSync(_Timeout);
 	}
 
+	template <typename t_CReturnValue>
+	auto TCFuture<t_CReturnValue>::f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout) &&
+	{
+		return fg_Move(*this).f_Dispatch().f_CallSync(_pRunLoop, _Timeout);
+	}
+
 	struct CDispatchHelperWithActor
 	{
 		CDispatchHelperWithActor(TCActor<> const &_Actor)

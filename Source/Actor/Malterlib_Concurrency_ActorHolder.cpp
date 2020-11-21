@@ -173,7 +173,7 @@ namespace NMib::NConcurrency
 			}
 			return false;
 		}
-		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor), mp_ConcurrentRunQueueLocal);
+		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor));
 
 		mint Value = mp_Working.f_FetchAdd(1);
 		return Value == 0;
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 		{
 			if (fp_GetActorRelaxed() != nullptr)
 				(*pJob)();
-			mp_ConcurrentRunQueue.f_PopQueueEntry(pJob, mp_ConcurrentRunQueueLocal);
+			mp_ConcurrentRunQueue.f_PopQueueEntry(pJob);
 			return !!_ThreadLocal.m_pCurrentlyProcessingActorHolder;
 		}
 		return false;
@@ -887,7 +887,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CConcurrentRunQueue::f_AddToQueue(FActorQueueDispatch &&_Functor, CLocalQueueData &_LocalQueue)
+	void CConcurrentRunQueue::f_AddToQueue(FActorQueueDispatch &&_Functor)
 	{
 		NStorage::TCUniquePointer<CQueueEntry> pNewEntryUnique = fg_Construct(fg_Move(_Functor));
 		CQueueEntry *pNewEntry = pNewEntryUnique.f_Detach();
@@ -955,7 +955,7 @@ namespace NMib::NConcurrency
 		m_Link.f_Unlink();
 	}
 
-	void CConcurrentRunQueue::f_PopQueueEntry(FActorQueueDispatch *_pEntry, CLocalQueueData &_LocalQueue)
+	void CConcurrentRunQueue::f_PopQueueEntry(FActorQueueDispatch *_pEntry)
 	{
 		mint Offset = DMibPOffsetOf(CQueueEntry, m_fToCall);
 		CQueueEntry *pEntry = (CQueueEntry *)((uint8 *)_pEntry - Offset);

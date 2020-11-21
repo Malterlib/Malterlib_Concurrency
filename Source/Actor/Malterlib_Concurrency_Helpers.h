@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 		DMibThreadLocalScopeDebugMember;
 		CActor *mp_pLastActor;
 #if DMibEnableSafeCheck > 0
-		CActorHolder *mp_pLastProcessingActorHolder;
+		CActorHolder *mp_pLastOverriddenProcessingActorHolder;
 #endif
 	};
 

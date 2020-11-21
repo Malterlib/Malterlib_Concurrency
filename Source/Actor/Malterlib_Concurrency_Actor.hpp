@@ -938,7 +938,7 @@ namespace NMib::NConcurrency
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 		{
 			DMibFastCheck(fg_CurrentActor());
-			DMibFastCheck(fg_CurrentActorProcessing());
+			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
 
 			auto &CoroutineContext = _Handle.promise();
 

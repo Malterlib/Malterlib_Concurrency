@@ -119,6 +119,13 @@ namespace NMib::NConcurrency
 		using CActorHolder = CSeparateThreadActorHolder;
 	};
 
+	class CDispatchingActorHolder;
+
+	struct CDispatchingActor : public CActor
+	{
+		using CActorHolder = CDispatchingActorHolder;
+	};
+
 	template <typename t_CActor>
 	struct TCRoundRobinActors
 	{

@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
 		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
 #if DMibEnableSafeCheck > 0
-		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
+		mp_pLastOverriddenProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)_pActor->self.m_pThis;
 #endif
 	}
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
 		ThreadLocal.m_pCurrentActor = _Actor->fp_GetActor();
 #if DMibEnableSafeCheck > 0
-		mp_pLastProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
+		mp_pLastOverriddenProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)ThreadLocal.m_pCurrentActor->self.m_pThis;
 #endif
 	}
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		ThreadLocal.m_pCurrentActor = mp_pLastActor;
 #if DMibEnableSafeCheck > 0
-		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = mp_pLastProcessingActorHolder;
+		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = mp_pLastOverriddenProcessingActorHolder;
 #endif
 	}
 

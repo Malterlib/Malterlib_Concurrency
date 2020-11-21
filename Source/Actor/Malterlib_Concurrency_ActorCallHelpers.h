@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Concurrency/RunLoop>
 
 namespace NMib::NConcurrency
 {
@@ -261,13 +262,89 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename t_CReturnType>
+		struct CDummyRunLoop
+		{
+			void f_Wait()
+			{
+				m_WaitEvent.f_Wait();
+			}
+
+			bool f_WaitTimeout(fp64 _Timeout)
+			{
+				return m_WaitEvent.f_WaitTimeout(_Timeout);
+			}
+
+			void f_Finished()
+			{
+				m_WaitEvent.f_SetSignaled();
+			}
+
+			NThread::CEvent m_WaitEvent;
+		};
+
+		struct CRunLoopState
+		{
+			CRunLoopState(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+				: m_pManualRunLoop(_pRunLoop)
+			{
+			}
+
+			void f_Wait()
+			{
+				while (!m_bFinished.f_Load())
+					m_pManualRunLoop->f_WaitOnce();
+			}
+
+			bool f_WaitTimeout(fp64 _Timeout)
+			{
+				NTime::CClock Clock(true);
+				while (!m_bFinished.f_Load())
+				{
+					fp64 ToWait = _Timeout - Clock.f_GetTime();
+					if (ToWait < 0.0)
+						return true;
+
+					if (m_pManualRunLoop->f_WaitOnceTimeout(ToWait))
+						return true;
+				}
+
+				return false;
+			}
+
+			void f_Finished()
+			{
+				m_bFinished = true;
+				m_pManualRunLoop->f_Wake();
+			}
+
+			NAtomic::TCAtomic<bool> m_bFinished = false;
+			NStorage::TCSharedPointer<CRunLoop> m_pManualRunLoop;
+		};
+
+		template <typename t_CReturnType, typename t_CRunLoop = CDummyRunLoop>
 		struct TCCallSyncState
 		{
+			template <typename ...tfp_Params>
+			TCCallSyncState(tfp_Params && ...p_Params)
+				: m_RunLoop(fg_Forward<tfp_Params>(p_Params)...)
+			{
+			}
+
 			~TCCallSyncState()
 			{
 				DMibLock(m_Lock);
 				m_Result.f_Clear();
+			}
+
+			template <typename tf_CResult>
+			void f_SetResult(tf_CResult &&_Result)
+			{
+				{
+					DMibLock(m_Lock);
+					m_Result = fg_Forward<tf_CResult>(_Result);
+				}
+
+				m_RunLoop.f_Finished();
 			}
 
 			template <mint ...tfp_Indices, typename ...tfp_CResults>
@@ -305,10 +382,10 @@ namespace NMib::NConcurrency
 					m_Result.f_SetResult(fg_Move(Result));
 				}
 
-				m_WaitEvent.f_SetSignaled();
+				m_RunLoop.f_Finished();
 			}
 
-			NThread::CEvent m_WaitEvent;
+			t_CRunLoop m_RunLoop;
 			NThread::CMutual m_Lock;
 			TCAsyncResult<t_CReturnType> m_Result;
 		};
@@ -415,7 +492,12 @@ namespace NMib::NConcurrency
 
 		auto f_CallSync(fp64 _Timeout = -1.0) &&
 		{
-			return fg_Move(*this).fp_CallSync(_Timeout);
+			return fg_Move(*this).template fp_CallSync<NPrivate::CDummyRunLoop>(_Timeout);
+		}
+
+		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&
+		{
+			return fg_Move(*this).template fp_CallSync<NPrivate::CRunLoopState>(_Timeout, _pRunLoop);
 		}
 
 		struct CNoUnwrapAsyncResult
@@ -448,10 +530,12 @@ namespace NMib::NConcurrency
 		}
 
 	private:
-		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout) &&
+
+		template <typename tf_CRunLoop, typename ...tfp_CParams>
+		NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...> fp_CallSync(fp64 _Timeout, tfp_CParams && ...p_Params) &&
 		{
 			using CReturnType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
-			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
+			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType, tf_CRunLoop>> pResult = fg_Construct(fg_Forward<tfp_CParams>(p_Params)...);
 			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{
 					pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(p_Results)>::CType(), fg_Forward<decltype(p_Results)>(p_Results)...);
@@ -460,7 +544,7 @@ namespace NMib::NConcurrency
 
 			if (_Timeout >= 0.0)
 			{
-				if (pResult->m_WaitEvent.f_WaitTimeout(_Timeout))
+				if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
 				{
 					NStr::CStr Names;
 					TCInitializerList<bool> Dummy =
@@ -478,7 +562,7 @@ namespace NMib::NConcurrency
 				}
 			}
 			else
-				pResult->m_WaitEvent.f_Wait();
+				pResult->m_RunLoop.f_Wait();
 
 			DMibLock(pResult->m_Lock);
 			return pResult->m_Result.f_Move();
@@ -769,20 +853,43 @@ namespace NMib::NConcurrency
 			return Result.f_Move();
 		}
 
+		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&
+		{
+			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType, NPrivate::CRunLoopState>> pResult = fg_Construct(_pRunLoop);
+			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+				{
+					pResult->f_SetResult(fg_Move(_Result));
+				}
+			;
+
+			if (_Timeout >= 0.0)
+			{
+				if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
+				{
+					NStr::CStr CallstackStr = pResult->m_Result.f_GetExceptionCallstackStr(0);
+					if (CallstackStr)
+						DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish. Call stack:\n{}", fg_GetTypeName<t_CFunctor>(), CallstackStr));
+					else
+						DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to '{}' to finish", fg_GetTypeName<t_CFunctor>()));
+				}
+			}
+			else
+				pResult->m_RunLoop.f_Wait();
+
+			DMibLock(pResult->m_Lock);
+			return pResult->m_Result.f_Move();
+		}
+
 		auto f_CallSync(fp64 _Timeout) &&
 		{
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
 			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
-					{
-						DMibLock(pResult->m_Lock);
-						pResult->m_Result = fg_Move(_Result);
-					}
-					pResult->m_WaitEvent.f_SetSignaled();
+					pResult->f_SetResult(fg_Move(_Result));
 				}
 			;
 
-			if (pResult->m_WaitEvent.f_WaitTimeout(_Timeout))
+			if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
 			{
 				NStr::CStr CallstackStr = pResult->m_Result.f_GetExceptionCallstackStr(0);
 				if (CallstackStr)

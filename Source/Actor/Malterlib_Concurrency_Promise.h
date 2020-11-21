@@ -25,6 +25,8 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	struct TCFuture;
+
+	struct CRunLoop;
 }
 
 namespace NMib::NConcurrency
@@ -489,6 +491,7 @@ namespace NMib::NConcurrency
 
 		auto f_CallSync() &&;
 		auto f_CallSync(fp64 _Timeout) &&;
+		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&;
 
 		TCFuture &&f_Move();
 

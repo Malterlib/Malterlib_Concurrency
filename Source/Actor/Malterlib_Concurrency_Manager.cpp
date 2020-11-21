@@ -60,6 +60,24 @@ namespace NMib::NConcurrency
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
 	}
 
+#if DMibEnableSafeCheck > 0
+	bool fg_CurrentActorProcessingOrOverridden()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		auto pProcessingActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+		if (!pProcessingActorHolder)
+			pProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
+
+		if (!pProcessingActorHolder)
+			return false;
+
+		if (ThreadLocal.m_pCurrentActor)
+			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(pProcessingActorHolder);
+		else
+			return true; // Current actor is deduced from ThreadLocal.m_pCurrentlyProcessingActorHolder so by definition it's running
+	}
+#endif
+
 	bool fg_CurrentActorProcessing()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -286,7 +304,7 @@ namespace NMib::NConcurrency
 							while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry(Queue.m_JobQueueLocal))
 							{
 								(*pEntry)();
-								Queue.m_JobQueue.f_PopQueueEntry(pEntry, Queue.m_JobQueueLocal);
+								Queue.m_JobQueue.f_PopQueueEntry(pEntry);
 							}
 						}
 					}
@@ -474,7 +492,7 @@ namespace NMib::NConcurrency
 			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
 			return false;
 		}
-		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor), _Queue.m_JobQueueLocal);
+		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor));
 
 		mint Value = _Queue.m_Working.f_FetchAdd(1);
 		return Value == 0;
@@ -532,7 +550,7 @@ namespace NMib::NConcurrency
 #endif
 
 								(*pJob)();
-								_Queue.m_JobQueue.f_PopQueueEntry(pJob, _Queue.m_JobQueueLocal);
+								_Queue.m_JobQueue.f_PopQueueEntry(pJob);
 								bDoneSomething = true;
 							}
 						}

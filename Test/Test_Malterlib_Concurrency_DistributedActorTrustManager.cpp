@@ -2385,7 +2385,7 @@ namespace NTestTrustManager
 				CState State{pRunLoop, _fDatabaseFactory, _fCleanup};
 				{
 					DMibTestPath("Basic HostID+UserID permission checks");
-					CPermissionTestState TestState{State, 31411};
+					CPermissionTestState TestState{State, 31415};
 
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(pRunLoop, g_Timeout);
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(pRunLoop, g_Timeout);

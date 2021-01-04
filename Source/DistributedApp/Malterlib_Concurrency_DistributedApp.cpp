@@ -505,7 +505,7 @@ namespace NMib::NConcurrency
 				, NProcess::NPlatform::fg_Process_GetCurrentUID()
 				, VersionInfo.m_GitCommit
 				, VersionInfo.m_GitBranch
-				, VersionInfo.m_BuildTime
+				, VersionInfo.m_BuildTime.f_ToLocal()
 			)
 		;
 	}

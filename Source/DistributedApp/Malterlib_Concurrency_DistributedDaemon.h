@@ -28,6 +28,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const m_DaemonDescription;
 		TCActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_Icon;
+		bool m_bAlwaysRunStatusApp = false;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 
 	private:

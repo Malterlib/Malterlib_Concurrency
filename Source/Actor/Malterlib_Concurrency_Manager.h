@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 	class CConcurrencyManager
 	{
 	public:
-		CConcurrencyManager();
+		CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max]);
 		~CConcurrencyManager();
 		void f_Init();
 		void f_Stop();
@@ -62,6 +62,9 @@ namespace NMib::NConcurrency
 		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
 
+		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
+		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
+
 		bool f_DestroyingAlwaysAliveActors() const;
 
 	private:
@@ -77,8 +80,6 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugFutures
 		friend struct NPrivate::CPromiseDataBase;
 #endif
-
-
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueue m_JobQueue;
@@ -159,6 +160,7 @@ namespace NMib::NConcurrency
 		TCActor<NPrivate::CDirectResultActor> m_DirectResultActorRef;
 
 		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
+		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
 	};
 
 	struct CConcurrencyThreadLocal

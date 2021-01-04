@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 					DMibLock(m_ConcurrencyManagerLock);
 					if (!m_pConcurrencyManager)
 					{
-						m_pConcurrencyManager = fg_Construct();
+						m_pConcurrencyManager = fg_Construct(m_DefaultExecutionPriority);
 						m_pConcurrencyManager->f_Init();
 					}
 
@@ -55,6 +55,7 @@ namespace NMib::NConcurrency
 			}
 
 			NThread::TCThreadLocal<CConcurrencyThreadLocal, NMemory::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
+			EExecutionPriority m_DefaultExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
 		};
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
@@ -88,6 +89,11 @@ namespace NMib::NConcurrency
 			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(ThreadLocal.m_pCurrentlyProcessingActorHolder);
 		else
 			return true; // Current actor is deduced from ThreadLocal.m_pCurrentlyProcessingActorHolder so by definition it's running
+	}
+
+	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
+	{
+		NPrivate::g_SubSystem_Concurrency->m_DefaultExecutionPriority[_Priority] = _ExecutionPriority;
 	}
 
 	NConcurrency::CConcurrencyManager &fg_ConcurrencyManager()
@@ -173,8 +179,9 @@ namespace NMib::NConcurrency
 	/// ===================
 //#define DMibNoConcurrency
 
-	CConcurrencyManager::CConcurrencyManager()
+	CConcurrencyManager::CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max])
 	{
+
 #ifdef DMibNoConcurrency
 		mint nThreads = 1;
 #else
@@ -183,6 +190,7 @@ namespace NMib::NConcurrency
 		m_nThreads = nThreads;
 		for (EPriority Priority = EPriority_Low; Priority < EPriority_Max; Priority = static_cast<EPriority>(Priority + 1))
 		{
+			m_ExecutionPriority[Priority] = _ExecutionPriority[Priority];
 			auto &Queues = m_Queues[Priority];
 			Queues.f_SetLen(nThreads);
 
@@ -361,12 +369,11 @@ namespace NMib::NConcurrency
 			return;
 
 		NStr::CStrNonTracked Name;
-		EExecutionPriority ThreadPrio = EExecutionPriority_Normal;
+		EExecutionPriority ThreadPrio = _pThis->m_ExecutionPriority[m_Priority];
 		switch (m_Priority)
 		{
 		case EPriority_Low:
 			Name = "(Low)";
-			ThreadPrio = EExecutionPriority_Lowest;
 			break;
 		case EPriority_Normal:
 			break;
@@ -396,6 +403,21 @@ namespace NMib::NConcurrency
 		m_Event.f_Signal();
 		if (!m_pThread)
 			fp_CreateThread(_pThis);
+	}
+
+	void CConcurrencyManager::f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
+	{
+		m_ExecutionPriority[_Priority] = _ExecutionPriority;
+		for (auto &Queue : m_Queues[_Priority])
+		{
+			if (Queue.m_pThread)
+				Queue.m_pThread->f_SetPriority(_ExecutionPriority);
+		}
+	}
+
+	EExecutionPriority CConcurrencyManager::f_GetExecutionPriority(EPriority _Priority)
+	{
+		return m_ExecutionPriority[_Priority];
 	}
 
 	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue)

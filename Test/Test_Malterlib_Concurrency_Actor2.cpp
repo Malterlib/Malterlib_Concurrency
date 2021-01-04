@@ -179,7 +179,9 @@ namespace
 		{
 			DMibTestSuite("General")
 			{
-				CConcurrencyManager ConcurrencyManager;
+				EExecutionPriority ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
+
+				CConcurrencyManager ConcurrencyManager(ExecutionPriority);
 				
 				using namespace NMib::NThread;
 				using namespace NMib::NConcurrency;

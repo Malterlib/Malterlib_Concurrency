@@ -619,6 +619,7 @@ namespace NMib::NConcurrency
 					return 0;
 				}
 				, mp_ThreadName
+				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())
 			)
 		;
 	}

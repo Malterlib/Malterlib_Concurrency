@@ -95,6 +95,16 @@ Target
 			%File "Include/Mib/Concurrency/^*"
 		}
 		%File "Source/^*"
+		%Group "DistributedApp"
+		{
+			%File "Source/DistributedApp/Malterlib_Concurrency_DistributedUIApp.cpp"
+			{
+				Compile.Type "ObjC++"
+				{
+					!!PlatformFamily OSX
+				}
+			}
+		}
 		%Group "Documentation"
 		{
 			%File "Documentation/*"

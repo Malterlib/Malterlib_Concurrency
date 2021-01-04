@@ -30,6 +30,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_Icon;
 		bool m_bAlwaysRunStatusApp = false;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
+		EExecutionPriority m_ExecutionPriority = EExecutionPriority_Normal;
 
 	private:
 		void fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);

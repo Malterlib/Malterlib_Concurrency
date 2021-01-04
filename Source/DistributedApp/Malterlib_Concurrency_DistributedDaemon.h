@@ -27,6 +27,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const m_DaemonDisplayName;
 		NStr::CStr const m_DaemonDescription;
 		TCActor<CDistributedAppActor> m_AppActor;
+		NStr::CStr m_Icon;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 
 	private:

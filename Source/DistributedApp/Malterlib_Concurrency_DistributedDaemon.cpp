@@ -141,12 +141,21 @@ namespace NMib::NConcurrency
 				, EDaemonAction _Action
 			)
 		{
+			void *pIconData = nullptr;
+#		ifdef DPlatformFamily_Windows
+			pIconData = g_hDllInstance;
+#		elif defined(DPlatformFamily_OSX)
+			NContainer::CByteVector IconData;
+			if (_DistributedDaemon.m_Icon && NFile::fg_ReadExeFSFile(_DistributedDaemon.m_Icon, IconData))
+				pIconData = &IconData;
+#		endif
+
 			CDaemonParams DaemonParams
 				{
 					_DistributedDaemon.m_DaemonName
 					, _DistributedDaemon.m_DaemonDisplayName
 					, _DistributedDaemon.m_DaemonDescription
-					, nullptr
+					, pIconData
 					, [&]() -> NStorage::TCUniquePointer<NDaemon::CDaemonImp>
 					{
 						return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor, _Params, _DistributedDaemon.m_pRunLoop);

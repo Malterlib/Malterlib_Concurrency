@@ -178,6 +178,7 @@ namespace NMib::NConcurrency
 				}
 			;
 			DaemonParams.f_SetAlwaysRunStatusApp(_DistributedDaemon.m_bAlwaysRunStatusApp);
+			DaemonParams.f_SetCanPause(false);
 			DaemonParams.f_SetAction(_Action);
 			NStr::CStr DaemonName = _Params["Daemon_Name"].f_String();
 			DaemonParams.f_SetDaemonName(DaemonName, DaemonName != _DistributedDaemon.m_DaemonName);

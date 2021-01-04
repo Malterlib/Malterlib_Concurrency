@@ -216,7 +216,20 @@ namespace NMib::NConcurrency
 		if (!DaemonSettings.f_GetMember("Name", NEncoding::EJSONType_String))
 			DaemonSettings["Name"] = m_DaemonName;
 		if (!DaemonSettings.f_GetMember("Mode", NEncoding::EJSONType_String))
-			DaemonSettings["Mode"] = "global";
+		{
+			switch (m_DefaultMode)
+			{
+			case EDaemonMode_Global:
+				DaemonSettings["Mode"] = "global";
+				break;
+			case EDaemonMode_AllUsers:
+				DaemonSettings["Mode"] = "all-users";
+				break;
+			case EDaemonMode_LocalUser:
+				DaemonSettings["Mode"] = "user";
+				break;
+			}
+		}
 
 		Section.f_RegisterSectionOptions
 			(

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Core/Core>
+#include <Mib/Daemon/Daemon>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -28,6 +29,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const m_DaemonDescription;
 		TCActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_Icon;
+		NDaemon::EDaemonMode m_DefaultMode = NDaemon::EDaemonMode_Global;
 		bool m_bAlwaysRunStatusApp = false;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		EExecutionPriority m_ExecutionPriority = EExecutionPriority_Normal;

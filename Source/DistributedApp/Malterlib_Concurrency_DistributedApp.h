@@ -447,11 +447,33 @@ namespace NMib::NConcurrency
 	};
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
+
+	struct CRunDistributedAppHelper
+	{
+		aint f_RunCommandLine
+			(
+				NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
+				, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine = nullptr
+				, bool _bStartApp = true
+				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop = nullptr
+			)
+		;
+
+		void f_Stop();
+
+		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
+		TCActor<CDistributedAppActor> m_AppActor;
+		TCActor<CActor> m_LogActor;
+		bool m_bStartedApp = false;
+		bool m_bInstalledLogDispatcher = false;
+	};
+
 	aint fg_RunApp
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
 			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine = nullptr
 			, bool _bStartApp = true
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop = nullptr
 		)
 	;
 }

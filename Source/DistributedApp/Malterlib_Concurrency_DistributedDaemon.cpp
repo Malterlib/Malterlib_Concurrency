@@ -5,19 +5,21 @@
 #include <Mib/Daemon/Daemon>
 #include <Mib/Encoding/EJSON>
 #include <Mib/Encoding/JSONShortcuts>
+#include <Mib/File/ExeFS>
 
 namespace NMib::NConcurrency
 {
 	using namespace NDaemon;
 	struct CDistributedDaemonDaemon : public CDaemonImp
 	{
-		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params)
+		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+			: m_pRunLoop(_pRunLoop)
+			, m_Actor(_Actor)
 		{
 			m_LogActor = fg_ApplyLoggingOption(_Params);
 			if (m_LogActor)
 				m_bInstalledLogDispatcher = true;
 
-			m_Actor = _Actor;
 			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, EDistributedAppType_Daemon)
 				> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 				{
@@ -42,7 +44,7 @@ namespace NMib::NConcurrency
 			{
 				try
 				{
-					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync();
+					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
 				}
 				catch (NException::CException const &_Exception)
 				{
@@ -58,13 +60,14 @@ namespace NMib::NConcurrency
 			{
 				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 				if (m_LogActor)
-					m_LogActor->f_BlockDestroy();
+					m_LogActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 			}
 #endif
 		}
 
 		TCActor<CDistributedAppActor> m_Actor;
 		TCActor<CActor> m_LogActor;
+		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		bool m_bInstalledLogDispatcher = false;
 	};
 
@@ -146,7 +149,7 @@ namespace NMib::NConcurrency
 					, nullptr
 					, [&]() -> NStorage::TCUniquePointer<NDaemon::CDaemonImp>
 					{
-						return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor, _Params);
+						return fg_Construct<CDistributedDaemonDaemon>(_DistributedDaemon.m_AppActor, _Params, _DistributedDaemon.m_pRunLoop);
 					}
 					, nullptr
 					, [] (NStr::CStr const& _Errors)
@@ -476,6 +479,9 @@ namespace NMib::NConcurrency
 
 	aint CDistributedDaemon::f_Run()
 	{
+		if (!m_pRunLoop)
+			m_pRunLoop = fg_Construct<CDefaultRunLoop>();
+
 		return fg_RunApp
 			(
 				[this]
@@ -496,6 +502,7 @@ namespace NMib::NConcurrency
 					fp_AddDaemonCommands(o_CommandLine, _Settings);
 				}
 				, false
+				, m_pRunLoop
 			)
 		;
 	}

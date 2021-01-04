@@ -759,16 +759,16 @@ namespace NMib::NConcurrency
 		return LogActor;
 	}
 
-	aint fg_RunApp
+	aint CRunDistributedAppHelper::f_RunCommandLine
 		(
 			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
 			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine
 			, bool _bStartApp
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
 		)
 	{
-		bool bStartedApp = false;
-		TCActor<CDistributedAppActor> AppActor;
-		TCActor<CActor> LogActor;
+		m_pRunLoop = _pRunLoop;
+
 		aint Ret = 1;
 		try
 		{
@@ -788,22 +788,21 @@ namespace NMib::NConcurrency
 						bSuggestedWaitForRemotes = bOldWaitForRemotes;
 					}
 				;
-				AppActor = _fActorFactory();
+				m_AppActor = _fActorFactory();
 			}
-			bool bInstalledLogDispatcher = false;
 			auto CleanupLogDispatcher = g_OnScopeExit > [&]
 				{
 #if (DMibSysLogSeverities) != 0
-					if (bInstalledLogDispatcher)
+					if (m_bInstalledLogDispatcher)
 					{
 						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-						if (LogActor)
-							LogActor->f_BlockDestroy();
+						if (m_LogActor)
+							m_LogActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 					}
 #endif
 				}
 			;
-			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
+			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync(m_pRunLoop);
 
 			if (_fMutateCommandLine)
 				CommandLineClient.f_MutateCommandLineSpecification(_fMutateCommandLine);
@@ -829,23 +828,23 @@ namespace NMib::NConcurrency
 						else
 							AppType = EDistributedAppType_CommandLine;
 
-						LogActor = fg_ApplyLoggingOption(_Params);
-						if (LogActor)
-							bInstalledLogDispatcher = true;
+						m_LogActor = fg_ApplyLoggingOption(_Params);
+						if (m_LogActor)
+							m_bInstalledLogDispatcher = true;
 						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))
 						{
-							AppActor(&CDistributedAppActor::f_StartApp, _Params, LogActor, AppType).f_CallSync();
-							bStartedApp = true;
+							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, AppType).f_CallSync(m_pRunLoop);
+							m_bStartedApp = true;
 						}
 						else if (AppType != EDistributedAppType_Unchanged)
-							AppActor(&CDistributedAppActor::f_SetAppType, AppType).f_CallSync();
+							m_AppActor(&CDistributedAppActor::f_SetAppType, AppType).f_CallSync(m_pRunLoop);
 
-						return [&]
+						return [this]
 							{
-								if (bStartedApp)
+								if (m_bStartedApp)
 								{
-									bStartedApp = false;
-									AppActor(&CDistributedAppActor::f_StopApp).f_CallSync();
+									m_bStartedApp = false;
+									m_AppActor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
 								}
 							}
 						;
@@ -861,18 +860,44 @@ namespace NMib::NConcurrency
 			Ret = 1;
 		}
 
+		return Ret;
+	}
+
+	void CRunDistributedAppHelper::f_Stop()
+	{
 		try
 		{
-			if (bStartedApp)
-				AppActor(&CDistributedAppActor::f_StopApp).f_CallSync();
+			if (m_bStartedApp)
+				m_AppActor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
 
-			if (AppActor)
-				AppActor->f_BlockDestroy();
+			if (m_AppActor)
+				m_AppActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 		}
 		catch (NException::CException const &_Exception)
 		{
 			DMibConErrOut("Error stopping app: {}{\n}", _Exception.f_GetErrorStr());
 		}
+
+		m_LogActor.f_Clear();
+		m_AppActor.f_Clear();
+		m_pRunLoop.f_Clear();
+	}
+
+	aint fg_RunApp
+		(
+			NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory
+			, NFunction::TCFunction<void (CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings)> const &_fMutateCommandLine
+			, bool _bStartApp
+			, TCSharedPointer<CRunLoop> const &_pRunLoop
+		)
+	{
+		TCSharedPointer<CRunLoop> pRunLoop = _pRunLoop;
+		if (!pRunLoop)
+			pRunLoop = fg_Construct<CDefaultRunLoop>();
+		
+		CRunDistributedAppHelper Helper;
+		auto Ret = Helper.f_RunCommandLine(_fActorFactory, _fMutateCommandLine, _bStartApp, pRunLoop);
+		Helper.f_Stop();
 
 		return Ret;
 	}

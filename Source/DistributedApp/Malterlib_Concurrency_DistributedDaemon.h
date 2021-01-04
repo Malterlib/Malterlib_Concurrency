@@ -27,6 +27,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const m_DaemonDisplayName;
 		NStr::CStr const m_DaemonDescription;
 		TCActor<CDistributedAppActor> m_AppActor;
+		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 
 	private:
 		void fp_AddDaemonCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);

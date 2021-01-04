@@ -159,6 +159,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_CanUserLocalListenAsPrimary(bool _bCanUserLocalListenAsPrimary) &&
+	{
+		m_bCanUserLocalListenAsPrimary = _bCanUserLocalListenAsPrimary;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_WaitForRemotes(bool _bWaitForRemotes) &&
 	{
 		m_bWaitForRemotes = _bWaitForRemotes;

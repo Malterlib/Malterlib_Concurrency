@@ -184,6 +184,8 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 
+		bool bSetPrimary = false;
+
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 		if (pListen)
 		{
@@ -207,7 +209,10 @@ namespace NMib::NConcurrency
 					return Promise <<= DMibErrorInstance("Missing 'Address' for listen entry");
 
 				if (bFirst)
+				{
 					Internal.m_PrimaryListen = Address;
+					bSetPrimary = true;
+				}
 				bFirst = false;
 
 				if (Address == LocalListen)
@@ -222,6 +227,9 @@ namespace NMib::NConcurrency
 			}
 		}
 		WantedListens[LocalListen];
+
+		if (!bSetPrimary && mp_Settings.m_bCanUserLocalListenAsPrimary)
+			Internal.m_PrimaryListen = LocalListen;
 
 		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens)
 			> Promise % "Failed to enum current listen" / [this, Promise, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)

@@ -165,9 +165,10 @@ namespace NMib::NConcurrency
 					{
 						DMibConErrOut("{}{\n}", _Errors);
 					}
-					, [] (NStr::CStr const& _Heading, NStr::CStr const& _Information)
+					, [bVerbose = _Params["Daemon_Verbose"].f_Boolean()] (NStr::CStr const& _Heading, NStr::CStr const& _Information)
 					{
-						DMibConErrOut("{}{\n}", _Information);
+						if (bVerbose)
+							DMibConErrOut("{}{\n}", _Information);
 					}
 					, [&] (NStr::CStr const& _Errors, NDaemon::EReportError _Default) -> NMib::NDaemon::EReportError
 					{
@@ -229,6 +230,12 @@ namespace NMib::NConcurrency
 						"   all-users:   Install the daemon as a user daemon for all users. This daemon will start when a user logs in.\r"
 						, "DefaultEnabled"_= false
 					}
+					, "Daemon_Verbose?"_=
+					{
+						"Names"_= {"--verbose"}
+						, "Default"_= false
+						, "Description"_= "Output informational messages to command line.\n"
+					}
 				}
 			)
 		;
@@ -263,7 +270,7 @@ namespace NMib::NConcurrency
 						"If the add was successful, the name of the daemon will be saved in '{}' unless you disable it with --no-daemon-save-settings.\n"
 						, NFile::CFile::fs_GetFile(SettingsFile)
 					)
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 					, "Options"_=
 					{
@@ -317,7 +324,7 @@ namespace NMib::NConcurrency
 				{
 					"Names"_= {"--daemon-remove"}
 					, "Description"_= "Remove the daemon for the application.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
@@ -331,7 +338,7 @@ namespace NMib::NConcurrency
 				{
 					"Names"_= {"--daemon-start"}
 					, "Description"_= "Start the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
@@ -345,7 +352,7 @@ namespace NMib::NConcurrency
 				{
 					"Names"_= {"--daemon-restart"}
 					, "Description"_= "Restart the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Options"_=
 					{
 						DaemonWaitOption
@@ -363,7 +370,7 @@ namespace NMib::NConcurrency
 				{
 					"Names"_= {"--daemon-stop"}
 					, "Description"_= "Stop the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Options"_=
 					{
 						DaemonWaitOption
@@ -383,7 +390,7 @@ namespace NMib::NConcurrency
 					, "Description"_=
 						"Run the daemon as a program.\n"
 						"Mostly for debugging purposes. On supported operating systems a tray icon will be added that you can use to send commands to the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 					, "Options"_=
 					{
@@ -410,7 +417,7 @@ namespace NMib::NConcurrency
 					, "Description"_=
 						"Run the daemon as a program without debugging helpers.\n"
 						"Use this when you want to run the daemon manually without attempting to use system daemon facilities and without daemonizing.\n"
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
@@ -429,7 +436,7 @@ namespace NMib::NConcurrency
 						"0"_= "The daemon exists"
 						, "1"_= "The daemon does not exist"
 					}
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
@@ -448,7 +455,7 @@ namespace NMib::NConcurrency
 						"0"_= "The daemon exists"
 						, "1"_= "The daemon does not exist"
 					}
-					, "SectionOptions"_= {"Daemon_Mode"}
+					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_= {DaemonNameParam}
 					, "Options"_=
 					{

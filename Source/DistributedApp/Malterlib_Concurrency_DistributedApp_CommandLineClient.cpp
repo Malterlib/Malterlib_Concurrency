@@ -35,7 +35,10 @@ namespace NMib::NConcurrency
 		mp_fLazyStartApp = _fLazyStartApp;
 	}
 
-	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params)> const &_fLazyPreRunDirectCommand)
+	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand
+		(
+			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand
+		)
 	{
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
 	}
@@ -149,7 +152,7 @@ namespace NMib::NConcurrency
 		if (Command.m_pDirectRunCommand)
 		{
 			if (mp_fLazyPreRunDirectCommand)
-				mp_fLazyPreRunDirectCommand(_Params);
+				mp_fLazyPreRunDirectCommand(_Params, Command.m_Flags);
 
 			return (*Command.m_pDirectRunCommand)(_Params, *this);
 		}

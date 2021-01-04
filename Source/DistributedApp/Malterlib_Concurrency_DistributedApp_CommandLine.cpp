@@ -34,6 +34,23 @@ namespace NMib::NConcurrency
 		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
 	}
 
+	template <typename t_CCommandLineSpecification>
+	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterDirectCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+	{
+		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
+		auto &Section = *pSection;
+		auto &Internal = *(this->mp_pInternal);
+		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
+		pCommand->m_pDirectRunCommand = fg_Construct(fg_Move(_fRunCommand));
+		pCommand->m_Flags = _Flags;
+		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
+	}
+
 	template auto
 	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
 	f_RegisterCommand
@@ -43,6 +60,17 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 			> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
+	;
+
+	template auto
+	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
+	f_RegisterDirectCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand

@@ -115,6 +115,8 @@ namespace NMib::NConcurrency
 
 	struct CCommandLineSpecificationDistributedAppCustomization
 	{
+		using CCommandLineClient = CDistributedAppCommandLineClient;
+		
 		template <typename t_CCommandLineSpecification>
 		struct TCSection
 		{
@@ -130,6 +132,13 @@ namespace NMib::NConcurrency
 						<
 							TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 						> &&_fRunCommand
+						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
+					)
+				;
+				typename t_CCommandLineSpecification::CCommand f_RegisterDirectCommand
+					(
+						NEncoding::CEJSON const &_CommandDescription
+						, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
 					)
 				;
@@ -152,8 +161,6 @@ namespace NMib::NConcurrency
 				EDistributedAppCommandFlag m_Flags = EDistributedAppCommandFlag_None;
 			};
 		};
-
-		using CCommandLineClient = CDistributedAppCommandLineClient;
 	};
 
 	using CDistributedAppCommandLineSpecification = NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>;
@@ -167,6 +174,17 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32> (NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 			> &&_fRunCommand
+			, EDistributedAppCommandFlag _Flags
+		)
+		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
+	;
+
+	extern template auto
+	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
+	f_RegisterDirectCommand
+		(
+			NEncoding::CEJSON const &_CommandDescription
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSON const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand

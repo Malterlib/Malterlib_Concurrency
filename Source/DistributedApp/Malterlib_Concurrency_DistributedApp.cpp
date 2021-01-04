@@ -809,9 +809,21 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyPreRunDirectCommand
 				(
-					[&](NEncoding::CEJSON const &_Params)
+					[this](NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)
 					{
-						AppActor(&CDistributedAppActor::f_SetAppType, EDistributedAppType_DirectCommandLine).f_CallSync();
+						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
+						{
+							EDistributedAppType AppType = EDistributedAppType_ForceLocal;
+
+							m_LogActor = fg_ApplyLoggingOption(_Params);
+							if (m_LogActor)
+								m_bInstalledLogDispatcher = true;
+
+							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, AppType).f_CallSync(m_pRunLoop);
+							m_bStartedApp = true;
+						}
+
+						m_AppActor(&CDistributedAppActor::f_SetAppType, EDistributedAppType_DirectCommandLine).f_CallSync(m_pRunLoop);
 					}
 				)
 			;

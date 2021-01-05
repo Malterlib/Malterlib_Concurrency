@@ -7,6 +7,13 @@
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/File/ExeFS>
 
+#ifdef DPlatformFamily_Windows
+namespace NMib::NPlatform
+{
+	void *fg_GetWindowsDllInstance();
+}
+#endif
+
 namespace NMib::NConcurrency
 {
 	using namespace NDaemon;
@@ -143,7 +150,7 @@ namespace NMib::NConcurrency
 		{
 			void *pIconData = nullptr;
 #		ifdef DPlatformFamily_Windows
-			pIconData = g_hDllInstance;
+			pIconData = NPlatform::fg_GetWindowsDllInstance();
 #		elif defined(DPlatformFamily_OSX)
 			NContainer::CByteVector IconData;
 			if (_DistributedDaemon.m_Icon && NFile::fg_ReadExeFSFile(_DistributedDaemon.m_Icon, IconData))

@@ -6,7 +6,9 @@
 
 #include "Malterlib_Concurrency_ActorHolder_OSThreadRunLoop.h"
 
+#if defined(DPlatformFamily_OSX)
 #include <Mib/Core/PlatformSpecific/PosixErrNo>
+#endif
 
 namespace NMib::NConcurrency
 {

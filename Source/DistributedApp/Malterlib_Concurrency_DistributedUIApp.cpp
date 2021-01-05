@@ -7,10 +7,6 @@
 #include <Mib/Concurrency/OSMainRunLoop>
 #include <Mib/Concurrency/ActorHolderOSMainRunLoop>
 
-#if defined(DPlatformFamily_OSX)
-#include <AppKit/NSApplication.h>
-#endif
-
 namespace NMib::NConcurrency
 {
 	struct CDistributedUIApp::CInternal
@@ -119,7 +115,7 @@ namespace NMib::NConcurrency
 		;
 
 		if (mp_bRunAsApplication)
-			fsp_RunMain()
+			fsp_RunMain();
 		else
 			mp_pInternal->m_RunHelper.f_Stop();
 

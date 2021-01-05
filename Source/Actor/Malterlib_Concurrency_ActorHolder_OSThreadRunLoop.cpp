@@ -45,6 +45,7 @@ namespace NMib::NConcurrency
 			(
 				[this](NThread::CThreadObject *_pThread) -> aint
 				{
+					(void)this;
 #if defined(DPlatformFamily_OSX)
 					CFRunLoopSourceContext RunLoopSourceContext
 						{
@@ -89,8 +90,8 @@ namespace NMib::NConcurrency
 					while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 						CFRunLoopRun();
 
-					return 0;
 #endif
+					return 0;
 				}
 				, mp_ThreadName
 				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())

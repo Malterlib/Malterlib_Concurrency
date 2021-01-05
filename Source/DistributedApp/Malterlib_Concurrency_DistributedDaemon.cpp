@@ -194,10 +194,14 @@ namespace NMib::NConcurrency
 				if (NFile::CFile::fs_FileExists(SettingsFile))
 					DaemonSettings = NEncoding::CEJSON::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
 
-				DaemonSettings["Name"] = _Params["Daemon_Name"];
-				DaemonSettings["Mode"] = _Params["Daemon_Mode"];
+				if (DaemonParams.f_GetDaemonMode() != EDaemonMode_AllUsers)
+				{
+					DaemonSettings["Name"] = _Params["Daemon_Name"];
+					DaemonSettings["Mode"] = _Params["Daemon_Mode"];
 
-				NFile::CFile::fs_WriteStringToFile(SettingsFile, DaemonSettings.f_ToString());
+					NFile::CFile::fs_CreateDirectory(NFile::CFile::fs_GetPath(SettingsFile));
+					NFile::CFile::fs_WriteStringToFile(SettingsFile, DaemonSettings.f_ToString());
+				}
 			}
 			return Result;
 		}

@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 #if defined(DPlatformFamily_OSX)
 #else
-	CDistributedUIApp::fsp_RunMain()
+	void CDistributedUIApp::fsp_RunMain()
 	{
 		DMibPDebugBreak; // Not implemented
 	}

@@ -97,11 +97,11 @@ Target
 		%File "Source/^*"
 		%Group "DistributedApp"
 		{
-			%File "Source/DistributedApp/Malterlib_Concurrency_DistributedUIApp.cpp"
+			%File "Source/DistributedApp/Malterlib_Concurrency_DistributedUIApp_MacOS.mm"
 			{
-				Compile.Type "ObjC++"
+				Compile.Disabled true
 				{
-					!!PlatformFamily OSX
+					!PlatformFamily OSX
 				}
 			}
 		}

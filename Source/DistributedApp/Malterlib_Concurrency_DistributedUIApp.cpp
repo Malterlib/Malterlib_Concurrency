@@ -39,11 +39,15 @@ namespace NMib::NConcurrency
 	CDistributedUIApp::CDistributedUIApp(NFunction::TCFunction<TCActor<CDistributedAppActor> ()> const &_fActorFactory)
 		: mp_fActorFactory(_fActorFactory)
 	{
+	}
+
 #if defined(DPlatformFamily_OSX)
 #else
+	CDistributedUIApp::fsp_RunMain()
+	{
 		DMibPDebugBreak; // Not implemented
-#endif
 	}
+#endif
 
 	CDistributedUIApp::~CDistributedUIApp() = default;
 
@@ -115,12 +119,7 @@ namespace NMib::NConcurrency
 		;
 
 		if (mp_bRunAsApplication)
-		{
-#if defined(DPlatformFamily_OSX)
-			ch8	const *Dummy[] = {nullptr};
-			NSApplicationMain(0, Dummy); // Will never return
-#endif
-		}
+			fsp_RunMain()
 		else
 			mp_pInternal->m_RunHelper.f_Stop();
 

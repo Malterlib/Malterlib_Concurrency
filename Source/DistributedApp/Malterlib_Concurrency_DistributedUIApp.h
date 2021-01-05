@@ -24,6 +24,8 @@ namespace NMib::NConcurrency
 
 		void fp_AddCommands(CDistributedAppCommandLineSpecification &o_CommandLine, CDistributedAppActor_Settings const &_Settings);
 
+		static void fsp_RunMain();
+
 		NFunction::TCFunction<TCActor<CDistributedAppActor> ()> mp_fActorFactory;
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 		bool mp_bRunAsApplication = false;

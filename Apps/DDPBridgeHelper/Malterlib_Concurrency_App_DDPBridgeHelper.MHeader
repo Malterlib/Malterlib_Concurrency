@@ -9,15 +9,14 @@
 		MalterlibTestApp true
 		MalterlibPostCopyProject "Malterlib_Concurrency_DDPBridgeHelper"
 		{
-			!!MalterlibPostCopyProject ""
+			!!MalterlibPostCopyProject undefined
 		}
-		MalterlibLinkWithOpenSSL true
 		MalterlibConcurrency_DistributedActors true
 		MalterlibTargetNameType "Normal"
 	}
 	Target
 	{
-		DebuggerCommandArguments "--daemon-run-debug"
+		DebuggerCommandArguments ["--daemon-run-debug"]
 		BaseFileName "TrustDDPBridge"
 	}
 	
@@ -30,4 +29,4 @@
 	%Dependency "Lib_Malterlib"
 }
 
-Property.Malterlib_Concurrency_App_Targets "Malterlib_Concurrency_DDPBridgeHelper;@(Malterlib_Concurrency_App_Targets)"
+Property.Malterlib_Concurrency_App_Targets =+ "Malterlib_Concurrency_DDPBridgeHelper"

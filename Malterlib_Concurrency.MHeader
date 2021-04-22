@@ -9,7 +9,7 @@ Import "Apps/*/*.MHeader"
 	Repository
 	{
 		Type "External"
-		Remotes "upstream=https://github.com/libusb/hidapi.git;@(Repository.Remotes)"
+		Remotes =+ {Name: "upstream", URL: "https://github.com/libusb/hidapi.git"}
 	}
 }
 
@@ -24,7 +24,7 @@ Import "Apps/*/*.MHeader"
 	Compile
 	{
 		!!CompileDialect "C"
-		SearchPath "@('../../External/hidapi/hidapi'->MakeAbsolute());@(Compile.SearchPath)"
+		SearchPath += "../../External/hidapi/hidapi"->MakeAbsolute()
 		Warnings "Minimal"
 	}
 
@@ -75,7 +75,7 @@ Target
 		TargetIsExecutable true
 	}
 
-	LinkWithLibraries "-ludev @(Target.LinkWithLibraries)"
+	LinkWithLibraries += "-ludev"
 	{
 		!!PlatformFamily "Linux"
 	}
@@ -101,7 +101,7 @@ Target
 			{
 				Compile.Disabled true
 				{
-					!PlatformFamily OSX
+					!PlatformFamily "OSX"
 				}
 			}
 		}
@@ -119,6 +119,10 @@ Target
 	{
 		Dependency.Indirect true
 	}
+	%Dependency "Lib_Malterlib_Cryptography"
+	{
+		Dependency.Indirect true
+	}
 	%Dependency "Lib_hidapi"
 	{
 		!DocumentationEnabled true
@@ -129,32 +133,23 @@ Target
 
 Property
 {
-	MalterlibConcurrencyTargetInDependenciesTemplate_TargetName "@(Builtin.Function->GetProperty('Property', 'TargetIdentity', '@(Explodee)'))"
-	MalterlibConcurrencyTargetInDependenciesTemplate true
-	{
-		!!MalterlibConcurrencyTargetInDependenciesTemplate_TargetName "Lib_Malterlib_Concurrency"
-	}
-
-	MalterlibConcurrencyTargetInDependencies "@(Builtin.Function->ExplodeList('@(Target.Dependencies)', ';', 'MalterlibConcurrencyTargetInDependenciesTemplate'))"
-	MalterlibConcurrency_DistributedActors true
-	{
-		!!MalterlibConcurrencyTargetInDependencies true
-	}
+	MalterlibConcurrencyTargetInDependencies define bool = fg_IsTargetInDependencies("Lib_Malterlib_Concurrency")
+	MalterlibConcurrency_DistributedActors define bool = MalterlibConcurrencyTargetInDependencies
 }
 
 Compile
 {
 	!!CompileDialect "C"
 
-	PrefixHeader "@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h"
+	PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h`
 	{
 		&
 		{
 			MalterlibConcurrency_DistributedActors true
 			|
 			{
-				Compile.PrefixHeader ""
-				Compile.PrefixHeader "@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h"
+				Compile.PrefixHeader undefined
+				Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
 			}
 			!DocumentationEnabled true
 			!MalterlibQtSupport true
@@ -165,21 +160,14 @@ Compile
 
 Property
 {
-	MalterlibLibrary_Concurrency true
-	{
-		&
-		{
-			MalterlibLibrary_Concurrency ""
-			MalterlibLibrary_All true
-		}
-	}
-	MalterlibSubLibraries "Concurrency;@(MalterlibSubLibraries)"
+	MalterlibLibrary_Concurrency define bool = MalterlibLibrary_All
+	MalterlibSubLibraries =+ "Concurrency"
 	{
 		!!MalterlibLibrary_Concurrency true
 	}
-	MalterlibLibrarySeparate_Lib_Malterlib_Concurrency true
-//	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency true
-	MalterlibIncludeRoots "@('Include'->MakeAbsolute());@(MalterlibIncludeRoots)"
+	MalterlibLibrarySeparate_Lib_Malterlib_Concurrency define bool = true
+//	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency define bool = true
+	MalterlibIncludeRoots =+ "Include"->MakeAbsolute()
 	{
 		!!MalterlibLibrary_Concurrency true
 	}
@@ -189,7 +177,6 @@ Property
 {
 	Property.MalterlibConcurrency_DistributedActors true
 
-	Property.MalterlibLinkWithOpenSSL true
 	%Group "Tests"
 	{
 		%File "Test/*"
@@ -203,10 +190,12 @@ Property
 {
 	!!MalterlibEnableInternalTests true
 
-	MalterlibTests "Malterlib_Concurrency;@(MalterlibTests)"
-	MalterlibTestExtraGroups_Malterlib_Concurrency "{Test}/{Malterlib_Concurrency}"
-	MalterlibTestFiles_Malterlib_Concurrency ""
+	MalterlibTests =+ "Malterlib_Concurrency"
+	MalterlibTestExtraGroups_Malterlib_Concurrency define [string] = ["{Test}/{Malterlib_Concurrency}"]
+	MalterlibTestFiles_Malterlib_Concurrency define [type(CEntity)] = []
 }
+
+Property.Malterlib_Concurrency_App_Targets define [type(CEntity)] = []
 
 %Workspace "Apps_Malterlib_Concurrency"
 {
@@ -220,51 +209,37 @@ Property
 		!!TargetIsExecutable true
 	}
 
-	Property.MalterlibLog_Severities "Error;Critical;Warning;Info"
+	Property.MalterlibLog_Severities ["Error", "Critical", "Warning", "Info"]
 	{
 		!!MalterlibLog_EnableVerboseDebugLog false
 	}
 
-	%Target "@(Malterlib_Concurrency_App_Targets)"
+	%Target Malterlib_Concurrency_App_Targets
 }
 
 Property
 {
-	MalterlibConcurrency_DebugActorCallstacks "" // User(Debug)=true: Set to true to enable actor calls callstack debugging
-	{
-		!!MalterlibConcurrency_DebugActorCallstacks ""
-	}
-
-	MalterlibConcurrency_DebugUnobservedException "" // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
-	{
-		!!MalterlibConcurrency_DebugUnobservedException ""
-	}
-
-	MalterlibConcurrency_DebugBlockDestroy "" // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
-	{
-		!!MalterlibConcurrency_DebugBlockDestroy ""
-	}
-	MalterlibConcurrency_DebugFutures false // User(Debug)=true: Set to true to enable future reference debugging
-	{
-		!!MalterlibConcurrency_DebugFutures ""
-	}
+	MalterlibConcurrency_DebugActorCallstacks define bool = false // User(Debug)=true: Set to true to enable actor calls callstack debugging
+	MalterlibConcurrency_DebugBlockDestroy define bool = false // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
+	MalterlibConcurrency_DebugFutures define bool = false // User(Debug)=true: Set to true to enable future reference debugging
+	MalterlibConcurrency_DebugUnobservedException define bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
 }
 
 Compile
 {
 	!!LanguageFamily ".NET"
 
-	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugActorCallstacks"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks true
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedExceptions;@(Compile.PreprocessorDefines)"
-	{
-		!!MalterlibConcurrency_DebugUnobservedException true
-	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugBlockDestroy"
 	{
 		!!MalterlibConcurrency_DebugBlockDestroy true
+	}
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugUnobservedExceptions"
+	{
+		!!MalterlibConcurrency_DebugUnobservedException true
 	}
 }
 
@@ -280,39 +255,36 @@ Compile
 		}
 	}
 
-	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks=1;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugActorCallstacks=1"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks true
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugActorCallstacks=0;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugActorCallstacks=0"
 	{
 		!!MalterlibConcurrency_DebugActorCallstacks false
 	}
-
-	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedException=1;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugUnobservedException=1"
 	{
 		!!MalterlibConcurrency_DebugUnobservedException true
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugUnobservedException=0;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugUnobservedException=0"
 	{
 		!!MalterlibConcurrency_DebugUnobservedException false
 	}
-
-	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy=1;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugBlockDestroy=1"
 	{
 		!!MalterlibConcurrency_DebugBlockDestroy true
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugBlockDestroy=0;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugBlockDestroy=0"
 	{
 		!!MalterlibConcurrency_DebugBlockDestroy false
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugFutures=1;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugFutures=1"
 	{
 		!!MalterlibConcurrency_DebugFutures true
 	}
-	PreprocessorDefines "DMibConfig_Concurrency_DebugFutures=0;@(Compile.PreprocessorDefines)"
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugFutures=0"
 	{
 		!MalterlibConcurrency_DebugFutures true
 	}
 }
-

@@ -751,7 +751,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -774,7 +774,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions);
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -805,7 +805,7 @@ namespace NTestAuthentication
 						for (auto &Result : Results)
 							Output[Results.fs_GetKey(Result)] = Result;
 
-						*_pCommandLine += Output.f_ToString("\t", true);
+						*_pCommandLine += Output.f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -824,7 +824,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -843,7 +843,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -862,7 +862,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -881,7 +881,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -900,7 +900,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", true);
+						*_pCommandLine += CEJSON(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}

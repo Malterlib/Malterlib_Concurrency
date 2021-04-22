@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 
 					co_await Internal.m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
 				}
-				catch (CException const &_Exception)
+				catch ([[maybe_unused]] CException const &_Exception)
 				{
 					DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", _Exception);
 					co_return DMibErrorInstance("Failed to store sensor in database, see log for error.");
@@ -181,10 +181,9 @@ namespace NMib::NConcurrency
 
 										co_await Internal.m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
 									}
-									catch (CException const &_Exception)
+									catch ([[maybe_unused]] CException const &_Exception)
 									{
-										auto &Exception = _Exception;
-										DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Exception);
+										DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", _Exception);
 										co_return _Exception.f_ExceptionPointer();
 									}
 

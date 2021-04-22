@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 			if (!Batch.f_IsEmpty())
 				co_yield fg_Move(Batch);
 		}
-		catch (CException const &_Exception)
+		catch ([[maybe_unused]] CException const &_Exception)
 		{
 			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensors): {}", _Exception);
 			co_return DMibErrorInstance("Internal error reading from database, see log");
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 			if (!Batch.f_IsEmpty())
 				co_yield fg_Move(Batch);
 		}
-		catch (CException const &_Exception)
+		catch ([[maybe_unused]] CException const &_Exception)
 		{
 			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensorReadings): {}", _Exception);
 			co_return DMibErrorInstance("Internal error reading from database, see log");
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 			if (!Batch.f_IsEmpty())
 				co_yield fg_Move(Batch);
 		}
-		catch (CException const &_Exception)
+		catch ([[maybe_unused]] CException const &_Exception)
 		{
 			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensorStatus): {}", _Exception);
 			co_return DMibErrorInstance("Internal error reading from database, see log");

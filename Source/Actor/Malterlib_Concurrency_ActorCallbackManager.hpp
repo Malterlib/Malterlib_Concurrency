@@ -438,6 +438,8 @@ namespace NMib::NConcurrency
 			{
 				if (!_Result)
 				{
+					NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 					try
 					{
 						_Result.f_Access();

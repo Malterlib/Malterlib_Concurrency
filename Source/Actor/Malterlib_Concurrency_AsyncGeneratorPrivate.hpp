@@ -86,6 +86,8 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 			try
 			{
 				std::rethrow_exception(_Value);
@@ -227,6 +229,8 @@ namespace NMib::NConcurrency::NPrivate
 		NException::CDisableExceptionTraceScope DisableTrace;
 		if constexpr (NTraits::TCIsVoid<t_CException>::mc_Value)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 			try
 			{
 				Result.f_SetResult(fg_CallSafe(_ToRun, fg_Forward<tfp_CParams>(p_Params)...));

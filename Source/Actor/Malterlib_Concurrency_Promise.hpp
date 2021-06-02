@@ -744,6 +744,8 @@ namespace NMib::NConcurrency::NPrivate
 			 	&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
 			)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 			try
 			{
 				std::rethrow_exception(NException::fg_CurrentException());

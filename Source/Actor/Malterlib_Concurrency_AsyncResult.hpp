@@ -16,6 +16,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CException>
 	bool CAsyncResult::f_HasExceptionType() const
 	{
+		NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 		try
 		{
 			f_Access();

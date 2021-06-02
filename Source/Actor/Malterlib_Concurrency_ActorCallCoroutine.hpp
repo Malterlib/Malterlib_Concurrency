@@ -83,6 +83,7 @@ namespace NMib::NConcurrency
 	{
 		if (!_AsyncResult)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
 			try
 			{
 				_AsyncResult.f_Get();

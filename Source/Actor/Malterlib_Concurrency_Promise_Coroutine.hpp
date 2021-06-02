@@ -72,6 +72,8 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 			try
 			{
 				std::rethrow_exception(_Value);
@@ -119,6 +121,8 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			else
 			{
+				NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 				try
 				{
 					std::rethrow_exception(_Value);
@@ -175,6 +179,8 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 		{
+			NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 			try
 			{
 				throw;
@@ -282,6 +288,8 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException()
 	{
+		NException::CDisableExceptionFilterScope DisableExceptionFilter;
+
 		try
 		{
 			throw;

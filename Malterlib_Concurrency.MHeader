@@ -145,6 +145,7 @@ Compile
 	{
 		&
 		{
+			Compile.Type "C++"
 			MalterlibConcurrency_DistributedActors true
 			|
 			{

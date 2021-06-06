@@ -145,7 +145,11 @@ Compile
 	{
 		&
 		{
-			Compile.Type "C++"
+			|
+			{
+				Compile.Type "C++"
+				!GeneratorFamily "VisualStudio"
+			}
 			MalterlibConcurrency_DistributedActors true
 			|
 			{

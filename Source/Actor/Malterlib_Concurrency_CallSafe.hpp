@@ -35,7 +35,12 @@ namespace NMib::NConcurrency
 			= [pState = fg_Move(pState)](NConcurrency::TCAsyncResult<CReturn> &&_Result) mutable
 			{
 				if constexpr (NPrivate::TCIsFuture<tf_CReturn>::mc_Value)
-					pState->m_Promise.f_SetResult(fg_Move(_Result));
+				{
+					if (!_Result.f_IsSet())
+						pState->m_Promise.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Result was not set", false));
+					else
+						pState->m_Promise.f_SetResult(fg_Move(_Result));
+				}
 			}
 		;
 

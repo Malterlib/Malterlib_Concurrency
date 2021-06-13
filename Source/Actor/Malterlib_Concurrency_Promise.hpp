@@ -746,16 +746,21 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			NException::CDisableExceptionFilterScope DisableExceptionFilter;
 
-			try
+			auto pCurrentException = NException::fg_CurrentException();
+
+			if (pCurrentException)
 			{
-				std::rethrow_exception(NException::fg_CurrentException());
-			}
-			catch (NException::CDebugException const &)
-			{
-				f_SetException(NException::fg_CurrentException());
-			}
-			catch (...)
-			{
+				try
+				{
+					std::rethrow_exception(pCurrentException);
+				}
+				catch (NException::CDebugException const &)
+				{
+					f_SetException(fg_Move(pCurrentException));
+				}
+				catch (...)
+				{
+				}
 			}
 		}
 #endif

@@ -126,6 +126,8 @@ namespace NMib::NConcurrency
 		using CActorHolder = CDispatchingActorHolder;
 	};
 
+	struct CDispatchHelperWithActor;
+
 	template <typename t_CActor>
 	struct TCRoundRobinActors
 	{
@@ -142,6 +144,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy();
 
 		TCActor<t_CActor> const &operator *() const;
+		TCActor<t_CActor> const *operator -> () const;
+		CDispatchHelperWithActor f_Dispatch() const;
 
 	private:
 		NContainer::TCVector<TCActor<t_CActor>> mp_Actors;

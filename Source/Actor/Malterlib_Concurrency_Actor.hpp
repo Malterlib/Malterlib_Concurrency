@@ -98,6 +98,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	CDispatchHelperWithActor TCActor<t_CActor>::f_Dispatch() const
+	{
+		return CDispatchHelperWithActor(*this);
+	}
+
+	template <typename t_CActor>
 	TCActor<t_CActor>::TCActor(TCActor &&_Other)
 		: m_pInternalActor(fg_Move(_Other.m_pInternalActor))
 	{
@@ -877,6 +883,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	CDispatchHelperWithActor TCRoundRobinActors<t_CActor>::f_Dispatch() const
+	{
+		return CDispatchHelperWithActor(**this);
+	}
+
+	template <typename t_CActor>
 	template <typename tf_CParam>
 	void TCRoundRobinActors<t_CActor>::f_Construct(tf_CParam &&_Param)
 	{
@@ -920,6 +932,12 @@ namespace NMib::NConcurrency
 		mint iCurrentActor = mp_iCurrentActor;
 		mp_iCurrentActor = (mp_iCurrentActor + 1) % fg_Max(mp_Actors.f_GetLen(), 1);
 		return mp_Actors[iCurrentActor];
+	}
+
+	template <typename t_CActor>
+	TCActor<t_CActor> const *TCRoundRobinActors<t_CActor>::operator -> () const
+	{
+		return &**this;
 	}
 
 	struct [[nodiscard("You need to co_await the ownership transfer")]] CCoroutineTransferOwnershipAwaiter

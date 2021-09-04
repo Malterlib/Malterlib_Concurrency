@@ -111,6 +111,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy() &&;
 	};
 
+	struct CDispatchHelperWithActor;
+
 	template <typename t_CActor>
 	class TCActor /// \brief Contain an instance of a CActor
 		: public TCChooseType<TCIsActorAlwaysAlive<t_CActor>::mc_Value, CEmpty, CActorCommon>::CType
@@ -190,6 +192,8 @@ namespace NMib::NConcurrency
 		void f_Clear();
 		bool f_IsEmpty() const;
 		TCWeakActor<t_CActor> f_Weak() const;
+
+		CDispatchHelperWithActor f_Dispatch() const;
 
 		template <typename ...tfp_CObject>
 		TCFuture<void> f_DestroyObjectsOn(tfp_CObject && ...p_Objects);

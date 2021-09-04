@@ -403,7 +403,7 @@ namespace NMib::NConcurrency
 	private:
 		TCFuture<t_CReturnType> mp_Future;
 		TCAsyncResult<t_CReturnType> mp_Result;
-		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
+		[[no_unique_address]] t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CReturnValue>

@@ -434,7 +434,7 @@ namespace NMib::NConcurrency
 		CWrappedType mp_Results;
 		NStorage::TCTuple<tp_CCalls...> mp_Calls;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
-		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
+		[[no_unique_address]] t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CActorCall, typename... tp_CCalls>
@@ -660,7 +660,7 @@ namespace NMib::NConcurrency
 		t_CActorCall mp_ActorCall;
 		TCAsyncResult<t_CReturnType> mp_Result;
 		NAtomic::TCAtomic<mint> mp_ResultAvailable;
-		no_unique_address_workaround t_FExceptionTransform mp_fExceptionTransform;
+		[[no_unique_address]] t_FExceptionTransform mp_fExceptionTransform;
 	};
 
 	template <typename t_CActorCall, typename t_CReturnType>

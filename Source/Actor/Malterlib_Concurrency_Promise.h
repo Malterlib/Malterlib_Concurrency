@@ -682,23 +682,5 @@ namespace NMib::NFunction
 	extern template struct TCFunctionMutable<NConcurrency::TCFuture<void> ()>;
 }
 
-namespace NMibOperators
-{
-	template <typename t_CReturnValue>
-	class TCDisableAutomaticOperators<NMib::NConcurrency::TCPromise<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
-	{
-	};
-
-	template <typename t_CReturnValue>
-	class TCDisableAutomaticOperators<NMib::NConcurrency::TCFuture<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
-	{
-	};
-
-	template <typename t_CActor, typename t_CFunctor>
-	class TCDisableAutomaticOperators<NMib::NConcurrency::TCActorResultCall<t_CActor, t_CFunctor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
-	{
-	};
-}
-
 #include <Mib/Concurrency/Actor/Timer>
 #include "Malterlib_Concurrency_CallSafe.h"

@@ -47,9 +47,9 @@ namespace NMib::NConcurrency
 			ETimerType m_TimerType;
 			bool m_bFireAtExit = false;
 
-			bool operator < (CTimer const &_Right) const
+			COrdering_Partial operator <=> (CTimer const &_Right) const
 			{
-				return m_NextElapse < _Right.m_NextElapse;
+				return m_NextElapse <=> _Right.m_NextElapse;
 			}
 		};
 

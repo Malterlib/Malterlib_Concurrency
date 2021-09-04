@@ -45,8 +45,8 @@ namespace NMib::NConcurrency
 		struct CNamespacePermissions
 		{
 			inline NStr::CStr const &f_GetName() const;
-			inline bool operator ==(CNamespacePermissions const &_Right) const;
-			inline bool operator <(CNamespacePermissions const &_Right) const;
+			inline auto operator <=> (CNamespacePermissions const &_Right) const = default;
+
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
 
@@ -73,8 +73,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
 			
-			bool operator == (CClientConnectionInfo const &_Right) const;
-			bool operator < (CClientConnectionInfo const &_Right) const;
+			auto operator <=> (CClientConnectionInfo const &_Right) const = default;
 			
 			CHostInfo m_HostInfo;
 			int32 m_ConnectionConcurrency = -1;
@@ -131,7 +130,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CString>
 			void f_Format(tf_CString &o_String) const;
-			bool operator == (CUserInfo const &_Right) const;
+			auto operator <=> (CUserInfo const &_Right) const = default;
 
 			NStr::CStr m_UserName;
 			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
@@ -154,7 +153,7 @@ namespace NMib::NConcurrency
 
 			using CCallingHostInfo::operator =;
 			using CCallingHostInfo::operator ==;
-			using CCallingHostInfo::operator <;
+			using CCallingHostInfo::operator <=>;
 		};
 
 		struct CLocalAuthenticationData : public CAuthenticationData

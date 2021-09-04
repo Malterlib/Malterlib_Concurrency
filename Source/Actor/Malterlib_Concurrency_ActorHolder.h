@@ -178,9 +178,9 @@ namespace NMib::NConcurrency
 
 			NFunction::TCFunctionMutable<void ()> m_fOnTerminate;
 
-			bool operator < (COnTerminate const &_Other) const
+			COrdering_Strong operator <=> (COnTerminate const &_Other) const
 			{
-				return this < &_Other;
+				return this <=> &_Other;
 			}
 		};
 

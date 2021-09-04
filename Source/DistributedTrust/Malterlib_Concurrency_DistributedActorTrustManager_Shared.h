@@ -19,10 +19,7 @@ namespace NMib::NConcurrency
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
-		bool operator == (CDistributedActorTrustManager_Address const &_Right) const;
-		bool operator < (CDistributedActorTrustManager_Address const &_Right) const;
-		
-		NWeb::NHTTP::CURL m_URL;
+		auto operator <=> (CDistributedActorTrustManager_Address const &_Right) const = default;
 		
 		CDistributedActorTrustManager_Address();
 		~CDistributedActorTrustManager_Address();
@@ -31,6 +28,8 @@ namespace NMib::NConcurrency
 		
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_IntoStr) const;
+
+		NWeb::NHTTP::CURL m_URL;
 	};
 
 	enum EPermissionIdentifierType
@@ -47,8 +46,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		bool operator < (CPermissionIdentifier const &_Right) const;
-		bool operator == (CPermissionIdentifier const &_Right) const;
+		auto operator <=> (CPermissionIdentifier const &_Right) const = default;
 
 		EPermissionIdentifierType m_Type = EPermissionIdentifierType_None;
 		NStr::CStr m_ID;
@@ -61,8 +59,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		bool operator == (CPermissionIdentifiers const &_Right) const;
-		bool operator < (CPermissionIdentifiers const &_Right) const;
+		auto operator <=> (CPermissionIdentifiers const &_Right) const = default;
 
 		CPermissionIdentifiers();
 		CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID);
@@ -89,7 +86,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		bool operator == (CPermissionRequirements const &_Right) const;
+		auto operator <=> (CPermissionRequirements const &_Right) const = default;
 
 		NContainer::TCSet<NContainer::TCSet<NStr::CStr>> m_AuthenticationFactors;
 		int64 m_MaximumAuthenticationLifetime = mc_OverrideLifetimeNotSet;

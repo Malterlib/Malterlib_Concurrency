@@ -476,10 +476,10 @@ namespace NMib::NConcurrency
 		; 
 	}		
 
-	bool CCallingHostInfo::operator <(CCallingHostInfo const &_Right) const
+	COrdering_Weak CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
-			< NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
+			<=> NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)
 		; 
 	}		
 	
@@ -586,16 +586,6 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
-	bool CHostInfo::operator ==(CHostInfo const &_Right) const
-	{
-		return NStorage::fg_TupleReferences(m_HostID, m_FriendlyName) == NStorage::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
-	}
-	
-	bool CHostInfo::operator <(CHostInfo const &_Right) const
-	{
-		return NStorage::fg_TupleReferences(m_HostID, m_FriendlyName) < NStorage::fg_TupleReferences(_Right.m_HostID, _Right.m_FriendlyName);
-	}
-
 	NPrivate::CDistributedActorInterfaceInfo::CDistributedActorInterfaceInfo() = default;
 
 	CDistributedActorProtocolVersions::CDistributedActorProtocolVersions() = default;
@@ -624,16 +614,6 @@ namespace NMib::NConcurrency
 		return _Version >= m_MinSupported && _Version <= m_MaxSupported;
 	}
 	
-	bool CDistributedActorProtocolVersions::operator == (CDistributedActorProtocolVersions const &_Other) const
-	{
-		return NStorage::fg_TupleReferences(m_MinSupported, m_MaxSupported) == NStorage::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
-	}
-	
-	bool CDistributedActorProtocolVersions::operator < (CDistributedActorProtocolVersions const &_Other) const
-	{
-		return NStorage::fg_TupleReferences(m_MinSupported, m_MaxSupported) < NStorage::fg_TupleReferences(_Other.m_MinSupported, _Other.m_MaxSupported); 
-	}
-	
 	CDistributedActorIdentifier::CDistributedActorIdentifier()
 	{
 		
@@ -645,17 +625,7 @@ namespace NMib::NConcurrency
 	{
 	}
 	
-	bool CDistributedActorIdentifier::operator == (CDistributedActorIdentifier const &_Other) const
-	{
-		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) == NStorage::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
-	}
-	
-	bool CDistributedActorIdentifier::operator < (CDistributedActorIdentifier const &_Other) const
-	{
-		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) < NStorage::fg_TupleReferences(_Other.mp_pHost, _Other.mp_ActorID); 
-	}
-	
-	bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right)
+	bool CDistributedActorIdentifier::operator == (TCActor<> const &_Right) const
 	{
 		if (!_Right)
 			return false;
@@ -666,49 +636,21 @@ namespace NMib::NConcurrency
 
 		NPrivate::CDistributedActorData const *pRightInternal = (NPrivate::CDistributedActorData const *)pRightData.f_Get();
 
-		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
+		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) == NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
 	}
 
-	bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
-	{
-		if (!_Left)
-			return false;
-
-		auto const &pLeftData = _Left->f_GetDistributedActorData();
-		if (!pLeftData)
-			return false;
-
-		NPrivate::CDistributedActorData const *pLeftInternal = (NPrivate::CDistributedActorData const *)pLeftData.f_Get();
-
-		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) == NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID);
-	}
-
-	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right)
+	COrdering_Weak CDistributedActorIdentifier::operator <=> (TCActor<> const &_Right) const
 	{
 		if (!_Right)
-			return false;
+			return COrdering_Weak::greater;
 
 		auto const &pRightData = _Right->f_GetDistributedActorData();
 		if (!pRightData)
-			return false;
+			return COrdering_Weak::greater;
 
 		NPrivate::CDistributedActorData const *pRightInternal = (NPrivate::CDistributedActorData const *)pRightData.f_Get();
 
-		return NStorage::fg_TupleReferences(_Left.mp_pHost, _Left.mp_ActorID) < NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
-	}
-
-	bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right)
-	{
-		if (!_Left)
-			return false;
-
-		auto const &pLeftData = _Left->f_GetDistributedActorData();
-		if (!pLeftData)
-			return false;
-
-		NPrivate::CDistributedActorData const *pLeftInternal = (NPrivate::CDistributedActorData const *)pLeftData.f_Get();
-
-		return NStorage::fg_TupleReferences(pLeftInternal->m_pHost, pLeftInternal->m_ActorID) < NStorage::fg_TupleReferences(_Right.mp_pHost, _Right.mp_ActorID);
+		return NStorage::fg_TupleReferences(mp_pHost, mp_ActorID) <=> NStorage::fg_TupleReferences(pRightInternal->m_pHost, pRightInternal->m_ActorID);
 	}
 
 	NPrivate::ICHost::~ICHost()

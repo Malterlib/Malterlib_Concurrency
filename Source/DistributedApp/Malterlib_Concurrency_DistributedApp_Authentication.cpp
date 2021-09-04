@@ -400,21 +400,21 @@ namespace NMib::NConcurrency
 							m_Worst = fg_Max(m_Worst, _ActorInfo[Factor].m_Category);
 					}
 
-					bool operator < (CFulfillingFactors const &_Other) const
+					COrdering_Weak operator <=> (CFulfillingFactors const &_Other) const
 					{
 						// A smaller set of factors is better than a larger set
 						auto LeftLen = m_Factors.f_GetLen();
 						auto RightLen = _Other.m_Factors.f_GetLen();
-						if (LeftLen != RightLen)
-							return LeftLen < RightLen;
+						if (auto Result = LeftLen <=> RightLen; Result != 0)
+							return Result;
 
 						// If they have the same cardinality, select the one with the lowest category.
 						// This means a set without a password factor is selected before a set with a password factor
-						if (m_Worst != _Other.m_Worst)
-							return m_Worst < _Other.m_Worst;
+						if (auto Result = m_Worst <=> _Other.m_Worst; Result != 0)
+							return Result;
 
 						// Fall back to the regular TCSet compare operation as a tie breaker
-						return m_Factors < _Other.m_Factors;
+						return m_Factors <=> _Other.m_Factors;
 					}
 
 					TCSet<CStr> m_Factors;

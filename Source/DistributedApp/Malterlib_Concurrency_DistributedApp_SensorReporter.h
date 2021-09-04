@@ -51,9 +51,8 @@ namespace NMib::NConcurrency
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
-			auto f_Tuple() const;
-			bool operator == (CStatus const &_Right) const;
-			bool operator < (CStatus const &_Right) const;
+			auto operator <=> (CStatus const &_Right) const = default;
+
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
@@ -79,8 +78,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			bool operator == (CSensorScope_Unsupported const &_Right) const;
-			bool operator < (CSensorScope_Unsupported const &_Right) const;
+			auto operator <=> (CSensorScope_Unsupported const &_Right) const = default;
 		};
 
 		struct CSensorScope_Host
@@ -90,8 +88,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			bool operator == (CSensorScope_Host const &_Right) const;
-			bool operator < (CSensorScope_Host const &_Right) const;
+			auto operator <=> (CSensorScope_Host const &_Right) const = default;
 		};
 
 		struct CSensorScope_Application
@@ -101,9 +98,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto f_Tuple() const;
-			bool operator == (CSensorScope_Application const &_Right) const;
-			bool operator < (CSensorScope_Application const &_Right) const;
+			auto operator <=> (CSensorScope_Application const &_Right) const = default;
 
 			NStr::CStr m_ApplicationName;
 		};
@@ -132,9 +127,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			auto f_Tuple() const;
-			bool operator == (CUnit const &_Right) const;
-			bool operator < (CUnit const &_Right) const;
+			auto operator <=> (CUnit const &_Right) const = default;
 
 			NStr::CStr m_UnitFormatter;
 			uint32 m_nDecimals = 2;
@@ -154,9 +147,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto f_Tuple() const;
-			bool operator == (CValueComparison const &_Right) const;
-			bool operator < (CValueComparison const &_Right) const;
+			auto operator <=> (CValueComparison const &_Right) const = default;
 
 			bool f_IsTrue(CSensorData const &_Value) const;
 
@@ -169,9 +160,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			auto f_Tuple() const;
-			bool operator == (CSensorInfoAutomatic const &_Right) const;
-			bool operator < (CSensorInfoAutomatic const &_Right) const;
+			auto operator <=> (CSensorInfoAutomatic const &_Right) const = default;
 
 			/// This will be filled in automatically when using CDistributedAppSensorStoreLocal
 			NStr::CStr m_HostID;
@@ -187,9 +176,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto f_Tuple() const;
-			bool operator == (CSensorInfoKey const &_Right) const;
-			bool operator < (CSensorInfoKey const &_Right) const;
+			auto operator <=> (CSensorInfoKey const &_Right) const = default;
 
 			NStr::CStr m_HostID;
 			CSensorScope m_Scope;
@@ -206,9 +193,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
-			auto f_Tuple() const;
-			bool operator == (CSensorInfo const &_Right) const;
-			bool operator < (CSensorInfo const &_Right) const;
+			auto operator <=> (CSensorInfo const &_Right) const = default;
 
 			bool f_IsValueWarning(CSensorData const &_Value) const;
 			bool f_IsValueCritical(CSensorData const &_Value) const;

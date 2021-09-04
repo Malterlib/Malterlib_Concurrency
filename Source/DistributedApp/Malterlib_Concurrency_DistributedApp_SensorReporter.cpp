@@ -14,51 +14,9 @@ namespace NMib::NConcurrency
 
 	CDistributedAppSensorReporter::~CDistributedAppSensorReporter() = default;
 
-	auto CDistributedAppSensorReporter::CStatus::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_Severity, m_Description);
-	}
-
-	bool CDistributedAppSensorReporter::CStatus::operator == (CStatus const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CStatus::operator < (CStatus const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
-	}
-
 	auto CDistributedAppSensorReporter::CSensorInfo::f_Key() -> CSensorInfoKey
 	{
 		return {m_HostID, m_Scope, m_Identifier, m_IdentifierScope};
-	}
-
-	auto CDistributedAppSensorReporter::CSensorInfo::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences
-			(
-				(CDistributedAppSensorReporter::CSensorInfoAutomatic const &)*this
-				, m_Identifier
-				, m_IdentifierScope
-				, m_Name
-				, m_Type
-				, m_UnitDivisors
-				, m_ExpectedReportInterval
-				, m_WarnValue
-				, m_CriticalValue
-			)
-		;
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfo::operator == (CSensorInfo const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfo::operator < (CSensorInfo const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
 	}
 
 	bool CDistributedAppSensorReporter::CValueComparison::f_IsTrue(CSensorData const &_Value) const
@@ -129,101 +87,6 @@ namespace NMib::NConcurrency
 	bool CDistributedAppSensorReporter::CSensorInfo::f_HasValueWarnings() const
 	{
 		return m_WarnValue || m_CriticalValue;
-	}
-
-	auto CDistributedAppSensorReporter::CSensorInfoAutomatic::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_HostID, m_HostName, m_Scope);
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfoAutomatic::operator == (CSensorInfoAutomatic const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfoAutomatic::operator < (CSensorInfoAutomatic const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
-	}
-
-	auto CDistributedAppSensorReporter::CUnit::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_UnitFormatter, m_nDecimals);
-	}
-
-	bool CDistributedAppSensorReporter::CUnit::operator == (CUnit const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CUnit::operator < (CUnit const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
-	}
-
-	auto CDistributedAppSensorReporter::CValueComparison::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_CompareToValue, m_Operator);
-	}
-
-	bool CDistributedAppSensorReporter::CValueComparison::operator == (CValueComparison const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CValueComparison::operator < (CValueComparison const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Unsupported::operator == (CSensorScope_Unsupported const &_Right) const
-	{
-		return true;
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Unsupported::operator < (CSensorScope_Unsupported const &_Right) const
-	{
-		return false;
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Host::operator == (CSensorScope_Host const &_Right) const
-	{
-		return true;
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Host::operator < (CSensorScope_Host const &_Right) const
-	{
-		return false;
-	}
-
-	auto CDistributedAppSensorReporter::CSensorScope_Application::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_ApplicationName);
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Application::operator == (CSensorScope_Application const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CSensorScope_Application::operator < (CSensorScope_Application const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
-	}
-
-	auto CDistributedAppSensorReporter::CSensorInfoKey::f_Tuple() const
-	{
-		return NStorage::fg_TupleReferences(m_HostID, m_Scope, m_Identifier, m_IdentifierScope);
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfoKey::operator == (CSensorInfoKey const &_Right) const
-	{
-		return f_Tuple() == _Right.f_Tuple();
-	}
-
-	bool CDistributedAppSensorReporter::CSensorInfoKey::operator < (CSensorInfoKey const &_Right) const
-	{
-		return f_Tuple() < _Right.f_Tuple();
 	}
 
 	ch8 const *CDistributedAppSensorReporter::fs_SensorDataTypeToString(ESensorDataType _Type)

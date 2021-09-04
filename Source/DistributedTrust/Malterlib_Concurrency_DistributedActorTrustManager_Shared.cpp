@@ -22,20 +22,6 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	bool CPermissionIdentifier::operator < (CPermissionIdentifier const &_Right) const
-	{
-		if (m_Type < _Right.m_Type)
-			return true;
-		if (m_Type > _Right.m_Type)
-			return false;
-		return m_ID < _Right.m_ID;
-	}
-
-	bool CPermissionIdentifier::operator == (CPermissionIdentifier const &_Right) const
-	{
-		return m_Type == _Right.m_Type && m_ID == _Right.m_ID;
-	}
-
 	CPermissionIdentifiers::CPermissionIdentifiers() = default;
 	
 	CPermissionIdentifiers::CPermissionIdentifiers(NStr::CStr const &_HostID, NStr::CStr const &_UserID)
@@ -163,21 +149,6 @@ namespace NMib::NConcurrency
 				return ID.m_ID;
 		}
 		return ms_EmptyID;
-	}
-
-	bool CPermissionIdentifiers::operator < (CPermissionIdentifiers const &_Right) const
-	{
-		return m_IDs < _Right.m_IDs;
-	}
-
-	bool CPermissionIdentifiers::operator == (CPermissionIdentifiers const &_Right) const
-	{
-		return m_IDs == _Right.m_IDs;
-	}
-
-	bool CPermissionRequirements::operator == (CPermissionRequirements const &_Right) const
-	{
-		return m_AuthenticationFactors == _Right.m_AuthenticationFactors && m_MaximumAuthenticationLifetime == _Right.m_MaximumAuthenticationLifetime;
 	}
 }
 

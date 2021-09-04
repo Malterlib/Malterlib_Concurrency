@@ -65,16 +65,6 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		_Stream >> m_Address;
 	}
 
-	bool CListenConfig::operator == (CListenConfig const &_Right) const
-	{
-		return m_Address == _Right.m_Address;
-	}
-
-	bool CListenConfig::operator < (CListenConfig const &_Right) const
-	{
-		return m_Address < _Right.m_Address;
-	}
-
 	template <typename tf_CStream>
 	void CClient::f_Feed(tf_CStream &_Stream) const
 	{

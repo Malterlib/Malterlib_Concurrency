@@ -195,9 +195,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_DestroyObjectsOn(tfp_CObject && ...p_Objects);
 
 		template <typename tf_CActor>
-		bool operator < (TCActor<tf_CActor> const& _Right) const;
+		COrdering_Weak operator <=> (TCActor<tf_CActor> const& _Right) const;
 		template <typename tf_CActor>
-		bool operator < (TCWeakActor<tf_CActor> const& _Right) const;
+		COrdering_Weak operator <=> (TCWeakActor<tf_CActor> const& _Right) const;
 
 		template <typename tf_CActor>
 		bool operator == (TCActor<tf_CActor> const& _Right) const;

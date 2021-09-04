@@ -59,8 +59,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
-		inline_always bool operator == (CListenConfig const &_Right) const;
-		inline_always bool operator < (CListenConfig const &_Right) const;
+		inline_always auto operator <=> (CListenConfig const &_Right) const = default;
 
 		CDistributedActorTrustManager_Address m_Address;
 	};

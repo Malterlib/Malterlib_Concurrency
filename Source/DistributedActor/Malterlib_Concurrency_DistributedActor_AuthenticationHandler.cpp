@@ -34,10 +34,10 @@ namespace NMib::NConcurrency
 	}
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CPermissionWithRequirements);
 
-	bool ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator < (CPermissionWithRequirements const &_Right) const
+	COrdering_Weak ICDistributedActorAuthenticationHandler::CPermissionWithRequirements::operator <=> (CPermissionWithRequirements const &_Right) const
 	{
 		return fg_TupleReferences(m_Permission, m_AuthenticationFactors, m_MaximumAuthenticationLifetime, m_Preauthenticated)
-			< fg_TupleReferences(_Right.m_Permission, _Right.m_AuthenticationFactors, _Right.m_MaximumAuthenticationLifetime, _Right.m_Preauthenticated)
+			<=> fg_TupleReferences(_Right.m_Permission, _Right.m_AuthenticationFactors, _Right.m_MaximumAuthenticationLifetime, _Right.m_Preauthenticated)
 		;
 	}
 
@@ -55,16 +55,6 @@ namespace NMib::NConcurrency
 		_Stream % m_RequestedPermissions;
 	}
 	DMibDistributedStreamImplement(ICDistributedActorAuthenticationHandler::CRequest);
-
-	bool ICDistributedActorAuthenticationHandler::CRequest::operator < (CRequest const &_Right) const
-	{
-		return fg_TupleReferences(m_Description, m_RequestedPermissions) < fg_TupleReferences(_Right.m_Description, _Right.m_RequestedPermissions);
-	}
-
-	bool ICDistributedActorAuthenticationHandler::CRequest::operator == (CRequest const &_Right) const
-	{
-		return fg_TupleReferences(m_Description, m_RequestedPermissions) == fg_TupleReferences(_Right.m_Description, _Right.m_RequestedPermissions);
-	}
 
 	template <typename tf_CStream>
 	void ICDistributedActorAuthenticationHandler::CChallenge::f_Stream(tf_CStream &_Stream)

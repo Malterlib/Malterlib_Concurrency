@@ -34,11 +34,3 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 }
-
-namespace NMibOperators
-{
-	template <>
-	class TCDisableAutomaticOperators<NMib::NConcurrency::CTimeoutHelper> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
-	{
-	};
-}

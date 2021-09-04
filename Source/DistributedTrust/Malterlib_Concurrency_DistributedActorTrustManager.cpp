@@ -94,16 +94,6 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	bool CDistributedActorTrustManager_Address::operator == (CDistributedActorTrustManager_Address const &_Right) const
-	{
-		return m_URL == _Right.m_URL; 
-	}
-
-	bool CDistributedActorTrustManager_Address::operator < (CDistributedActorTrustManager_Address const &_Right) const
-	{
-		return m_URL < _Right.m_URL; 
-	}
-	
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
 	{
 		TCPromise<void> Promise;

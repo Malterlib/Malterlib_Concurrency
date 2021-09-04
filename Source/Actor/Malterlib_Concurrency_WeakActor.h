@@ -85,9 +85,9 @@ namespace NMib::NConcurrency
 		TCActor<t_CActor> f_Lock() const;
 
 		template <typename tf_CActor>
-		bool operator < (TCWeakActor<tf_CActor> const& _Right) const;
+		COrdering_Weak operator <=> (TCWeakActor<tf_CActor> const& _Right) const;
 		template <typename tf_CActor>
-		bool operator < (TCActor<tf_CActor> const& _Right) const;
+		COrdering_Weak operator <=> (TCActor<tf_CActor> const& _Right) const;
 
 		template <typename tf_CActor>
 		bool operator == (TCWeakActor<tf_CActor> const& _Right) const;

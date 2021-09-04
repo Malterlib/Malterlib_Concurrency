@@ -86,44 +86,23 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorIdentifier;
 
-	bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
-	bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
-
-	template <typename t_CActor>
-	bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
-	template <typename t_CActor>
-	bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
-
-	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
-	bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
-
-	template <typename t_CActor>
-	bool operator < (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
-	template <typename t_CActor>
-	bool operator < (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
-
 	struct CDistributedActorIdentifier
 	{
 		CDistributedActorIdentifier();
 		CDistributedActorIdentifier(NStorage::TCWeakPointer<NPrivate::ICHost> const &_pHost, NStr::CStr const &_ActorID);
 
-		bool operator == (CDistributedActorIdentifier const &_Other) const;
-		bool operator < (CDistributedActorIdentifier const &_Other) const;
+		bool operator == (CDistributedActorIdentifier const &_Other) const = default;
+		auto operator <=> (CDistributedActorIdentifier const &_Other) const = default;
+
+		template <typename tf_CActor>
+		COrdering_Weak operator <=> (TCActor<tf_CActor> const &_Right) const;
+		COrdering_Weak operator <=> (TCActor<> const &_Right) const;
+
+		template <typename t_CActor>
+		bool operator == (TCActor<t_CActor> const &_Right) const;
+		bool operator == (TCActor<> const &_Right) const;
 
 	private:
-		template <typename t_CActor>
-		friend bool operator == (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
-		template <typename t_CActor>
-		friend bool operator == (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
-		friend bool operator == (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
-		friend bool operator == (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
-
-		template <typename t_CActor>
-		friend bool operator < (CDistributedActorIdentifier const &_Left, TCActor<t_CActor> const &_Right);
-		template <typename t_CActor>
-		friend bool operator < (TCActor<t_CActor> const &_Left, CDistributedActorIdentifier const &_Right);
-		friend bool operator < (CDistributedActorIdentifier const &_Left, TCActor<> const &_Right);
-		friend bool operator < (TCActor<> const &_Left, CDistributedActorIdentifier const &_Right);
 
 		NStorage::TCWeakPointer<NPrivate::ICHost> mp_pHost;
 		NStr::CStr mp_ActorID;
@@ -141,8 +120,7 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetDesc() const;
 		NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 
-		bool operator ==(CHostInfo const &_Right) const;
-		bool operator <(CHostInfo const &_Right) const;
+		auto operator <=> (CHostInfo const &_Right) const = default;
 
 		template <typename tf_CString>
 		void f_Format(tf_CString &o_String) const;
@@ -265,8 +243,7 @@ namespace NMib::NConcurrency
 
 		bool f_HighestSupportedVersion(CDistributedActorProtocolVersions const &_Other, uint32 &o_Version) const;
 		bool f_ValidVersion(uint32 _Version);
-		bool operator == (CDistributedActorProtocolVersions const &_Other) const;
-		bool operator < (CDistributedActorProtocolVersions const &_Other) const;
+		auto operator <=> (CDistributedActorProtocolVersions const &_Other) const = default;
 
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
@@ -497,7 +474,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
 
 		bool operator == (CCallingHostInfo const &_Right) const;
-		bool operator < (CCallingHostInfo const &_Right) const;
+		COrdering_Weak operator <=> (CCallingHostInfo const &_Right) const;
 
 	protected:
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;

@@ -24,10 +24,10 @@ namespace NMib::NConcurrency
 
 		struct CTimerSubscriptionState
 		{
-			CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup);
+			CTimerSubscriptionState(NFunction::TCFunctionMovable<void ()> &&_fCleanup);
 			~CTimerSubscriptionState();
 
-			NFunction::TCFunctionMutable<void ()> m_fCleanup;
+			NFunction::TCFunctionMovable<void ()> m_fCleanup;
 			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 			bool m_bOutstanding = false;
 			bool m_bMissed = false;
@@ -291,7 +291,7 @@ namespace NMib::NConcurrency
 		DMibRequire(Internal.m_ExactTimers.f_IsEmpty());
 	}
 
-	CTimerActor::CInternal::CTimerSubscriptionState::CTimerSubscriptionState(NFunction::TCFunctionMutable<void ()> &&_fCleanup)
+	CTimerActor::CInternal::CTimerSubscriptionState::CTimerSubscriptionState(NFunction::TCFunctionMovable<void ()> &&_fCleanup)
 		: m_fCleanup(fg_Move(_fCleanup))
 	{
 	}
@@ -371,7 +371,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback, bool _bFireAtExit)
+	void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMovable<void ()> &&_fCallback, bool _bFireAtExit)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -410,7 +410,7 @@ namespace NMib::NConcurrency
 		Internal.fp_StartThread();
 	}
 
-	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMutable<void ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_pActor, NFunction::TCFunctionMovable<void ()> &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -537,7 +537,7 @@ namespace NMib::NConcurrency
 		return *this;
 	}
 
-	void CTimeoutHelper::operator > (NFunction::TCFunctionMutable<void ()> &&_fOnTimeout) const
+	void CTimeoutHelper::operator > (NFunction::TCFunctionMovable<void ()> &&_fOnTimeout) const
 	{
 		fg_TimerActor()
 			(
@@ -577,7 +577,7 @@ namespace NMib::NConcurrency
 		return CTimeoutHelper(_Period, _bFireAtExit);
 	}
 
-	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor, bool _bFireAtExit)
+	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_pActor, bool _bFireAtExit)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -597,7 +597,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMutable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
+	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_pActor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 

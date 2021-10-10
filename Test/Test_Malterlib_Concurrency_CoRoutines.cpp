@@ -121,6 +121,29 @@ namespace
 		mint m_Test = 0;
 	};
 
+	struct CTestDestruction
+	{
+		CTestDestruction() = default;
+		CTestDestruction(CTestDestruction const &_Other)
+			: m_Test(_Other.m_Test)
+		{
+			DMibFastCheck(m_Test == 20);
+		}
+		CTestDestruction(CTestDestruction &&_Other)
+			: m_Test(fg_Exchange(_Other.m_Test, 0))
+		{
+		}
+		~CTestDestruction()
+		{
+			if (m_Test)
+			{
+				m_Test = 0;
+			}
+		}
+
+		mint m_Test = 20;
+	};
+
 	struct CTestActor : public CActor
 	{
 		TCFuture<CTestReturn> f_TestReturnInner()
@@ -181,6 +204,15 @@ namespace
 
 			TCPromise<uint32> Promise;
 			Promise.f_SetResult(Value);
+			co_return fg_Move(Promise);
+		}
+
+		TCFuture<void> f_TestReturnVoidPromise()
+		{
+			co_await m_TestActor(&CTestActor2::f_Test);
+
+			TCPromise<void> Promise;
+			Promise.f_SetResult();
 			co_return fg_Move(Promise);
 		}
 
@@ -355,8 +387,13 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
 						co_return co_await [=]() -> TCFuture<uint32>
 							{
 								uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
@@ -375,12 +412,22 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
 						co_return co_await
 							(
 								self / [=]() -> TCFuture<uint32>
 								{
+									auto Cleanup = g_OnScopeExit > [&]
+										{
+											DMibFastCheck(TestDestruction.m_Test == 20);
+										}
+									;
 									uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 									co_return Value + Value2;
 								}
@@ -410,8 +457,33 @@ namespace
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20]() -> TCFuture<uint32>
+					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
+						uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+						co_return Value + Value2;
+					}
+				)
+			;
+
+			co_return Value;
+		}
+
+		TCFuture<uint32> f_TestLambdaReferenceCorrectedDispatched()
+		{
+			uint32 Value = co_await
+				(
+					g_Dispatch / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					{
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
 						uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 						co_return Value + Value2;
 					}
@@ -434,8 +506,13 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							DMibFastCheck(TestDestruction.m_Test == 20);
+						}
+					;
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
@@ -459,10 +536,20 @@ namespace
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
 		{
-			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
-				{
+			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+			{
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							DMibFastCheck(TestDestruction.m_Test == 20);
+						}
+					;
 					return g_Future <<= self / [=]() -> TCFuture<uint32>
 						{
+							auto Cleanup = g_OnScopeExit > [&]
+								{
+									DMibFastCheck(TestDestruction.m_Test == 20);
+								}
+							;
 							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 							co_return Value + Value2;
 						}
@@ -490,8 +577,13 @@ namespace
 		{
 			TCPromise<uint32> Promise;
 
-			self / [=, Value2 = 20]() -> TCFuture<uint32>
+			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							DMibFastCheck(TestDestruction.m_Test == 20);
+						}
+					;
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
@@ -520,8 +612,13 @@ namespace
 		{
 			TCPromise<uint32> Promise;
 
-			self / [=, Value2 = 20]() -> TCFuture<uint32>
+			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
+					auto Cleanup = g_OnScopeExit > [&]
+						{
+							DMibFastCheck(TestDestruction.m_Test == 20);
+						}
+					;
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
@@ -667,16 +764,21 @@ namespace
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					self / [=]() mutable -> TCFuture<void>
+					self / [=, Value = fg_Move(_Value), TestDestruction = CTestDestruction{}]() mutable -> TCFuture<void>
 						{
-							if (!_Value)
+							auto Cleanup = g_OnScopeExit > [&]
+								{
+									DMibFastCheck(TestDestruction.m_Test == 20);
+								}
+							;
+							if (!Value)
 							{
-								m_WaitForResultCallToFinish.f_SetException(_Value.f_GetException());
+								m_WaitForResultCallToFinish.f_SetException(Value.f_GetException());
 								co_return {};
 							}
 
 							co_await m_TestActor(&CTestActor2::f_Test);
-							m_WaitForResultCallToFinish.f_SetResult(_Value);
+							m_WaitForResultCallToFinish.f_SetResult(fg_Move(Value));
 
 							co_return {};
 						}
@@ -798,8 +900,13 @@ namespace
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					self / [] () -> TCFuture<void>
+					self / [TestDestruction = CTestDestruction{}] () -> TCFuture<void>
 	 					{
+							auto Cleanup = g_OnScopeExit > [&]
+								{
+									DMibFastCheck(TestDestruction.m_Test == 20);
+								}
+							;
 							co_return DMibErrorInstance("Observed");
 						}
 						> [](TCAsyncResult<void> &&_Result)
@@ -884,6 +991,7 @@ namespace
 				TestActor(&CTestActor::f_TestVoid).f_CallSync();
 
 				DMibExpect(TestActor(&CTestActor::f_TestReturnPromise).f_CallSync(), ==, 5);
+				TestActor(&CTestActor::f_TestReturnVoidPromise).f_CallSync();
 				DMibExpect(TestActor(&CTestActor::f_TestFuture).f_CallSync(), ==, 45);
 
 				DMibExpectException(TestActor(&CTestActor::f_TestException).f_CallSync(), DMibErrorInstance("Test Exception"));
@@ -906,6 +1014,7 @@ namespace
 
 				DMibExpect(TestActor(&CTestActor::f_TestParameterReference, 25).f_CallSync(), ==, 30);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceCorrected).f_CallSync(), ==, 25);
+				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceCorrectedDispatched).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceRecursiveCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroCorrected).f_CallSync(), ==, 25);
 				DMibExpect(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnCorrected).f_CallSync(), ==, 25);

@@ -8,12 +8,12 @@ namespace NMib::NConcurrency::NPrivate
 {
 	void TCFutureCoroutineContext<void>::return_value(CVoidTag &&_Value)
 	{
-		m_pPromiseData->f_SetResult();
+		m_pPromiseData->f_SetResultNoReport();
 	}
 
 	void TCFutureCoroutineContext<void>::return_value(CVoidTag const &_Value)
 	{
-		m_pPromiseData->f_SetResult();
+		m_pPromiseData->f_SetResultNoReport();
 	}
 }
 

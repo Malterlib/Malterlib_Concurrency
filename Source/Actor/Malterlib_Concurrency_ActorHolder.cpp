@@ -336,7 +336,7 @@ namespace NMib::NConcurrency
 							NFunction::TCFunctionSmallMutable<void ()>
 							(
 #endif
-								[_Promise = fg_Move(_Promise), Result = _Result]() mutable
+								[_Promise = fg_Move(_Promise), Result = fg_Move(_Result)]() mutable
 								{
 									_Promise.f_SetResult(fg_Move(Result));
 								}

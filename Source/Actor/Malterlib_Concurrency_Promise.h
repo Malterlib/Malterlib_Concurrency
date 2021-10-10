@@ -347,7 +347,7 @@ namespace NMib::NConcurrency::NPrivate
 		void f_Reset();
 
 		void fp_ReportNothingSet();
-		void fp_OnResult();
+		void f_OnResult();
 		void f_SetResult();
 		void f_SetResult(TCAsyncResult<t_CReturnValue> const &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> &_Result);
@@ -355,12 +355,28 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetResult(TCAsyncResult<t_CReturnValue> const volatile &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> &&_Result);
 
+		void f_SetResultNoReport();
+		void f_SetResultNoReport(TCAsyncResult<t_CReturnValue> const &_Result);
+		void f_SetResultNoReport(TCAsyncResult<t_CReturnValue> &_Result);
+		void f_SetResultNoReport(TCAsyncResult<t_CReturnValue> volatile &_Result);
+		void f_SetResultNoReport(TCAsyncResult<t_CReturnValue> const volatile &_Result);
+		void f_SetResultNoReport(TCAsyncResult<t_CReturnValue> &&_Result);
+
 		void f_SetResult(TCPromise<t_CReturnValue> const &_Result) = delete;
 		void f_SetResult(TCPromise<t_CReturnValue> &_Result) = delete;
 		void f_SetResult(TCPromise<t_CReturnValue> &&_Result);
 
+
+		void f_SetResultNoReport(TCPromise<t_CReturnValue> const &_Result) = delete;
+		void f_SetResultNoReport(TCPromise<t_CReturnValue> &_Result) = delete;
+		void f_SetResultNoReport(TCPromise<t_CReturnValue> &&_Result);
+
 		template <typename tf_CResult>
 		void f_SetResult(tf_CResult &&_Result);
+
+		template <typename tf_CResult>
+		void f_SetResultNoReport(tf_CResult &&_Result);
+
 		template <typename tf_CResult>
 		void f_SetException(tf_CResult &&_Result);
 		template <typename tf_CResult>
@@ -371,6 +387,16 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetException(TCAsyncResult<tf_CResult> &&_Result);
 		void f_SetCurrentException();
 
+		template <typename tf_CResult>
+		void f_SetExceptionNoReport(tf_CResult &&_Result);
+		template <typename tf_CResult>
+		void f_SetExceptionNoReport(TCAsyncResult<tf_CResult> const &_Result);
+		template <typename tf_CResult>
+		void f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &_Result);
+		template <typename tf_CResult>
+		void f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &&_Result);
+		void f_SetCurrentExceptionNoReport();
+
 		NAtomic::EMemoryOrder f_MemoryOrder(NAtomic::EMemoryOrder _Default = NAtomic::EMemoryOrder_SequentiallyConsistent) const;
 
 		TCAsyncResult<t_CReturnValue> m_Result;
@@ -380,6 +406,7 @@ namespace NMib::NConcurrency::NPrivate
 		bool m_bOnResultSetAtInit = false;
 		bool m_bIsGenerator = false;
 		bool m_bIsCoroutine = false;
+		bool m_bPendingResult = false;
 #if DMibEnableSafeCheck > 0
 		TCWeakActor<> m_CoroutineOwner;
 		bool m_bFutureGotten = false;

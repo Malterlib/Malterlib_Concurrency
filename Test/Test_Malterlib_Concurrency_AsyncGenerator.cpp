@@ -19,6 +19,26 @@ namespace
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
 
+	struct CTestDestruction
+	{
+		CTestDestruction() = default;
+		CTestDestruction(CTestDestruction const &_Other)
+			: m_Test(_Other.m_Test)
+		{
+			DMibFastCheck(m_Test == 20);
+		}
+		CTestDestruction(CTestDestruction &&_Other)
+			: m_Test(fg_Exchange(_Other.m_Test, 0))
+		{
+		}
+		~CTestDestruction()
+		{
+			m_Test = 0;
+		}
+
+		mint m_Test = 20;
+	};
+
 	struct CTestActor : public CActor
 	{
 		TCFuture<int32> f_TestFuture()
@@ -30,8 +50,13 @@ namespace
 		{
 			auto Generator = co_await
 				(
-					self / [this]() -> TCAsyncGenerator<int32>
+					self / [this, TestDestruction = CTestDestruction{}]() -> TCAsyncGenerator<int32>
 					{
+						auto Cleanup = g_OnScopeExit > [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
 						co_yield 5;
 						co_yield 5;
 						co_yield co_await f_TestFuture();
@@ -149,8 +174,13 @@ namespace
 				(
 					self.f_Invoke
 					(
-						[](int32 const &_Param) -> TCAsyncGenerator<int32>
+						[TestDestruction = CTestDestruction{}](int32 const &_Param) -> TCAsyncGenerator<int32>
 						{
+							auto Cleanup = g_OnScopeExit > [&]
+								{
+									DMibFastCheck(TestDestruction.m_Test == 20);
+								}
+							;
 							co_yield 5;
 							co_yield _Param;
 
@@ -183,8 +213,13 @@ namespace
 				(
 					self.f_Invoke
 					(
-						[](int32 &&_Param) -> TCAsyncGenerator<int32>
+						[TestDestruction = CTestDestruction{}](int32 &&_Param) -> TCAsyncGenerator<int32>
 						{
+							auto Cleanup = g_OnScopeExit > [&]
+								{
+									DMibFastCheck(TestDestruction.m_Test == 20);
+								}
+							;
 							co_yield 5;
 							co_yield _Param;
 

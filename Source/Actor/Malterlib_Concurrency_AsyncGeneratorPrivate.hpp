@@ -64,7 +64,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty)
 	{
-		this->m_pPromiseData->f_SetResult(NStorage::TCOptional<t_CReturnType>{});
+		this->m_pPromiseData->f_SetResultNoReport(NStorage::TCOptional<t_CReturnType>{});
 	}
 
 	template <typename t_CReturnType>
@@ -82,7 +82,7 @@ namespace NMib::NConcurrency::NPrivate
 					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
-			this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
@@ -94,11 +94,11 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 			}
 			catch (...)
 			{
-				this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 			}
 		}
 		else

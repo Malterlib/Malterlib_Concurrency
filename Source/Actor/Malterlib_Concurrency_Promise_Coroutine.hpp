@@ -34,8 +34,15 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	TCFutureCoroutineContextShared<t_CReturnType>::~TCFutureCoroutineContextShared() noexcept
 	{
-		if (m_pPromiseData && m_pPromiseData->m_Coroutine)
-			m_pPromiseData->m_Coroutine = nullptr;
+		if (m_pPromiseData)
+		{
+			auto &PromiseData = *m_pPromiseData;
+			if (PromiseData.m_bPendingResult)
+				PromiseData.f_OnResult();
+
+			if (PromiseData.m_Coroutine)
+				PromiseData.m_Coroutine = nullptr;
+		}
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -49,7 +56,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::return_value(t_CReturnType &&_Value)
 	{
-		this->m_pPromiseData->f_SetResult(fg_Move(_Value));
+		this->m_pPromiseData->f_SetResultNoReport(fg_Move(_Value));
 	}
 
 	template <typename t_CReturnType>
@@ -58,7 +65,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
-			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
 		{
 			static_assert
@@ -68,7 +75,7 @@ namespace NMib::NConcurrency::NPrivate
 				 	, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
-			this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
@@ -80,15 +87,15 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 			}
 			catch (...)
 			{
-				this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 			}
 		}
 		else
-			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 	}
 
 	template <typename tf_CReturnType>
@@ -98,14 +105,17 @@ namespace NMib::NConcurrency::NPrivate
 		static_assert
 			(
 			 	NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
+				|| NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value
 			 	|| NException::TCIsExcption<CReturnNoReference>::mc_Value
 			 	|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
-			 	, "You can only return exceptions or async results"
+			 	, "You can only return exceptions, async results or promises"
 			)
 		;
 
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value)
-			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+		else if constexpr (NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value)
+			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 		{
 			if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
@@ -117,7 +127,7 @@ namespace NMib::NConcurrency::NPrivate
 						, "Only safe to newly created exceptions, otherwise use exception pointers"
 					)
 				;
-				this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 			}
 			else
 			{
@@ -129,11 +139,11 @@ namespace NMib::NConcurrency::NPrivate
 				}
 				catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 				{
-					this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+					this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 				}
 				catch (...)
 				{
-					this->m_pPromiseData->f_SetException(fg_Forward<tf_CReturnType>(_Value));
+					this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 				}
 			}
 		}
@@ -187,11 +197,11 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 			}
 			catch (...)
 			{
-				this->m_pPromiseData->f_SetCurrentException();
+				this->m_pPromiseData->f_SetCurrentExceptionNoReport();
 			}
 		}
 		else
@@ -203,12 +213,12 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 			catch (NException::CDebugException const &)
 			{
-				this->m_pPromiseData->f_SetCurrentException();
+				this->m_pPromiseData->f_SetCurrentExceptionNoReport();
 			}
 #endif
 			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 			}
 			// All other exceptionss falls through and crashes the application
 		}
@@ -296,11 +306,11 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
 		{
-			this->m_pPromiseData->f_SetException(_WrappedException.f_GetSpecific().m_pException);
+			this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
 		}
 		catch (...)
 		{
-			this->m_pPromiseData->f_SetCurrentException();
+			this->m_pPromiseData->f_SetCurrentExceptionNoReport();
 		}
 	}
 }

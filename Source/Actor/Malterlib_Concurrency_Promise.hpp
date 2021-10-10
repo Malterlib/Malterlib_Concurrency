@@ -784,7 +784,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnValue>
-	void TCPromiseData<t_CReturnValue>::fp_OnResult()
+	void TCPromiseData<t_CReturnValue>::f_OnResult()
 	{
 		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder());
 		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
@@ -807,42 +807,84 @@ namespace NMib::NConcurrency::NPrivate
 	void TCPromiseData<t_CReturnValue>::f_SetResult()
 	{
 		m_Result.f_SetResult();
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> const &_Result)
 	{
 		m_Result = _Result;
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> &_Result)
 	{
 		m_Result = _Result;
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> volatile &_Result)
 	{
 		m_Result = _Result;
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> const volatile &_Result)
 	{
 		m_Result = _Result;
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetResult(TCAsyncResult<t_CReturnValue> &&_Result)
 	{
 		m_Result = fg_Move(_Result);
-		fp_OnResult();
+		f_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport()
+	{
+		m_Result.f_SetResult();
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCAsyncResult<t_CReturnValue> const &_Result)
+	{
+		m_Result = _Result;
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCAsyncResult<t_CReturnValue> &_Result)
+	{
+		m_Result = _Result;
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCAsyncResult<t_CReturnValue> volatile &_Result)
+	{
+		m_Result = _Result;
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCAsyncResult<t_CReturnValue> const volatile &_Result)
+	{
+		m_Result = _Result;
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCAsyncResult<t_CReturnValue> &&_Result)
+	{
+		m_Result = fg_Move(_Result);
+		m_bPendingResult = true;
 	}
 
 	template <typename t_CReturnValue>
@@ -851,7 +893,16 @@ namespace NMib::NConcurrency::NPrivate
 		DMibFastCheck(_Result.f_IsSet());
 		m_Result = _Result.f_MoveResult();
 		_Result.f_MoveFuture().f_DiscardResult();
-		fp_OnResult();
+		f_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(TCPromise<t_CReturnValue> &&_Result)
+	{
+		DMibFastCheck(_Result.f_IsSet());
+		m_Result = _Result.f_MoveResult();
+		m_bPendingResult = true;
+		_Result.f_MoveFuture().f_DiscardResult();
 	}
 
 	template <typename t_CReturnValue>
@@ -859,7 +910,15 @@ namespace NMib::NConcurrency::NPrivate
 	void TCPromiseData<t_CReturnValue>::f_SetResult(tf_CResult &&_Result)
 	{
 		m_Result.f_SetResult(fg_Forward<tf_CResult>(_Result));
-		fp_OnResult();
+		f_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	void TCPromiseData<t_CReturnValue>::f_SetResultNoReport(tf_CResult &&_Result)
+	{
+		m_Result.f_SetResult(fg_Forward<tf_CResult>(_Result));
+		m_bPendingResult = true;
 	}
 
 	template <typename t_CReturnValue>
@@ -867,7 +926,7 @@ namespace NMib::NConcurrency::NPrivate
 	void TCPromiseData<t_CReturnValue>::f_SetException(tf_CResult &&_Result)
 	{
 		m_Result.f_SetException(fg_Forward<tf_CResult>(_Result));
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
@@ -876,7 +935,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		DMibRequire(!_Result);
 		m_Result.f_SetException(_Result);
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
@@ -885,7 +944,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		DMibRequire(!_Result);
 		m_Result.f_SetException(_Result);
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
@@ -894,14 +953,56 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		DMibRequire(!_Result);
 		m_Result.f_SetException(fg_Move(_Result));
-		fp_OnResult();
+		f_OnResult();
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetCurrentException()
 	{
 		m_Result.f_SetCurrentException();
-		fp_OnResult();
+		f_OnResult();
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	void TCPromiseData<t_CReturnValue>::f_SetExceptionNoReport(tf_CResult &&_Result)
+	{
+		m_Result.f_SetException(fg_Forward<tf_CResult>(_Result));
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	void TCPromiseData<t_CReturnValue>::f_SetExceptionNoReport(TCAsyncResult<tf_CResult> const &_Result)
+	{
+		DMibRequire(!_Result);
+		m_Result.f_SetException(_Result);
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	void TCPromiseData<t_CReturnValue>::f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &_Result)
+	{
+		DMibRequire(!_Result);
+		m_Result.f_SetException(_Result);
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	void TCPromiseData<t_CReturnValue>::f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &&_Result)
+	{
+		DMibRequire(!_Result);
+		m_Result.f_SetException(fg_Move(_Result));
+		m_bPendingResult = true;
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_SetCurrentExceptionNoReport()
+	{
+		m_Result.f_SetCurrentException();
+		m_bPendingResult = true;
 	}
 
 	template <typename tf_CReturnValue>

@@ -716,6 +716,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+#if (DMibSysLogSeverities) != 0
 	struct CLogToStdErrAnsi
 	{
 		CLogToStdErrAnsi(NCommandLine::EAnsiEncodingFlag _AnsiFlags, bool _bTrace)
@@ -838,6 +839,7 @@ namespace NMib::NConcurrency
 		CStr mp_Indent;
 		bool mp_bTrace = false;
 	};
+#endif
 
 	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
 	{

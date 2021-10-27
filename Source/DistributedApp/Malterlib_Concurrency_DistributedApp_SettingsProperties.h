@@ -88,5 +88,6 @@ namespace NMib::NConcurrency
 		bool m_bSupportUserAuthentication = true;
 		bool m_bWaitForRemotes = true;
 		bool m_bCanUserLocalListenAsPrimary = true;
+		bool m_bCommandLineBeforeAppStart = false;
 	};
 }

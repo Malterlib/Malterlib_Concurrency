@@ -165,6 +165,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&
+	{
+		m_bCommandLineBeforeAppStart = _bCommandLineBeforeAppStart;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_WaitForRemotes(bool _bWaitForRemotes) &&
 	{
 		m_bWaitForRemotes = _bWaitForRemotes;

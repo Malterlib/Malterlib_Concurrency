@@ -594,6 +594,9 @@ namespace NMib::NConcurrency
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
 
+				if (mp_Settings.m_bCommandLineBeforeAppStart)
+					co_await (fp_PublishCommandLine() % "Failed to publish command line");
+
 				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Running specific application startup");
 
 				co_await (self(&CDistributedAppActor::fp_StartApp, _Params) % "Failed to start app");
@@ -603,7 +606,8 @@ namespace NMib::NConcurrency
 
 				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Specific application startup finished");
 
-				co_await (fp_PublishCommandLine() % "Failed to publish command line");
+				if (!mp_Settings.m_bCommandLineBeforeAppStart)
+					co_await (fp_PublishCommandLine() % "Failed to publish command line");
 
 				co_return {};
 			}

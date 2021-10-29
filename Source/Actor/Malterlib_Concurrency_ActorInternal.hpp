@@ -10,7 +10,13 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		tf_CActor *fg_GetInternalActor(TCActor<tf_CActor> const &_Actor)
 		{
-			return _Actor->fp_GetActor();
+			return static_cast<tf_CActor *>(_Actor->fp_GetActorRelaxed());
+		}
+
+		template <typename tf_CActor>
+		tf_CActor *fg_GetInternalActor(TCActorInternal<tf_CActor> const &_Actor)
+		{
+			return static_cast<tf_CActor *>(_Actor.fp_GetActorRelaxed());
 		}
 	}
 
@@ -27,15 +33,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCActorInternal<CActor> *TCActorInternal<t_CActor>::fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const
+	TCActorInternal<CActor> *TCActorInternal<t_CActor>::fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const
 	{
 		return t_CActor::fs_GetRealActor(_pActorInternal);
-	}
-
-	template <typename t_CActor>
-	t_CActor *TCActorInternal<t_CActor>::fp_GetActor() const
-	{
-		return static_cast<t_CActor *>(this->fp_GetActorRelaxed());
 	}
 
 	template <typename t_CActor>
@@ -68,7 +68,7 @@ namespace NMib::NConcurrency
 	{
 		static_assert(t_CActor::mc_bAllowInternalAccess, "You do not have internal access to this actor");
 
-		return *fp_GetActor();
+		return *NPrivate::fg_GetInternalActor(*this);
 	}
 
 	template <typename t_CActor>
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 	{
 		static_assert(t_CActor::mc_bAllowInternalAccess, "You do not have internal access to this actor");
 
-		return *fp_GetActor();
+		return *NPrivate::fg_GetInternalActor(*this);
 	}
 
 	template <typename tf_CToDelete>
@@ -128,7 +128,6 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename t_CActor>
 	template
 		<
 			typename tf_CActor
@@ -137,11 +136,11 @@ namespace NMib::NConcurrency
 			, typename tf_CResultActor
 			, typename tf_CResultFunctor
 		>
-	bool TCActorInternal<t_CActor>::f_Call
+	bool CActorHolder::f_Call
 		(
-			tf_CFunctor &&_ToCall
-			, TCActor<tf_CResultActor> &&_pResultActor
-			, tf_CResultFunctor &&_ResultFunctor
+			tf_CFunctor &&_fToCall
+			, TCActor<tf_CResultActor> &&_ResultActor
+			, tf_CResultFunctor &&_fResultFunctor
 		)
 	{
 		static_assert(!NTraits::TCIsSame<tf_CActor, NPrivate::CDirectResultActor>::mc_Value, "Cannot be called");
@@ -166,9 +165,9 @@ namespace NMib::NConcurrency
 		}
 #endif
 		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
-			CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this, false}();
+			CReportLocal{fg_Move(_fToCall), fg_Move(_fResultFunctor), fg_Move(_ResultActor), (TCActorInternal<tf_CActor> *)this, false}();
 		else
-			this->fp_QueueProcess(CReportLocal{fg_Move(_ToCall), fg_Move(_ResultFunctor), fg_Move(_pResultActor), (TCActorInternal<tf_CActor> *)this, true});
+			this->fp_QueueProcess(CReportLocal{fg_Move(_fToCall), fg_Move(_fResultFunctor), fg_Move(_ResultActor), (TCActorInternal<tf_CActor> *)this, true});
 
 		return true; // Dummy return to allow for fg_Swallow on arguments
 	}

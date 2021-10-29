@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		ThreadLocal.m_pCurrentActor = _Actor->fp_GetActor();
+		ThreadLocal.m_pCurrentActor = NPrivate::fg_GetInternalActor(_Actor);
 #if DMibEnableSafeCheck > 0
 		mp_pLastOverriddenProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
 		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)ThreadLocal.m_pCurrentActor->self.m_pThis;

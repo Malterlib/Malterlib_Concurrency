@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		ThreadLocal.m_pCurrentActor = _Actor->fp_GetActor();
+		ThreadLocal.m_pCurrentActor = NPrivate::fg_GetInternalActor(_Actor);
 	}
 
 	CCurrentActorScope::CCurrentActorScope(CActor const *_pActor)
@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 			using CActorClass = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CClass;
 
 			TCActorInternal<CActorClass> *pActor = static_cast<TCActorInternal<CActorClass> *>(m_pThis.f_Get());
-			DMibRequire(dynamic_cast<CActorClass *>(pActor->fp_GetActor()));
+			DMibRequire(dynamic_cast<CActorClass *>(NPrivate::fg_GetInternalActor(*pActor)));
 			DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
 			TCActor<CActorClass> Actor{fg_Explicit(pActor)};
 
@@ -613,7 +613,7 @@ namespace NMib::NConcurrency
 								{
 									TCAsyncResult<typename TCActorCall<typename tf_CActor::CWeak, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>::CReturnType> Result;
 									Result.f_SetException(DMibImpExceptionInstance(CExceptionActorDeleted, "Weak actor called has been deleted"));
-									NPrivate::fg_CallResultFunctor(fResultFunctor, ResultActor->fp_GetActor(), fg_Move(Result));
+									NPrivate::fg_CallResultFunctor(fResultFunctor, NPrivate::fg_GetInternalActor(ResultActor), fg_Move(Result));
 								}
 							)
 						;
@@ -990,7 +990,7 @@ namespace NMib::NConcurrency
 						[pThis, Handler = fg_Move(m_Handler)]() mutable
 						{
 							auto &This = *pThis;
-							auto &Internal = *This.m_Actor.f_GetRealActor()->fp_GetActor();
+							auto &Internal = *NPrivate::fg_GetInternalActor(*This.m_Actor.f_GetRealActor());
 							CCurrentActorScope CurrentActor(&Internal);
 							if constexpr (t_bUnwrapTuple)
 							{
@@ -1237,7 +1237,7 @@ namespace NMib::NConcurrency
 					(
 					 	[pState = fg_Move(m_pState), Result = fg_Move(_Result)]() mutable
 					 	{
-							NPrivate::fg_CallResultFunctor(pState->m_ResultFunctor, pState->m_ResultActor.f_GetRealActor()->fp_GetActor(), fg_Move(Result));
+							NPrivate::fg_CallResultFunctor(pState->m_ResultFunctor, NPrivate::fg_GetInternalActor(*pState->m_ResultActor.f_GetRealActor()), fg_Move(Result));
 						}
 					)
 				;
@@ -1270,7 +1270,7 @@ namespace NMib::NConcurrency
 				;
 #endif
 
-				auto pActor = pThis->m_pActorInternal->fp_GetActor();
+				auto pActor = NPrivate::fg_GetInternalActor(*pThis->m_pActorInternal);
 				CCurrentActorScope CurrentActor(pActor);
 
 				NFunction::TCFunctionMovable<void (TCAsyncResult<CReturnType> &&_AsyncResult)> fOnResultSet
@@ -1429,7 +1429,7 @@ namespace NMib::NConcurrency
 			}
 			else
 			{
-				auto pActor = m_pActorInternal->fp_GetActor();
+				auto pActor = NPrivate::fg_GetInternalActor(*m_pActorInternal);
 				CCurrentActorScope CurrentActor(pActor);
 				CResultType Result;
 				{

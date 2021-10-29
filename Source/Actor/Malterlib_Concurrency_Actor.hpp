@@ -268,27 +268,27 @@ namespace NMib::NConcurrency
 		return m_pInternalActor->fp_GetRealActor((TCActorInternal<CActor> *)this->f_Get());
 	}
 
-	inline_always TCActorInternal<CActor> *CActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	inline_always TCActorInternal<CActor> *CActor::fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal)
 	{
-		return _pActorInternal;
+		return static_cast<TCActorInternal<CActor> *>(_pActorInternal);
 	}
 
-	inline_always TCActorInternal<CActor> *CAnyConcurrentActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	inline_always TCActorInternal<CActor> *CAnyConcurrentActor::fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal)
 	{
 		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal).f_Get();
 	}
 
-	inline_always TCActorInternal<CActor> *CAnyConcurrentActorLowPrio::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	inline_always TCActorInternal<CActor> *CAnyConcurrentActorLowPrio::fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal)
 	{
 		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Low).f_Get();
 	}
 
-	inline_always TCActorInternal<CActor> *CDynamicConcurrentActor::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	inline_always TCActorInternal<CActor> *CDynamicConcurrentActor::fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal)
 	{
 		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActor().f_Get();
 	}
 
-	inline_always TCActorInternal<CActor> *CDynamicConcurrentActorLowPrio::fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal)
+	inline_always TCActorInternal<CActor> *CDynamicConcurrentActorLowPrio::fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal)
 	{
 		return (TCActorInternal<CActor> *)fg_ConcurrencyManager().f_GetConcurrentActorLowPrio().f_Get();
 	}

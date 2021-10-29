@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 		friend class NConcurrency::CActorHolder;
 		friend struct NConcurrency::CActorCommon;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		void fp_AbortSuspendedCoroutines();
 

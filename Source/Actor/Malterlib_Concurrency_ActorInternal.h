@@ -29,6 +29,9 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CActor>
 		tf_CActor *fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
+
+		template <typename tf_CActor>
+		tf_CActor *fg_GetInternalActor(TCActorInternal<tf_CActor> const &_Actor);
 	}
 
 	struct CActorDistributionManagerInternal;
@@ -88,13 +91,15 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
 
+		template <typename tf_CActor>
+		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActorInternal<tf_CActor> const &_Actor);
+
 		friend class CActorHolder;
 		friend struct CCurrentActorScope;
 		friend struct CCurrentlyProcessingActorScope;
 
-		t_CActor *fp_GetActor() const;
 		TCActorInternal *fp_GetThis();
-		TCActorInternal<CActor> *fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const override;
+		TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const override;
 
 	public:
 
@@ -116,22 +121,6 @@ namespace NMib::NConcurrency
 
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 		inline_always EPriority f_GetPriority() const;
-
-		template
-			<
-				typename tf_CActor
-				, typename tf_CFunction
-				, typename tf_CFunctor
-				, typename tf_CResultActor
-				, typename tf_CResultFunctor
-			>
-		bool f_Call
-			(
-				tf_CFunctor &&_ToCall
-				, TCActor<tf_CResultActor> &&_pResultActor
-				, tf_CResultFunctor &&_ResultFunctor
-			)
-		;
 
 		template <typename ...tfp_CInterface>
 		auto f_Publish(NStr::CStr const &_Namespace);

@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CShamActorHolder;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CShamActorHolder;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		static constexpr EPriority mc_Priority = EPriority_Low;
 		static constexpr bool mc_bImmediateDelete = true;
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CShamActorHolder;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CShamActorHolder;
 
-		static TCActorInternal<CActor> *fs_GetRealActor(TCActorInternal<CActor> *_pActorInternal);
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;

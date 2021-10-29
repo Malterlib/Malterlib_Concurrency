@@ -499,7 +499,7 @@ namespace NMib::NConcurrency
 					return true;
 				}
 
-				fCall = [pEntry, pActor = Actor->fp_GetActor()](CDistributedActorReadStream &_Stream) mutable
+				fCall = [pEntry, pActor = NPrivate::fg_GetInternalActor(Actor)](CDistributedActorReadStream &_Stream) mutable
 					{
 						return pEntry->f_Call
 							(

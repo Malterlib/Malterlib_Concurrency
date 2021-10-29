@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) = 0;
 		virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor) = 0;
 		void fp_RunProcess();
-		virtual TCActorInternal<CActor> *fp_GetRealActor(TCActorInternal<CActor> *_pActorInternal) const = 0;
+		virtual TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
 		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise);
 
 		void fp_DeleteActor();
@@ -151,6 +151,22 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable
 		void f_TestDetach();
 #endif
+
+		template
+			<
+				typename tf_CActor
+				, typename tf_CFunction
+				, typename tf_CFunctor
+				, typename tf_CResultActor
+				, typename tf_CResultFunctor
+			>
+		bool f_Call
+			(
+				tf_CFunctor &&_fToCall
+				, TCActor<tf_CResultActor> &&_ResultActor
+				, tf_CResultFunctor &&_fResultFunctor
+			)
+		;
 
 	private:
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory);

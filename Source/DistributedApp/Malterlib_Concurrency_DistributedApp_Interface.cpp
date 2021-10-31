@@ -177,6 +177,9 @@ namespace NMib::NConcurrency
 
 		CDistributedAppInterfaceServer::CRegisterInfo RegisterInfo;
 		RegisterInfo.m_UpdateType = mp_Settings.m_UpdateType;
+		if (mp_Settings.m_InterfaceSettings.m_LaunchID)
+			RegisterInfo.m_LaunchID = mp_Settings.m_InterfaceSettings.m_LaunchID;
+
 		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
 
 		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<CDistributedAppInterfaceServer>();

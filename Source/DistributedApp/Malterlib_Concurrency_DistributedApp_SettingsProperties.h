@@ -64,6 +64,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<TCActorFunctor<TCFuture<CDistributedActorTrustManager::CTrustTicket> ()>> m_pRequestTicket;
 		NStr::CStr m_ServerAddress = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerAddress");
 		NStr::CStr m_RequestTicketMagic = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
+		NStr::CStr m_LaunchID = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerLaunchID");
 		EOption m_Options = fs_ParseEnvironmentOptions(fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerOptions"));
 	};
 

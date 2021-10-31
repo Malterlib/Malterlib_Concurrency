@@ -45,10 +45,12 @@ namespace NMib::NConcurrency
 			_Stream % m_Resources_Threads;
 			_Stream % m_Resources_Processes;
 		}
+		if (_Stream.f_GetVersion() >= 0x104)
+			_Stream % m_LaunchID;
 	}
 	DMibDistributedStreamImplement(CDistributedAppInterfaceServer::CRegisterInfo);
 	
-	bool CDistributedAppInterfaceServer::CRegisterInfo::operator == (CRegisterInfo const &_Right) const
+	bool CDistributedAppInterfaceServer::CRegisterInfo::f_IsSameIgnoringLaunchID(CRegisterInfo const &_Right) const
 	{
 		return m_UpdateType == _Right.m_UpdateType 
 			&& m_Resources_Files == _Right.m_Resources_Files 

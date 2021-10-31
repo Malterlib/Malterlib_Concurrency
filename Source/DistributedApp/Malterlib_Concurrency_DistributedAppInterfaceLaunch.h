@@ -30,7 +30,8 @@ namespace NMib::NConcurrency
 				, FOnUseTicket &&_fOnUseTicket
 			 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 				, NStr::CStr const &_Description
-				, bool _bDelegateTrust 
+				, NStr::CStr const &_LaunchID
+				, bool _bDelegateTrust
 			)
 		;
 		~CDistributedAppInterfaceLaunchActor();
@@ -51,6 +52,7 @@ namespace NMib::NConcurrency
 		NWeb::NHTTP::CURL mp_Address;
 		NStr::CStrSecure mp_RequestTicketMagic;
 		NStr::CStr mp_Description;
+		NStr::CStr mp_LaunchID;
 		FOnUseTicket mp_fOnUseTicket;
 		TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> mp_fOnLaunchError;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;

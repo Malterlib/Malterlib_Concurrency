@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x103
+			, EProtocolVersion = 0x104
 		};
 
 		struct CRegisterInfo
@@ -68,13 +68,14 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			bool operator == (CRegisterInfo const &_Right) const;
+			bool f_IsSameIgnoringLaunchID(CRegisterInfo const &_Right) const;
 
 			EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 			NStorage::TCOptional<uint32> m_Resources_Files;
 			NStorage::TCOptional<uint32> m_Resources_FilesPerProcess;
 			NStorage::TCOptional<uint32> m_Resources_Threads;
 			NStorage::TCOptional<uint32> m_Resources_Processes;
+			NStorage::TCOptional<NStr::CStr> m_LaunchID;
 		};
 
 		CDistributedAppInterfaceServer();

@@ -25,6 +25,8 @@ namespace NMib::NConcurrency
 
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData &&) = default;
 		CDistributedApp_LaunchInfoData(CDistributedApp_LaunchInfoData const &_Other) = default;
+		
+		CDistributedApp_LaunchInfoData &operator = (CDistributedApp_LaunchInfoData &&_Other) = default;
 
 		TCFuture<void> f_Destroy();
 
@@ -56,8 +58,11 @@ namespace NMib::NConcurrency
 	{
 		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfoData const &_LaunchInfo, CActorSubscription &&_Subscription);
 		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo &&_Other) = default;
-		~CDistributedApp_LaunchInfo();
 		CDistributedApp_LaunchInfo(CDistributedApp_LaunchInfo const &_Other) = delete;
+
+		~CDistributedApp_LaunchInfo();
+
+		CDistributedApp_LaunchInfo &operator = (CDistributedApp_LaunchInfo &&_Other) = default;
 
 		TCFuture<void> f_Destroy();
 
@@ -103,6 +108,8 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> fp_Destroy() override;
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr const &_Description, NProcess::CProcessLaunchActor::CLaunch &&_Launch, TCActor<CActor> &&_NotificationActor);
+
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess
 			(

@@ -11,7 +11,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedAppInterface>
-#include <Mib/Concurrency/DistributedAppTestHelpers>
+#include <Mib/Concurrency/DistributedAppLaunchHelper>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Process/StdInActor>

@@ -17,6 +17,7 @@ namespace NMib::NConcurrency
 			, FOnUseTicket &&_fOnUseTicket
 		 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 			, NStr::CStr const &_Description
+			, NStr::CStr const &_LaunchID
 			, bool _bDelegateTrust
 		)
 		: mp_Address(_Address)
@@ -25,6 +26,7 @@ namespace NMib::NConcurrency
 		, mp_fOnLaunchError(fg_Move(_fOnLaunchError))
 		, mp_RequestTicketMagic(NCryptography::fg_RandomID())
 		, mp_Description(_Description)
+		, mp_LaunchID(_LaunchID)
 		, mp_bDelegateTrust(_bDelegateTrust)
 	{
 	}
@@ -46,11 +48,15 @@ namespace NMib::NConcurrency
 			LaunchParams.m_bMergeEnvironment = true;
 		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerAddress"] = mp_Address.f_Encode();
 		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerRequestTicket"] = mp_RequestTicketMagic;
+		LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerLaunchID"] = mp_LaunchID;
 		if (mp_bDelegateTrust)
 			LaunchParams.m_Environment["MalterlibDistributedAppInterfaceServerOptions"] = "DelegateTrust";
 		
-		LaunchParams.m_Environment["MalterlibProtectedEnvironment"] 
-			= "MalterlibDistributedAppInterfaceServerAddress;MalterlibDistributedAppInterfaceServerRequestTicket;MalterlibDistributedAppInterfaceServerOptions"
+		LaunchParams.m_Environment["MalterlibProtectedEnvironment"] =
+			"MalterlibDistributedAppInterfaceServerAddress"
+			";MalterlibDistributedAppInterfaceServerRequestTicket"
+			";MalterlibDistributedAppInterfaceServerOptions"
+			";MalterlibDistributedAppInterfaceServerLaunchID"
 		;
 	}
 	

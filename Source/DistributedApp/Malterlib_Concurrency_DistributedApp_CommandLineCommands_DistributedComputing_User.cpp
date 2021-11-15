@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 					, Factors
 					, MultipleRequestData.m_ID
 				)
-				.f_Timeout(10.0, "Timeout wating for manager to reply")
+				.f_Timeout(10.0, "Timeout waiting for manager to reply")
 				> AuthenticationResults.f_AddResult()
 			;
 		}

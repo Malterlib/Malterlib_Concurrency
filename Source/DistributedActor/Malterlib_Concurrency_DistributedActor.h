@@ -420,6 +420,7 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 		TCFuture<void> f_Disconnect(bool _bPreserveHost = false);
+		TCFuture<void> f_Reconnect();
 		TCFuture<void> f_Debug_Break(fp64 _Timeout);
 		TCFuture<CDistributedActorConnectionStatus> f_GetStatus();
 		TCFuture<void> f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings);
@@ -757,6 +758,7 @@ namespace NMib::NConcurrency
 		void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
 		void fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID);
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
+		TCFuture<void> fp_Reconnect(NStr::CStr const &_ConnectionID);
 		CActorSubscription fp_OnRemoteDisconnect
 			(
 				TCActor<CActor> const &_Actor

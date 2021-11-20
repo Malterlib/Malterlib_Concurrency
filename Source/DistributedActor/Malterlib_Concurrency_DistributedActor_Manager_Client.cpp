@@ -77,6 +77,23 @@ namespace NMib::NConcurrency
 		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout);
 	}
 
+	TCFuture<void> CDistributedActorConnectionReference::f_Reconnect()
+	{
+		TCPromise<void> Promise;
+
+		if (mp_DistributionManager.f_IsEmpty())
+			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+
+		auto DistributionManager = mp_DistributionManager.f_Lock();
+
+		mp_DistributionManager.f_Clear();
+
+		if (!DistributionManager)
+			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Reconnect, mp_ConnectionID);
+	}
+
 	TCFuture<void> CDistributedActorConnectionReference::f_Disconnect(bool _bPreserveHost)
 	{
 		TCPromise<void> Promise;
@@ -112,7 +129,6 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_ScheduleReconnect
 		(
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
 			, mint _Sequence
 			, NStr::CStr const &_ConnectionError
@@ -127,13 +143,13 @@ namespace NMib::NConcurrency
 				&CTimerActor::f_OneshotTimer
 				, 0.5
 				, fg_ThisActor(m_pThis)
-				, [this, _pConnection, _Sequence, _pPromise, _bRetry]() mutable
+				, [this, _pConnection, _Sequence, _bRetry]() mutable
 				{
 					if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
 						return;
 					if (_Sequence != _pConnection->m_ConnectionSequence)
 						return;
-					fp_Reconnect(_pConnection, _pPromise, _bRetry, _bRetry, 3600.0);
+					fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
 				}
 				, true
 			)
@@ -249,7 +265,7 @@ namespace NMib::NConcurrency
 						}
 						if (_pPromise)
 							_pPromise->f_SetResult(CActorDistributionManager::CConnectionResult(fg_ThisActor(m_pThis), pConnection->m_ConnectionID));
-						fp_ScheduleReconnect(pConnection, nullptr, _bRetry, Sequence, _Error);
+						fp_ScheduleReconnect(pConnection, _bRetry, Sequence, _Error);
 					}
 				;
 
@@ -400,7 +416,7 @@ namespace NMib::NConcurrency
 						{
 							auto pHost = pConnection->m_pHost;
 							bool bDestroyNormal = pHost && _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast;
-							fp_ScheduleReconnect(pConnection, nullptr, true, Sequence, Error, bDestroyNormal);
+							fp_ScheduleReconnect(pConnection, true, Sequence, Error, bDestroyNormal);
 							if (bDestroyNormal)
 								fp_DestroyHost(*pHost, pConnection.f_Get(), "last active client connection disconnected");
 						}
@@ -638,6 +654,9 @@ namespace NMib::NConcurrency
 		pConnection->m_ExpectedRealHostID = DecodedSettings.m_RealHostID;
 		pConnection->m_bAnonymous = DecodedSettings.m_bAnonymous;
 
+		pConnection->m_bRetryConnectOnFailure = _Settings.m_bRetryConnectOnFailure;
+		pConnection->m_bRetryConnectOnFirstFailure = _Settings.m_bRetryConnectOnFirstFailure;
+
 		try
 		{
 			pConnection->m_pSSLContext = fg_Construct(NNetwork::CSSLContext::EType_Client, DecodedSettings.m_ClientSettings);
@@ -706,6 +725,27 @@ namespace NMib::NConcurrency
 				, !_bPreserveHost && Connection.m_Link.f_IsAloneInList()
 			)
 		;
+	}
+
+	TCFuture<void> CActorDistributionManager::fp_Reconnect(NStr::CStr const &_ConnectionID)
+	{
+		TCPromise<void> Promise;
+
+		auto &Internal = *mp_pInternal;
+
+		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
+
+		if (!pConnection)
+			return Promise <<= DMibErrorInstance("No such client connection");
+
+		auto &Connection = **pConnection;
+
+		Connection.f_Reset(false, Internal, "Reconnect");
+		Connection.f_SetLastError("Manual reconnect");
+
+		Internal.fp_Reconnect(*pConnection, nullptr, Connection.m_bRetryConnectOnFailure, Connection.m_bRetryConnectOnFirstFailure, 3600.0);
+
+		return Promise.f_MoveFuture();
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)

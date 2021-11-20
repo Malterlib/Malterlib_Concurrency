@@ -266,9 +266,13 @@ namespace NMib::NConcurrency
 	void CDistributedActorTrustManager::CInternal::f_ApplyConnectionConcurrency(CConnectionState &_ConnectionState)
 	{
 		mint ConnectionConcurrency = _ConnectionState.m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
+		if (ConnectionConcurrency == _ConnectionState.m_ConnectionReferences.f_GetLen())
+			return;
+
 		if (ConnectionConcurrency <= _ConnectionState.m_ConnectionReferences.f_GetLen())
 		{
 			_ConnectionState.m_ConnectionReferences.f_SetLen(ConnectionConcurrency);
+			_ConnectionState.m_ConnectionReferences[0].f_Reconnect() > fg_DiscardResult();
 			return;
 		}
 

@@ -86,6 +86,8 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		mint m_ConnectionSequence = 0;
 		bool m_bConnected = false;
 		bool m_bAnonymous = false;
+		bool m_bRetryConnectOnFailure = false;
+		bool m_bRetryConnectOnFirstFailure = false;
 		NStr::CStr m_LastConnectionError;
 		NTime::CTime m_LastConnectionErrorTime;
 		NStr::CStr m_LastLoggedError;
@@ -408,7 +410,6 @@ namespace NMib::NConcurrency
 		void fp_ScheduleReconnect
 			(
 				NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
-				, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 				, bool _bRetry
 				, mint _Sequence
 				, NStr::CStr const &_ConnectionError

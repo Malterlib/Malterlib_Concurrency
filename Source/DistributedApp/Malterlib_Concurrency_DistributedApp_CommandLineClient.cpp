@@ -227,11 +227,11 @@ namespace NMib::NConcurrency
 						DMibUnlock(pState->m_ResultLock);
 						if (fStopApp)
 						{
-							fStopApp();
+							bStopped = fStopApp();
 							fStopApp.f_Clear();
-							bStopped = true;
 						}
-						else if (!bStopped)
+
+						if (!bStopped)
 							break;
 					}
 				}

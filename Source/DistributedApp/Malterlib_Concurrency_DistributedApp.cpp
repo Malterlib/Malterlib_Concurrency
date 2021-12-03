@@ -993,7 +993,9 @@ namespace NMib::NConcurrency
 								{
 									m_bStartedApp = false;
 									m_AppActor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
+									return true;
 								}
+								return false;
 							}
 						;
 					}

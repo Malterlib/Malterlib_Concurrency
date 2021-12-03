@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppCommandLineClient : public NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>
 	{
-		using FStopApp = NFunction::TCFunction<void ()>;
+		using FStopApp = NFunction::TCFunction<bool ()>;
 
 		void f_MutateCommandLineSpecification
 			(

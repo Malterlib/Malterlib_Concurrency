@@ -950,6 +950,12 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
 		TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
 		{
 			DMibNeverGetHere;

@@ -21,8 +21,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x104
-			, EProtocolVersion = 0x104
+			EMinProtocolVersion = 0x105
+			, EProtocolVersion = 0x105
 		};
 
 		ICCommandLineControl();
@@ -34,9 +34,11 @@ namespace NMib::NConcurrency
 				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector const &_Input, NStr::CStr const &_Error)
 			>
 		;
+		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> ()>;
 
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
+		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) = 0;
 
 		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_ReadBinary() = 0;
 		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadLine() = 0;
@@ -68,6 +70,8 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>>
 			f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
 		;
+		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(ICCommandLineControl::FOnCancel &&_fOnCancel) const;
+
 		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_ReadBinary() const;
 		NConcurrency::TCFuture<NStr::CStrSecure> f_ReadLine() const;
 		NConcurrency::TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const;

@@ -54,7 +54,33 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags);
+			}
+
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) override
+			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
+				auto SubscriptionID = NCryptography::fg_RandomID(mp_CancellationSubscriptions);
+
+				auto &Subscription = mp_CancellationSubscriptions[SubscriptionID];
+
+				Subscription.m_fOnCancel = fg_Move(_fOnCancel);
+
+				if (mp_bCancelled)
+					Subscription.m_fOnCancel() > fg_DiscardResult();
+
+				co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
+					{
+						if (auto pSubscription = mp_CancellationSubscriptions.f_FindEqual(SubscriptionID))
+							co_await fg_Move(pSubscription->m_fOnCancel).f_Destroy();
+
+						mp_CancellationSubscriptions.f_Remove(SubscriptionID);
+
+						co_return {};
+					}
+				;
 			}
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
@@ -64,7 +90,7 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags);
 			}
 
 			TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
@@ -73,7 +99,7 @@ namespace NMib::NConcurrency
 					co_return Destroyed;
 
 				fp_CreateInputActor();
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadBinary);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadBinary);
 			}
 
 			TCFuture<NStr::CStrSecure> f_ReadLine() override
@@ -82,7 +108,7 @@ namespace NMib::NConcurrency
 					co_return Destroyed;
 
 				fp_CreateInputActor();
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadLine);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
 			}
 
 			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
@@ -91,7 +117,7 @@ namespace NMib::NConcurrency
 					co_return Destroyed;
 
 				fp_CreateInputActor();
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadPrompt, _Params);
 			}
 
 			TCFuture<void> f_AbortReads() override
@@ -100,7 +126,7 @@ namespace NMib::NConcurrency
 					co_return Destroyed;
 
 				fp_CreateInputActor();
-				co_return co_await m_InputActor(&NProcess::CStdInActor::f_AbortReads);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
 			}
 
 			TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
@@ -121,21 +147,46 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 
+			TCFuture<void> f_Cancel()
+			{
+				TCActorResultVector<void> Results;
+
+				mp_bCancelled = true;
+
+				for (auto &Subscription : mp_CancellationSubscriptions)
+					Subscription.m_fOnCancel() > Results.f_AddResult();
+
+				co_await Results.f_GetResults() | g_Unwrap;
+
+				co_return {};
+			}
+
 		private:
-			TCActor<NProcess::CStdInActor> m_InputActor;
+
+			struct CCancellationSubscription
+			{
+				FOnCancel m_fOnCancel;
+			};
+
+			TCActor<NProcess::CStdInActor> mp_InputActor;
+			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
+			bool mp_bCancelled = false;
 
 			TCFuture<void> fp_Destroy() override
 			{
-				if (m_InputActor)
-					co_await fg_Move(m_InputActor).f_Destroy();
+				if (mp_InputActor)
+					co_await fg_Move(mp_InputActor).f_Destroy();
+
+				for (auto &Subscription : mp_CancellationSubscriptions)
+					co_await fg_Move(Subscription.m_fOnCancel).f_Destroy();
 
 				co_return {};
 			}
 
 			void fp_CreateInputActor()
 			{
-				if (!m_InputActor)
-					m_InputActor = fg_Construct();
+				if (!mp_InputActor)
+					mp_InputActor = fg_Construct();
 			}
 		};
 	}
@@ -202,11 +253,18 @@ namespace NMib::NConcurrency
 
 			auto Subscription = NProcess::NPlatform::fg_Process_WaitForTermination
 				(
-				 	[pState]
+				 	[pState, pCommandLineControl]
 				 	{
-						DMibLock(pState->m_ResultLock);
-						pState->m_bAborted = true;
-						pState->m_Event.f_Signal();
+						pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
+							{
+								if (!_Result)
+									DMibConErrOut("Failed to cancel: {}\n", _Result.f_GetExceptionStr());
+
+								DMibLock(pState->m_ResultLock);
+								pState->m_bAborted = true;
+								pState->m_Event.f_Signal();
+							}
+						;
 					}
 				)
 			;

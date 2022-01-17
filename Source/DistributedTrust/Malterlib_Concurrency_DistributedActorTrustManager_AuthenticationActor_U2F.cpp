@@ -66,7 +66,7 @@ extern "C"
 #define U2F_PUBLIC_KEY_LEN		65
 #define U2F_COUNTER_LEN			4
 
-namespace
+namespace NMib::NConcurrency::NPrivate
 {
 	using namespace NMib;
 	using namespace NStorage;
@@ -247,9 +247,10 @@ namespace
 
 		struct CDevice
 		{
-			CDevice(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device, uint32 _ChannelID)
+			CDevice(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device, uint32 _ChannelID, CStr const &_Path)
 				: m_Device(_Device)
 				, m_ChannelID(_ChannelID)
+				, m_Path(_Path)
 			{
 			}
 			CDevice(CDevice &&) = default;
@@ -257,7 +258,7 @@ namespace
 			CDevice &operator = (CDevice &&) = default;
 			CDevice &operator = (CDevice const &) = default;
 
-			static TCFuture<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
+			static TCFuture<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device, CStr const &_Path)
 			{
 				TCPromise<CDevice> Promise;
 
@@ -287,7 +288,7 @@ namespace
 						if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
 							return Promise.f_SetException(DMibErrorInstance("U2FHID_INIT response contains invalid nounce"));
 
-						Promise.f_SetResult(CDevice{_Device, Resonse.m_ChannelID});
+						Promise.f_SetResult(CDevice{_Device, Resonse.m_ChannelID, _Path});
 					}
 				;
 
@@ -511,6 +512,7 @@ namespace
 			}
 
 			TCActor<CHumanInterfaceDevicesActor::CDevice> m_Device;
+			CStr m_Path;
 			uint32 m_ChannelID;
 		};
 
@@ -629,74 +631,98 @@ namespace
 
 		static TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
 		{
-			TCPromise<TCSharedPointer<CU2FDevices>> Promise;
-
 			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
 
-			pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0) > Promise / [=](TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> &&_HIDDevices)
+			auto DeviceInfos = co_await pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0);
+
+			TCActorResultVector<CUsageResult> UsageResults;
+
+			for (auto const &DeviceInfo : DeviceInfos)
+				fs_GetUsages(pDevices, DeviceInfo) > UsageResults.f_AddResult();
+
+			TCActorResultVector<TCActor<CHumanInterfaceDevicesActor::CDevice>> OpenDeviceResults;
+			{
+				auto Usages = co_await UsageResults.f_GetResults();
+				auto iDeviceInfo = DeviceInfos.f_GetIterator();
+
+				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
+
+				for (auto &UsageResult : Usages)
 				{
-					TCActorResultMap<CStr, CUsageResult> UsageResults;
+					auto &DeviceInfo = *iDeviceInfo;
+					++iDeviceInfo;
 
-					for (auto const &DeviceInfo : _HIDDevices)
-						fs_GetUsages(pDevices, DeviceInfo) > UsageResults.f_AddResult(DeviceInfo.m_Path);
+					if (!UsageResult)
+					{
+						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to get usages for U2F USB device '{}': {}", DeviceInfo.m_Path, UsageResult.f_GetExceptionStr());
+						continue;
+					}
 
-					UsageResults.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<CUsageResult>> &&_Results)
-						{
-							TCActorResultMap<CStr, TCActor<CHumanInterfaceDevicesActor::CDevice>> OpenDeviceResults;
-
-							for (auto &UsageResult : _Results)
-							{
-								auto &DevicePath = _Results.fs_GetKey(UsageResult);
-								if (!UsageResult)
-								{
-									DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to get usages for U2F USB device '{}': {}", DevicePath, UsageResult.f_GetExceptionStr());
-									continue;
-								}
-
-								auto &Usage = *UsageResult;
-
-								if (Usage.m_UsagePage == FIDO_USAGE_PAGE && Usage.m_Usage == FIDO_USAGE_U2FHID)
-									pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DevicePath) > OpenDeviceResults.f_AddResult(DevicePath);
-							}
-
-							OpenDeviceResults.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<TCActor<CHumanInterfaceDevicesActor::CDevice>>> &&_Devices)
-								{
-									TCActorResultMap<CStr, CDevice> DeviceInits;
-									for (auto &Device : _Devices)
-									{
-										auto &DevicePath = _Devices.fs_GetKey(Device);
-										if (!Device)
-										{
-											DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to open U2F USB device '{}': {}", DevicePath, Device.f_GetExceptionStr());
-											continue;
-										}
-
-										CDevice::fs_Init(*Device) > DeviceInits.f_AddResult(DevicePath);
-									}
-
-									DeviceInits.f_GetResults() > Promise / [=](TCMap<CStr, TCAsyncResult<CDevice>> &&_Devices)
-										{
-											for (auto &Device : _Devices)
-											{
-												auto &DevicePath = _Devices.fs_GetKey(Device);
-												if (!Device)
-												{
-													DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to init U2F USB device '{}': {}", DevicePath, Device.f_GetExceptionStr());
-													continue;
-												}
-
-												pDevices->m_Devices(DevicePath, fg_Move(*Device));
-											}
-											Promise.f_SetResult(pDevices);
-										}
-									;
-								}
-							;
-						}
-					;
+					auto &Usage = *UsageResult;
+					if (Usage.m_UsagePage == FIDO_USAGE_PAGE && Usage.m_Usage == FIDO_USAGE_U2FHID)
+					{
+						pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults.f_AddResult();
+						NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
+					}
 				}
-			;
-			return Promise.f_MoveFuture();
+
+				DeviceInfos = fg_Move(NewDeviceInfos);
+			}
+
+
+			TCActorResultVector<CDevice> DeviceInits;
+			{
+				auto OpenedDevices = co_await OpenDeviceResults.f_GetResults();
+				auto iDeviceInfo = DeviceInfos.f_GetIterator();
+
+				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
+
+				for (auto &Device : OpenedDevices)
+				{
+					auto &DeviceInfo = *iDeviceInfo;
+					++iDeviceInfo;
+
+					if (!Device)
+					{
+						DMibLogWithCategory(Malterlib/Concurrency/U2F, Error, "Failed to open U2F USB device '{}': {}", DeviceInfo.m_Path, Device.f_GetExceptionStr());
+						continue;
+					}
+
+					CDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits.f_AddResult();
+
+					NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
+				}
+
+				DeviceInfos = fg_Move(NewDeviceInfos);
+			}
+
+			{
+				auto InitializedDevices = co_await DeviceInits.f_GetResults();
+				auto iDeviceInfo = DeviceInfos.f_GetIterator();
+				for (auto &Device : InitializedDevices)
+				{
+					auto &DeviceInfo = *iDeviceInfo;
+					++iDeviceInfo;
+
+					if (!Device)
+					{
+						DMibLogWithCategory
+							(
+								Malterlib/Concurrency/U2F
+								, Error
+								, "Failed to init U2F USB device '{}': {}"
+								, DeviceInfo.m_Path
+								, Device.f_GetExceptionStr()
+							)
+						;
+						continue;
+					}
+
+					pDevices->m_Devices.f_Insert(fg_Move(*Device));
+				}
+			}
+
+			co_return fg_Move(pDevices);
 		}
 
 		TCActor<CActor> f_FileActor()
@@ -707,7 +733,7 @@ namespace
 		}
 
 		TCActor<CHumanInterfaceDevicesActor> m_HID = fg_HumanInterfaceDevicesActor();
-		TCMap<CStr, CDevice> m_Devices;
+		TCVector<CDevice> m_Devices;
 		TCActor<CSeparateThreadActor> m_FileActor;
 	};
 
@@ -771,10 +797,8 @@ namespace
 			}
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> const &_Data, TCFunction<void ()> const &_fPrompt)
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
 		{
-			co_await ECoroutineFlag_AllowReferences;
-
 			auto Data = _Data;
 			auto fPrompt = _fPrompt;
 
@@ -1157,6 +1181,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 	using namespace NContainer;
+	using namespace NStorage;
 
 	class CDistributedActorTrustManagerAuthenticationActorU2F : public ICDistributedActorTrustManagerAuthenticationActor
 	{
@@ -1198,7 +1223,7 @@ namespace NMib::NConcurrency
 		)
 	{
 		TCPromise<CAuthenticationData> Promise;
-		CU2FContext U2FContext;
+		NPrivate::CU2FContext U2FContext;
 		U2FContext.f_Register
 			(
 			 	[=]
@@ -1211,7 +1236,7 @@ namespace NMib::NConcurrency
 					;
 				}
 			)
-			> Promise / [Promise](CU2FContext::CRegistrationResult &&_Result)
+			> Promise / [Promise](NPrivate::CU2FContext::CRegistrationResult &&_Result)
 			{
 				CAuthenticationData Result;
 				Result.m_Category = EAuthenticationFactorCategory_Possession;
@@ -1248,12 +1273,12 @@ namespace NMib::NConcurrency
 		// If there are multiple keys plugged in to the computer they will all be tested "in parallel", SendAPDU will query all available keys at the same time, but we will
 		// only get a valid reply from the key matching the keyhandle in the factor. If we have multiple registered factors we will have to test them one at a time, if we
 		// don't start with the correct one we will have to wait until the SendAPDU query times out :(
-		TCVector<CU2FContext> U2FContexts;
+		TCVector<NPrivate::CU2FContext> U2FContexts;
 
 		for (auto const &Factor : _Factors)
-			U2FContexts.f_Insert(CU2FContext(Factor, SignatureBytes, _Factors.fs_GetKey(Factor)));
+			U2FContexts.f_Insert(NPrivate::CU2FContext(Factor, SignatureBytes, _Factors.fs_GetKey(Factor)));
 
-		CU2FContext::fs_Authenticate
+		NPrivate::CU2FContext::fs_Authenticate
 			(
 			 	U2FContexts
 			 	, [=]
@@ -1266,7 +1291,7 @@ namespace NMib::NConcurrency
 					;
 				}
 			)
-			> Promise / [Promise, _SignedProperties, _pCommandLine](CU2FContext::CAuthenticationResponse &&_Response)
+			> Promise / [Promise, _SignedProperties, _pCommandLine](NPrivate::CU2FContext::CAuthenticationResponse &&_Response)
 			{
 				ICDistributedActorAuthenticationHandler::CResponse Response;
 
@@ -1296,15 +1321,15 @@ namespace NMib::NConcurrency
 		if (!pValue || !pValue->f_IsBinary())
 			return Promise <<= CVerifyAuthenticationReturn{};
 
-		CU2FContext::CAuthenticationResponse AuthenticationResponse;
+		NPrivate::CU2FContext::CAuthenticationResponse AuthenticationResponse;
 		AuthenticationResponse.m_Signature = _Response.m_Signature;
 		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
 		return Promise <<= g_ConcurrentDispatch / [=]
 			{
 				TCPromise<CVerifyAuthenticationReturn> Promise;
-				CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
-				U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse) > Promise / [Promise, _AuthenticationData](CU2FContext::CAuthenticationResult &&_Result)
+				NPrivate::CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
+				U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse) > Promise / [Promise, _AuthenticationData](NPrivate::CU2FContext::CAuthenticationResult &&_Result)
 					{
 						// Should we care about the counter?
 						CVerifyAuthenticationReturn Return;

@@ -211,7 +211,7 @@ namespace NMib::NConcurrency
 			for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
 				NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
 
-			f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData))
+			self(&CDistributedActorTrustManager::f_SetUserAuthenticationFactor, _Challenge.m_UserID, FactorID, fg_Move(NewData))
 				> fg_LogError("Mib/Concurrency/Trust", "Failed to update authentication factor after verifying responses for user '{}'"_f << _Challenge.m_UserID)
 			;
 		}

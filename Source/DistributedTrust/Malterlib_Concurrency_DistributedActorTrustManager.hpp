@@ -120,36 +120,39 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(TCActor<CActor> &&_Actor)
+	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion, TCActor<CActor> &&_Actor)
 	{
-		return this->template fp_GetAsActor<CDistributedActorTrustManager>()
+		return this->template fp_GetAsActor<CDistributedActorTrustManager>().f_CallByValue<&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>>
 			(
-				&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>
-				, tf_CActor::mc_pDefaultNamespace
+				tf_CActor::mc_pDefaultNamespace
 				, fg_Move(_Actor)
+				, _MinSupportedVersion
+				, _MaxSupportedVersion
 			)
 		;
 	}
 
-	template <typename t_CActor>
-	TCFuture<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
+	template <typename tf_CActor>
+	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
+			, uint32 _MinSupportedVersion
+			, uint32 _MaxSupportedVersion
 		)
 	{
-		return f_SubscribeTrustedActorsWithVersion<t_CActor>(_Namespace, _Actor, fg_SubscribeVersions<t_CActor>());
+		return f_SubscribeTrustedActorsWithVersion<tf_CActor>(_Namespace, _Actor, fg_SubscribeVersions<tf_CActor>(_MinSupportedVersion, _MaxSupportedVersion));
 	}
 
-	template <typename t_CActor>
-	TCFuture<TCTrustedActorSubscription<t_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
+	template <typename tf_CActor>
+	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
 		 	, CDistributedActorProtocolVersions const &_Versions
 		)
 	{
-		TCPromise<TCTrustedActorSubscription<t_CActor>> Promise;
+		TCPromise<TCTrustedActorSubscription<tf_CActor>> Promise;
 
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			return Promise <<= DMibErrorInstance("Invalid namespace name");
@@ -157,18 +160,18 @@ namespace NMib::NConcurrency
 		if (!_Actor)
 			return Promise <<= DMibErrorInstance("Invalid destination actor");
 
-		NStorage::TCSharedPointer<typename TCTrustedActorSubscription<t_CActor>::CState> pState = fg_Construct();
+		NStorage::TCSharedPointer<typename TCTrustedActorSubscription<tf_CActor>::CState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;
 		State.m_TrustManager = fg_ThisActor(this);
-		State.m_TypeHash = DMibConstantTypeHash(t_CActor);
+		State.m_TypeHash = DMibConstantTypeHash(tf_CActor);
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
 
 		self(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState)
 			> Promise / [pState, Promise](NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 			{
-				TCTrustedActorSubscription<t_CActor> Result;
+				TCTrustedActorSubscription<tf_CActor> Result;
 				Result.mp_pState = pState;
 				pState->m_pSubscription = &Result;
 				for (auto &Actor : _Actors)
@@ -176,7 +179,7 @@ namespace NMib::NConcurrency
 					auto &TrustedActor = Result.m_Actors[Actor.f_GetIdentifier()];
 					TrustedActor.m_TrustInfo = Actor.m_TrustInfo;
 					TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
-					TrustedActor.m_Actor = (TCDistributedActor<t_CActor> &)Actor.m_Actor;
+					TrustedActor.m_Actor = (TCDistributedActor<tf_CActor> &)Actor.m_Actor;
 				}
 				Promise.f_SetResult(fg_Move(Result));
 			}

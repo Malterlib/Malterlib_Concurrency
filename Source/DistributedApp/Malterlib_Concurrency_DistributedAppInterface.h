@@ -18,8 +18,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EProtocolVersion_Min = 0x101
+			, EProtocolVersion_Current = 0x101
 		};
 
 		CDistributedAppInterfaceBackup();
@@ -34,8 +34,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x103
+			EProtocolVersion_Min = 0x102
+			, EProtocolVersion_Current = 0x103
 		};
 
 		CDistributedAppInterfaceClient();
@@ -59,8 +59,8 @@ namespace NMib::NConcurrency
 
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x104
+			EProtocolVersion_Min = 0x102
+			, EProtocolVersion_Current = 0x104
 		};
 
 		struct CRegisterInfo

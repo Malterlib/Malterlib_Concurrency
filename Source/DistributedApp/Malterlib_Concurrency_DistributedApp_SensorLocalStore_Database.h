@@ -7,7 +7,7 @@
 #pragma once
 namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 {
-	static constexpr uint32 gc_Version = CDistributedAppSensorReporter::EProtocolVersion;
+	static constexpr uint32 gc_Version = CDistributedAppSensorReporter::EProtocolVersion_Current;
 
 	struct CSensorKey
 	{

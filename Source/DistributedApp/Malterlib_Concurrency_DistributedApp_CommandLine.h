@@ -21,8 +21,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x105
-			, EProtocolVersion = 0x105
+			EProtocolVersion_Min = 0x105
+			, EProtocolVersion_Current = 0x105
 		};
 
 		ICCommandLineControl();
@@ -92,8 +92,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x103
-			, EProtocolVersion = 0x103
+			EProtocolVersion_Min = 0x103
+			, EProtocolVersion_Current = 0x103
 		};
 
 		ICCommandLine();

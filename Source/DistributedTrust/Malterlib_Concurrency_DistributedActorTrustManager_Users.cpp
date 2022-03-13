@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 		try
 		{
 			NStream::CBinaryStreamMemory<> Stream;
-			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion;
+			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion_Current;
 			DMibBinaryStreamVersion(Stream, Version);
 			Stream << Version;
 			Stream << _UserID;
@@ -243,7 +243,7 @@ namespace NMib::NConcurrency
 
 			uint32 Version;
 			Stream >> Version;
-			if (Version > CDistributedActorTrustManagerInterface::EProtocolVersion)
+			if (Version > CDistributedActorTrustManagerInterface::EProtocolVersion_Current)
 				DMibError("Unsupported export version 0x{nfh}"_f << Version);
 
 			DMibBinaryStreamVersion(Stream, Version);

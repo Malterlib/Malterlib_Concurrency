@@ -233,7 +233,7 @@ namespace NMib::NConcurrency
 		;
 
 		template <typename tf_CActor>
-		auto f_SubscribeTrustedActors(TCActor<CActor> &&_Actor = fg_CurrentActor());
+		auto f_SubscribeTrustedActors(uint32 _MinSupportedVersion = 0, uint32 _MaxSupportedVersion = TCLimitsInt<uint32>::mc_Max, TCActor<CActor> &&_Actor = fg_CurrentActor());
 	};
 
 	class CDistributedActorTrustManager : public NConcurrency::CActor
@@ -350,7 +350,14 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AllowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		TCFuture<void> f_DisallowHostsForNamespace(NStr::CStr const &_Namespace, NContainer::TCSet<NStr::CStr> const &_Hosts, EDistributedActorTrustManagerOrderingFlag _OrderingFlags);
 		template <typename tf_CActor>
-		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors(NStr::CStr const &_Namespace, TCActor<CActor> const &_Actor);
+		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActors
+			(
+				NStr::CStr const &_Namespace
+				, TCActor<CActor> const &_Actor
+				, uint32 _MinSupportedVersion
+				, uint32 _MaxSupportedVersion
+			)
+		;
 		template <typename tf_CActor>
 		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActorsWithVersion
 			(

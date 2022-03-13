@@ -817,6 +817,8 @@ namespace NMib::NConcurrency
 					case NLog::ESeverity_Error:
 					case NLog::ESeverity_Perf_Error:
 						return mp_AnsiEncoding.f_StatusError();
+					case NLog::ESeverity_All:
+						DMibNeverGetHere;
 					}
 
 					return mp_AnsiEncoding.f_Default();

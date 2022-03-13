@@ -315,7 +315,7 @@ namespace NMib::NConcurrency
 			{
 				[&]
 				{
-					CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EMinProtocolVersion, tfp_CInterface::EProtocolVersion};
+					CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EProtocolVersion_Min, tfp_CInterface::EProtocolVersion_Current};
 					if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
 						Versions = ThisVersions;
 #if DMibEnableSafeCheck > 0
@@ -577,7 +577,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CType>
 	TCDistributedActor<tf_CType> CAbstractDistributedActor::f_GetActor() const
 	{
-		auto Actor = f_GetActor(DMibConstantTypeHash(tf_CType), CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion});
+		auto Actor = f_GetActor(DMibConstantTypeHash(tf_CType), CDistributedActorProtocolVersions{tf_CType::EProtocolVersion_Min, tf_CType::EProtocolVersion_Current});
 		return fg_StaticCast<TCDistributedActorWrapper<tf_CType>>(fg_Move(Actor));
 	}
 
@@ -613,9 +613,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CType>
-	CDistributedActorProtocolVersions fg_SubscribeVersions()
+	CDistributedActorProtocolVersions fg_SubscribeVersions(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion)
 	{
-		return CDistributedActorProtocolVersions{tf_CType::EMinProtocolVersion, tf_CType::EProtocolVersion};
+		return CDistributedActorProtocolVersions{fg_Max(uint32(tf_CType::EProtocolVersion_Min), _MinSupportedVersion), fg_Min(uint32(tf_CType::EProtocolVersion_Current), _MaxSupportedVersion)};
 	}
 
 	template <typename t_CActor>

@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
 		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
-		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this))
+		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this), 0, TCLimitsInt<uint32>::mc_Max)
 			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
 			{
 				struct CSubscriptionImpl : CSubscription

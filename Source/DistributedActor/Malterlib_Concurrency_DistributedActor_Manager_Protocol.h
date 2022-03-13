@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion = 0x106
+			EProtocolVersion_Current = 0x106
 		};
 
 		template <typename tf_CStream>
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 
-		uint32 m_ProtocolVersion = EProtocolVersion;
+		uint32 m_ProtocolVersion = EProtocolVersion_Current;
 		NStr::CStr m_ExecutionID;
 		NStr::CStr m_LastSeenExecutionID;
 		NContainer::TCVector<uint64> m_MissingPacketIDs;

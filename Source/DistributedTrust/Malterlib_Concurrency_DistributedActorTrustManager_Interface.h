@@ -18,8 +18,8 @@ namespace NMib::NConcurrency
 	public:
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x102
-			, EProtocolVersion = 0x107
+			EProtocolVersion_Min = 0x102
+			, EProtocolVersion_Current = 0x107
 		};
 	  
 		struct CTrustTicket

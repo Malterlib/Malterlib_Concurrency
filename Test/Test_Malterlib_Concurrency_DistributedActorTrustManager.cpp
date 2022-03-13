@@ -164,8 +164,8 @@ namespace NTestTrustManager
 		{
 			enum : uint32
 			{
-				EMinProtocolVersion = 0x101
-				, EProtocolVersion = 0x101
+				EProtocolVersion_Min = 0x101
+				, EProtocolVersion_Current = 0x101
 			};
 
 			CTestActor()
@@ -187,8 +187,8 @@ namespace NTestTrustManager
 		{
 			enum : uint32
 			{
-				EMinProtocolVersion = 0x101
-				, EProtocolVersion = 0x101
+				EProtocolVersion_Min = 0x101
+				, EProtocolVersion_Current = 0x101
 			};
 
 			CTestActor2()
@@ -205,8 +205,8 @@ namespace NTestTrustManager
 		{
 			enum : uint32
 			{
-				EMinProtocolVersion = 0x101
-				, EProtocolVersion = 0x101
+				EProtocolVersion_Min = 0x101
+				, EProtocolVersion_Current = 0x101
 			};
 
 			CTestActor3()
@@ -1329,7 +1329,16 @@ namespace NTestTrustManager
 
 					auto fSubscribeTrusted = [&](CStr const &_Namespace)
 						{
-							auto Subscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, _Namespace, HelperActor).f_CallSync(pRunLoop, g_Timeout);
+							auto Subscription = ClientTrustManager
+								(
+									&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+									, _Namespace
+									, HelperActor
+									, 0
+									, TCLimitsInt<uint32>::mc_Max
+								)
+								.f_CallSync(pRunLoop, g_Timeout)
+							;
 						}
 					;
 
@@ -1356,7 +1365,16 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("General");
-					auto TrustedSubscription = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+					auto TrustedSubscription = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+							, "com.malterlib/Test"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						)
+						.f_CallSync(pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("Before publish");
 						DMibAssert(TrustedSubscription.m_Actors.f_GetLen(), ==, 0);
@@ -1460,8 +1478,25 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions).f_CallSync(pRunLoop, g_Timeout);
 
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
-					auto TrustedSubscription1 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+					auto TrustedSubscription0 = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+							, "com.malterlib/Test"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						)
+						.f_CallSync(pRunLoop, g_Timeout)
+					;
+					auto TrustedSubscription1 = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+							, "com.malterlib/Test"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						).f_CallSync(pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
@@ -1498,8 +1533,8 @@ namespace NTestTrustManager
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
 					auto Subscriptions =
 						(
-							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor)
-							+ ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor)
+							ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor, 0, TCLimitsInt<uint32>::mc_Max)
+							+ ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor, 0, TCLimitsInt<uint32>::mc_Max)
 						).f_CallSync()
 					;
 					auto &TrustedSubscription0 = fg_Get<0>(Subscriptions);
@@ -1517,7 +1552,16 @@ namespace NTestTrustManager
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions).f_CallSync(pRunLoop, g_Timeout);
 
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen());
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+					auto TrustedSubscription0 = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+							, "com.malterlib/Test"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						)
+						.f_CallSync(pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 2);
@@ -1528,7 +1572,16 @@ namespace NTestTrustManager
 
 					{
 						DMibTestPath("2 types");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+						auto TrustedSubscription2 = ClientTrustManager
+							(
+								&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>
+								, "com.malterlib/Test"
+								, HelperActor
+								, 0
+								, TCLimitsInt<uint32>::mc_Max
+							)
+							.f_CallSync(pRunLoop, g_Timeout)
+						;
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test");
 						DMibExpect(fWaitForSubscribed(TrustedSubscription2, 1), ==, 1);
 						ServerHelper.f_Unpublish(NewPublish2);
@@ -1537,7 +1590,16 @@ namespace NTestTrustManager
 					}
 					{
 						DMibTestPath("2 types no sub unpublish");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+						auto TrustedSubscription2 = ClientTrustManager
+							(
+								&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>
+								, "com.malterlib/Test"
+								, HelperActor
+								, 0
+								, TCLimitsInt<uint32>::mc_Max
+							)
+							.f_CallSync(pRunLoop, g_Timeout)
+						;
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test", Published.f_GetLen() + 1);
 						DMibExpectTrue(ClientHelper.f_GetRemoteActor<CTestActor2>(Subscription));
@@ -1557,8 +1619,26 @@ namespace NTestTrustManager
 					}
 					{
 						DMibTestPath("2 types not allowed");
-						auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test2", HelperActor).f_CallSync(pRunLoop, g_Timeout);
-						auto TrustedSubscription3 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test2", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+						auto TrustedSubscription2 = ClientTrustManager
+							(
+								&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>
+								, "com.malterlib/Test2"
+								, HelperActor
+								, 0
+								, TCLimitsInt<uint32>::mc_Max
+							)
+							.f_CallSync(pRunLoop, g_Timeout)
+						;
+						auto TrustedSubscription3 = ClientTrustManager
+							(
+								&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+								, "com.malterlib/Test2"
+								, HelperActor
+								, 0
+								, TCLimitsInt<uint32>::mc_Max
+							)
+							.f_CallSync(pRunLoop, g_Timeout)
+						;
 						CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test2");
 						CStr NewPublish3 = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test2");
 						CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test2", 2);
@@ -1611,7 +1691,16 @@ namespace NTestTrustManager
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts, c_WaitForSubscriptions).f_CallSync(pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test3", ServerHosts2, c_WaitForSubscriptions).f_CallSync(pRunLoop, g_Timeout);
-					auto TrustedSubscription2 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>, "com.malterlib/Test3", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+					auto TrustedSubscription2 = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor2>
+							, "com.malterlib/Test3"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						)
+						.f_CallSync(pRunLoop, g_Timeout)
+					;
 					CStr NewPublish2 = ServerHelper.f_Publish<CTestActor2>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test3");
 					CStr NewPublish3 = ServerHelper2.f_Publish<CTestActor2>(ServerHelper2.f_GetManager()->f_ConstructActor<CTestActor2>(), "com.malterlib/Test3");
 					CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test3", 2);
@@ -1638,7 +1727,16 @@ namespace NTestTrustManager
 							(
 								[&]
 								{
-									ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor) > fg_DiscardResult();
+									ClientTrustManager
+										(
+											&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+											, "com.malterlib/Test"
+											, HelperActor
+											, 0
+											, TCLimitsInt<uint32>::mc_Max
+										)
+										> fg_DiscardResult()
+									;
 								}
 							)
 							> Dispatches.f_AddResult();
@@ -1654,7 +1752,16 @@ namespace NTestTrustManager
 					NAtomic::TCAtomic<mint> nActors{0};
 					CStr Published = ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 					CStr Subscription0 = ClientHelper.f_Subscribe("com.malterlib/Test");
-					auto TrustedSubscription0 = ClientTrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>, "com.malterlib/Test", HelperActor).f_CallSync(pRunLoop, g_Timeout);
+					auto TrustedSubscription0 = ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
+							, "com.malterlib/Test"
+							, HelperActor
+							, 0
+							, TCLimitsInt<uint32>::mc_Max
+						)
+						.f_CallSync(pRunLoop, g_Timeout)
+					;
 					{
 						DMibTestPath("After subscribe");
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);

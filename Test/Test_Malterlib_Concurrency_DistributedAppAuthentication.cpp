@@ -99,8 +99,8 @@ namespace NTestAuthentication
 
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EProtocolVersion_Min = 0x101
+			, EProtocolVersion_Current = 0x101
 		};
 
 		CServerInterface()
@@ -282,8 +282,8 @@ namespace NTestAuthentication
 
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EProtocolVersion_Min = 0x101
+			, EProtocolVersion_Current = 0x101
 		};
 
 		CManyServerInterface()
@@ -515,8 +515,8 @@ namespace NTestAuthentication
 
 		enum : uint32
 		{
-			EMinProtocolVersion = 0x101
-			, EProtocolVersion = 0x101
+			EProtocolVersion_Min = 0x101
+			, EProtocolVersion_Current = 0x101
 		};
 
 		CSlowServerInterface()
@@ -670,24 +670,9 @@ namespace NTestAuthentication
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, m_DefaultUserID);
 			auto [Subscription, ManySubscription, SlowSubscription] = co_await
 				(
-					mp_State.m_TrustManager
-					(
-						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CServerInterface>
-						, CServerInterface::mc_pDefaultNamespace
-						, fg_ThisActor(this)
-					)
-					+ mp_State.m_TrustManager
-					(
-						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CManyServerInterface>
-						, CManyServerInterface::mc_pDefaultNamespace
-						, fg_ThisActor(this)
-					)
-					+ mp_State.m_TrustManager
-					(
-						&CDistributedActorTrustManager::f_SubscribeTrustedActors<CSlowServerInterface>
-						, CSlowServerInterface::mc_pDefaultNamespace
-						, fg_ThisActor(this)
-					)
+					mp_State.m_TrustManager->f_SubscribeTrustedActors<CServerInterface>()
+					+ mp_State.m_TrustManager->f_SubscribeTrustedActors<CManyServerInterface>()
+					+ mp_State.m_TrustManager->f_SubscribeTrustedActors<CSlowServerInterface>()
 				)
 			;
 

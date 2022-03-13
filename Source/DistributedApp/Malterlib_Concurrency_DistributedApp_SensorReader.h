@@ -61,8 +61,8 @@ namespace NMib::NConcurrency
 
 		enum : uint32
 		{
-			EMinProtocolVersion = CDistributedAppSensorReporter::EMinProtocolVersion
-			, EProtocolVersion = CDistributedAppSensorReporter::EProtocolVersion
+			EProtocolVersion_Min = CDistributedAppSensorReporter::EProtocolVersion_Min
+			, EProtocolVersion_Current = CDistributedAppSensorReporter::EProtocolVersion_Current
 		};
 
 		virtual TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize) = 0;

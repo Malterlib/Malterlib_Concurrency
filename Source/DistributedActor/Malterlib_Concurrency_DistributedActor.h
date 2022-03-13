@@ -274,7 +274,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename tf_CType>
-	CDistributedActorProtocolVersions fg_SubscribeVersions();
+	CDistributedActorProtocolVersions fg_SubscribeVersions(uint32 _MinSupportedVersion = 0, uint32 _MaxSupportedVersion = TCLimitsInt<uint32>::mc_Max);
 
 	struct CAbstractDistributedActor
 	{

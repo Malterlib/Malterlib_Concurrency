@@ -353,7 +353,38 @@ namespace NMib::NConcurrency
 						{
 							auto NewActor = TypeActor.m_AbstractActor.f_GetActor(TypeHash, pSubscription->m_ProtocolVersions);
 							if (!NewActor)
+							{
+								if (TypeActor.m_AbstractActor.f_GetTypeHashes().f_BinarySearch(TypeHash) < 0)
+								{
+									DMibLogWithCategory
+										(
+											Mib/Concurrency/Trust
+											, Warning
+											, "Encountered actor with type missing in type hierarchy in namespace '{}' from host '{}'"
+											, NamespaceName
+											, _NewActor.f_GetHostInfo().f_GetDesc()
+										)
+									;
+									continue;
+								}
+
+								uint32 Version;
+								if (!TypeActor.m_AbstractActor.f_GetProtocolVersions().f_HighestSupportedVersion(pSubscription->m_ProtocolVersions, Version))
+								{
+									DMibLogWithCategory
+										(
+											Mib/Concurrency/Trust
+											, Warning
+											, "Encountered actor with unsupported versions in namespace '{}' from host '{}'"
+											, NamespaceName
+											, _NewActor.f_GetHostInfo().f_GetDesc()
+										)
+									;
+									continue;
+								}
+
 								continue;
+							}
 							NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> AddedActors;
 							auto &TrustedActor = AddedActors[_NewActor.f_GetIdentifier()];
 							TrustedActor.m_TrustInfo = TrustInfo;

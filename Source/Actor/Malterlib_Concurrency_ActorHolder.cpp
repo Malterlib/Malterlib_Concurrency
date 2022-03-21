@@ -327,7 +327,8 @@ namespace NMib::NConcurrency
 				if (smint Expected = 0; ActorInternal.mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 				{
 #if DMibEnableSafeCheck > 0
-					ActorInternal.fp_GetActorRelaxed()->fp_CheckDestroy();
+					if (auto *pActor = ActorInternal.fp_GetActorRelaxed())
+						pActor->fp_CheckDestroy();
 #endif
 
 					ActorInternal.fp_DestroyActorHolder

@@ -64,8 +64,11 @@ namespace
 	class CConstructExceptionActor : public CActor
 	{
 	public:
+		TCActor<CConstructExceptionActor> m_SelfReference;
+
 		void fp_Construct() override
 		{
+			m_SelfReference = fg_ThisActor(this);
 			DMibError("Test error");
 		}
 	};

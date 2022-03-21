@@ -39,7 +39,17 @@ namespace NMib::NConcurrency
 	{
 		TCActorHolderSharedPointer<TCActorInternal<tf_CType>> pActor = fg_Construct(this, nullptr, fg_Forward<tfp_CHolderParams>(p_Params)...);
 
-		return f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
+		auto Cleanup = g_OnScopeExit / [&pActor]
+			{
+				TCActor<tf_CType>(fg_Move(pActor)).f_Destroy() > fg_DiscardResult();
+			}
+		;
+
+		auto pReturn = f_ConstructFromInternalActor<tf_CType>(fg_Move(pActor), fg_Move(_ConstructParams));
+
+		Cleanup.f_Clear();
+
+		return fg_Move(pReturn);
 	}
 
 	template <typename tf_CActor, typename... tfp_CParams>

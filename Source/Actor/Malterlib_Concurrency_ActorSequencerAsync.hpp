@@ -23,9 +23,8 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnType>
 	TCFuture<CActorSubscription> TCActorSequencerAsync<t_CReturnType>::f_Sequence()
+		requires (NTraits::TCIsSame<t_CReturnType, void>::mc_Value)
 	{
-		static_assert(NTraits::TCIsSame<t_CReturnType, void>::mc_Value);
-
 		TCPromise<CActorSubscription> Promise;
 
 		auto fQueueSequence = [pState = mp_pState, Promise]() mutable

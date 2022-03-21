@@ -11,7 +11,14 @@ namespace NMib::NConcurrency
 		struct CThisActor
 		{
 			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const;
+			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+				requires cActorCallableWith
+				<
+					tf_CMemberFunction
+					, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CClass
+					, tfp_CCallParams...
+				>
+			;
 
 			template <typename tf_FFunction>
 			auto operator / (tf_FFunction &&_fFunction) const;

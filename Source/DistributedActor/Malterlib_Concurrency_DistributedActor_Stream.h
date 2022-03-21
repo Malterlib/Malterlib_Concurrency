@@ -107,6 +107,7 @@ namespace NMib::NConcurrency
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	{
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}
@@ -120,6 +121,7 @@ namespace NMib::NConcurrency
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CInterface, tfp_CParams...>
 	{
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}

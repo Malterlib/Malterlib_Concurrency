@@ -97,16 +97,24 @@ namespace NMib::NConcurrency
 		inline_small explicit operator bool() const;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &;
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&;
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &;
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&;
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;

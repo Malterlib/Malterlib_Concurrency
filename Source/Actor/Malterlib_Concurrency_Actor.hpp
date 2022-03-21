@@ -376,21 +376,10 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -417,21 +406,10 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
+#if DMibEnableSafeCheck > 0
+		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -458,22 +436,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -500,22 +467,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallDirect(tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -542,23 +498,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -585,23 +529,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -633,22 +565,11 @@ namespace NMib::NConcurrency
 		, typename... tfp_CCallParams
 	>
 	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CCallParams && ...p_CallParams)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!_Actor.f_IsEmpty());
@@ -686,6 +607,7 @@ namespace NMib::NConcurrency
 		, typename... tfp_CCallParams
 	>
 	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_TempCopy(*this), fg_Forward<tfp_CCallParams>(p_CallParams)...);
 	}
@@ -698,6 +620,7 @@ namespace NMib::NConcurrency
 		, typename... tfp_CCallParams
 	>
 	auto TCActor<t_CActor>::f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(*this), fg_Forward<tfp_CCallParams>(p_CallParams)...);
 	}
@@ -705,23 +628,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -748,23 +659,11 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCActor<t_CActor>::f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#if DMibEnableSafeCheck > 0 || defined(DMibConcurrency_CheckFunctionCalls)
+#if DMibEnableSafeCheck > 0
 		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
-#endif
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename CMemberPointerTraits::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());

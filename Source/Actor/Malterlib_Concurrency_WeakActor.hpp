@@ -299,19 +299,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-#endif
 		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<
@@ -332,19 +321,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-#endif
 		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<
@@ -365,20 +343,9 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-#endif
 		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<
@@ -399,20 +366,9 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <auto tf_pMemberFunction, typename... tfp_CCallParams>
 	auto TCWeakActor<t_CActor>::f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
+		requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
-#ifdef DMibConcurrency_CheckFunctionCalls
-		static_assert
-			(
-				NTraits::TCIsCallableWith
-				<
-					typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>::CFunctionType>::CType
-					, void (tfp_CCallParams...)
-				>::mc_Value
-				, "Invalid params for function"
-			)
-		;
-#endif
 		DMibFastCheck(!f_IsEmpty());
 		return TCActorCall
 			<

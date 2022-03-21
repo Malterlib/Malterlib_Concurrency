@@ -13,6 +13,7 @@ namespace NMib::NConcurrency
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	{
 		constexpr static uint32 c_NameHash = ::NMib::fg_GetMemberFunctionHash<tf_pMemberFunction>(DMibIfNotSupportMemberNameFromMemberPointer(tf_NameHash));
 		using CMemberFunction = decltype(tf_pMemberFunction);

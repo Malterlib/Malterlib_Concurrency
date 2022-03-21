@@ -160,7 +160,9 @@ namespace NMib::NConcurrency
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params);
+	auto fg_CallActor(TCActor<TCDistributedActorWrapper<tf_CActor>> &&_Actor, tfp_CParams && ...p_Params)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
+	;
 
 	struct CActorDistributionCryptographyRemoteServer
 	{

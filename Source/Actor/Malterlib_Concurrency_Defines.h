@@ -10,7 +10,21 @@
 
 namespace NMib::NConcurrency
 {
-#	define DMibConcurrency_CheckFunctionCalls
+	/// Check if member function is callable with the specified parameters when called through the actor interface.
+	/// Implies that all arguments will be converted to rvalue references when called
+	template <typename t_CMemberFunction, typename t_CActor, typename... tp_CCallParams>
+	concept cActorCallableWith = NTraits::cIsCallableWith
+		<
+			typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CFunctionType>::CType
+			, void (typename NTraits::TCAddRValueReference<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CCallParams>::CType>::CType...)
+		>
+		&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CClass>
+	;
+
+	/// Check if functor is callable with the specified parameters when called through the actor interface.
+	/// Implies that all arguments will be converted to rvalue references when called
+	template <auto t_pMemberFunction, typename t_CActor, typename... tp_CCallParams>
+	concept cActorCallableWithFunctor = cActorCallableWith<decltype(t_pMemberFunction), t_CActor, tp_CCallParams...>;
 
 	/// Inherit from this class to allow unsafe this pointers in async calls
 	struct CAllowUnsafeThis
@@ -216,9 +230,14 @@ namespace NMib::NConcurrency
 		inline_small explicit operator bool() const;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &;
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+		;
+
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&;
+		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template
 		<
@@ -226,7 +245,9 @@ namespace NMib::NConcurrency
 			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 			, typename... tfp_CCallParams
 		>
-		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &;
+		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template
 		<
@@ -234,22 +255,36 @@ namespace NMib::NConcurrency
 			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
 			, typename... tfp_CCallParams
 		>
-		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&;
+		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const &;
+		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) &&;
+		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &;
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&;
+		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &;
+		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&;
+		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&
+			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		;
 
 		template <typename tf_FResult>
 		auto operator / (tf_FResult &&_fResult) const
@@ -272,7 +307,9 @@ namespace NMib::NConcurrency
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
-	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CParams && ...p_Params);
+	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CParams && ...p_Params)
+		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
+	;
 
 #	define f_CallActor(d_PointerToMemberFunction) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
 

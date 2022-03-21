@@ -32,20 +32,13 @@ namespace NMib::NConcurrency
 	{
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto CThisActor::operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
+			requires cActorCallableWith
+			<
+				tf_CMemberFunction
+				, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CClass
+				, tfp_CCallParams...
+			>
 		{
-#ifdef DMibConcurrency_CheckFunctionCalls
-			static_assert
-				(
-					NTraits::TCIsCallableWith
-					<
-						typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CFunctionType>::CType
-						, void (tfp_CCallParams...)
-					>::mc_Value
-					, "Invalid params for function"
-				)
-			;
-#endif
-
 			using CMemberFunction = typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType;
 			using CActorClass = typename NTraits::TCMemberFunctionPointerTraits<CMemberFunction>::CClass;
 
@@ -572,7 +565,9 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
-		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&;
+		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
+			requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CCalls::CReturnType> && ...)>::mc_Value) // Incorrect types in result call
+		;
 	};
 
 	namespace NPrivate
@@ -785,15 +780,8 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
+			requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<CReturnType> &&)>::mc_Value) // Incorrect type in result call
 		{
-#ifdef DMibConcurrency_CheckFunctionCalls
-			static_assert
-				(
-					NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<CReturnType> &&)>::mc_Value
-					, "Incorrect type in result call"
-				)
-			;
-#endif
 			DMibFastCheck(!mp_Actor.f_IsEmpty());
 			NPrivate::fg_CallActorInternal(*this, fg_Move(_ResultCall.mp_Actor), fg_Move(_ResultCall.mp_Functor));
 		}
@@ -1089,16 +1077,8 @@ namespace NMib::NConcurrency
 		, mint... tfp_Indices
 	>
 	void TCActorCallPack<tp_CCalls...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
+		requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CCalls::CReturnType> && ...)>::mc_Value) // Incorrect types in result call
 	{
-#ifdef DMibConcurrency_CheckFunctionCalls
-			static_assert
-				(
-					NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CCalls::CReturnType> && ...)>::mc_Value
-					, "Incorrect types in result call"
-				)
-			;
-#endif
-
 		typedef NMeta::TCTypeList
 			<
 				typename NPrivate::TCGetResultType<typename NPrivate::TCGetActorCallFunctionPointer<tp_CCalls>::CType>::CType...

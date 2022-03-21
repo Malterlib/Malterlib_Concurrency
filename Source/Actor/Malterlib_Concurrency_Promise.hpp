@@ -198,7 +198,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCPromise<t_CReturnValue>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<t_CReturnValue>>
+	auto TCPromise<t_CReturnValue>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>
 	{
 		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<t_CReturnValue>>{*this};
 	}

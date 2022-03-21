@@ -221,7 +221,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	TCFutureCoroutineKeepAlive<t_CReturnType>::TCFutureCoroutineKeepAlive(TCActor<> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
+	TCFutureCoroutineKeepAlive<t_CReturnType>::TCFutureCoroutineKeepAlive(TCActor<CActor> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
 		: mp_Actor(fg_Move(_Actor))
 		, mp_pPromiseData(fg_Move(_pPromiseData))
 	{
@@ -229,7 +229,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	TCFutureCoroutineKeepAlive<t_CReturnType>::TCFutureCoroutineKeepAlive(TCWeakActor<> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
+	TCFutureCoroutineKeepAlive<t_CReturnType>::TCFutureCoroutineKeepAlive(TCWeakActor<CActor> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData)
 		: mp_WeakActor(fg_Move(_Actor))
 		, mp_pPromiseData(fg_Move(_pPromiseData))
 	{

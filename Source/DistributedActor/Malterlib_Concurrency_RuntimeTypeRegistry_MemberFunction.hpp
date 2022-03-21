@@ -254,7 +254,7 @@ namespace NMib::NConcurrency::NPrivate
 		;
 	}
 
-
+#ifndef DDocumentation_Doxygen
 	template
 	<
 		auto t_pMemberFunction
@@ -447,6 +447,7 @@ namespace NMib::NConcurrency::NPrivate
 			)
 		;
 	}
+#endif
 
 	template
 	<

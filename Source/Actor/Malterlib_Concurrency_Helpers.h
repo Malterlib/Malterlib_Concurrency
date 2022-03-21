@@ -3,12 +3,10 @@
 
 #pragma once
 
+#include <Mib/Core/Core>
+
 namespace NMib::NConcurrency
 {
-	/*ﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯﾯ*\
-	|	Class:				A memory exception										|
-	\*_____________________________________________________________________________*/
-
 	DMibImpErrorClassDefine(CExceptionActorDeleted, NMib::NException::CException);
 #		define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NException::CExceptionActorDeleted, _Description)
 

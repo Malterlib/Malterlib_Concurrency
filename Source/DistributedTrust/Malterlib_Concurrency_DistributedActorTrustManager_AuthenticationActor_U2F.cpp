@@ -701,7 +701,6 @@ namespace NMib::NConcurrency::NPrivate
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 				for (auto &Device : InitializedDevices)
 				{
-					auto &DeviceInfo = *iDeviceInfo;
 					++iDeviceInfo;
 
 					if (!Device)
@@ -711,7 +710,7 @@ namespace NMib::NConcurrency::NPrivate
 								Malterlib/Concurrency/U2F
 								, Error
 								, "Failed to init U2F USB device '{}': {}"
-								, DeviceInfo.m_Path
+								, iDeviceInfo->m_Path
 								, Device.f_GetExceptionStr()
 							)
 						;

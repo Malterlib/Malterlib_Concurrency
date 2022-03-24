@@ -24,7 +24,10 @@ namespace NMib::NConcurrency
 		;
 
 		auto InitSequenceSubscription = co_await Internal.m_AppSensorStoreLocalInitSequencer.f_Sequence();
-		
+
+		if (Internal.m_AppSensorStoreLocal)
+			co_return Internal.m_AppSensorStoreLocal;
+
 		TCActor<CDistributedAppSensorStoreLocal> AppSensorStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
 		co_await AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_StartWithDatabasePath, mp_Settings.m_RootDirectory / ("SensorStore.{}"_f << mp_Settings.m_AppName));
 

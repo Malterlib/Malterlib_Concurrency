@@ -28,6 +28,9 @@ namespace NMib::NConcurrency
 		align_cacheline CConcurrentRunQueue::CLocalQueueData mp_RunQueueLocal;
 
 		NAtomic::TCAtomic<bool> mp_bPendingWake = false;
+#if DMibEnableSafeCheck > 0
+		bool mp_bProcessing = false;
+#endif
 
 #ifdef DPlatformFamily_OSX
 		CFRunLoopRef mp_RunLoopRef = nullptr;

@@ -11,6 +11,16 @@ namespace NMib::NConcurrency
 
 	void CDefaultRunLoop::f_Process()
 	{
+#if DMibEnableSafeCheck > 0
+		DMibFastCheck(!m_bProcessing); // Recursive processing is not safe
+		m_bProcessing = true;
+		auto Cleanup = g_OnScopeExit / [&]
+			{
+				m_bProcessing = false;
+			}
+		;
+#endif
+
 		bool bDoneSomething = true;
 		while (bDoneSomething)
 		{

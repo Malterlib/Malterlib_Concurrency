@@ -28,5 +28,8 @@ namespace NMib::NConcurrency
 		align_cacheline CConcurrentRunQueue m_RunQueue;
 		NThread::CEventAutoReset m_Event;
 		align_cacheline CConcurrentRunQueue::CLocalQueueData m_RunQueueLocal;
+#if DMibEnableSafeCheck > 0
+		bool m_bProcessing = false;
+#endif
 	};
 }

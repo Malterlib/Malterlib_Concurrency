@@ -991,6 +991,8 @@ namespace NMib::NConcurrency
 
 	extern CDispatchHelper const &g_Dispatch;
 
+	TCDispatchedActorCall<void> fg_Yield();
+
 	struct CConcurrentDispatchHelper
 	{
 		template <typename tf_FFunction>

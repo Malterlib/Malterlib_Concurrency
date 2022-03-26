@@ -195,6 +195,11 @@ namespace NMib::NConcurrency
 
 		return Return;
 	}
+
+	TCDispatchedActorCall<void> fg_Yield()
+	{
+		return g_Dispatch / []{};
+	}
 }
 
 

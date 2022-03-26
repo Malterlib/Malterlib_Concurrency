@@ -11,6 +11,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		m_pPreviousCoroutineHandler = ThreadLocal.m_pCurrentCoroutineHandler;
 		ThreadLocal.m_pCurrentCoroutineHandler = this;
+		m_Flags |= ThreadLocal.m_ExtraCoroutineFlags;
 	}
 
 	inline_always CFutureCoroutineContext::~CFutureCoroutineContext() noexcept

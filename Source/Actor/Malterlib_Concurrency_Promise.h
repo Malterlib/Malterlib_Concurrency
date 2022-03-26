@@ -542,6 +542,20 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnValue>> mp_pData;
 	};
 
+	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
+	struct TCFutureWithFlags : public TCFuture<t_CReturnValue>
+	{
+		TCFutureWithFlags(TCFuture<t_CReturnValue> &&_Other)
+			: TCFuture<t_CReturnValue>(fg_Move(_Other))
+		{
+		}
+	};
+
+	template <typename t_CReturnValue = void>
+	using TCUnsafeFuture = TCFutureWithFlags<t_CReturnValue, ECoroutineFlag_AllowReferences>;
+	
+	using CUnsafeFuture = TCUnsafeFuture<void>;
+
 	template <typename t_CReturnValue>
 	struct [[nodiscard]] TCPromise
 	{

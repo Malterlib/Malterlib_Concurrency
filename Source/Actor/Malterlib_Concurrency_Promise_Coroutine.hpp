@@ -571,4 +571,19 @@ namespace std::experimental
 		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContext<t_CReturnType>;
 #endif
 	};
+
+	template <typename t_CReturnType, NMib::NConcurrency::ECoroutineFlag t_Flags, typename ...tp_CParams>
+	struct coroutine_traits<NMib::NConcurrency::TCFutureWithFlags<t_CReturnType, t_Flags>, tp_CParams...>
+	{
+#if DMibEnableSafeCheck > 0
+		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags
+			<
+				t_CReturnType
+				, NMib::NConcurrency::ECoroutineFlag(NMib::NConcurrency::NPrivate::TCCoroutineContextFlagsFromParams<tp_CParams...>::mc_Value | t_Flags)
+			>
+		;
+#else
+		using promise_type = NMib::NConcurrency::NPrivate::TCFutureCoroutineContextWithFlags<t_CReturnType, t_Flags>;
+#endif
+	};
 }

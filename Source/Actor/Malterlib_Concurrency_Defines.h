@@ -12,6 +12,11 @@ namespace NMib::NConcurrency
 {
 #	define DMibConcurrency_CheckFunctionCalls
 
+	/// Inherit from this class to allow unsafe this pointers in async calls
+	struct CAllowUnsafeThis
+	{
+	};
+
 	struct CActor;
 	class CDefaultActorHolder;
 	template <typename t_CActor>

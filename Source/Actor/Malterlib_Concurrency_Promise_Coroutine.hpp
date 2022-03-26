@@ -497,6 +497,7 @@ namespace NMib::NConcurrency::NPrivate
 				(
 					NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActor>::mc_Value
 					|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActorInternal>::mc_Value
+					|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CAllowUnsafeThis>::mc_Value
 				)
 				? NMib::NConcurrency::ECoroutineFlag_None
 				: NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer

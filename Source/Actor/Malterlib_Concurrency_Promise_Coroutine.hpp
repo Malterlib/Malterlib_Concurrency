@@ -23,11 +23,6 @@ namespace NMib::NConcurrency
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 		}
 	}
-
-	inline_always auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
-	{
-		return {};
-	}
 }
 
 namespace NMib::NConcurrency::NPrivate

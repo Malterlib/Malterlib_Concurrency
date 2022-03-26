@@ -186,7 +186,11 @@ namespace NMib::NConcurrency
 		ThreadLocal.m_pCurrentCallingHostInfoScope = this;
 	}
 
-	NFunction::TCFunctionMovable<void ()> CCallingHostInfoScope::f_StoreState()
+	void CCallingHostInfoScope::f_InitialSuspend()
+	{
+	}
+
+	NFunction::TCFunctionMovable<void ()> CCallingHostInfoScope::f_StoreState(bool _bFromSuspend)
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		if (ThreadLocal.m_pCurrentCallingHostInfoScope != this)

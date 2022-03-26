@@ -19,6 +19,15 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
+	auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
+	{
+		auto &ThreadLocal = **g_SystemThreadLocal;
+		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
+			Scope.f_InitialSuspend();
+
+		return {};
+	}
+
 	CSuspendNever CFutureCoroutineContext::final_suspend() noexcept
 	{
 		if (m_pPreviousCoroutineHandler != this)
@@ -69,7 +78,7 @@ namespace NMib::NConcurrency
 
 		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
 		{
-			auto fRestoreScope = Scope.f_StoreState();
+			auto fRestoreScope = Scope.f_StoreState(true);
 			if (fRestoreScope)
 				m_RestoreScopes.f_Insert(fg_Move(fRestoreScope));
 		}

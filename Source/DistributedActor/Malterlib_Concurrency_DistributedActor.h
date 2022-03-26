@@ -539,7 +539,8 @@ namespace NMib::NConcurrency
 		~CCallingHostInfoScope();
 		void f_Suspend() override;
 		void f_Resume() override;
-		NFunction::TCFunctionMovable<void ()> f_StoreState() override;
+		NFunction::TCFunctionMovable<void ()> f_StoreState(bool _bFromSuspend) override;
+		void f_InitialSuspend() override;
 
 	private:
 		CCallingHostInfo mp_NewInfo;

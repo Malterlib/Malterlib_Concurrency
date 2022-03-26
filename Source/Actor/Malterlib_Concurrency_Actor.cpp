@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
 		{
-			auto State = Scope.f_StoreState();
+			auto State = Scope.f_StoreState(false);
 			if (State)
 				m_RestoreStates.f_Insert(fg_Move(State));
 		}

@@ -139,15 +139,16 @@ namespace NMib::NConcurrency
 			noexcept
 #endif
 		;
-		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_Resume(bool &o_bAborted);
+		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_Resume(bool &o_bAborted, bool _bException);
 		virtual void f_Abort() = 0;
 		virtual void f_ResumeException() = 0;
+		virtual bool f_IsException() = 0;
 
 		CCoroutineHandler *m_pPreviousCoroutineHandler = this;
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
-		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> m_RestoreScopes;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> m_RestoreScopes;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;
@@ -244,6 +245,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCFutureCoroutineKeepAliveImplicit<t_CReturnType> f_KeepAliveImplicit();
 		void f_Abort() override;
 		void f_ResumeException() override;
+		bool f_IsException() override;
 
 		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();
 		void unhandled_exception();
@@ -553,7 +555,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue = void>
 	using TCUnsafeFuture = TCFutureWithFlags<t_CReturnValue, ECoroutineFlag_AllowReferences>;
-	
+
 	using CUnsafeFuture = TCUnsafeFuture<void>;
 
 	template <typename t_CReturnValue>

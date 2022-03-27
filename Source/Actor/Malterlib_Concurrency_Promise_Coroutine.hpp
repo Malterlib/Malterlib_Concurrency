@@ -292,6 +292,12 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
+	bool TCFutureCoroutineContextShared<t_CReturnType>::f_IsException()
+	{
+		return !m_pPromiseData->m_Result;
+	}
+
+	template <typename t_CReturnType>
 	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException()
 	{
 		NException::CDisableExceptionFilterScope DisableExceptionFilter;
@@ -366,7 +372,7 @@ namespace NMib::NConcurrency
 										mp_Result = fg_Move(Result);
 										CCurrentActorScope CurrentActorScope(Actor);
 										bool bAborted = false;
-										auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+										auto RestoreStates = CoroutineContext.f_Resume(bAborted, !mp_Result);
 										if (!bAborted)
 											_Handle.resume();
 									}

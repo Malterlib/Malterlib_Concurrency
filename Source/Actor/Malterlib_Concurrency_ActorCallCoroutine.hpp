@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 
 					auto &CoroutineContext = _Handle.promise();
 					bool bAborted = false;
-					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted, !mp_Result);
 					if (!bAborted)
 						_Handle.resume();
 				}
@@ -211,6 +211,26 @@ namespace NMib::NConcurrency
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
 	template <mint... tfp_Indices>
+	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_HasException(NMeta::TCIndices<tfp_Indices...>)
+	{
+		bool bSuccess = true;
+		TCInitializerList<bool> Dummy =
+			{
+				[&]
+				{
+					if (!fg_Get<tfp_Indices>(mp_Results))
+						bSuccess = false;
+					return false;
+				}
+				()...
+			}
+		;
+		(void)Dummy;
+		return !bSuccess;
+	}
+
+	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
+	template <mint... tfp_Indices>
 	void TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>)
 	{
 		TCInitializerList<bool> Dummy =
@@ -264,7 +284,7 @@ namespace NMib::NConcurrency
 
 					auto &CoroutineContext = _Handle.promise();
 					bool bAborted = false;
-					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted, fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()));
 					if (!bAborted)
 						_Handle.resume();
 				}

@@ -207,7 +207,7 @@ namespace NMib::NConcurrency::NPrivate
 		 #endif
 							auto &CoroutineContext = CoroutineHandle.promise();
 							bool bAborted = false;
-							auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+							auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
 							if (!bAborted)
 								CoroutineHandle.resume();
 						}

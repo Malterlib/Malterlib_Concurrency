@@ -999,7 +999,7 @@ namespace NMib::NConcurrency
 						CoroutineContext.f_SetOwner(ProcessingActor.f_Weak());
 #endif
 						bool bAborted = false;
-						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
 						if (!bAborted)
 							_Handle.resume();
 					}

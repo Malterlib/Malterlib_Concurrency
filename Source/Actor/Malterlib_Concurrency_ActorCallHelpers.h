@@ -423,6 +423,9 @@ namespace NMib::NConcurrency
 		bool fp_Unwrap(CUnwrappedType &o_Results, NStr::CStr &o_Errors, NContainer::TCVector<NException::CExceptionPointer> &o_Exceptions, NMeta::TCIndices<tfp_Indices...>);
 
 		template <mint... tfp_Indices>
+		bool fp_HasException(NMeta::TCIndices<tfp_Indices...>);
+
+		template <mint... tfp_Indices>
 		void fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>);
 
 		bool await_ready() const noexcept;
@@ -1129,9 +1132,9 @@ namespace NMib::NConcurrency
 		CReportLocalState();
 		~CReportLocalState();
 		void f_StoreCallStates();
-		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_RestoreCallStates();
+		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_RestoreCallStates();
 
-		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> m_RestoreStates;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> m_RestoreStates;
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks m_Callstacks;
 #endif

@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CFutureCoroutineContext::f_Resume(bool &o_bAborted)
+	NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> CFutureCoroutineContext::f_Resume(bool &o_bAborted, bool _bException)
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 			auto RestoreScopes = fg_Move(m_RestoreScopes);
 
 			for (auto &fRestoreScope : RestoreScopes)
-				fRestoreScope();
+				fRestoreScope(_bException);
 
 			return RestoreScopes;
 		}

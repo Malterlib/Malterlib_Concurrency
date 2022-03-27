@@ -130,9 +130,9 @@ namespace NMib::NConcurrency
 		return Promise <<= fg_Move(Result);
 	}
 
-	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCFuture<TCActor<CDevice>>
+	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
-		TCPromise<TCActor<CDevice>> Promise;
+		TCPromise<TCActor<CHumanInterfaceDeviceActor>> Promise;
 		if (!fp_CheckInit(Promise))
 			return Promise.f_MoveFuture();
 
@@ -141,13 +141,13 @@ namespace NMib::NConcurrency
 		if (!pDevice)
 			return Promise <<= DMibErrorInstanceHID("hid_open error");
 
-		TCActor<CDevice> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
+		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
 		return Promise <<= fg_Move(DeviceActor);
 	}
 
-	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCFuture<TCActor<CDevice>>
+	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
-		TCPromise<TCActor<CDevice>> Promise;
+		TCPromise<TCActor<CHumanInterfaceDeviceActor>> Promise;
 		if (!fp_CheckInit(Promise))
 			return Promise.f_MoveFuture();
 
@@ -155,24 +155,24 @@ namespace NMib::NConcurrency
 		if (!pDevice)
 			return Promise <<= DMibErrorInstanceHID("hid_open error");
 
-		TCActor<CDevice> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
+		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
 		return Promise <<= fg_Move(DeviceActor);
 	}
 
-	CHumanInterfaceDevicesActor::CDevice::CDevice(hid_device *_Device)
+	CHumanInterfaceDeviceActor::CHumanInterfaceDeviceActor(hid_device *_Device)
 		: m_pDevice(_Device)
 	{
 	}
 
 
-	CHumanInterfaceDevicesActor::CDevice::~CDevice()
+	CHumanInterfaceDeviceActor::~CHumanInterfaceDeviceActor()
 	{
 		if (m_pDevice)
 			hid_close(m_pDevice);
 		m_pDevice = nullptr;
 	}
 
-	TCFuture<aint> CHumanInterfaceDevicesActor::CDevice::f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
+	TCFuture<aint> CHumanInterfaceDeviceActor::f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_write(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 		co_return nBytes;
 	}
 
-	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_Read(size_t _Length)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDeviceActor::f_Read(size_t _Length)
 	{
 		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read(m_pDevice, Buffer.f_GetArray(_Length), _Length);
@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 		co_return Buffer;
 	}
 
-	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDeviceActor::f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds)
 	{
 		NContainer::CSecureByteVector Buffer;
 		int nBytes = hid_read_timeout(m_pDevice, Buffer.f_GetArray(_Length), _Length, _TimeoutMilliseconds);
@@ -203,7 +203,7 @@ namespace NMib::NConcurrency
 		co_return Buffer;
 	}
 
-	TCFuture<void> CHumanInterfaceDevicesActor::CDevice::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
+	TCFuture<void> CHumanInterfaceDeviceActor::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_send_feature_report(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDevicesActor::CDevice::f_GetFeatureReport(uint8 _ReportID)
+	TCFuture<NContainer::CSecureByteVector> CHumanInterfaceDeviceActor::f_GetFeatureReport(uint8 _ReportID)
 	{
 		NContainer::CSecureByteVector Buffer;
 		Buffer.f_SetLen(1024);
@@ -227,7 +227,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Buffer);
 	}
 
-	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetManufacturerString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDeviceActor::f_GetManufacturerString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_manufacturer_string(m_pDevice, Buffer, 1024);
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 		co_return fg_FromHidAPIStr(Buffer);
 	}
 
-	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetProductString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDeviceActor::f_GetProductString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_product_string(m_pDevice, Buffer, 1024);
@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 		co_return fg_FromHidAPIStr(Buffer);
 	}
 
-	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetSerialNumberString() const
+	TCFuture<NStr::CStr> CHumanInterfaceDeviceActor::f_GetSerialNumberString() const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_serial_number_string(m_pDevice, Buffer, 1024);
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 		co_return fg_FromHidAPIStr(Buffer);
 	}
 
-	TCFuture<NStr::CStr> CHumanInterfaceDevicesActor::CDevice::f_GetIndexedString(aint _StringIndex) const
+	TCFuture<NStr::CStr> CHumanInterfaceDeviceActor::f_GetIndexedString(aint _StringIndex) const
 	{
 		wchar_t Buffer[1024];
 		int Result = hid_get_indexed_string(m_pDevice, _StringIndex, Buffer, 1024);
@@ -263,7 +263,7 @@ namespace NMib::NConcurrency
 		co_return fg_FromHidAPIStr(Buffer);
 	}
 
-	NStr::CStr CHumanInterfaceDevicesActor::CDevice::fp_Error(NStr::CStr const &_Description) const
+	NStr::CStr CHumanInterfaceDeviceActor::fp_Error(NStr::CStr const &_Description) const
 	{
 		if (wchar_t const *pError = hid_error(m_pDevice))
 			return "{}: {}"_f << _Description << fg_FromHidAPIStr(pError);

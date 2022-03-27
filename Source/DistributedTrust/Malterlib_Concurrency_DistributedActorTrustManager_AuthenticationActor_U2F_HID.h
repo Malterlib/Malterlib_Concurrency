@@ -26,6 +26,31 @@ namespace NMib::NConcurrency
 #		define DErrorInstanceHID DMibErrorInstanceHID
 #	endif
 
+	struct CHumanInterfaceDeviceActor : public CActor
+	{
+		using CActorHolder = CDelegatedActorHolder;
+
+		CHumanInterfaceDeviceActor(hid_device *_Device);
+		~CHumanInterfaceDeviceActor();
+
+		TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+		TCFuture<NContainer::CSecureByteVector> f_Read(size_t _Length);
+		TCFuture<NContainer::CSecureByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
+
+		TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+		TCFuture<NContainer::CSecureByteVector> f_GetFeatureReport(uint8 _ReportID);
+
+		TCFuture<NStr::CStr> f_GetManufacturerString() const;
+		TCFuture<NStr::CStr> f_GetProductString() const;
+		TCFuture<NStr::CStr> f_GetSerialNumberString() const;
+		TCFuture<NStr::CStr> f_GetIndexedString(aint _StringIndex) const;
+
+	private:
+
+		NStr::CStr fp_Error(NStr::CStr const &_Description) const;
+		hid_device *m_pDevice = nullptr;
+	};
+
 	struct CHumanInterfaceDevicesActor : public CActor
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
@@ -49,37 +74,12 @@ namespace NMib::NConcurrency
 			aint m_InterfaceNumber;
 		};
 
-		struct CDevice : public CActor
-		{
-			using CActorHolder = CDelegatedActorHolder;
-
-			CDevice(hid_device *_Device);
-			~CDevice();
-
-			TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
-			TCFuture<NContainer::CSecureByteVector> f_Read(size_t _Length);
-			TCFuture<NContainer::CSecureByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
-
-			TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
-			TCFuture<NContainer::CSecureByteVector> f_GetFeatureReport(uint8 _ReportID);
-
-			TCFuture<NStr::CStr> f_GetManufacturerString() const;
-			TCFuture<NStr::CStr> f_GetProductString() const;
-			TCFuture<NStr::CStr> f_GetSerialNumberString() const;
-			TCFuture<NStr::CStr> f_GetIndexedString(aint _StringIndex) const;
-
-		private:
-
-			NStr::CStr fp_Error(NStr::CStr const &_Description) const;
-			hid_device *m_pDevice = nullptr;
-		};
-
 		CHumanInterfaceDevicesActor();
 		~CHumanInterfaceDevicesActor();
 
 		TCFuture<NContainer::TCVector<CDeviceInfo>> f_Enumerate(uint16 _VendorID, uint16 _ProductID);
-		TCFuture<TCActor<CDevice>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber = "");
-		TCFuture<TCActor<CDevice>> f_OpenPath(NStr::CStr const &_Path);
+		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber = "");
+		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_OpenPath(NStr::CStr const &_Path);
 
 	private:
 		template <typename tf_CReturn>

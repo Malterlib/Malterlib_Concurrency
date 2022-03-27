@@ -236,284 +236,204 @@ namespace NMib::NConcurrency::NPrivate
 		};
 	};
 
+	struct CU2FDevice : public CAllowUnsafeThis
+	{
+		CU2FDevice(TCActor<CHumanInterfaceDeviceActor> const &_Device, uint32 _ChannelID, CStr const &_Path)
+			: m_Device(_Device)
+			, m_ChannelID(_ChannelID)
+			, m_Path(_Path)
+		{
+		}
+		CU2FDevice(CU2FDevice &&) = default;
+		CU2FDevice(CU2FDevice const &) = default;
+		CU2FDevice &operator = (CU2FDevice &&) = default;
+		CU2FDevice &operator = (CU2FDevice const &) = default;
+
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CU2FDevice> fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
+		{
+			static mint const c_InitNonceSize = 8;
+
+			struct CInitResponse
+			{
+				uint8 m_Nonce[c_InitNonceSize];
+				uint32 m_ChannelID;
+				uint8 m_VersionInterface;
+				uint8 m_VersionMajor;
+				uint8 m_VersionMinor;
+				uint8 m_VersionBuild;
+				uint8 m_CapFlags;
+			};
+
+			CSecureByteVector Nonce;
+			NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
+
+			auto RawResponse = co_await fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device);
+
+			if (RawResponse.f_GetLen() != (c_InitNonceSize + 4 + 5))
+				co_return DMibErrorInstance("Invalid U2FHID_INIT response length");
+
+			CInitResponse Resonse;
+			NMemory::fg_MemCopy(&Resonse, RawResponse.f_GetArray(), c_InitNonceSize + 4 + 5);
+			if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
+				co_return DMibErrorInstance("U2FHID_INIT response contains invalid nounce");
+
+			co_return CU2FDevice{_Device, Resonse.m_ChannelID, _Path};
+		}
+
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
+		{
+			constexpr static mint c_HIDTimeout = 2;
+			constexpr static mint c_HIDMaxTimeout = 4096;
+			mint Timeout = c_HIDTimeout;
+
+			while (true)
+			{
+				auto Result = co_await _Device(&CHumanInterfaceDeviceActor::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, Timeout);
+
+				if (!Result.f_IsEmpty())
+				{
+					CFrame Frame;
+					if (Result.f_GetLen() != sizeof(Frame))
+						co_return DMibErrorInstance("U2F transport error: Frame size wrong");
+
+					NMemory::fg_MemCopy((uint8 *)&Frame, Result.f_GetArray(), sizeof(Frame));
+
+					co_return fg_Move(Frame);
+				}
+
+				Timeout *= 2;
+
+				if (Timeout > c_HIDMaxTimeout)
+					break;
+			}
+
+			co_return DMibErrorInstance("U2F transport error: Timed out reading");
+		}
+
+		TCFuture<CSecureByteVector> f_SendReceive(uint8_t _Command, CSecureByteVector _Send) const
+		{
+			co_return co_await fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
+		}
+
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector _Send, uint32 _ChannelID, TCActor<CHumanInterfaceDeviceActor> _Device)
+		{
+			{
+				uint8 Sequence = 0;
+				mint SendLength = _Send.f_GetLen();
+				uint8 const *pSendData = _Send.f_GetArray();
+				mint DataSent = 0;
+
+				while (DataSent < SendLength)
+				{
+					CFrame Frame;
+
+					if (DataSent == 0)
+						DataSent += Frame.f_SetInitial(_ChannelID, _Command, SendLength, pSendData, SendLength);
+					else
+						DataSent += Frame.f_SetContinuation(_ChannelID, Sequence++, pSendData + DataSent, SendLength - DataSent);
+
+					CSecureByteVector Data;
+					Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
+
+					auto BytesWritten = co_await _Device(&CHumanInterfaceDeviceActor::f_Write, 0, fg_Move(Data));
+					if (BytesWritten != sizeof(CFrame) + 1)
+						co_return DMibErrorInstance("Wrong number of bytes written for U2F frame");
+				}
+			}
+
+			{
+				CSecureByteVector Receive;
+				uint16 nReceived = 0;
+				uint16 DataLength = 0;
+				uint8 Sequence = 0;
+				bool bFirstFrame = true;
+				while (nReceived < DataLength || bFirstFrame)
+				{
+					auto Frame = co_await fs_ReadFrame(_Device);
+
+					if (Frame.m_ChannelID != _ChannelID)
+						co_return DMibErrorInstance("Invalid channel number reading from U2F device");
+
+					if (bFirstFrame)
+					{
+						if (Frame.m_InitialFrame.m_Command == U2FHID_ERROR)
+						{
+							CStr Error = "Unknown error";
+							uint16 DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
+							if (DataLength == 1)
+							{
+								switch (Frame.m_InitialFrame.m_Data[0])
+								{
+								case ERR_INVALID_CMD: Error = "Invalid command"; break;
+								case ERR_INVALID_PAR: Error = "Invalid parameter"; break;
+								case ERR_INVALID_LEN: Error = "Invalid message length"; break;
+								case ERR_INVALID_SEQ: Error = "Invalid message sequencing"; break;
+								case ERR_MSG_TIMEOUT: Error = "Message has timed out"; break;
+								case ERR_CHANNEL_BUSY: Error = "Channel busy"; break;
+								case ERR_LOCK_REQUIRED: Error = "Command requires channel lock"; break;
+								case ERR_INVALID_CID: Error = "Command not allowed on this cid"; break;
+								}
+							}
+
+							co_return DMibErrorInstance("Error response reading from U2F device: {}"_f << Error);
+						}
+
+						if (Frame.m_InitialFrame.m_Command != _Command)
+							co_return DMibErrorInstance("Invalid command reading from U2F device");
+
+						DataLength = Frame.m_InitialFrame.m_ByteCountHigh << 8 | Frame.m_InitialFrame.m_ByteCountLow;
+						auto Received = fg_Min(sizeof(Frame.m_InitialFrame.m_Data), mint(DataLength));
+						Receive.f_Insert(Frame.m_InitialFrame.m_Data, Received);
+						nReceived = Received;
+						bFirstFrame = false;
+					}
+					else
+					{
+						if (Frame.m_ContinuationFrame.m_SequenceNumber != Sequence++)
+							co_return DMibErrorInstance("Invalid sequence number when reading from U2F device");
+
+						auto Received = fg_Min(mint(nReceived) + sizeof(Frame.m_ContinuationFrame.m_Data), mint(DataLength)) - mint(nReceived);
+						Receive.f_Insert(Frame.m_ContinuationFrame.m_Data, Received);
+						nReceived += Received;
+					}
+
+				}
+				co_return fg_Move(Receive);
+			}
+		}
+
+		TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector _Data, uint8 _UserPresence) const
+		{
+			auto DataLength = _Data.f_GetLen();
+
+			CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
+			Buffer.f_Insert(_Data);
+			Buffer.f_Insert((uint8)0);
+			Buffer.f_Insert((uint8)0);
+
+			auto Response = co_await f_SendReceive(U2FHID_MSG, Buffer);
+
+			if (Response.f_GetLen() < 2)
+				co_return DMibErrorInstance("Response from U2F device too short");
+
+			if (Response.f_GetLen() > MAXDATASIZE)
+				co_return DMibErrorInstance("Response from U2F device too long");
+
+			co_return fg_Move(Response);
+		}
+
+		TCActor<CHumanInterfaceDeviceActor> m_Device;
+		CStr m_Path;
+		uint32 m_ChannelID;
+	};
+
 	// Class for handling the low level communication with the U2F device, one CFrame at the time
-	struct CU2FDevices
+	struct CU2FDevices : public CAllowUnsafeThis
 	{
 		struct CUsageResult
 		{
 			uint16 m_UsagePage;
 			uint16 m_Usage;
-		};
-
-		struct CDevice
-		{
-			CDevice(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device, uint32 _ChannelID, CStr const &_Path)
-				: m_Device(_Device)
-				, m_ChannelID(_ChannelID)
-				, m_Path(_Path)
-			{
-			}
-			CDevice(CDevice &&) = default;
-			CDevice(CDevice const &) = default;
-			CDevice &operator = (CDevice &&) = default;
-			CDevice &operator = (CDevice const &) = default;
-
-			static TCFuture<CDevice> fs_Init(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device, CStr const &_Path)
-			{
-				TCPromise<CDevice> Promise;
-
-				static mint const c_InitNonceSize = 8;
-
-				struct CInitResponse
-				{
-					uint8 m_Nonce[c_InitNonceSize];
-					uint32 m_ChannelID;
-					uint8 m_VersionInterface;
-					uint8 m_VersionMajor;
-					uint8 m_VersionMinor;
-					uint8 m_VersionBuild;
-					uint8 m_CapFlags;
-				};
-
-				CSecureByteVector Nonce;
-				NCryptography::fg_GenerateRandomData(Nonce.f_GetArray(c_InitNonceSize), c_InitNonceSize);
-
-				fs_SendReceive(U2FHID_INIT, Nonce, CID_BROADCAST, _Device) > Promise / [=](CSecureByteVector &&_Response)
-					{
-						if (_Response.f_GetLen() != (c_InitNonceSize + 4 + 5))
-							return Promise.f_SetException(DMibErrorInstance("Invalid U2FHID_INIT response length"));
-
-						CInitResponse Resonse;
-						NMemory::fg_MemCopy(&Resonse, _Response.f_GetArray(), c_InitNonceSize + 4 + 5);
-						if (NMemory::fg_MemCmp(Resonse.m_Nonce, Nonce.f_GetArray(), c_InitNonceSize))
-							return Promise.f_SetException(DMibErrorInstance("U2FHID_INIT response contains invalid nounce"));
-
-						Promise.f_SetResult(CDevice{_Device, Resonse.m_ChannelID, _Path});
-					}
-				;
-
-				return Promise.f_MoveFuture();
-			}
-
-			struct CReadFrameState
-			{
-				constexpr static mint c_HIDTimeout = 2;
-				constexpr static mint c_HIDMaxTimeout = 4096;
-				mint m_Timeout = c_HIDTimeout;
-			};
-
-			static TCFuture<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
-			{
-				TCPromise<CFrame> Promise;
-
-				TCSharedPointer<CReadFrameState> pState = fg_Construct();
-
-				auto fTry = [Device = _Device, Promise](TCSharedPointer<CReadFrameState> const &_pState, auto &&_fTry) -> void
-					{
-						Device(&CHumanInterfaceDevicesActor::CDevice::f_ReadTimeout, CHumanInterfaceDevicesActor::EReportSize, _pState->m_Timeout)
-							> Promise / [=](CSecureByteVector &&_Result) mutable
-							{
-								if (!_Result.f_IsEmpty())
-								{
-									CFrame Frame;
-									if (_Result.f_GetLen() != sizeof(Frame))
-										return Promise.f_SetException(DMibErrorInstance("U2F transport error: Frame size wrong"));
-
-									NMemory::fg_MemCopy((uint8 *)&Frame, _Result.f_GetArray(), sizeof(Frame));
-
-									Promise.f_SetResult(fg_Move(Frame));
-									return;
-								}
-
-								_pState->m_Timeout *= 2;
-
-								if (_pState->m_Timeout > CReadFrameState::c_HIDMaxTimeout)
-								{
-									Promise.f_SetException(DMibErrorInstance("U2F transport error: Timed out reading"));
-									return;
-								}
-
-								_fTry(_pState, _fTry);
-							}
-						;
-					}
-				;
-
-				fTry(pState, fTry);
-
-				return Promise.f_MoveFuture();
-			}
-
-			TCFuture<CSecureByteVector> f_SendReceive(uint8_t _Command, CSecureByteVector const &_Send) const
-			{
-				return fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
-			}
-
-			struct CSendState
-			{
-				CSendState(CSecureByteVector const &_ToSend)
-					: m_ToSend(_ToSend)
-				{
-				}
-
-				CSecureByteVector m_ToSend;
-
-				uint8 m_Sequence = 0;
-				mint m_SendLength = m_ToSend.f_GetLen();
-				uint8 const *m_pSendData = m_ToSend.f_GetArray();
-				mint m_DataSent = 0;
-				TCFunctionMovable<void (TCSharedPointer<CSendState> const &_pReceiveState, TCPromise<void> const &_Promise)> m_fDoSend;
-			};
-
-			struct CReceiveState
-			{
-				CSecureByteVector m_Receive;
-				uint16 m_nReceived = 0;
-				uint16 m_DataLength = 0;
-				uint8 m_Sequence = 0;
-				bool m_bFirstFrame = true;
-				TCFunctionMovable<void (TCSharedPointer<CReceiveState> const &_pReceiveState, TCPromise<CSecureByteVector> const &_Promise)> m_fDoReceive;
-			};
-
-			static TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector const &_Send, uint32 _ChannelID, TCActor<CHumanInterfaceDevicesActor::CDevice> const &_Device)
-			{
-				TCPromise<CSecureByteVector> Promise;
-
-				TCSharedPointer<CSendState> pSendState = fg_Construct(_Send);
-
-				TCPromise<void> SendPromise;
-
-				pSendState->m_fDoSend = [_Device, _ChannelID, _Command](TCSharedPointer<CSendState> const &_pSendState, TCPromise<void> const &_Promise) -> void
-					{
-						auto &State = *_pSendState;
-						if (State.m_DataSent < State.m_SendLength)
-						{
-							CFrame Frame;
-
-							if (State.m_DataSent == 0)
-								State.m_DataSent += Frame.f_SetInitial(_ChannelID, _Command, State.m_SendLength, State.m_pSendData, State.m_SendLength);
-							else
-								State.m_DataSent += Frame.f_SetContinuation(_ChannelID, State.m_Sequence++, State.m_pSendData + State.m_DataSent, State.m_SendLength - State.m_DataSent);
-
-							CSecureByteVector Data;
-							Data.f_Insert((uint8 *)&Frame, sizeof(Frame));
-
-							_Device(&CHumanInterfaceDevicesActor::CDevice::f_Write, 0, fg_Move(Data)) > _Promise / [=](aint _BytesWritten)
-								{
-									if (_BytesWritten != sizeof(CFrame) + 1)
-									{
-										_Promise.f_SetException(DMibErrorInstance("Wrong number of bytes written for U2F frame"));
-										return;
-									}
-									_pSendState->m_fDoSend(_pSendState, _Promise);
-								}
-							;
-						}
-						else
-							_Promise.f_SetResult();
-					}
-				;
-
-				pSendState->m_fDoSend(pSendState, SendPromise);
-
-				SendPromise.f_MoveFuture() > Promise / [=]
-					{
-						TCSharedPointer<CReceiveState> pReceiveState = fg_Construct();
-						pReceiveState->m_fDoReceive = [_Device, _ChannelID, _Command](TCSharedPointer<CReceiveState> const &_pReceiveState, TCPromise<CSecureByteVector> const &_Promise) mutable -> void
-							{
-								fs_ReadFrame(_Device) > _Promise / [=](CFrame &&_Frame) mutable
-									{
-										if (_Frame.m_ChannelID != _ChannelID)
-											return _Promise.f_SetException(DMibErrorInstance("Invalid channel number reading from U2F device"));
-
-										auto &State = *_pReceiveState;
-										if (State.m_bFirstFrame)
-										{
-											if (_Frame.m_InitialFrame.m_Command == U2FHID_ERROR)
-											{
-												CStr Error = "Unknown error";
-												uint16 DataLength = _Frame.m_InitialFrame.m_ByteCountHigh << 8 | _Frame.m_InitialFrame.m_ByteCountLow;
-												if (DataLength == 1)
-												{
-													switch (_Frame.m_InitialFrame.m_Data[0])
-													{
-													case ERR_INVALID_CMD: Error = "Invalid command"; break;
-													case ERR_INVALID_PAR: Error = "Invalid parameter"; break;
-													case ERR_INVALID_LEN: Error = "Invalid message length"; break;
-													case ERR_INVALID_SEQ: Error = "Invalid message sequencing"; break;
-													case ERR_MSG_TIMEOUT: Error = "Message has timed out"; break;
-													case ERR_CHANNEL_BUSY: Error = "Channel busy"; break;
-													case ERR_LOCK_REQUIRED: Error = "Command requires channel lock"; break;
-													case ERR_INVALID_CID: Error = "Command not allowed on this cid"; break;
-													}
-												}
-
-												return _Promise.f_SetException(DMibErrorInstance("Error response reading from U2F device: {}"_f << Error));
-											}
-
-											if (_Frame.m_InitialFrame.m_Command != _Command)
-												return _Promise.f_SetException(DMibErrorInstance("Invalid command reading from U2F device"));
-
-											State.m_DataLength = _Frame.m_InitialFrame.m_ByteCountHigh << 8 | _Frame.m_InitialFrame.m_ByteCountLow;
-											auto Received = fg_Min(sizeof(_Frame.m_InitialFrame.m_Data), mint(State.m_DataLength));
-											State.m_Receive.f_Insert(_Frame.m_InitialFrame.m_Data, Received);
-											State.m_nReceived = Received;
-											State.m_bFirstFrame = false;
-										}
-										else
-										{
-											if (_Frame.m_ContinuationFrame.m_SequenceNumber != State.m_Sequence++)
-												return _Promise.f_SetException(DMibErrorInstance("Invalid sequence number when reading from U2F device"));
-
-											auto Received = fg_Min(mint(State.m_nReceived) + sizeof(_Frame.m_ContinuationFrame.m_Data), mint(State.m_DataLength)) - mint(State.m_nReceived);
-											State.m_Receive.f_Insert(_Frame.m_ContinuationFrame.m_Data, Received);
-											State.m_nReceived += Received;
-										}
-
-										if (State.m_nReceived == State.m_DataLength)
-											return _Promise.f_SetResult(fg_Move(State.m_Receive));
-
-										State.m_fDoReceive(_pReceiveState, _Promise);
-									}
-								;
-							}
-						;
-
-						pReceiveState->m_fDoReceive(pReceiveState, Promise);
-					}
-				;
-
-				return Promise.f_MoveFuture();
-			}
-
-			TCFuture<CSecureByteVector> f_SendAPDU(uint8 _Command, CSecureByteVector const &_Data, uint8 _UserPresence) const
-			{
-				TCPromise<CSecureByteVector> Promise;
-
-				auto DataLength = _Data.f_GetLen();
-
-				CSecureByteVector Buffer{0, _Command, _UserPresence, 0, 0, (uint8)(DataLength >> 8), (uint8)DataLength};
-				Buffer.f_Insert(_Data);
-				Buffer.f_Insert((uint8)0);
-				Buffer.f_Insert((uint8)0);
-
-				f_SendReceive(U2FHID_MSG, Buffer) > Promise / [=](CSecureByteVector &&_Response)
-					{
-						if (_Response.f_GetLen() < 2)
-							return Promise.f_SetException(DMibErrorInstance("Response from U2F device too short"));
-
-						if (_Response.f_GetLen() > MAXDATASIZE)
-							return Promise.f_SetException(DMibErrorInstance("Response from U2F device too long"));
-
-						Promise.f_SetResult(fg_Move(_Response));
-					}
-				;
-				return Promise.f_MoveFuture();
-			}
-
-			TCActor<CHumanInterfaceDevicesActor::CDevice> m_Device;
-			CStr m_Path;
-			uint32 m_ChannelID;
 		};
 
 		CU2FDevices()
@@ -599,37 +519,34 @@ namespace NMib::NConcurrency::NPrivate
 			return -1;
 		}
 
-		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
-			return g_Future <<= g_Dispatch(_pDevices->f_FileActor()) / [=]() -> CUsageResult
+			CUsageResult Result;
+			int DescriptorSize;
+			struct hidraw_report_descriptor ReportDescriptor;
+			int Handle = open(_DeviceInfo.m_Path, O_RDWR);
+			if (Handle > 0)
+			{
+				memset (&ReportDescriptor, 0, sizeof (ReportDescriptor));
+				if (ioctl(Handle, HIDIOCGRDESCSIZE, &DescriptorSize) >= 0)
 				{
-					CUsageResult Result;
-					int DescriptorSize;
-					struct hidraw_report_descriptor ReportDescriptor;
-					int Handle = open(_DeviceInfo.m_Path, O_RDWR);
-					if (Handle > 0)
-					{
-						memset (&ReportDescriptor, 0, sizeof (ReportDescriptor));
-						if (ioctl(Handle, HIDIOCGRDESCSIZE, &DescriptorSize) >= 0)
-						{
-							ReportDescriptor.size = DescriptorSize;
-							if (ioctl(Handle, HIDIOCGRDESC, &ReportDescriptor) >= 0 && fs_GetUsage(ReportDescriptor.value, ReportDescriptor.size, Result) >= 0)
-								return Result;
-						}
-						close(Handle);
-					}
-					return {};
+					ReportDescriptor.size = DescriptorSize;
+					if (ioctl(Handle, HIDIOCGRDESC, &ReportDescriptor) >= 0 && fs_GetUsage(ReportDescriptor.value, ReportDescriptor.size, Result) >= 0)
+						co_return Result;
 				}
-			;
+				close(Handle);
+			}
+
+			co_return {};
 		}
 #else
-		static TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
 		{
 			co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
 		}
 #endif
 
-		static TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
 		{
 			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
 
@@ -640,7 +557,7 @@ namespace NMib::NConcurrency::NPrivate
 			for (auto const &DeviceInfo : DeviceInfos)
 				fs_GetUsages(pDevices, DeviceInfo) > UsageResults.f_AddResult();
 
-			TCActorResultVector<TCActor<CHumanInterfaceDevicesActor::CDevice>> OpenDeviceResults;
+			TCActorResultVector<TCActor<CHumanInterfaceDeviceActor>> OpenDeviceResults;
 			{
 				auto Usages = co_await UsageResults.f_GetResults();
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
@@ -670,7 +587,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 
 
-			TCActorResultVector<CDevice> DeviceInits;
+			TCActorResultVector<CU2FDevice> DeviceInits;
 			{
 				auto OpenedDevices = co_await OpenDeviceResults.f_GetResults();
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
@@ -688,7 +605,7 @@ namespace NMib::NConcurrency::NPrivate
 						continue;
 					}
 
-					CDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits.f_AddResult();
+					CU2FDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits.f_AddResult();
 
 					NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
 				}
@@ -701,6 +618,7 @@ namespace NMib::NConcurrency::NPrivate
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 				for (auto &Device : InitializedDevices)
 				{
+					auto &DeviceInfo = *iDeviceInfo;
 					++iDeviceInfo;
 
 					if (!Device)
@@ -710,7 +628,7 @@ namespace NMib::NConcurrency::NPrivate
 								Malterlib/Concurrency/U2F
 								, Error
 								, "Failed to init U2F USB device '{}': {}"
-								, iDeviceInfo->m_Path
+								, DeviceInfo.m_Path
 								, Device.f_GetExceptionStr()
 							)
 						;
@@ -724,20 +642,12 @@ namespace NMib::NConcurrency::NPrivate
 			co_return fg_Move(pDevices);
 		}
 
-		TCActor<CActor> f_FileActor()
-		{
-			if (!m_FileActor)
-				m_FileActor = fg_Construct(fg_Construct(), "U2F file actor");
-			return m_FileActor;
-		}
-
 		TCActor<CHumanInterfaceDevicesActor> m_HID = fg_HumanInterfaceDevicesActor();
-		TCVector<CDevice> m_Devices;
-		TCActor<CSeparateThreadActor> m_FileActor;
+		TCVector<CU2FDevice> m_Devices;
 	};
 
 	// Class for handling the high level U2F communication
-	struct CU2FContext
+	struct CU2FContext : public CAllowUnsafeThis
 	{
 		struct CRegistrationResult
 		{
@@ -895,159 +805,140 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse
 			(
-			 	CSecureByteVector const &_RegistrationData
-			 	, CHashDigest_SHA256 const &_ChallengeDigest
-			 	, CHashDigest_SHA256 const &_AppDigest
-			 	, CStr const &_AppID
+			 	CSecureByteVector _RegistrationData
+			 	, CHashDigest_SHA256 _ChallengeDigest
+			 	, CHashDigest_SHA256 _AppDigest
+			 	, CStr _AppID
 			) const
 		{
-			return TCFuture<CRegistrationResult>::fs_RunProtected<NException::CException>() / [&]() -> TCAsyncResult<CRegistrationResult>
+			try
+			{
+				// Verify that the registration data is genuine
+
+				/*
+					Layout of data
+					+-------------------------------------------------------------------+
+					| 1 |     65    | 1 |    L    |    implied               | 64       |
+					+-------------------------------------------------------------------+
+					0x05
+					public key
+					key handle length
+					key handle
+					attestation cert
+					signature
+				*/
+
+				if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
 				{
-					// Verify that the registration data is genuine
-
-					/*
-						Layout of data
-						+-------------------------------------------------------------------+
-						| 1 |     65    | 1 |    L    |    implied               | 64       |
-						+-------------------------------------------------------------------+
-						0x05
-						public key
-						key handle length
-						key handle
-						attestation cert
-						signature
-					*/
-
-					TCAsyncResult<CRegistrationResult> AsyncResult;
-					if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
-					{
-						AsyncResult.f_SetException(DMibErrorInstance("Registration data too short"));
-						return AsyncResult;
-					}
-
-					NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
-					Stream.f_OpenRead(_RegistrationData);
-
-					{
-						uint8 Reserverd;
-						Stream >> Reserverd;
-
-						if (Reserverd != 0x05)
-						{
-							AsyncResult.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
-							return AsyncResult;
-						}
-					}
-
-					CSecureByteVector PublicKey;
-					Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
-
-					uint8 KeyHandleLen;
-					Stream >> KeyHandleLen;
-
-					CSecureByteVector KeyHandle;
-					Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
-
-					CSecureByteVector AttestationCertData;
-					{
-						uint8 Reserved0;
-						uint8 Reserved1;
-
-						Stream >> Reserved0;
-						Stream >> Reserved1;
-
-						// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
-						// Length is big-endian encoded in offset+3 and offset+4
-						if (Reserved0 != 0x30 || Reserved1 != 0x82)
-						{
-							AsyncResult.f_SetException(DMibErrorInstance("Reserved byte mismatch"));
-							return AsyncResult;
-						}
-						uint16 AttestationCertificateLen;
-						Stream >> AttestationCertificateLen;
-						Stream.f_AddPosition(-4);
-						AttestationCertificateLen += 4;
-						Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
-					}
-
-					CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
-					{
-						uint8 const *pTempData = AttestationCertData.f_GetArray();
-						ERR_clear_error();
-						pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
-						if (!pCertificate)
-						{
-							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)")));
-							return AsyncResult;
-						}
-					}
-
-					CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
-					{
-						size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
-						CSecureByteVector SignatureBuffer;
-						Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
-
-						uint8 const *pTempData = SignatureBuffer.f_GetArray();
-						ERR_clear_error();
-						pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
-						if (!pSig)
-						{
-							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)")));
-							return AsyncResult;
-						}
-					}
-
-					CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
-					if (!pKey)
-					{
-						AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)")));
-						return AsyncResult;
-					}
-
-					CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
-					if (!pECKey)
-					{
-						AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)")));
-						return AsyncResult;
-					}
-
-					CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-					EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
-					EC_KEY_set_group(pECKey, pECGroup);
-
-					CHash_SHA256 Hash;
-					{
-						uint8 Init = 0;
-						Hash.f_AddData(&Init, 1);
-						Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.fs_GetSize());
-						Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.fs_GetSize());
-						Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
-						Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
-					}
-					auto Digest = Hash.f_GetDigest();
-
-					ERR_clear_error();
-					int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.fs_GetSize(), pSig, pECKey);
-					if (VerifyResult != 1)
-					{
-						if (VerifyResult == -1)
-							AsyncResult.f_SetException(DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)")));
-						else
-							AsyncResult.f_SetException(DMibErrorInstance("Invalid signature"));;
-						return AsyncResult;
-					}
-
-					CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
-					AsyncResult.f_SetResult(CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID});
-					return AsyncResult;
+					co_return DMibErrorInstance("Registration data too short");
 				}
-			;
+
+				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
+				Stream.f_OpenRead(_RegistrationData);
+
+				{
+					uint8 Reserverd;
+					Stream >> Reserverd;
+
+					if (Reserverd != 0x05)
+						co_return DMibErrorInstance("Reserved byte mismatch");
+				}
+
+				CSecureByteVector PublicKey;
+				Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
+
+				uint8 KeyHandleLen;
+				Stream >> KeyHandleLen;
+
+				CSecureByteVector KeyHandle;
+				Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
+
+				CSecureByteVector AttestationCertData;
+				{
+					uint8 Reserved0;
+					uint8 Reserved1;
+
+					Stream >> Reserved0;
+					Stream >> Reserved1;
+
+					// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
+					// Length is big-endian encoded in offset+3 and offset+4
+					if (Reserved0 != 0x30 || Reserved1 != 0x82)
+						co_return DMibErrorInstance("Reserved byte mismatch");
+
+					uint16 AttestationCertificateLen;
+					Stream >> AttestationCertificateLen;
+					Stream.f_AddPosition(-4);
+					AttestationCertificateLen += 4;
+					Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
+				}
+
+				CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
+				{
+					uint8 const *pTempData = AttestationCertData.f_GetArray();
+					ERR_clear_error();
+					pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
+					if (!pCertificate)
+						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
+				}
+
+				CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
+				{
+					size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
+					CSecureByteVector SignatureBuffer;
+					Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
+
+					uint8 const *pTempData = SignatureBuffer.f_GetArray();
+					ERR_clear_error();
+					pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
+					if (!pSig)
+						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
+				}
+
+				CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
+				if (!pKey)
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
+
+				CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
+				if (!pECKey)
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
+
+				CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+				EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
+				EC_KEY_set_group(pECKey, pECGroup);
+
+				CHash_SHA256 Hash;
+				{
+					uint8 Init = 0;
+					Hash.f_AddData(&Init, 1);
+					Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.fs_GetSize());
+					Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.fs_GetSize());
+					Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
+					Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
+				}
+				auto Digest = Hash.f_GetDigest();
+
+				ERR_clear_error();
+				int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.fs_GetSize(), pSig, pECKey);
+				if (VerifyResult != 1)
+				{
+					if (VerifyResult == -1)
+						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)"));
+					else
+						co_return DMibErrorInstance("Invalid signature");
+				}
+
+				CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
+				co_return CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID};
+			}
+			catch (NException::CException const &_Exception)
+			{
+				co_return _Exception.f_ExceptionPointer();
+			}
 		}
 
-		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> const &_fPrompt)
+		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> _fPrompt)
 		{
-			TCPromise<CRegistrationResult> Promise;
 			CSecureByteVector Data;
 
 			auto ChallengeDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
@@ -1056,19 +947,14 @@ namespace NMib::NConcurrency::NPrivate
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
 			Data.f_Insert(AppDigest.f_GetData(), AppDigest.fs_GetSize());
 
-			fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt) > Promise / [*this, Promise, ChallengeDigest, AppDigest](CSendAPDUResult &&_RegistrationData)
-				{
-					DMibRequire(_RegistrationData.m_Index == 0);
-					f_VerifyRegistrationResponse(_RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID) > Promise;
-				}
-			;
-			return Promise.f_MoveFuture();
+			auto RegistrationData = co_await fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt);
+			DMibRequire(RegistrationData.m_Index == 0);
+
+			co_return co_await f_VerifyRegistrationResponse(RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID);
 		}
 
-		static TCFuture<CAuthenticationResponse> fs_Authenticate(TCVector<CU2FContext> const &_U2FContexts, TCFunction<void ()> const &_fPrompt)
+		static DMibSuppressUndefinedSanitizerLinux TCFuture<CAuthenticationResponse> fs_Authenticate(TCVector<CU2FContext> _U2FContexts, TCFunction<void ()> _fPrompt)
 		{
-			TCPromise<CAuthenticationResponse> Promise;
-
 			struct CFactorValues
 			{
 				CStr m_AppID;
@@ -1096,23 +982,18 @@ namespace NMib::NConcurrency::NPrivate
 				DataUnits.f_InsertLast(fg_Move(Data));
 			}
 
-			fs_SendAPDUs(U2F_AUTHENTICATE, DataUnits, _fPrompt)
-				> Promise / [Promise, FactorValues = fg_Move(FactorValues)](CSendAPDUResult &&_AuthenticationData)
-				{
-					if (!FactorValues.f_IsPosValid(_AuthenticationData.m_Index))
-						return Promise.f_SetException(DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)"));
+			auto AuthenticationData = co_await fs_SendAPDUs(U2F_AUTHENTICATE, DataUnits, _fPrompt);
 
-					auto const &Values = FactorValues[_AuthenticationData.m_Index];
-					Promise.f_SetResult(CAuthenticationResponse{fg_Move(_AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName});
-				}
-			;
+			if (!FactorValues.f_IsPosValid(AuthenticationData.m_Index))
+				co_return DMibErrorInstance("Invalid index in U2F authentication USB device communication (fs_SendAPDUs)");
 
-			return Promise.f_MoveFuture();
+			auto const &Values = FactorValues[AuthenticationData.m_Index];
+
+			co_return {fg_Move(AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName};
 		}
 
 		TCFuture<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
 		{
-			TCPromise<CAuthenticationResult> Promise;
 			CAuthenticationResult Result;
 
 			// Parse the signature data
@@ -1128,7 +1009,7 @@ namespace NMib::NConcurrency::NPrivate
 			*/
 
 			if (_Response.m_Signature.f_GetLen() < 1 + U2F_COUNTER_LEN)
-				return Promise <<= DMibErrorInstance("Length mismatch");
+				co_return DMibErrorInstance("Length mismatch");
 
 			auto *pData = _Response.m_Signature.f_GetArray();
 			Result.m_UserPresence = *pData++;
@@ -1138,7 +1019,7 @@ namespace NMib::NConcurrency::NPrivate
 			ERR_clear_error();
 			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSignature = d2i_ECDSA_SIG(nullptr, (uint8 const **)&pData, _Response.m_Signature.f_GetLen() - U2F_COUNTER_LEN - 1);
 			if (!pSignature)
-				return Promise <<= DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (d2i_ECDSA_SIG)"));
 
 			CHash_SHA256 Hash;
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
@@ -1156,15 +1037,15 @@ namespace NMib::NConcurrency::NPrivate
 			if (Verified != 1)
 			{
 				if (Verified == -1)
-					return Promise <<= DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)"));
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify authentication response (ECDSA_do_verify)"));
 				else
-					return Promise <<= DMibErrorInstance("Invalid signature");
+					co_return DMibErrorInstance("Invalid signature");
 			}
 			// Change endianess
 			Result.m_Counter = fg_ByteSwapBE(Result.m_Counter);
 			Result.m_bVerified = true;
 
-			return Promise <<= fg_Move(Result);
+			co_return fg_Move(Result);
 		}
 
 		CSecureByteVector m_SignatureBytes;
@@ -1205,15 +1086,25 @@ namespace NMib::NConcurrency
 			) override
 		;
 
-		TCWeakActor<CDistributedActorTrustManager> const m_TrustManager;
+	private:
+		void fp_CreateProcessActor();
+
+		TCWeakActor<CDistributedActorTrustManager> const mp_TrustManager;
+		TCActor<CSeparateThreadActor> mp_ProcessActor;
 	};
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::CDistributedActorTrustManagerAuthenticationActorU2F(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager)
-		: m_TrustManager(_TrustManager)
+		: mp_TrustManager(_TrustManager)
 	{
 	}
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::~CDistributedActorTrustManagerAuthenticationActorU2F() = default;
+
+	void CDistributedActorTrustManagerAuthenticationActorU2F::fp_CreateProcessActor()
+	{
+		if (!mp_ProcessActor)
+			mp_ProcessActor = fg_Construct(fg_Construct(), "U2F");
+	}
 
 	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
 		(
@@ -1221,35 +1112,37 @@ namespace NMib::NConcurrency
 			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		TCPromise<CAuthenticationData> Promise;
-		NPrivate::CU2FContext U2FContext;
-		U2FContext.f_Register
-			(
-			 	[=]
-			 	{
-					auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+		fp_CreateProcessActor();
 
-					*_pCommandLine %= "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
-						<< AnsiEncoding.f_Prompt()
-						<< AnsiEncoding.f_Default()
+		co_return co_await
+			(
+				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<CAuthenticationData>
+				{
+					NPrivate::CU2FContext U2FContext;
+					auto Result = co_await U2FContext.f_Register
+						(
+							[=]
+							{
+								auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
+								*_pCommandLine %= "Adding U2F factor to user. {}Please press the button on your U2F device.{}\n"_f
+									<< AnsiEncoding.f_Prompt()
+									<< AnsiEncoding.f_Default()
+								;
+							}
+						)
 					;
+					CAuthenticationData AuthenticationData;
+					AuthenticationData.m_Category = EAuthenticationFactorCategory_Possession;
+					AuthenticationData.m_Name = "U2F";
+					AuthenticationData.m_PublicData["AttestationCertificate"] = Result.m_AttestationCertificatePEM;
+					AuthenticationData.m_PublicData["PublicKey"] = Result.m_PublicKey.f_ToInsecure();
+					AuthenticationData.m_PublicData["AppID"] = Result.m_AppID;
+					AuthenticationData.m_PrivateData["KeyHandle"] = Result.m_KeyHandle.f_ToInsecure();
+					co_return fg_Move(AuthenticationData);
 				}
 			)
-			> Promise / [Promise](NPrivate::CU2FContext::CRegistrationResult &&_Result)
-			{
-				CAuthenticationData Result;
-				Result.m_Category = EAuthenticationFactorCategory_Possession;
-				Result.m_Name = "U2F";
-				Result.m_PublicData["AttestationCertificate"] = _Result.m_AttestationCertificatePEM;
-				Result.m_PublicData["PublicKey"] = _Result.m_PublicKey.f_ToInsecure();
-				Result.m_PublicData["AppID"] = _Result.m_AppID;
-				Result.m_PrivateData["KeyHandle"] = _Result.m_KeyHandle.f_ToInsecure();
-				Promise.f_SetResult(Result);
-			}
 		;
-
-
-		return Promise.f_MoveFuture();
 	}
 
 	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorU2F::f_SignAuthenticationRequest
@@ -1260,50 +1153,54 @@ namespace NMib::NConcurrency
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		TCPromise<ICDistributedActorAuthenticationHandler::CResponse> Promise;
+		fp_CreateProcessActor();
 
-		TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
-
-		auto SignatureBytes = _SignedProperties.f_GetSignatureBytes();
-
-		// This is handled much more smoothly for the password factor. There we ask for a password and can check all registered factors in parallel and see if the password
-		// can decrypt the private key.
-		//
-		// If there are multiple keys plugged in to the computer they will all be tested "in parallel", SendAPDU will query all available keys at the same time, but we will
-		// only get a valid reply from the key matching the keyhandle in the factor. If we have multiple registered factors we will have to test them one at a time, if we
-		// don't start with the correct one we will have to wait until the SendAPDU query times out :(
-		TCVector<NPrivate::CU2FContext> U2FContexts;
-
-		for (auto const &Factor : _Factors)
-			U2FContexts.f_Insert(NPrivate::CU2FContext(Factor, SignatureBytes, _Factors.fs_GetKey(Factor)));
-
-		NPrivate::CU2FContext::fs_Authenticate
+		co_return co_await
 			(
-			 	U2FContexts
-			 	, [=]
-			 	{
-					auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<ICDistributedActorAuthenticationHandler::CResponse>
+				{
+					TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
-					*_pCommandLine %= "{}Please press the button on your U2F device.{}\n"_f
-						<< AnsiEncoding.f_Prompt()
-						<< AnsiEncoding.f_Default()
+					auto SignatureBytes = _SignedProperties.f_GetSignatureBytes();
+
+					// This is handled much more smoothly for the password factor. There we ask for a password and can check all registered factors in parallel and see if the password
+					// can decrypt the private key.
+					//
+					// If there are multiple keys plugged in to the computer they will all be tested "in parallel", SendAPDU will query all available keys at the same time, but we will
+					// only get a valid reply from the key matching the keyhandle in the factor. If we have multiple registered factors we will have to test them one at a time, if we
+					// don't start with the correct one we will have to wait until the SendAPDU query times out :(
+					TCVector<NPrivate::CU2FContext> U2FContexts;
+
+					for (auto const &Factor : _Factors)
+						U2FContexts.f_Insert(NPrivate::CU2FContext(Factor, SignatureBytes, _Factors.fs_GetKey(Factor)));
+
+					auto Response = co_await NPrivate::CU2FContext::fs_Authenticate
+						(
+							U2FContexts
+							, [=]
+							{
+								auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
+
+								*_pCommandLine %= "{}Please press the button on your U2F device.{}\n"_f
+									<< AnsiEncoding.f_Prompt()
+									<< AnsiEncoding.f_Default()
+								;
+							}
+						)
 					;
+
+					ICDistributedActorAuthenticationHandler::CResponse Result;
+
+					Result.m_FactorID = Response.m_FactorID;
+					Result.m_FactorName = Response.m_FactorName;
+
+					Result.m_SignedProperties = _SignedProperties;
+					Result.m_Signature = Response.m_Signature;
+
+					co_return fg_Move(Result);
 				}
 			)
-			> Promise / [Promise, _SignedProperties, _pCommandLine](NPrivate::CU2FContext::CAuthenticationResponse &&_Response)
-			{
-				ICDistributedActorAuthenticationHandler::CResponse Response;
-
-				Response.m_FactorID = _Response.m_FactorID;
-				Response.m_FactorName = _Response.m_FactorName;
-
-				Response.m_SignedProperties = _SignedProperties;
-				Response.m_Signature = _Response.m_Signature;
-
-				Promise.f_SetResult(fg_Move(Response));
-			}
 		;
-		return Promise.f_MoveFuture();
 	};
 
 	auto CDistributedActorTrustManagerAuthenticationActorU2F::f_VerifyAuthenticationResponse
@@ -1314,44 +1211,40 @@ namespace NMib::NConcurrency
 		)
 		-> TCFuture<CVerifyAuthenticationReturn>
 	{
-		TCPromise<CVerifyAuthenticationReturn> Promise;
+		fp_CreateProcessActor();
 
-		auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
-		if (!pValue || !pValue->f_IsBinary())
-			return Promise <<= CVerifyAuthenticationReturn{};
+		co_return co_await
+			(
+				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<CVerifyAuthenticationReturn>
+				{
+					auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
+					if (!pValue || !pValue->f_IsBinary())
+						co_return CVerifyAuthenticationReturn{};
 
-		NPrivate::CU2FContext::CAuthenticationResponse AuthenticationResponse;
-		AuthenticationResponse.m_Signature = _Response.m_Signature;
-		auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
+					NPrivate::CU2FContext::CAuthenticationResponse AuthenticationResponse;
+					AuthenticationResponse.m_Signature = _Response.m_Signature;
+					auto SignatureBytes = _Response.m_SignedProperties.f_GetSignatureBytes();
 
-		return Promise <<= g_ConcurrentDispatch / [=]
-			{
-				TCPromise<CVerifyAuthenticationReturn> Promise;
-				NPrivate::CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
-				U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse) > Promise / [Promise, _AuthenticationData](NPrivate::CU2FContext::CAuthenticationResult &&_Result)
+					NPrivate::CU2FContext U2FContext(_AuthenticationData, SignatureBytes, "");
+					auto Result = co_await U2FContext.f_VerifyAuthenticationResponse(AuthenticationResponse);
+
+					// Should we care about the counter?
+					CVerifyAuthenticationReturn Return;
+					Return.m_bVerified = Result.m_bVerified;
+
+					if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("Counter"); pValue && pValue->f_IsInteger())
 					{
-						// Should we care about the counter?
-						CVerifyAuthenticationReturn Return;
-						Return.m_bVerified = _Result.m_bVerified;
-
-						if (auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("Counter"); pValue && pValue->f_IsInteger())
-						{
-							int64 NewCounter = _Result.m_Counter;
-							int64 OldCounter = pValue->f_Integer();
-							if (NewCounter <= OldCounter)
-							{
-								Promise.f_SetException(DMibErrorInstance("U2F counter decreased ({} <= {}), has your key been copied?"_f << NewCounter << OldCounter));
-								return;
-							}
-						}
-
-						Return.m_UpdatedPublicData["Counter"] = _Result.m_Counter;
-
-						Promise.f_SetResult(fg_Move(Return));
+						int64 NewCounter = Result.m_Counter;
+						int64 OldCounter = pValue->f_Integer();
+						if (NewCounter <= OldCounter)
+							co_return DMibErrorInstance("U2F counter decreased ({} <= {}), has your key been copied?"_f << NewCounter << OldCounter);
 					}
-				;
-				return Promise.f_MoveFuture();
-			}
+
+					Return.m_UpdatedPublicData["Counter"] = Result.m_Counter;
+
+					co_return fg_Move(Return);
+				}
+			)
 		;
 	}
 

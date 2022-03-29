@@ -483,11 +483,9 @@ namespace NMib::NConcurrency
 			This.mp_bDestroyed.f_Exchange(2);
 
 			bool bShouldDelete;
-			bool bWasSelfRef = false;
 
 			if (m_pSelfReference)
 			{
-				bWasSelfRef = true;
 				auto pLastDestructing = ThreadLocal.m_pCurrentlyDestructingActorHolder;
 				ThreadLocal.m_pCurrentlyDestructingActorHolder = &This;
 				auto Cleanup = g_OnScopeExit > [&]

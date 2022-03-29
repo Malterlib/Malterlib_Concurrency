@@ -561,7 +561,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 }
 
-namespace std::experimental
+namespace std
 {
 	template <typename t_CReturnType, typename ...tp_CParams>
 	struct coroutine_traits<NMib::NConcurrency::TCFuture<t_CReturnType>, tp_CParams...>

@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 		uint32 f_InterfaceVersion();
 
 	private:
-		typename NTraits::TCAlign<uint8 [sizeof(t_CActor)], NTraits::TCAlignmentOf<t_CActor>::mc_Value>::CType m_ActorMemory;
+		typename NTraits::TCAlign<uint8 [sizeof(t_CActor)], alignof(t_CActor)>::CType m_ActorMemory;
 	};
 
 	template <typename tf_CToDelete>

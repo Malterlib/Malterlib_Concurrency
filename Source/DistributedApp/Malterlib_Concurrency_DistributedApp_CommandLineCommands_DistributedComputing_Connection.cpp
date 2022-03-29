@@ -231,10 +231,6 @@ namespace NMib::NConcurrency
 		{
 			auto &Address = AddressState.fs_GetKey(State);
 
-			CDistributedActorTrustManager::CConcurrentConnectionState *pFirstState = nullptr;
-			if (!State.m_States.f_IsEmpty())
-				pFirstState = &State.m_States.f_GetFirst();
-
 			TCVector<CStr> Connected;
 			TCVector<CStr> ErrorTime;
 			TCVector<CStr> Error;

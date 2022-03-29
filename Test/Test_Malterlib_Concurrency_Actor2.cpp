@@ -683,7 +683,7 @@ namespace
 					VectorResults.f_GetResults()
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<int>>> &&_Result)
 						{
-							mint Results = 0;
+							[[maybe_unused]] mint Results = 0;
 							for (auto Iter = (*_Result).f_GetIterator(); Iter; ++Iter)
 							{
 								Results += **Iter;

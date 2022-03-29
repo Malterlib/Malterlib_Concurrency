@@ -426,9 +426,9 @@ namespace NMib::NConcurrency
 		CEJSON JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
-		for co_await (auto Sensors : _Sensors)
+		for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
 		{
-			for (auto &SensorInfo : Sensors)
+			for (auto &SensorInfo : *iSensors)
 			{
 				CStr Application;
 				if (SensorInfo.m_Scope.f_IsOfType<CDistributedAppSensorReporter::CSensorScope_Application>())
@@ -578,9 +578,9 @@ namespace NMib::NConcurrency
 
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReporter::CSensorInfo> SensorInfos;
 		{
-			for co_await (auto Sensors : _Sensors)
+			for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
 			{
-				for (auto &SensorInfo : Sensors)
+				for (auto &SensorInfo : *iSensors)
 					SensorInfos[SensorInfo.f_Key()] = SensorInfo;
 			}
 		}
@@ -629,9 +629,9 @@ namespace NMib::NConcurrency
 
 		uint32 Return = 0;
 
-		for co_await (auto Readings : _SensorReadings)
+		for (auto iReadings = co_await fg_Move(_SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
 		{
-			for (auto &Reading : Readings)
+			for (auto &Reading : *iReadings)
 			{
 				CStr Application;
 				if (Reading.m_SensorInfoKey.m_Scope.f_IsOfType<CDistributedAppSensorReporter::CSensorScope_Application>())

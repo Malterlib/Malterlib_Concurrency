@@ -67,8 +67,8 @@ namespace
 				)
 			;
 
-			for co_await (auto Value : Generator)
-				co_yield Value;
+			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
+				co_yield *iValue;
 
 			co_return {};
 		}
@@ -85,8 +85,8 @@ namespace
 		{
 			auto Generator = co_await self(&CTestActor::f_TestAsyncGenerator);
 
-			for co_await (auto Value : Generator)
-				co_yield Value;
+			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
+				co_yield *iValue;
 
 			co_return {};
 		}
@@ -120,8 +120,8 @@ namespace
  		TCFuture<int32> f_TestAsyncGeneratorConsumerForCoAwait()
 		{
 			int32 Return = 0;
-			for co_await(auto Value : f_TestAsyncGenerator())
-				Return += Value;
+			for (auto iValue = co_await f_TestAsyncGenerator().f_GetIterator(); iValue; co_await ++iValue)
+				Return += *iValue;
 			co_return Return;
 		}
 
@@ -191,8 +191,8 @@ namespace
 				)
 			;
 
-			for co_await (auto Value : Generator)
-				co_yield Value;
+			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
+				co_yield *iValue;
 
 			co_return {};
 
@@ -230,8 +230,8 @@ namespace
 				)
 			;
 
-			for co_await (auto Value : Generator)
-				co_yield Value;
+			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
+				co_yield *iValue;
 
 			co_return {};
 
@@ -250,8 +250,8 @@ namespace
 		{
 			auto Generator = co_await self(&CTestActor::f_TestAsyncGeneratorAccessParam, _Param);
 
-			for co_await (auto Value : Generator)
-				co_yield Value;
+			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
+				co_yield *iValue;
 
 			co_return {};
 		}

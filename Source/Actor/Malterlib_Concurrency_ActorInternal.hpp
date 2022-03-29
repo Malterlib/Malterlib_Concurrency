@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 		static NContainer::TCSet<NStr::CStr> s_Logged;
 		{
 			DMibLock(s_Lock);
-			NStr::CStr ToLog = NStr::fg_Format("ReportLocal: {}  {}", sizeof(CReportLocal), NTraits::TCAlignmentOf<CReportLocal>::mc_Value);
+			NStr::CStr ToLog = NStr::fg_Format("ReportLocal: {}  {}", sizeof(CReportLocal), alignof(CReportLocal));
 			if (s_Logged(ToLog).f_WasCreated())
 				DMibTraceSafe("{}\n", ToLog);
 		}

@@ -83,15 +83,6 @@ struct CMyActor : public CActor
 			Return += *iValue;
 		co_return Return;
 	}
-
-	// Only supported in Coroutines TS, support in MSVC and clang might be removed
-	TCFuture<int32> f_ConsumeGeneratorForCoAwait()
-	{
-		int32 Return = 0;
-		for co_await(auto Value : f_GetGenerator())
-			Return += Value;
-		co_return Return;
-	}
 }
 ~~~
 

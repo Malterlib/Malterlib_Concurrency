@@ -179,7 +179,6 @@ namespace NMib::NConcurrency
 				(
 					[this, Promise, ...Params = fg_Forward<tp_CCallbackParams>(p_Params)]() mutable
 					{
-						bool bFound = false;
 						auto &Internal = *mp_pInternal;
 						for (auto &Callback : Internal.mp_Callbacks)
 						{
@@ -196,7 +195,6 @@ namespace NMib::NConcurrency
 								)
 								> Promise;
 							;
-							bFound = true;
 							break;
 						}
 					}

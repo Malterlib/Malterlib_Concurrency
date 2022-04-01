@@ -135,6 +135,15 @@ Property
 {
 	MalterlibConcurrencyTargetInDependencies define bool = fg_IsTargetInDependencies("Lib_Malterlib_Concurrency")
 	MalterlibConcurrency_DistributedActors define bool = MalterlibConcurrencyTargetInDependencies
+
+	MalterlibExeFSExtraFiles =+ "ExeFS/MalterlibLogo.png"->MakeAbsolute()
+	{
+		&
+		{
+			PlatformFamily "OSX"
+			MalterlibConcurrency_DistributedActors true
+		}
+	}
 }
 
 Compile

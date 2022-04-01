@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const m_DaemonDisplayName;
 		NStr::CStr const m_DaemonDescription;
 		TCActor<CDistributedAppActor> m_AppActor;
-		NStr::CStr m_Icon;
+		NStr::CStr m_Icon = "MalterlibLogo.png";
 		NDaemon::EDaemonMode m_DefaultMode = NDaemon::EDaemonMode_Global;
 		bool m_bAlwaysRunStatusApp = false;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;

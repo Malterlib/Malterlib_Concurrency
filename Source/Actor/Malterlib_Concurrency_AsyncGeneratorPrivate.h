@@ -71,7 +71,11 @@ namespace NMib::NConcurrency::NPrivate
 	};
 }
 
+#ifdef DMibCoroutineTS
+namespace std::experimental
+#else
 namespace std
+#endif
 {
 	template <typename t_CReturnType, typename ...tp_CParams>
 	struct coroutine_traits<NMib::NConcurrency::TCAsyncGenerator<t_CReturnType>, tp_CParams...>

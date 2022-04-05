@@ -3,8 +3,28 @@
 
 #pragma once
 
-#include <coroutine>
+#if defined(__clang__)
+#	if !defined(__cpp_impl_coroutine) || __cpp_impl_coroutine < 201902L
+#		define DMibCoroutineTS
+#	endif
+#endif
 
+#ifdef DMibCoroutineTS
+
+#include <experimental/coroutine>
+
+namespace NMib::NConcurrency
+{
+	template <typename t_CCoroutineContext = void>
+	using TCCoroutineHandle = std::experimental::coroutine_handle<t_CCoroutineContext>;
+	//using CNoopCoroutineHandle = std::noop_coroutine_handle;
+	using CSuspendAlways = std::experimental::suspend_always;
+	using CSuspendNever = std::experimental::suspend_never;
+}
+
+#else
+
+#include <coroutine>
 namespace NMib::NConcurrency
 {
 	template <typename t_CCoroutineContext = void>
@@ -13,3 +33,6 @@ namespace NMib::NConcurrency
 	using CSuspendAlways = std::suspend_always;
 	using CSuspendNever = std::suspend_never;
 }
+
+#endif
+

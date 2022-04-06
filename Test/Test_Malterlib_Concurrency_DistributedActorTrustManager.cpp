@@ -533,14 +533,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Basic")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -678,14 +678,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Remove client while connected")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -733,14 +733,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Disconnects")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -774,7 +774,7 @@ namespace NTestTrustManager
 				CStr DispatchError;
 				TCAtomic<mint> nCalls = 0;
 				TCAtomic<bool> bAbort = false;
-				auto Cleanup = g_OnScopeExit > [&]
+				auto Cleanup = g_OnScopeExit / [&]
 					{
 						bAbort = true;
 					}
@@ -838,14 +838,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Broken Connections")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -882,7 +882,7 @@ namespace NTestTrustManager
 				CStr DispatchError;
 				TCAtomic<mint> nCalls = 0;
 				TCAtomic<bool> bAbort = false;
-				auto Cleanup = g_OnScopeExit > [&]
+				auto Cleanup = g_OnScopeExit / [&]
 					{
 						bAbort = true;
 					}
@@ -948,14 +948,14 @@ namespace NTestTrustManager
 					DMibTestPath(i == 0 ? "Server" : "Client");
 
 					TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-					auto CleanupRunLoop = g_OnScopeExit > [&]
+					auto CleanupRunLoop = g_OnScopeExit / [&]
 						{
 							while (pRunLoop->f_RefCountGet() > 0)
 								pRunLoop->f_WaitOnceTimeout(0.1);
 						}
 					;
 					TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-					auto CleanupHelperActor = g_OnScopeExit > [&]
+					auto CleanupHelperActor = g_OnScopeExit / [&]
 						{
 							HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 						}
@@ -999,7 +999,7 @@ namespace NTestTrustManager
 					TCAtomic<mint> nCalls = 0;
 					TCAtomic<bool> bAbort = false;
 					TCAtomic<bool> bHasError = false;
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							bAbort = true;
 						}
@@ -1097,14 +1097,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Security")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -1189,14 +1189,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Multiple Enclaves")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -1266,14 +1266,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Subscriptions")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -1767,7 +1767,7 @@ namespace NTestTrustManager
 						DMibExpect(TrustedSubscription0.m_Actors.f_GetLen(), ==, 0);
 					}
 					TCSharedPointer<bool> pExited = fg_Construct(false);
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							*pExited = true;
 						}
@@ -1838,14 +1838,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Permissions")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -2035,14 +2035,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Permissions Database")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -2106,14 +2106,14 @@ namespace NTestTrustManager
 			DMibTestSuite("User Database")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -2469,14 +2469,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Permissions for HostID+UserID combos")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}
@@ -2940,14 +2940,14 @@ namespace NTestTrustManager
 			DMibTestSuite("Host Permissions to Permissions")
 			{
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-				auto CleanupRunLoop = g_OnScopeExit > [&]
+				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
 						while (pRunLoop->f_RefCountGet() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
 				TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-				auto CleanupHelperActor = g_OnScopeExit > [&]
+				auto CleanupHelperActor = g_OnScopeExit / [&]
 					{
 						HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					}

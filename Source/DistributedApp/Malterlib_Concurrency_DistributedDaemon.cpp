@@ -532,7 +532,7 @@ namespace NMib::NConcurrency
 					auto &SuggestedEnclave = fg_DistributedAppThreadLocal().m_DefaultSettings.m_Enclave;
 					auto OldEnclave = SuggestedEnclave;
 					SuggestedEnclave = NStr::CStr{};
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							SuggestedEnclave = OldEnclave;
 						}

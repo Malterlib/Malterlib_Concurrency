@@ -818,7 +818,7 @@ namespace NMib::NConcurrency
 		fWaitForAllDone();
 
 		m_bDestroyingAlwaysAliveActors = true;
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				m_bDestroyingAlwaysAliveActors = false;
 			}

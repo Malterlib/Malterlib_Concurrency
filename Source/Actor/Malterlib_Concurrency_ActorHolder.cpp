@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 #	if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
 #endif
-			auto CleanupWorking = g_OnScopeExit > [&]
+			auto CleanupWorking = g_OnScopeExit / [&]
 				{
 					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
 #	if DMibEnableSafeCheck > 0
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			auto CleanupConstruction = g_OnScopeExit > [&]
+			auto CleanupConstruction = g_OnScopeExit / [&]
 				{
 					this->fp_DetachActor();
 				}
@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 		bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
 		ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldHolder;
 				ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
@@ -471,7 +471,7 @@ namespace NMib::NConcurrency
 
 				auto pOldDestructingActor = ThreadLocal.m_pCurrentlyDestructingActor;
 				ThreadLocal.m_pCurrentlyDestructingActor = pActor;
-				auto Cleanup = g_OnScopeExit > [&]
+				auto Cleanup = g_OnScopeExit / [&]
 					{
 						ThreadLocal.m_pCurrentlyDestructingActor = pOldDestructingActor;
 					}
@@ -489,7 +489,7 @@ namespace NMib::NConcurrency
 			{
 				auto pLastDestructing = ThreadLocal.m_pCurrentlyDestructingActorHolder;
 				ThreadLocal.m_pCurrentlyDestructingActorHolder = &This;
-				auto Cleanup = g_OnScopeExit > [&]
+				auto Cleanup = g_OnScopeExit / [&]
 					{
 						ThreadLocal.m_pCurrentlyDestructingActorHolder = pLastDestructing;
 					}
@@ -531,7 +531,7 @@ namespace NMib::NConcurrency
 				This.mp_pConcurrencyManager->f_DispatchOnCurrentThreadOrConcurrentFirst
 					(
 						This.f_GetPriority()
-						, g_OnScopeExit > [pThis = &This, fOnDestroyed = fg_Move(m_fOnDestroyed)]() mutable
+						, g_OnScopeExit / [pThis = &This, fOnDestroyed = fg_Move(m_fOnDestroyed)]() mutable
 						{
 							auto &This = *pThis;
 

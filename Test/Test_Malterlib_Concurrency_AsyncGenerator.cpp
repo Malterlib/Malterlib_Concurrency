@@ -52,7 +52,7 @@ namespace
 				(
 					self / [this, TestDestruction = CTestDestruction{}]() -> TCAsyncGenerator<int32>
 					{
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
@@ -176,7 +176,7 @@ namespace
 					(
 						[TestDestruction = CTestDestruction{}](int32 const &_Param) -> TCAsyncGenerator<int32>
 						{
-							auto Cleanup = g_OnScopeExit > [&]
+							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
 								}
@@ -215,7 +215,7 @@ namespace
 					(
 						[TestDestruction = CTestDestruction{}](int32 &&_Param) -> TCAsyncGenerator<int32>
 						{
-							auto Cleanup = g_OnScopeExit > [&]
+							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
 								}
@@ -342,7 +342,7 @@ namespace
 
 					TCFuture<void> DestroyIterator;
 					{
-						auto CleanupLambda = g_OnScopeExit > [pState]
+						auto CleanupLambda = g_OnScopeExit / [pState]
 							{
 								if (!pState->m_bDestructed)
 									DMibPDebugBreak;  // If lambda is destroyed before coroutine something is wrong
@@ -351,7 +351,7 @@ namespace
 
 						TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestDestruction = [CleanupLambda = fg_Move(CleanupLambda), pState]() -> TCAsyncGenerator<int32>
 							{
-								auto Cleanup = g_OnScopeExit > [&]
+								auto Cleanup = g_OnScopeExit / [&]
 									{
 										pState->m_Event.f_WaitTimeout(g_Timeout);
 										pState->m_ThreadID = NSys::fg_Thread_GetCurrentUID();
@@ -407,7 +407,7 @@ namespace
 					TCSharedPointer<CState> pState = fg_Construct();
 
 					{
-						auto CleanupLambda = g_OnScopeExit > [pState]
+						auto CleanupLambda = g_OnScopeExit / [pState]
 							{
 								if (!pState->m_bDestructed)
 									DMibPDebugBreak;  // If lambda is destroyed before coroutine something is wrong
@@ -416,7 +416,7 @@ namespace
 
 						TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestDestruction = [CleanupLambda = fg_Move(CleanupLambda), pState]() -> TCAsyncGenerator<int32>
 							{
-								auto Cleanup = g_OnScopeExit > [&]
+								auto Cleanup = g_OnScopeExit / [&]
 									{
 										pState->m_Event.f_SetSignaled();
 										pState->m_bDestructed = true;

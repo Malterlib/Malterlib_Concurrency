@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 
 		TCVector<CDeviceInfo> Result;
 		auto *pStartofEnumeration = hid_enumerate(_VendorID, _ProductID);
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				hid_free_enumeration(pStartofEnumeration);
 			}

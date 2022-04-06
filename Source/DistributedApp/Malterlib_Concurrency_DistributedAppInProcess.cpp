@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 			auto &ThreadLocal = fg_DistributedAppThreadLocal();
 			auto OldSettings = ThreadLocal.m_DefaultSettings;
 			auto OldAppType = ThreadLocal.m_DefaultAppType;
-			auto Cleanup = g_OnScopeExit > [&]
+			auto Cleanup = g_OnScopeExit / [&]
 				{
 					ThreadLocal.m_DefaultSettings = OldSettings;
 					ThreadLocal.m_DefaultAppType = OldAppType;

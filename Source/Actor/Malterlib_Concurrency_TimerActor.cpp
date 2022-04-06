@@ -267,7 +267,7 @@ namespace NMib::NConcurrency
 		Internal.m_pTimerThread.f_Clear();
 #if DMibEnableSafeCheck > 0
 		Internal.m_ProcessingThread = NSys::fg_Thread_GetCurrentUID();
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				Internal.m_ProcessingThread = 0;
 			}

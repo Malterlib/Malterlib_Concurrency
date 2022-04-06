@@ -389,7 +389,7 @@ namespace
 				(
 					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
@@ -414,7 +414,7 @@ namespace
 				(
 					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
@@ -423,7 +423,7 @@ namespace
 							(
 								self / [=]() -> TCFuture<uint32>
 								{
-									auto Cleanup = g_OnScopeExit > [&]
+									auto Cleanup = g_OnScopeExit / [&]
 										{
 											DMibFastCheck(TestDestruction.m_Test == 20);
 										}
@@ -459,7 +459,7 @@ namespace
 				(
 					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
@@ -479,7 +479,7 @@ namespace
 				(
 					g_Dispatch / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
@@ -508,7 +508,7 @@ namespace
 		{
 			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							DMibFastCheck(TestDestruction.m_Test == 20);
 						}
@@ -538,14 +538,14 @@ namespace
 		{
 			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 			{
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							DMibFastCheck(TestDestruction.m_Test == 20);
 						}
 					;
 					return g_Future <<= self / [=]() -> TCFuture<uint32>
 						{
-							auto Cleanup = g_OnScopeExit > [&]
+							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
 								}
@@ -579,7 +579,7 @@ namespace
 
 			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							DMibFastCheck(TestDestruction.m_Test == 20);
 						}
@@ -614,7 +614,7 @@ namespace
 
 			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							DMibFastCheck(TestDestruction.m_Test == 20);
 						}
@@ -766,7 +766,7 @@ namespace
 				{
 					self / [=, Value = fg_Move(_Value), TestDestruction = CTestDestruction{}]() mutable -> TCFuture<void>
 						{
-							auto Cleanup = g_OnScopeExit > [&]
+							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
 								}
@@ -902,7 +902,7 @@ namespace
 				{
 					self / [TestDestruction = CTestDestruction{}] () -> TCFuture<void>
 	 					{
-							auto Cleanup = g_OnScopeExit > [&]
+							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
 								}
@@ -1152,7 +1152,7 @@ namespace
 #if DMibEnableSafeCheck > 0
 			auto bDebugCoroutineSafeCheck = CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck;
 			CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck = true;
-			auto Cleanup = g_OnScopeExit > [&]
+			auto Cleanup = g_OnScopeExit / [&]
 				{
 					CFutureCoroutineContext::ms_bDebugCoroutineSafeCheck = bDebugCoroutineSafeCheck;
 				}

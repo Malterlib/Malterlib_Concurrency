@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 				Name = Name.f_Extract(fg_StrLen("CDistributedActorTrustManagerAuthenticationActorFactory"));
 				if (auto *pFactory = (ICDistributedActorTrustManagerAuthenticationActorFactory *)RunTimeObjectInfo.f_CreateObject())
 				{
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							delete pFactory;
 						}

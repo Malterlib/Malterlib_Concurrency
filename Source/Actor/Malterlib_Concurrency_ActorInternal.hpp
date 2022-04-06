@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 			_pObject->f_ConcurrencyManager().f_DispatchOnCurrentThreadOrConcurrentFirst
 				(
 					_pObject->f_GetPriority()
-					, g_OnScopeExit > [_pObject]
+					, g_OnScopeExit / [_pObject]
 					{
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 						_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);

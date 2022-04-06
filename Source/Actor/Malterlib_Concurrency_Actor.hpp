@@ -864,7 +864,7 @@ namespace NMib::NConcurrency
 			static_assert(CCoroutineContext::mc_bSupportOwnershipTransfer, "Ownership transfer not supported on this coroutine");
 
 			CoroutineContext.f_Suspend(false);
-			auto pCleanup = g_OnScopeExitShared > [_Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
+			auto pCleanup = g_OnScopeExitShared / [_Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
 				{
 					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
 #if DMibEnableSafeCheck > 0

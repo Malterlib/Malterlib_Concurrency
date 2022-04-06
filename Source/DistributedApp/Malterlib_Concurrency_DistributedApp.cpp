@@ -920,7 +920,7 @@ namespace NMib::NConcurrency
 				auto bOldWaitForRemotes = bSuggestedWaitForRemotes;
 				bSuggestedWaitForRemotes = false;
 
-				auto Cleanup = g_OnScopeExit > [&]
+				auto Cleanup = g_OnScopeExit / [&]
 					{
 						SuggestedEnclave = OldEnclave;
 						bSuggestedWaitForRemotes = bOldWaitForRemotes;
@@ -928,7 +928,7 @@ namespace NMib::NConcurrency
 				;
 				m_AppActor = _fActorFactory();
 			}
-			auto CleanupLogDispatcher = g_OnScopeExit > [&]
+			auto CleanupLogDispatcher = g_OnScopeExit / [&]
 				{
 #if (DMibSysLogSeverities) != 0
 					if (m_bInstalledLogDispatcher)

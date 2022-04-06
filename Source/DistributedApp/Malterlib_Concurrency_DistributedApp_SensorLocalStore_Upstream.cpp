@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 
 		auto SequenceSubscription = co_await pSensorReporter->m_WriteSequencer.f_Sequence();
 
-		auto OnFailure = g_OnScopeExit > [&]
+		auto OnFailure = g_OnScopeExit / [&]
 			{
 				if (pSensorReporter)
 				{

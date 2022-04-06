@@ -148,7 +148,7 @@ namespace
 					CEvent m_Event2;
 				};
 				TCSharedPointer<CState> pState = fg_Construct();
-				auto Cleanup = g_OnScopeExit > [pState]
+				auto Cleanup = g_OnScopeExit / [pState]
 					{
 						pState->m_Event2.f_WaitTimeout(20.0);
 					}

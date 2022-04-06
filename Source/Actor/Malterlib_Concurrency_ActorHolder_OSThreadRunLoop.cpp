@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 					mp_RunLoopRef = CFRunLoopGetCurrent();
 					CFRunLoopAddSource(mp_RunLoopRef, pDummyRunLoopSource, kCFRunLoopDefaultMode);
 
-					auto Cleanup = g_OnScopeExit > [&]
+					auto Cleanup = g_OnScopeExit / [&]
 						{
 							CFRunLoopRemoveSource(mp_RunLoopRef, pDummyRunLoopSource, kCFRunLoopDefaultMode);
 							CFRelease(pDummyRunLoopSource);

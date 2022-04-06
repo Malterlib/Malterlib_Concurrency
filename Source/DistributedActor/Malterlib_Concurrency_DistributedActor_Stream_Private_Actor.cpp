@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 						auto pOldDispatchData = ThreadLocal.m_pCurrentRemoteDispatchActorData;
 						ThreadLocal.m_pCurrentRemoteDispatchActorData = static_cast<NPrivate::CDistributedActorData *>(mp_pDistributedActorData.f_Get());
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 						auto pOldDispatchData = ThreadLocal.m_pCurrentRemoteDispatchActorData;
 						ThreadLocal.m_pCurrentRemoteDispatchActorData = static_cast<NPrivate::CDistributedActorData *>(mp_pDistributedActorData.f_Get());
-						auto Cleanup = g_OnScopeExit > [&]
+						auto Cleanup = g_OnScopeExit / [&]
 							{
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}

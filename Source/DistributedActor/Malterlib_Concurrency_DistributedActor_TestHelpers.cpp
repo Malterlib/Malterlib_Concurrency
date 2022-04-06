@@ -201,7 +201,7 @@ namespace NMib::NConcurrency
 		
 		auto &Subscription = mp_Subscriptions[SubscriptionID];
 		
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				mp_Subscriptions.f_Remove(SubscriptionID);
 			}

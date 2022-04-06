@@ -350,7 +350,7 @@ namespace NMib::NConcurrency::NPrivate
 #if DMibEnableSafeCheck > 0
 		bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
 		ThreadLocal.m_bExpectCoroutineCall = true;
-		auto Cleanup = g_OnScopeExit > [&]
+		auto Cleanup = g_OnScopeExit / [&]
 			{
 				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 			}
@@ -361,7 +361,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto pPreviousOnResultSet = PromiseThreadLocal.m_pOnResultSet;
 		PromiseThreadLocal.m_pOnResultSet = &fOnResultSet;
 
-		auto CleanupOnResultSet = g_OnScopeExit > [&]
+		auto CleanupOnResultSet = g_OnScopeExit / [&]
 			{
 				PromiseThreadLocal.m_pOnResultSet = pPreviousOnResultSet;
 			}
@@ -377,7 +377,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto bPreviousCaptureDebugException = PromiseThreadLocal.m_bCaptureDebugException;
 		PromiseThreadLocal.m_bCaptureDebugException = true;
 
-		auto CleanupOnResultSetConsumedBy = g_OnScopeExit > [&]
+		auto CleanupOnResultSetConsumedBy = g_OnScopeExit / [&]
 			{
 				PromiseThreadLocal.m_pOnResultSetConsumedBy = pPreviousOnResultSetConsumedBy;
 				PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = pPreviousExpectCoroutineCallSetConsumedBy;

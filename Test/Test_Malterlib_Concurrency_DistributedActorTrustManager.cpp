@@ -84,6 +84,28 @@ namespace NTestTrustManager
 		CStr m_Name;
 	};
 
+	TCFuture<void> fg_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
+	{
+		co_return {};
+	}
+
+	struct CTestInterfaceConversion : public CActor
+	{
+		TCFuture<void> f_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
+		{
+			co_return {};
+		}
+
+		TCFuture<void> f_TestIt2(TCDistributedActor<CAuthenticationActorTestSucceed> &&_Value)
+		{
+			co_await self(&CTestInterfaceConversion::f_TestIt, fg_TempCopy(_Value));
+
+			co_await fg_CallSafe(this, &CTestInterfaceConversion::f_TestIt, fg_TempCopy(_Value));
+
+			co_return {};
+		}
+	};
+
 	struct CAuthenticationActorFail : public ICDistributedActorTrustManagerAuthenticationActor
 	{
 		CAuthenticationActorFail(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager, CStr const &_Name)
@@ -3018,10 +3040,24 @@ namespace NTestTrustManager
 
 		void f_DoTests()
 		{
+			DMibTestCategory("Interface Conversion") -> TCFuture<void>
+			{
+				TCDistributedActor<CAuthenticationActorTestSucceed> TestEmpty;
+
+				co_await fg_CallSafe(&fg_TestIt, fg_TempCopy(TestEmpty)).f_Timeout(g_Timeout, "Timeout");
+
+				TCActor<CTestInterfaceConversion> Actor = fg_Construct();
+				co_await Actor(&CTestInterfaceConversion::f_TestIt, fg_TempCopy(TestEmpty)).f_Timeout(g_Timeout, "Timeout");
+				co_await Actor(&CTestInterfaceConversion::f_TestIt2, TestEmpty).f_Timeout(g_Timeout, "Timeout");
+
+				co_return {};
+			};
+
 			DMibTestCategory("Database Conversion")
 			{
 				fp_DoDatabaseConversionTests();
 			};
+
 
 			DMibTestCategory("Dummy Database")
 			{

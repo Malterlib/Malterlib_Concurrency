@@ -7,8 +7,25 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename tf_CReturn, typename ...tfp_CFunctionParams, typename tf_CFunction, typename ...tfp_CParams, mint... tfp_Indices>
+	template <typename t_CParams>
+	struct TCSafeCallParamsToFunctionPointerImpl;
+
+	template <typename ...tp_CParams>
+	struct TCSafeCallParamsToFunctionPointerImpl<NMeta::TCTypeList<tp_CParams...>>
+	{
+		using CType = typename NTraits::TCAddPointer<void (typename NTraits::TCRemoveQualifiers<typename NTraits::TCDecay<tp_CParams>::CType>::CType...)>::CType;
+	};
+
+	template <typename t_CParams>
+	using TCSafeCallParamsToFunctionPointer = typename TCSafeCallParamsToFunctionPointerImpl<t_CParams>::CType;
+
+	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename tf_CFunction, typename ...tfp_CParams, mint... tfp_Indices>
 	auto fg_CallSafeImpl(tf_CFunction &&_Function, NMeta::TCIndices<tfp_Indices...> const &_Indices, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
 		static_assert(NPrivate::TCIsFuture<tf_CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value);
 
@@ -20,14 +37,16 @@ namespace NMib::NConcurrency
 			>::CType
 		;
 
+		using CTupleStorage = NStorage::TCTuple<typename NTraits::TCRemoveQualifiers<typename NTraits::TCDecay<tfp_CStorageParams>::CType>::CType...>;
+
 		struct CState
 		{
 			tf_CFunction m_Function;
-			NStorage::TCTuple<typename NTraits::TCRemoveQualifiers<typename NTraits::TCDecay<tfp_CFunctionParams>::CType>::CType...> m_ParamList;
+			CTupleStorage m_ParamList;
 			[[no_unique_address]] typename TCChooseType<NPrivate::TCIsFuture<tf_CReturn>::mc_Value, TCPromise<CReturn>, CEmpty>::CType m_Promise;
 		};
 
-		NStorage::TCUniquePointer<CState> pState = NStorage::TCUniquePointer<CState>(new CState{fg_Forward<tf_CFunction>(_Function), NStorage::fg_Tuple(tfp_CFunctionParams(fg_Forward<tfp_CParams>(p_Params))...)});
+		NStorage::TCUniquePointer<CState> pState = NStorage::TCUniquePointer<CState> (new CState{fg_Forward<tf_CFunction>(_Function), {fg_Forward<tfp_CParams>(p_Params)...}, {}});
 
 		auto &State = *pState;
 
@@ -130,73 +149,102 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params)
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CStorageParams ...), tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
-		return fg_CallSafeImpl<tf_CReturn, tfp_CFuncPtrParams...>
+		return fg_CallSafeImpl<tf_CReturn, tfp_CStorageParams...>
 			(
-				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...), tf_CClass *>(_pPtr, _pClassPtr)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CStorageParams ...), tf_CClass *>(_pPtr, _pClassPtr)
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CStorageParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
 	}
 
-	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass const *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CFuncPtrParams ...) const, tfp_CParams &&...p_Params)
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass const *_pClassPtr, tf_CReturn (tf_CClass::*_pPtr) (tfp_CStorageParams ...) const, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
-		return fg_CallSafeImpl<tf_CReturn, tfp_CFuncPtrParams ...>
+		return fg_CallSafeImpl<tf_CReturn, tfp_CStorageParams ...>
 			(
-				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...) const, tf_CClass const *>(_pPtr, _pClassPtr)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CStorageParams ...) const, tf_CClass const *>(_pPtr, _pClassPtr)
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CStorageParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
 	}
 
-	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params)
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CStorageParams ...), tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
-		return fg_CallSafeImpl<tf_CReturn, tfp_CFuncPtrParams ...>
+		return fg_CallSafeImpl<tf_CReturn, tfp_CStorageParams ...>
 			(
-				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...), tf_CClass *>(_pPtr, &_ClassRef)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CStorageParams ...), tf_CClass *>(_pPtr, &_ClassRef)
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CStorageParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
 	}
 
-	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CClass const &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CFuncPtrParams ...) const, tfp_CParams &&...p_Params)
+	template <typename tf_CClass, typename tf_CReturn, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CClass const &_ClassRef, tf_CReturn (tf_CClass::*_pPtr)(tfp_CStorageParams ...) const, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
-		return fg_CallSafeImpl<tf_CReturn, tfp_CFuncPtrParams ...>
+		return fg_CallSafeImpl<tf_CReturn, tfp_CStorageParams ...>
 			(
-				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CFuncPtrParams ...) const, tf_CClass const *>(_pPtr, &_ClassRef)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+				NFunction::TCMemberFunctionBoundFunctor<tf_CReturn (tf_CClass::*) (tfp_CStorageParams ...) const, tf_CClass const *>(_pPtr, &_ClassRef)
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CStorageParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
 	}
 
-	template <typename tf_CReturn, typename ...tfp_CFuncPtrParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafe(tf_CReturn (* _pPtr)(tfp_CFuncPtrParams ...), tfp_CParams &&...p_Params)
+	template <typename tf_CReturn, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(tf_CReturn (* _pPtr)(tfp_CStorageParams ...), tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
-		return fg_CallSafeImpl<tf_CReturn, tfp_CFuncPtrParams ...>
+		return fg_CallSafeImpl<tf_CReturn, tfp_CStorageParams ...>
 			(
 				_pPtr
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CFuncPtrParams)>::CType()
+				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CStorageParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;
 	}
 
-	template <typename tf_CFunction, typename ...tfp_CFunctionParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CFunctionParams...> _TypeList, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+	template <typename tf_CFunction, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
+			, void (tfp_CParams...)
+		>
 	{
 		using CFunctionType = typename NTraits::TCRemoveReference<tf_CFunction>::CType;
-		static_assert(NTraits::TCIsCallableWith<CFunctionType, void (tfp_CParams...)>::mc_Value);
 		using CReturn = typename NTraits::TCIsCallableWith<CFunctionType, void (tfp_CParams...)>::CReturnType;
-		return fg_CallSafeImpl<CReturn, tfp_CFunctionParams...>
+		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
 				fg_Forward<tf_CFunction>(_fFunction)
 				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType()
@@ -207,6 +255,11 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	mark_artificial inline_always auto fg_CallSafe(tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReference<tf_CFunction>::CType::operator ())>::CParams>
+			, void (tfp_CParams...)
+		>
 	{
 		using CFunctionType = typename NTraits::TCRemoveReference<tf_CFunction>::CType;
 		return fg_CallSafeGenericImpl

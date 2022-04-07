@@ -81,6 +81,7 @@ namespace NMib::NConcurrency
 				) override
 			;
 			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
+			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() override;
 
 			CDistributedApp_LaunchHelper *m_pThis = nullptr;
 #			ifdef DMibDebug

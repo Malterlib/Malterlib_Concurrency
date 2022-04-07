@@ -161,6 +161,11 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_GetLogReporter()
+	{
+		co_return {};
+	}
+
 	CDistributedApp_LaunchHelper::CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr)
 		: m_Dependencies(_Dependencies)
 		, m_bLogToStderr(_bLogToStderr)

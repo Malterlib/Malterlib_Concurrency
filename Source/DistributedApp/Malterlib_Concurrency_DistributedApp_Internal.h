@@ -4,6 +4,7 @@
 #pragma once
 
 #include <Mib/Concurrency/DistributedAppSensorStoreLocal>
+#include <Mib/Concurrency/DistributedAppLogStoreLocal>
 
 namespace NMib::NConcurrency
 {
@@ -64,6 +65,12 @@ namespace NMib::NConcurrency
 		CActorSubscription m_AppSensorStoreLocalAppServerChangeSubscription;
 		CActorSubscription m_AppSensorStoreLocalExtraSensorInterfaceSubscription;
 		TCActorSequencerAsync<void> m_AppSensorStoreLocalAppServerChangeSequencer;
+
+		TCActor<CDistributedAppLogStoreLocal> m_AppLogStoreLocal;
+		TCActorSequencerAsync<void> m_AppLogStoreLocalInitSequencer;
+		CActorSubscription m_AppLogStoreLocalAppServerChangeSubscription;
+		CActorSubscription m_AppLogStoreLocalExtraLogInterfaceSubscription;
+		TCActorSequencerAsync<void> m_AppLogStoreLocalAppServerChangeSequencer;
 
 		bool m_bDelegateTrustToAppInterface = false;
 #if DMibEnableSafeCheck > 0

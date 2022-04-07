@@ -30,6 +30,7 @@ namespace NMib::NConcurrency
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_RegisterDistributedApp);
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetSensorReporter);
+		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetLogReporter);
 	}
 	
 	CDistributedAppInterfaceServer::~CDistributedAppInterfaceServer() = default;
@@ -38,14 +39,14 @@ namespace NMib::NConcurrency
 	void CDistributedAppInterfaceServer::CRegisterInfo::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_UpdateType;
-		if (_Stream.f_GetVersion() >= 0x103)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportResources)
 		{
 			_Stream % m_Resources_Files;
 			_Stream % m_Resources_FilesPerProcess;
 			_Stream % m_Resources_Threads;
 			_Stream % m_Resources_Processes;
 		}
-		if (_Stream.f_GetVersion() >= 0x104)
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportLaunchID)
 			_Stream % m_LaunchID;
 	}
 	DMibDistributedStreamImplement(CDistributedAppInterfaceServer::CRegisterInfo);

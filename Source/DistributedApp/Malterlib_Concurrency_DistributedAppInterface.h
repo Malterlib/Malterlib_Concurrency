@@ -11,6 +11,7 @@
 
 #include "Malterlib_Concurrency_DistributedApp_Settings.h"
 #include "Malterlib_Concurrency_DistributedApp_SensorReporter.h"
+#include "Malterlib_Concurrency_DistributedApp_LogReporter.h"
 
 namespace NMib::NConcurrency
 {
@@ -35,6 +36,8 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x102
+			, EProtocolVersion_SupportPreStop = 0x103
+			, EProtocolVersion_SupportStartBackup = 0x103
 			, EProtocolVersion_Current = 0x103
 		};
 
@@ -60,7 +63,10 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x102
-			, EProtocolVersion_Current = 0x104
+			, EProtocolVersion_SupportResources = 0x103
+			, EProtocolVersion_SupportLaunchID = 0x104
+			, EProtocolVersion_SupportLogReporter = 0x105
+			, EProtocolVersion_Current = 0x105
 		};
 
 		struct CRegisterInfo
@@ -82,6 +88,7 @@ namespace NMib::NConcurrency
 		~CDistributedAppInterfaceServer();
 
 		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() = 0;
+		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 			(
 				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface

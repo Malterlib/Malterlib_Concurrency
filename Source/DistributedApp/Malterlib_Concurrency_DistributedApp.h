@@ -25,6 +25,12 @@ namespace NMib::NConcurrency
 	struct CDistributedAppSensorReader_SensorKeyAndReading;
 	struct CDistributedAppSensorStoreLocal;
 
+	struct CDistributedAppLogReader_LogFilter;
+	struct CDistributedAppLogReader_LogEntryFilter;
+	struct CDistributedAppLogReader_LogDataFilter;
+	struct CDistributedAppLogReader_LogKeyAndEntry;
+	struct CDistributedAppLogStoreLocal;
+
 	struct CDistributedAppState
 	{
 		NEncoding::CSimpleJSONDatabase m_StateDatabase;
@@ -86,6 +92,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType);
 		TCFuture<void> f_StopApp();
+		TCFuture<CDistributedAppLogReporter::CLogReporter> f_OpenDefaultLogReporter();
 
 		void f_SetAppType(EDistributedAppType _AppType);
 		void f_LogApplicationInfo();
@@ -397,6 +404,9 @@ namespace NMib::NConcurrency
 
 		auto fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>;
 		TCFuture<TCActor<CDistributedAppSensorStoreLocal>> fp_OpenSensorStoreLocal();
+
+		auto fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;
+		TCFuture<TCActor<CDistributedAppLogStoreLocal>> fp_OpenLogStoreLocal();
 
 		struct CLocalAppState : public CDistributedAppState
 		{

@@ -647,6 +647,17 @@ namespace NMib::NConcurrency
 		co_return mp_State.m_HostID;
 	}
 
+	TCFuture<CDistributedAppLogReporter::CLogReporter> CDistributedAppActor::f_OpenDefaultLogReporter()
+	{
+		CDistributedAppLogReporter::CLogInfo LogInfo;
+
+		LogInfo.m_Identifier = "org.malterlib.log.distributedapp";
+		LogInfo.m_IdentifierScope = "{} ({})"_f << mp_Settings.m_AppName << mp_Settings.m_RootDirectory;
+		LogInfo.m_Name = "Malterlib Distributed App";
+
+		co_return co_await self(&CDistributedAppActor::fp_OpenLogReporter, LogInfo);
+	}
+
 	void CDistributedAppActor::fp_Construct()
 	{
 		mp_State.m_AppActor = fg_ThisActor(this);
@@ -700,6 +711,23 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		Internal.m_bDestroyCalled = true;
 #endif
+		{
+			TCActorResultVector<void> Destroys;
+
+			Internal.m_AuditLogReporterInitSequencer.f_Abort() > Destroys.f_AddResult();
+			Internal.m_AppSensorStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
+			Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+			Internal.m_AppLogStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
+			Internal.m_AppLogStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+
+			if (Internal.m_AppSensorStoreLocal)
+				fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys.f_AddResult();
+			if (Internal.m_AppLogStoreLocal)
+				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetResults();
+		}
+
 		TCActorResultVector<void> Destroys;
 		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
 			mp_State.m_DistributionManager.f_Destroy() > Destroys.f_AddResult();
@@ -711,17 +739,18 @@ namespace NMib::NConcurrency
 		if (Internal.m_CleanupFilesActor)
 			Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
-		Internal.m_AppSensorStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
-		Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
-
-		if (Internal.m_AppSensorStoreLocal)
-			fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys.f_AddResult();
-
 		if (Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription)
 			fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
 		
 		if (Internal.m_AppSensorStoreLocalAppServerChangeSubscription)
 			fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+
+		if (Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription)
+			fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+		if (Internal.m_AppLogStoreLocalAppServerChangeSubscription)
+			fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
 
 		for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
 			fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();

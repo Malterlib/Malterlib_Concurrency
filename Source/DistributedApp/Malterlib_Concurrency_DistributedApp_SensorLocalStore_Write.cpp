@@ -134,6 +134,8 @@ namespace NMib::NConcurrency
 					if (pSensor->m_pCanDestroy)
 						CanDestroy = pSensor->m_pCanDestroy->f_Track();
 
+					auto SequenceSubscription = co_await pSensor->m_InitSensorSequencer.f_Sequence();
+
 					auto [DatabaseResult, UpstreamResult] = co_await
 						(
 							(

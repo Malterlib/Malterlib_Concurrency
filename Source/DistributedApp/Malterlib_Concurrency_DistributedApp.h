@@ -472,7 +472,15 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};
 
-	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params);
+	struct CApplyLoggingResults
+	{
+		void f_Destroy(CActorDestroyEventLoop const &_DestroyLoop);
+
+		TCActor<CActor> m_LogActor;
+		COnScopeExitShared m_CleanupLogging;
+	};
+
+	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp);
 
 	struct CRunDistributedAppHelper
 	{
@@ -489,7 +497,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		TCActor<CDistributedAppActor> m_AppActor;
-		TCActor<CActor> m_LogActor;
+		CApplyLoggingResults m_ApplyLoggingResults;
 		bool m_bStartedApp = false;
 		bool m_bInstalledLogDispatcher = false;
 	};

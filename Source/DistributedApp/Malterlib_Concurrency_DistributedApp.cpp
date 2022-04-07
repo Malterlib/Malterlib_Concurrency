@@ -866,11 +866,14 @@ namespace NMib::NConcurrency
 			NTime::CTimeConvert::CDateTime DateTime;
 			NTime::CTimeConvert(_Time.f_ToLocal()).f_ExtractDateTime(DateTime);
 
+			if (!_Operations.f_IsEmpty() && _Operations.f_GetFirst() == "DisableStdErrLogger")
+				return;
+
 			auto SeverityString = [&]() -> NStr::CStr
 				{
 					if (mp_AnsiEncoding.f_Color())
 					{
-						if (!_Operations.f_IsEmpty())
+						if (!_Operations.f_IsEmpty() && _Operations.f_GetFirst() != "DisableDistributedLogReporter")
 							return _Operations.f_GetFirst();
 						else
 							return NLog::fg_GetSeverityName(_Sev);
@@ -966,9 +969,11 @@ namespace NMib::NConcurrency
 	};
 #endif
 
-	TCActor<CActor> fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params)
+	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
 		TCActor<CActor> LogActor;
+
+		CApplyLoggingResults Results;
 
 #if DMibEnableTrace > 0
 		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
@@ -1012,8 +1017,31 @@ namespace NMib::NConcurrency
 			}
 		}
 #endif
+		if (_DistributedLoggingApp)
+		{
+			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, nullptr), false);
 
-		return LogActor;
+			Results.m_CleanupLogging = g_OnScopeExitShared / [DestinationID]() mutable
+				{
+					fg_GetSys()->f_GetLogger().f_RemoveGlobalDestination(DestinationID);
+				}
+			;
+		}
+
+		Results.m_LogActor = fg_Move(LogActor);
+
+		return Results;
+	}
+
+	void CApplyLoggingResults::f_Destroy(CActorDestroyEventLoop const &_DestroyLoop)
+	{
+		if (m_CleanupLogging)
+		{
+			[[maybe_unused]] bool bDeleted = m_CleanupLogging.f_Clear();
+			DMibFastCheck(bDeleted);
+		}
+		if (m_LogActor)
+			m_LogActor->f_BlockDestroy(_DestroyLoop);
 	}
 
 	aint CRunDistributedAppHelper::f_RunCommandLine
@@ -1053,8 +1081,7 @@ namespace NMib::NConcurrency
 					if (m_bInstalledLogDispatcher)
 					{
 						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-						if (m_LogActor)
-							m_LogActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+						m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
 					}
 #endif
 				}
@@ -1072,11 +1099,11 @@ namespace NMib::NConcurrency
 						{
 							EDistributedAppType AppType = EDistributedAppType_ForceLocal;
 
-							m_LogActor = fg_ApplyLoggingOption(_Params);
-							if (m_LogActor)
+							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
+							if (m_ApplyLoggingResults.m_LogActor)
 								m_bInstalledLogDispatcher = true;
 
-							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, AppType).f_CallSync(m_pRunLoop);
+							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
 							m_bStartedApp = true;
 						}
 
@@ -1097,12 +1124,12 @@ namespace NMib::NConcurrency
 						else
 							AppType = EDistributedAppType_CommandLine;
 
-						m_LogActor = fg_ApplyLoggingOption(_Params);
-						if (m_LogActor)
+						m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
+						if (m_ApplyLoggingResults.m_LogActor)
 							m_bInstalledLogDispatcher = true;
 						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))
 						{
-							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, AppType).f_CallSync(m_pRunLoop);
+							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
 							m_bStartedApp = true;
 						}
 						else if (AppType != EDistributedAppType_Unchanged)
@@ -1149,7 +1176,7 @@ namespace NMib::NConcurrency
 			DMibConErrOut("Error stopping app: {}{\n}", _Exception.f_GetErrorStr());
 		}
 
-		m_LogActor.f_Clear();
+		m_ApplyLoggingResults = {};
 		m_AppActor.f_Clear();
 		m_pRunLoop.f_Clear();
 	}

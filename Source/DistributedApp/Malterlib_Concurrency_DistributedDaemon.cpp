@@ -23,11 +23,11 @@ namespace NMib::NConcurrency
 			: m_pRunLoop(_pRunLoop)
 			, m_Actor(_Actor)
 		{
-			m_LogActor = fg_ApplyLoggingOption(_Params);
-			if (m_LogActor)
+			m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
+			if (m_ApplyLoggingResults.m_LogActor)
 				m_bInstalledLogDispatcher = true;
 
-			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_LogActor, EDistributedAppType_Daemon)
+			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon)
 				> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
 				{
 					if (_Result)
@@ -66,14 +66,15 @@ namespace NMib::NConcurrency
 			if (m_bInstalledLogDispatcher)
 			{
 				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-				if (m_LogActor)
-					m_LogActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+				m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
 			}
 #endif
+
+			m_ApplyLoggingResults = {};
 		}
 
 		TCActor<CDistributedAppActor> m_Actor;
-		TCActor<CActor> m_LogActor;
+		CApplyLoggingResults m_ApplyLoggingResults;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
 		bool m_bInstalledLogDispatcher = false;
 	};

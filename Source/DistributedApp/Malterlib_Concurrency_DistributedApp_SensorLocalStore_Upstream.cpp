@@ -58,6 +58,7 @@ namespace NMib::NConcurrency
 
 		auto OnFailure = g_OnScopeExit / [&]
 			{
+				pSensorReporter = pSensor->m_SensorReporters.f_FindEqual(_WeakActor);
 				if (pSensorReporter)
 				{
 					m_FailedReporters.f_Insert(pSensorReporter);

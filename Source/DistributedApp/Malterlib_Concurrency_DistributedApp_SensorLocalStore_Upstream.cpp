@@ -103,6 +103,20 @@ namespace NMib::NConcurrency
 			if (!Batch.f_IsEmpty())
 				co_await Reporter.m_fReportReadings(fg_Move(Batch));
 		}
+		else if (Reporter.m_LastSeenUniqueSequence > pSensor->m_LastSeenUniqueSequence)
+		{
+			DMibLogWithCategory
+				(
+					SensorLocalStore
+					, Warning
+					, "Detected incorrect database last unique sequence. Reset from {} to {}\n{}"
+					, pSensor->m_LastSeenUniqueSequence
+					, Reporter.m_LastSeenUniqueSequence
+					, pSensor->m_SensorInfo
+				)
+			;
+			pSensor->m_LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence;
+		}
 
 		pSensorReporter->m_Reporter = fg_Move(Reporter);
 

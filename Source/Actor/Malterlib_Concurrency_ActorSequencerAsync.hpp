@@ -32,7 +32,8 @@ namespace NMib::NConcurrency
 				auto &State = *pState;
 				if (State.m_bDestroyed)
 				{
-					Promise.f_SetException(DMibErrorInstance("Sequencer has been aborted"));
+					if (!Promise.f_IsSet())
+						Promise.f_SetException(DMibErrorInstance("Sequencer has been aborted"));
 					return;
 				}
 

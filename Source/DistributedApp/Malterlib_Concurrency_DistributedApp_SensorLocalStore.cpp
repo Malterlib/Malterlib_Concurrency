@@ -133,7 +133,7 @@ namespace NMib::NConcurrency
 			(
 				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppSensorReporter> const &_Actor, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
 				{
-					co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, _Actor, _TrustInfo);
+					co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo);
 
 					co_return {};
 				}

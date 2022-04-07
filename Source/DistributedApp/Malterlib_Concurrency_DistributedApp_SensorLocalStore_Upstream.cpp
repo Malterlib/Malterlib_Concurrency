@@ -87,7 +87,7 @@ namespace NMib::NConcurrency
 
 			NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> Batch;
 
-			static constexpr mint c_BatchSize = 1024;
+			static constexpr mint c_BatchSize = 32768;
 
 			for (; iSensorReading; ++iSensorReading)
 			{
@@ -189,35 +189,58 @@ namespace NMib::NConcurrency
 		if (!pSensor)
 			co_return {};
 
+		TCVector<TCVector<CDistributedAppSensorReporter::CSensorReading>> ReadingsChunks;
+
+		static constexpr mint c_ChunkSize = 32768;
+
+		mint nReadings = _Readings.f_GetLen();
+
+		if (nReadings < c_ChunkSize)
+			ReadingsChunks.f_Insert(_Readings);
+		else
+		{
+			for (mint iStartReading = 0; iStartReading < nReadings;)
+			{
+				mint ThisTime = fg_Min(nReadings - iStartReading, c_ChunkSize);
+
+				ReadingsChunks.f_Insert(TCVector<CDistributedAppSensorReporter::CSensorReading>(_Readings.f_GetArray() + iStartReading, ThisTime));
+
+				iStartReading += ThisTime;
+			}
+		}
+
 		TCActorResultVector<void> Results;
 
-		for (auto &Reporter : pSensor->m_SensorReporters)
+		for (auto &Readings : ReadingsChunks)
 		{
-			auto WeakActor = pSensor->m_SensorReporters.fs_GetKey(Reporter);
-			Reporter.m_WriteSequencer / [this, Readings = _Readings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
-				{
-					auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
-					if (!pSensor)
+			for (auto &Reporter : pSensor->m_SensorReporters)
+			{
+				auto WeakActor = pSensor->m_SensorReporters.fs_GetKey(Reporter);
+				Reporter.m_WriteSequencer / [this, Readings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
+					{
+						auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+						if (!pSensor)
+							co_return {};
+
+						auto pReporter = pSensor->m_SensorReporters.f_FindEqual(WeakActor);
+						if (!pReporter)
+							co_return {};
+
+						if (pReporter->m_LinkFailed.f_IsInList())
+							co_return {};
+
+						if (!pReporter->m_Reporter.m_fReportReadings)
+							co_return {};
+
+						co_await pReporter->m_Reporter.m_fReportReadings(fg_Move(Readings));
+
+						(void)_DoneSubscription;
+
 						co_return {};
-
-					auto pReporter = pSensor->m_SensorReporters.f_FindEqual(WeakActor);
-					if (!pReporter)
-						co_return {};
-
-					if (pReporter->m_LinkFailed.f_IsInList())
-						co_return {};
-
-					if (!pReporter->m_Reporter.m_fReportReadings)
-						co_return {};
-
-					co_await pReporter->m_Reporter.m_fReportReadings(fg_Move(Readings));
-
-					(void)_DoneSubscription;
-
-					co_return {};
-				}
-				> Results.f_AddResult()
-			;
+					}
+					> Results.f_AddResult()
+				;
+			}
 		}
 
 		co_await Results.f_GetResults() | g_Unwrap;

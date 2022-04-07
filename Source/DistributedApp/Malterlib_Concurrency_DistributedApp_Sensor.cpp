@@ -28,6 +28,8 @@ namespace NMib::NConcurrency
 		if (Internal.m_AppSensorStoreLocal)
 			co_return Internal.m_AppSensorStoreLocal;
 
+		co_await fp_WaitForDistributedTrustInitialization();
+
 		TCActor<CDistributedAppSensorStoreLocal> AppSensorStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
 		co_await AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_StartWithDatabasePath, mp_Settings.m_RootDirectory / ("SensorStore.{}"_f << mp_Settings.m_AppName));
 

@@ -307,7 +307,7 @@ namespace NMib::NConcurrency
 			Reporter.m_pSensor->m_SensorReporters.f_Remove(&Reporter);
 		}
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await Results.f_GetResults();
 
 		co_return {};
 	}

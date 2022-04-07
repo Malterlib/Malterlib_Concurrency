@@ -10,6 +10,7 @@
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 #include "Malterlib_Concurrency_DistributedApp_Private.h"
+#include "Malterlib_Concurrency_DistributedApp_LogDestination.h"
 #include <Mib/Process/Platform>
 
 namespace NMib::NConcurrency
@@ -96,19 +97,85 @@ namespace NMib::NConcurrency
 	}
 #endif
 
+	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(NLog::ESeverity _Severity, NStr::CStr _Message, NStr::CStr _Category, CCallingHostInfo _CallingHostInfo)
+	{
+		auto OnResume = g_OnResume / [&]
+			{
+				if (f_IsDestroyed())
+					DMibError("Shutting down");
+			}
+		;
+
+		auto &Internal = *mp_pInternal;
+		if (!Internal.m_AuditLogReporter)
+		{
+			auto InitSequenceSubscription = co_await Internal.m_AuditLogReporterInitSequencer.f_Sequence();
+
+			if (!Internal.m_AuditLogReporter)
+				Internal.m_AuditLogReporter = co_await f_OpenDefaultLogReporter();
+		}
+
+		DMibCheck(Internal.m_AuditLogReporter);
+		DMibCheck(Internal.m_AuditLogReporter->m_fReportEntries);
+
+		NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> LogEntries;
+
+		auto &LogEntry = LogEntries.f_Insert();
+		auto &Data = LogEntry.m_Data;
+		Data.f_SetFromLogSeverity(_Severity);
+		Data.m_Flags |= CDistributedAppLogReporter::ELogEntryFlag_Audit;
+		Data.m_Message = fg_Move(_Message);
+
+		if (_Category)
+			Data.m_Categories.f_Insert(fg_Move(_Category));
+
+		Data.m_MetaData["ClaimedUserID"] = _CallingHostInfo.f_GetClaimedUserID();
+		Data.m_MetaData["ClaimedUserName"] = _CallingHostInfo.f_GetClaimedUserName();
+		Data.m_MetaData["RealHostID"] = _CallingHostInfo.f_GetRealHostID();
+		Data.m_MetaData["FriendlyHostName"] = _CallingHostInfo.f_GetHostInfo().m_FriendlyName;
+		Data.m_MetaData["UniqueHostID"] = _CallingHostInfo.f_GetUniqueHostID();
+
+		if (!Internal.m_AuditLogReporter->m_fReportEntries)
+			co_return DMibErrorInstance("Invalid report functor");
+
+		co_await Internal.m_AuditLogReporter->m_fReportEntries(fg_Move(LogEntries));
+
+		co_return {};
+	}
+
 	void CDistributedAppActor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo)
 	{
+		auto &Internal = *mp_pInternal;
+		if (Internal.m_AppType == 0)
+		{
+			fp_AuditToDistributedLogger(_Severity, _Message, _Category, _CallingHostInfo) > [](TCAsyncResult<void> &&_Result)
+				{
+					if (!_Result)
+					{
+						DMibLogOperation(DisableDistributedLogReporter); // Prevent generating another error
+						DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to log audit message", _Result.f_GetExceptionStr());
+					}
+				}
+			;
+		}
+
 		CStr Category = _Category;
 		if (Category.f_IsEmpty())
 			Category = mp_Settings.m_AuditCategory;
+
+
 #if (DMibSysLogSeverities) != 0
-		NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
-		CStr UserID = _CallingHostInfo.f_GetClaimedUserID();
-		CStr UserName = _CallingHostInfo.f_GetClaimedUserName();
-		if (UserName || UserID)
-			NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}, {} [{}]> {}", _CallingHostInfo.f_GetHostInfo(), UserID, UserName, _Message);
-		else
-			NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
+		{
+			DMibLogOperation(DisableDistributedLogReporter); // We already report audit logs separately
+
+			NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
+			CStr UserID = _CallingHostInfo.f_GetClaimedUserID();
+			CStr UserName = _CallingHostInfo.f_GetClaimedUserName();
+			if (UserName || UserID)
+				NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}, {} [{}]> {}", _CallingHostInfo.f_GetHostInfo(), UserID, UserName, _Message);
+			else
+				NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
+		}
 #endif
 	}
 
@@ -711,6 +778,12 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		Internal.m_bDestroyCalled = true;
 #endif
+		if (Internal.m_AuditLogReporter)
+		{
+			if (Internal.m_AuditLogReporter->m_fReportEntries)
+				co_await fg_Move(Internal.m_AuditLogReporter->m_fReportEntries).f_Destroy();
+			Internal.m_AuditLogReporter.f_Clear();
+		}
 		{
 			TCActorResultVector<void> Destroys;
 

@@ -72,6 +72,9 @@ namespace NMib::NConcurrency
 		CActorSubscription m_AppLogStoreLocalExtraLogInterfaceSubscription;
 		TCActorSequencerAsync<void> m_AppLogStoreLocalAppServerChangeSequencer;
 
+		TCActorSequencerAsync<void> m_AuditLogReporterInitSequencer;
+		NStorage::TCOptional<CDistributedAppLogReporter::CLogReporter> m_AuditLogReporter;
+
 		bool m_bDelegateTrustToAppInterface = false;
 #if DMibEnableSafeCheck > 0
 		bool m_bDestroyCalled = false;

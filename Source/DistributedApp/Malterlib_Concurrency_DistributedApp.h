@@ -303,6 +303,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
+		TCFuture<void> fp_AuditToDistributedLogger(NLog::ESeverity _Severity, NStr::CStr _Message, NStr::CStr _Category, CCallingHostInfo _CallingHostInfo);
+
 		void fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities);
 		void fp_BuildDefaultCommandLine_Logging(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_DistributedComputingAuthentication(CDistributedAppCommandLineSpecification &o_CommandLine);

@@ -80,6 +80,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
 		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasCreated);
 		TCFuture<void> f_NewSensorReadings(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings);
+		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
+		TCFuture<void> f_PerformLocalCleanup();
 
 		void f_ScheduleFailedRetry();
 		TCFuture<void> f_RetryFailedReporters();
@@ -101,7 +103,12 @@ namespace NMib::NConcurrency
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor> m_Sensors;
 
 		TCTrustedActorSubscription<CDistributedAppSensorReporter> m_SensorsInterfaceSubscription;
+		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
+		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
+
+		uint64 m_RetentionDays = 0;
+		
 		bool m_bStarted = false;
 		bool m_bStarting = false;
 		bool m_bOwnDatabase = false;

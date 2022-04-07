@@ -57,6 +57,7 @@ namespace NMib::NConcurrency
 
 					NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
 					DatabaseSensorInfo.m_Info = _SensorInfo;
+					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
 
 					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
 
@@ -147,12 +148,33 @@ namespace NMib::NConcurrency
 									if (!pSensor)
 										co_return {};
 
+									auto WriteTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+
 									try
 									{
-										auto WriteTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+										auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+										smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
+										auto SizeLimit = SizeStats.m_MapSize - fg_Min(fg_Max(SizeStats.m_MapSize / 20, BatchLimit * 3, 32 * SizeStats.m_PageSize), SizeStats.m_MapSize / 3);
+										smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 
 										for (auto &Reading : _Readings)
 										{
+											auto nBytesInserted = WriteTransaction.m_Transaction.f_SizeStatistics().m_UsedBytes - SizeStats.m_UsedBytes;
+											bool bFreeUpSpace = nBytesInserted >= nBytesLimit;
+
+											if (bFreeUpSpace)
+												WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+											if (nBytesInserted > BatchLimit || bFreeUpSpace)
+											{
+												co_await Internal.m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
+												if (bFreeUpSpace)
+													co_await Internal.m_Database(&CDatabaseActor::f_WaitForAllReaders);
+												WriteTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+												SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+												nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
+											}
+
 											if (Reading.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
 												Key.m_UniqueSequence = ++pSensor->m_LastSeenUniqueSequence;
 											else
@@ -165,8 +187,6 @@ namespace NMib::NConcurrency
 											Value.m_Timestamp = Reading.m_Timestamp;
 											Value.m_Data = Reading.m_Data;
 
-											WriteTransaction.m_Transaction.f_Insert(Key, Value);
-
 											NSensorStoreLocalDatabase::CSensorReadingByTime ByTime;
 											ByTime.m_DbPrefix = Key.m_DbPrefix;
 											ByTime.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix;
@@ -178,6 +198,7 @@ namespace NMib::NConcurrency
 											ByTime.m_Identifier = Key.m_Identifier;
 											ByTime.m_IdentifierScope = Key.m_IdentifierScope;
 
+											WriteTransaction.m_Transaction.f_Insert(Key, Value);
 											WriteTransaction.m_Transaction.f_Insert(ByTime, NSensorStoreLocalDatabase::CSensorReadingByTimeValue());
 										}
 
@@ -196,7 +217,6 @@ namespace NMib::NConcurrency
 							.f_Wrap()
 						)
 					;
-
 
 					if (!UpstreamResult)
 					{

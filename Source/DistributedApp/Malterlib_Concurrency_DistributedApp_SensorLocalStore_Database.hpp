@@ -34,6 +34,9 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		_Stream % Version;
 		DMibBinaryStreamVersion(_Stream, Version);
 		_Stream % m_Info;
+
+		if (_Stream.f_GetVersion() >= CDistributedAppSensorReporter::EProtocolVersion_UniqueSequenceAtLastCleanup)
+			_Stream % m_UniqueSequenceAtLastCleanup;
 	}
 
 	template <typename tf_CStream>

@@ -35,6 +35,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		void f_Stream(tf_CStream &_Stream);
 
 		CDistributedAppSensorReporter::CSensorInfo m_Info;
+		uint64 m_UniqueSequenceAtLastCleanup = 0;
 	};
 
 	struct CSensorReadingKey : public CSensorKey

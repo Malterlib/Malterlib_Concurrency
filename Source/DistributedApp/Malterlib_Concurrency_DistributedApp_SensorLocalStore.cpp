@@ -25,6 +25,12 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
+		if (Internal.m_CleanupTimerSubscription)
+		{
+			co_await Internal.m_CleanupTimerSubscription->f_Destroy();
+			Internal.m_CleanupTimerSubscription.f_Clear();
+		}
+
 		TCActorResultVector<void> Destroys;
 		for (auto &Sensor : Internal.m_Sensors)
 		{
@@ -45,7 +51,12 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabase(TCActor<NDatabase::CDatabaseActor> &&_Database, CStr const &_Prefix)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabase
+		(
+			TCActor<NDatabase::CDatabaseActor> &&_Database
+			, CStr const &_Prefix
+			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> &&_fCleanup
+		)
 	{
 		auto OnResume = g_OnResume / [&]
 			{
@@ -62,13 +73,14 @@ namespace NMib::NConcurrency
 		Internal.m_bStarting = true;
 
 		Internal.m_Database = fg_Move(_Database);
+		Internal.m_fCleanup = fg_Move(_fCleanup);
 		Internal.m_Prefix = _Prefix;
 
 		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabasePath(CStr const &_DatabasePath)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabasePath(CStr const &_DatabasePath, uint64 _RetentionDays)
 	{
 		auto OnResume = g_OnResume / [&]
 			{
@@ -86,11 +98,38 @@ namespace NMib::NConcurrency
 
 		Internal.m_Database = fg_Construct(fg_Construct(), "");
 		Internal.m_bOwnDatabase = true;
-		Internal.m_Prefix = "mib.lsensor";
+		Internal.m_Prefix = "mib.lsensor"; // lsensor = local sensor
+		Internal.m_RetentionDays = _RetentionDays;
 
-		co_await Internal.m_Database(&CDatabaseActor::f_OpenDatabase, _DatabasePath, constant_int64(1) * 1024 * 1024 * 1024);
-		
+		uint64 MaxDatabaseSize = constant_int64(1) * 1024 * 1024 * 1024;
+
+		co_await Internal.m_Database(&CDatabaseActor::f_OpenDatabase, _DatabasePath, MaxDatabaseSize);
+
+		[[maybe_unused]] auto Stats = co_await (Internal.m_Database(&CDatabaseActor::f_GetAggregateStatistics));
+		[[maybe_unused]] auto TotalSizeUsed = Stats.f_GetTotalUsedSize();
+
+		DMibLogWithCategory
+			(
+				SensorLocalStore
+				, Debug
+				, "Database at '{}' uses {fe2}% of allotted space ({ns } / {ns } bytes)"
+				, _DatabasePath
+				, fp64(TotalSizeUsed) / fp64(MaxDatabaseSize) * 100.0
+				, TotalSizeUsed
+				, MaxDatabaseSize
+			)
+		;
+
 		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
+		co_return {};
+	}
+
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_PerformLocalCleanup()
+	{
+		auto WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+		WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+		co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
+
 		co_return {};
 	}
 
@@ -114,17 +153,39 @@ namespace NMib::NConcurrency
 
 				auto &Sensor = *m_Sensors(Key.f_SensorInfoKey(), CSensor{fg_Move(Value.m_Info)});
 
+				Sensor.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
+
 				{
 					auto DatabaseKey = f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorReadingKey>(Sensor.m_SensorInfo);
 					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((NSensorStoreLocalDatabase::CSensorKey const &)DatabaseKey);
 					if (ReadCursor.f_Last())
-						Sensor.m_LastSeenUniqueSequence = ReadCursor.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>().m_UniqueSequence;
+						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
 				}
 			}
 		}
 		catch (CException const &_Exception)
 		{
 			co_return DMibErrorInstance("Error reading sensor data from database (f_Start): {}"_f << _Exception);
+		}
+
+		if (m_RetentionDays && !m_fCleanup)
+		{
+			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup);
+
+			m_CleanupTimerSubscription = co_await fg_RegisterTimer
+				(
+					24.0 * 60.0 * 60.0
+					, [this]() -> TCFuture<void>
+					{
+						auto Result = co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap();
+
+						if (!Result)
+							DMibLogWithCategory(SensorLocalStore, Error, "Failed to do nightly cleanup: {}", Result.f_GetExceptionStr());
+
+						co_return {};
+					}
+				)
+			;
 		}
 
 		m_SensorsInterfaceSubscription = co_await m_TrustManager->f_SubscribeTrustedActors<CDistributedAppSensorReporter>();

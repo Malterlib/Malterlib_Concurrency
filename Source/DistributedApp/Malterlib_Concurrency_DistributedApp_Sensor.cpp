@@ -31,7 +31,13 @@ namespace NMib::NConcurrency
 		co_await fp_WaitForDistributedTrustInitialization();
 
 		TCActor<CDistributedAppSensorStoreLocal> AppSensorStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
-		co_await AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_StartWithDatabasePath, mp_Settings.m_RootDirectory / ("SensorStore.{}"_f << mp_Settings.m_AppName));
+		co_await AppSensorStoreLocal
+			(
+				&CDistributedAppSensorStoreLocal::f_StartWithDatabasePath
+				, mp_Settings.m_RootDirectory / ("SensorStore.{}"_f << mp_Settings.m_AppName)
+				, mp_State.m_ConfigDatabase.m_Data.f_GetMemberValue("SensorRetentionDays", 6 * 30).f_Integer()
+			)
+		;
 
 		Internal.m_AppSensorStoreLocal = fg_Move(AppSensorStoreLocal);
 

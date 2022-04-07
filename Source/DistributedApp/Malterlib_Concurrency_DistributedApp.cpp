@@ -353,113 +353,130 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedAppActor::fp_InitializeDistributedTrust()
 	{
-		TCPromise<void> Promise;
-
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Loading config file and state");
 
 		fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
 		fp_CleanupOldExecutables();
 #endif
-
-		mp_State.m_StateDatabase.f_Load()
-			+ mp_State.m_ConfigDatabase.f_Load()
-			> Promise / [this, Promise, _Params]()
+		auto OnResume = g_OnResume / [&]
 			{
 				if (mp_State.m_bStoppingApp)
-					return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
-				NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)>
-					fManagerFactor
-				;
-
-				if (mp_Settings.m_bSeparateDistributionManager)
 				{
-					fManagerFactor = [](CActorDistributionManagerInitSettings const &_Settings)
-						{
-							return fg_ConstructActor<CActorDistributionManager>(_Settings);
-						}
-					;
+					if (mp_Settings.m_bSeparateDistributionManager)
+						mp_State.m_DistributionManager.f_Destroy() > fg_DiscardResult();
+
+					DMibError("Startup aborted");
 				}
-
-				int32 DefaultConcurrency = 1;
-				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
-					DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
-
-				fp64 InitialConnectionTimeout = 5.0;
-				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
-					InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
-
-				bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
-				if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJSONType_Boolean))
-					bSupportAuthentication = pValue->f_Boolean();
-
-				CDistributedActorTrustManager::COptions Options;
-
-				Options.m_fConstructManager = fg_Move(fManagerFactor);
-				Options.m_KeySetting = mp_Settings.m_KeySetting;
-				Options.m_ListenFlags = mp_Settings.m_ListenFlags;
-				Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
-				Options.m_Enclave = mp_Settings.m_Enclave;
-				Options.m_TranslateHostnames = fp_GetTranslateHostnames();
-				Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
-				Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
-				Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
-				Options.m_bSupportAuthentication = bSupportAuthentication;
-
-				auto &Internal = *mp_pInternal;
-
-				mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Internal.m_TrustManagerDatabase, fg_Move(Options));
-
-				mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize)
-					> Promise % "Failed to initialize trust manager" / [this, Promise, _Params]()
-					{
-						if (mp_State.m_bStoppingApp)
-							return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-
-						mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager)
-							+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
-							> Promise % "Failed to initialize trust manager"
-							/ [this, Promise, _Params](NConcurrency::TCActor<NConcurrency::CActorDistributionManager> &&_DistributionManager, CStr &&_HostID)
-							{
-								if (mp_State.m_bStoppingApp)
-								{
-									if (mp_Settings.m_bSeparateDistributionManager)
-									{
-										fg_Move(_DistributionManager).f_Destroy() > [Promise](TCAsyncResult<void> &&)
-											{
-												Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-											}
-										;
-										return;
-									}
-									return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-								}
-								mp_State.m_DistributionManager = fg_Move(_DistributionManager);
-								mp_State.m_HostID = fg_Move(_HostID);
-								fp_SetupListen() + fp_SetupAppServerInterface(_Params)
-									> Promise % "Failed to setup listen config or app server interface" / [this, Promise]()
-									{
-										if (mp_State.m_bStoppingApp)
-											return Promise.f_SetException(DMibErrorInstance("Startup aborted"));
-										fp_SetupCommandLineTrust()
-											> Promise % "Failed to setup commmand line trust" / [Promise]()
-											{
-												Promise.f_SetResult();
-											}
-										;
-									}
-								;
-							}
-						;
-					}
-				;
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		co_await (mp_State.m_StateDatabase.f_Load() + mp_State.m_ConfigDatabase.f_Load());
+
+		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Initializing trust manager");
+		NFunction::TCFunctionMovable<NConcurrency::TCActor<NConcurrency::CActorDistributionManager> (CActorDistributionManagerInitSettings const &_Settings)> fManagerFactory;
+
+		if (mp_Settings.m_bSeparateDistributionManager)
+		{
+			fManagerFactory = [](CActorDistributionManagerInitSettings const &_Settings)
+				{
+					return fg_ConstructActor<CActorDistributionManager>(_Settings);
+				}
+			;
+		}
+
+		int32 DefaultConcurrency = 1;
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
+			DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
+
+		fp64 InitialConnectionTimeout = 5.0;
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
+			InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
+
+		bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJSONType_Boolean))
+			bSupportAuthentication = pValue->f_Boolean();
+
+		CDistributedActorTrustManager::COptions Options;
+
+		Options.m_fConstructManager = fg_Move(fManagerFactory);
+		Options.m_KeySetting = mp_Settings.m_KeySetting;
+		Options.m_ListenFlags = mp_Settings.m_ListenFlags;
+		Options.m_FriendlyName = mp_Settings.f_GetCompositeFriendlyName();
+		Options.m_Enclave = mp_Settings.m_Enclave;
+		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
+		Options.m_InitialConnectionTimeout = InitialConnectionTimeout;
+		Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
+		Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
+		Options.m_bSupportAuthentication = bSupportAuthentication;
+
+		auto &Internal = *mp_pInternal;
+
+		mp_State.m_TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(Internal.m_TrustManagerDatabase, fg_Move(Options));
+
+		co_await (mp_State.m_TrustManager(&CDistributedActorTrustManager::f_Initialize) % "Failed to initialize trust manager");
+
+		auto [DistributionManager, HostID] = co_await
+			(
+				(
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager)
+					+ mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID)
+				)
+				% "Failed to get distribution manager"
+			)
+		;
+
+		mp_State.m_DistributionManager = fg_Move(DistributionManager);
+		mp_State.m_HostID = fg_Move(HostID);
+
+		co_return {};
+	}
+
+	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON _Params)
+	{
+		auto &Internal = *mp_pInternal;
+
+		auto Result = co_await fp_InitializeDistributedTrust().f_Wrap();
+
+		if (!Result)
+			Internal.m_DistributedTrustInitResult.f_SetException(DMibErrorInstance("Failed to initialize distributed trust"_f << Result.f_GetExceptionStr()));
+		else
+			Internal.m_DistributedTrustInitResult.f_SetResult();
+
+		for (auto &StartupResult : Internal.m_DeferredDistributedTrustInit)
+			StartupResult.f_SetResult(Internal.m_DistributedTrustInitResult);
+		Internal.m_DeferredDistributedTrustInit.f_Clear();
+
+		if (!Result)
+			co_return Result.f_GetException();
+
+		co_await ((fp_SetupListen() + fp_SetupAppServerInterface(_Params)) % "Failed to setup listen config or app server interface");
+
+		co_await (fp_SetupCommandLineTrust() % "Failed to setup commmand line trust");
+
+		co_return {};
+	}
+
+	TCFuture<void> CDistributedAppActor::fp_WaitForDistributedTrustInitialization()
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (mp_State.m_TrustManager && mp_State.m_DistributionManager)
+			co_return {};
+
+		if (Internal.m_DistributedTrustInitResult.f_IsSet())
+		{
+			if (!Internal.m_DistributedTrustInitResult)
+				co_return Internal.m_DistributedTrustInitResult.f_GetException();
+			else
+				co_return DMibErrorInstance("Missing trust or distribution manager");
+		}
+
+		co_await Internal.m_DeferredDistributedTrustInit.f_Insert().f_Future();
+
+		co_return {};
 	}
 
 	namespace

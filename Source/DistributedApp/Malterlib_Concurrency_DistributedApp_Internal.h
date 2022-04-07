@@ -47,6 +47,8 @@ namespace NMib::NConcurrency
 		CActorSubscription m_AppInterfaceClientRegistrationSubscription;
 		TCAsyncResult<void> m_AppStartupResult;
 		NContainer::TCVector<TCPromise<void>> m_DeferredAppStartupResults;
+		TCAsyncResult<void> m_DistributedTrustInitResult;
+		NContainer::TCVector<TCPromise<void>> m_DeferredDistributedTrustInit;
 
 		NContainer::TCMap<NStr::CStr, CActorSubscription> m_TicketPermissionSubscriptions;
 

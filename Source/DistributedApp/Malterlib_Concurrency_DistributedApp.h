@@ -407,7 +407,9 @@ namespace NMib::NConcurrency
 	private:
 		struct CDistributedAppInterfaceClientImplementation;
 
-		TCFuture<void> fp_Initialize(NEncoding::CEJSON const &_Params);
+		TCFuture<void> fp_WaitForDistributedTrustInitialization();
+		TCFuture<void> fp_InitializeDistributedTrust();
+		TCFuture<void> fp_Initialize(NEncoding::CEJSON _Params);
 		void fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
 		void fp_CleanupOldExecutables();

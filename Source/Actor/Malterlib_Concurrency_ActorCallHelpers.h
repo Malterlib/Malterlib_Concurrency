@@ -5,6 +5,7 @@
 
 #include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/RunLoop>
+#include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
 {
@@ -1494,6 +1495,127 @@ namespace NMib::NConcurrency
 	private:
 		TCReportLocal(TCReportLocal const &_Other);
 	};
+
+	namespace NPrivate
+	{
+		template <typename tf_CParam>
+		auto fg_ConvertToFuture(tf_CParam &&_Param)
+			requires (NPrivate::TCIsFuture<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CParam>::CType>::mc_Value)
+		{
+			return fg_Forward<tf_CParam>(_Param);
+		}
+
+		template <typename tf_CParam>
+		auto fg_ConvertToFuture(tf_CParam &&_Param)
+		{
+			return fg_Forward<tf_CParam>(_Param).f_Future();
+		}
+
+		template <typename ...tfp_CParams, mint ...tfp_Indidies>
+		auto fg_AnyDoneImpl(NMeta::TCIndices<tfp_Indidies...> const &, TCFuture<tfp_CParams> && ...p_Futures)
+			-> TCFuture<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>>
+		{
+			struct CState
+			{
+				TCPromise<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
+				NAtomic::CAtomicFlag m_bReplied;
+			};
+
+			NStorage::TCSharedPointer<CState> pState = fg_Construct();
+
+			TCInitializerList<bool> Dummy =
+				{
+					[&]
+					{
+						fg_Move(p_Futures) > NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
+							{
+
+								if (!pState->m_bReplied.f_TestAndSet())
+								{
+									if (!_Result)
+										pState->m_Promise.f_SetException(fg_Move(_Result));
+									else
+									{
+										NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...> Results;
+										fg_Get<tfp_Indidies>(Results) = fg_Move(*_Result);
+										pState->m_Promise.f_SetResult(fg_Move(Results));
+									}
+								}
+							}
+						;
+						return false;
+					}
+					()...
+				}
+			;
+
+			return pState->m_Promise.f_Future();
+		}
+
+		template <typename ...tfp_CParams, mint ...tfp_Indidies>
+		auto fg_AnySuccessImpl(NMeta::TCIndices<tfp_Indidies...> const &, TCFuture<tfp_CParams> && ...p_Futures)
+			-> TCFuture<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>>
+		{
+			static constexpr mint c_nParams = sizeof...(tfp_CParams);
+
+			struct CState
+			{
+				TCPromise<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
+				NException::CExceptionPointer m_Errors[c_nParams];
+				NAtomic::CAtomicFlag m_bReplied;
+				NAtomic::TCAtomic<mint> m_nErrors;
+			};
+
+			NStorage::TCSharedPointer<CState> pState = fg_Construct();
+
+			TCInitializerList<bool> Dummy =
+				{
+					[&]
+					{
+						fg_Move(p_Futures) > NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
+							{
+								auto &State = *pState;
+								if (!_Result)
+								{
+									State.m_Errors[tfp_Indidies] = _Result.f_ExceptionPointer();
+									if (State.m_nErrors.f_FetchAdd(1) == c_nParams && !State.m_bReplied.f_TestAndSet())
+									{
+										NContainer::TCVector<NException::CExceptionPointer> Exceptions(State.m_Errors, c_nParams);
+										State.m_Promise.f_SetException(DMibErrorInstanceExceptionVector("All operations failed", fg_Move(Exceptions), false));
+									}
+								}
+								else
+								{
+									if (!State.m_bReplied.f_TestAndSet())
+									{
+										NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...> Results;
+										fg_Get<tfp_Indidies>(Results) = fg_Move(*_Result);
+										State.m_Promise.f_SetResult(fg_Move(Results));
+									}
+								}
+							}
+						;
+						return false;
+					}
+					()...
+				}
+			;
+
+			return pState->m_Promise.f_Future();
+		}
+	}
+
+	template <typename ...tfp_CParams>
+	auto fg_AnyDone(tfp_CParams && ...p_Params)
+	{
+		return NPrivate::fg_AnyDoneImpl(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
+	}
+
+	template <typename ...tfp_CParams>
+	auto fg_AnySuccess(tfp_CParams && ...p_Params)
+	{
+		return NPrivate::fg_AnySuccessImpl(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
+	}
 }
 
 #include "Malterlib_Concurrency_ActorCallCoroutine.hpp"

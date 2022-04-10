@@ -270,31 +270,24 @@ namespace NMib::NConcurrency
 
 		auto Subscription = fg_Move(f_GetSubscription());
 
-		TCFuture<void> DispatchFuture;
-
-		if (mp_Actor && mp_pFunctor)
-		{
-			if (mp_Actor->f_IsCurrentActorAndProcessing())
-			{
-				mp_pFunctor.f_Clear();
-				mp_Actor.f_Clear();
-
-				DispatchFuture = TCPromise<void>() <<= g_Void;
-			}
-			else
-				DispatchFuture = fg_Dispatch(fg_Move(mp_Actor), [pFunctor = fg_Move(mp_pFunctor)] {}).f_Future();
-		}
+		TCFuture<void> DestroySubscriptionFuture;
+		if (Subscription)
+			DestroySubscriptionFuture = fg_Exchange(Subscription, nullptr)->f_Destroy();
 		else
-			DispatchFuture = TCPromise<void>() <<= g_Void;
+			DestroySubscriptionFuture = TCPromise<void>() <<= g_Void;
 
-		fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise, Subscription = fg_Move(Subscription)](TCAsyncResult<void> &&) mutable
+		fg_Move(DestroySubscriptionFuture) > NPrivate::fg_DirectResultActor() / [Promise, Actor = fg_Move(mp_Actor), pFunctor = fg_Move(mp_pFunctor)](TCAsyncResult<void> &&_Result) mutable
 			{
-				if (!Subscription)
-					return Promise.f_SetResult();
+				TCFuture<void> DispatchFuture;
 
-				fg_Exchange(Subscription, nullptr)->f_Destroy() > NPrivate::fg_DirectResultActor() / [Promise = fg_Move(Promise)](TCAsyncResult<void> &&_Result)
+				if (Actor && pFunctor)
+					DispatchFuture = fg_Dispatch(fg_Move(Actor), [pFunctor = fg_Move(pFunctor)] {}).f_Future();
+				else
+					DispatchFuture = TCPromise<void>() <<= g_Void;
+
+				fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise = fg_Move(Promise), Result = fg_Move(_Result)](TCAsyncResult<void> &&) mutable
 					{
-						Promise.f_SetResult(fg_Move(_Result));
+						Promise.f_SetResult(fg_Move(Result));
 					}
 				;
 			}
@@ -306,6 +299,8 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	void TCActorFunctor<t_CFunction>::f_Clear()
 	{
+		mp_Subscription.f_Clear();
+		
 		if (mp_Actor && mp_pFunctor)
 		{
 			// Destroy functor on correct actor
@@ -317,7 +312,6 @@ namespace NMib::NConcurrency
 
 		mp_Actor.f_Clear();
 		mp_pFunctor.f_Clear();
-		mp_Subscription.f_Clear();
 	}
 	
 	inline CActorFunctorHelperWithProperties::CActorFunctorHelperWithProperties(TCActor<> const &_Actor)

@@ -77,6 +77,12 @@ namespace NMib::NConcurrency
 		mp_iFixedCore = _iFixedCore;
 	}
 
+	void CActorHolder::f_Yield()
+	{
+		DMibFastCheck(fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == this);
+		mp_bYield = true;
+	}
+
 	void CActorHolder::fp_StartQueueProcessing()
 	{
 
@@ -171,7 +177,7 @@ namespace NMib::NConcurrency
 				mint Value = mp_Working.f_FetchAdd(1);
 				return Value == 0;
 			}
-			return false;
+			return mp_bYield;
 		}
 		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor));
 
@@ -193,54 +199,67 @@ namespace NMib::NConcurrency
 
 	void CActorHolder::fp_RunProcess()
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		auto pOldHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-		ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
-		bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
-		ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
-
-		auto Cleanup = g_OnScopeExit / [&]
-			{
-				ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldHolder;
-				ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
-			}
-		;
-
 		bool bDoMore = true;
-		while (bDoMore)
 		{
-			bDoMore = false;
-			mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
-			if ((OriginalWorking & gc_ProcessingMask) == 0)
-			{
-				auto UnLock
-					= fg_OnScopeExit
-					(
-						[&]
-						{
-							mint NewWorking = mp_Working.f_Exchange(0);
-							if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
-								bDoMore = true;
-						}
-					)
-				;
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			auto pOldHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+			ThreadLocal.m_pCurrentlyProcessingActorHolder = this;
+			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
+			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 
-				bool bDoneSomething = true;
-				while (bDoneSomething)
+			auto Cleanup = g_OnScopeExit / [&]
 				{
-					bDoneSomething = false;
-					if (mp_ConcurrentRunQueue.f_TransferThreadSafeQueue(mp_ConcurrentRunQueueLocal))
-						bDoneSomething = true;
-					while (fp_DequeueProcess(ThreadLocal))
-						bDoneSomething = true;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldHolder;
+					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
+				}
+			;
 
-					if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+			while (bDoMore)
+			{
+				bDoMore = false;
+				mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
+				if ((OriginalWorking & gc_ProcessingMask) == 0)
+				{
+					auto UnLock
+						= fg_OnScopeExit
+						(
+							[&]
+							{
+								mint NewWorking = mp_Working.f_Exchange(0);
+								if ((NewWorking & (~gc_ProcessingMask)) != OriginalWorking)
+									bDoMore = true;
+							}
+						)
+					;
+
+					bool bDoneSomething = true;
+					while (bDoneSomething)
 					{
-						UnLock.f_Clear();
-						return;
+						bDoneSomething = false;
+						if (mp_ConcurrentRunQueue.f_TransferThreadSafeQueue(mp_ConcurrentRunQueueLocal))
+							bDoneSomething = true;
+						while (fp_DequeueProcess(ThreadLocal) && !mp_bYield)
+							bDoneSomething = true;
+
+						if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+						{
+							UnLock.f_Clear();
+							return;
+						}
+
+						if (mp_bYield)
+							break;
 					}
 				}
+				if (mp_bYield)
+					break;
 			}
+		}
+		if (mp_bYield)
+		{
+			if (!mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal))
+				fp_QueueProcess([]{});
+			mp_bYield = false;
 		}
 	}
 
@@ -1029,6 +1048,7 @@ namespace NMib::NConcurrency
 					{
 						pThis->fp_RunProcess();
 					}
+					, mp_bYield
 				)
 			;
 		}

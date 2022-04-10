@@ -991,7 +991,64 @@ namespace NMib::NConcurrency
 
 	extern CDispatchHelper const &g_Dispatch;
 
-	TCDispatchedActorCall<void> fg_Yield();
+	struct [[nodiscard("You need to co_await to yield")]] CCoroutineYieldAwaiter
+	{
+		bool await_ready() const noexcept
+		{
+			return false;
+		}
+
+		template <typename tf_CCoroutineContext>
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
+		{
+			DMibFastCheck(fg_CurrentActor());
+			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
+
+			auto &CoroutineContext = _Handle.promise();
+			auto KeepAlive = CoroutineContext.f_KeepAlive(fg_CurrentActor());
+			auto Actor = KeepAlive.f_MoveActor();
+			auto pRealActor = Actor.f_GetRealActor();
+
+			CoroutineContext.f_Suspend(true);
+
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			ThreadLocal.m_pCurrentlyProcessingActorHolder->f_Yield();
+
+			pRealActor->f_QueueProcess
+				(
+					[Actor, _Handle, KeepAlive = fg_Move(KeepAlive)]() mutable
+					{
+#if DMibEnableSafeCheck > 0
+						if (!KeepAlive.f_HasValidCoroutine())
+							return;
+#endif
+						auto &CoroutineContext = _Handle.promise();
+						CCurrentActorScope CurrentActorScope(Actor);
+						bool bAborted = false;
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+						if (!bAborted)
+							_Handle.resume();
+					}
+				)
+			;
+
+			return true;
+		}
+
+		void await_resume() noexcept
+		{
+		}
+	};
+
+	struct [[nodiscard("You need to co_await to yield")]] CCoroutineYield
+	{
+		auto operator co_await()
+		{
+			return CCoroutineYieldAwaiter();
+		}
+	};
+
+	extern CCoroutineYield g_Yield;
 
 	struct CConcurrentDispatchHelper
 	{

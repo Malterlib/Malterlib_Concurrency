@@ -128,6 +128,7 @@ namespace NMib::NConcurrency
 		CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 		virtual ~CActorHolder();
 
+		void f_Yield();
 		void f_SetFixedCore(mint _iFixedCore);
 		void f_QueueProcessDestroy(FActorQueueDispatch &&_Functor);
 		void f_QueueProcess(FActorQueueDispatch &&_Functor);
@@ -211,9 +212,10 @@ namespace NMib::NConcurrency
 		// Alignment zone 3 = 8+8+8+8+8 = 40 => 64 bytes
 		align_cacheline CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
 		CConcurrencyManager *mp_pConcurrencyManager;
-		mint mp_iFixedCore:sizeof(mint)*8 - 3;
-		mint mp_Priority:1;
-		mint mp_bImmediateDelete:1;
+		mint mp_iFixedCore:sizeof(mint)*8 - 3 = 0;
+		mint mp_Priority:1 = 0;
+		mint mp_bImmediateDelete:1 = false;
+		mint mp_bYield:1 = false;
 		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe = nullptr;
 		mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
 

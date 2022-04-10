@@ -96,8 +96,8 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue);
-		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor);
+		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, bool _bForceNonLocal);
+		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, bool _bForceNonLocal);
 		inline_never mint fp_InitConcurrentActors();
 
 		void fp_AddedActor();

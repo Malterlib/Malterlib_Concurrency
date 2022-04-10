@@ -438,7 +438,7 @@ namespace NMib::NConcurrency
 		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
 		++ThreadLocal.m_iConcurrentActor[_Priority];
 
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), false))
 			Queue.f_Signal(this);
 	}
 
@@ -460,11 +460,11 @@ namespace NMib::NConcurrency
 		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
 		++ThreadLocal.m_iConcurrentActor[_Priority];
 
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), false))
 			Queue.f_Signal(this);
 	}
 
-	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, bool _bForceNonLocal)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mint iJobQueue;
@@ -499,17 +499,17 @@ namespace NMib::NConcurrency
 		}
 
 		auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue)))
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _bForceNonLocal))
 			Queue.f_Signal(this);
 	}
 
 	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 
-	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor)
+	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, bool _bForceNonLocal)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
-		if (ThreadLocal.m_pThisQueue == &_Queue)
+		if (ThreadLocal.m_pThisQueue == &_Queue && !_bForceNonLocal)
 		{
 			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
 			return false;

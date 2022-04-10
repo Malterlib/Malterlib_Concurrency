@@ -263,6 +263,7 @@ namespace NMib::NConcurrency
 				, uint64 _MaxEntries
 				, ESensorOutputFlag _Flags
 				, NStr::CStr const &_TableType
+				, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 			)
 		;
 

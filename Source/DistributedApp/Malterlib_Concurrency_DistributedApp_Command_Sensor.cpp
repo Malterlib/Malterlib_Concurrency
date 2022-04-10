@@ -269,35 +269,35 @@ namespace NMib::NConcurrency
 						, Option_SensorIdentifier
 						, Option_Verbose
 						, Option_Json
-						, "MinSequence?"_=
-						{
-							"Names"_= {"--min-sequence"}
-							, "Type"_= 0
-							, "Description"_= "Limit output to sequences that are greater than specified."
-						}
-						, "MaxSequence?"_=
-						{
-							"Names"_= {"--max-sequence"}
-							, "Type"_= 0
-							, "Description"_= "Limit output to sequences that are less than specified."
-						}
 						, "MinTimestamp?"_=
 						{
 							"Names"_= {"--min-timestamp"}
 							, "Type"_= CTime()
-							, "Description"_= "Limit output to sequences that are newer than specified."
+							, "Description"_= "Limit output to readings that are newer than specified."
+						}
+						, "MinSequence?"_=
+						{
+							"Names"_= {"--min-sequence"}
+							, "Type"_= 0
+							, "Description"_= "Limit output to sequences that are greater than specified for the timestamp."
 						}
 						, "MaxTimestamp?"_=
 						{
 							"Names"_= {"--max-timestamp"}
 							, "Type"_= CTime()
-							, "Description"_= "Limit output to sequences that are newer than specified."
+							, "Description"_= "Limit output to readings that are older than specified."
+						}
+						, "MaxSequence?"_=
+						{
+							"Names"_= {"--max-sequence"}
+							, "Type"_= 0
+							, "Description"_= "Limit output to sequences that are less than specified for the timestamp."
 						}
 						, "ReportNewestFirst?"_=
 						{
-							"Names"_= {"--report-newest-first"}
-							, "Default"_= false
-							, "Description"_= "Limit output to sequences that are newer than specified."
+							"Names"_= {"--newest"}
+							, "Default"_= true
+							, "Description"_= "When applying entry limit, show newest entries first."
 						}
 						, "MaxEntries?"_=
 						{
@@ -571,6 +571,7 @@ namespace NMib::NConcurrency
 			, uint64 _MaxEntries
 			, ESensorOutputFlag _Flags
 			, CStr const &_TableType
+			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -796,7 +797,12 @@ namespace NMib::NConcurrency
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");
 
 		if (_Flags & ESensorOutputFlag_Json)
+		{
+			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
+				JsonOutputArray = JsonOutputArray.f_Reverse();
+
 			*_pCommandLine += JsonOutput.f_ToString();
+		}
 		else
 		{
 			if (!(_Flags & ESensorOutputFlag_Verbose))
@@ -814,6 +820,9 @@ namespace NMib::NConcurrency
 					VerboseHeadings.f_Remove(pLargest);
 				}
 			}
+
+			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
+				TableRenderer.f_ReverseRows();
 
 			TableRenderer.f_Output(_TableType);
 		}
@@ -833,6 +842,9 @@ namespace NMib::NConcurrency
 		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorStatus, fg_TempCopy(_Filter), 1024);
 		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter), 1024);
 
+		CDistributedAppSensorReader_SensorReadingFilter Filter;
+		Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
+
 		co_return co_await self
 			(
 				&CDistributedAppActor::f_CommandLine_SensorReadingsOutput
@@ -842,6 +854,7 @@ namespace NMib::NConcurrency
 				, 0
 				, _Flags
 				, _TableType
+				, Filter
 			)
 		;
 	}
@@ -868,6 +881,7 @@ namespace NMib::NConcurrency
 				, _MaxEntries
 				, _Flags
 				, _TableType
+				, _Filter
 			)
 		;
 

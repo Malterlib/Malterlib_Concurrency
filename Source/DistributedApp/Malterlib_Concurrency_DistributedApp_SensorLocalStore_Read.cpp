@@ -103,23 +103,102 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto ReadTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead);
+
+		auto Prefix = Internal.m_Prefix;
+
+		co_await fg_ContinueRunningOnActor(fg_ConcurrentActor());
+
+		// From here on you can't access Internal
+
 		try
 		{
-			auto ReadTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead);
-
 			TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
-			auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
+			auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
 
 			bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
 
 			if (bReportNewestFirst)
-				iReadingByTime.f_Last();
+			{
+				if (_Filter.m_MaxTimestamp)
+				{
+					if (_Filter.m_MaxSequence)
+						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
+					else
+						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+
+					if (!iReadingByTime)
+						iReadingByTime.f_Last();
+				}
+				else
+					iReadingByTime.f_Last();
+			}
+			else
+			{
+				if (_Filter.m_MinTimestamp)
+				{
+					if (_Filter.m_MinSequence)
+						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+					else
+						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+				}
+			}
+
+			NTime::CCyclesClock YieldClock(true);
+
+			auto OnResume = g_OnResume / [&]
+				{
+					YieldClock.f_Start();
+				}
+			;
 
 			for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 			{
 				NSensorStoreLocalDatabase::CSensorReadingValue Value;
 				auto KeyByTime = iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>();
+
+				if (bReportNewestFirst)
+				{
+					if (_Filter.m_MinTimestamp)
+					{
+						auto &MinTimestamp = *_Filter.m_MinTimestamp;
+
+						if (KeyByTime.m_Timestamp < MinTimestamp)
+							break;
+						else if (KeyByTime.m_Timestamp == MinTimestamp && _Filter.m_MinSequence)
+						{
+							if (KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+								break;
+						}
+					}
+				}
+				else
+				{
+					if (_Filter.m_MaxTimestamp)
+					{
+						auto &MaxTimestamp = *_Filter.m_MaxTimestamp;
+
+						if (KeyByTime.m_Timestamp > MaxTimestamp)
+							break;
+						else if (KeyByTime.m_Timestamp == MaxTimestamp && _Filter.m_MaxSequence)
+						{
+							if (KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
+								break;
+						}
+					}
+				}
+
+				if (YieldClock.f_GetTime() > 0.1)
+				{
+					if (co_await g_bShouldAbort)
+						co_return DMibErrorInstance("Aborted");
+
+					if (Batch.f_GetLen() > 0)
+						co_yield fg_Move(Batch);
+
+					co_await g_Yield;
+				}
 
 				if (!fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
 					continue;

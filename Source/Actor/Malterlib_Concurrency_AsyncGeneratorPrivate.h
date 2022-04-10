@@ -19,7 +19,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> m_fGetNext;
 		NStorage::TCOptional<t_CReturnType> m_LastValue;
 	};
-	
+
 	template <typename t_CReturnType>
 	struct TCAsyncGeneratorCoroutineContext : public TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>
 	{
@@ -35,6 +35,11 @@ namespace NMib::NConcurrency::NPrivate
 			void await_resume() noexcept;
 		};
 
+		CSuspendAlways initial_suspend() noexcept
+		{
+			return {};
+		}
+
 		void return_value(CEmpty);
 
 		template <typename tf_CReturnType>
@@ -46,10 +51,12 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCAsyncGenerator<t_CReturnType> get_return_object();
 
-		static constexpr bool mc_bSupportOwnershipTransfer = false;
+		TCWeakActor<> m_AsyncGeneratorOwner;
+		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pAborted;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (TCAsyncResult<TCAsyncGenerator<t_CReturnType>> &&_AsyncResult)>> m_pKeepAliveParams;
 	};
 
-	template <typename t_CReturnType, ECoroutineFlag t_Flags = ECoroutineFlag_None>
+	template <typename t_CReturnType, ECoroutineFlag t_Flags>
 	struct TCAsyncGeneratorCoroutineContextWithFlags : public TCAsyncGeneratorCoroutineContext<t_CReturnType>
 	{
 		TCAsyncGeneratorCoroutineContextWithFlags() noexcept

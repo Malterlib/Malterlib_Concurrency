@@ -153,7 +153,6 @@ namespace NMib::NConcurrency
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;
 #endif
-		static constexpr bool mc_bSupportOwnershipTransfer = true;
 
 	protected:
 #if DMibEnableSafeCheck > 0
@@ -468,6 +467,9 @@ namespace NMib::NConcurrency
 	{
 		template <typename t_CReturnType>
 		struct TCAsyncGeneratorCoroutineContext;
+
+		template <typename t_CReturnType, ECoroutineFlag t_Flags = ECoroutineFlag_None>
+		struct TCAsyncGeneratorCoroutineContextWithFlags;
 	}
 
 	/// \brief Used to defer the return of a value to allow async programming

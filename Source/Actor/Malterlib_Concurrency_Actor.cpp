@@ -3,6 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
+#include <Mib/Concurrency/AsyncGenerator>
 
 namespace NMib::NConcurrency
 {
@@ -197,6 +198,8 @@ namespace NMib::NConcurrency
 	}
 
 	constinit CCoroutineYield g_Yield;
+
+	constinit CIsGeneratorAborted g_bShouldAbort;
 }
 
 namespace NMib::NConcurrency

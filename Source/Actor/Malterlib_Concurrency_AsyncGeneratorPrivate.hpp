@@ -133,7 +133,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	TCAsyncGenerator<t_CReturnType> TCAsyncGeneratorCoroutineContext<t_CReturnType>::get_return_object()
 	{
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (TCAsyncResult<TCAsyncGenerator<t_CReturnType>> &&_AsyncResult)>> pKeepAliveParams =
+		m_pKeepAliveParams =
 			fg_Construct
 			(
 				fg_ConsumeFutureOnResultSet<TCAsyncGenerator<t_CReturnType>>
@@ -149,50 +149,65 @@ namespace NMib::NConcurrency::NPrivate
 		auto pPromiseData = this->fp_GetReturnObject();
 		pPromiseData->m_bIsGenerator = true;
 		pPromiseData->m_bOnResultSetAtInit = false;
+		m_AsyncGeneratorOwner = fg_CurrentActor();
+		m_pAborted = fg_Construct(false);
 
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = **g_SystemThreadLocal;
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
 		if (PromiseThreadLocal.m_pOnResultSetConsumedBy == this)
 			PromiseThreadLocal.m_pOnResultSetConsumedBy = pPromiseData.f_Get();
-		auto CreatedOnActor = fg_CurrentActor();
 #endif
 		return g_ActorFunctor
 			(
-				g_ActorSubscription / []
+				g_ActorSubscription(fg_DirectCallActor()) / [pAborted = m_pAborted]()
 				{
+					pAborted->f_Exchange(true);
 				}
 			)
 			/
 			[
-				pKeepAliveParams = fg_Move(pKeepAliveParams)
-				, pPromiseData = fg_Move(pPromiseData)
+				pPromiseData = fg_Move(pPromiseData)
 				, bInProgress = false
-#if DMibEnableSafeCheck > 0
-				, CreatedOnActor
-#endif
+				, bInitialSuspend = true
+				, pAborted = m_pAborted
+				, AllowDestroy = g_AllowWrongThreadDestroy
 			]() mutable -> TCFuture<NStorage::TCOptional<t_CReturnType>>
 			{
-				if (bInProgress)
+				if (fg_Exchange(bInProgress, true))
 					co_return DMibErrorInstance("Iteration already in progress");
 
-				bInProgress = true;
+				if (bInitialSuspend)
+				{
+					bInitialSuspend = false;
+					pPromiseData->m_Coroutine.promise().CFutureCoroutineContext::initial_suspend();
+					pPromiseData->m_Coroutine.resume();
+				}
+
 				TCFuture<NStorage::TCOptional<t_CReturnType>> Future(pPromiseData);
 				auto Result = co_await fg_Move(Future);
 				bInProgress = false;
+
 				if (Result)
 				{
+					auto &CoroutineContext = static_cast<TCAsyncGeneratorCoroutineContext<t_CReturnType> &>(pPromiseData->m_Coroutine.promise());
+
+					if (CoroutineContext.m_AsyncGeneratorOwner != fg_CurrentActor())
+					{
+						auto Actor = CoroutineContext.m_AsyncGeneratorOwner.f_Lock();
+						if (!Actor)
+							co_return DMibErrorInstance("Generator owner was deleted");
+
+						co_await fg_ContinueRunningOnActor(Actor);
+					}
+
 					pPromiseData->f_Reset();
 					pPromiseData->m_bOnResultSetAtInit = false;
 
-					g_Dispatch /
+					g_Dispatch(CoroutineContext.m_AsyncGeneratorOwner) /
 						[
-							pKeepAliveParams
-							, KeepAlivePromise = TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>>(fg_TempCopy(pPromiseData))
+							KeepAlivePromise = TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>>(fg_TempCopy(pPromiseData))
 							, CoroutineHandle = pPromiseData->m_Coroutine
-#if DMibEnableSafeCheck > 0
-							, CreatedOnActor
-#endif
 						]
 						() mutable
 						{
@@ -201,7 +216,6 @@ namespace NMib::NConcurrency::NPrivate
 								return; // Can happen when f_Suspend throws
 
 							auto CurrentActor = fg_CurrentActor();
-							DMibFastCheck(CurrentActor == CreatedOnActor);
 							DMibFastCheck(CurrentActor);
 							DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
 		 #endif

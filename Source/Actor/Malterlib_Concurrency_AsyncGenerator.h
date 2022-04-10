@@ -61,6 +61,10 @@ namespace NMib::NConcurrency
 	private:
 		NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> mp_pData;
 	};
+
+	struct CIsGeneratorAborted;
+
+	extern CIsGeneratorAborted g_bShouldAbort;
 }
 
 #include "Malterlib_Concurrency_AsyncGenerator.hpp"

@@ -22,6 +22,9 @@ namespace NMib::NConcurrency
 	auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
+		m_pPreviousCoroutineHandler = ThreadLocal.m_pCurrentCoroutineHandler;
+		ThreadLocal.m_pCurrentCoroutineHandler = this;
+
 		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
 			Scope.f_InitialSuspend();
 
@@ -170,8 +173,6 @@ namespace NMib::NConcurrency
 
 	inline_never void CFutureCoroutineContext::fp_UpdateSafeCall(bool _bSafeCall)
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
-		DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
 		m_bIsCalledSafely = _bSafeCall;
 	}
 

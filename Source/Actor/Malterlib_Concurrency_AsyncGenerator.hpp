@@ -125,6 +125,37 @@ namespace NMib::NConcurrency
 		return true;
 	}
 #endif
+
+	struct [[nodiscard("You need to co_await to get the result")]] CIsGeneratorAbortedAwaiter
+	{
+		bool await_ready() noexcept
+		{
+			return false;
+		}
+
+		template <typename tf_CCoroutineContext>
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
+		{
+			mp_bIsAborted = _Handle.promise().m_pAborted->f_Load();
+			return false;
+		}
+
+		bool await_resume()
+		{
+			return mp_bIsAborted;
+		}
+
+	private:
+		bool mp_bIsAborted = false;
+	};
+
+	struct [[nodiscard("You need to co_await to get the result")]] CIsGeneratorAborted
+	{
+		auto operator co_await()
+		{
+			return CIsGeneratorAbortedAwaiter();
+		}
+	};
 }
 
 #include "Malterlib_Concurrency_AsyncGeneratorPrivate.hpp"

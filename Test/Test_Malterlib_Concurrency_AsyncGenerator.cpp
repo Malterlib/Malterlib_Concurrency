@@ -318,7 +318,35 @@ namespace
 					}
 				;
 				auto Generator = (g_Dispatch(TestActor) / (fg_Move(fTestEager))).f_CallSync(g_Timeout);
+				DMibExpectFalse(pState->m_bStartedExecution);
+			};
+			DMibTestSuite("Eager Execution Iterator") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				struct CState
+				{
+					bool m_bStartedExecution = false;
+				};
+				TCSharedPointer<CState> pState = fg_Construct();
+
+				TCFunctionMovable<TCAsyncGenerator<int32> ()> fTestEager = [pState]() -> TCAsyncGenerator<int32>
+					{
+						co_yield 1;
+						pState->m_bStartedExecution = true;
+						co_yield 1;
+						co_yield 1;
+						co_return {};
+					}
+				;
+				auto Generator = co_await (g_Dispatch(TestActor) / (fg_Move(fTestEager))).f_Timeout(g_Timeout, "Timeout");
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+
+				co_await (g_Dispatch(TestActor) / []{}).f_Timeout(g_Timeout, "Timeout");
+
 				DMibExpectTrue(pState->m_bStartedExecution);
+
+				co_return {};
 			};
 			DMibTestSuite("Destruction of locals when destructed early on actor")
 			{
@@ -554,6 +582,268 @@ namespace
 				DMibExpect(*iIterator, ==, 1);
 				(++iIterator).f_CallSync(g_Timeout);
 				DMibExpect(*iIterator, ==, 5);
+			};
+			DMibTestSuite("Transfer ownership")
+			{
+				TCActor<> ProcessingActor = fg_Construct();
+				CCurrentActorScope ActorScope(ProcessingActor);
+
+				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
+				TCActor<CSeparateThreadActor> TestOtherActor(fg_Construct(), "TestOtherActor");
+
+				auto Generator = fg_Dispatch
+					(
+						TestActor
+						, [TestOtherActor, TestActor]() -> TCAsyncGenerator<int32>
+						{
+							co_await NConcurrency::fg_ContinueRunningOnActor(TestOtherActor);
+							DMibFastCheck(fg_CurrentActor() == TestOtherActor);
+
+							auto RunOnActor1 = TestOtherActor;
+							auto RunOnActor2 = TestActor;
+
+							for (mint i = 0; i < 100; ++i)
+							{
+								if ((i % 10) == 0)
+								{
+									fg_Swap(RunOnActor1, RunOnActor2);
+									co_await NConcurrency::fg_ContinueRunningOnActor(RunOnActor1);
+								}
+
+								co_yield i;
+
+								DMibFastCheck(fg_CurrentActor() == RunOnActor1);
+							}
+
+							co_return {};
+						}
+					)
+					.f_CallSync(g_Timeout)
+				;
+				auto iIterator = fg_Move(Generator).f_GetIterator().f_CallSync(g_Timeout);
+
+				TCVector<mint> ExpectedResults;
+				TCVector<mint> Results;
+				for (mint i = 0; i < 100; ++i)
+				{
+					Results.f_Insert(*iIterator);
+					ExpectedResults.f_Insert(i);
+					(++iIterator).f_CallSync(g_Timeout);
+				}
+				DMibExpect(Results, ==, ExpectedResults);
+			};
+			DMibTestSuite("Abort Before Iterator") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, []() -> TCAsyncGenerator<int32>
+						{
+							for (mint i = 0; i < 300; ++i)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									break;
+								}
+								co_await fg_Timeout(0.1);
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+				co_await fg_Move(Generator).f_Destroy();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+
+				co_return {};
+			};
+			DMibTestSuite("Abort After Iterator") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, []() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							for (mint i = 0; i < 300; ++i)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									break;
+								}
+								co_await fg_Timeout(0.1);
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+
+				co_await fg_Move(iIterator).f_Destroy();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+
+				co_return {};
+			};
+			DMibTestSuite("Abort After Iterator Wait") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCPromise<void> AbortedPromise;
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							for (mint i = 0; i < 300; ++i)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									pAborted->f_Exchange(true);
+									AbortedPromise.f_SetResult();
+									break;
+								}
+								co_await fg_Timeout(0.1);
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+
+				co_await fg_Move(iIterator).f_Destroy();
+				co_await AbortedPromise.f_Future();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpectTrue(pAborted->f_Load());
+
+				co_return {};
+			};
+			DMibTestSuite("Abort After Iterator Spin") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, []() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							while (true)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									break;
+								}
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+
+				co_await fg_Move(iIterator).f_Destroy();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+
+				co_return {};
+			};
+			DMibTestSuite("Abort After Iterator Spin Wait") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCPromise<void> AbortedPromise;
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							while (true)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									pAborted->f_Exchange(true);
+									AbortedPromise.f_SetResult();
+									break;
+								}
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+
+				co_await fg_Move(iIterator).f_Destroy();
+				co_await AbortedPromise.f_Future();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpectTrue(pAborted->f_Load());
+
+				co_return {};
+			};
+			DMibTestSuite("Abort After Iterator Spin Wait Clear") -> TCFuture<void>
+			{
+				TCActor<CTestActor> TestActor = fg_Construct();
+
+				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCPromise<void> AbortedPromise;
+
+				auto Generator = co_await fg_Dispatch
+					(
+						TestActor
+						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						{
+							co_yield 1;
+							while (true)
+							{
+								if (co_await g_bShouldAbort)
+								{
+									pAborted->f_Exchange(true);
+									AbortedPromise.f_SetResult();
+									break;
+								}
+							}
+							co_return {};
+						}
+					)
+				;
+
+				NTime::CClock Clock(true);
+
+				auto iIterator = co_await fg_Move(Generator).f_GetIterator();
+				{
+					auto Functor = [iIterator = fg_Move(iIterator)]{};
+				}
+				co_await AbortedPromise.f_Future();
+
+				DMibExpect(Clock.f_GetTime(), <, 5.0);
+				DMibExpectTrue(pAborted->f_Load());
+
+				co_return {};
 			};
 		}
 

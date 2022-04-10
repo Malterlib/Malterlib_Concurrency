@@ -859,10 +859,6 @@ namespace NMib::NConcurrency
 
 			auto &CoroutineContext = _Handle.promise();
 
-			using CCoroutineContext = typename NTraits::TCRemoveReference<decltype(CoroutineContext)>::CType;
-
-			static_assert(CCoroutineContext::mc_bSupportOwnershipTransfer, "Ownership transfer not supported on this coroutine");
-
 			CoroutineContext.f_Suspend(false);
 			auto pCleanup = g_OnScopeExitShared / [_Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
 				{
@@ -897,6 +893,63 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 						CoroutineContext.f_SetOwner(ProcessingActor.f_Weak());
 #endif
+						bool bAborted = false;
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+						if (!bAborted)
+							_Handle.resume();
+					}
+				)
+			;
+
+			return true;
+		}
+
+#if DMibEnableSafeCheck > 0
+		template <typename tf_CReturnType, ECoroutineFlag tf_Flags>
+		bool await_suspend(TCCoroutineHandle<NPrivate::TCAsyncGeneratorCoroutineContextWithFlags<tf_CReturnType, tf_Flags>> &&_Handle)
+#else
+		template <typename tf_CReturnType>
+		bool await_suspend(TCCoroutineHandle<NPrivate::TCAsyncGeneratorCoroutineContext<tf_CReturnType>> &&_Handle)
+#endif
+		{
+			DMibFastCheck(fg_CurrentActor());
+			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
+
+			auto &CoroutineContext = _Handle.promise();
+			CoroutineContext.f_Suspend(false);
+
+			auto pCleanup = g_OnScopeExitShared / [_Handle, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))]() mutable
+				{
+					DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+#if DMibEnableSafeCheck > 0
+					auto &CoroutineContext = _Handle.promise();
+					CoroutineContext.f_SetOwner(fg_CurrentActor().f_Weak());
+#endif
+					_Handle.destroy();
+				}
+			;
+
+			auto pRealActor = mp_Actor.f_GetRealActor();
+			pRealActor->f_QueueProcess
+				(
+					[
+						this
+						, _Handle
+						, KeepAlive = CoroutineContext.f_KeepAlive(fg_TempCopy(mp_Actor))
+						, ProcessingActor = fg_ThisActor(pRealActor)
+						, pCleanup = fg_Move(pCleanup)
+					]
+					() mutable
+					{
+						DMibFastCheck(KeepAlive.f_HasValidCoroutine());
+						DMibFastCheck(ProcessingActor == fg_CurrentActor());
+
+						pCleanup->f_Clear();
+
+						(void)this;
+						auto &CoroutineContext = _Handle.promise();
+						CoroutineContext.m_AsyncGeneratorOwner = ProcessingActor;
+						CCurrentActorScope CurrentActorScope(ProcessingActor);
 						bool bAborted = false;
 						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
 						if (!bAborted)

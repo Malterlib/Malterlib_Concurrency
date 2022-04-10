@@ -574,6 +574,57 @@ namespace NMib::NConcurrency
 			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 		)
 	{
+		TCPromise<void> Cancelled;
+		auto CancellationSubscription = _pCommandLine->f_RegisterForCancellation
+			(
+				g_ActorFunctor
+				(
+					g_ActorSubscription / []()
+					{
+					}
+				)
+				/ [Cancelled]() -> TCFuture<void>
+				{
+					Cancelled.f_SetResult();
+					co_return {};
+				}
+			)
+		;
+
+		auto [Result, bCancelled] = co_await fg_AnyDone
+			(
+				self
+				(
+					&CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
+					, _pCommandLine
+					, fg_Move(_SensorReadings)
+					, fg_Move(_Sensors)
+					, _MaxEntries
+					, _Flags
+					, _TableType
+					, _Filter
+				)
+				, Cancelled.f_Future()
+			)
+		;
+
+		if (Result)
+			co_return *Result;
+		else
+			co_return DMibErrorInstance("Cancelled");
+	}
+
+	TCFuture<uint32> CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
+		(
+			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+			, uint64 _MaxEntries
+			, ESensorOutputFlag _Flags
+			, CStr const &_TableType
+			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+		)
+	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 

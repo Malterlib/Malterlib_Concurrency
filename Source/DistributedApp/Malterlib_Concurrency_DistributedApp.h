@@ -259,6 +259,17 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+				, uint64 _MaxEntries
+				, ESensorOutputFlag _Flags
+				, NStr::CStr const &_TableType
+				, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+			)
+		;
+		TCFuture<uint32> fp_CommandLine_SensorReadingsOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
 	 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
 				, uint64 _MaxEntries
 				, ESensorOutputFlag _Flags

@@ -508,6 +508,7 @@ namespace NMib::NConcurrency
 		bool fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, TCPromise<> &_Promise);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);
 		void fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
+		void fp_DestroyRemoteSubscriptionReset(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
 	};
 }
 

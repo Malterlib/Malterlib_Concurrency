@@ -202,12 +202,30 @@ namespace NMib::NConcurrency
 			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host '{}' no longer running"_f << Host.f_GetHostInfo()));
 		Host.m_OutstandingCalls.f_Clear();
 
-		Host.m_ImplicitlyPublishedActors.f_Clear();
+		{
+			NContainer::TCVector<CStr> ToDestroy;
+			for (auto &Subscription : Host.m_LocalSubscriptionReferences)
+				ToDestroy.f_Insert(Host.m_LocalSubscriptionReferences.fs_GetKey(Subscription));
+
+			for (auto &SubscriptionID : ToDestroy)
+				fp_DestroyLocalSubscription(Host, SubscriptionID);
+		}
+		{
+			NContainer::TCVector<CStr> ToDestroy;
+			for (auto &Subscription : Host.m_RemoteSubscriptionReferences)
+				ToDestroy.f_Insert(Host.m_RemoteSubscriptionReferences.fs_GetKey(Subscription));
+
+			for (auto &SubscriptionID : ToDestroy)
+				fp_DestroyRemoteSubscriptionReset(Host, SubscriptionID);
+		}
+
+		Host.m_RemoteSubscriptionReferences.f_Clear();
+		Host.m_LocalSubscriptionReferences.f_Clear();
+
 		Host.m_ImplicitlyPublishedInterfaces.f_Clear();
 		Host.m_ImplicitlyPublishedFunctions.f_Clear();
 		Host.m_ImplicitlyPublishedSubscriptions.f_Clear();
-		Host.m_RemoteSubscriptionReferences.f_Clear();
-		Host.m_LocalSubscriptionReferences.f_Clear();
+		Host.m_ImplicitlyPublishedActors.f_Clear();
 
 		for (auto &Destroy : Host.m_PendingRemoteSubscriptionDestroys)
 			Destroy.f_SetResult();

@@ -722,6 +722,22 @@ namespace NMib::NConcurrency
 		co_return co_await Host.m_PendingRemoteSubscriptionDestroys[_SubscriptionID].f_Future();
 	}
 
+	void CActorDistributionManagerInternal::fp_DestroyRemoteSubscriptionReset(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID)
+	{
+		auto *pSubscription = _Host.m_RemoteSubscriptionReferences.f_FindEqual(_SubscriptionID);
+		if (!pSubscription)
+			return;
+
+		for (auto &FunctionID : pSubscription->m_Functions)
+			_Host.f_DestroyImplicitFunction(FunctionID);
+		for (auto &ActorID : pSubscription->m_Actors)
+			_Host.m_ImplicitlyPublishedActors.f_Remove(ActorID);
+		for (auto &ActorID : pSubscription->m_Interfaces)
+			_Host.m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
+
+		_Host.m_RemoteSubscriptionReferences.f_Remove(pSubscription);
+	}
+
 	void CActorDistributionManagerInternal::fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID)
 	{
 		auto *pSubscription = _Host.m_LocalSubscriptionReferences.f_FindEqual(_SubscriptionID);

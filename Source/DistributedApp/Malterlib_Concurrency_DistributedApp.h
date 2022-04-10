@@ -87,6 +87,12 @@ namespace NMib::NConcurrency
 			, ESensorOutputFlag_Json = DMibBit(1)
 		};
 
+		enum ELogOutputFlag : uint32
+		{
+			ELogOutputFlag_None = 0
+			, ELogOutputFlag_Json = DMibBit(0)
+		};
+
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 
@@ -285,6 +291,47 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		TCFuture<uint32> f_CommandLine_LogList
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CDistributedAppLogReader_LogFilter const &_Filter
+				, ELogOutputFlag _Flags
+				, uint32 _Verbosity
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_LogListOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+				, ELogOutputFlag _Flags
+				, uint32 _Verbosity
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_LogEntriesList
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, CDistributedAppLogReader_LogEntryFilter const &_Filter
+				, uint64 _MaxEntries
+				, ELogOutputFlag _Flags
+				, uint32 _Verbosity
+				, NStr::CStr const &_TableType
+			)
+		;
+		TCFuture<uint32> f_CommandLine_LogEntriesOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> &&_LogEntries
+	 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+				, uint64 _MaxEntries
+				, ELogOutputFlag _Flags
+				, uint32 _Verbosity
+				, NStr::CStr const &_TableType
+				, CDistributedAppLogReader_LogEntryFilter const &_Filter
+			)
+		;
+
 		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
 
 		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
@@ -309,6 +356,52 @@ namespace NMib::NConcurrency
 		void fp_BuildDefaultCommandLine_Logging(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_DistributedComputingAuthentication(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_DistributedComputing(CDistributedAppCommandLineSpecification &o_CommandLine);
+		void fp_BuildDefaultCommandLine_DistributedLog(CDistributedAppCommandLineSpecification &o_CommandLine);
+		void fp_BuildDefaultCommandLine_DistributedLog_Customizable
+			(
+				CDistributedAppCommandLineSpecification::CSection _Section
+				, NStr::CStr const &_Prefix
+				, TCActorFunctor
+				<
+					TCFuture<uint32>
+					(
+						NEncoding::CEJSON const &_Params
+						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+						, CDistributedAppLogReader_LogFilter const &_Filter
+						, ELogOutputFlag _Flags
+						, uint32 _Verbosity
+						, NStr::CStr const &_TableType
+					)
+				> &&_fLogList
+				,
+				TCActorFunctor
+				<
+					TCFuture<uint32>
+					(
+						NEncoding::CEJSON const &_Params
+						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+						, CDistributedAppLogReader_LogEntryFilter const &_Filter
+						, uint64 _MaxEntries
+						, ELogOutputFlag _Flags
+						, uint32 _Verbosity
+						, NStr::CStr const &_TableType
+					)
+				> && _fLogEntriesList
+				, EDistributedAppCommandFlag _CommandFlags
+			)
+		;
+		TCFuture<uint32> fp_CommandLine_LogEntriesOutput
+			(
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> &&_LogEntries
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+				, uint64 _MaxEntries
+				, ELogOutputFlag _Flags
+				, uint32 _Verbosity
+				, NStr::CStr const &_TableType
+				, CDistributedAppLogReader_LogEntryFilter const &_Filter
+			)
+		;
 		void fp_BuildDefaultCommandLine_Sensor(CDistributedAppCommandLineSpecification &o_CommandLine);
 		void fp_BuildDefaultCommandLine_Sensor_Customizable
 			(

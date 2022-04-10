@@ -108,6 +108,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
+			NEncoding::CEJSON f_ToJSON() const;
 
 			NContainer::TCVector<NStr::CStr> m_Categories;
 			NContainer::TCVector<NStr::CStr> m_Operations;
@@ -184,6 +185,9 @@ namespace NMib::NConcurrency
 		};
 
 		virtual TCFuture<CLogReporter> f_OpenLogReporter(CLogInfo &&_LogInfo) = 0;
+
+		static NStr::CStr fs_LogSeverityToStr(ELogSeverity _Severity);
+		static ELogSeverity fs_LogSeverityFromStr(NStr::CStr const &_String);
 	};
 }
 

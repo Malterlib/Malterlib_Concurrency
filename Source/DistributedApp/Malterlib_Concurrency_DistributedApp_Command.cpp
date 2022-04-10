@@ -29,6 +29,9 @@ namespace NMib::NConcurrency
 		if (_Functionalities & EDefaultCommandLineFunctionality_Sensor)
 			fp_BuildDefaultCommandLine_Sensor(o_CommandLine);
 
+		if (_Functionalities & EDefaultCommandLineFunctionality_DistributedLog)
+			fp_BuildDefaultCommandLine_DistributedLog(o_CommandLine);
+
 		if (_Functionalities & EDefaultCommandLineFunctionality_Authentication)
 			fp_BuildDefaultCommandLine_DistributedComputingAuthentication(o_CommandLine);
 

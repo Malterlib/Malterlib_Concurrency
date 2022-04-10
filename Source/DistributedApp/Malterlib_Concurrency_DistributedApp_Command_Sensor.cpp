@@ -512,8 +512,6 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");
-
 		if (_Flags & ESensorOutputFlag_Json)
 			*_pCommandLine += JsonOutput.f_ToString();
 		else
@@ -679,6 +677,18 @@ namespace NMib::NConcurrency
 		CEJSON JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
+		CClock LastOutput{true};
+		auto fOutputStatus = [&]
+			{
+				if (LastOutput.f_GetTime() > 0.016 || nEntries == _MaxEntries)
+				{
+					CUStr ToOutput = CStr("  {} entries"_f << nEntries);
+					*_pCommandLine %= "{}\x1B[{}D"_f << ToOutput << ToOutput.f_GetLen();
+					LastOutput.f_Start();
+				}
+			}
+		;
+
 		uint32 Return = 0;
 
 		for (auto iReadings = co_await fg_Move(_SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
@@ -838,6 +848,9 @@ namespace NMib::NConcurrency
 				}
 
 				++nEntries;
+
+				fOutputStatus();
+
 				if (_MaxEntries > 0u && nEntries >= _MaxEntries)
 					break;
 			}
@@ -845,7 +858,7 @@ namespace NMib::NConcurrency
 				break;
 		}
 
-		DMibLogWithCategory(Mib/Concurrency/App, Info, "Reported listen addresses to command line");
+		co_await _pCommandLine->f_StdErr("");
 
 		if (_Flags & ESensorOutputFlag_Json)
 		{

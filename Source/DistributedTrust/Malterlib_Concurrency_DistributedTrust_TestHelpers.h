@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		TCActor<CTrustManagerDatabaseTestHelper> m_Database;
 	};
 	
-	struct CTrustedSubscriptionTestHelper
+	struct CTrustedSubscriptionTestHelper : CAllowUnsafeThis
 	{
 		CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout = 30.0);
 		~CTrustedSubscriptionTestHelper();
@@ -90,6 +90,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr const &_HostID = {});
 		template <typename tf_CActor>
+		TCFuture<TCDistributedActor<tf_CActor>> f_SubscribeAsync(NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr _HostID = {});
+		template <typename tf_CActor>
 		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple
 			(
 				mint _nActors
@@ -97,7 +99,16 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_HostID = {}
 			)
 		;
-		
+
+		template <typename tf_CActor>
+		TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>> f_SubscribeMultipleAsync
+			(
+				mint _nActors
+				, NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace
+				, NStr::CStr _HostID = {}
+			)
+		;
+
 	private:
 		struct CSubscription
 		{

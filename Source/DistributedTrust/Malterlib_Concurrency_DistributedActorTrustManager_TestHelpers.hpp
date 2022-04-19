@@ -26,9 +26,27 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
+	TCFuture<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeAsync(NStr::CStr _Namespace, NStr::CStr _HostID)
+	{
+		using namespace NStr;
+		auto Subscriptions = co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_Timeout(mp_Timeout, "Timed out subscribing to actors {}"_f << _Namespace);
+		co_return Subscriptions[0];
+	}
+
+	template <typename tf_CActor>
 	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 	{
 		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_CallSync(mp_Timeout);
+	}
+
+	template <typename tf_CActor>
+	auto CTrustedSubscriptionTestHelper::f_SubscribeMultipleAsync(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
+		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
+	{
+		using namespace NStr;
+		co_return co_await mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID)
+			.f_Timeout(mp_Timeout, "Timed out subscribing to multiple actors {}"_f << _Namespace)
+		;
 	}
 
 	template <typename tf_CActor>

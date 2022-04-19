@@ -552,8 +552,8 @@ namespace NTestTrustManager
 				, TCFunction<void ()> const &_fCleanup
 			)
 		{
-			DMibTestSuite("Basic")
 			{
+				DMibTestPath("Basic");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -695,10 +695,9 @@ namespace NTestTrustManager
 					ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				}
-			};
-
-			DMibTestSuite("Remove client while connected")
+			}
 			{
+				DMibTestPath("Remove client while connected");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -750,10 +749,9 @@ namespace NTestTrustManager
 
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-			};
-
-			DMibTestSuite("Disconnects")
+			}
 			{
+				DMibTestPath("Disconnects");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -855,10 +853,9 @@ namespace NTestTrustManager
 				ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 
-			};
-
-			DMibTestSuite("Broken Connections")
+			}
 			{
+				DMibTestPath("Broken Connections");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -961,10 +958,9 @@ namespace NTestTrustManager
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 
 				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-			};
-
-			DMibTestSuite("Host Cleanup")
+			}
 			{
+				DMibTestPath("Host Cleanup");
 				for (mint i = 0; i < 2; ++i)
 				{
 					DMibTestPath(i == 0 ? "Server" : "Client");
@@ -1114,10 +1110,9 @@ namespace NTestTrustManager
 					ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 					ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				}
-			};
-
-			DMibTestSuite("Security")
+			}
 			{
+				DMibTestPath("Security");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -1207,9 +1202,9 @@ namespace NTestTrustManager
 				Client2Database->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-			};
-			DMibTestSuite("Multiple Enclaves")
+			}
 			{
+				DMibTestPath("Multiple Enclaves");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -1283,10 +1278,10 @@ namespace NTestTrustManager
 				ClientHelpers.f_Clear();
 				for (auto &ClientManager : ClientTrustManagers)
 					ClientManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-			};
+			}
 			static constexpr auto c_WaitForSubscriptions = EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions;
-			DMibTestSuite("Subscriptions")
 			{
+				DMibTestPath("Subscriptions");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -1856,9 +1851,9 @@ namespace NTestTrustManager
 
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-			};
-			DMibTestSuite("Permissions")
+			}
 			{
+				DMibTestPath("Permissions");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -2053,9 +2048,9 @@ namespace NTestTrustManager
 					}
 					TestState.f_RemovePermissions("com.malterlib/Test");
 				}
-			};
-			DMibTestSuite("Permissions Database")
+			}
 			{
+				DMibTestPath("Permissions Database");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -2124,9 +2119,9 @@ namespace NTestTrustManager
 					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test2"}, TestState.m_ServerHostInfo).f_CallSync(pRunLoop, g_Timeout));
 					DMibAssertFalse(TrustedSubscription.f_HasPermission("After Remove Reload", {"com.malterlib/Test3"}, TestState.m_ServerHostInfo).f_CallSync(pRunLoop, g_Timeout));
 				}
-			};
-			DMibTestSuite("User Database")
+			}
 			{
+				DMibTestPath("User Database");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -2486,10 +2481,9 @@ namespace NTestTrustManager
 						)
 					;
 				}
-			};
-
-			DMibTestSuite("Permissions for HostID+UserID combos")
+			}
 			{
+				DMibTestPath("Permissions for HostID+UserID combos");
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
@@ -3058,47 +3052,49 @@ namespace NTestTrustManager
 				fp_DoDatabaseConversionTests();
 			};
 
-
-			DMibTestCategory("Dummy Database")
+			DMibTestSuite("Tests")
 			{
-				fp_DoBasicTests
-					(
-						[](CStr const &_Name)
-						{
-							return fg_ConstructActor<CTrustManagerDatabaseTestHelper>();
-						}
-						, []
-						{
-						}
-					)
-				;
-			};
-			DMibTestCategory("JSON Directory Database")
-			{
-				CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager";
-				fp_DoBasicTests
-					(
-						[BaseDirectory](CStr const &_Name)
-						{
-							return fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory + "/" + _Name);
-						}
-						, [BaseDirectory]
-						{
-							for (mint i = 0; i < 5; ++i)
+				{
+					DMibTestPath("Dummy Database");
+					fp_DoBasicTests
+						(
+							[](CStr const &_Name)
 							{
-								try
+								return fg_ConstructActor<CTrustManagerDatabaseTestHelper>();
+							}
+							, []
+							{
+							}
+						)
+					;
+				}
+				{
+					DMibTestPath("JSON Directory Database");
+					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager";
+					fp_DoBasicTests
+						(
+							[BaseDirectory](CStr const &_Name)
+							{
+								return fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory + "/" + _Name);
+							}
+							, [BaseDirectory]
+							{
+								for (mint i = 0; i < 5; ++i)
 								{
-									if (NFile::CFile::fs_FileExists(BaseDirectory))
-										NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
-									break;
-								}
-								catch (NFile::CExceptionFile const &)
-								{
+									try
+									{
+										if (NFile::CFile::fs_FileExists(BaseDirectory))
+											NFile::CFile::fs_DeleteDirectoryRecursive(BaseDirectory);
+										break;
+									}
+									catch (NFile::CExceptionFile const &)
+									{
+									}
 								}
 							}
-						}
-					)
-				;
+						)
+					;
+				}
 			};
 		}
 	};

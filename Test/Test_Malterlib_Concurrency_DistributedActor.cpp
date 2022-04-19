@@ -871,16 +871,22 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 	void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor, bool _bRemote)
 	{
-		DMibTestSuite("Direct")
 		{
+			// Init distribution manager
+			uint16 Port = 31413;
+			CDistributedActorTestHelperCombined TestState(Port);
+			TestState.f_InitServer();
+		}
+		{
+			DMibTestPath("Direct");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
 
 			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResult)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
-		};
-/*		DMibTestSuite("DirectTemplate")
-		{
+		}
+/*		{
+			DMibTestPath("DirectTemplate");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
 
@@ -890,9 +896,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			Actor.f_CallActor(&CDistributedActor::f_AddInt)(5).f_CallSync(g_Timeout);
 			uint32 Result2 = Actor.f_CallActor(&CDistributedActor::f_GetResultTemplated<NTest2::CTest>)().f_CallSync(g_Timeout);
 			DMibExpect(Result2, ==, 5);
-		};*/ // Not supported in clang
-		DMibTestSuite("Pointers")
+		}*/ // Not supported in clang
 		{
+			DMibTestPath("Pointers");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 
 			TCFuture<uint32> SharedPointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_SharedPointer)(fg_Construct(CStr("5")));
@@ -902,34 +908,34 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCFuture<uint32> UniquePointerFuture = g_Future <<= Actor.f_CallActor(&CDistributedActor::f_UniquePointer)(fg_Construct(CStr("5")));
 			uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(g_Timeout);
 			DMibExpect(UniquePointerResult, ==, 5);
-		};
-		DMibTestSuite("Virtual")
+		}
 		{
+			DMibTestPath("Virtual");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(g_Timeout);
 
 			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
-		};
-		DMibTestSuite("VirtualActor")
+		}
 		{
+			DMibTestPath("VirtualActor");
 			TCDistributedActor<CDistributedActorBase> Actor = _fGetActor();
 
 			Actor.f_CallActor(&CDistributedActorBase::f_AddIntVirtual)(5).f_CallSync(g_Timeout);
 
 			uint32 Result = Actor.f_CallActor(&CDistributedActorBase::f_GetResultVirtual)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
-		};
-		DMibTestSuite("Deferred")
+		}
 		{
+			DMibTestPath("Deferred");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			Actor.f_CallActor(&CDistributedActor::f_AddIntDeferred)(5).f_CallSync(g_Timeout);
 
 			uint32 Result = Actor.f_CallActor(&CDistributedActor::f_GetResultDeferred)().f_CallSync(g_Timeout);
 			DMibExpect(Result, ==, 5);
-		};
-		DMibTestSuite("Exception")
+		}
 		{
+			DMibTestPath("Exception");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto fTestCall = [&]
 				{
@@ -944,9 +950,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
 			DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
-		};
-		DMibTestSuite("DeferredException")
+		}
 		{
+			DMibTestPath("DeferredException");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto fTestCall = [&]
 				{
@@ -961,9 +967,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 			DMibExpectException(fTestCall(), DMibErrorInstance("Test"));
 			DMibExpectException(fTestResult(), DMibErrorInstance("Test"));
-		};
-		DMibTestSuite("SetSubscription")
+		}
 		{
+			DMibTestPath("SetSubscription");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
 			TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
@@ -1017,9 +1023,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				TestValue.f_Exchange(0);
 			}
-		};
-		DMibTestSuite("GetSubscription")
+		}
 		{
+			DMibTestPath("GetSubscription");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
 			auto &TestValue = g_TestValueGetSubscription;
@@ -1040,7 +1046,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				TestValue.f_Exchange(0);
 			}
-		};
+		}
 
 		auto fGetRegisterActorFunctors = [&]
 			(
@@ -1202,16 +1208,16 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				Actor.f_CallActor(&CDistributedActor::f_ResetClearedActorFunctors)().f_CallSync(g_Timeout);
 			}
 		;
-		DMibTestSuite("MultipleActorFunctors")
 		{
+			DMibTestPath("MultipleActorFunctors");
 			fTestMultipleActorFunctors(fGetRegisterActorFunctors);
-		};
-		DMibTestSuite("MultipleActorFunctorsVector")
+		}
 		{
+			DMibTestPath("MultipleActorFunctorsVector");
 			fTestMultipleActorFunctors(fGetRegisterActorFunctorsVector);
-		};
-		DMibTestSuite("GetActorFunctor")
+		}
 		{
+			DMibTestPath("GetActorFunctor");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
 			TCSharedPointer<TCAtomic<mint>> pTestValue = fg_Construct();
@@ -1261,9 +1267,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 				ActorFunctor.f_Clear();
 			}
-		};
-		DMibTestSuite("Return Async Generator")
+		}
 		{
+			DMibTestPath("Return Async Generator");
 			auto TestActor = fg_ConcurrentActor();
 			CCurrentActorScope CurrentActorScope(TestActor);
 
@@ -1280,9 +1286,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibExpect(*iIterator, ==, 8);
 			(++iIterator).f_CallSync(g_Timeout);
 			DMibExpectFalse(!!iIterator);
-		};
-		DMibTestSuite("Return Async Generator Functor")
+		}
 		{
+			DMibTestPath("Return Async Generator Functor");
 			auto TestActor = fg_ConcurrentActor();
 			CCurrentActorScope CurrentActorScope(TestActor);
 
@@ -1309,9 +1315,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				fg_Move(Generator).f_Destroy().f_CallSync(g_Timeout);
 			}
 			fg_Move(Functor).f_Destroy().f_CallSync(g_Timeout);
-		};
-		DMibTestSuite("Send Async Generator")
+		}
 		{
+			DMibTestPath("Send Async Generator");
 			auto TestActor = fg_ConcurrentActor();
 			CCurrentActorScope CurrentActorScope(TestActor);
 
@@ -1333,9 +1339,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			;
 
 			DMibExpect(Value, ==, 10);
-		};
-		DMibTestSuite("Send Async Generator Functor")
+		}
 		{
+			DMibTestPath("Send Async Generator Functor");
 			auto TestActor = fg_ConcurrentActor();
 			CCurrentActorScope CurrentActorScope(TestActor);
 
@@ -1355,9 +1361,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			;
 
 			DMibExpect(Value, ==, 32);
-		};
-		DMibTestSuite("GetInterface")
+		}
 		{
+			DMibTestPath("GetInterface");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto Interface = Actor.f_CallActor(&CDistributedActor::f_GetInterface)().f_CallSync(g_Timeout);
 
@@ -1377,15 +1383,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				DMibExpectException(fCallInterface(), DMibErrorInstance("Remote actor no longer exists"));
 
 			Interface.f_Clear();
-		};
-		DMibTestSuite("SetInterface")
+		}
 		{
-			{
-				// Init distribution manager
-				uint16 Port = 31413;
-				CDistributedActorTestHelperCombined TestState(Port);
-				TestState.f_InitServer();
-			}
+			DMibTestPath("SetInterface");
 
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
@@ -1428,9 +1428,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			DMibExpectTrue(pSubscriptionCalled->f_Load());
 
 			Interface.f_Clear();
-		};
-		DMibTestSuite("Callbacks")
+		}
 		{
+			DMibTestPath("Callbacks");
 			TCDistributedActor<CDistributedActor> Actor = _fGetActor();
 			auto TestActor = fg_ConcurrentActor();
 
@@ -1837,7 +1837,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 public:
 	void f_FunctionalTests()
 	{
-		DMibTestCategory("Local")
+		DMibTestSuite("Local")
 		{
 			struct CState
 			{
@@ -1884,37 +1884,40 @@ public:
 			TCSharedPointer<CDistributedActorTestHelperCombined> pTestState;
 			CStr SubscriptionID;
 
-			fp_RunTests
-				(
-					[&]
-					{
-						if (!pTestState)
+			DMibTestSuite("Remote")
+			{
+				fp_RunTests
+					(
+						[&]
 						{
-							uint16 Port = 31403;
+							if (!pTestState)
+							{
+								uint16 Port = 31403;
 
-							pTestState = fg_Construct(Port);
+								pTestState = fg_Construct(Port);
 
-							pTestState->f_SeparateServerManager();
-							pTestState->f_Init();
-							pTestState->f_Publish<CDistributedActor, CDistributedActorBase>
-								(
-									pTestState->f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>()
-									, "Test"
-								)
-							;
-							SubscriptionID = pTestState->f_Subscribe("Test");
+								pTestState->f_SeparateServerManager();
+								pTestState->f_Init();
+								pTestState->f_Publish<CDistributedActor, CDistributedActorBase>
+									(
+										pTestState->f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>()
+										, "Test"
+									)
+								;
+								SubscriptionID = pTestState->f_Subscribe("Test");
+							}
+
+							auto Actor = pTestState->f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+							if (!Actor)
+								DMibError("Failed to distributed actor environment");
+
+							return Actor;
 						}
-
-						auto Actor = pTestState->f_GetRemoteActor<CDistributedActor>(SubscriptionID);
-
-						if (!Actor)
-							DMibError("Failed to distributed actor environment");
-
-						return Actor;
-					}
-					, false
-				)
-			;
+						, false
+					)
+				;
+			};
 		};
 	}
 

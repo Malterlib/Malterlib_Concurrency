@@ -274,8 +274,11 @@ namespace NMib::NConcurrency
 		mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 		
 		NContainer::CSecureByteVector Data;
-		Data.f_SetLen(nBytes);
-		_Stream.f_ConsumeBytes(Data.f_GetArray(), nBytes);
+		if (nBytes != 0)
+		{
+			Data.f_SetLen(nBytes);
+			_Stream.f_ConsumeBytes(Data.f_GetArray(), nBytes);
+		}
 		fp_RegisterImplicitSubscriptions(Host, *pCall->m_pState, &RemoteCallResult.m_SubscriptionData);
 		pCall->m_Promise.f_SetResult(fg_Move(Data));
 
@@ -343,7 +346,9 @@ namespace NMib::NConcurrency
 		DMibFastCheck(ProtocolVersion != 0);
 		DMibBinaryStreamVersion(Stream, ProtocolVersion);
 		Stream << Result;
-		Stream.f_FeedBytes(_Data.f_GetArray(), _Data.f_GetLen());
+		mint DataLen = _Data.f_GetLen();
+		if (DataLen != 0)
+			Stream.f_FeedBytes(_Data.f_GetArray(), DataLen);
 		
 		fp_QueuePacket(_pHost, Stream.f_MoveVector());
 	}
@@ -517,8 +522,11 @@ namespace NMib::NConcurrency
 		NContainer::CSecureByteVector ParamData;
 		{
 			mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
-			ParamData.f_SetLen(nBytes);
-			_Stream.f_ConsumeBytes(ParamData.f_GetArray(), nBytes);
+			if (nBytes != 0)
+			{
+				ParamData.f_SetLen(nBytes);
+				_Stream.f_ConsumeBytes(ParamData.f_GetArray(), nBytes);
+			}
 		}
 
 		Actor

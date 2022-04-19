@@ -414,6 +414,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCUniquePointer<CCombinedCallbackReference> pCallback = fg_Construct();
 
+		TCActorResultVector<void> ReportResults;
 		auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
 			{
 				fg_Dispatch
@@ -429,7 +430,7 @@ namespace NMib::NConcurrency
 							(*pOnNewActor)(fg_Move(Actor));
 						}
 					)
-					> fg_DiscardResult()
+					> ReportResults.f_AddResult();
 				;
 			}
 		;
@@ -497,6 +498,8 @@ namespace NMib::NConcurrency
 				}
 			}
 		}
+
+		co_await ReportResults.f_GetResults();
 
 		co_return fg_Move(pCallback);
 	}

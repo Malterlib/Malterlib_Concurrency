@@ -80,6 +80,19 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
 		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasCreated);
 		TCFuture<void> f_NewSensorReadings(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings);
+		TCFuture<void> f_StoreSensorReadings
+			(
+				CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
+				, NSensorStoreLocalDatabase::CSensorReadingKey const &_DatabaseKey
+				, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
+			)
+		;
+		TCFuture<void> f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey);
+
+		auto f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, NSensorStoreLocalDatabase::CSensorReadingKey _DatabaseKey)
+			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings)>
+		;
+
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 		TCFuture<void> f_PerformLocalCleanup();
 

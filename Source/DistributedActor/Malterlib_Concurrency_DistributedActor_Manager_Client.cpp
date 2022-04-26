@@ -576,11 +576,10 @@ namespace NMib::NConcurrency
 									pConnection->m_bConnected = true;
 								}
 							;
-
-							fp_Identify(pConnection.f_Get());
 						}
 					)
 				;
+				fp_Identify(pConnection.f_Get());
 			}
 		;
 	}

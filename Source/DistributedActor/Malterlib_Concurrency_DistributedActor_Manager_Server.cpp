@@ -508,7 +508,7 @@ namespace NMib::NConcurrency
 									pConnection->m_Connection = NewServerConnection.f_Accept
 										(
 											"MalterlibDistributedActors"
-											, fg_ThisActor(m_pThis) / [this, pConnectionWeak = fg_Move(pConnectionWeak), Address = fg_Move(Address)]
+											, fg_ThisActor(m_pThis) / [pConnectionWeak = fg_Move(pConnectionWeak), Address = fg_Move(Address)]
 											(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
 											{
 												if (_Subscription)
@@ -520,6 +520,7 @@ namespace NMib::NConcurrency
 														return;
 													if (!pConnection->m_Connection)
 														return;
+
 													pConnection->m_IdentifyPromise.f_Future() > [=](TCAsyncResult<bool> &&_Result) mutable
 														{
 															auto pConnection = pConnectionWeak.f_Lock();
@@ -562,7 +563,6 @@ namespace NMib::NConcurrency
 														}
 													;
 													pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
-													fp_Identify(pConnection.f_Get());
 												}
 												else
 												{
@@ -580,6 +580,7 @@ namespace NMib::NConcurrency
 											, fg_Move(ResponseHeader)
 										)
 									;
+									fp_Identify(pConnection.f_Get());
 								}
 							;
 

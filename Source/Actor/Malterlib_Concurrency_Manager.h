@@ -46,6 +46,19 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		template <typename tf_CActor>
+		consteval static bool fs_HasOverridenDestroy()
+			requires (!NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+		;
+
+		template <typename tf_CActor>
+		consteval static bool fs_HasOverridenDestroy()
+			requires (NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+		;
+
+		template <typename tf_CActor>
+		consteval static bool fs_HasOverridenDestroy();
+
 		void f_BlockOnDestroy();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor(TCWeakActor<CActor> const &_Actor);

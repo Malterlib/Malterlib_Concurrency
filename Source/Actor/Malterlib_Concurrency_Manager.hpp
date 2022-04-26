@@ -5,6 +5,26 @@
 
 namespace NMib::NConcurrency
 {
+	template <typename tf_CActor>
+	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
+		requires (!NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+	{
+		return true;
+	}
+
+	template <typename tf_CActor>
+	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
+		requires (NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+	{
+		return false;
+	}
+
+	template <typename tf_CActor>
+	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
+	{
+		return true;
+	}
+
 	template <typename tf_CType, typename... tfp_CParams>
 	TCActor<tf_CType> CConcurrencyManager::f_ConstructFromInternalActor
 		(
@@ -17,6 +37,9 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		InternalActor.m_ActorTypeName = fg_GetTypeName<tf_CType>();
 #endif
+		InternalActor.mp_bIsAlwaysAlive = TCIsActorAlwaysAlive<tf_CType>::mc_Value;
+		InternalActor.mp_bHasOverriddenDestroy = fs_HasOverridenDestroy<tf_CType>();
+
 		InternalActor.fp_ConstructActor
 			(
 				[&]

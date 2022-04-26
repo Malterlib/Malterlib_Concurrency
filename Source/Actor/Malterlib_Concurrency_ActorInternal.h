@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename tf_CToDelete>
-	auto fg_DeleteWeakObject(CInternalActorAllocator& _Allocator, tf_CToDelete *_pObject)
-		-> typename TCEnableIf<NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value, void>::CType
+	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
+		requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
 	;
 }

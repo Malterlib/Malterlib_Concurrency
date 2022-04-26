@@ -80,21 +80,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CToDelete>
-	auto fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
-		-> typename TCEnableIf<NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value, void>::CType
+	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
+		requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (_pObject == ThreadLocal.m_pCurrentlyDestructingActorHolder)
+		bool bImmediateDelete = false;
+		if (CActorHolder::fsp_ScheduleActorHolderDestroy(_pObject, bImmediateDelete))
 			return;
 
-		smint Expected = 0;
-		if (_pObject->mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
-		{
-			DMibFastCheck(!_pObject->f_ImmediateDelete()); // Should have been terminated first
-			return _pObject->fp_DestroyActorHolder(nullptr, nullptr);
-		}
-
-		if (_pObject->f_ImmediateDelete() || (!ThreadLocal.m_bCurrentlyProcessingInActorHolder && ThreadLocal.m_pThisQueue))
+		if (bImmediateDelete)
 		{
 			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 			_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);

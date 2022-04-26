@@ -100,8 +100,8 @@ namespace NMib::NConcurrency
 		friend struct TCDistributedActorInstance;
 
 		template <typename tf_CToDelete>
-		friend auto fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
-			-> typename TCEnableIf<NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value, void>::CType
+		friend void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
+			requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
 		;
 
 		struct CDestroyHandler;
@@ -124,6 +124,9 @@ namespace NMib::NConcurrency
 		void fp_DetachActor();
 		CActor *fp_GetActorRelaxed() const;
 
+		static bool fsp_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete);
+		static bool fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder);
+
 	public:
 		CActorHolder(CConcurrencyManager *_pConcurrencyManager, bool _bImmediateDelete, EPriority _Priority, NStorage::TCSharedPointer<ICDistributedActorData> &&_pDistributedActorData);
 		virtual ~CActorHolder();
@@ -133,7 +136,8 @@ namespace NMib::NConcurrency
 		void f_QueueProcessDestroy(FActorQueueDispatch &&_Functor);
 		void f_QueueProcess(FActorQueueDispatch &&_Functor);
 		bool f_ImmediateDelete() const;
-		bool f_IsDestroyed() const;
+		bool f_IsAlwaysAlive() const;
+		bool f_IsHolderDestroyed() const;
 		virtual bool f_IsProcessedOnActorHolder(CActorHolder const *_pActorHolder) const;
 #if DMibEnableSafeCheck > 0
 		virtual bool f_CurrentlyProcessing() const;
@@ -177,15 +181,6 @@ namespace NMib::NConcurrency
 
 		bool fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal);
 
-	private:
-#if DMibConfig_Concurrency_DebugBlockDestroy
-		DMibListLinkDS_Link(CActorHolder, m_ActorLink);
-	public:
-		NStr::CStr m_ActorTypeName;
-#endif
-
-		DMibRefcountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
-
 	protected:
 		struct COnTerminate
 		{
@@ -209,18 +204,34 @@ namespace NMib::NConcurrency
 		align_cacheline CConcurrentRunQueue mp_ConcurrentRunQueue;
 		NAtomic::TCAtomic<mint> mp_Working;
 
+	private:
+#if DMibConfig_Concurrency_DebugBlockDestroy
+		DMibListLinkDS_Link(CActorHolder, m_ActorLink);
+	public:
+		NStr::CStr m_ActorTypeName;
+#endif
+		DMibRefcountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
+
+	protected:
 		// Alignment zone 3 = 8+8+8+8+8 = 40 => 64 bytes
 		align_cacheline CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
 		CConcurrencyManager *mp_pConcurrencyManager;
-		mint mp_iFixedCore:sizeof(mint)*8 - 3 = 0;
+		mint mp_iFixedCore:sizeof(mint)*8 - 5 = 0;
 		mint mp_Priority:1 = 0;
 		mint mp_bImmediateDelete:1 = false;
 		mint mp_bYield:1 = false;
+		mint mp_bIsAlwaysAlive:1 = false;
+		mint mp_bHasOverriddenDestroy:1 = false;
+
 		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe = nullptr;
 		mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
 
 		// Alignment zone 4: Actor storage, other actor holder data
 	};
+
+#if DMibPMemoryCacheLineSize == 64 && DMibConfig_RefcountDebugging != 1
+	static_assert(sizeof(CActorHolder) == 64*3);
+#endif
 
 	class CDefaultActorHolder : public CActorHolder
 	{

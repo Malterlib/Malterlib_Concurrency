@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	static constexpr mint gc_NoFixedCore = DMibBitRangeTyped(0, sizeof(mint)*8 - 4, mint);
+	static constexpr mint gc_NoFixedCore = DMibBitRangeTyped(0, sizeof(mint)*8 - 6, mint);
 
 	CActorHolder::CActorHolder
 		(
@@ -268,11 +268,16 @@ namespace NMib::NConcurrency
 		return mp_bImmediateDelete;
 	}
 
+	bool CActorHolder::f_IsAlwaysAlive() const
+	{
+		return mp_bIsAlwaysAlive;
+	}
+
 	void CActorHolder::fp_DestroyThreaded()
 	{
 	}
 
-	bool CActorHolder::f_IsDestroyed() const
+	bool CActorHolder::f_IsHolderDestroyed() const
 	{
 		return mp_bDestroyed.f_Load() != 0;
 	}
@@ -438,6 +443,92 @@ namespace NMib::NConcurrency
 			DMibLock(ResultLock);
 			Result.f_Get();
 		}
+	}
+
+	inline_never bool CActorHolder::fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder)
+	{
+		DMibFastCheck(!_pActorHolder->f_IsAlwaysAlive());
+		DMibFastCheck(!_pActorHolder->f_ImmediateDelete());
+
+		if (!_pActorHolder->mp_bHasOverriddenDestroy)
+			return false;
+
+		auto pActor = _pActorHolder->fp_GetActorRelaxed();
+
+		if (!pActor)
+			return false;
+
+		if (pActor->f_IsDestroyed())
+			return false;
+
+		TCActorHolderSharedPointer<CActorHolder> pSelfReference;
+		{
+			DMibRefcountDebuggingOnly(NStorage::CRefCountDebugReference TempRef);
+			_pActorHolder->f_RefCountIncrease
+				(
+#if DMibConfig_RefcountDebugging
+#	if DMibEnableSafeCheck > 0
+					TempRef, true
+#	else
+					TempRef
+#	endif
+#else
+#	if DMibEnableSafeCheck > 0
+					true
+#	endif
+#endif
+				)
+			;
+
+			DMibRefcountDebuggingOnly(_pActorHolder->f_RemoveRef(TempRef));
+
+			pSelfReference = fg_Attach(_pActorHolder);
+
+			mint Destroyed = _pActorHolder->mp_bDestroyed.f_Exchange(0);
+			if (Destroyed != 1)
+				DMibPDebugBreak;
+		}
+
+		_pActorHolder->f_Call<CActor, TCFuture<void> (CActor::*)()>
+			(
+				NPrivate::fg_BindHelper<false, NMib::NMeta::TCTypeList<>>
+				(
+					&CActor::fp_DestroyInternal
+					, NStorage::TCTuple<>()
+				)
+				, fg_TempCopy(NPrivate::fg_DirectResultActor())
+				, [pSelfReference = fg_Move(pSelfReference)](TCAsyncResult<void> &&) mutable
+				{
+				}
+			)
+		;
+
+		return true;
+	}
+
+	inline_never bool CActorHolder::fsp_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete)
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (_pActorHolder == ThreadLocal.m_pCurrentlyDestructingActorHolder)
+			return true;
+
+		smint Expected = 0;
+		if (_pActorHolder->mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
+		{
+			if (CActorHolder::fsp_ScheduleActorDestroy(_pActorHolder))
+				return true;
+
+			DMibFastCheck(!_pActorHolder->f_ImmediateDelete()); // Should have been terminated first
+			_pActorHolder->fp_DestroyActorHolder(nullptr, nullptr);
+			return true;
+		}
+
+		bool bDestroyingInThreadPoolQueue = (!ThreadLocal.m_bCurrentlyProcessingInActorHolder && ThreadLocal.m_pThisQueue);
+
+		if (bDestroyingInThreadPoolQueue || _pActorHolder->f_ImmediateDelete())
+			o_bImmediateDelete = true;
+
+		return false;
 	}
 
 	struct CActorHolder::CDestroyHandler
@@ -730,7 +821,7 @@ namespace NMib::NConcurrency
 			(
 				[pDelegateTo = _DelegateToActor.m_pInternalActor, pThis = TCActorHolderSharedPointer<CDelegatedActorHolder>{this}]
 				{
-					DMibFastCheck(!pDelegateTo->f_IsDestroyed());
+					DMibFastCheck(!pDelegateTo->f_IsHolderDestroyed());
 					COnTerminate OnTerminate;
 					OnTerminate.m_fOnTerminate = [pThisWeak = pThis->fp_GetAsActor<CActor>().f_Weak(), pThisHolder = pThis.f_Get()]
 						{

@@ -49,7 +49,6 @@ namespace NMib::NConcurrency
 			CStr m_AddressDesc;
 		};
 
-		void fp_TryToListen(NWeb::NHTTP::CURL const &_Address, bool _bFirstTry);
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
 		CEJSON fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
 		void fp_StartupFailed(CException const &_Exception);

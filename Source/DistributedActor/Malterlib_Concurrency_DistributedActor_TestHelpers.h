@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 	
 	struct CDistributedActorTestHelperCombined
 	{
-		CDistributedActorTestHelperCombined(uint16 _TestPort);
+		CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory);
 		~CDistributedActorTestHelperCombined();
 		void f_SeparateServerManager();
 		void f_Init();
@@ -80,6 +80,7 @@ namespace NMib::NConcurrency
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
 		NStr::CStr f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace);
 		void f_Unpublish(NStr::CStr const &_Publication);
+		NStr::CStr f_GetListenSocketPath() const;
 		
 		NStr::CStr const &f_GetServerHostID() const;
 		NStr::CStr const &f_GetClientHostID() const;
@@ -103,8 +104,7 @@ namespace NMib::NConcurrency
 
 		CActorDistributionCryptographySettings mp_ClientCryptography;
 		CDistributedActorConnectionReference mp_ClientConnectionReference;
-		
-		uint16 mp_ListenPort;
+		NStr::CStr mp_ListenSocketPath;
 	};
 }
 

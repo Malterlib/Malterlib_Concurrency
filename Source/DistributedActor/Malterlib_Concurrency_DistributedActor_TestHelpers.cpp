@@ -10,19 +10,21 @@
 
 namespace NMib::NConcurrency
 {
-	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(uint16 _TestPort)
-		: mp_ListenSettings{_TestPort}
+	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory)
+		: mp_ListenSettings({(NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock")).f_GetStr()})
 		, mp_ServerCryptography(NCryptography::fg_RandomID())
 		, mp_ClientCryptography(NCryptography::fg_RandomID())
-		, mp_ListenPort(_TestPort)
+		, mp_ListenSocketPath(NStr::CStr::CFormat("UNIX(666):{}") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock"))
 	{
-		NWeb::NHTTP::CURL URLv4{NStr::fg_Format("wss://[IPv4:127.0.0.1]:{}/", _TestPort)};
-		NWeb::NHTTP::CURL URLv6{NStr::fg_Format("wss://[IPv6:::1]:{}/", _TestPort)};
-		mp_ListenSettings.m_ListenAddresses = {URLv4, URLv6};
 	}
 
 	CDistributedActorTestHelperCombined::~CDistributedActorTestHelperCombined()
 	{
+	}
+
+	NStr::CStr CDistributedActorTestHelperCombined::f_GetListenSocketPath() const
+	{
+		return mp_ListenSocketPath;
 	}
 
 	CActorDistributionCryptographySettings const &CDistributedActorTestHelperCombined::f_GetClientCryptograhySettings() const
@@ -95,7 +97,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server)
 	{
 		CActorDistributionConnectionSettings ConnectionSettings;
-		ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
+		ConnectionSettings.m_ServerURL = mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		if (!mp_pClient)
 		{
@@ -133,7 +135,7 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 		
 		CActorDistributionConnectionSettings ConnectionSettings;
-		ConnectionSettings.m_ServerURL = NStr::fg_Format("wss://localhost:{}/", mp_ListenPort);
+		ConnectionSettings.m_ServerURL = mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;

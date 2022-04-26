@@ -912,8 +912,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	{
 		{
 			// Init distribution manager
-			uint16 Port = 31413;
-			CDistributedActorTestHelperCombined TestState(Port);
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor";
+			CDistributedActorTestHelperCombined TestState(SocketPath);
 			TestState.f_InitServer();
 		}
 		{
@@ -1815,9 +1815,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	}
 	void fp_AnonymousClientTests()
 	{
-		uint16 Port = 31402;
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor2";
 
-		CDistributedActorTestHelperCombined TestHelper{Port};
+		CDistributedActorTestHelperCombined TestHelper{SocketPath};
 
 		TestHelper.f_SeparateServerManager();
 		TestHelper.f_InitServer();
@@ -1851,8 +1851,9 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 	void fp_OnDisconnectedTests()
 	{
-		uint16 Port = 31404;
-		CDistributedActorTestHelperCombined TestState(Port);
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor3";
+
+		CDistributedActorTestHelperCombined TestState(SocketPath);
 		TestState.f_SeparateServerManager();
 		TestState.f_Init();
 		auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
@@ -1884,7 +1885,7 @@ public:
 		{
 			struct CState
 			{
-				CDistributedActorTestHelperCombined m_TestState{31410};
+				CDistributedActorTestHelperCombined m_TestState{NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor4"};
 			};
 
 			TCSharedPointer<CState> pState;
@@ -1935,9 +1936,7 @@ public:
 						{
 							if (!pTestState)
 							{
-								uint16 Port = 31403;
-
-								pTestState = fg_Construct(Port);
+								pTestState = fg_Construct(NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor5");
 
 								pTestState->f_SeparateServerManager();
 								pTestState->f_Init();

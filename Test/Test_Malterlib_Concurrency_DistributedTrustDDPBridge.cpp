@@ -32,6 +32,10 @@ namespace
 		{
 			DMibTestSuite("DDP")
 			{
+				CStr ProgramDirectory = NFile::CFile::fs_GetProgramDirectory();
+				CStr RootDirectory = ProgramDirectory + "/DistributedDDPBridgeTests";
+
+
 				CTrustManagerTestHelper ServerState;
 				CTrustManagerTestHelper ClientState;
 
@@ -39,7 +43,7 @@ namespace
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = ClientState.f_TrustManager("Client");
 				
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31409/";
+				ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(g_Timeout);
 
 				{
@@ -79,8 +83,8 @@ namespace
 					)
 					.f_CallSync()
 				;
-				
-				CStr ConnectToURLString = "wss://localhost:31409/ActorDDPBridge";
+				auto ConnectToURL = ServerAddress.m_URL;
+				ConnectToURL.f_SetPath({"ActorDDPBridge"});
 				
 				auto &ClientDatabase = ClientState.m_Database->f_AccessInternal();
 				
@@ -93,7 +97,7 @@ namespace
 				
 				NStorage::TCSharedPointer<CSSLContext> pClientContext = fg_Construct(CSSLContext::EType_Client, ClientSettings);
 						
-				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURLString, "", fg_Default(), "", CSocket_SSL::fs_GetFactory(pClientContext));
+				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURL, "", fg_Default(), "", CSocket_SSL::fs_GetFactory(pClientContext));
 			
 				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
 			
@@ -120,7 +124,7 @@ namespace
 				;
 				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("exception: Invalid params"));
 				
-				HandlerSubscription.f_Clear();
+				fg_Exchange(HandlerSubscription, nullptr)->f_Destroy().f_CallSync(g_Timeout);
 				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("method-not-found: Method not found"));
 				
 				ServerTrustManager->f_BlockDestroy();

@@ -16,10 +16,17 @@ namespace NMib::NConcurrency
 		if (Internal.m_AppSensorStoreLocal)
 			co_return Internal.m_AppSensorStoreLocal;
 
-		auto OnResume = g_OnResume / [this]
+		TCActor<CDistributedAppSensorStoreLocal> AppSensorStoreLocal;
+
+		auto OnResume = g_OnResume / [&]
 			{
 				if (f_IsDestroyed())
+				{
+					if (AppSensorStoreLocal)
+						fg_Move(AppSensorStoreLocal).f_Destroy() > fg_DiscardResult();
+
 					DMibError("Shutting down");
+				}
 			}
 		;
 
@@ -30,7 +37,7 @@ namespace NMib::NConcurrency
 
 		co_await fp_WaitForDistributedTrustInitialization();
 
-		TCActor<CDistributedAppSensorStoreLocal> AppSensorStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
+		AppSensorStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
 		co_await AppSensorStoreLocal
 			(
 				&CDistributedAppSensorStoreLocal::f_StartWithDatabasePath

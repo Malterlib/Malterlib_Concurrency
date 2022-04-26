@@ -16,10 +16,17 @@ namespace NMib::NConcurrency
 		if (Internal.m_AppLogStoreLocal)
 			co_return Internal.m_AppLogStoreLocal;
 
-		auto OnResume = g_OnResume / [this]
+		TCActor<CDistributedAppLogStoreLocal> AppLogStoreLocal;
+
+		auto OnResume = g_OnResume / [&]
 			{
 				if (f_IsDestroyed())
+				{
+					if (AppLogStoreLocal)
+						fg_Move(AppLogStoreLocal).f_Destroy() > fg_DiscardResult();
+
 					DMibError("Shutting down");
+				}
 			}
 		;
 
@@ -30,7 +37,7 @@ namespace NMib::NConcurrency
 
 		co_await fp_WaitForDistributedTrustInitialization();
 
-		TCActor<CDistributedAppLogStoreLocal> AppLogStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
+		AppLogStoreLocal = fg_Construct(mp_State.m_DistributionManager, mp_State.m_TrustManager);
 		co_await AppLogStoreLocal
 			(
 				&CDistributedAppLogStoreLocal::f_StartWithDatabasePath

@@ -102,6 +102,8 @@ namespace NMib::NConcurrency
 
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor> m_Sensors;
 
+		TCSharedPointer<CCanDestroyTracker> m_pCanDestroyStoringLocal = fg_Construct();
+
 		TCTrustedActorSubscription<CDistributedAppSensorReporter> m_SensorsInterfaceSubscription;
 		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;

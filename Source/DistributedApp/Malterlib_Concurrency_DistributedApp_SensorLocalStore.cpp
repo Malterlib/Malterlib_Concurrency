@@ -31,10 +31,14 @@ namespace NMib::NConcurrency
 			Internal.m_CleanupTimerSubscription.f_Clear();
 		}
 
+		auto CanDestroyFuture = Internal.m_pCanDestroyStoringLocal->f_Future();
+		Internal.m_pCanDestroyStoringLocal.f_Clear();
+		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap();
+
 		TCActorResultVector<void> Destroys;
 		for (auto &Sensor : Internal.m_Sensors)
 		{
-			Sensor.m_InitSensorSequencer.f_Abort() > Destroys.f_AddResult();
+			Sensor.m_SensorSequencer.f_Abort() > Destroys.f_AddResult();
 			for (auto &Reporter : Sensor.m_SensorReporters)
 			{
 				Reporter.m_WriteSequencer.f_Abort() > Destroys.f_AddResult();

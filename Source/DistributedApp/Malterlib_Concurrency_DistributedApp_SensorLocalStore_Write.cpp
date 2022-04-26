@@ -156,6 +156,8 @@ namespace NMib::NConcurrency
 									if (!pSensor)
 										co_return {};
 
+									auto pCanDestroyTracker = m_pCanDestroyStoringLocal;
+
 									auto WriteTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionWrite);
 
 									try

@@ -85,6 +85,13 @@ namespace NMib::NConcurrency
 			auto iSensorReading = ReadTransaction.m_Transaction.f_ReadCursor((NSensorStoreLocalDatabase::CSensorKey const &)DatabaseKey);
 			iSensorReading.f_FindLowerBound(DatabaseKey);
 
+			if (iSensorReading)
+			{
+				auto Key = iSensorReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>();
+				if (Key.m_UniqueSequence == Reporter.m_LastSeenUniqueSequence)
+					++iSensorReading;
+			}
+
 			NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> Batch;
 
 			static constexpr mint c_BatchSize = 32768;

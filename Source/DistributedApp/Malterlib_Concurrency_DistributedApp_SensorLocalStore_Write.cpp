@@ -137,6 +137,14 @@ namespace NMib::NConcurrency
 
 					auto SequenceSubscription = co_await pSensor->m_InitSensorSequencer.f_Sequence();
 
+					for (auto &Reading : _Readings)
+					{
+						if (Reading.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
+							Reading.m_UniqueSequence = ++pSensor->m_LastSeenUniqueSequence;
+						else
+							pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
+					}
+
 					auto [DatabaseResult, UpstreamResult] = co_await
 						(
 							(
@@ -175,10 +183,7 @@ namespace NMib::NConcurrency
 												nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 											}
 
-											if (Reading.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
-												Key.m_UniqueSequence = ++pSensor->m_LastSeenUniqueSequence;
-											else
-												Key.m_UniqueSequence = Reading.m_UniqueSequence;
+											Key.m_UniqueSequence = Reading.m_UniqueSequence;
 
 											if (WriteTransaction.m_Transaction.f_Exists(Key))
 												continue; // Already reported

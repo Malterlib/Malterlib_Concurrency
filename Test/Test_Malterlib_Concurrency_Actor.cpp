@@ -5,7 +5,8 @@
 #include <Mib/Test/Exception>
 
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/ActorCallbackManager>
+#include <Mib/Concurrency/ActorFunctor>
+#include <Mib/Concurrency/ActorSubscription>
 
 #if 0
 #include <numeric>
@@ -224,22 +225,24 @@ namespace
 
 	class CCallbackActor : public CActor
 	{
-		TCActorSubscriptionManager<void (int32)> m_CallbackManager;
+		TCActorFunctor<TCFuture<void> (int32)> m_fCallback;
 	public:
-		CCallbackActor()
-			: CActor()
-			, m_CallbackManager(this, false)
-		{
-		}
 
-		CActorSubscription f_RegisterCallback(TCActor<CActor> _pActor, TCFunctionMovable<void (int32 _Value)> && _fCallback)
+		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32)> &&_fCallback)
 		{
-			return m_CallbackManager.f_Register(_pActor, fg_Move(_fCallback));
+			m_fCallback = fg_Move(_fCallback);
+
+			co_return g_ActorSubscription / [this]() -> TCFuture<void>
+				{
+					co_await fg_Move(m_fCallback).f_Destroy();
+					co_return {};
+				}
+			;
 		}
 
 		void f_CallCallback(int32 _Value)
 		{
-			m_CallbackManager(_Value) > NConcurrency::fg_DiscardResult();
+			m_fCallback(_Value) > NConcurrency::fg_DiscardResult();
 		}
 	};
 
@@ -953,11 +956,12 @@ namespace
 				TestActor
 					(
 						&CCallbackActor::f_RegisterCallback
-						, fg_ConcurrentActor()
-						, [&](int32 _Value)
+						, g_ActorFunctor(fg_ConcurrentActor()) / [&](int32 _Value) -> TCFuture<void>
 						{
 							CallbackValue = _Value;
 							FinishedEvent.f_Signal();
+
+							co_return {};
 						}
 					)
 					> fg_ConcurrentActor() / [&](TCAsyncResult<CActorSubscription> && _Result)

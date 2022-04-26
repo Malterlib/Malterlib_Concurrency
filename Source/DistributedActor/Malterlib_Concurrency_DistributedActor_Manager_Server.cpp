@@ -268,8 +268,7 @@ namespace NMib::NConcurrency
 						&NWeb::CWebSocketServerActor::f_StartListenAddress
 						, fg_Move(Addresses)
 						, _Settings.m_ListenFlags
-						, fg_ThisActor(m_pThis)
-						, [this, _ListenID](NWeb::CWebSocketNewServerConnection &&_NewServerConnection)
+						, g_ActorFunctorWeak / [this, _ListenID](NWeb::CWebSocketNewServerConnection &&_NewServerConnection) -> TCFuture<void>
 						{
 							NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> pNewServerConnection = fg_Construct(fg_Move(_NewServerConnection));
 
@@ -285,19 +284,19 @@ namespace NMib::NConcurrency
 							if (m_WebsocketHandlers.f_IsEmpty() && NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
 							{
 								fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
-								return;
+								co_return {};
 							}
 
 							if (m_pThis->f_IsDestroyed())
 							{
 								fReject("Shutting down");
-								return;
+								co_return {};
 							}
 
 							if (!NewServerConnection.m_Info.m_pSocketInfo.f_Get())
 							{
 								fReject("Missing socket info");
-								return;
+								co_return {};
 							}
 
 							auto pSocketInfo = static_cast<NNetwork::CSocketConnectionInfo_SSL const *>(NewServerConnection.m_Info.m_pSocketInfo.f_Get());
@@ -317,7 +316,7 @@ namespace NMib::NConcurrency
 							if (!Enclave.f_IsEmpty() && !CActorDistributionManager::fs_IsValidEnclave(Enclave))
 							{
 								fReject("Invalid enclave");
-								return;
+								co_return {};
 							}
 
 							bool bAnonymous = false;
@@ -336,7 +335,7 @@ namespace NMib::NConcurrency
 									if (RealHostID.f_IsEmpty())
 									{
 										fReject("Missing or incorrect Host ID in peer certificate");
-										return;
+										co_return {};
 									}
 									if (!Enclave.f_IsEmpty())
 									{
@@ -347,7 +346,7 @@ namespace NMib::NConcurrency
 								catch (NException::CException const &)
 								{
 									fReject("Incorrect peer certificate");
-									return;
+									co_return {};
 								}
 							}
 
@@ -423,14 +422,14 @@ namespace NMib::NConcurrency
 									Host.m_bIncoming = true;
 									pConnection->m_bIncoming = true;
 
-									NewServerConnection.m_fOnClose = [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
-										(NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+									NewServerConnection.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
+										(NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin) -> TCFuture<void>
 										{
 											auto pConnection = pConnectionWeak.f_Lock();
 											if (!pConnection)
-												return;
+												co_return {};
 											if (!pConnection->m_pHost)
-												return;
+												co_return {};
 
 											bool bLast = pConnection->m_Link.f_IsAloneInList();
 
@@ -471,22 +470,26 @@ namespace NMib::NConcurrency
 												 	, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && _Message != "Remove connection (preserve host)"
 												)
 											;
+
+											co_return {};
 										}
 									;
 
-									NewServerConnection.m_fOnReceiveBinaryMessage = [this, pConnectionWeak = pConnection.f_Weak()]
-										(NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage)
+									NewServerConnection.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak()]
+										(NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage) -> TCFuture<void>
 										{
 											auto pConnection = pConnectionWeak.f_Lock();
 											if (!pConnection)
-												return;
+												co_return {};
 											if (!pConnection->m_pHost)
-												return;
+												co_return {};
 
 											if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
 											{
 												// TODO: Assume malicious client
 											}
+
+											co_return {};
 										}
 									;
 
@@ -603,8 +606,10 @@ namespace NMib::NConcurrency
 							}
 							else
 								fFinishConnection();
+
+							co_return {};
 						}
-						, [](NWeb::CWebSocketActor::CConnectionInfo &&_ConnectionInfo)
+						, g_ActorFunctorWeak / [](NWeb::CWebSocketActor::CConnectionInfo &&_ConnectionInfo) -> TCFuture<void>
 						{
 							DMibLogWithCategory
 								(
@@ -616,6 +621,8 @@ namespace NMib::NConcurrency
 									, _ConnectionInfo.m_Error
 								)
 							;
+
+							co_return {};
 						}
 						, NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
 					)

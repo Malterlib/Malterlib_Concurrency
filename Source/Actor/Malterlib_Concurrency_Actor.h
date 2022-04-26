@@ -93,9 +93,6 @@ namespace NMib::NConcurrency
 		template <typename t_CActor>
 		friend class TCActorInternal;
 
-		template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
-		friend class TCActorSubscriptionManager;
-
 		friend class NConcurrency::CActorHolder;
 		friend struct NConcurrency::CActorCommon;
 

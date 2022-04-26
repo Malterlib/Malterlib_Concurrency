@@ -95,7 +95,7 @@ namespace
 						
 				TCActor<CDDPClient> Client = fg_ConstructActor<CDDPClient>(ConnectToURLString, "", fg_Default(), "", CSocket_SSL::fs_GetFactory(pClientContext));
 			
-				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr, nullptr).f_CallSync();
+				CDDPClient::CConnectInfo ConnectionInfo = Client(&CDDPClient::f_Connect, "", "", "", "", 20.0, nullptr).f_CallSync();
 			
 				DMibExpect(ConnectionInfo.m_UserID, ==, "");
 

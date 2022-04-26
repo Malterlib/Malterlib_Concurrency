@@ -379,16 +379,18 @@ namespace NMib::NConcurrency
 
 				Host.m_bOutgoing = true;
 
-				Result.m_fOnClose = [this, pConnectionWeak, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+				Result.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
-							return;
+							co_return {};
 
 						if (Sequence != pConnection->m_ConnectionSequence)
-							return;
+							co_return {};
+
 						if (!pConnection->m_pHost)
-							return;
+							co_return {};
 
 						bool bLast = pConnection->m_Link.f_IsAloneInList();
 
@@ -420,30 +422,34 @@ namespace NMib::NConcurrency
 							if (bDestroyNormal)
 								fp_DestroyHost(*pHost, pConnection.f_Get(), "last active client connection disconnected");
 						}
+
+						co_return {};
 					}
 				;
 
-				Result.m_fOnReceiveBinaryMessage
-					= [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage)
+				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage)
+					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
 						if (!pConnection)
-							return;
+							co_return {};
 
 						if (Sequence != pConnection->m_ConnectionSequence)
 						{
 							DMibLog(DebugVerbose2, " ---- {} {} Invalid connection secuence", pConnection->m_pHost->m_bIncoming, pConnection->f_GetConnectionID());
-							return;
+							co_return {};
 						}
 						if (!pConnection->m_pHost)
 						{
 							DMibLog(DebugVerbose2, " ---- {} No host", pConnection->f_GetConnectionID());
-							return;
+							co_return {};
 						}
 						if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
 						{
 							// TODO: Assume malicious client
 						}
+
+						co_return {};
 					}
 				;
 
@@ -529,6 +535,7 @@ namespace NMib::NConcurrency
 											_pPromise->f_SetException(DMibErrorInstance("Connection deleted"));
 										return;
 									}
+
 									if (Sequence != pConnection->m_ConnectionSequence)
 									{
 										if (_pPromise)

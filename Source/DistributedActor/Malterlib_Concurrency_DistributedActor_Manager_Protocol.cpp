@@ -122,7 +122,8 @@ namespace NMib::NConcurrency
 						CHostInfo HostInfo;
 						HostInfo.m_HostID = Host.m_HostInfo.m_RealHostID;
 						HostInfo.m_FriendlyName = Host.m_FriendlyName;
-						m_OnHostInfoChanged(HostInfo) > fg_DiscardResult();
+						for (auto &OnHostInfoChanged : m_OnHostInfoChanged)
+							OnHostInfoChanged.m_fOnHostInfoChanged(HostInfo) > fg_DiscardResult();
 					}
 
 					// Resend packets that remote think are missing

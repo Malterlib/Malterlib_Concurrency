@@ -9,9 +9,9 @@
 #include <Mib/Test/Exception>
 
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/DistributedActor>
+#include <Mib/Concurrency/ActorFunctor>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Web/WebSocket>
@@ -183,10 +183,21 @@ struct CMultipleSubscriptionsVector
 class CDistributedActor : public CDistributedActorNonPublished
 {
 public:
+	struct CCallback
+	{
+		~CCallback()
+		{
+			*m_pDeleted = true;
+		}
+
+		TCActorFunctor<TCFuture<CStr> (CStr const &_Test)> m_fCallback;
+		TCSharedPointer<bool> m_pDeleted = fg_Construct(false);
+	};
+
 	uint32 m_Value = 0;
 	TCMap<CStr, CActorSubscription> m_CallingHostTests;
-	TCActorSubscriptionManager<TCFuture<CStr> (CStr const &_Test), false> m_CallbackManager;
-	TCActorSubscriptionManager<TCFuture<CStr> (CStr const &_Test), true> m_CallbacksManager;
+	TCActorFunctor<TCFuture<CStr> (CStr const &_Test)> m_fCallback;
+	TCLinkedList<CCallback> m_Callbacks;
 
 	TCSharedPointer<TCFunctionMovable<TCFuture<CStr> (CStr const &_Test)>> m_Callback[2];
 	TCActor<CActor> m_Actor[2];
@@ -214,8 +225,6 @@ public:
 
 public:
 	CDistributedActor()
-		: m_CallbackManager(this, false)
-		, m_CallbacksManager(this, false)
 	{
 		m_Callback[0] = fg_Construct();
 		m_Callback[1] = fg_Construct();
@@ -523,14 +532,38 @@ public:
 		m_Subscription.f_Clear();
 	}
 
-	CActorSubscription f_RegisterCallback(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr const &_Test)> &&_Callback)
+	TCActorSubscriptionWithID<> f_RegisterCallback(TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> &&_fCallback)
 	{
-		return m_CallbackManager.f_Register(fg_TempCopy(_Actor), fg_Move(_Callback));
+		m_fCallback = fg_Move(_fCallback);
+
+		return g_ActorSubscription / [this]() -> TCFuture<void>
+			{
+				co_await fg_Move(m_fCallback).f_Destroy();
+
+				co_return {};
+			}
+		;
 	}
 
-	CActorSubscription f_RegisterCallbacks(TCActor<CActor> const &_Actor, TCFunctionMovable<TCFuture<CStr> (CStr const &_Test)> &&_Callback)
+	TCActorSubscriptionWithID<> f_RegisterCallbacks(TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> &&_fCallback)
 	{
-		return m_CallbacksManager.f_Register(fg_TempCopy(_Actor), fg_Move(_Callback));
+		auto &Callback = m_Callbacks.f_Insert();
+		Callback.m_fCallback = fg_Move(_fCallback);
+
+		return g_ActorSubscription / [this, pDeleted = Callback.m_pDeleted, pCallback = &Callback]() -> TCFuture<void>
+			{
+				if (*pDeleted)
+					co_return {};
+
+				auto ToDestroy = fg_Move(pCallback->m_fCallback);
+
+				m_Callbacks.f_Remove(*pCallback);
+
+				co_await fg_Move(ToDestroy).f_Destroy();
+
+				co_return {};
+			}
+		;
 	}
 
 	CActorSubscription f_RegisterManualCallback(uint32 _iCallback, TCActor<CActor> const &_Actor, TCFunction<TCFuture<CStr> (CStr const &_Test)> &&_Callback)
@@ -664,22 +697,28 @@ public:
 
 	void f_CallRegisteredCallback(CStr const &_Message)
 	{
-		m_CallbackManager(_Message) > NConcurrency::fg_DiscardResult();
+		m_fCallback(_Message) > NConcurrency::fg_DiscardResult();
 	}
 
 	TCFuture<CStr> f_CallRegisteredCallbackWithReturn(CStr const &_Message)
 	{
-		return m_CallbackManager.f_Call(_Message);
+		co_return co_await m_fCallback(_Message);
 	}
 
 	TCFuture<TCVector<TCAsyncResult<CStr>>> f_CallRegisteredCallbacksWithReturn(CStr const &_Message)
 	{
-		return m_CallbacksManager.f_Call(_Message);
+		TCActorResultVector<CStr> Results;
+		for (auto &Callback : m_Callbacks)
+		{
+			Callback.m_fCallback(_Message) > Results.f_AddResult();
+		}
+
+		co_return co_await Results.f_GetResults();
 	}
 
 	uint8 f_CallbacksEmpty()
 	{
-		return m_CallbackManager.f_IsEmpty();
+		return m_fCallback.f_IsEmpty();
 	}
 
 	uint32 f_GetResultVirtual() override
@@ -706,10 +745,10 @@ public:
 
 		HostInfo.f_OnDisconnect
 			(
-				fg_ThisActor(this)
-				, [this, HostID]
+				g_ActorFunctorWeak / [this, HostID]() -> TCFuture<void>
 				{
 					m_CallingHostTests.f_Remove(HostID);
+					co_return {};
 				}
 			)
 			> Promise / [this, Promise, HostID](CActorSubscription &&_Subscription)
@@ -1475,7 +1514,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				}
 			;
 
-			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(TestActor, fCallBack).f_CallSync(g_Timeout);
+			auto Subscription = Actor.f_CallActor(&CDistributedActor::f_RegisterCallback)(g_ActorFunctor(TestActor) / fCallBack).f_CallSync(g_Timeout);
 
 			bool bCallbacksEmpty = Actor.f_CallActor(&CDistributedActor::f_CallbacksEmpty)().f_CallSync(g_Timeout);
 
@@ -1516,8 +1555,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			TCActor<> TestActor1 = fg_ConstructActor<CActor>();
 
 			{
-				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor0, fCallback0).f_CallSync(g_Timeout);
-				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(TestActor1, fCallback1).f_CallSync(g_Timeout);
+				auto MultipleSubscription0 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(g_ActorFunctor(TestActor0) / fCallback0).f_CallSync(g_Timeout);
+				auto MultipleSubscription1 = Actor.f_CallActor(&CDistributedActor::f_RegisterCallbacks)(g_ActorFunctor(TestActor1) / fCallback1).f_CallSync(g_Timeout);
 
 				TCVector<TCAsyncResult<CStr>> MultipleReturn = Actor.f_CallActor(&CDistributedActor::f_CallRegisteredCallbacksWithReturn)("TestMessage").f_CallSync(g_Timeout);
 				DMibExpect(*MultipleReturn[0], ==, "TestMessage0");

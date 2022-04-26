@@ -272,7 +272,6 @@ namespace NMib::NConcurrency
 
 	CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings)
 		: m_pThis(_pThis)
-		, m_OnHostInfoChanged(_pThis, false)
 		, m_FriendlyName(_InitSettings.m_FriendlyName)
 		, m_HostID(_InitSettings.m_HostID)
 		, m_Enclave(_InitSettings.m_Enclave)
@@ -287,6 +286,11 @@ namespace NMib::NConcurrency
 	{
 		while (auto *pHost = m_Hosts.f_FindAny())
 			fp_DestroyHost(**pHost, nullptr, "distribution manager was destroyed");
+	}
+
+	CActorDistributionManagerInternal::COnHostInfoChanged::~COnHostInfoChanged()
+	{
+		*m_pDestroyed = true;
 	}
 
 	namespace

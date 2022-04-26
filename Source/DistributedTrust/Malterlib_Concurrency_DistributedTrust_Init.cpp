@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_InitAttempt()
 	{
 		TCPromise<NStr::CStr> Promise;
-		
+
 		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
@@ -262,8 +262,7 @@ namespace NMib::NConcurrency
 			+ m_ActorDistributionManager
 			(
 				&CActorDistributionManager::f_SubscribeHostInfoChanged
-				, fg_ThisActor(m_pThis)
-				, [this](CHostInfo const &_HostInfo)
+				, g_ActorFunctorWeak / [this](CHostInfo const &_HostInfo) -> TCFuture<void>
 				{
 					auto *pHost = m_Hosts.f_FindEqual(_HostInfo.m_HostID);
 					if (pHost)
@@ -350,6 +349,8 @@ namespace NMib::NConcurrency
 							}
 						}
 					;
+
+					co_return {};
 				}
 			)
 			+ WriteDatabaseResults.f_GetResults()

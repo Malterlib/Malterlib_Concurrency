@@ -15,13 +15,17 @@ namespace NMib::NConcurrency
 	{
 		CHost::CHost(CActorDistributionManager &_DistributionManager, CDistributedActorHostInfo &&_Info)
 			: ICHost(fg_Move(_Info))
-			, m_OnDisconnect(&_DistributionManager, false)
 		{
 		}
 
 		CHost::~CHost()
 		{
 			f_DeletePackets();
+		}
+
+		CHost::COnDisconnect::~COnDisconnect()
+		{
+			*this->m_pDestroyed = true;
 		}
 
 		bool CHost::f_CanReceivePublish() const
@@ -166,7 +170,11 @@ namespace NMib::NConcurrency
 
 		DMibCheck(Host.m_ActiveConnections.f_IsEmpty());
 
-		Host.m_OnDisconnect() > fg_DiscardResult();
+		for (auto &OnDisconnect : Host.m_OnDisconnect)
+		{
+			OnDisconnect.m_fOnDisconnect() > fg_DiscardResult();
+			fg_Move(OnDisconnect.m_fOnDisconnect).f_Destroy() > fg_DiscardResult();
+		}
 		Host.m_OnDisconnect.f_Clear();
 
 		for (auto &RemoteActor : Host.m_RemoteActors)

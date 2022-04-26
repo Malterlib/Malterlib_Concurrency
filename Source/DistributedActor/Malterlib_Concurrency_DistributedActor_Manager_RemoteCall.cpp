@@ -355,8 +355,7 @@ namespace NMib::NConcurrency
 	
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
 		(
-			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect
+			TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect
 			, NStr::CStr const &_UniqueHostID
 			, NStr::CStr const &_LastExecutionID
 		)
@@ -368,13 +367,29 @@ namespace NMib::NConcurrency
 		if (!pHost || (*pHost)->m_LastExecutionID != _LastExecutionID)
 		{
 			// Report disconnect
-			fg_Dispatch(_Actor, fg_Move(_fOnDisconnect)) > fg_DiscardResult();
+			_fOnDisconnect() > fg_DiscardResult();
 			return nullptr;
 		}
 		
 		auto &Host = **pHost;
-		
-		return Host.m_OnDisconnect.f_Register(_Actor, fg_Move(_fOnDisconnect));			
+
+		auto &OnDisconnect = Host.m_OnDisconnect.f_Insert();
+		OnDisconnect.m_fOnDisconnect = fg_Move(_fOnDisconnect);
+
+		return g_ActorSubscription / [pHost = &Host, pOnDisconnect = &OnDisconnect, pDestroyed = OnDisconnect.m_pDestroyed]() -> TCFuture<void>
+			{
+				if (*pDestroyed)
+					co_return {};
+
+				auto ToDestroy = fg_Move(pOnDisconnect->m_fOnDisconnect);
+
+				pHost->m_OnDisconnect.f_Remove(*pOnDisconnect);
+
+				co_await fg_Move(ToDestroy).f_Destroy();
+
+				co_return {};
+			}
+		;
 	}
 	
 	bool CActorDistributionManagerInternal::fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)

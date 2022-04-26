@@ -225,14 +225,14 @@ namespace NMib::NConcurrency
 		NewConnection.m_DDPConnection
 			(
 				&CDDPServerConnection::f_Register
-				, fg_ThisActor(m_pThis)
-				, [this, ConnectionID](CDDPServerConnection::CConnectionInfo const &_ConnectionInfo) // On connection
+				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CConnectionInfo const &_ConnectionInfo) -> TCFuture<void>
+				// On connection
 				{
 					auto *pConnection = m_Connections.f_FindEqual(ConnectionID);
 					if (!pConnection)
 					{
 						_ConnectionInfo.f_Reject();
-						return;
+						co_return {};
 					}
 					_ConnectionInfo.f_Accept(CStr()); // Empty sessions means use random ID
 					CStr Message = fg_Format
@@ -244,21 +244,24 @@ namespace NMib::NConcurrency
 						)
 					;
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "{}", Message);
+
+					co_return {};
 				}
-				, [this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) // On method call
+				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) -> TCFuture<void>
+				// On method call
 				{
 					auto *pMethodHandler = m_MethodHandlers.f_FindEqual(_MethodInfo.m_Name);
 					if (!pMethodHandler)
 					{
 						_MethodInfo.f_Error(fp_MethodError("method-not-found", "Method not found"));
 						DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "Unknown method call: {}", _MethodInfo.m_Name);
-						return;
+						co_return {};
 					}
 					auto *pConnection = m_Connections.f_FindEqual(ConnectionID);
 					if (!pConnection)
 					{
 						_MethodInfo.f_Error(fp_MethodError("connection-not-found", "Connection not found"));
-						return;
+						co_return {};
 					}
 
 					CCallingHostInfo ThisCallingHostInfo = CCallingHostInfo
@@ -294,25 +297,32 @@ namespace NMib::NConcurrency
 							_MethodInfo.f_Result(fg_Move(*_Result));
 						}
 					;
+					co_return {};
 				}
-				, [](CDDPServerConnection::CSubscribeInfo const &_SubscribeInfo) // On subscribe
+				, g_ActorFunctorWeak / [](CDDPServerConnection::CSubscribeInfo const &_SubscribeInfo) -> TCFuture<void>
+				// On subscribe
 				{
 					_SubscribeInfo.f_Error(CEJSON()); // Sub not found
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "DDP subscription {}", _SubscribeInfo.m_Name);
+					co_return {};
 				}
-				, [](CStr const &_SubscriptionID) // On unsubscribe
+				, g_ActorFunctorWeak / [](CStr const &_SubscriptionID) -> TCFuture<void>
+				// On unsubscribe
 				{
+					co_return {};
 				}
-				, [](CStr const &_Error) // On error
+				, g_ActorFunctorWeak / [](CStr const &_Error) -> TCFuture<void>
+				// On error
 				{
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "DDP connection error: {}", _Error);
+					co_return {};
 				}
-				, [this, ConnectionID](EWebSocketStatus _Reason, CStr const& _Message, EWebSocketCloseOrigin _Origin)
+				, g_ActorFunctorWeak / [this, ConnectionID](EWebSocketStatus _Reason, CStr const& _Message, EWebSocketCloseOrigin _Origin) -> TCFuture<void>
 				{
 					auto *pConnection = m_Connections.f_FindEqual(ConnectionID);
 					if (!pConnection)
-						return;
-					
+						co_return {};
+
 					CStr CloseMessage = fg_Format
 						(
 							"Lost incoming connection ({}) from <{}> {}: {} {} {}"
@@ -330,6 +340,7 @@ namespace NMib::NConcurrency
 					else
 						DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "{}", CloseMessage);
 					m_Connections.f_Remove(ConnectionID);
+					co_return {};
 				}
 			)
 			> [this, ConnectionID](TCAsyncResult<CActorSubscription> &&_Callback)

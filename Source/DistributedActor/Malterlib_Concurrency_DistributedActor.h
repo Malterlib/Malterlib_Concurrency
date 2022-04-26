@@ -12,6 +12,7 @@
 #include <Mib/Web/HTTP/URL>
 #include <Mib/Memory/Allocators/Secure>
 #include <Mib/Concurrency/WeakActor>
+#include <Mib/Concurrency/ActorFunctorWeak>
 #include <Mib/Cryptography/PublicCrypto>
 #include <Mib/CommandLine/AnsiEncoding>
 
@@ -470,7 +471,7 @@ namespace NMib::NConcurrency
 		NStr::CStr const &f_LastExecutionID() const;
 		TCActor<CActorDistributionManager> f_GetDistributionManager() const;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
-		TCFuture<CActorSubscription> f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const;
+		TCFuture<CActorSubscription> f_OnDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect) const;
 		uint32 f_GetProtocolVersion() const;
 		NStr::CStr const &f_GetClaimedUserID() const;
 		NStr::CStr const &f_GetClaimedUserName() const;
@@ -696,12 +697,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		CActorSubscription f_SubscribeHostInfoChanged
-			(
-				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
-			)
-		;
+		CActorSubscription f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> &&_fHostInfoChanged);
 
 		TCFuture<CActorSubscription> f_RegisterWebsocketHandler
 			(
@@ -764,8 +760,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_Reconnect(NStr::CStr const &_ConnectionID);
 		CActorSubscription fp_OnRemoteDisconnect
 			(
-				TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect
+				TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect
 				, NStr::CStr const &_UniqueHostID
 				, NStr::CStr const &_LastExecutionID
 			)

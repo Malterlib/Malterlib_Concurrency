@@ -11,7 +11,6 @@
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Intrusive/AVLTree>
 #include <Mib/Concurrency/WeakActor>
-#include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Network/ResolveActor>
 
@@ -191,6 +190,14 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CHost(CActorDistributionManager &_DistributionManager, CDistributedActorHostInfo &&_Info);
 		~CHost();
 
+		struct COnDisconnect
+		{
+			~COnDisconnect();
+
+			TCActorFunctorWeak<TCFuture<void> ()> m_fOnDisconnect;
+			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
+		};
+
 		void f_DeletePackets();
 		void f_Destroy();
 		bool f_CanReceivePublish() const;
@@ -234,7 +241,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		NContainer::TCMap<NStr::CStr, CRemoteActor> m_RemoteActors;
 
-		TCActorSubscriptionManager<void (), true> m_OnDisconnect;
+		NContainer::TCLinkedList<COnDisconnect> m_OnDisconnect;
 
 		NContainer::TCSet<NStr::CStr> m_AllowedNamespaces;
 
@@ -372,7 +379,15 @@ namespace NMib::NConcurrency
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_Enclave;
 
-		TCActorSubscriptionManager<void (CHostInfo const &_HostInfo), true> m_OnHostInfoChanged;
+		struct COnHostInfoChanged
+		{
+			~COnHostInfoChanged();
+
+			TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> m_fOnHostInfoChanged;
+			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
+		};
+
+		NContainer::TCLinkedList<COnHostInfoChanged> m_OnHostInfoChanged;
 
 		NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
 

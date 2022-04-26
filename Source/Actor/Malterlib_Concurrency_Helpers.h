@@ -35,9 +35,6 @@ namespace NMib::NConcurrency
 #			define DErrorActorResultWasNotSet DMibErrorActorResultWasNotSet
 #		endif
 
-	template <typename t_CCallbackSignature, bool _bSupportMultiple, typename t_CExtraData>
-	class TCActorSubscriptionManager;
-
 	template <typename t_CActor>
 	class TCActorInternal;
 

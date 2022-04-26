@@ -390,14 +390,27 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged
-		(
-			TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<void (CHostInfo const &_HostInfo)> &&_fHostInfoChanged
-		)
+	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> &&_fHostInfoChanged)
 	{
 		auto &Internal = *mp_pInternal;
-		return Internal.m_OnHostInfoChanged.f_Register(_Actor, fg_Move(_fHostInfoChanged));
+		auto &OnHostInfoChange = Internal.m_OnHostInfoChanged.f_Insert();
+		OnHostInfoChange.m_fOnHostInfoChanged = fg_Move(_fHostInfoChanged);
+
+		return g_ActorSubscription / [this, pOnHostInfoChange = &OnHostInfoChange, pDestroyed = OnHostInfoChange.m_pDestroyed]() -> TCFuture<void>
+			{
+				if (*pDestroyed)
+					co_return {};
+
+				auto ToDestroy = fg_Move(pOnHostInfoChange->m_fOnHostInfoChanged);
+
+				auto &Internal = *mp_pInternal;
+				Internal.m_OnHostInfoChanged.f_Remove(*pOnHostInfoChange);
+
+				co_await fg_Move(ToDestroy).f_Destroy();
+
+				co_return {};
+			}
+		;
 	}
 
 	TCFuture<CActorSubscription> CActorDistributionManager::f_SubscribeActors

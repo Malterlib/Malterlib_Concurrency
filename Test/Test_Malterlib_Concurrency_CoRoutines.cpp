@@ -2,7 +2,6 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/ActorCallbackManager>
 #include <Mib/Concurrency/Coroutine>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/Actor/Timer>
@@ -952,7 +951,7 @@ namespace
 		{
 			DMibTestSuite("General")
 			{
-				TCActor<CTestActor> TestActor = fg_Construct();
+				TCActor<CTestActor> TestActor(fg_Construct());
 
 #if DMibEnableSafeCheck > 0
 				NStr::CStr ReferenceThisError = "false 'Unsafe call to coroutine with reference this pointer'";

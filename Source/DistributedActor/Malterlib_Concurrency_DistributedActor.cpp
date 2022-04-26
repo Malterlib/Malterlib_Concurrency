@@ -502,7 +502,7 @@ namespace NMib::NConcurrency
 		return mp_pHost.f_Lock();
 	}
 
-	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fOnDisconnect) const
+	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect) const
 	{
 		TCPromise<CActorSubscription> Promise;
 
@@ -510,7 +510,7 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager was deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, _Actor, fg_Move(_fOnDisconnect), mp_UniqueHostID, mp_LastExecutionID);
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, fg_Move(_fOnDisconnect), mp_UniqueHostID, mp_LastExecutionID);
 	}
 
 	CHostInfo::CHostInfo()

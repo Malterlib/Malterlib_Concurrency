@@ -210,10 +210,7 @@ namespace NTestAuthentication
 					return Promise.f_MoveFuture();
 				}
 
-				CServer *m_pThis;
-#				ifdef DMibDebug
-					CEmpty self; // Hide dangerous self
-#				endif
+				DMibDelegatedActorImplementation(CServer);
 			};
 
 			TCFuture<void> f_SubscribePermissions()
@@ -380,10 +377,7 @@ namespace NTestAuthentication
 					return Promise.f_MoveFuture();
 				}
 
-				CServer *m_pThis;
-#				ifdef DMibDebug
-					CEmpty self; // Hide dangerous self
-#				endif
+				DMibDelegatedActorImplementation(CServer);
 			};
 
 			TCFuture<void> f_SubscribePermissions()
@@ -563,10 +557,7 @@ namespace NTestAuthentication
 					co_return co_await m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions);
 				}
 
-				CServer *m_pThis;
-#				ifdef DMibDebug
-					CEmpty self; // Hide dangerous self
-#				endif
+				DMibDelegatedActorImplementation(CServer);
 			};
 
 			TCFuture<void> f_SubscribePermissions()

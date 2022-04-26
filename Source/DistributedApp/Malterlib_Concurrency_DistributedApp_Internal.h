@@ -21,10 +21,7 @@ namespace NMib::NConcurrency
 			) override
 		;
 
-		CDistributedAppActor *m_pThis;
-#		ifdef DMibDebug
-			CEmpty self; // Hide dangerous self
-#		endif
+		DMibDelegatedActorImplementation(CDistributedAppActor);
 	};
 
 	struct CDistributedAppActor::CInternal

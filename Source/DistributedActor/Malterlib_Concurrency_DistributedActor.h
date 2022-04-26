@@ -848,8 +848,18 @@ namespace NMib::NConcurrency
 		, d_UpToVersion \
 	>
 
+#ifdef DMibDebug
+#	define DMibDelegatedActorImplementation(d_ThisType) \
+	d_ThisType *m_pThis; \
+	CEmpty self;
+#else
+#	define DMibDelegatedActorImplementation(d_ThisType) \
+	d_ThisType *m_pThis;
+#endif
+
 #ifndef DMibPNoShortCuts
 #	define DPublishActorFunction DMibPublishActorFunction
+#	define DDelegatedActorImplementation DMibDelegatedActorImplementation
 #endif
 
 #ifndef DMibPNoShortCuts

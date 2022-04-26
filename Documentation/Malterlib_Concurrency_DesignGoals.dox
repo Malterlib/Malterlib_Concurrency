@@ -695,10 +695,7 @@ struct CMyActor : public CActor
 			co_return m_pThis->f_CalcResult();
 		}
 
-		CMyActor *m_pThis;
-#		ifdef DMibDebug
-			CEmpty self; // Hide dangerous self
-#		endif
+		DDelegatedActorImplementation(CMyActor);
 	};
 
 	int32 f_CalcResult()

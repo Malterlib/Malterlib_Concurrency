@@ -83,10 +83,7 @@ namespace NMib::NConcurrency
 			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
 			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() override;
 
-			CDistributedApp_LaunchHelper *m_pThis = nullptr;
-#			ifdef DMibDebug
-				CEmpty self; // Hide dangerous self
-#			endif
+			DMibDelegatedActorImplementation(CDistributedApp_LaunchHelper);
 		};
 
 		struct CLaunchInfo : public CDistributedApp_LaunchInfoData

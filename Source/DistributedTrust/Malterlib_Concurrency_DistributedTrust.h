@@ -56,38 +56,31 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_OnActor
 			(
 				TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
+				, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
 				, NStr::CStr const &_ErrorCategory = {}
 				, NStr::CStr const &_ErrorPrefix = {}
 				, bool _bReportCurrent = true
 			)
 		;
-		void f_OnRemoveActor
-			(
-				TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
-				, NStr::CStr const &_ErrorCategory = {}
-				, NStr::CStr const &_ErrorPrefix = {}
-			)
-		;
-		
-	private:
+
+	public:
 		friend class CDistributedActorTrustManager;
 		
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
-			TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
-			TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
+			FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
+			FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
 
 			NStr::CStr f_NewActorErrorCategory() const;
 			NStr::CStr f_NewActorErrorPrefix() const;
 			NStr::CStr f_RemoveActorErrorCategory() const;
 			NStr::CStr f_RemoveActorErrorPrefix() const;
 
+			CActorSubscription m_Subscription;
 			TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> m_fOnNewActor;
 			TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> m_fOnRemovedActor;
-			NStr::CStr m_NewActorErrorCategory;
-			NStr::CStr m_NewActorErrorPrefix;
-			NStr::CStr m_RemoveActorErrorCategory;
-			NStr::CStr m_RemoveActorErrorPrefix;
+			NStr::CStr m_ErrorCategory;
+			NStr::CStr m_ErrorPrefix;
 
 			TCTrustedActorSubscription *m_pSubscription;
 		};
@@ -440,23 +433,26 @@ namespace NMib::NConcurrency
 
 		TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> f_GetConnectionsDebugStats();
 
-		// Handle renewal of certificates
-		
 	private:
 		template <typename t_CActor>
 		friend struct TCTrustedActorSubscription;
 		friend struct CTrustedPermissionSubscription;
 
+		struct CTrustedActorSubscription
+		{
+			NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> m_InitialActors;
+			CActorSubscription m_Subscription;
+		};
+
 		TCFuture<void> fp_Destroy() override;
-		
+
 		void fp_Init();
 		
 		TCFuture<CHostInfo> fp_GetHostInfo(NStr::CStr const &_HostID);
 		
 		auto fp_SubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState)
-			-> TCFuture<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>
+			-> TCFuture<CTrustedActorSubscription>
 		;
-		void fp_UnsubscribeTrustedActors(NStorage::TCSharedPointer<NPrivate::CTrustedActorSubscriptionState> const &_pState);
 		NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> fp_SubscribeToPermissions
 			(
 				NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> const &_pState

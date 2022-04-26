@@ -223,7 +223,7 @@ namespace NMib::NConcurrency
 			, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 			, NStr::CStr const &_UniqueHostID
 			, CHostInfo const &_HostInfo
-			, CDistributedActorProtocolVersions &_ProtocolVersions
+			, CDistributedActorProtocolVersions const &_ProtocolVersions
 		)
 		: mp_ActorID(_ActorID)
 		, mp_pHost(_pHost)
@@ -272,7 +272,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, CRemoteActor &_RemoteActor
-			, TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> *_pResults
+			, TCActorResultVector<void> *_pResults
 		)
 	{
 		CAbstractDistributedActor AbstractActor
@@ -286,34 +286,80 @@ namespace NMib::NConcurrency
 				, _RemoteActor.m_ProtocolVersions
 			}
 		;
+		auto fSendNotifications = [&](CActorPublicationSubscription &_Subscription)
+			{
+				if (_pResults)
+				{
+					for (auto &Instance : _Subscription.m_Instances)
+					{
+						fg_Dispatch
+							(
+								Instance.m_DispatchActor
+								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable
+								{
+									(*pOnNewActor)(fg_Move(RemoteActor));
+								}
+							)
+							> _pResults->f_AddResult()
+						;
+					}
+				}
+				else
+				{
+					for (auto &Instance : _Subscription.m_Instances)
+					{
+						fg_Dispatch
+							(
+								Instance.m_DispatchActor
+								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable
+								{
+									(*pOnNewActor)(fg_Move(RemoteActor));
+								}
+							)
+							> fg_DiscardResult()
+						;
+					}
+				}
+			}
+		;
 		auto pAll = m_SubscribedActors.f_FindEqual("");
 		if (pAll)
-		{
-			if (_pResults)
-				pAll->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > _pResults->f_AddResult();
-			else
-				pAll->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
-		}
+			fSendNotifications(*pAll);
 
 		auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 		if (pSpecific)
-		{
-			if (_pResults)
-				pSpecific->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > _pResults->f_AddResult();
-			else
-				pSpecific->m_fOnNewActor.f_Call(fg_TempCopy(AbstractActor)) > fg_DiscardResult();
-		}
+			fSendNotifications(*pSpecific);
 	}
 
 	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
 	{
+		auto Identifier = CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()};
+
+		auto fSendNotifications = [&](CActorPublicationSubscription &_Subscription)
+			{
+				for (auto &Instance : _Subscription.m_Instances)
+				{
+					fg_Dispatch
+						(
+							Instance.m_DispatchActor
+							, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable
+							{
+								(*pOnRemovedActor)(fg_Move(Identifier));
+							}
+						)
+						> fg_DiscardResult()
+					;
+				}
+			}
+		;
+
 		auto pAll = m_SubscribedActors.f_FindEqual("");
 		if (pAll)
-			pAll->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()}) > fg_DiscardResult();
+			fSendNotifications(*pAll);
 
 		auto pSpecific = m_SubscribedActors.f_FindEqual(_RemoteActor.m_Namespace);
 		if (pSpecific)
-			pSpecific->m_fOnRemovedActorActor(CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()}) > fg_DiscardResult();
+			fSendNotifications(*pSpecific);
 	}
 
 	bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
@@ -335,7 +381,7 @@ namespace NMib::NConcurrency
 		auto Mapped = pHost->m_RemoteActors(Publish.m_ActorID);
 
 		bool bNeedResults = !_pConnection->m_bPulishFinished;
-		TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> Results;
+		TCActorResultVector<void> Results;
 
 		if (Mapped.f_WasCreated())
 		{
@@ -383,11 +429,8 @@ namespace NMib::NConcurrency
 
 	namespace NActorDistributionManagerInternal
 	{
-		CActorPublicationSubscription::CActorPublicationSubscription(CActorDistributionManager *_pManager)
-			: m_fOnNewActor(_pManager, false)
-			, m_fOnRemovedActorActor(_pManager, false)
-		{
-		}
+		CActorPublicationSubscription::CActorPublicationSubscription() = default;
+		CActorPublicationSubscription::~CActorPublicationSubscription() = default;
 	}
 
 	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> &&_fHostInfoChanged)
@@ -415,7 +458,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CActorDistributionManager::f_SubscribeActors
 		(
-			NContainer::TCVector<NStr::CStr> const &_NameSpaces
+			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
 			, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
 			, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
@@ -425,7 +468,16 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
 
-		NStorage::TCUniquePointer<CCombinedCallbackReference> pCallback = fg_Construct();
+		mint SubscriptionID = Internal.m_SubscribedActorsNextInstanceID++;
+
+		if (_Namespace && !CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
+			co_return DMibErrorInstance("Invalid namespace name");
+
+		auto &Subscribed = *Internal.m_SubscribedActors(_Namespace);
+		auto &Instance = Subscribed.m_Instances[SubscriptionID];
+		Instance.m_DispatchActor = _Actor;
+		Instance.m_pOnNewActor = pOnNewActor;
+		Instance.m_pOnRemovedActor = pOnRemovedActor;
 
 		TCActorResultVector<void> ReportResults;
 		auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
@@ -433,30 +485,19 @@ namespace NMib::NConcurrency
 				fg_Dispatch
 					(
 						_Actor
-						,
-						[
-							pOnNewActor = pOnNewActor
-							, Actor = _RemoteActor
-						]
-						() mutable
+						, [pOnNewActor = pOnNewActor, RemoteActor = fg_Move(_RemoteActor)]() mutable
 						{
-							(*pOnNewActor)(fg_Move(Actor));
+							(*pOnNewActor)(fg_Move(RemoteActor));
 						}
 					)
 					> ReportResults.f_AddResult();
 				;
 			}
 		;
-		if (_NameSpaces.f_IsEmpty())
-		{
-			auto &Subscribed = *Internal.m_SubscribedActors("", this);
 
-			pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, pOnNewActor));
-			pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, pOnRemovedActor));
-
-			for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
+		auto fReportExistingNamespace = [&](NActorDistributionManagerInternal::CRemoteNamespace const &_RemoteNamespace)
 			{
-				for (auto &RemoteActor : RemoteNamespace.m_RemoteActors)
+				for (auto &RemoteActor : _RemoteNamespace.m_RemoteActors)
 				{
 					fReportExistingActor
 						(
@@ -474,46 +515,35 @@ namespace NMib::NConcurrency
 					;
 				}
 			}
+		;
+
+		if (_Namespace.f_IsEmpty())
+		{
+			for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
+				fReportExistingNamespace(RemoteNamespace);
 		}
 		else
 		{
-			for (auto &Namespace : _NameSpaces)
-			{
-				if (!CActorDistributionManager::fs_IsValidNamespaceName(Namespace))
-					co_return DMibErrorInstance("Invalid namespace name");
-			}
-
-			for (auto &Namespace : _NameSpaces)
-			{
-				auto &Subscribed = *Internal.m_SubscribedActors(Namespace, this);
-
-				pCallback->m_References.f_Insert(Subscribed.m_fOnNewActor.f_Register(_Actor, pOnNewActor));
-				pCallback->m_References.f_Insert(Subscribed.m_fOnRemovedActorActor.f_Register(_Actor, pOnRemovedActor));
-				if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(Namespace))
-				{
-					for (auto &RemoteActor : pRemoteNamespace->m_RemoteActors)
-					{
-						fReportExistingActor
-							(
-								CAbstractDistributedActor
-								(
-									RemoteActor.f_GetActorID()
-									, fg_Explicit(RemoteActor.m_pHost)
-									, fg_ThisActor(this)
-									, RemoteActor.m_Hierarchy
-									, RemoteActor.m_pHost->m_HostInfo.m_UniqueHostID
-									, RemoteActor.m_pHost->f_GetHostInfo()
-									, RemoteActor.m_ProtocolVersions
-								)
-							)
-						;
-					}
-				}
-			}
+			if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(_Namespace))
+				fReportExistingNamespace(*pRemoteNamespace);
 		}
 
 		co_await ReportResults.f_GetResults();
 
-		co_return fg_Move(pCallback);
+		co_return g_ActorSubscription / [this, _Namespace, SubscriptionID]
+			{
+				auto &Internal = *mp_pInternal;
+
+				auto pSubscribed = Internal.m_SubscribedActors.f_FindEqual(_Namespace);
+				if (!pSubscribed)
+					return;
+
+				if (!pSubscribed->m_Instances.f_Remove(SubscriptionID))
+					return;
+
+				if (pSubscribed->m_Instances.f_IsEmpty())
+					Internal.m_SubscribedActors.f_Remove(pSubscribed);
+			}
+		;
 	}
 }

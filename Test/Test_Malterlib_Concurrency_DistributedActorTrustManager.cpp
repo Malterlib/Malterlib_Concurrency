@@ -822,13 +822,28 @@ namespace NTestTrustManager
 					> fg_DiscardResult();
 				;
 
+				{
+					mint ExpectedCalls = nCalls.f_Load() + 10;
+					bool bTimedOutPreDisconnect = fp_WaitForCondition
+						(
+							[&]
+							{
+								return nCalls.f_Load() >= ExpectedCalls;
+							}
+						)
+					;
+
+					DMibExpectFalse(bTimedOutPreDisconnect);
+				}
+
+
 				bool bTimedOut = false;
 
 				for (mint i = 0; i < 4 && !bTimedOut; ++i)
 				{
 					ClientTrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, ServerAddress, true).f_CallSync(pRunLoop, g_Timeout);
 
-					mint ExpectedCalls = nCalls.f_Load() + 2;
+					mint ExpectedCalls = nCalls.f_Load() + 10;
 
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(pRunLoop, g_Timeout);
@@ -956,8 +971,6 @@ namespace NTestTrustManager
 
 				ServerTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 				ClientTrustManager->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-
-				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 			}
 			{
 				DMibTestPath("Host Cleanup");
@@ -1055,7 +1068,6 @@ namespace NTestTrustManager
 							}
 						)
 					;
-
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, true).f_CallSync(pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
@@ -1233,10 +1245,8 @@ namespace NTestTrustManager
 					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, g_Timeout / 2, -1).f_CallSync(pRunLoop, g_Timeout);
 				}
-
 				CDistributedActorTestHelper ServerHelper{ServerTrustManager};
 				CDistributedActorTestHelper ClientHelper{ClientTrustManager};
-
 
 				ServerHelper.f_Publish<CTestActor>(ServerHelper.f_GetManager()->f_ConstructActor<CTestActor>(), "com.malterlib/Test");
 				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
@@ -1738,7 +1748,12 @@ namespace NTestTrustManager
 				{
 					DMibTestPath("Subscribe stress");
 					TCActorResultVector<void> Dispatches;
-					for (mint i = 0; i < 100000; ++i)
+#if DMibConfig_RefcountDebugging
+					constexpr mint c_nLoops = 100;
+#else
+					constexpr mint c_nLoops = 100000;
+#endif
+					for (mint i = 0; i < c_nLoops; ++i)
 					{
 						fg_ConcurrentDispatch
 							(
@@ -1789,7 +1804,6 @@ namespace NTestTrustManager
 							*pExited = true;
 						}
 					;
-
 					fg_Dispatch
 						(
 							[&, pExited]() -> TCFuture<void>
@@ -1809,12 +1823,7 @@ namespace NTestTrustManager
 
 											co_return {};
 										}
-									)
-								;
-
-								TrustedSubscription0.f_OnRemoveActor
-									(
-										g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
+										, g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
 										{
 											--nActors;
 
@@ -2948,7 +2957,7 @@ namespace NTestTrustManager
 						DMibAssertFalse(Res5["Tag3"]);
 					}
 				}
-			};
+			}
 		}
 
 		void fp_DoDatabaseConversionTests()

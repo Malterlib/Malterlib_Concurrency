@@ -97,6 +97,7 @@ namespace NMib::NConcurrency
 
 							co_return {};
 						}
+						, nullptr
 					)
 					> fg_DiscardResult()
 				;

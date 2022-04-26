@@ -33,6 +33,8 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> const &f_GetManager() const;
 		
 		void f_SetSecurity(CDistributedActorSecurity const &_Security);
+
+		void f_Destroy();
 		
 	private:
 		struct CPublication

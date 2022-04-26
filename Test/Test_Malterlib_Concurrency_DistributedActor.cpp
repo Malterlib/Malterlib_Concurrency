@@ -1726,7 +1726,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		ClientManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
-				, fg_CreateVector<CStr>("Test")
+				, "Test"
 				, ConcurrentActor
 				, [&](CAbstractDistributedActor &&_NewActor)
 				{
@@ -1866,9 +1866,13 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		bool bHasClient = Actor.f_CallActor(&CDistributedActor::f_HasOnDisconnect)(HostID).f_CallSync(g_Timeout);
 		DMibExpectTrue(bHasClient);
 		TestState.f_DisconnectClient(true);
+		DMibTestMark;
 		TestState.f_InitClient(TestState);
+		DMibTestMark;
 		SubscriptionID = TestState.f_Subscribe("Test");
+		DMibTestMark;
 		Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+		DMibTestMark;
 		bHasClient = LocalActor(&CDistributedActor::f_HasOnDisconnect, HostID).f_CallSync(g_Timeout);
 		DMibExpectFalse(bHasClient);
 	}

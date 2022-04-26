@@ -202,21 +202,14 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, "Malterlib/Concurrency/Sensor"
-				, "Error adding sensor reporter"
-			)
-		;
-
-		m_SensorsInterfaceSubscription.f_OnRemoveActor
-			(
-				g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
 				{
 					co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceRemoved, _Actor, fg_Move(_TrustInfo));
 
 					co_return {};
 				}
 				, "Malterlib/Concurrency/Sensor"
-				, "Error removing sensor reporter"
+				, "Failed to {} sensor reporter"
 			)
 		;
 

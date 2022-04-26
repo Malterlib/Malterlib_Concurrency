@@ -244,6 +244,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
+				, nullptr
 			)
 		;
 

@@ -685,14 +685,10 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-			)
-		;
-		mp_AuthenticationRemotes.f_OnRemoveActor
-			(
-				g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
 				{
 					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
-					
+
 					co_return {};
 				}
 			)

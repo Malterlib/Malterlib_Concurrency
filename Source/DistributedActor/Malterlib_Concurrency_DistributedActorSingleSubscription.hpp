@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 		mp_DistributionManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
-				, NContainer::fg_CreateVector(mp_Namespace)
+				, mp_Namespace
 				, fg_CurrentActor()
 				, [this](CAbstractDistributedActor &&_NewActor)
 				{

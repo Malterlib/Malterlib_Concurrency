@@ -83,7 +83,13 @@ namespace NMib::NConcurrency
 	{
 		mp_ClientConnectionReference.f_Disconnect().f_CallSync(60.0);
 		if (_bNewExecutionID)
-			mp_pClient.f_Clear();
+		{
+			if (mp_pClient)
+			{
+				mp_pClient->f_Destroy();
+				mp_pClient.f_Clear();
+			}
+		}
 	}
 
 	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server)
@@ -210,7 +216,7 @@ namespace NMib::NConcurrency
 		Subscription.m_Subscription = ClientManager
 			(
 				&CActorDistributionManager::f_SubscribeActors
-				, NContainer::fg_CreateVector<NStr::CStr>(_Namespace)
+				, _Namespace
 				, ConcurrentActor 
 				, 	
 				[
@@ -306,8 +312,23 @@ namespace NMib::NConcurrency
 		auto *pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
 		if (pSubscription)
 			pSubscription->m_Subscription.f_Clear();
-	}			
-	
+	}
+
+	void CDistributedActorTestHelper::f_Destroy()
+	{
+		TCActorResultVector<void> Results;
+		for (auto &Subscription : mp_Subscriptions)
+		{
+			if (Subscription.m_Subscription)
+				Subscription.m_Subscription->f_Destroy() > Results.f_AddResult();
+		}
+
+		for (auto &Publication : mp_Publications)
+			Publication.m_Publication.f_Destroy() > Results.f_AddResult();
+
+		Results.f_GetResults().f_CallSync(60.0);
+	}
+
 	void CDistributedActorTestHelper::f_Unpublish(NStr::CStr const &_Publication)
 	{
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);

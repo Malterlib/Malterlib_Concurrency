@@ -103,6 +103,9 @@ namespace NMib::NConcurrency
 		bool operator == (TCActor<t_CActor> const &_Right) const;
 		bool operator == (TCActor<> const &_Right) const;
 
+		template <typename tf_CStr>
+		void f_Format(tf_CStr &o_Str) const;
+
 	private:
 
 		NStorage::TCWeakPointer<NPrivate::ICHost> mp_pHost;
@@ -290,7 +293,7 @@ namespace NMib::NConcurrency
 				, NContainer::TCVector<uint32> const &_InheritanceHierarchy
 				, NStr::CStr const &_UniqueHostID
 				, CHostInfo const &_HostInfo
-				, CDistributedActorProtocolVersions &_ProtocolVersions
+				, CDistributedActorProtocolVersions const &_ProtocolVersions
 			)
 		;
 
@@ -690,7 +693,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<CActorSubscription> f_SubscribeActors
 			(
-				NContainer::TCVector<NStr::CStr> const &_NameSpaces /// Leave empty to subscribe to all actors
+				NStr::CStr const &_NameSpace /// Leave empty to subscribe to all actors
 				, TCActor<CActor> const &_Actor
 				, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
 				, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor

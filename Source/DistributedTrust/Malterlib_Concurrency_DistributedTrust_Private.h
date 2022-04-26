@@ -19,15 +19,18 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		friend class CDistributedActorTrustManager;
 		TCWeakActor<CActor> m_DispatchActor;
-		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;
 		uint32 m_TypeHash = 0;
 		CDistributedActorProtocolVersions m_ProtocolVersions;
 		NStr::CStr m_NamespaceName;
+
+		// Handled on dipatch actor
+		NContainer::TCVector<NStorage::TCVariant<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>, NContainer::TCSet<CDistributedActorIdentifier>>> m_DeferredChanges;
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual TCFuture<void> f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
-		virtual TCFuture<void> f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
+		virtual FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
+		virtual FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
+		void f_ApplyDeferredChanges();
 	};
 	
 	struct CTrustedPermissionSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>

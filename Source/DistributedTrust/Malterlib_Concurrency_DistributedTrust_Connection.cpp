@@ -403,7 +403,7 @@ namespace NMib::NConcurrency
 							Internal.m_ActorDistributionManager
 								(
 									&CActorDistributionManager::f_SubscribeActors
-									, NContainer::fg_CreateVector<NStr::CStr>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
+									, "Anonymous/com.malterlib/Concurrency/TrustManagerTicket"
 									, fg_ThisActor(this)
 									, [this, Promise, pConnectionState, _TrustTicket, ServerHostID, UniqueHostID, _ConnectionConcurrency](CAbstractDistributedActor &&_NewActor)
 									{

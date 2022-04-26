@@ -593,6 +593,12 @@ namespace NMib::NConcurrency
 		return mp_HostInfo;
 	}
 
+	template <typename tf_CStr>
+	void CDistributedActorIdentifier::f_Format(tf_CStr &o_Str) const
+	{
+		o_Str += typename tf_CStr::CFormat("HostID {} ActorID {}") << mp_pHost << mp_ActorID;
+	}
+
 	inline bool CAbstractDistributedActor::f_IsEmpty() const
 	{
 		return mp_ActorID.f_IsEmpty();

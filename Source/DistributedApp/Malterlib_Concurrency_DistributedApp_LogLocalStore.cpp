@@ -202,21 +202,14 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, "Malterlib/Concurrency/Log"
-				, "Error adding log reporter"
-			)
-		;
-
-		m_LogsInterfaceSubscription.f_OnRemoveActor
-			(
-				g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
 				{
 					co_await fg_CallSafe(*this, &CInternal::f_LogReporterInterfaceRemoved, _Actor, fg_Move(_TrustInfo));
 
 					co_return {};
 				}
 				, "Malterlib/Concurrency/Log"
-				, "Error removing log reporter"
+				, "Error when calling {} for log reporter"
 			)
 		;
 

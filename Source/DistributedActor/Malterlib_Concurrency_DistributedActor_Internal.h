@@ -301,11 +301,24 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		}
 	};
 
+	struct CActorPublicationSubscriptionInstance
+	{
+		mint f_GetID() const
+		{
+			return NContainer::TCMap<mint, CActorPublicationSubscriptionInstance>::fs_GetKey(this);
+		}
+		
+		TCActor<CActor> m_DispatchActor;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)>> m_pOnRemovedActor;
+	};
+
 	struct CActorPublicationSubscription
 	{
-		CActorPublicationSubscription(CActorDistributionManager *_pManager);
-		TCActorSubscriptionManager<void (CAbstractDistributedActor &&_NewActor), true> m_fOnNewActor;
-		TCActorSubscriptionManager<void (CDistributedActorIdentifier const &_RemovedActor), true> m_fOnRemovedActorActor;
+		CActorPublicationSubscription();
+		~CActorPublicationSubscription();
+
+		NContainer::TCMap<mint, CActorPublicationSubscriptionInstance> m_Instances;
 	};
 
 	struct CListen
@@ -390,6 +403,7 @@ namespace NMib::NConcurrency
 		NContainer::TCLinkedList<COnHostInfoChanged> m_OnHostInfoChanged;
 
 		NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
+		mint m_SubscribedActorsNextInstanceID = 0;
 
 		NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
 		NContainer::TCSet<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;
@@ -477,7 +491,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 				, CRemoteActor &_RemoteActor
-				, TCActorResultVector<NContainer::TCVector<TCAsyncResult<void>>> *_pResults
+				, TCActorResultVector<void> *_pResults
 			)
 		;
 		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor);

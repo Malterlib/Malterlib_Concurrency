@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 			uint64 m_LastSeenUniqueSequence = 0;
 			mint m_ActiveRefCount = 0;
 
-			TCActorSequencerAsync<void> m_InitSensorSequencer;
+			TCActorSequencerAsync<void> m_SensorSequencer;
 			TCMap<TCWeakDistributedActor<CActor>, CSensorReporter> m_SensorReporters;
 
 			TCSharedPointer<CCanDestroyTracker> m_pCanDestroy;

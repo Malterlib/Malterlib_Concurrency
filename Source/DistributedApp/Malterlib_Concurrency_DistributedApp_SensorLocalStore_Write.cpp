@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 			pSensor->m_pCanDestroy = fg_Construct();
 
 		{
-			auto SequenceSubscription = co_await pSensor->m_InitSensorSequencer.f_Sequence();
+			auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
 
 			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_SensorInfo;
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 					if (pSensor->m_pCanDestroy)
 						CanDestroy = pSensor->m_pCanDestroy->f_Track();
 
-					auto SequenceSubscription = co_await pSensor->m_InitSensorSequencer.f_Sequence();
+					auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 
 					for (auto &Reading : _Readings)
 					{

@@ -35,6 +35,7 @@ namespace NMib::NConcurrency
 			, ELogSeverity_Debug
 			, ELogSeverity_DebugVerbose1
 			, ELogSeverity_DebugVerbose2
+			, ELogSeverity_DebugVerbose3
 		};
 
 		enum ELogEntryFlag : uint32

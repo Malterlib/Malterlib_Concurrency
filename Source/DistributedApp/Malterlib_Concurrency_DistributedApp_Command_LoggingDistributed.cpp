@@ -718,6 +718,7 @@ namespace NMib::NConcurrency
 						case CDistributedAppLogReporter::ELogSeverity_Debug:
 						case CDistributedAppLogReporter::ELogSeverity_DebugVerbose1:
 						case CDistributedAppLogReporter::ELogSeverity_DebugVerbose2:
+						case CDistributedAppLogReporter::ELogSeverity_DebugVerbose3:
 							SeverityColor = DebugColor;
 							break;
 						}

@@ -930,6 +930,7 @@ namespace NMib::NConcurrency
 					case NLog::ESeverity_Debug:
 					case NLog::ESeverity_DebugVerbose1:
 					case NLog::ESeverity_DebugVerbose2:
+					case NLog::ESeverity_DebugVerbose3:
 					case NLog::ESeverity_Perf_Info:
 						return mp_DebugColor;
 					case NLog::ESeverity_Warning:

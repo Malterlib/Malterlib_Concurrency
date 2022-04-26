@@ -34,6 +34,7 @@ namespace NMib::NConcurrency
 		case ESeverity_Debug: m_Severity = CDistributedAppLogReporter::ELogSeverity_Debug; break;
 		case ESeverity_DebugVerbose1: m_Severity = CDistributedAppLogReporter::ELogSeverity_DebugVerbose1; break;
 		case ESeverity_DebugVerbose2: m_Severity = CDistributedAppLogReporter::ELogSeverity_DebugVerbose2; break;
+		case ESeverity_DebugVerbose3: m_Severity = CDistributedAppLogReporter::ELogSeverity_DebugVerbose3; break;
 		case ESeverity_Perf_Info:
 			{
 				m_Severity = CDistributedAppLogReporter::ELogSeverity_Info;
@@ -74,6 +75,8 @@ namespace NMib::NConcurrency
 			return ELogSeverity_DebugVerbose1;
 		else if (_String == "DebugVerbose2")
 			return ELogSeverity_DebugVerbose2;
+		else if (_String == "DebugVerbose3")
+			return ELogSeverity_DebugVerbose3;
 
 		return ELogSeverity_Unsupported;
 	}
@@ -89,6 +92,7 @@ namespace NMib::NConcurrency
 		case ELogSeverity_Debug: return "Debug";
 		case ELogSeverity_DebugVerbose1: return "DebugVerbose1";
 		case ELogSeverity_DebugVerbose2: return "DebugVerbose2";
+		case ELogSeverity_DebugVerbose3: return "DebugVerbose3";
 		case ELogSeverity_Unsupported: break;
 		}
 

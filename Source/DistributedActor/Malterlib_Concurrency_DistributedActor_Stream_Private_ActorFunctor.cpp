@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		NStr::CStr ActorID;
 		NStr::CStr FunctionID;
 		
-		if (_Actor && !_pFunction->f_IsEmpty())
+		if (_Actor && _pFunction && !_pFunction->f_IsEmpty())
 		{
 			auto &ActorFunctors = State.m_ActorFunctors[_SequenceID];
 			auto &ActorFunctor = ActorFunctors.m_ActorFunctors.f_Insert();

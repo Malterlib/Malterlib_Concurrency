@@ -8,9 +8,10 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	TCActorFunctor<t_CFunction>::TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription)
 		: mp_Actor(fg_Move(_Actor))
-		, mp_pFunctor(fg_Construct(fg_Move(_fFunctor)))
 		, mp_Subscription(fg_Move(_Subscription))
 	{
+		if (_fFunctor)
+			mp_pFunctor = fg_Construct(fg_Move(_fFunctor));
 	}
 
 	template <typename t_CFunction>
@@ -61,7 +62,7 @@ namespace NMib::NConcurrency
 	template <typename ...tfp_CParams>
 	auto TCActorFunctor<t_CFunction>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 	{
-		if (!mp_Actor || !*mp_pFunctor)
+		if (!mp_Actor || !mp_pFunctor || !*mp_pFunctor)
 		{
 			return fg_Dispatch
 				(
@@ -117,7 +118,7 @@ namespace NMib::NConcurrency
 	template <typename ...tfp_CParams>
 	auto TCActorFunctor<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
 	{
-		if (!mp_Actor || !*mp_pFunctor)
+		if (!mp_Actor || !mp_pFunctor || !*mp_pFunctor)
 		{
 			return fg_Dispatch
 				(
@@ -170,7 +171,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FDispatcher, typename ...tfp_CParams>
 	auto TCActorFunctor<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
 	{
-		if (!mp_Actor || !*mp_pFunctor)
+		if (!mp_Actor || !mp_pFunctor || !*mp_pFunctor)
 		{
 			return fg_Dispatch
 				(
@@ -236,6 +237,7 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	NFunction::TCFunctionMovable<t_CFunction> const &TCActorFunctor<t_CFunction>::f_GetFunctor() const
 	{
+		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
 	
@@ -254,6 +256,7 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	NFunction::TCFunctionMovable<t_CFunction> &TCActorFunctor<t_CFunction>::f_GetFunctor()
 	{
+		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
 

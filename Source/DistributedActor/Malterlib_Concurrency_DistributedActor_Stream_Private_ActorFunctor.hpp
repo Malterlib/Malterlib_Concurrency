@@ -10,10 +10,14 @@ namespace NMib::NConcurrency
 	{
 		using CFunction = typename TCActorFunctorWithID<tf_CFunction, tf_SubscriptionID>::CFunction;
 
+		NStorage::TCSharedPointer<NPrivate::CStreamingFunction> pFunction;
+		if (!_ActorFunctor.f_IsEmpty())
+			pFunction = fg_Construct<NPrivate::TCStreamingFunction<CFunction>>(fg_Move(_ActorFunctor.f_GetFunctor()));
+
 		f_FeedActorFunctor
 			(
 				fg_Move(_ActorFunctor.f_GetActor())
-				, fg_Construct<NPrivate::TCStreamingFunction<CFunction>>(fg_Move(_ActorFunctor.f_GetFunctor()))
+				, fg_Move(pFunction)
 				, _ActorFunctor.f_GetID()
 				, fg_Move(_ActorFunctor.f_GetSubscription())
 			)

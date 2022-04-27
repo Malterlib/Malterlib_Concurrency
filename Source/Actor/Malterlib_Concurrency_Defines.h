@@ -368,7 +368,7 @@ DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActorLowPrio, true);
 
 template <>
-struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 {
 };
 
@@ -378,7 +378,7 @@ struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::CCanDestroyTrac
 };
 
 template <typename t_CActor>
-struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::TCActorInternal<t_CActor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::TCActorInternal<t_CActor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 {
 };
 

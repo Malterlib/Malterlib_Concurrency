@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NActorDistributionManagerInternal
 {
-	struct CConnection : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
+	struct CConnection
 	{
 		virtual ~CConnection()
 		{
@@ -56,6 +56,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		virtual NStr::CStr f_GetServerURL() const;
 		void f_DiscardIdentifyPromise(NStr::CStr const &_Error);
 
+		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 		TCActor<NWeb::CWebSocketActor> m_Connection;
 		CActorSubscription m_ConnectionSubscription;
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> m_pSSLContext;

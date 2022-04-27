@@ -314,25 +314,29 @@ namespace NMib::NConcurrency::NPrivate
 	;
 
 #if DMibConfig_Concurrency_DebugFutures
-	struct CPromiseDataBase : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CPromiseDataBase
 	{
 		CPromiseDataBase(NStr::CStr const &_Name);
 		virtual ~CPromiseDataBase();
 
+		NStorage::CIntrusiveRefCount m_RefCount;
 		DMibListLinkDS_Link(CPromiseDataBase, m_Link);
 		NStr::CStr m_FutureTypeName;
 	};
-#else
-	using CPromiseDataBase = NStorage::TCSharedPointerIntrusiveBase<>;
 #endif
 
 	template <typename t_CReturnValue>
-	struct TCPromiseData : public CPromiseDataBase
+	struct TCPromiseData
+#if DMibConfig_Concurrency_DebugFutures
+		: public CPromiseDataBase
+#endif
 	{
 		TCPromiseData();
 		~TCPromiseData();
 
 		void f_Reset();
+
+		bool f_IsSet() const;
 
 		void fp_ReportNothingSet();
 		void f_OnResult();
@@ -387,6 +391,9 @@ namespace NMib::NConcurrency::NPrivate
 
 		NAtomic::EMemoryOrder f_MemoryOrder(NAtomic::EMemoryOrder _Default = NAtomic::EMemoryOrder_SequentiallyConsistent) const;
 
+#if !DMibConfig_Concurrency_DebugFutures
+		NStorage::CIntrusiveRefCount m_RefCount;
+#endif
 		TCAsyncResult<t_CReturnValue> m_Result;
 		NFunction::TCFunctionMovable<void (TCAsyncResult<t_CReturnValue> &&_AsyncResult)> m_fOnResult;
 		NAtomic::TCAtomic<mint> m_OnResultSet;
@@ -406,7 +413,7 @@ namespace NMib::NConcurrency::NPrivate
 }
 
 template <typename t_CReturnValue>
-struct NMib::NStorage::TCHasIntrusiveRefcount<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
 {
 };
 

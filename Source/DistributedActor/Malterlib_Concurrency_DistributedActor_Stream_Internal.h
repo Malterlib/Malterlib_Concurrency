@@ -7,13 +7,14 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CDistributedActorSubscriptionReferenceState : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CDistributedActorSubscriptionReferenceState
 	{
 		CDistributedActorSubscriptionReferenceState();
 		~CDistributedActorSubscriptionReferenceState();
 
 		TCFuture<void> f_Destroy();
 
+		NStorage::CIntrusiveRefCount m_RefCount;
 		NStorage::TCSharedPointerSupportWeak<ICHost> m_pHost;
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_SubscriptionID;
@@ -30,7 +31,7 @@ namespace NMib::NConcurrency::NPrivate
 		NStorage::TCSharedPointer<CDistributedActorSubscriptionReferenceState> m_pState;
 	};
 	
-	struct CDistributedActorStreamContextState : NStorage::TCSharedPointerIntrusiveBase<>
+	struct CDistributedActorStreamContextState
 	{
 		struct CSubscriptionInfo
 		{
@@ -72,7 +73,9 @@ namespace NMib::NConcurrency::NPrivate
 		virtual ~CDistributedActorStreamContextState();
 
 		bool f_IsValid(NStr::CStr &o_Error) const;
-		
+
+		NStorage::CIntrusiveRefCount m_RefCount;
+
 		NContainer::TCMap<uint32, CSubscriptionInfo> m_Subscriptions;
 		NContainer::TCMap<uint32, CActorFunctorInfo> m_ActorFunctors;
 		

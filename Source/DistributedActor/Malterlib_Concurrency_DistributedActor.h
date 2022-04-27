@@ -66,11 +66,12 @@ namespace NMib::NConcurrency
 
 		struct CDistributedActorInterfaceInfo;
 
-		struct ICHost : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
+		struct ICHost
 		{
 			ICHost(CDistributedActorHostInfo &&_Info);
 			virtual ~ICHost();
 
+			NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 			CDistributedActorHostInfo const m_HostInfo;
 			NAtomic::TCAtomic<uint32> m_ActorProtocolVersion = 0;
 			NAtomic::TCAtomic<bool> m_bDeleted = false;

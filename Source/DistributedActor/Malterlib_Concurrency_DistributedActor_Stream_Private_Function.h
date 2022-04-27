@@ -5,7 +5,7 @@
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CStreamingFunction : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CStreamingFunction
 	{
 		CStreamingFunction();
 		
@@ -13,6 +13,8 @@ namespace NMib::NConcurrency::NPrivate
 		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call(CDistributedActorReadStream &_Stream) = 0;
 		virtual bool f_IsEmpty() const = 0;
 		virtual void const *f_GetFunctionPointer() const = 0;
+
+		NStorage::CIntrusiveRefCount m_RefCount;
 	};
 	
 	template <typename t_FFunction, typename t_FFunctionSignature = typename NFunction::TCFunctionInfo<t_FFunction>::template TCCallType<0>>

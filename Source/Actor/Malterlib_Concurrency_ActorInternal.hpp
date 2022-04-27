@@ -90,8 +90,8 @@ namespace NMib::NConcurrency
 		if (bImmediateDelete)
 		{
 			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
-			_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
-			if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
+			_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+			if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 			{
 				if (CapturedDelete.m_Size)
 					CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
@@ -107,8 +107,8 @@ namespace NMib::NConcurrency
 					, g_OnScopeExit / [_pObject]
 					{
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
-						_pObject->f_WeakRefCountSetCapturedDelete(CapturedDelete);
-						if (_pObject->f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
+						_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+						if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 						{
 							if (CapturedDelete.m_Size)
 								CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);

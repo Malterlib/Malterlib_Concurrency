@@ -557,7 +557,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -701,7 +701,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -755,7 +755,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -874,7 +874,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -981,7 +981,7 @@ namespace NTestTrustManager
 					TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 					auto CleanupRunLoop = g_OnScopeExit / [&]
 						{
-							while (pRunLoop->f_RefCountGet() > 0)
+							while (pRunLoop->m_RefCount.f_Get() > 0)
 								pRunLoop->f_WaitOnceTimeout(0.1);
 						}
 					;
@@ -1128,7 +1128,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -1220,7 +1220,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -1295,7 +1295,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -1748,7 +1748,7 @@ namespace NTestTrustManager
 				{
 					DMibTestPath("Subscribe stress");
 					TCActorResultVector<void> Dispatches;
-#if DMibConfig_RefcountDebugging
+#if DMibConfig_RefCountDebugging
 					constexpr mint c_nLoops = 100;
 #else
 					constexpr mint c_nLoops = 100000;
@@ -1866,7 +1866,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -2063,7 +2063,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -2134,7 +2134,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -2496,7 +2496,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;
@@ -2967,7 +2967,7 @@ namespace NTestTrustManager
 				TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 				auto CleanupRunLoop = g_OnScopeExit / [&]
 					{
-						while (pRunLoop->f_RefCountGet() > 0)
+						while (pRunLoop->m_RefCount.f_Get() > 0)
 							pRunLoop->f_WaitOnceTimeout(0.1);
 					}
 				;

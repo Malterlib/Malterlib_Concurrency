@@ -35,10 +35,11 @@ namespace NMib::NConcurrency
 			NFunction::TCFunctionMovable<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> m_fToSequence;
 		};
 		
-		struct CState : public NStorage::TCSharedPointerIntrusiveBase<>
+		struct CState
 		{
 			void f_ProcessSequence();
 
+			NStorage::CIntrusiveRefCount m_RefCount;
 			NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
 			NStorage::TCOptional<TCPromise<void>> m_AbortPromise;
 			mint m_MaxConcurrency = 1;

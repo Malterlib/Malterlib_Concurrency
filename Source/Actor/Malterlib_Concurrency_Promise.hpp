@@ -101,7 +101,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	bool TCPromise<t_CReturnValue>::f_IsSet() const
 	{
-		return (this->mp_pData->m_Result).f_IsSet();
+		return this->mp_pData->f_IsSet();
 	}
 
 	template <typename t_CReturnValue>
@@ -676,7 +676,11 @@ namespace NMib::NConcurrency::NPrivate
 			fg_ConsumeFutureOnResultSet<t_CReturnValue>
 			(
 #if DMibEnableSafeCheck > 0
+#if DMibConfig_Concurrency_DebugFutures
 				static_cast<CPromiseDataBase const *>(this)
+#else
+				this
+#endif
 				, EConsumeFutureOnResultSetFlag_ResetSafeCall
 #endif
 			)
@@ -698,7 +702,11 @@ namespace NMib::NConcurrency::NPrivate
 		m_fOnResult = fg_ConsumeFutureOnResultSet<t_CReturnValue>
 			(
 #if DMibEnableSafeCheck > 0
+#if DMibConfig_Concurrency_DebugFutures
 				static_cast<CPromiseDataBase const *>(this)
+#else
+				this
+#endif
 				, EConsumeFutureOnResultSetFlag_ResetSafeCall
 #endif
 			)
@@ -796,6 +804,13 @@ namespace NMib::NConcurrency::NPrivate
 			m_fOnResult.f_Clear();
 		}
 	}
+
+	template <typename t_CReturnValue>
+	bool TCPromiseData<t_CReturnValue>::f_IsSet() const
+	{
+		return (m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet) != EFutureResultFlag_None;
+	}
+
 
 	template <typename t_CReturnValue>
 	NAtomic::EMemoryOrder TCPromiseData<t_CReturnValue>::f_MemoryOrder(NAtomic::EMemoryOrder _Default) const

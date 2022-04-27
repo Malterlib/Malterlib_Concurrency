@@ -357,7 +357,7 @@ namespace NMib::NConcurrency
 
 					ActorInternal.fp_DestroyActorHolder
 						(
-#if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging
+#if defined(DCompiler_MSVC) || DMibConfig_RefCountDebugging
 							NFunction::TCFunctionSmallMutable<void ()>
 							(
 #endif
@@ -365,7 +365,7 @@ namespace NMib::NConcurrency
 								{
 									_Promise.f_SetResult(fg_Move(Result));
 								}
-#if defined(DCompiler_MSVC) || DMibConfig_RefcountDebugging
+#if defined(DCompiler_MSVC) || DMibConfig_RefCountDebugging
 							)
 #endif
 							, fg_Move(pActorInternal)
@@ -463,10 +463,10 @@ namespace NMib::NConcurrency
 
 		TCActorHolderSharedPointer<CActorHolder> pSelfReference;
 		{
-			DMibRefcountDebuggingOnly(NStorage::CRefCountDebugReference TempRef);
-			_pActorHolder->f_RefCountIncrease
+			DMibRefCountDebuggingOnly(NStorage::CRefCountDebugReference TempRef);
+			_pActorHolder->m_RefCount.f_Increase
 				(
-#if DMibConfig_RefcountDebugging
+#if DMibConfig_RefCountDebugging
 #	if DMibEnableSafeCheck > 0
 					TempRef, true
 #	else
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			DMibRefcountDebuggingOnly(_pActorHolder->f_RemoveRef(TempRef));
+			DMibRefCountDebuggingOnly(_pActorHolder->m_RefCount.f_Remove(TempRef));
 
 			pSelfReference = fg_Attach(_pActorHolder);
 
@@ -623,8 +623,8 @@ namespace NMib::NConcurrency
 						This.mp_ConcurrentRunQueue.f_RemoveAll(This.mp_ConcurrentRunQueueLocal);
 
 					NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
-					This.f_WeakRefCountSetCapturedDelete(CapturedDelete);
-					if (This.f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
+					This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+					if (This.m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 					{
 						if (CapturedDelete.m_Size)
 							CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
@@ -646,8 +646,8 @@ namespace NMib::NConcurrency
 							auto &This = *pThis;
 
 							NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
-							This.f_WeakRefCountSetCapturedDelete(CapturedDelete);
-							if (This.f_WeakRefCountDecrease(DMibRefcountDebuggingOnly(nullptr)) == 0)
+							This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
+							if (This.m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 							{
 								if (CapturedDelete.m_Size)
 									CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);

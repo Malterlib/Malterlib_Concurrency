@@ -5,8 +5,9 @@
 
 namespace NMib::NConcurrency
 {
-	struct CCanDestroyTracker : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CCanDestroyTracker
 	{
+		NStorage::CIntrusiveRefCount m_RefCount;
 		TCPromise<void> m_Promise;
 
 		CCanDestroyTracker();
@@ -38,13 +39,13 @@ namespace NMib::NConcurrency
 			CQueuedResult *m_pNext;
 		};
 
-		struct CInternal : public NStorage::TCSharedPointerIntrusiveBase<>
+		struct CInternal
 		{
 			CInternal();
 			~CInternal();
 		public:
+			NStorage::CIntrusiveRefCount m_RefCount;
 			friend class TCActorResultVector;
-
 			align_cacheline NAtomic::TCAtomic<mint> mp_nAdded;
 			align_cacheline NAtomic::TCAtomic<mint> mp_nFinished;
 			align_cacheline NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;

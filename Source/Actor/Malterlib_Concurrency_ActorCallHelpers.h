@@ -950,12 +950,13 @@ namespace NMib::NConcurrency
 				, typename... tp_CResultTypes
 				, mint... tp_ResultIndices
 			>
-		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>> : public NStorage::TCSharedPointerIntrusiveBase<>
+		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, t_CActor, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
 			enum
 			{
 				mc_nResults = sizeof...(tp_CResultTypes)
 			};
+			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
 			t_CActor m_Actor;
@@ -1013,12 +1014,12 @@ namespace NMib::NConcurrency
 				, mint... tp_ResultIndices
 			>
 		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, TCActor<NPrivate::CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
-			: public NStorage::TCSharedPointerIntrusiveBase<>
 		{
 			enum
 			{
 				mc_nResults = sizeof...(tp_CResultTypes)
 			};
+			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
 			TCActor<NPrivate::CDirectResultActor> m_Actor;

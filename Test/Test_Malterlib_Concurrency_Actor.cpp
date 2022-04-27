@@ -1014,7 +1014,7 @@ namespace
 			DMibTestSuite(CTestCategory("Message") << CTestGroup("Performance"))
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#if DMibConfig_RefcountDebugging
+#if DMibConfig_RefCountDebugging
 				mint nIterations = 10'000;
 #elif defined(DMibDebug)
 
@@ -1991,7 +1991,7 @@ namespace
 			DMibTestSuite(CTestCategory("Lifetime") << CTestGroup("Performance"))
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#if DMibConfig_RefcountDebugging
+#if DMibConfig_RefCountDebugging
 				mint nIterations = 10'000;
 #elif defined(DMibDebug)
 				mint nIterations = 100'000;

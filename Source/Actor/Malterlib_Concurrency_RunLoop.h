@@ -5,7 +5,7 @@
 
 namespace NMib::NConcurrency
 {
-	struct CRunLoop : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CRunLoop
 	{
 		virtual ~CRunLoop();
 		virtual void f_Process() = 0;
@@ -14,6 +14,8 @@ namespace NMib::NConcurrency
 		virtual void f_Wake() = 0;
 		virtual CActorDestroyEventLoop f_ActorDestroyLoop() = 0;
 		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> f_Dispatcher() = 0;
+		
+		NStorage::CIntrusiveRefCount m_RefCount;
 	};
 
 	struct CDefaultRunLoop : public CRunLoop

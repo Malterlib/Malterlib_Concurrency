@@ -15,9 +15,11 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	struct CTrustedActorSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CTrustedActorSubscriptionState
 	{
 		friend class CDistributedActorTrustManager;
+
+		NStorage::CIntrusiveRefCount m_RefCount;
 		TCWeakActor<CActor> m_DispatchActor;
 		uint32 m_TypeHash = 0;
 		CDistributedActorProtocolVersions m_ProtocolVersions;
@@ -33,12 +35,14 @@ namespace NMib::NConcurrency::NPrivate
 		void f_ApplyDeferredChanges();
 	};
 	
-	struct CTrustedPermissionSubscriptionState : public NStorage::TCSharedPointerIntrusiveBase<>
+	struct CTrustedPermissionSubscriptionState
 	{
 		friend class CDistributedActorTrustManager;
 	
 		CTrustedPermissionSubscriptionState();
 		~CTrustedPermissionSubscriptionState();
+
+		NStorage::CIntrusiveRefCount m_RefCount;
 
 		// Valid anywhere
 		TCWeakActor<CDistributedActorTrustManager> m_TrustManager;

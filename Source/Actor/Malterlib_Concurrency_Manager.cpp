@@ -694,20 +694,20 @@ namespace NMib::NConcurrency
 							DMibTrace
 								(
 								 	"    {}   Destroyed {}   RefCount {}   WeakCount {}{\n}"
-								 	, Actor.m_ActorTypeName << Actor.mp_bDestroyed.f_Load() << Actor.f_RefCountGet() << Actor.f_WeakRefCountGet()
+								 	, Actor.m_ActorTypeName << Actor.mp_bDestroyed.f_Load() << Actor.m_RefCount.f_Get() << Actor.m_RefCount.f_WeakGet()
 								)
 							;
 
-	#if DMibConfig_RefcountDebugging
+	#if DMibConfig_RefCountDebugging
 							mint iCallstack = 0;
-							for (auto &Callstack : Actor.m_Debug->m_Callstacks)
+							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_Callstacks)
 							{
 								DMibTrace2("        Reference callstack {}\n", iCallstack);
 								Callstack.f_Trace(12);
 								++iCallstack;
 							}
 							iCallstack = 0;
-							for (auto &Callstack : Actor.m_Debug->m_WeakCallstacks)
+							for (auto &Callstack : Actor.m_RefCount.m_Debug->m_WeakCallstacks)
 							{
 								DMibTrace2("        Weak reference callstack {}\n", iCallstack);
 								Callstack.f_Trace(12);
@@ -723,11 +723,11 @@ namespace NMib::NConcurrency
 						DMibLock(m_FutureListLock);
 						for (auto &Future : this->m_Futures)
 						{
-							DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.f_RefCountGet());
+							DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
 
-	#if DMibConfig_RefcountDebugging
+	#if DMibConfig_RefCountDebugging
 							mint iCallstack = 0;
-							for (auto &Callstack : Future.m_Debug->m_Callstacks)
+							for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
 							{
 								DMibTrace2("        Reference callstack {}\n", iCallstack);
 								Callstack.f_Trace(12);

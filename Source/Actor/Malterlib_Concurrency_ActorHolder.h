@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 
 	struct CConcurrencyThreadLocal;
 
-	struct ICDistributedActorData : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
+	struct ICDistributedActorData
 	{
 		virtual ~ICDistributedActorData();
 		inline_always bool f_IsValidForCall() const
@@ -81,6 +81,7 @@ namespace NMib::NConcurrency
 		}
 		virtual CDistributedActorHostInfo f_GetHostInfo() const = 0;
 
+		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 		NStr::CStr m_ActorID;
 		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
 		bool m_bWasDestroyed = false;
@@ -88,9 +89,8 @@ namespace NMib::NConcurrency
 	};
 
 	/// \brief Manages actor execution and lifetime
-	class CActorHolder : public NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer>
+	class CActorHolder DWorkaroundVirtualLayout
 	{
-		typedef NStorage::TCSharedPointerIntrusiveBase<NStorage::ESharedPointerOption_SupportWeakPointer> CSuper;
 		friend class CConcurrencyManager;
 		friend struct CActor;
 		friend class CDelegatedActorHolder;
@@ -173,6 +173,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		NStorage::CIntrusiveRefCountWithWeak m_RefCount;
+
 	private:
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory);
 
@@ -210,7 +212,7 @@ namespace NMib::NConcurrency
 	public:
 		NStr::CStr m_ActorTypeName;
 #endif
-		DMibRefcountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
+		DMibRefCountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
 	protected:
 		// Alignment zone 3 = 8+8+8+8+8 = 40 => 64 bytes
@@ -229,7 +231,7 @@ namespace NMib::NConcurrency
 		// Alignment zone 4: Actor storage, other actor holder data
 	};
 
-#if DMibPMemoryCacheLineSize == 64 && DMibConfig_RefcountDebugging != 1
+#if DMibPMemoryCacheLineSize == 64 && DMibConfig_RefCountDebugging != 1
 	static_assert(sizeof(CActorHolder) == 64*3);
 #endif
 

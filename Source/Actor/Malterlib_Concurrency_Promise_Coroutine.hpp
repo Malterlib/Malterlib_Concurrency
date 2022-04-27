@@ -164,7 +164,11 @@ namespace NMib::NConcurrency::NPrivate
 		if (bSafeCall)
 		{
 			DMibFastCheck(ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == pPromiseData || ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == this);
+#if DMibConfig_Concurrency_DebugFutures
 			ThreadLocal.m_PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = static_cast<CPromiseDataBase const *>(pPromiseData);
+#else
+			ThreadLocal.m_PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = pPromiseData;
+#endif
 		}
 #endif
 		this->m_pPromiseData = pPromiseData;
@@ -426,7 +430,11 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	bool TCFuture<t_CReturnValue>::f_HasData(void const *_pData) const
 	{
+#if DMibConfig_Concurrency_DebugFutures
 		return _pData == (void const *)static_cast<NPrivate::CPromiseDataBase const *>(mp_pData.f_Get());
+#else
+		return _pData == (void const *)mp_pData.f_Get();
+#endif
 	}
 #endif
 

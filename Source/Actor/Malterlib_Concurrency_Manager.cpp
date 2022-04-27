@@ -429,7 +429,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -451,7 +451,7 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -874,39 +874,39 @@ namespace NMib::NConcurrency
 	{
 		DMibLock(m_pConcurrentActorLock);
 		mint nActors = m_nConcurrentActors.f_Load();
-		if (!nActors)
+		if (nActors)
+			return nActors;
+
+		nActors = m_nThreads;
+
+		for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 		{
-			nActors = m_nThreads;
-
-			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
-			{
-				m_ConcurrentActors[Prio].f_SetLen(nActors);
-				m_ConcurrentActorsRef[Prio].f_SetLen(nActors);
-			}
-
-			for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
-			{
-				mint iActor = 0;
-				for (auto &Actor : m_ConcurrentActors[Prio])
-				{
-					if (Prio == EPriority_Normal)
-						Actor = f_ConstructActor(fg_Construct<CConcurrentActorImpl>());
-					else if (Prio == EPriority_Low)
-						Actor = f_ConstructActor(fg_Construct<CConcurrentActorLowPrioImpl>());
-					Actor->f_SetFixedCore(iActor);
-					m_ConcurrentActorsRef[Prio][iActor] = Actor;
-					++iActor;
-				}
-			}
-
-			m_nConcurrentActors = nActors;
+			m_ConcurrentActors[Prio].f_SetLen(nActors);
+			m_ConcurrentActorsRef[Prio].f_SetLen(nActors);
 		}
+
+		for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
+		{
+			mint iActor = 0;
+			for (auto &Actor : m_ConcurrentActors[Prio])
+			{
+				if (Prio == EPriority_Normal)
+					Actor = f_ConstructActor(fg_Construct<CConcurrentActorImpl>());
+				else if (Prio == EPriority_Low)
+					Actor = f_ConstructActor(fg_Construct<CConcurrentActorLowPrioImpl>());
+				Actor->f_SetFixedCore(iActor);
+				m_ConcurrentActorsRef[Prio][iActor] = Actor;
+				++iActor;
+			}
+		}
+
+		m_nConcurrentActors.f_Store(nActors, NAtomic::EMemoryOrder_Release);
 		return nActors;
 	}
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorForThisThread(EPriority _Priority)
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -927,7 +927,7 @@ namespace NMib::NConcurrency
 	{
 		// Returns a actor that is consistent based on weak pointer
 
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -941,7 +941,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActor()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
@@ -955,7 +955,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CConcurrentActor> const &CConcurrencyManager::f_GetConcurrentActorLowPrio()
 	{
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Relaxed);
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 

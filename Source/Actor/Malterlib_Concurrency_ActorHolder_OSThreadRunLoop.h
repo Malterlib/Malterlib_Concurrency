@@ -41,6 +41,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_ThreadName;
 #if defined(DPlatformFamily_OSX)
 		CFRunLoopRef mp_RunLoopRef = nullptr;
+		CFRunLoopSourceRef mp_RunLoopSourceRef = nullptr;
 #endif
 	};
 }

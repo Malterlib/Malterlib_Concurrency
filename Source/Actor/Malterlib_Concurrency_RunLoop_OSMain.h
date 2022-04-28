@@ -37,6 +37,7 @@ namespace NMib::NConcurrency
 		CFRunLoopSourceContext mp_RunLoopSourceContext
 			{
 				0
+				, this
 				, nullptr
 				, nullptr
 				, nullptr
@@ -44,13 +45,14 @@ namespace NMib::NConcurrency
 				, nullptr
 				, nullptr
 				, nullptr
-				, nullptr
-				, [](void *info)
+				, [](void *_pThis)
 				{
+					auto &This = *((COSMainRunLoop *)_pThis);
+					CFRunLoopStop(This.mp_RunLoopRef);
 				}
 			}
 		;
-		CFRunLoopSourceRef mp_pDummyRunLoopSource = CFRunLoopSourceCreate
+		CFRunLoopSourceRef mp_pRunLoopSourceRef = CFRunLoopSourceCreate
 			(
 				nullptr
 				, 0

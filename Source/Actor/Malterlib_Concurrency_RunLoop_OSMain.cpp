@@ -16,15 +16,15 @@ namespace NMib::NConcurrency
 
 #if defined(DPlatformFamily_OSX)
 		mp_RunLoopRef = CFRunLoopGetCurrent();
-		CFRunLoopAddSource(mp_RunLoopRef, mp_pDummyRunLoopSource, kCFRunLoopDefaultMode);
+		CFRunLoopAddSource(mp_RunLoopRef, mp_pRunLoopSourceRef, kCFRunLoopDefaultMode);
 #endif
 	}
 
 	COSMainRunLoop::~COSMainRunLoop()
 	{
 #if defined(DPlatformFamily_OSX)
-		CFRunLoopRemoveSource(mp_RunLoopRef, mp_pDummyRunLoopSource, kCFRunLoopDefaultMode);
-		CFRelease(mp_pDummyRunLoopSource);
+		CFRunLoopRemoveSource(mp_RunLoopRef, mp_pRunLoopSourceRef, kCFRunLoopDefaultMode);
+		CFRelease(mp_pRunLoopSourceRef);
 		mp_RunLoopRef = nullptr;
 #endif
 	}
@@ -87,7 +87,8 @@ namespace NMib::NConcurrency
 	{
 		mp_bPendingWake = true;
 #if defined(DPlatformFamily_OSX)
-		CFRunLoopStop(mp_RunLoopRef);
+		CFRunLoopSourceSignal(mp_pRunLoopSourceRef);
+		CFRunLoopWakeUp(mp_RunLoopRef);
 #endif
 	}
 

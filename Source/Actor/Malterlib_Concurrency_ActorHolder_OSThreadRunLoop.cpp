@@ -52,6 +52,7 @@ namespace NMib::NConcurrency
 					CFRunLoopSourceContext RunLoopSourceContext
 						{
 							0
+							, this
 							, nullptr
 							, nullptr
 							, nullptr
@@ -59,14 +60,15 @@ namespace NMib::NConcurrency
 							, nullptr
 							, nullptr
 							, nullptr
-							, nullptr
-							, [](void *info)
+							, [](void *_pThis)
 							{
+								auto &This = *((COSThreadRunLoopActorHolder *)_pThis);
+								CFRunLoopStop(This.mp_RunLoopRef);
 							}
 						}
 					;
 
-					CFRunLoopSourceRef pDummyRunLoopSource = CFRunLoopSourceCreate
+					CFRunLoopSourceRef pRunLoopSource = CFRunLoopSourceCreate
 						(
 							nullptr
 							, 0
@@ -75,13 +77,15 @@ namespace NMib::NConcurrency
 					;
 
 					mp_RunLoopRef = CFRunLoopGetCurrent();
-					CFRunLoopAddSource(mp_RunLoopRef, pDummyRunLoopSource, kCFRunLoopDefaultMode);
+					CFRunLoopAddSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
+					mp_RunLoopSourceRef = pRunLoopSource;
 
 					auto Cleanup = g_OnScopeExit / [&]
 						{
-							CFRunLoopRemoveSource(mp_RunLoopRef, pDummyRunLoopSource, kCFRunLoopDefaultMode);
-							CFRelease(pDummyRunLoopSource);
+							CFRunLoopRemoveSource(mp_RunLoopRef, pRunLoopSource, kCFRunLoopDefaultMode);
+							CFRelease(pRunLoopSource);
 							mp_RunLoopRef = nullptr;
+							mp_RunLoopSourceRef = nullptr;
 						}
 					;
 
@@ -150,7 +154,10 @@ namespace NMib::NConcurrency
 #if defined(DPlatformFamily_OSX)
 		{
 			if (mp_RunLoopRef)
-				CFRunLoopStop(mp_RunLoopRef);
+			{
+				CFRunLoopSourceSignal(mp_RunLoopSourceRef);
+				CFRunLoopWakeUp(mp_RunLoopRef);
+			}
 		}
 #endif
 		mp_pThread.f_Clear();

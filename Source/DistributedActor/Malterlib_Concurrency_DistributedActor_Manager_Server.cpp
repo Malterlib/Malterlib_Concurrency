@@ -87,34 +87,34 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
 	{
 		auto *pConnection = m_ServerConnections.f_FindEqual(_Connection.m_ConnectionID);
-		if (pConnection)
+		if (!pConnection)
+			return;
+
+		auto pHost = _Connection.m_pHost;
+
+		if (pHost)
 		{
-			auto pHost = _Connection.m_pHost;
-
-			if (pHost)
-			{
-				pHost->m_LastError = _Error;
-				pHost->m_LastErrorTime = NTime::CTime::fs_NowUTC();
-			}
-
-			bool bDestroyAnon = !_bSaveHost && pHost && pHost->m_HostInfo.m_bAnonymous;
-			bool bDestroyNormal = pHost && _bLastActiveNormalClosure;
-
-			_Connection.f_Destroy(_Error, *this);
-
-			if (bDestroyAnon)
-			{
-				fp_DestroyHost(*pHost, &_Connection, "anonymous connection disconnected");
-				_Connection.m_pHost = nullptr;
-			}
-			else if (bDestroyNormal)
-			{
-				fp_DestroyHost(*pHost, &_Connection, "last active connection disconnected");
-				_Connection.m_pHost = nullptr;
-			}
-
-			m_ServerConnections.f_Remove(pConnection);
+			pHost->m_LastError = _Error;
+			pHost->m_LastErrorTime = NTime::CTime::fs_NowUTC();
 		}
+
+		bool bDestroyAnon = !_bSaveHost && pHost && pHost->m_HostInfo.m_bAnonymous;
+		bool bDestroyNormal = pHost && _bLastActiveNormalClosure;
+
+		_Connection.f_Destroy(_Error, *this, nullptr);
+
+		if (bDestroyAnon)
+		{
+			fp_DestroyHost(*pHost, &_Connection, "anonymous connection disconnected");
+			_Connection.m_pHost = nullptr;
+		}
+		else if (bDestroyNormal)
+		{
+			fp_DestroyHost(*pHost, &_Connection, "last active connection disconnected");
+			_Connection.m_pHost = nullptr;
+		}
+
+		m_ServerConnections.f_Remove(pConnection);
 	}
 
 	TCFuture<CActorSubscription> CActorDistributionManager::f_RegisterWebsocketHandler

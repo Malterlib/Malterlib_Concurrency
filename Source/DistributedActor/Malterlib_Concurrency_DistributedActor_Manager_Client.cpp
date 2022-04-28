@@ -157,7 +157,14 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure)
+	void CActorDistributionManagerInternal::fp_DestroyClientConnection
+		(
+			CClientConnection &_Connection
+			, bool _bSaveHost
+			, NStr::CStr const &_Error
+			, bool _bLastActiveNormalClosure
+			, TCPromise<void> *_pPromise
+		)
 	{
 		auto pHost = _Connection.m_pHost;
 		if (pHost)
@@ -169,7 +176,7 @@ namespace NMib::NConcurrency
 		bool bDestroyAnon = !_bSaveHost && pHost && pHost->m_HostInfo.m_bAnonymous;
 		bool bDestroyNormal = pHost && _bLastActiveNormalClosure;
 
-		_Connection.f_Destroy(_Error, *this);
+		_Connection.f_Destroy(_Error, *this, _pPromise);
 
 		if (bDestroyAnon)
 		{
@@ -413,7 +420,7 @@ namespace NMib::NConcurrency
 
 						auto &pHost = pConnection->m_pHost;
 						if (pHost && pHost->m_HostInfo.m_bAnonymous)
-							fp_DestroyClientConnection(*pConnection, false, Error, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast);
+							fp_DestroyClientConnection(*pConnection, false, Error, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast, nullptr);
 						else
 						{
 							auto pHost = pConnection->m_pHost;
@@ -436,7 +443,7 @@ namespace NMib::NConcurrency
 
 						if (Sequence != pConnection->m_ConnectionSequence)
 						{
-							DMibLog(DebugVerbose2, " ---- {} {} Invalid connection secuence", pConnection->m_pHost->m_bIncoming, pConnection->f_GetConnectionID());
+							DMibLog(DebugVerbose2, " ---- {} {} Invalid connection sequence", pConnection->m_pHost->m_bIncoming, pConnection->f_GetConnectionID());
 							co_return {};
 						}
 						if (!pConnection->m_pHost)
@@ -714,13 +721,19 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	void CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost)
+	TCFuture<void> CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost)
 	{
+		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
 
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 		if (!pConnection)
-			return;
+		{
+			Promise.f_SetResult();
+			return Promise.f_MoveFuture();
+		}
+
+		auto Future = Promise.f_Future();
 
 		auto &Connection = **pConnection;
 		Internal.fp_DestroyClientConnection
@@ -729,12 +742,16 @@ namespace NMib::NConcurrency
 				, false
 				, _bPreserveHost ? "Remove connection (preserve host)" : "Remove connection"
 				, !_bPreserveHost && Connection.m_Link.f_IsAloneInList()
+				, &Promise
 			)
 		;
+
+		return Future;
 	}
 
 	TCFuture<void> CActorDistributionManager::fp_Reconnect(NStr::CStr const &_ConnectionID)
 	{
+		using namespace NStr;
 		TCPromise<void> Promise;
 
 		auto &Internal = *mp_pInternal;

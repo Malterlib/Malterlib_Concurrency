@@ -23,11 +23,11 @@ namespace
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-		CTestDistributedApp()
+		CTestDistributedApp(NStr::CStr const &_Name)
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings("TestDistApp")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp")
+				CDistributedAppActor_Settings(_Name)
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
 			 	.f_SeparateDistributionManager(true)
 			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
@@ -1053,7 +1053,7 @@ namespace
 		{
 			DMibTestSuite("Auditor")
 			{
-				auto AppActor = fg_ConstructActor<CTestDistributedApp>();
+				auto AppActor = fg_ConstructActor<CTestDistributedApp>("TestDistAppAuditor");
 				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<>{}, EDistributedAppType_InProcess).f_CallSync();
 
 				DMibExpect(AppActor(&CTestDistributedApp::f_Test).f_CallSync(), ==, 32);

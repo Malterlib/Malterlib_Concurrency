@@ -168,9 +168,10 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message)
+	void CActorDistributionManagerInternal::CConnection::f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message, TCPromise<void> *_pPromise)
 	{
-		f_DiscardIdentifyPromise("Connection reset");
+		using namespace NStr;
+		f_DiscardIdentifyPromise("Connection reset: {}"_f << _Message);
 		m_Link.f_Unlink();
 		bool bIsLastConnection = m_HostLink.f_IsAloneInList();
 
@@ -186,14 +187,22 @@ namespace NMib::NConcurrency
 			auto ServerURL = f_GetServerURL();
 			auto Desc = f_GetHostInfo().f_GetDesc();
 
+			NStorage::TCOptional<TCPromise<void>> Promise;
+			if (_pPromise)
+				Promise = fg_Move(*_pPromise);
+
 			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message, 5.0)
-				> fg_ConcurrentActor() / [=](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
+				> fg_ConcurrentActor() / [=, Promise = fg_Move(Promise)](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result) mutable
 				{
 					fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
+					if (Promise)
+						Promise->f_SetResult();
 				}
 			;
 			m_Connection.f_Clear();
 		}
+		else if (_pPromise)
+			_pPromise->f_SetResult();
 
 		if (m_pHost && m_pHost->m_pLastSendConnection == this)
 			m_pHost->m_pLastSendConnection = nullptr;
@@ -201,10 +210,10 @@ namespace NMib::NConcurrency
 			m_pHost.f_Clear();
 	}
 
-	void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This)
+	void CActorDistributionManagerInternal::CConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise)
 	{
 		f_DiscardIdentifyPromise(fg_Format("Connection destroyed: {}", _Message));
-		f_Reset(true, _This, _Message);
+		f_Reset(true, _This, _Message, _pPromise);
 		m_pSSLContext.f_Clear();
 	}
 
@@ -215,13 +224,13 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionManagerInternal::CClientConnection::f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message)
 	{
-		CConnection::f_Reset(_bResetHost, _This, _Message);
+		CConnection::f_Reset(_bResetHost, _This, _Message, nullptr);
 		m_bConnected = false;
 	}
 
-	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This)
+	void CActorDistributionManagerInternal::CClientConnection::f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise)
 	{
-		CConnection::f_Destroy(_Message, _This);
+		CConnection::f_Destroy(_Message, _This, _pPromise);
 		m_bConnected = false;
 	}
 
@@ -264,10 +273,10 @@ namespace NMib::NConcurrency
 		for (auto &pConnection : Internal.m_ClientConnections)
 		{
 			++pConnection->m_ConnectionSequence;
-			pConnection->f_Destroy("", Internal);
+			pConnection->f_Destroy("", Internal, nullptr);
 		}
 		for (auto &pConnection : Internal.m_ServerConnections)
-			pConnection->f_Destroy("", Internal);
+			pConnection->f_Destroy("", Internal, nullptr);
 	}
 
 	CActorDistributionManagerInternal::CActorDistributionManagerInternal(CActorDistributionManager *_pThis, CActorDistributionManagerInitSettings const &_InitSettings)

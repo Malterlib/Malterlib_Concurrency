@@ -313,7 +313,10 @@ namespace NMib::NConcurrency
 	{
 		auto *pSubscription = mp_Subscriptions.f_FindEqual(_Subscription);
 		if (pSubscription)
-			pSubscription->m_Subscription.f_Clear();
+		{
+			if (pSubscription->m_Subscription)
+				fg_Exchange(pSubscription->m_Subscription, nullptr)->f_Destroy().f_CallSync(60.0);
+		}
 	}
 
 	void CDistributedActorTestHelper::f_Destroy()
@@ -334,7 +337,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTestHelper::f_Unpublish(NStr::CStr const &_Publication)
 	{
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
-		pPublication->m_Publication.f_Destroy() > fg_DiscardResult();
+		pPublication->m_Publication.f_Destroy().f_CallSync(60.0);
 	}
 	
 	void CDistributedActorTestHelper::f_SetSecurity(CDistributedActorSecurity const &_Security)

@@ -20,11 +20,11 @@ namespace
 {
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
-		CTestDistributedApp()
+		CTestDistributedApp(CStr const &_Name)
 			: CDistributedAppActor
 			(
-				CDistributedAppActor_Settings("TestDistApp")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp")
+				CDistributedAppActor_Settings(_Name)
+			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
 			 	.f_SeparateDistributionManager(true)
 			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
@@ -74,12 +74,12 @@ namespace
 	{
 		bool mp_bFirstRun = true;
 	public:
-		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests)
+		void fp_RunTests(TCFunction<void (CDistributedAppCommandLineClient &_Client)> &&_fTests, CStr const &_Name)
 		{
 			if (mp_bFirstRun)
 			{
 				mp_bFirstRun = false;
-				CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() + "/TestDistApp";
+				CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
 				for (mint i = 0; i < 5; ++i)
 				{
 					try
@@ -93,7 +93,7 @@ namespace
 					}
 				}
 			}
-			auto AppActor = fg_ConstructActor<CTestDistributedApp>();
+			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name);
 			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<>{}, EDistributedAppType_InProcess).f_CallSync();
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
 			
@@ -118,6 +118,7 @@ namespace
 								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));
 								DMibExpect(Ret, ==, 66);
 							}
+							, "TestDistAppCommandLineActor"
 						)
 					;
 				};

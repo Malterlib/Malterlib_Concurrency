@@ -1366,6 +1366,8 @@ namespace NTestTrustManager
 								)
 								.f_CallSync(pRunLoop, g_Timeout)
 							;
+
+							Subscription.f_Destroy().f_CallSync(pRunLoop, g_Timeout);
 						}
 					;
 

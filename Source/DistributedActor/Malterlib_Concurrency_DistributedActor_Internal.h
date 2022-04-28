@@ -40,8 +40,8 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 				fg_Move(m_Connection).f_Destroy() > fg_DiscardResult();
 		}
 
-		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);
-		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This);
+		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message, TCPromise<void> *_pPromise);
+		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise);
 		TCFuture<void> f_Disconnect();
 		static void fs_LogClose
 			(
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 	struct CClientConnection : public CConnection
 	{
 		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message);
-		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This);
+		void f_Destroy(NStr::CStr const &_Message, CActorDistributionManagerInternal &_This, TCPromise<void> *_pPromise);
 		NStr::CStr f_GetConnectionID() const override;
 		NStr::CStr f_GetServerURL() const override;
 		void f_SetLastError(NStr::CStr const &_Error);
@@ -456,7 +456,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		void fp_DestroyServerConnection(CServerConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
-		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure);
+		void fp_DestroyClientConnection(CClientConnection &_Connection, bool _bSaveHost, NStr::CStr const &_Error, bool _bLastActiveNormalClosure, TCPromise<void> *_pPromise);
 
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;

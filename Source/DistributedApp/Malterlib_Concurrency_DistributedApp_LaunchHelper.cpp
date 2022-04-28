@@ -270,13 +270,21 @@ namespace NMib::NConcurrency
 		;
 
 		LaunchInfo.m_InProcess(&CDistributedAppInProcessActor::f_Launch, _HomeDirectory, fg_Move(_fDistributedAppFactory), fg_Move(_Params))
-			> Promise / [this, LaunchID](NStr::CStr &&_HostID)
+			> [this, LaunchID](TCAsyncResult<NStr::CStr> &&_HostID)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 				if (!pLaunch)
 					return;
-				pLaunch->m_HostID = _HostID;
-				if (auto pPending = m_PendingLaunches.f_FindEqual(_HostID))
+
+				if (!_HostID)
+				{
+					if (!pLaunch->m_Promise.f_IsSet())
+						pLaunch->m_Promise.f_SetException(_HostID);
+					return;
+				}
+
+				pLaunch->m_HostID = *_HostID;
+				if (auto pPending = m_PendingLaunches.f_FindEqual(*_HostID))
 				{
 					pLaunch->m_pClientInterface = fg_Move(pPending->m_pClientInterface);
 					pLaunch->m_pTrustInterface = fg_Move(pPending->m_pTrustInterface);

@@ -527,9 +527,12 @@ public:
 		return bRet;
 	}
 
-	void f_ClearSubscription()
+	TCFuture<void> f_ClearSubscription()
 	{
-		m_Subscription.f_Clear();
+		if (m_Subscription)
+			co_await fg_Exchange(m_Subscription, nullptr)->f_Destroy();
+
+		co_return {};
 	}
 
 	TCActorSubscriptionWithID<> f_RegisterCallback(TCActorFunctorWithID<TCFuture<CStr> (CStr const &_Test)> &&_fCallback)
@@ -908,11 +911,11 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	static_assert(fg_GetMemberFunctionHash<DMibPointerToMemberFunctionForHash(&CDistributedActor::f_GetCallingHostID)>() == 0x7b394da7);
 	static_assert(fg_GetMemberFunctionHash<DMibPointerToMemberFunctionForHash(&CDistributedActor::f_AddIntVirtual)>() == 0x1d4ae31d);
 
-	void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor, bool _bRemote)
+	void fp_RunTests(TCFunction<TCDistributedActor<CDistributedActor> ()> const &_fGetActor, bool _bRemote, CStr const &_Path)
 	{
 		{
 			// Init distribution manager
-			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor";
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / _Path;
 			CDistributedActorTestHelperCombined TestState(SocketPath);
 			TestState.f_InitServer();
 		}
@@ -1815,7 +1818,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	}
 	void fp_AnonymousClientTests()
 	{
-		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor2";
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorAnon";
 
 		CDistributedActorTestHelperCombined TestHelper{SocketPath};
 
@@ -1851,7 +1854,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 	void fp_OnDisconnectedTests()
 	{
-		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActor3";
+		CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorDisconnect";
 
 		CDistributedActorTestHelperCombined TestState(SocketPath);
 		TestState.f_SeparateServerManager();
@@ -1902,6 +1905,7 @@ public:
 						return pState->m_TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
 					}
 					, false
+					, "Sockets/DistributedActorLocal"
 				)
 			;
 		};
@@ -1957,6 +1961,7 @@ public:
 							return Actor;
 						}
 						, false
+						, "Sockets/DistributedActorRemote"
 					)
 				;
 			};

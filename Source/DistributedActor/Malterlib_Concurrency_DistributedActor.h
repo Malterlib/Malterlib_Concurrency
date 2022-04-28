@@ -755,7 +755,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout);
 		TCFuture<void> fp_Debug_SetListenServerBroken(NStr::CStr const &_ListenID, bool _bBroken);
 
-		void fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost);
+		TCFuture<void> fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout);
 		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
 		void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);

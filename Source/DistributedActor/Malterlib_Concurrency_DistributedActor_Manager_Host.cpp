@@ -146,7 +146,7 @@ namespace NMib::NConcurrency
 			}
 
 			if (Host.m_HostInfo.m_bAnonymous)
-				fp_DestroyClientConnection(Connection, true, "Reset host state", false);
+				fp_DestroyClientConnection(Connection, true, "Reset host state", false, nullptr);
 			else
 				fp_ScheduleReconnect(fg_Explicit(&Connection), true, Connection.m_ConnectionSequence, "Reset host state", true);
 		}

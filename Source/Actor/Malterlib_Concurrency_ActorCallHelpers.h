@@ -453,6 +453,9 @@ namespace NMib::NConcurrency
 		t_CActorCall *mp_pActorCall;
 	};
 
+	template <typename t_CActorCall, typename t_CReturnType>
+	struct TCActorCallWithError;
+
 	template <typename... tp_CCalls>
 	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCallPack
 	{
@@ -465,9 +468,15 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
 		TCActorCallPack<tp_CCalls..., TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
-		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall)
+		operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall) &&
 		{
 			return NStorage::fg_TupleConcatenate(fg_Move(m_Calls), NStorage::fg_Tuple(fg_Move(_OtherCall)));
+		}
+
+		template <typename tf_CActorCall, typename tf_CReturnType>
+		auto operator + (TCActorCallWithError<tf_CActorCall, tf_CReturnType> &&_OtherCall) &&
+		{
+			return fg_Move(*this) + fg_Move(_OtherCall).f_Dispatch();
 		}
 
 		template <typename tf_CType>
@@ -680,6 +689,18 @@ namespace NMib::NConcurrency
 		template <typename tf_CRight>
 		auto operator > (tf_CRight &&_Right) &&;
 
+		template <typename tf_CActorCall, typename tf_CReturnType>
+		auto operator + (TCActorCallWithError<tf_CActorCall, tf_CReturnType> &&_OtherCall) &&
+		{
+			return fg_Move(*this).f_Dispatch() + fg_Move(_OtherCall).f_Dispatch();
+		}
+
+		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
+		auto operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_OtherCall) &&
+		{
+			return fg_Move(*this).f_Dispatch() + fg_Move(_OtherCall);
+		}
+
 	private:
 
 		t_CActorCall *mp_pActorCall;
@@ -757,6 +778,12 @@ namespace NMib::NConcurrency
 			return TCActorCallPack<TCActorCall, TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall>>
 				(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_OtherCall)))
 			;
+		}
+
+		template <typename tf_CActorCall, typename tf_CReturnType>
+		auto operator + (TCActorCallWithError<tf_CActorCall, tf_CReturnType> &&_OtherCall) &&
+		{
+			return fg_Move(*this) + fg_Move(_OtherCall).f_Dispatch();
 		}
 
 		template <typename tf_CType>

@@ -203,8 +203,6 @@ namespace NMib::NConcurrency
 	{
 		TCActor<CActorDistributionManager> &ClientManager = mp_Manager;
 		
-		auto &ConcurrentActor = fg_ConcurrentActor();
-		
 		NStr::CStr SubscriptionID = NCryptography::fg_RandomID(mp_Subscriptions);
 		
 		auto &Subscription = mp_Subscriptions[SubscriptionID];
@@ -219,7 +217,7 @@ namespace NMib::NConcurrency
 			(
 				&CActorDistributionManager::f_SubscribeActors
 				, _Namespace
-				, ConcurrentActor 
+				, mp_ProcessingActor 
 				, 	
 				[
 					this

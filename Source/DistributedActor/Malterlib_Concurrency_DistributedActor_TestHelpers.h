@@ -63,6 +63,8 @@ namespace NMib::NConcurrency
 		
 		NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;
 		NContainer::TCMap<NStr::CStr, CPublication> mp_Publications;
+
+		TCActor<CActor> mp_ProcessingActor = fg_ConcurrentActor();
 	};
 	
 	struct CDistributedActorTestHelperCombined

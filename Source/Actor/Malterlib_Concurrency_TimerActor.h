@@ -41,6 +41,8 @@ namespace NMib::NConcurrency
 
 		TCFutureAwaiter<void, true, void *> operator co_await();
 
+		TCFuture<void> f_Dispatch();
+
 	private:
 		fp64 mp_Period;
 		TCActor<CActor> mp_DispatchActor;

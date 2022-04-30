@@ -501,6 +501,23 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	TCFuture<void> CTimeoutHelper::f_Dispatch()
+	{
+		TCPromise<void> Promise;
+		fg_OneshotTimer
+			(
+				mp_Period
+				, [Promise]
+				{
+					Promise.f_SetResult();
+				}
+				, fg_DirectCallActor()
+				, mp_bFireAtExit
+			)
+		;
+		return Promise.f_MoveFuture();
+	}
+
 	TCFutureAwaiter<void, true, void *> CTimeoutHelper::operator co_await()
 	{
 		TCPromise<void> Promise;

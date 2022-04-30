@@ -111,7 +111,7 @@ namespace
 				TestException.f_SetException(Exception);
 			
 				DMibTest(!DMibExpr(TestException));
-				DMibTest(DMibExpr(fg_ThrowsException(Exception)) == DMibLExpr(TestException.f_Get()));
+				DMibExpectException(TestException.f_Get(), Exception);
 			};
 		}
 

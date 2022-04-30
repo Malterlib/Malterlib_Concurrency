@@ -336,31 +336,19 @@ namespace
 #else
 				CStr DeletedError = "Actor 'NMib::NConcurrency::CActor' called has been deleted";
 #endif
-				DMibTest
+				DMibExpectException
 					(
-					 	DMibExpr
-					 	(
-						 	fg_ThrowsException
-						 	(
-							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-							 	, DMibImpExceptionInstance(CExceptionActorDeleted, DeletedError)
-							)
-						)
-					 	== DMibLExpr(fDoubleDestroy())
+					 	fDoubleDestroy()
+						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
+						, DMibImpExceptionInstance(CExceptionActorDeleted, DeletedError)
 					)
 				;
 #else
-				DMibTest
+				DMibExpectException
 					(
-					 	DMibExpr
-					 	(
-						 	fg_ThrowsException
-						 	(
-							 	DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-							 	, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
-							)
-						)
-					 	== DMibLExpr(fDoubleDestroy())
+					 	fDoubleDestroy()
+						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
+						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
 					)
 				;
 #endif

@@ -627,7 +627,7 @@ namespace NMib::NConcurrency
 						}
 						, NNetwork::CSocket_SSL::fs_GetFactory(pServerContext)
 					)
-					> [this, _ListenID, _pPromise, _Settings, pListenState, fReportListenFailure](TCAsyncResult<CActorSubscription> &&_Result) mutable
+					> [this, _ListenID, _pPromise, _Settings, pListenState, fReportListenFailure](TCAsyncResult<NWeb::CWebSocketServerActor::CListenResult> &&_Result) mutable
 					{
 						if (!_Result)
 						{
@@ -644,7 +644,7 @@ namespace NMib::NConcurrency
 							DMibLogWithCategory(Mib/Concurrency/Actors, Info, "Listen error resolved");
 						}
 
-						Listen.m_ListenCallbackSubscription = fg_Move(*_Result);
+						Listen.m_ListenCallbackSubscription = fg_Move(_Result->m_Subscription);
 						if (_pPromise)
 							_pPromise->f_SetResult(CDistributedActorListenReference(fg_ThisActor(m_pThis), _ListenID));
 					}

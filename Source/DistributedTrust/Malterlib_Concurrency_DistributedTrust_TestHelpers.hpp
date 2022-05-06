@@ -68,6 +68,9 @@ namespace NMib::NConcurrency
 						g_ActorFunctor / [this, Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
 						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable -> TCFuture<void>
 						{
+							if (Promise.f_IsSet())
+								co_return {};
+
 							if (!_HostID || _ActorInfo.m_HostInfo.m_HostID == _HostID)
 							{
 								if (!mp_SeenActors.f_Exists(fg_GetRemoteActorID(_NewActor)))
@@ -83,16 +86,11 @@ namespace NMib::NConcurrency
 
 							if (Actors.f_GetLen() == _nActors)
 							{
-								if (!Promise.f_IsSet())
-								{
-									for (auto &Actor : Actors)
-										mp_SeenActors[fg_GetRemoteActorID(Actor)];
+								for (auto &Actor : Actors)
+									mp_SeenActors[fg_GetRemoteActorID(Actor)];
 
-									DTestHelpersDebug("RESULT {vs}\n", Actors);
-									Promise.f_SetResult(fg_Move(Actors));
-								}
-								else
-									DTestHelpersDebug("ALREADY SET {vs}\n", Actors);
+								DTestHelpersDebug("RESULT {vs}\n", Actors);
+								Promise.f_SetResult(fg_Move(Actors));
 							}
 
 							co_return {};

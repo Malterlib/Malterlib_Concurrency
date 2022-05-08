@@ -140,7 +140,13 @@ namespace NMib::NConcurrency
 			Data.m_MetaData["Type"] = "AccessDenied";
 			auto &AccessDenied = Data.m_MetaData["AccessDenied"].f_Array();
 			for (auto &PermissionSet : pAccessDenied->m_Permissions)
-				AccessDenied.f_Insert(TCVector<CStr>::fs_FromContainer(PermissionSet));
+			{
+				TCVector<CEJSON> Array;
+				for (auto &Permission : PermissionSet)
+					Array.f_Insert(Permission);
+
+				AccessDenied.f_Insert(CEJSON(fg_Move(Array)));
+			}
 		}
 		else
 			Data.m_MetaData["Type"] = "Normal";
@@ -187,17 +193,31 @@ namespace NMib::NConcurrency
 				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", _AuditParams.m_CallingHostInfo.f_GetHostInfo(), Message);
 		}
 #endif
-		if (Internal.m_AppType == 0)
+		switch (Internal.m_AppType)
 		{
-			fp_AuditToDistributedLogger(fg_Move(_AuditParams)) > [](TCAsyncResult<void> &&_Result)
-				{
-					if (!_Result)
+		case EDistributedAppType_InProcess:
+		case EDistributedAppType_Daemon:
+		case EDistributedAppType_Local:
+		case EDistributedAppType_ForceLocal:
+			{
+				fp_AuditToDistributedLogger(fg_Move(_AuditParams)) > [](TCAsyncResult<void> &&_Result)
 					{
-						DMibLogOperation(DisableDistributedLogReporter); // Prevent generating another error
-						DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to log audit message", _Result.f_GetExceptionStr());
+						if (!_Result)
+						{
+							DMibLogOperation(DisableDistributedLogReporter); // Prevent generating another error
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to log audit message", _Result.f_GetExceptionStr());
+						}
 					}
-				}
-			;
+				;
+			}
+			break;
+		case EDistributedAppType_CommandLine:
+		case EDistributedAppType_DirectCommandLine:
+			break;
+		case EDistributedAppType_Unknown:
+		case EDistributedAppType_Unchanged:
+			DMibNeverGetHere;
+			break;
 		}
 	}
 

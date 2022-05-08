@@ -47,8 +47,8 @@ namespace NMib::NConcurrency
 		NStr::CStr m_RootDirectory;
 		bool m_bStoppingApp = false;
 
-		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
-		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo)> f_AuditorFactory() const;
+		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
+		NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)> f_AuditorFactory(NStr::CStr const &_Category = {}) const;
 
 		virtual TCFuture<void> f_SaveStateDatabase();
 		virtual TCFuture<void> f_SaveConfigDatabase();
@@ -332,9 +332,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		void f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo);
+		void f_Audit(CDistributedAppAuditParams &&_AuditParams);
 
-		CDistributedAppAuditor f_Auditor(CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
+		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
@@ -350,7 +350,7 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
-		TCFuture<void> fp_AuditToDistributedLogger(NLog::ESeverity _Severity, NStr::CStr _Message, NStr::CStr _Category, CCallingHostInfo _CallingHostInfo);
+		TCFuture<void> fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams);
 
 		void fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities);
 		void fp_BuildDefaultCommandLine_Logging(CDistributedAppCommandLineSpecification &o_CommandLine);

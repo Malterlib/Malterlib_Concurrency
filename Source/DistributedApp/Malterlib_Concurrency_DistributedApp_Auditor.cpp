@@ -40,9 +40,10 @@ namespace NMib::NConcurrency
 	CDistributedAppAuditor::CDistributedAppAuditor() = default;
 	CDistributedAppAuditor::~CDistributedAppAuditor() = default;
 
-	CDistributedAppAuditor::CDistributedAppAuditor(TCWeakActor<CDistributedAppActor> const &_AppActor, CCallingHostInfo const &_CallingHostInfo)
+	CDistributedAppAuditor::CDistributedAppAuditor(TCWeakActor<CDistributedAppActor> const &_AppActor, CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)
 		: mp_AppActor(_AppActor)
 		, mp_CallingHostInfo(_CallingHostInfo)
+		, mp_Category(_Category)
 	{
 	}
 
@@ -64,13 +65,33 @@ namespace NMib::NConcurrency
 		return CDistributedAppAuditorWithError{*this, FirstMessage, FullMessage, _Category};
 	}
 
-	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category) const
+	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CDistributedAppAuditExtraData &&_ExtraData) const
 	{
- 		mp_AppActor(&CDistributedAppActor::f_Audit, _Severity, _Message, _Category, mp_CallingHostInfo) > fg_DiscardResult();
+		mp_AppActor
+			(
+				&CDistributedAppActor::f_Audit
+				, CDistributedAppAuditParams
+				{
+					.m_Severity = _Severity
+					, .m_Message = _Message
+					, .m_Category = _Category ? _Category : mp_Category
+					, .m_CallingHostInfo = mp_CallingHostInfo
+					, .m_ExtraData = fg_Move(_ExtraData)
+				}
+			)
+			> fg_DiscardResult()
+		;
+
 		return _Message;
 	}
 	
-	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
+	CStr CDistributedAppAuditor::f_Audit
+		(
+			NLog::ESeverity _Severity
+			, NContainer::TCVector<NStr::CStr> const &_Message
+			, NStr::CStr const &_Category
+			, CDistributedAppAuditExtraData &&_ExtraData
+		) const
 	{
 		CStr FullMessage;
 		CStr FirstMessage;
@@ -80,7 +101,22 @@ namespace NMib::NConcurrency
 				FirstMessage = Message;
 			fg_AddStrSep(FullMessage, Message, " ");
 		}
- 		mp_AppActor(&CDistributedAppActor::f_Audit, _Severity, FullMessage, _Category, mp_CallingHostInfo) > fg_DiscardResult();
+
+		mp_AppActor
+			(
+				&CDistributedAppActor::f_Audit
+				, CDistributedAppAuditParams
+				{
+					.m_Severity = _Severity
+					, .m_Message = FullMessage
+					, .m_Category = _Category ? _Category : mp_Category
+					, .m_CallingHostInfo = mp_CallingHostInfo
+					, .m_ExtraData = fg_Move(_ExtraData)
+				}
+			)
+			> fg_DiscardResult()
+		;
+
 		return FirstMessage;
 	}
 
@@ -139,36 +175,99 @@ namespace NMib::NConcurrency
 		return mp_CallingHostInfo;
 	}
 
-	CDistributedAppAuditor CDistributedAppActor::f_Auditor(CCallingHostInfo const &_CallingHostInfo) const
+	CDistributedAppAuditor CDistributedAppActor::f_Auditor(NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo) const
 	{
-		return {fg_ThisActor(this), _CallingHostInfo};
+		return {fg_ThisActor(this), _CallingHostInfo, _Category};
 	}
 	
-	CDistributedAppAuditor CDistributedAppState::f_Auditor(CCallingHostInfo const &_CallingHostInfo) const
+	CDistributedAppAuditor CDistributedAppState::f_Auditor(NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo) const
 	{
-		return {m_AppActor, _CallingHostInfo};
+		return {m_AppActor, _CallingHostInfo, _Category};
 	}
 
-	NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo)> CDistributedAppState::f_AuditorFactory() const
+	auto CDistributedAppState::f_AuditorFactory(NStr::CStr const &_Category) const
+		-> NFunction::TCFunctionMovable<CDistributedAppAuditor (CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category)>
 	{
-		return [AppActor = m_AppActor](CCallingHostInfo const &_CallingHostInfo) mutable -> CDistributedAppAuditor
+		return [AppActor = m_AppActor, Category = _Category](CCallingHostInfo const &_CallingHostInfo, NStr::CStr const &_Category) mutable -> CDistributedAppAuditor
 			{
-				return {AppActor, _CallingHostInfo};
+				return {AppActor, _CallingHostInfo, _Category ? _Category : Category};
 			}
 		;
 	}
-	
-	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NStr::CStr const &_Category) const
+
+	namespace
 	{
-		if (_Message.f_IsEmpty())
-			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, "Access denied", _Category));
-		else
-			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category));
+		NContainer::TCSet<NContainer::TCSet<NStr::CStr>> fg_ConvertPermissions(NContainer::TCVector<NStr::CStr> const &_Permissions)
+		{
+			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> Permissions;
+			NContainer::TCSet<NStr::CStr> Set;
+			Set.f_AddContainer(_Permissions);
+			Permissions[Set];
+
+			return Permissions;
+		}
+
+		NContainer::TCSet<NContainer::TCSet<NStr::CStr>> fg_ConvertPermissions(NContainer::TCVector<CPermissionQuery> const &_Permissions)
+		{
+			NContainer::TCSet<NContainer::TCSet<NStr::CStr>> Permissions;
+			for (auto &Query : _Permissions)
+			{
+				NContainer::TCSet<NStr::CStr> Set;
+				Set.f_AddContainer(Query.m_Permissions);
+				Permissions[Set];
+			}
+
+			return Permissions;
+		}
 	}
 	
-	NException::CException CDistributedAppAuditor::f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
+	NException::CException CDistributedAppAuditor::f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category) const
 	{
-		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
+		auto Permissions = fg_ConvertPermissions(_Permissions);
+
+		if (_Message.f_IsEmpty())
+			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, "Access denied", _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
+		else
+			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
+	}
+	
+	NException::CException CDistributedAppAuditor::f_AccessDenied
+		(
+			NContainer::TCVector<NStr::CStr> const &_Message
+			, NContainer::TCVector<NStr::CStr> const &_Permissions
+			, NStr::CStr const &_Category
+		) const
+	{
+		auto Permissions = fg_ConvertPermissions(_Permissions);
+
+		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
+	}
+
+	NException::CException CDistributedAppAuditor::f_AccessDenied
+		(
+			NStr::CStr const &_Message
+			, NContainer::TCVector<CPermissionQuery> const &_Permissions
+			, NStr::CStr const &_Category
+		) const
+	{
+		auto Permissions = fg_ConvertPermissions(_Permissions);
+
+		if (_Message.f_IsEmpty())
+			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, "Access denied", _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
+		else
+			return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, {"Access denied", _Message}, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
+	}
+
+	NException::CException CDistributedAppAuditor::f_AccessDenied
+		(
+			NContainer::TCVector<NStr::CStr> const &_Message
+			, NContainer::TCVector<CPermissionQuery> const &_Permissions
+			, NStr::CStr const &_Category
+		) const
+	{
+		auto Permissions = fg_ConvertPermissions(_Permissions);
+
+		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
 
 	namespace NUnwrap

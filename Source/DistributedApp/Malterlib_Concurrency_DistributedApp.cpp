@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(NLog::ESeverity _Severity, NStr::CStr _Message, NStr::CStr _Category, CCallingHostInfo _CallingHostInfo)
+	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams)
 	{
 		auto OnResume = g_OnResume / [&]
 			{
@@ -122,18 +122,28 @@ namespace NMib::NConcurrency
 
 		auto &LogEntry = LogEntries.f_Insert();
 		auto &Data = LogEntry.m_Data;
-		Data.f_SetFromLogSeverity(_Severity);
+		Data.f_SetFromLogSeverity(_AuditParams.m_Severity);
 		Data.m_Flags |= CDistributedAppLogReporter::ELogEntryFlag_Audit;
-		Data.m_Message = fg_Move(_Message);
+		Data.m_Message = fg_Move(_AuditParams.m_Message);
 
-		if (_Category)
-			Data.m_Categories.f_Insert(fg_Move(_Category));
+		if (_AuditParams.m_Category)
+			Data.m_Categories.f_Insert(fg_Move(_AuditParams.m_Category));
 
-		Data.m_MetaData["ClaimedUserID"] = _CallingHostInfo.f_GetClaimedUserID();
-		Data.m_MetaData["ClaimedUserName"] = _CallingHostInfo.f_GetClaimedUserName();
-		Data.m_MetaData["RealHostID"] = _CallingHostInfo.f_GetRealHostID();
-		Data.m_MetaData["FriendlyHostName"] = _CallingHostInfo.f_GetHostInfo().m_FriendlyName;
-		Data.m_MetaData["UniqueHostID"] = _CallingHostInfo.f_GetUniqueHostID();
+		Data.m_MetaData["ClaimedUserID"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
+		Data.m_MetaData["ClaimedUserName"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
+		Data.m_MetaData["RealHostID"] = _AuditParams.m_CallingHostInfo.f_GetRealHostID();
+		Data.m_MetaData["FriendlyHostName"] = _AuditParams.m_CallingHostInfo.f_GetHostInfo().m_FriendlyName;
+		Data.m_MetaData["UniqueHostID"] = _AuditParams.m_CallingHostInfo.f_GetUniqueHostID();
+
+		if (auto pAccessDenied = _AuditParams.m_ExtraData.f_TryGet<EDistributedAppAuditType_AccessDenied>())
+		{
+			Data.m_MetaData["Type"] = "AccessDenied";
+			auto &AccessDenied = Data.m_MetaData["AccessDenied"].f_Array();
+			for (auto &PermissionSet : pAccessDenied->m_Permissions)
+				AccessDenied.f_Insert(TCVector<CStr>::fs_FromContainer(PermissionSet));
+		}
+		else
+			Data.m_MetaData["Type"] = "Normal";
 
 		if (!Internal.m_AuditLogReporter->m_fReportEntries)
 			co_return DMibErrorInstance("Invalid report functor");
@@ -143,12 +153,43 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	void CDistributedAppActor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CCallingHostInfo const &_CallingHostInfo)
+	void CDistributedAppActor::f_Audit(CDistributedAppAuditParams &&_AuditParams)
 	{
 		auto &Internal = *mp_pInternal;
+		CStr Category = _AuditParams.m_Category;
+		if (Category.f_IsEmpty())
+			Category = mp_Settings.m_AuditCategory;
+
+#if (DMibSysLogSeverities) != 0
+		{
+			DMibLogOperation(DisableDistributedLogReporter); // We already report audit logs separately
+
+			NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
+			CStr UserID = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
+			CStr UserName = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
+			CStr Message = _AuditParams.m_Message;
+
+			if (auto *pAccessDenied = _AuditParams.m_ExtraData.f_TryGet<EDistributedAppAuditType_AccessDenied>(); pAccessDenied && !pAccessDenied->m_Permissions.f_IsEmpty())
+			{
+				TCVector<CStr> PermissionSets;
+				for (auto &Set : pAccessDenied->m_Permissions)
+					PermissionSets.f_Insert("({})"_f << CStr::fs_Join(Set, " or "));
+
+				if (PermissionSets.f_GetLen() == 1)
+					Message += " {}"_f << PermissionSets[0];
+				else
+					Message += " ({})"_f << CStr::fs_Join(PermissionSets, " and ");
+			}
+
+			if (UserName || UserID)
+				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}, {} [{}]> {}", _AuditParams.m_CallingHostInfo.f_GetHostInfo(), UserID, UserName, Message);
+			else
+				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", _AuditParams.m_CallingHostInfo.f_GetHostInfo(), Message);
+		}
+#endif
 		if (Internal.m_AppType == 0)
 		{
-			fp_AuditToDistributedLogger(_Severity, _Message, _Category, _CallingHostInfo) > [](TCAsyncResult<void> &&_Result)
+			fp_AuditToDistributedLogger(fg_Move(_AuditParams)) > [](TCAsyncResult<void> &&_Result)
 				{
 					if (!_Result)
 					{
@@ -158,25 +199,6 @@ namespace NMib::NConcurrency
 				}
 			;
 		}
-
-		CStr Category = _Category;
-		if (Category.f_IsEmpty())
-			Category = mp_Settings.m_AuditCategory;
-
-
-#if (DMibSysLogSeverities) != 0
-		{
-			DMibLogOperation(DisableDistributedLogReporter); // We already report audit logs separately
-
-			NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
-			CStr UserID = _CallingHostInfo.f_GetClaimedUserID();
-			CStr UserName = _CallingHostInfo.f_GetClaimedUserName();
-			if (UserName || UserID)
-				NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}, {} [{}]> {}", _CallingHostInfo.f_GetHostInfo(), UserID, UserName, _Message);
-			else
-				NMib::NLog::fg_SysLog(DLogLocTag, _Severity, "<{}> {}", _CallingHostInfo.f_GetHostInfo(), _Message);
-		}
-#endif
 	}
 
 	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr const &_Description)

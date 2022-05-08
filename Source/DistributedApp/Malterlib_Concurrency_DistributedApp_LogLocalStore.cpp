@@ -236,12 +236,14 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto LogInterfaceWeak = _LogReporter.f_Weak();
+
 		co_await fg_CallSafe(Internal, &CInternal::f_LogReporterInterfaceAdded, fg_Move(_LogReporter), _TrustInfo);
 
-		co_return g_ActorSubscription / [this, _TrustInfo, LogInterface = _LogReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable
+		co_return g_ActorSubscription / [this, _TrustInfo, LogInterfaceWeak, TrustInfo = _TrustInfo]() mutable
 			{
 				auto &Internal = *mp_pInternal;
-				fg_CallSafe(Internal, &CInternal::f_LogReporterInterfaceRemoved, LogInterface, fg_Move(TrustInfo))
+				fg_CallSafe(Internal, &CInternal::f_LogReporterInterfaceRemoved, LogInterfaceWeak, fg_Move(TrustInfo))
 					> fg_LogError("Malterlib/Concurrency/Log", "Error removing log reporter")
 				;
 			}

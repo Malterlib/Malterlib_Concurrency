@@ -29,11 +29,23 @@ namespace NMib::NConcurrency
 					{
 						"Names"_= {"--log-to-stderr"}
 						, "Default"_= false
-						, "Description"_= "Log to std error."
+						, "Description"_= "Log to stderr."
+					}
+					, "LogSeverities?"_=
+					{
+						"Names"_= {"--log-severities"}
+						, "Type"_= NEncoding::CEJSON{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
+						, "Description"_= "Which log severities to log to stderr"
+#if DMibEnableTrace > 0
+						" or with trace logger."
+#else
+						"."
+#endif
 					}
 				}
 			)
 		;
+
 #if DMibEnableTrace > 0
 		o_CommandLine.f_RegisterGlobalOptions
 			(

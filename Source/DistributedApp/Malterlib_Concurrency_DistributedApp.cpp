@@ -884,8 +884,9 @@ namespace NMib::NConcurrency
 #if (DMibSysLogSeverities) != 0
 	struct CLogToStdErrAnsi
 	{
-		CLogToStdErrAnsi(NCommandLine::EAnsiEncodingFlag _AnsiFlags, bool _bTrace)
+		CLogToStdErrAnsi(NCommandLine::EAnsiEncodingFlag _AnsiFlags, NLog::ESeverity _Severities, bool _bTrace)
 			: mp_AnsiEncoding(_AnsiFlags)
+			, mp_Severities(_Severities)
 			, mp_bTrace(_bTrace)
 		{
 			mp_TimeColor = mp_AnsiEncoding.f_ForegroundRGB(128, 128, 128);
@@ -905,6 +906,9 @@ namespace NMib::NConcurrency
 				, NLog::CLogLocationTag const& _Loc
 			)
 		{
+			if ((_Sev & mp_Severities) == NLog::ESeverity_None)
+				return;
+
 			NTime::CTimeConvert::CDateTime DateTime;
 			NTime::CTimeConvert(_Time.f_ToLocal()).f_ExtractDateTime(DateTime);
 
@@ -1003,6 +1007,7 @@ namespace NMib::NConcurrency
 
 	private:
 		NCommandLine::CAnsiEncoding mp_AnsiEncoding;
+		NLog::ESeverity mp_Severities = NLog::ESeverity_All;
 		CStr mp_EmptyColor;
 		CStr mp_TimeColor;
 		CStr mp_CategoryColor;
@@ -1018,6 +1023,17 @@ namespace NMib::NConcurrency
 
 		CApplyLoggingResults Results;
 
+#if (DMibEnableTrace > 0) || ((DMibSysLogSeverities) != 0)
+		NLog::ESeverity LogSeverities = NLog::ESeverity_All;
+
+		if (auto *pParam = _Params.f_GetMember("LogSeverities", EJSONType_Array))
+		{
+			LogSeverities = NLog::ESeverity_None;
+			for (auto &SeverityName : pParam->f_Array())
+				LogSeverities |= NLog::fg_LookupSeverity(SeverityName.f_String());
+		}
+#endif
+
 #if DMibEnableTrace > 0
 		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 		{
@@ -1026,7 +1042,7 @@ namespace NMib::NConcurrency
 			else if (fg_GetSys()->f_HasTraceLogger())
 			{
 				fg_GetSys()->f_RemoveTraceLogger();
-				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CLogToStdErrAnsi(NCommandLine::EAnsiEncodingFlag_None, true));
+				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CLogToStdErrAnsi(NCommandLine::EAnsiEncodingFlag_None, LogSeverities, true));
 			}
 		}
 #endif
@@ -1034,10 +1050,8 @@ namespace NMib::NConcurrency
 		if (auto *pParam = _Params.f_GetMember("StdErrLogger", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())
-				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CLogToStdErrAnsi(NCommandLine::CCommandLineDefaults::fs_ParseAnsiEncodingParams(_Params), false));
+				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CLogToStdErrAnsi(NCommandLine::CCommandLineDefaults::fs_ParseAnsiEncodingParams(_Params), LogSeverities, false));
 		}
-#endif
-#if (DMibSysLogSeverities) != 0
 		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())

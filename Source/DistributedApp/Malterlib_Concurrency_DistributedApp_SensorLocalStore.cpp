@@ -198,7 +198,9 @@ namespace NMib::NConcurrency
 			(
 				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppSensorReporter> const &_Actor, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
 				{
-					co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo);
+					auto Result = co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
+					if (!Result)
+						DMibLogWithCategory(LogLocalStore, Error, "Failures adding new sensor reporter: {}", Result.f_GetExceptionStr());
 
 					co_return {};
 				}
@@ -236,11 +238,7 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		auto SensorInterfaceWeak = _SensorReporter.f_Weak();
-
-		co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceAdded, fg_Move(_SensorReporter), _TrustInfo);
-
-		co_return g_ActorSubscription / [this, _TrustInfo, SensorInterfaceWeak, TrustInfo = _TrustInfo]() mutable
+		auto Subscription = g_ActorSubscription / [this, _TrustInfo, SensorInterfaceWeak = _SensorReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable
 			{
 				auto &Internal = *mp_pInternal;
 				fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceRemoved, SensorInterfaceWeak, fg_Move(TrustInfo))
@@ -248,5 +246,11 @@ namespace NMib::NConcurrency
 				;
 			}
 		;
+
+		auto Result = co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceAdded, fg_Move(_SensorReporter), _TrustInfo).f_Wrap();
+		if (!Result)
+			DMibLogWithCategory(LogLocalStore, Error, "Failures adding extra sensor reporter: {}", Result.f_GetExceptionStr());
+
+		co_return fg_Move(Subscription);
 	}
 }

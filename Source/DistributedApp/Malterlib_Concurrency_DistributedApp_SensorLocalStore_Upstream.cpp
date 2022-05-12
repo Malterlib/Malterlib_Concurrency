@@ -58,12 +58,16 @@ namespace NMib::NConcurrency
 
 		auto OnFailure = g_OnScopeExit / [&]
 			{
+				pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+				if (!pSensor)
+					return;
+
 				pSensorReporter = pSensor->m_SensorReporters.f_FindEqual(_WeakActor);
-				if (pSensorReporter)
-				{
-					m_FailedReporters.f_Insert(pSensorReporter);
-					f_ScheduleFailedRetry();
-				}
+				if (!pSensorReporter)
+					return;
+
+				m_FailedReporters.f_Insert(pSensorReporter);
+				f_ScheduleFailedRetry();
 			}
 		;
 
@@ -313,6 +317,8 @@ namespace NMib::NConcurrency
 			fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Results.f_AddResult();
 			Reporter.m_pSensor->m_SensorReporters.f_Remove(&Reporter);
 		}
+
+		m_SensorInterfaces.f_Remove(pInterface);
 
 		co_await Results.f_GetResults();
 

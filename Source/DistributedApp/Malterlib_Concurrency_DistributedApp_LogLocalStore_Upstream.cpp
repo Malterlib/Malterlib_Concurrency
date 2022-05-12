@@ -58,12 +58,16 @@ namespace NMib::NConcurrency
 
 		auto OnFailure = g_OnScopeExit / [&]
 			{
+				pLog = m_Logs.f_FindEqual(_LogInfoKey);
+				if (!pLog)
+					return;
+
 				pLogReporter = pLog->m_LogReporters.f_FindEqual(_WeakActor);
-				if (pLogReporter)
-				{
-					m_FailedReporters.f_Insert(pLogReporter);
-					f_ScheduleFailedRetry();
-				}
+				if (!pLogReporter)
+					return;
+
+				m_FailedReporters.f_Insert(pLogReporter);
+				f_ScheduleFailedRetry();
 			}
 		;
 
@@ -313,6 +317,8 @@ namespace NMib::NConcurrency
 			fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Results.f_AddResult();
 			Reporter.m_pLog->m_LogReporters.f_Remove(&Reporter);
 		}
+
+		m_LogInterfaces.f_Remove(pInterface);
 
 		co_await Results.f_GetResults();
 

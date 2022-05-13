@@ -21,9 +21,9 @@ namespace NMib::NConcurrency::NPrivate
 		for (auto &Change : DeferredChanged)
 		{
 			if (Change.f_IsOfType<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>())
-				fg_DirectDispatch(f_AddDistributedActors(Change.f_GetAsType<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>())) > fg_DiscardResult();
+				fg_DirectDispatch(f_AddDistributedActors(fg_Move(Change.f_GetAsType<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>>()))) > fg_DiscardResult();
 			else
-				fg_DirectDispatch(f_RemoveDistributedActors(Change.f_GetAsType<NContainer::TCSet<CDistributedActorIdentifier>>())) > fg_DiscardResult();
+				fg_DirectDispatch(f_RemoveDistributedActors(fg_Move(Change.f_GetAsType<NContainer::TCSet<CDistributedActorIdentifier>>()))) > fg_DiscardResult();
 		}
 	}
 }
@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 						}
 					}
 					if (!AddedActors.f_IsEmpty())
-						fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(AddedActors)) > SubscriptionResults.f_AddResult();
+						fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(fg_Move(AddedActors))) > SubscriptionResults.f_AddResult();
 				}
 			}
 		}
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 				for (auto &Actor : pHost->m_Actors)
 					RemovedActors[Actor.f_GetIdentifier()];
 				for (auto &pSubscription : Type.m_Subscriptions)
-					fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(RemovedActors)) > SubscriptionResults.f_AddResult();
+					fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(fg_Move(RemovedActors))) > SubscriptionResults.f_AddResult();
 			}
 		}
 
@@ -462,7 +462,7 @@ namespace NMib::NConcurrency
 							TrustedActor.m_TrustInfo = TrustInfo;
 							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(TypeActor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion);
 							TrustedActor.m_Actor = fg_Move(NewActor);
-							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(AddedActors)) > fg_DiscardResult();
+							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(fg_Move(AddedActors))) > fg_DiscardResult();
 						}
 					}
 				}
@@ -508,7 +508,7 @@ namespace NMib::NConcurrency
 						NContainer::TCSet<CDistributedActorIdentifier> Removed;
 						Removed[_RemovedActor];
 						for (auto &pSubscription : Type.m_Subscriptions)
-							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(Removed)) > fg_DiscardResult();
+							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(fg_Move(Removed))) > fg_DiscardResult();
 					}
 					for (auto &TypeToRemove : TypesToRemove)
 						pNamespace->m_Types.f_Remove(TypeToRemove);

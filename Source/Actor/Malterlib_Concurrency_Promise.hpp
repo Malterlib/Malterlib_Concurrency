@@ -648,6 +648,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
+	bool TCFuture<t_CReturnValue>::f_IsValid() const
+	{
+		return !!mp_pData;
+	}
+
+	template <typename t_CReturnValue>
 	bool TCFuture<t_CReturnValue>::f_IsObserved() const
 	{
 		auto pData = mp_pData.f_Get();

@@ -30,8 +30,8 @@ namespace NMib::NConcurrency::NPrivate
 	
 		CTrustedActorSubscriptionState();
 		virtual ~CTrustedActorSubscriptionState(); 
-		virtual FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) = 0;
-		virtual FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) = 0;
+		virtual FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors) = 0;
+		virtual FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> &&_Actors) = 0;
 		void f_ApplyDeferredChanges();
 	};
 	

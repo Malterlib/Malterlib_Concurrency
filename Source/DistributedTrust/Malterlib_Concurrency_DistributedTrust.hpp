@@ -95,6 +95,12 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
+	bool TCTrustedActorSubscription<t_CActor>::f_HasActors() const
+	{
+		return !m_Actors.f_IsEmpty();
+	}
+
+	template <typename t_CActor>
 	TCTrustedActor<t_CActor> const *TCTrustedActorSubscription<t_CActor>::f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const
 	{
 		TCTrustedActor<t_CActor> const *pMatched = nullptr;
@@ -207,7 +213,6 @@ namespace NMib::NConcurrency
 			, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
 			, NStr::CStr const &_ErrorCategory
 			, NStr::CStr const &_ErrorPrefix
-			, bool _bReportCurrent
 		)
 	{
 		co_await ECoroutineFlag_AllowReferences;
@@ -220,13 +225,26 @@ namespace NMib::NConcurrency
 		State.m_ErrorCategory = _ErrorCategory;
 		State.m_ErrorPrefix = _ErrorPrefix;
 
-		if (!_bReportCurrent)
-			co_return {};
-
 		TCActorResultVector<void> Results;
 
 		for (auto &Actor : m_Actors)
-			State.m_fOnNewActor(Actor.m_Actor, Actor.m_TrustInfo) > Results.f_AddResult();
+		{
+			TCPromise<void> OnNewActorFinishedPromise;
+			Actor.mp_OnNewActorFinished = OnNewActorFinishedPromise.f_Future();
+
+			fg_CallSafe
+				(
+					[pState, Actor = Actor.m_Actor, TrustInfo = Actor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise)]() mutable -> TCFuture<void>
+					{
+						if (pState->m_fOnNewActor)
+							co_await pState->m_fOnNewActor(Actor, TrustInfo);
+						OnNewActorFinishedPromise.f_SetResult();
+						co_return {};
+					}
+				)
+				> Results.f_AddResult()
+			;
+		}
 
 		for (auto &Result : co_await Results.f_GetResults())
 		{
@@ -277,9 +295,9 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors)
+	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors)
 	{
-		return [this, Actors = _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() mutable -> TCFuture<void>
+		return [this, Actors = fg_Move(_Actors), pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() mutable -> TCFuture<void>
 			{
 				if (!m_pSubscription)
 				{
@@ -295,11 +313,28 @@ namespace NMib::NConcurrency
 					TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)Actor;
 
 					auto &Subscription = *m_pSubscription;
-					if (Subscription.m_Actors(Identifier, TypedActor).f_WasCreated())
-					{
-						if (m_fOnNewActor)
-							m_fOnNewActor(TypedActor.m_Actor, TypedActor.m_TrustInfo) > Results.f_AddResult();
-					}
+					auto MapResult = Subscription.m_Actors(Identifier, fg_Move(TypedActor));
+					if (!MapResult.f_WasCreated())
+						continue;
+
+					auto &NewActor = *MapResult;
+
+					TCPromise<void> OnNewActorFinishedPromise;
+					NewActor.mp_OnNewActorFinished = OnNewActorFinishedPromise.f_Future();
+
+					fg_CallSafe
+						(
+							[pThis, Actor = NewActor.m_Actor, TrustInfo = NewActor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise)]() mutable -> TCFuture<void>
+							{
+								if (pThis->m_fOnNewActor)
+									co_await pThis->m_fOnNewActor(Actor, TrustInfo);
+
+								OnNewActorFinishedPromise.f_SetResult();
+								co_return {};
+							}
+						)
+						> Results.f_AddResult()
+					;
 				}
 
 				for (auto &Result : co_await Results.f_GetResults())
@@ -317,7 +352,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors)
+	FUnitVoidFutureFunction TCTrustedActorSubscription<t_CActor>::CState::f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> &&_Actors)
 	{
 		return [this, Actors = _Actors, pThis = NStorage::TCSharedPointer<CState>{fg_Explicit(this)}]() mutable -> TCFuture<void>
 			{
@@ -337,9 +372,24 @@ namespace NMib::NConcurrency
 						TCTrustedActor<t_CActor> &TypedActor = (TCTrustedActor<t_CActor> &)*pActor;
 						auto TrustInfo = fg_Move(TypedActor.m_TrustInfo);
 						auto Actor = pActor->m_Actor;
+						auto OnNewActorFinished = fg_Move(pActor->mp_OnNewActorFinished);
 						Subscription.m_Actors.f_Remove(pActor);
-						if (m_fOnRemovedActor)
-							m_fOnRemovedActor(Actor.f_Weak(), fg_Move(TrustInfo)) > Results.f_AddResult();
+
+						fg_CallSafe
+							(
+								[pThis, WeakActor = Actor.f_Weak(), TrustInfo = fg_Move(TrustInfo), OnNewActorFinished = fg_Move(OnNewActorFinished)]() mutable
+								-> TCFuture<void>
+								{
+									if (OnNewActorFinished.f_IsValid())
+										co_await fg_Move(OnNewActorFinished).f_Wrap();
+
+									if (pThis->m_fOnRemovedActor)
+										co_await pThis->m_fOnRemovedActor(fg_Move(WeakActor), fg_Move(TrustInfo));
+									co_return {};
+								}
+							)
+							> Results.f_AddResult()
+						;
 					}
 				}
 

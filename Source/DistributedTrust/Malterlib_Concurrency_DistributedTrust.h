@@ -33,7 +33,11 @@ namespace NMib::NConcurrency
 		inline CDistributedActorIdentifier const &f_GetIdentifier() const;
 		TCDistributedActor<t_CActor> m_Actor;
 		CTrustedActorInfo m_TrustInfo;
-		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max; 
+		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
+	private:
+		template <typename t_CActor2>
+		friend struct TCTrustedActorSubscription;
+		TCFuture<void> mp_OnNewActorFinished;
 	};
 	
 	template <typename t_CActor>
@@ -46,12 +50,11 @@ namespace NMib::NConcurrency
 		TCTrustedActorSubscription() = default;
 		~TCTrustedActorSubscription();
 		
-		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
-		
 		TCTrustedActor<t_CActor> const *f_GetOneActor(NStr::CStr const &_HostID, NStr::CStr &o_Error) const;
 		
 		TCFuture<void> f_Destroy();
 		bool f_IsEmpty() const;
+		bool f_HasActors() const;
 
 		TCFuture<void> f_OnActor
 			(
@@ -59,17 +62,18 @@ namespace NMib::NConcurrency
 				, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
 				, NStr::CStr const &_ErrorCategory = {}
 				, NStr::CStr const &_ErrorPrefix = {}
-				, bool _bReportCurrent = true
 			)
 		;
+
+		NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>> m_Actors;
 
 	public:
 		friend class CDistributedActorTrustManager;
 		
 		struct CState : public NPrivate::CTrustedActorSubscriptionState
 		{
-			FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> const &_Actors) override;
-			FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> const &_Actors) override;
+			FUnitVoidFutureFunction f_AddDistributedActors(NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>> &&_Actors) override;
+			FUnitVoidFutureFunction f_RemoveDistributedActors(NContainer::TCSet<CDistributedActorIdentifier> &&_Actors) override;
 
 			NStr::CStr f_NewActorErrorCategory() const;
 			NStr::CStr f_NewActorErrorPrefix() const;
@@ -84,7 +88,7 @@ namespace NMib::NConcurrency
 
 			TCTrustedActorSubscription *m_pSubscription;
 		};
-		
+
 		NStorage::TCSharedPointer<CState> mp_pState;
 	};
 

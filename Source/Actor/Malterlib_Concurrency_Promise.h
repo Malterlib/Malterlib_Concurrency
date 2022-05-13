@@ -520,6 +520,8 @@ namespace NMib::NConcurrency
 
 		TCFuture &&f_Move();
 
+		bool f_IsValid() const;
+
 		template <typename tf_FResultHandler>
 		void operator > (tf_FResultHandler &&_fResultHandler) &&;
 		void operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) &&;

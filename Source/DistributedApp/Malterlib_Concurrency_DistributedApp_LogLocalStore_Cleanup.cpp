@@ -114,9 +114,9 @@ namespace NMib::NConcurrency
 			NTime::CTimeSpan UtcOffset;
 			NTime::CSystem_Time::fs_TimeGetUTCOffset(&UtcOffset);
 
-			auto UtcHourOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetHours();
-			auto UtcMinuteOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetMinuteOfHour();
-			ch8 const *pUtcSign = UtcHourOffset < 0 ? "-" : "+";
+			[[maybe_unused]] auto UtcHourOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetHours();
+			[[maybe_unused]] auto UtcMinuteOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetMinuteOfHour();
+			[[maybe_unused]] ch8 const *pUtcSign = UtcHourOffset < 0 ? "-" : "+";
 			UtcHourOffset = fg_Abs(UtcHourOffset);
 
 			DMibLogWithCategory

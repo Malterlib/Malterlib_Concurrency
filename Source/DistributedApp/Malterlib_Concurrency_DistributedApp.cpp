@@ -1052,6 +1052,7 @@ namespace NMib::NConcurrency
 			if (pParam->f_Boolean())
 				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CLogToStdErrAnsi(NCommandLine::CCommandLineDefaults::fs_ParseAnsiEncodingParams(_Params), LogSeverities, false));
 		}
+
 		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())
@@ -1073,7 +1074,7 @@ namespace NMib::NConcurrency
 				;
 			}
 		}
-#endif
+
 		if (_DistributedLoggingApp)
 		{
 			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, nullptr), false);
@@ -1084,6 +1085,7 @@ namespace NMib::NConcurrency
 				}
 			;
 		}
+#endif
 
 		Results.m_LogActor = fg_Move(LogActor);
 

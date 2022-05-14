@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_HostID
 			, CStr const &_UserID
-			, CStr const &_Permission
+			, TCVector<CStr> const &_Permissions
 			, CEJSON const &_AuthenticationFactors
 			, int64 _AuthenticationLifetime
 		)
@@ -99,8 +99,14 @@ namespace NMib::NConcurrency
 		if (_HostID.f_IsEmpty() && _UserID.f_IsEmpty())
 			co_return DMibErrorInstance("You need to specify at least one of --host or --user");
 
+		auto Requirements = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors);
+
 		TCMap<CStr, CPermissionRequirements> Permissions;
-		Permissions[_Permission] = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors);
+		for (auto &Permission : _Permissions)
+			Permissions[Permission] = Requirements;
+
+		if (Permissions.f_IsEmpty())
+			co_return DMibErrorInstance("You need to specify at least one permission");
 
 		co_await mp_State.m_TrustManager
 			(
@@ -115,8 +121,8 @@ namespace NMib::NConcurrency
 			(
 				Mib/Concurrency/App
 				, Info
-				, "Add permission '{}' to host '{}' user '{}' authentication factor '{}' from command line"
-				, _Permission
+				, "Add permissions '{vs}' to host '{}' user '{}' authentication factor '{}' from command line"
+				, _Permissions
 				, _HostID
 				, _UserID
 				, _AuthenticationFactors

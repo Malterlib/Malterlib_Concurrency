@@ -737,7 +737,7 @@ namespace NMib::NConcurrency
 					{
 						"Permission"_=
 						{
-							"Type"_= ""
+							"Type"_= COneOfType(CEJSON{""}, "")
 							, "Description"_= "The permission to add."
 						}
 					}
@@ -780,6 +780,13 @@ namespace NMib::NConcurrency
 								CEJSON AuthenticationFactors;
 								if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
 									AuthenticationFactors = pValue->f_Array();
+
+								TCVector<CStr> Permissions;
+								if (_Params["Permission"].f_IsString())
+									Permissions.f_Insert(_Params["Permission"].f_String());
+								else
+									Permissions = _Params["Permission"].f_StringArray();
+
 								int64 Lifetime = _Params["MaxLifetime"].f_Integer();
 								return g_Future <<= self
 									(
@@ -787,7 +794,7 @@ namespace NMib::NConcurrency
 										, _pCommandLine
 										, HostID
 										, UserID
-										, _Params["Permission"].f_String()
+										, Permissions
 										, AuthenticationFactors
 										, Lifetime
 									)

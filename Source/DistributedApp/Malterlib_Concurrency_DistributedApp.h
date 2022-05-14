@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_HostID
 				, NStr::CStr const &_UserID
-				, NStr::CStr const &_Permission
+				, NContainer::TCVector<NStr::CStr> const &_Permissions
 				, NEncoding::CEJSON const &_AuthenticationFactors
 				, int64 _AuthenticationLifetime
 			)

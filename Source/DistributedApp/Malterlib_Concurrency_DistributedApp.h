@@ -350,6 +350,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
+		TCFuture<void> fp_WaitForAppStartup();
+
 		TCFuture<void> fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams);
 
 		void fp_BuildDefaultCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine, EDefaultCommandLineFunctionality _Functionalities);

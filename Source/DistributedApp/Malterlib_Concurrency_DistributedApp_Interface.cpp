@@ -19,6 +19,16 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCryptography;
 
+	TCFuture<void> CDistributedAppActor::fp_WaitForAppStartup()
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_AppStartupResult.f_IsSet())
+			co_return Internal.m_AppStartupResult;
+
+		co_return co_await Internal.m_DeferredAppStartupResults.f_Insert().f_Future();
+	}
+
 	TCFuture<void> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_GetAppStartResult()
 	{
 		auto pThis = m_pThis;

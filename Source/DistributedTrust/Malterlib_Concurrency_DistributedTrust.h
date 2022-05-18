@@ -34,6 +34,10 @@ namespace NMib::NConcurrency
 		TCDistributedActor<t_CActor> m_Actor;
 		CTrustedActorInfo m_TrustInfo;
 		uint32 m_ProtocolVersion = TCLimitsInt<uint32>::mc_Max;
+
+		TCTrustedActor() = default;
+		TCTrustedActor(TCTrustedActor &&_Other) = default;
+		TCTrustedActor(TCTrustedActor const &_Other);
 	private:
 		template <typename t_CActor2>
 		friend struct TCTrustedActorSubscription;

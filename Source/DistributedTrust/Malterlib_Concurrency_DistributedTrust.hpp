@@ -139,6 +139,14 @@ namespace NMib::NConcurrency
 		return NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<t_CActor>>::fs_GetKey(*this);
 	}
 
+	template <typename t_CActor>
+	TCTrustedActor<t_CActor>::TCTrustedActor(TCTrustedActor const &_Other)
+		: m_Actor(_Other.m_Actor)
+		, m_TrustInfo(_Other.m_TrustInfo)
+		, m_ProtocolVersion(_Other.m_ProtocolVersion)
+	{
+	}
+
 	template <typename tf_CActor>
 	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion, TCActor<CActor> &&_Actor)
 	{

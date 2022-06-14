@@ -6,7 +6,7 @@
 
 #include "Malterlib_Concurrency_ActorHolder_OSMainRunLoop.h"
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #include <Mib/Core/PlatformSpecific/PosixErrNo>
 #include <dispatch/dispatch.h>
 #endif
@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #else
 		DMibPDebugBreak; // Not implemented
 #endif
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 
 	void COSMainRunLoopActorHolder::fp_QueueProcess()
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		auto pThis = this;
 		dispatch_async
 			(

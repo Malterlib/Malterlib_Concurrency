@@ -152,7 +152,7 @@ namespace NMib::NConcurrency
 			void *pIconData = nullptr;
 #		ifdef DPlatformFamily_Windows
 			pIconData = NPlatform::fg_GetWindowsDllInstance();
-#		elif defined(DPlatformFamily_OSX)
+#		elif defined(DPlatformFamily_macOS)
 			NContainer::CByteVector IconData;
 			if (_DistributedDaemon.m_Icon && NFile::fg_ReadExeFSFile(_DistributedDaemon.m_Icon, IconData))
 				pIconData = &IconData;

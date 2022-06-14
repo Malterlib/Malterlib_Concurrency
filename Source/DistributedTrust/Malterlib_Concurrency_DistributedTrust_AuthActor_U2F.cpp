@@ -28,7 +28,7 @@ extern "C"
 #		define final
 #	endif
 
-#ifdef DPlatformFamily_OSX
+#ifdef DPlatformFamily_macOS
 	#include <Security/Security.h>
 	#include <unistd.h>
 #elif defined DPlatformFamily_Linux

@@ -6,7 +6,7 @@
 
 #include "Malterlib_Concurrency_ActorHolder_OSThreadRunLoop.h"
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #include <Mib/Core/PlatformSpecific/PosixErrNo>
 #endif
 
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 		, mp_ThreadName(_ThreadName)
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #else
 		DMibPDebugBreak; // Not implemented
 #endif
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 		DMibRequire(mp_pThread.f_IsEmpty());
 	}
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 	CFRunLoopRef const &COSThreadRunLoopActorHolder::f_GetRunLoop() const
 	{
 		return mp_RunLoopRef;
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 				[this](NThread::CThreadObject *_pThread) -> aint
 				{
 					(void)this;
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 					CFRunLoopSourceContext RunLoopSourceContext
 						{
 							0
@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 
 	void COSThreadRunLoopActorHolder::fp_QueueProcess()
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		DMibFastCheck(mp_RunLoopRef);
 		auto pThis = this;
 		CFRunLoopPerformBlock
@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 	void COSThreadRunLoopActorHolder::fp_DestroyThreaded()
 	{
 		mp_pThread->f_Stop(false);
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		{
 			if (mp_RunLoopRef)
 			{

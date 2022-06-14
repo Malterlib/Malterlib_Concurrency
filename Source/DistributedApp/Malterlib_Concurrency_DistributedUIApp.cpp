@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #else
 	void CDistributedUIApp::fsp_RunMain()
 	{

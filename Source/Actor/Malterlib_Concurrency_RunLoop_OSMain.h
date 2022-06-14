@@ -5,7 +5,7 @@
 
 #include <Mib/Concurrency/RunLoop>
 
-#ifdef DPlatformFamily_OSX
+#ifdef DPlatformFamily_macOS
 #	include <CoreFoundation/CFRunLoop.h>
 #endif
 
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		bool mp_bProcessing = false;
 #endif
 
-#ifdef DPlatformFamily_OSX
+#ifdef DPlatformFamily_macOS
 		CFRunLoopRef mp_RunLoopRef = nullptr;
 		CFRunLoopSourceContext mp_RunLoopSourceContext
 			{

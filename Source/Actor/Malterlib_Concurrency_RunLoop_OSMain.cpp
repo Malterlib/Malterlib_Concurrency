@@ -9,12 +9,12 @@ namespace NMib::NConcurrency
 {
 	COSMainRunLoop::COSMainRunLoop()
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #else
 		DMibPDebugBreak; // Not implemented
 #endif
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		mp_RunLoopRef = CFRunLoopGetCurrent();
 		CFRunLoopAddSource(mp_RunLoopRef, mp_pRunLoopSourceRef, kCFRunLoopDefaultMode);
 #endif
@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 
 	COSMainRunLoop::~COSMainRunLoop()
 	{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		CFRunLoopRemoveSource(mp_RunLoopRef, mp_pRunLoopSourceRef, kCFRunLoopDefaultMode);
 		CFRelease(mp_pRunLoopSourceRef);
 		mp_RunLoopRef = nullptr;
@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 
 		if (!mp_bPendingWake.f_Exchange(false))
 		{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 			CFRunLoopRun();
 #endif
 		}
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 
 		if (!mp_bPendingWake.f_Exchange(false))
 		{
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 			return CFRunLoopRunInMode(kCFRunLoopDefaultMode, _Timeout.f_Get(), false) == kCFRunLoopRunTimedOut;
 #endif
 		}
@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 	void COSMainRunLoop::f_Wake()
 	{
 		mp_bPendingWake = true;
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		CFRunLoopSourceSignal(mp_pRunLoopSourceRef);
 		CFRunLoopWakeUp(mp_RunLoopRef);
 #endif
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatch &&_Dispatch)
 			{
 				pThis->mp_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 				CFRunLoopStop(pThis->mp_RunLoopRef);
 #endif
 			}

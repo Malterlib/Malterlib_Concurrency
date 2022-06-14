@@ -40,7 +40,7 @@ Import "Apps/*/*.MHeader"
 			{
 				Compile.Disabled true
 				{
-					!PlatformFamily "OSX"
+					!PlatformFamily "macOS"
 				}
 			}
 		}
@@ -101,7 +101,7 @@ Target
 			{
 				Compile.Disabled true
 				{
-					!PlatformFamily "OSX"
+					!PlatformFamily "macOS"
 				}
 			}
 		}
@@ -140,7 +140,7 @@ Property
 	{
 		&
 		{
-			PlatformFamily "OSX"
+			PlatformFamily "macOS"
 			MalterlibConcurrency_DistributedActors true
 		}
 	}

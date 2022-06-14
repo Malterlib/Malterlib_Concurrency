@@ -5,7 +5,7 @@
 
 #include <Mib/Core/Core>
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 #include <IOKit/IOKitLib.h>
 #endif
 
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 		;
 		~COSThreadRunLoopActorHolder();
 
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		CFRunLoopRef const &f_GetRunLoop() const;
 #endif
 
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 		NStorage::TCUniquePointer<NThread::CThreadObject> mp_pThread;
 		NThread::CEvent mp_ThreadStartedEvent;
 		NStr::CStr mp_ThreadName;
-#if defined(DPlatformFamily_OSX)
+#if defined(DPlatformFamily_macOS)
 		CFRunLoopRef mp_RunLoopRef = nullptr;
 		CFRunLoopSourceRef mp_RunLoopSourceRef = nullptr;
 #endif

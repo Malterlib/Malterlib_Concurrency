@@ -981,7 +981,7 @@ namespace NMib::NConcurrency
 		}
 #endif
 
-#if DMibEnableTrace > 0
+#if DMibEnableTrace > 0 && ((DMibSysLogSeverities) != 0)
 		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
 		{
 			if (!pParam->f_Boolean())

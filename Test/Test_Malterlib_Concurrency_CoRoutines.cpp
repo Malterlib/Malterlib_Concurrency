@@ -10,7 +10,7 @@
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Encoding/JSONShortcuts>
 
-namespace
+namespace NMib::NConcurrency::NTest
 {
 	using namespace NMib;
 	using namespace NMib::NStorage;

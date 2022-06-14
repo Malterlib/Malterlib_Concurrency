@@ -535,8 +535,6 @@ namespace NMib::NConcurrency
 #endif
 		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 		{
-			NTime::CCyclesClock Clock;
-			Clock.f_Start();
 			while (true)
 			{
 				bool bDoMore = true;
@@ -582,8 +580,7 @@ namespace NMib::NConcurrency
 #if DMibPPtrBits > 32
 				Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
-				if (Clock.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
-					break;
+				break;
 			}
 			_Queue.m_Event.f_Wait();
 		}

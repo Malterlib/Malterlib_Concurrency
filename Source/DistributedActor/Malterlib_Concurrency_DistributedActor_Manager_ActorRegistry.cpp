@@ -109,8 +109,10 @@ namespace NMib::NConcurrency
 			auto &Host = *pHost;
 			if (!Host.f_CanSendPublish())
 				continue;
+
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 				continue;
+
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 
@@ -204,8 +206,10 @@ namespace NMib::NConcurrency
 			auto &Host = *pHost;
 			if (!Host.f_CanSendPublish())
 				continue;
+
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
 				continue;
+
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 

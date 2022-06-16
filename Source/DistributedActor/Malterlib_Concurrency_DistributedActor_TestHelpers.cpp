@@ -59,25 +59,31 @@ namespace NMib::NConcurrency
 
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 	{
+		CActorDistributionManagerInitSettings Settings{mp_ServerCryptography.m_HostID, {}};
+		Settings.m_FriendlyName = "TestHelperServer";
+
 		mp_pServer = fg_Construct
 			(
 				mp_ServerCryptography.m_HostID
-				, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ServerCryptography.m_HostID, {}})
+				, fg_ConstructActor<CActorDistributionManager>(Settings)
 			)
 		;
 	}
 
-	void CDistributedActorTestHelperCombined::f_Init()
+	void CDistributedActorTestHelperCombined::f_Init(bool _bReconnect)
 	{
 		f_InitServer();
-		f_InitClient(*this);
+		f_InitClient(*this, _bReconnect);
 	}
 
 	void CDistributedActorTestHelperCombined::f_InitServer()
 	{
 		if (!mp_pServer)
 		{
-			mp_ServerCryptography.m_HostID = fg_InitDistributionManager(CActorDistributionManagerInitSettings{mp_ServerCryptography.m_HostID, {}}).m_HostID;
+			CActorDistributionManagerInitSettings Settings{mp_ServerCryptography.m_HostID, {}};
+			Settings.m_FriendlyName = "TestHelperServer";
+
+			mp_ServerCryptography.m_HostID = fg_InitDistributionManager(Settings).m_HostID;
 			mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_GetDistributionManager());
 		}
 		
@@ -104,17 +110,20 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server)
+	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server, bool _bReconnect)
 	{
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		if (!mp_pClient)
 		{
+			CActorDistributionManagerInitSettings Settings{mp_ClientCryptography.m_HostID, {}};
+			Settings.m_FriendlyName = "TestHelperClient";
+
 			mp_pClient = fg_Construct
 				(
 					mp_ClientCryptography.m_HostID
-					, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ClientCryptography.m_HostID, {}})
+					, fg_ConstructActor<CActorDistributionManager>(Settings)
 				)
 			;
 		}
@@ -127,7 +136,7 @@ namespace NMib::NConcurrency
 		}
 		ConnectionSettings.f_SetCryptography(mp_ClientCryptography);
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
-		ConnectionSettings.m_bRetryConnectOnFailure = false;
+		ConnectionSettings.m_bRetryConnectOnFailure = _bReconnect;
 
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference;
@@ -135,12 +144,17 @@ namespace NMib::NConcurrency
 	
 	void CDistributedActorTestHelperCombined::f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server)
 	{
-		mp_pClient = fg_Construct
-			(
-				mp_ClientCryptography.m_HostID
-				, fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{mp_ClientCryptography.m_HostID, {}})
-			)
-		;
+		{
+			CActorDistributionManagerInitSettings Settings{mp_ClientCryptography.m_HostID, {}};
+			Settings.m_FriendlyName = "TestHelperAnonClient";
+
+			mp_pClient = fg_Construct
+				(
+					mp_ClientCryptography.m_HostID
+					, fg_ConstructActor<CActorDistributionManager>(Settings)
+				)
+			;
+		}
 		
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 		

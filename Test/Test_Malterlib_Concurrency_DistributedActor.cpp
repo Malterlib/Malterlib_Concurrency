@@ -14,7 +14,6 @@
 #include <Mib/Concurrency/ActorFunctor>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Cryptography/RandomID>
-#include <Mib/Web/WebSocket>
 #include <Mib/Log/Destinations>
 #include <Mib/Function/Function>
 #include <Mib/File/File>
@@ -287,6 +286,10 @@ public:
 		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorSend);
 		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorFunctor);
 		DMibPublishActorFunction(CDistributedActor::f_TestAsyncGeneratorFunctorSend);
+
+		DMibPublishActorFunction(CDistributedActor::f_TestPacketSizeLimit);
+		DMibPublishActorFunction(CDistributedActor::f_TestGeneral);
+		DMibPublishActorFunction(CDistributedActor::f_TestReturnPacketSize);
 	}
 
 	void f_AddInt(uint32 _Value)
@@ -735,6 +738,22 @@ public:
 	CStr f_GetCallingHostID() const override
 	{
 		return CActorDistributionManager::fs_GetCallingHostInfo().f_GetRealHostID();
+	}
+
+	void f_TestPacketSizeLimit(CByteVector const &_Data) const
+	{
+	}
+
+	void f_TestGeneral() const
+	{
+	}
+
+	CByteVector f_TestReturnPacketSize(uint32 _Size) const
+	{
+		CByteVector BigData;
+		BigData.f_SetLen(_Size);
+
+		return BigData;
 	}
 
 	TCFuture<CStr> f_TestOnDisconnect()
@@ -1684,7 +1703,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 		if (_Address == "localhost")
 		{
-			NNetwork::CNetAddressTCPv4 Address;
+			CNetAddressTCPv4 Address;
 			Address.m_Port = 31393;
 			ConnectAddress = fg_Format("wss://{}:31393/", _Address);
 		}
@@ -1696,7 +1715,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		CActorDistributionListenSettings ListenSettings{fg_CreateVector(ConnectAddress)};
 		ListenSettings.f_SetCryptography(ServerCryptography);
 		ListenSettings.m_bRetryOnListenFailure = false;
-		ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
+		ListenSettings.m_ListenFlags = ENetFlag_None;
 		CDistributedActorListenReference ListenReference = ServerManager(&CActorDistributionManager::f_Listen, ListenSettings).f_CallSync(g_Timeout);
 
 		TCDistributedActor<CDistributedActor> PublishedActor = ServerManager->f_ConstructActor<CDistributedActor>();
@@ -1882,6 +1901,129 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		DMibExpectFalse(bHasClient);
 	}
 
+	void fp_InvalidStateTests()
+	{
+		{
+			DMibTestPath("Send");
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorInvalidStateSend";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(false);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends);
+
+			DMibExpectException
+				(
+					Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(g_Timeout)
+					, DMibErrorInstance
+					(
+						"Remote host '{} [TestHelperServer]' no longer running: Invalid connection: Debug fail send"_f << TestState.f_GetServerHostID()
+					)
+				)
+			;
+		}
+		{
+			DMibTestPath("Send Recovery");
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorInvalidStateSendRecovery";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(true);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends);
+
+			Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(g_Timeout);
+		}
+		{
+			DMibTestPath("Send remote");
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorInvalidStateSendRemote";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(false);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			TestState.f_BreakServerConnections(fp64::fs_Inf(), ESocketDebugFlag_FailSends);
+
+			DMibExpectException
+				(
+					Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(g_Timeout)
+					, DMibErrorInstance("Remote host '{} [TestHelperServer]' no longer running: Last active client connection disconnected"_f << TestState.f_GetServerHostID())
+				)
+			;
+		}
+		{
+			DMibTestPath("Send remote recovery");
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorInvalidStateSendRemoteRecovery";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(true);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			TestState.f_BreakServerConnections(fp64::fs_Inf(), ESocketDebugFlag_FailSends);
+
+			Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(g_Timeout);
+		}
+		{
+			DMibTestPath("Message Size");
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorMessageSize";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(false);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			mint CallOverhead = CActorDistributionManager::mc_RemoteCallOverhead + 4;
+			mint ReturnOverhead = CActorDistributionManager::mc_RemoteCallReturnOverhead + 4;
+
+			{
+				CByteVector BigData;
+				BigData.f_SetLen(CActorDistributionManager::mc_MaxMessageSize - CallOverhead + 1);
+
+				DMibExpectException
+					(
+						Actor.f_CallActor(&CDistributedActor::f_TestPacketSizeLimit)(fg_Move(BigData)).f_CallSync(g_Timeout)
+						, DMibErrorInstance("Remote call size was larger than the max allowed packet size")
+					)
+				;
+
+				DMibExpectException
+					(
+						Actor.f_CallActor(&CDistributedActor::f_TestReturnPacketSize)(CActorDistributionManager::mc_MaxMessageSize - ReturnOverhead + 1).f_CallSync(g_Timeout)
+						, DMibErrorInstance("Reply was larger than max allowed packet size")
+					)
+				;
+			}
+			{
+				// Check that overhead is exactly correct
+				CByteVector BigData;
+				BigData.f_SetLen(CActorDistributionManager::mc_MaxMessageSize - CallOverhead);
+
+				Actor.f_CallActor(&CDistributedActor::f_TestPacketSizeLimit)(fg_Move(BigData)).f_CallSync(g_Timeout);
+				Actor.f_CallActor(&CDistributedActor::f_TestReturnPacketSize)(CActorDistributionManager::mc_MaxMessageSize - ReturnOverhead).f_CallSync(g_Timeout);
+			}
+		}
+	}
+
 public:
 	void f_FunctionalTests()
 	{
@@ -1928,6 +2070,10 @@ public:
 			DMibTestSuite("On disconnected")
 			{
 				fp_OnDisconnectedTests();
+			};
+			DMibTestSuite("Invalid state")
+			{
+				fp_InvalidStateTests();
 			};
 
 			TCSharedPointer<CDistributedActorTestHelperCombined> pTestState;

@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 					}
 #endif
 					if (bShouldReset && !Host.m_LastExecutionID.f_IsEmpty())
-						fp_ResetHostState(*pHost, _pConnection, true);
+						fp_ResetHostState(*pHost, _pConnection, true, "Identify with new execution ID");
 
 					Host.m_LastExecutionID = Identify.m_ExecutionID;
 
@@ -324,6 +324,7 @@ namespace NMib::NConcurrency
 	void CActorDistributionManagerInternal::fp_Identify(CConnection *_pConnection)
 	{
 		auto &pHost = _pConnection->m_pHost;
+
 		CDistributedActorCommand_Identify Identify;
 		Identify.m_FriendlyName = m_FriendlyName;
 		Identify.m_ExecutionID = pHost->m_ExecutionID;

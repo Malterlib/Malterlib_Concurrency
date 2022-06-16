@@ -72,8 +72,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory);
 		~CDistributedActorTestHelperCombined();
 		void f_SeparateServerManager();
-		void f_Init();
-		void f_InitClient(CDistributedActorTestHelperCombined &_Server);
+		void f_Init(bool _bReconnect = false);
+		void f_InitClient(CDistributedActorTestHelperCombined &_Server, bool _bReconnect = false);
 		void f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server);
 		void f_InitServer();
 		void f_DisconnectClient(bool _bNewExecutionID);

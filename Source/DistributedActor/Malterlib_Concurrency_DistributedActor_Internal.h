@@ -406,6 +406,8 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CActorPublicationSubscription> m_SubscribedActors;
 		mint m_SubscribedActorsNextInstanceID = 0;
 
+		NWeb::CWebsocketSettings m_WebsocketSettings{.m_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize};
+
 		NContainer::TCSet<NStr::CStr> m_AllowedIncomingConnectionNamespaces;
 		NContainer::TCSet<NStr::CStr> m_AllowedOutgoingConnectionNamespaces;
 		NContainer::TCSet<NStr::CStr> m_AllowedBothNamespaces;
@@ -470,7 +472,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive);
+		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error);
 		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
 		void fp_Listen
 			(
@@ -479,12 +481,17 @@ namespace NMib::NConcurrency
 				, NStorage::TCSharedPointer<TCPromise<CDistributedActorListenReference>> const &_pPromise
 			)
 		;
-		template <typename tf_CCommand>
-		void fp_QueueCommand(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, tf_CCommand const &_Command);
 		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CSecureByteVector &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		void fp_ProcessPacketQueue(CConnection *_pConnection);
 		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> &&_pMessage);
+		void fp_OnInvalidConnection
+			(
+				CConnection *_pConnection
+				, NException::CExceptionPointer &&_pException
+			)
+		;
+
 		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
@@ -541,5 +548,3 @@ namespace NMib::NConcurrency
 		void fp_DestroyRemoteSubscriptionReset(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
 	};
 }
-
-#include "Malterlib_Concurrency_DistributedActor_Manager_PacketQueue.hpp"

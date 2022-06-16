@@ -294,7 +294,7 @@ namespace NMib::NConcurrency
 	CActorDistributionManagerInternal::~CActorDistributionManagerInternal()
 	{
 		while (auto *pHost = m_Hosts.f_FindAny())
-			fp_DestroyHost(**pHost, nullptr, "distribution manager was destroyed");
+			fp_DestroyHost(**pHost, nullptr, "Distribution manager was destroyed");
 	}
 
 	CActorDistributionManagerInternal::COnHostInfoChanged::~COnHostInfoChanged()

@@ -1128,7 +1128,13 @@ namespace NTestTrustManager
 					bAbort = true;
 					DispatchActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
 
-					DMibExpect(DispatchError, ==, ("Remote host '{} [TestServer]' no longer running"_f << HostInfo.m_HostID).f_GetStr());
+
+					DMibTest
+						(
+							DMibExpr(DispatchError) == DMibExpr(("Remote host '{} [TestServer]' no longer running: Host inactivity (0.5 s)"_f << HostInfo.m_HostID).f_GetStr())
+							|| DMibExpr(DispatchError) == DMibExpr(("Remote host '{} [TestServer]' no longer running: Identify with new execution ID"_f << HostInfo.m_HostID).f_GetStr())
+						)
+					;
 					DMibExpect(nCalls, >, 1u);
 					DMibExpectFalse(bTimedOut);
 					DMibExpectFalse(bTimedOut2);

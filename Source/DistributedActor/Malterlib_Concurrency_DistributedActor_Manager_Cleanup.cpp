@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 				CleanupTimeout = m_HostDaemonTimeout;
 
 			if (Host.m_InactiveClock.f_GetTime() > CleanupTimeout)
-				fp_DestroyHost(Host, nullptr, "of host inactivity ({} s)"_f << CleanupTimeout);
+				fp_DestroyHost(Host, nullptr, "Host inactivity ({} s)"_f << CleanupTimeout);
 		}
 	}
 }

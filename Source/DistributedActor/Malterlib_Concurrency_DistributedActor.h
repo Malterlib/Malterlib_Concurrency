@@ -726,6 +726,13 @@ namespace NMib::NConcurrency
 
 		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats();
 
+		static constexpr mint mc_RemoteCallOverhead = 38;
+		static constexpr mint mc_RemoteCallReturnOverhead = 19;
+		static constexpr mint mc_MaxMessageSize = 24 * 1024 * 1024;
+		static constexpr mint mc_HalfMaxMessageSize = mc_MaxMessageSize / 2;
+
+		static_assert(mc_HalfMaxMessageSize > (mc_RemoteCallOverhead + 512));
+
 	private:
 		TCFuture<void> fp_Destroy() override;
 

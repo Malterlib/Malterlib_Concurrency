@@ -21,6 +21,59 @@ namespace NMib::NConcurrency
 		}
 	}
 
+	void CActorDistributionManagerInternal::fp_OnInvalidConnection
+		(
+			CConnection *_pConnection
+			, NException::CExceptionPointer &&_pException
+		)
+	{
+		if (_pConnection->m_bIncoming)
+		{
+			auto *pConnection = static_cast<CServerConnection *>(_pConnection);
+			if (!pConnection->m_pHost)
+				return;
+
+			bool bLast = pConnection->m_Link.f_IsAloneInList();
+
+			NStr::CStr CloseMessage = fg_Format
+				(
+					"Invalid connection: <{}> Closed {} incoming connection '{}' due to invalid state: {}"
+					, pConnection->f_GetHostInfo()
+					, bLast ? "last" : "additional"
+					, pConnection->f_GetConnectionID()
+					, NException::fg_ExceptionString(_pException)
+				)
+			;
+
+			pConnection->m_pHost->m_bLoggedConnection = false;
+			DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
+
+			fp_DestroyServerConnection(*pConnection, true, CloseMessage, false);
+		}
+		else
+		{
+			using namespace NStr;
+
+			auto *pConnection = static_cast<CClientConnection *>(_pConnection);
+
+			bool bLast = pConnection->m_Link.f_IsAloneInList();
+			auto pHost = pConnection->m_pHost;
+
+			CStr Error = "Invalid connection: {}"_f << NException::fg_ExceptionString(_pException);
+			pConnection->f_Reset(!pConnection->m_bRetryConnectOnFailure, *this, Error);
+			pConnection->f_SetLastError(NException::fg_ExceptionString(_pException));
+
+			if (!pConnection->m_bRetryConnectOnFailure)
+			{
+				if (bLast && pHost)
+					fp_DestroyHost(*pHost, pConnection, Error);
+				return;
+			}
+
+			fp_ScheduleReconnect(NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag>(pConnection), true, pConnection->m_ConnectionSequence, "Invalid connection", false);
+		}
+	}
+
 	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> &&_pMessage)
 	{
 		if (!_pConnection->m_Connection)
@@ -42,12 +95,13 @@ namespace NMib::NConcurrency
 		}
 
 		_pConnection->m_Connection(&NWeb::CWebSocketActor::f_SendBinary, fg_Move(_pMessage), 0)
-			> [](TCAsyncResult<void> &&_Result)
+			> [this, pWeakConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)).f_Weak()](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)
 				{
-					DMibLog(DebugVerbose2, " ---- Error sending packet {}", _Result.f_GetExceptionStr());
-					// TODO: Early reschedule here by deleting the connection?
+					auto pConnection = pWeakConnection.f_Lock();
+					if (pConnection)
+						fp_OnInvalidConnection(pConnection.f_Get(), _Result.f_GetException());
 				}
 			}
 		;
@@ -55,6 +109,8 @@ namespace NMib::NConcurrency
 
 	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CSecureByteVector &&_Data)
 	{
+		DMibFastCheck(_Data.f_GetLen() <= m_WebsocketSettings.m_MaxMessageSize);
+
 		auto PacketID = ++_pHost->m_Outgoing_CurrentPacketID;
 		DMibLog(DebugVerbose2, " ---- {} Queueing packet {}", _pHost->m_bIncoming, PacketID);
 
@@ -83,6 +139,7 @@ namespace NMib::NConcurrency
 		auto iConnection = _pHost->m_ActiveConnections.f_GetIterator();
 		if (_pHost->m_pLastSendConnection)
 			iConnection = _pHost->m_pLastSendConnection;
+
 		while (auto *pPacket = _pHost->m_Outgoing_QueuedPackets.f_GetFirst())
 		{
 			auto *pConnection = &*iConnection;
@@ -128,7 +185,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_ApplyRemoteCall(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -137,7 +194,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_ApplyRemoteCallResult(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid remote call result").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -146,7 +203,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_HandlePublishPacket(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid publish").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -155,7 +212,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_HandleUnpublishPacket(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid unpublish").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -164,7 +221,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_HandleDestroySubscription(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid destroy subscription").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -173,7 +230,7 @@ namespace NMib::NConcurrency
 					{
 						if (!fp_HandleSubscriptionDestroyed(_pConnection, Stream))
 						{
-							// TODO: Handle malicious connection
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid subscription destroyed").f_ExceptionPointer());
 							return;
 						}
 					}
@@ -185,9 +242,9 @@ namespace NMib::NConcurrency
 					break;
 				}
 			}
-			catch (NException::CException const &)
+			catch (NException::CException const &_Exception)
 			{
-				// TODO: Handle malicious connection
+				fp_OnInvalidConnection(_pConnection, _Exception.f_ExceptionPointer());
 				return;
 			}
 

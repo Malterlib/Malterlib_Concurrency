@@ -235,6 +235,11 @@ namespace NMib::NConcurrency
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
 			return Promise <<= DMibErrorInstance("Remote host restarted with new actor protocol");
 
+		auto &Internal = *mp_pInternal;
+
+		if (_CallData.f_GetLen() > Internal.m_WebsocketSettings.m_MaxMessageSize)
+			return Promise <<= DMibErrorInstance("Remote call size was larger than the max allowed packet size");
+
 		State.m_pHost = pHost;
 		State.m_DistributionManager = fg_ThisActor(this);
 		State.m_LastExecutionID = pHost->m_LastExecutionID;
@@ -248,8 +253,7 @@ namespace NMib::NConcurrency
 			Stream << uint8(EDistributedActorCommand_RemoteCall);
 		}
 		
-		auto &Internal = *mp_pInternal;
-		
+
 		auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
 		auto &OutstandingCall = pHost->m_OutstandingCalls[PacketID];
 		OutstandingCall.m_Promise = Promise;
@@ -329,17 +333,10 @@ namespace NMib::NConcurrency
 		auto &Host = *_pHost;
 		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || Host.m_LastExecutionID != State.m_LastExecutionID)
 			return;
-		
+
 		CDistributedActorCommand_RemoteCallResult Result;
  		Result.m_ReplyToPacketID = _PacketID;
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
-		
-		bool bIsException = _Data[0] != 0;
-		if (!bIsException)
-		{
-			fp_RegisterLocalSubscriptions(State);
-			fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
-		}
 		
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
@@ -349,8 +346,23 @@ namespace NMib::NConcurrency
 		mint DataLen = _Data.f_GetLen();
 		if (DataLen != 0)
 			Stream.f_FeedBytes(_Data.f_GetArray(), DataLen);
-		
-		fp_QueuePacket(_pHost, Stream.f_MoveVector());
+
+		auto SendPacket = Stream.f_MoveVector();
+
+		if (SendPacket.f_GetLen() > m_WebsocketSettings.m_MaxMessageSize)
+		{
+			fp_ReplyToRemoteCallWithException(_pHost, _PacketID, DMibErrorInstance("Reply was larger than max allowed packet size"), _Context);
+			return;
+		}
+
+		bool bIsException = _Data[0] != 0;
+		if (!bIsException)
+		{
+			fp_RegisterLocalSubscriptions(State);
+			fp_RegisterImplicitSubscriptions(Host, *_Context.m_pState, nullptr);
+		}
+
+		fp_QueuePacket(_pHost, fg_Move(SendPacket));
 	}
 	
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
@@ -617,7 +629,7 @@ namespace NMib::NConcurrency
 						return;
 					}
 				}
-				
+
 				fp_ReplyToRemoteCall(pHost, PacketID, *_Result, Context);
 			}
 		;
@@ -800,10 +812,11 @@ namespace NMib::NConcurrency
 					{
 						if (pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed) || pHost->m_LastExecutionID != LastExecutionID)
 							return;
-						
+
 						CDistributedActorCommand_SubscriptionDestroyed Result;
 						Result.m_SubscriptionID = SubscriptionID;
 						Result.m_Result = fg_Move(_Result);
+
 						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 						Result.f_Feed(Stream, ActorProtocolVersion);
 						fp_QueuePacket(pHost, Stream.f_MoveVector());
@@ -815,6 +828,7 @@ namespace NMib::NConcurrency
 				CDistributedActorCommand_SubscriptionDestroyed Result;
 				Result.m_SubscriptionID = DestroySubscription.m_SubscriptionID;
 				Result.m_Result.f_SetResult();
+
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 				Result.f_Feed(Stream, ActorProtocolVersion);
 				fp_QueuePacket(pHost, Stream.f_MoveVector());

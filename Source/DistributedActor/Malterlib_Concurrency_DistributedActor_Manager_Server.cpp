@@ -105,12 +105,12 @@ namespace NMib::NConcurrency
 
 		if (bDestroyAnon)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "anonymous connection disconnected");
+			fp_DestroyHost(*pHost, &_Connection, "Anonymous connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 		else if (bDestroyNormal)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "last active connection disconnected");
+			fp_DestroyHost(*pHost, &_Connection, "Last active connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 
@@ -262,7 +262,7 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<CListen> pListenState = fg_Construct();
 
 				pListenState->m_ListenAddresses = _Settings.m_ListenAddresses;
-				pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>();
+				pListenState->m_WebsocketServer = fg_ConstructActor<NWeb::CWebSocketServerActor>(m_WebsocketSettings);
 				pListenState->m_WebsocketServer
 					(
 						&NWeb::CWebSocketServerActor::f_StartListenAddress
@@ -428,6 +428,7 @@ namespace NMib::NConcurrency
 											auto pConnection = pConnectionWeak.f_Lock();
 											if (!pConnection)
 												co_return {};
+
 											if (!pConnection->m_pHost)
 												co_return {};
 
@@ -467,7 +468,10 @@ namespace NMib::NConcurrency
 												 	*pConnection
 												 	, false
 												 	, CloseMessage
-												 	, _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && _Message != "Remove connection (preserve host)"
+												 	, _Reason == NWeb::EWebSocketStatus_NormalClosure
+													&& bLast
+													&& _Message != "Remove connection (preserve host)"
+													&& !_Message.f_StartsWith("Invalid connection:")
 												)
 											;
 
@@ -481,13 +485,12 @@ namespace NMib::NConcurrency
 											auto pConnection = pConnectionWeak.f_Lock();
 											if (!pConnection)
 												co_return {};
+
 											if (!pConnection->m_pHost)
 												co_return {};
 
 											if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
-											{
-												// TODO: Assume malicious client
-											}
+												fp_OnInvalidConnection(pConnection.f_Get(), DMibErrorInstance("Failed to handle incoming message").f_ExceptionPointer());
 
 											co_return {};
 										}

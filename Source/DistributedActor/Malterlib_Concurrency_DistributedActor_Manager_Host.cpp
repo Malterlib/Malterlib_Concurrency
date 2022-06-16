@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 			for (auto &ServerConnection : Host.m_ServerConnections)
 				ServerConnection.f_Disconnect() > Results.f_AddResult();
 
-			Internal.fp_DestroyHost(Host, nullptr, "host was kicked");
+			Internal.fp_DestroyHost(Host, nullptr, "Host was kicked");
 		}
 
 		Results.f_GetResults() > fg_DirectCallActor() / [Promise](auto &&_Results)
@@ -124,7 +124,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(ReturnState);
 	}
 
-	void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive)
+	void CActorDistributionManagerInternal::fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error)
 	{
 		auto &Host = _Host;
 
@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		for (auto &Call : Host.m_OutstandingCalls)
-			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host '{}' no longer running"_f << Host.f_GetHostInfo()));
+			Call.m_Promise.f_SetException(DMibErrorInstance("Remote host '{}' no longer running: {}"_f << Host.f_GetHostInfo() << _Error));
 		Host.m_OutstandingCalls.f_Clear();
 
 		{
@@ -250,9 +250,9 @@ namespace NMib::NConcurrency
 		HostInfo.m_HostID = _Host.m_HostInfo.m_RealHostID;
 		HostInfo.m_FriendlyName = _Host.m_FriendlyName;
 
-		DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Destroyed host because {}", HostInfo, _Reason);
+		DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Destroyed host: {}", HostInfo, _Reason);
 
-		fp_ResetHostState(_Host, _pSaveConnection, false);
+		fp_ResetHostState(_Host, _pSaveConnection, false, _Reason);
 		_Host.f_Destroy();
 		if (_Host.m_RealHostsLink.f_IsAloneInList())
 			m_HostsByRealHostID.f_Remove(_Host.m_HostInfo.m_RealHostID);

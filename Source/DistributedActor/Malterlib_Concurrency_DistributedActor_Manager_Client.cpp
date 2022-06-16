@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout);
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout, _DebugFlags);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Reconnect()
@@ -147,8 +147,10 @@ namespace NMib::NConcurrency
 				{
 					if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
 						return;
+
 					if (_Sequence != _pConnection->m_ConnectionSequence)
 						return;
+
 					fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
 				}
 				, true
@@ -180,12 +182,12 @@ namespace NMib::NConcurrency
 
 		if (bDestroyAnon)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "anonymous client connection disconnected");
+			fp_DestroyHost(*pHost, &_Connection, "Anonymous client connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 		else if (bDestroyNormal)
 		{
-			fp_DestroyHost(*pHost, &_Connection, "last active client connection disconnected");
+			fp_DestroyHost(*pHost, &_Connection, "Last active client connection disconnected");
 			_Connection.m_pHost = nullptr;
 		}
 
@@ -196,17 +198,22 @@ namespace NMib::NConcurrency
 	{
 		if (m_TranslateHostnames.f_IsEmpty())
 			return _Hostname;
+
 		if (auto *pTranslate = m_TranslateHostnames.f_FindEqual(_Hostname))
 			return *pTranslate;
+
 		return _Hostname;;
 	}
+
 	NWeb::NHTTP::CURL CActorDistributionManagerInternal::fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const
 	{
 		if (m_TranslateHostnames.f_IsEmpty())
 			return _URL;
+
 		auto Return = _URL;
 		if (auto *pTranslate = m_TranslateHostnames.f_FindEqual(_URL.f_GetHost()))
 			Return.f_SetHost(*pTranslate);
+
 		return Return;
 	}
 
@@ -386,7 +393,8 @@ namespace NMib::NConcurrency
 
 				Host.m_bOutgoing = true;
 
-				Result.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+				Result.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence, _bRetry]
+					(NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
 					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
@@ -424,10 +432,10 @@ namespace NMib::NConcurrency
 						else
 						{
 							auto pHost = pConnection->m_pHost;
-							bool bDestroyNormal = pHost && _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast;
+							bool bDestroyNormal = pHost && _Reason == NWeb::EWebSocketStatus_NormalClosure && bLast && (!_Message.f_StartsWith("Invalid connection:") || !_bRetry);
 							fp_ScheduleReconnect(pConnection, true, Sequence, Error, bDestroyNormal);
 							if (bDestroyNormal)
-								fp_DestroyHost(*pHost, pConnection.f_Get(), "last active client connection disconnected");
+								fp_DestroyHost(*pHost, pConnection.f_Get(), "Last active client connection disconnected");
 						}
 
 						co_return {};
@@ -452,9 +460,7 @@ namespace NMib::NConcurrency
 							co_return {};
 						}
 						if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
-						{
-							// TODO: Assume malicious client
-						}
+							fp_OnInvalidConnection(pConnection.f_Get(), DMibErrorInstance("Failed to handle incoming message").f_ExceptionPointer());
 
 						co_return {};
 					}
@@ -657,7 +663,7 @@ namespace NMib::NConcurrency
 			return Promise.f_MoveFuture();
 
 		if (!Internal.m_WebsocketClientConnector)
-			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>();
+			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>(Internal.m_WebsocketSettings);
 
 		NStr::CStr ConnectionID = NCryptography::fg_RandomID(Internal.m_ClientConnections);
 
@@ -700,9 +706,11 @@ namespace NMib::NConcurrency
 			Return.m_HostInfo.m_HostID = Connection.m_pHost->m_HostInfo.m_RealHostID;
 			Return.m_HostInfo.m_FriendlyName = Connection.m_pHost->m_FriendlyName;
 		}
+
 		Return.m_bConnected = Connection.m_bConnected;
 		Return.m_Error = Connection.m_LastConnectionError;
 		Return.m_ErrorTime = Connection.m_LastConnectionErrorTime;
+
 		return Promise <<= Return;
 	}
 
@@ -792,6 +800,7 @@ namespace NMib::NConcurrency
 
 		if (DecodedSettings.m_bAnonymous != Host.m_HostInfo.m_bAnonymous)
 			return Promise <<= DMibErrorInstance("You cannot change the anonymous status of the connection");
+
 		if (DecodedSettings.m_RealHostID != Host.m_HostInfo.m_RealHostID)
 			return Promise <<= DMibErrorInstance("You cannot change the host ID of the connection");
 

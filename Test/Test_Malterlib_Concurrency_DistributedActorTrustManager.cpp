@@ -25,6 +25,7 @@ using namespace NMib::NAtomic;
 using namespace NMib::NFunction;
 using namespace NMib::NTest;
 using namespace NMib::NStorage;
+using namespace NMib::NNetwork;
 
 static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
@@ -910,8 +911,8 @@ namespace NTestTrustManager
 
 				TCActor<CSeparateThreadActor> DispatchActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Dispatch"));
 
-				ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
-				ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
+				ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1, ESocketDebugFlag_StopProcessing).f_CallSync(pRunLoop, g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1, ESocketDebugFlag_StopProcessing).f_CallSync(pRunLoop, g_Timeout);
 
 				CStr DispatchError;
 				TCAtomic<mint> nCalls = 0;
@@ -948,8 +949,21 @@ namespace NTestTrustManager
 
 				for (mint i = 0; i < 2 && !bTimedOut; ++i)
 				{
-					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(pRunLoop, g_Timeout);
-					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)).f_CallSync(pRunLoop, g_Timeout);
+					ClientTrustManager
+						(
+							&CDistributedActorTrustManager::f_Debug_BreakClientConnection
+							, ServerAddress, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)
+							, ESocketDebugFlag_StopProcessing
+						).f_CallSync(pRunLoop, g_Timeout)
+					;
+					ServerTrustManager
+						(
+							&CDistributedActorTrustManager::f_Debug_BreakListenConnections
+							, ServerAddress
+							, fp64(0.05) + NMisc::fg_GetRandomFloat() * fp64(0.1)
+							, ESocketDebugFlag_StopProcessing
+						).f_CallSync(pRunLoop, g_Timeout)
+					;
 
 					mint ExpectedCalls = nCalls.f_Load() + 2;
 					bTimedOut = fp_WaitForCondition
@@ -1069,8 +1083,8 @@ namespace NTestTrustManager
 						)
 					;
 					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_SetListenServerBroken, ServerAddress, true).f_CallSync(pRunLoop, g_Timeout);
-					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
-					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1).f_CallSync(pRunLoop, g_Timeout);
+					ClientTrustManager(&CDistributedActorTrustManager::f_Debug_BreakClientConnection, ServerAddress, 0.1, ESocketDebugFlag_StopProcessing).f_CallSync(pRunLoop, g_Timeout);
+					ServerTrustManager(&CDistributedActorTrustManager::f_Debug_BreakListenConnections, ServerAddress, 0.1, ESocketDebugFlag_StopProcessing).f_CallSync(pRunLoop, g_Timeout);
 
 					bool bTimedOut2;
 					if (i == 1)

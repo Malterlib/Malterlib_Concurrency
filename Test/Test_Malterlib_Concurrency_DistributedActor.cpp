@@ -32,6 +32,7 @@ using namespace NMib::NStr;
 using namespace NMib::NThread;
 using namespace NMib::NAtomic;
 using namespace NMib::NTest;
+using namespace NMib::NNetwork;
 
 static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
@@ -1917,7 +1918,7 @@ public:
 			};
 			DMibTestSuite("Basics Unix Sockets")
 			{
-				fp_BasicTests("UNIX:" + NNetwork::fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
+				fp_BasicTests("UNIX:" + fg_GetSafeUnixSocketPath("{}/TestDistributedActor.socket"_f << NMib::NFile::CFile::fs_GetProgramDirectory()));
 			};
 			DMibTestSuite("Anonymous client")
 			{

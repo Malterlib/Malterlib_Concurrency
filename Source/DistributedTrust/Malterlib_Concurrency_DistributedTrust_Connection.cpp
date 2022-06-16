@@ -711,7 +711,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout)
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		using namespace NMib::NStr;
 
@@ -724,14 +724,19 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<void> BreakResults;
 		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
-			ConnectionReference.f_Debug_Break(_Timeout) > BreakResults.f_AddResult();
+			ConnectionReference.f_Debug_Break(_Timeout, _DebugFlags) > BreakResults.f_AddResult();
 
 		co_await (BreakResults.f_GetResults() % "Failed to break client connections") | g_Unwrap;
 
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout)
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections
+		(
+			CDistributedActorTrustManager_Address const &_Address
+			, fp64 _Timeout
+			, NNetwork::ESocketDebugFlag _DebugFlags
+		)
 	{
 		using namespace NMib::NStr;
 
@@ -744,7 +749,7 @@ namespace NMib::NConcurrency
 		if (!pListen)
 			co_return DMibErrorInstance("Could not find listen for '{}'"_f << _Address);
 
-		co_await (pListen->m_ListenReference.f_Debug_BreakAllConnections(_Timeout) % "Failed to break listen connections");
+		co_await (pListen->m_ListenReference.f_Debug_BreakAllConnections(_Timeout, _DebugFlags) % "Failed to break listen connections");
 
 		co_return {};
 	}

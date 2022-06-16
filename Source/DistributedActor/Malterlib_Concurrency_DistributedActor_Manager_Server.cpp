@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 		return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveListen, mp_ListenID);
 	}
 
-	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout)
+	TCFuture<void> CDistributedActorListenReference::f_Debug_BreakAllConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		TCPromise<void> Promise;
 
@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakAllListenConnections, mp_ListenID, _Timeout);
+		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakAllListenConnections, mp_ListenID, _Timeout, _DebugFlags);
 	}
 
 	TCFuture<void> CDistributedActorListenReference::f_Debug_SetServerBroken(bool _bBroken)
@@ -685,7 +685,7 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout)
+	TCFuture<void> CActorDistributionManager::fp_Debug_BreakAllListenConnections(NStr::CStr const &_ListenID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pListen = Internal.m_Listens.f_FindEqual(_ListenID);
@@ -696,7 +696,7 @@ namespace NMib::NConcurrency
 		for (auto &pServerConnection : Internal.m_ServerConnections)
 		{
 			if (pServerConnection->m_ListenID == _ListenID && pServerConnection->m_Connection)
-				pServerConnection->m_Connection(&NWeb::CWebSocketActor::f_DebugStopProcessing, _Timeout) > Results.f_AddResult();
+				pServerConnection->m_Connection(&NWeb::CWebSocketActor::f_DebugSetFlags, _Timeout, _DebugFlags) > Results.f_AddResult();
 		}
 
 		co_await Results.f_GetResults() | g_Unwrap;

@@ -62,7 +62,7 @@ namespace NMib::NConcurrency
 		return Promise <<= DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
 	}
 
-	TCFuture<void> CDistributedActorConnectionReference::f_Debug_Break(fp64 _Timeout)
+	TCFuture<void> CDistributedActorConnectionReference::f_Debug_Break(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		TCPromise<void> Promise;
 
@@ -706,7 +706,7 @@ namespace NMib::NConcurrency
 		return Promise <<= Return;
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout)
+	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -716,7 +716,7 @@ namespace NMib::NConcurrency
 
 		auto &Connection = **pConnection;
 		if (Connection.m_Connection)
-			co_await Connection.m_Connection(&NWeb::CWebSocketActor::f_DebugStopProcessing, _Timeout);
+			co_await Connection.m_Connection(&NWeb::CWebSocketActor::f_DebugSetFlags, _Timeout, _DebugFlags);
 
 		co_return {};
 	}

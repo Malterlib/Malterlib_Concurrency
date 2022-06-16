@@ -47,6 +47,16 @@ namespace NMib::NConcurrency
 		return mp_pClient->f_GetHostID(); 
 	}
 
+	void CDistributedActorTestHelperCombined::f_BreakClientConnection(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags)
+	{
+		mp_ClientConnectionReference.f_Debug_Break(_Timeout, _Flags).f_CallSync(60.0);
+	}
+
+	void CDistributedActorTestHelperCombined::f_BreakServerConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags)
+	{
+		mp_ListenReference.f_Debug_BreakAllConnections(_Timeout, _Flags).f_CallSync(60.0);
+	}
+
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 	{
 		mp_pServer = fg_Construct

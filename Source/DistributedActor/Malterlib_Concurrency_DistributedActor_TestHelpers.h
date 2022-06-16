@@ -89,7 +89,10 @@ namespace NMib::NConcurrency
 		
 		CActorDistributionCryptographySettings const &f_GetClientCryptograhySettings() const;
 		CActorDistributionCryptographySettings const &f_GetServerCryptograhySettings() const;
-		
+
+		void f_BreakClientConnection(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags);
+		void f_BreakServerConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags);
+
 		template <typename tf_CActor>
 		TCDistributedActor<tf_CActor> f_GetRemoteActor(NStr::CStr const &_SubscriptionID);
 		

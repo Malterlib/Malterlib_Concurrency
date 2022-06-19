@@ -618,7 +618,7 @@ namespace NMib::NConcurrency::NPrivate
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 				for (auto &Device : InitializedDevices)
 				{
-					auto &DeviceInfo = *iDeviceInfo;
+					[[maybe_unused]] auto &DeviceInfo = *iDeviceInfo;
 					++iDeviceInfo;
 
 					if (!Device)

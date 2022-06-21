@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
 			, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey
-			, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries
+			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 		)
 	{
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 			auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
 			smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 
-			for (auto &Entry : _Entries)
+			for (auto &Entry : *_pEntries)
 			{
 				smint nBytesInserted = WriteTransaction.m_Transaction.f_SizeStatistics().m_UsedBytes - SizeStats.m_UsedBytes;
 				bool bFreeUpSpace = nBytesInserted >= nBytesLimit;
@@ -122,6 +122,101 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	namespace
+	{
+		TCVector<CDistributedAppLogReporter::CLogEntry> fg_SplitEntriesByMaxSize(TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)
+		{
+			TCVector<CDistributedAppLogReporter::CLogEntry> Entries = fg_Move(_Entries);
+			TCVector<CDistributedAppLogReporter::CLogEntry> ResizedEntries;
+
+#if DMibPPtrBits < 64
+			static constexpr mint c_MaxSize = 768 * 1024; // Workaround bugs in memory mapping for overflow values in lmdb
+#else
+			static constexpr mint c_MaxSize = CActorDistributionManager::mc_HalfMaxMessageSize;
+#endif
+
+			bool bNeedResize = false;
+			mint nEntriesProcessed = 0;
+			for (auto &Entry : Entries)
+			{
+				auto CountEntry = g_OnScopeExit / [&]
+					{
+						++nEntriesProcessed;
+					}
+				;
+
+				mint Size = NStream::fg_GetBinaryStreamSize(Entry);
+
+				if (Entry.m_UniqueSequence != TCLimitsInt<uint64>::mc_Max)
+				{
+					if (bNeedResize)
+						ResizedEntries.f_Insert(fg_Move(Entry));
+					continue;
+				}
+
+				if (Size <= c_MaxSize)
+				{
+					if (bNeedResize)
+						ResizedEntries.f_Insert(fg_Move(Entry));
+					continue;
+				}
+
+				if (!bNeedResize)
+				{
+					bNeedResize = true;
+					for (mint iEntry = 0; iEntry < nEntriesProcessed; ++iEntry)
+						ResizedEntries.f_Insert(fg_Move(Entries[iEntry]));
+				}
+
+				auto SourceMessage = fg_Move(Entry.m_Data.m_Message);
+				auto AllLines = SourceMessage.f_SplitLine();
+
+				auto pOutEntry = &ResizedEntries.f_Insert(Entry);
+				auto *pOutMessage = &pOutEntry->m_Data.m_Message;
+
+				for (auto Line : AllLines)
+				{
+					mint LineLen = Line.f_GetLen() + 1;
+					if ((pOutMessage->f_GetLen() + LineLen) > c_MaxSize)
+					{
+						if (LineLen > c_MaxSize)
+						{
+							if (!pOutMessage->f_IsEmpty())
+								*pOutMessage += "\n";
+
+							for (mint iStart = 0; iStart < LineLen; iStart += c_MaxSize)
+							{
+								pOutEntry = &ResizedEntries.f_Insert(Entry);
+								pOutMessage = &pOutEntry->m_Data.m_Message;
+								*pOutMessage = Line.f_Extract(iStart, fg_Min(LineLen - iStart, c_MaxSize));
+							}
+						}
+						else
+						{
+							DMibFastCheck(!pOutMessage->f_IsEmpty());
+							*pOutMessage += "\n";
+
+							pOutEntry = &ResizedEntries.f_Insert(Entry);
+							pOutMessage = &pOutEntry->m_Data.m_Message;
+							*pOutMessage = fg_Move(Line);
+						}
+					}
+					else
+					{
+						if (!pOutMessage->f_IsEmpty())
+							*pOutMessage += "\n";
+						*pOutMessage += Line;
+					}
+				}
+			}
+
+			if (bNeedResize)
+				return ResizedEntries;
+			else
+				return Entries;
+		}
+	}
+
 	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor
 		(
 			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
@@ -151,7 +246,9 @@ namespace NMib::NConcurrency
 
 				auto SequenceSubscription = co_await pLog->m_LogSequencer.f_Sequence();
 
-				for (auto &Entry : _Entries)
+				auto Entries = fg_SplitEntriesByMaxSize(fg_Move(_Entries));
+
+				for (auto &Entry : Entries)
 				{
 					if (Entry.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
 						Entry.m_UniqueSequence = ++pLog->m_LastSeenUniqueSequence;
@@ -159,10 +256,12 @@ namespace NMib::NConcurrency
 						pLog->m_LastSeenUniqueSequence = fg_Max(pLog->m_LastSeenUniqueSequence, Entry.m_UniqueSequence);
 				}
 
+				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(Entries));
+
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
-						fg_CallSafe(this, &CInternal::f_StoreLogEntries, _LogInfoKey, _DatabaseKey, _Entries)
-						+ fg_CallSafe(this, &CInternal::f_NewLogEntries, _LogInfoKey, _Entries)
+						fg_CallSafe(this, &CInternal::f_StoreLogEntries, _LogInfoKey, _DatabaseKey, pEntries)
+						+ fg_CallSafe(this, &CInternal::f_NewLogEntries, _LogInfoKey, pEntries)
 					)
 					.f_Wrap()
 				;

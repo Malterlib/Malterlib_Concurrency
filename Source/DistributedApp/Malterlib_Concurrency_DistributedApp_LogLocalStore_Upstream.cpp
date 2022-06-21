@@ -99,16 +99,41 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> Batch;
 
 			static constexpr mint c_BatchSize = 32768;
+			static constexpr mint c_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize - (CActorDistributionManager::mc_RemoteCallOverhead + 4 + 128);
+			mint nBytesInBatch = 0;
 
 			for (; iLogEntry; ++iLogEntry)
 			{
 				auto Key = iLogEntry.f_Key<NLogStoreLocalDatabase::CLogEntryKey>();
 				auto Value = iLogEntry.f_Value<NLogStoreLocalDatabase::CLogEntryValue>();
 
-				Batch.f_Insert(fg_Move(Value).f_Entry(Key));
+				auto NewEntry = fg_Move(Value).f_Entry(Key);
+
+				mint ThisTime = NStream::fg_GetBinaryStreamSize(NewEntry);
+
+				if (ThisTime > c_MaxMessageSize)
+				{
+					// This should never happen now. For old databases do this in case the database has stored entries that are too big
+					NewEntry.m_Data.m_Message = NewEntry.m_Data.m_Message.f_Left(c_MaxMessageSize);
+				}
+
+				if (nBytesInBatch + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize)
+				{
+					if (!Batch.f_IsEmpty())
+					{
+						co_await Reporter.m_fReportEntries(fg_Move(Batch));
+						nBytesInBatch = 0;
+					}
+				}
+
+				Batch.f_Insert(fg_Move(NewEntry));
+				nBytesInBatch += ThisTime;
 
 				if (Batch.f_GetLen() >= c_BatchSize)
+				{
 					co_await Reporter.m_fReportEntries(fg_Move(Batch));
+					nBytesInBatch = 0;
+				}
 			}
 
 			if (!Batch.f_IsEmpty())
@@ -207,41 +232,72 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-			, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries
+			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 		)
 	{
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 		if (!pLog)
 			co_return 1;
 
-		TCVector<TCVector<CDistributedAppLogReporter::CLogEntry>> EntriesChunks;
+		auto &Entries = *_pEntries;
+
+		TCVector<NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const>> EntriesChunks;
+
+		auto fAddEntriesToChunks = [&](NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries)
+			{
+				if (NStream::fg_GetBinaryStreamSize(*_pEntries) <= CActorDistributionManager::mc_HalfMaxMessageSize)
+				{
+					EntriesChunks.f_Insert(_pEntries);
+					return;
+				}
+
+				TCVector<CDistributedAppLogReporter::CLogEntry> NewEntries;
+				mint nBytesInChunk = 0;
+
+				for (auto &Entry : *_pEntries)
+				{
+					mint ThisTime = NStream::fg_GetBinaryStreamSize(Entry);
+					DMibFastCheck(ThisTime <= (CActorDistributionManager::mc_MaxMessageSize - 4));
+
+					if (nBytesInChunk + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize && !NewEntries.f_IsEmpty())
+					{
+						EntriesChunks.f_Insert(fg_Construct(fg_Construct(fg_Move(NewEntries))));
+						nBytesInChunk = 0;
+					}
+
+					NewEntries.f_Insert(Entry);
+					nBytesInChunk += ThisTime;
+				}
+
+				if (!NewEntries.f_IsEmpty())
+					EntriesChunks.f_Insert(fg_Construct(fg_Construct(fg_Move(NewEntries))));
+			}
+		;
 
 		static constexpr mint c_ChunkSize = 32768;
 
-		mint nEntries = _Entries.f_GetLen();
+		mint nEntries = Entries.f_GetLen();
 
 		if (nEntries < c_ChunkSize)
-			EntriesChunks.f_Insert(_Entries);
+			fAddEntriesToChunks(_pEntries);
 		else
 		{
 			for (mint iStartEntry = 0; iStartEntry < nEntries;)
 			{
 				mint ThisTime = fg_Min(nEntries - iStartEntry, c_ChunkSize);
-				
-				EntriesChunks.f_Insert(TCVector<CDistributedAppLogReporter::CLogEntry>(_Entries.f_GetArray() + iStartEntry, ThisTime));
-
+				fAddEntriesToChunks(fg_Construct(TCVector<CDistributedAppLogReporter::CLogEntry>(Entries.f_GetArray() + iStartEntry, ThisTime)));
 				iStartEntry += ThisTime;
 			}
 		}
 
 		TCActorResultVector<uint32> Results;
 
-		for (auto &Entries : EntriesChunks)
+		for (auto &pEntries : EntriesChunks)
 		{
 			for (auto &Reporter : pLog->m_LogReporters)
 			{
 				auto WeakActor = pLog->m_LogReporters.fs_GetKey(Reporter);
-				Reporter.m_WriteSequencer / [this, Entries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
+				Reporter.m_WriteSequencer / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
 					{
 						auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 						if (!pLog)
@@ -257,7 +313,7 @@ namespace NMib::NConcurrency
 						if (!pReporter->m_Reporter.m_fReportEntries)
 							co_return 0;
 
-						auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(fg_Move(Entries));
+						auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(*pEntries);
 
 						(void)_DoneSubscription;
 

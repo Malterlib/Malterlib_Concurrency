@@ -214,6 +214,8 @@ namespace NMib::NConcurrency
 				}
 			;
 
+			mint nBytesInBatch = 0;
+
 			for (; iEntryByTime; bReportNewestFirst ? --iEntryByTime : ++iEntryByTime)
 			{
 				auto KeyByTime = iEntryByTime.f_Key<NLogStoreLocalDatabase::CLogEntryByTime>();
@@ -254,8 +256,11 @@ namespace NMib::NConcurrency
 					if (co_await g_bShouldAbort)
 						co_return DMibErrorInstance("Aborted");
 
-					if (Batch.f_GetLen() > 0)
+					if (!Batch.f_IsEmpty())
+					{
 						co_yield fg_Move(Batch);
+						nBytesInBatch = 0;
+					}
 
 					co_await g_Yield;
 				}
@@ -275,10 +280,24 @@ namespace NMib::NConcurrency
 				if (bIsDataFiltered && !fg_FilterLogValue(Value.m_Data, _Filter.m_LogDataFilter))
 					continue;
 
-				Batch.f_Insert(CDistributedAppLogReader_LogKeyAndEntry{fg_Move(Key).f_LogInfoKey(), fg_Move(Value).f_Entry(Key)});
+				CDistributedAppLogReader_LogKeyAndEntry LogKeyAndEntry{fg_Move(Key).f_LogInfoKey(), fg_Move(Value).f_Entry(Key)};
+
+				mint ThisTime = NStream::fg_GetBinaryStreamSize(LogKeyAndEntry);
+
+				if ((nBytesInBatch + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize) && !Batch.f_IsEmpty())
+				{
+					co_yield fg_Move(Batch);
+					nBytesInBatch = 0;
+				}
+
+				Batch.f_Insert(fg_Move(LogKeyAndEntry));
+				nBytesInBatch += ThisTime;
 
 				if (Batch.f_GetLen() >= _BatchSize)
+				{
 					co_yield fg_Move(Batch);
+					nBytesInBatch = 0;
+				}
 			}
 
 			if (!Batch.f_IsEmpty())

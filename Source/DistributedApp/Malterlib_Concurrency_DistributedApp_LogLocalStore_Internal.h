@@ -79,12 +79,17 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
 		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasCreated);
-		TCFuture<uint32> f_NewLogEntries(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries);
+		TCFuture<uint32> f_NewLogEntries
+			(
+				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
+				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
+			)
+		;
  		TCFuture<void> f_StoreLogEntries
 			(
 				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
 				, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey
-				, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries
+				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 			)
 		;
  		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey);

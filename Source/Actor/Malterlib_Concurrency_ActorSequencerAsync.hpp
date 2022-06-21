@@ -23,7 +23,6 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnType>
 	TCFuture<CActorSubscription> TCActorSequencerAsync<t_CReturnType>::f_Sequence()
-		requires (NTraits::TCIsSame<t_CReturnType, void>::mc_Value)
 	{
 		TCPromise<CActorSubscription> Promise;
 
@@ -38,18 +37,23 @@ namespace NMib::NConcurrency
 				}
 
 				auto &ToSequence = State.m_ToSequence.f_Insert(CToSequenceEntry{});
-				ToSequence.m_fToSequence = [Promise](CActorSubscription &&_DoneSubscription) -> TCFuture<void>
+				ToSequence.m_fToSequence = [Promise](CActorSubscription &&_DoneSubscription) -> TCFuture<t_CReturnType>
 					{
-						TCPromise<void> NewPromise;
+						TCPromise<t_CReturnType> NewPromise;
 
 						if (!Promise.f_IsSet())
 							Promise.f_SetResult(fg_Move(_DoneSubscription));
 
-						return NewPromise <<= g_Void;
+						if constexpr (NTraits::TCIsSame<t_CReturnType, void>::mc_Value)
+							return NewPromise <<= g_Void;
+						else if constexpr (NTraits::TCHasTrivialDefaultConstructor<t_CReturnType>::mc_Value)
+							return NewPromise <<= t_CReturnType{};
+						else
+							return NewPromise <<= DMibErrorInstance("Value");
 					}
 				;
 
-				ToSequence.m_Promise.f_Future() > [Promise](TCAsyncResult<void> &&_Result)
+				ToSequence.m_Promise.f_Future() > [Promise](TCAsyncResult<t_CReturnType> &&_Result)
 					{
 						if (!Promise.f_IsSet() && !_Result)
 							Promise.f_SetException(fg_Move(_Result));
@@ -62,8 +66,8 @@ namespace NMib::NConcurrency
 
 		if (fg_CurrentActorProcessing())
 			fQueueSequence();
-
-		g_Dispatch / fg_Move(fQueueSequence) > fg_DiscardResult();
+		else
+			g_Dispatch / fg_Move(fQueueSequence) > fg_DiscardResult();
 
 		return Promise.f_MoveFuture();
 	}

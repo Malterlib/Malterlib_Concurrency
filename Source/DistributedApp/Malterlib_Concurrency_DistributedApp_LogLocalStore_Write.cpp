@@ -127,7 +127,7 @@ namespace NMib::NConcurrency
 			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
 			, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey
 		)
-		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
+		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
 	{
 		return g_ActorFunctor
 			(
@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 				}
 			)
 			/ [this, _LogInfoKey, _DatabaseKey, AllowDestroy = g_AllowWrongThreadDestroy]
-			(TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries) mutable -> TCFuture<void>
+			(TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries) mutable -> TCFuture<CDistributedAppLogReporter::CReportEntriesResult>
 			{
 				auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 				if (!pLog)
@@ -167,11 +167,15 @@ namespace NMib::NConcurrency
 					.f_Wrap()
 				;
 
+				CDistributedAppLogReporter::CReportEntriesResult ReportEntriesResult;
+				ReportEntriesResult.m_ReportDepth = 1;
 				if (!UpstreamResult)
 				{
 					auto ExceptionStr = UpstreamResult.f_GetExceptionStr();
 					DMibLogWithCategory(LogLocalStore, Error, "Error sending log entries to upstream: {}", ExceptionStr);
 				}
+				else
+					ReportEntriesResult.m_ReportDepth = *UpstreamResult;
 
 				if (!DatabaseResult)
 				{
@@ -180,7 +184,7 @@ namespace NMib::NConcurrency
 					co_return DMibErrorInstance("Failed to store log entries in database, see log for error.");
 				}
 
-				co_return {};
+				co_return ReportEntriesResult;
 			}
 		;
 	}

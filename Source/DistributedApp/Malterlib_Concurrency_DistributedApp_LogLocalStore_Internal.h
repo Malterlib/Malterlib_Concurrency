@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 			CLog *m_pLog = nullptr;
 			CRemoteLogReporterInterface *m_pInterface = nullptr;
 			CDistributedAppLogReporter::CLogReporter m_Reporter;
-			TCActorSequencerAsync<void> m_WriteSequencer;
+			TCActorSequencerAsync<uint32> m_WriteSequencer;
 			DMibListLinkDS_Link(CLogReporter, m_LinkInterface);
 			DMibListLinkDS_Link(CLogReporter, m_LinkFailed);
 		};
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
 		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasCreated);
-		TCFuture<void> f_NewLogEntries(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries);
+		TCFuture<uint32> f_NewLogEntries(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries);
  		TCFuture<void> f_StoreLogEntries
 			(
 				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
  		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey);
 
 		auto f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey)
-			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
+			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
 		;
 
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);

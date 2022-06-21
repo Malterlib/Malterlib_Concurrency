@@ -132,4 +132,11 @@ namespace NMib::NConcurrency
 	{
 		o_Str += typename tf_CStr::CFormat("Application: {}") << m_ApplicationName;
 	}
+
+	template <typename tf_CStream>
+	void CDistributedAppLogReporter::CReportEntriesResult::f_Stream(tf_CStream &_Stream)
+	{
+		if (_Stream.f_GetVersion() >= EProtocolVersion_ReportEntriesDepth)
+			_Stream % m_ReportDepth;
+	}
 }

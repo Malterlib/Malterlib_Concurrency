@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 					Data.m_SourceLocation = {Message.m_Location.m_pFile, Message.m_Location.m_Line};
 			}
 
-			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)) > NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&_Result)
+			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)) > NPrivate::fg_DirectResultActor() / [](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
 				{
 					if (!_Result.f_HasExceptionType<CExceptionActorDeleted>() && !_Result)
 						DMibConErrOut2("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());

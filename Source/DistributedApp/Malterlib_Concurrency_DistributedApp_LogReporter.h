@@ -21,8 +21,11 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x101
-			, EProtocolVersion_Current = 0x102
+
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
+			, EProtocolVersion_ReportEntriesDepth = 0x103
+
+			, EProtocolVersion_Current = 0x103
 		};
 
 		enum ELogSeverity : uint32
@@ -176,12 +179,20 @@ namespace NMib::NConcurrency
 			NStr::CStr m_Name;
 		};
 
+		struct CReportEntriesResult
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			uint32 m_ReportDepth = 0;
+		};
+
 		struct CLogReporter
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CLogEntry> &&_Entries)> m_fReportEntries;
+			TCActorFunctorWithID<TCFuture<CReportEntriesResult> (NContainer::TCVector<CLogEntry> &&_Entries)> m_fReportEntries;
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
 

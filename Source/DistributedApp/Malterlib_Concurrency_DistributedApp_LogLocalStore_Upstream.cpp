@@ -204,7 +204,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
+	TCFuture<uint32> CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
 			, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries
@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 	{
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 		if (!pLog)
-			co_return {};
+			co_return 1;
 
 		TCVector<TCVector<CDistributedAppLogReporter::CLogEntry>> EntriesChunks;
 
@@ -234,43 +234,45 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCActorResultVector<void> Results;
+		TCActorResultVector<uint32> Results;
 
 		for (auto &Entries : EntriesChunks)
 		{
 			for (auto &Reporter : pLog->m_LogReporters)
 			{
 				auto WeakActor = pLog->m_LogReporters.fs_GetKey(Reporter);
-				Reporter.m_WriteSequencer / [this, Entries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
+				Reporter.m_WriteSequencer / [this, Entries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
 					{
 						auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 						if (!pLog)
-							co_return {};
+							co_return 0;
 
 						auto pReporter = pLog->m_LogReporters.f_FindEqual(WeakActor);
 						if (!pReporter)
-							co_return {};
+							co_return 0;
 
 						if (pReporter->m_LinkFailed.f_IsInList())
-							co_return {};
+							co_return 0;
 
 						if (!pReporter->m_Reporter.m_fReportEntries)
-							co_return {};
+							co_return 0;
 
-						co_await pReporter->m_Reporter.m_fReportEntries(fg_Move(Entries));
+						auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(fg_Move(Entries));
 
 						(void)_DoneSubscription;
 
-						co_return {};
+						co_return ReportEntriesResult.m_ReportDepth;
 					}
 					> Results.f_AddResult()
 				;
 			}
 		}
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		uint32 MaxReportDepth = 0;
+		for (auto ReportDepth : co_await Results.f_GetResults() | g_Unwrap)
+			MaxReportDepth = fg_Max(ReportDepth, MaxReportDepth);
 
-		co_return {};
+		co_return MaxReportDepth + 1;
 	}
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceAdded

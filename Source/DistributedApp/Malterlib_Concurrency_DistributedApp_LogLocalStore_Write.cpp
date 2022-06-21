@@ -217,7 +217,7 @@ namespace NMib::NConcurrency
 		;
 
 		bool bWasCreated = LogMap.f_WasCreated();
-		bool bWasAdded = ++pLog->m_ActiveRefCount == 0;
+		bool bWasAdded = ++pLog->m_ActiveRefCount == 1;
 
 		if (!pLog->m_pCanDestroy)
 			pLog->m_pCanDestroy = fg_Construct();

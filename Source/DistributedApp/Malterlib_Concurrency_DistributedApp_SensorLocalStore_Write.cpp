@@ -209,7 +209,7 @@ namespace NMib::NConcurrency
 		;
 
 		bool bWasCreated = SensorMap.f_WasCreated();
-		bool bWasAdded = ++pSensor->m_ActiveRefCount == 0;
+		bool bWasAdded = ++pSensor->m_ActiveRefCount == 1;
 
 		if (!pSensor->m_pCanDestroy)
 			pSensor->m_pCanDestroy = fg_Construct();

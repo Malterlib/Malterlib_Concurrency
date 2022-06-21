@@ -91,6 +91,7 @@ namespace NMib::NConcurrency
 		{
 			ELogOutputFlag_None = 0
 			, ELogOutputFlag_Json = DMibBit(0)
+			, ELogOutputFlag_Raw = DMibBit(1)
 		};
 
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);

@@ -160,9 +160,11 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseFlags = [](CEJSON const &_Params)
+		auto fParseFlags = [](CEJSON const &_Params, bool _bRaw)
 			{
 				ELogOutputFlag Flags = ELogOutputFlag_None;
+				if (_bRaw && _Params["Raw"].f_Boolean())
+					Flags |= ELogOutputFlag_Raw;
 				if (_Params["Json"].f_Boolean())
 					Flags |= ELogOutputFlag_Json;
 
@@ -193,7 +195,7 @@ namespace NMib::NConcurrency
 							_Params
 							, _pCommandLine
 							, fParseLogFilter(_Params)
-							, fParseFlags(_Params)
+							, fParseFlags(_Params, false)
 							, _Params["Verbosity"].f_Integer()
 							, _Params["TableType"].f_String()
 						)
@@ -216,6 +218,12 @@ namespace NMib::NConcurrency
 						, Option_LogIdentifier
 						, Option_Verbose
 						, Option_Json
+						, "Raw?"_=
+						{
+							"Names"_= {"--raw", "-r"}
+							, "Default"_= false
+							, "Description"_= "Output log entries raw."
+						}
 						, "FilterMessage?"_=
 						{
 							"Names"_= {"--filter-message"}
@@ -357,7 +365,7 @@ namespace NMib::NConcurrency
 							, _pCommandLine
 							, Filter
 							, _Params["MaxEntries"].f_Integer()
-							, fParseFlags(_Params)
+							, fParseFlags(_Params, true)
 							, _Params["Verbosity"].f_Integer()
 							, _Params["TableType"].f_String()
 						)
@@ -678,7 +686,9 @@ namespace NMib::NConcurrency
 
 				auto &Data = Entry.m_Entry.m_Data;
 
-				if (_Flags & ELogOutputFlag_Json)
+				if (_Flags & ELogOutputFlag_Raw)
+					*_pCommandLine += CStrSecure::CFormat("{}\n") << Data.m_Message;
+				else if (_Flags & ELogOutputFlag_Json)
 				{
 					JsonOutputArray.f_Insert
 						(
@@ -784,16 +794,18 @@ namespace NMib::NConcurrency
 
 				++nEntries;
 				fOutputStatus();
+
 				if (_MaxEntries > 0u && nEntries >= _MaxEntries)
 					break;
 			}
+
 			if (_MaxEntries > 0u && nEntries >= _MaxEntries)
 				break;
 		}
 
-		co_await _pCommandLine->f_StdErr("");
-
-		if (_Flags & ELogOutputFlag_Json)
+		if (_Flags & ELogOutputFlag_Raw)
+			;
+		else if (_Flags & ELogOutputFlag_Json)
 		{
 			if (_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst)
 				JsonOutputArray = JsonOutputArray.f_Reverse();

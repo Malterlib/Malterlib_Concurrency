@@ -791,7 +791,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 #if DMibEnableSafeCheck > 0
 			auto Owner = m_CoroutineOwner.f_Lock();
-			DMibFastCheck(Owner && Owner->f_CurrentlyProcessing());
+			DMibFastCheck(Owner && Owner->f_CurrentlyProcessing() || m_bIsGenerator);
 #endif
 			m_Coroutine.destroy();
 		}

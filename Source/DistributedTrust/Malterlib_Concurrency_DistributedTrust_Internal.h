@@ -210,6 +210,7 @@ namespace NMib::NConcurrency
 				, CBasicConfig const &_Basic
 				, CDefaultUser const &_DefaultUser
 				, NContainer::TCSet<CListenConfig> const &_Listen
+				, NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_PrimaryListen
 				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 				, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 				, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
@@ -272,6 +273,8 @@ namespace NMib::NConcurrency
 
 		NContainer::TCMap<CListenConfig, CListenState> m_Listen;
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
+
+		CListenState *m_pPrimaryListen = nullptr;
 
 		NContainer::TCMap<NStr::CStr, CHostState> m_Hosts;
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CConnectionState> m_ClientConnections;

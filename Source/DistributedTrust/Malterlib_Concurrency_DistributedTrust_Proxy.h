@@ -22,36 +22,39 @@ namespace NMib::NConcurrency
 			, EPermission_Listen_Read = DMibBit(1)
 			, EPermission_Listen_Add = DMibBit(2)
 			, EPermission_Listen_Remove = DMibBit(3)
-			, EPermission_Listen = EPermission_Listen_Read | EPermission_Listen_Add | EPermission_Listen_Remove  
 
 			, EPermission_Client_Read = DMibBit(4)
 			, EPermission_Client_Add = DMibBit(5)
 			, EPermission_Client_Remove = DMibBit(6)
-			, EPermission_Client = EPermission_Client_Read | EPermission_Client_Add | EPermission_Client_Remove 
 
 			, EPermission_ClientConnection_Read = DMibBit(7)
 			, EPermission_ClientConnection_Write = DMibBit(8)
 			, EPermission_ClientConnection_Remove = DMibBit(9)
-			, EPermission_ClientConnection = EPermission_ClientConnection_Read | EPermission_ClientConnection_Write | EPermission_ClientConnection_Remove 
 
 			, EPermission_NamespacePermissions_Read = DMibBit(10)
 			, EPermission_NamespacePermissions_Add = DMibBit(11)
 			, EPermission_NamespacePermissions_Remove = DMibBit(12)
-			, EPermission_NamespacePermissions = EPermission_NamespacePermissions_Read | EPermission_NamespacePermissions_Add | EPermission_NamespacePermissions_Remove
 
 			, EPermission_Permissions_Read = DMibBit(13)
 			, EPermission_Permissions_Add = DMibBit(14)
 			, EPermission_Permissions_Remove = DMibBit(15)
-			, EPermission_Permissions = EPermission_Permissions_Read | EPermission_Permissions_Add | EPermission_Permissions_Remove
 
 			, EPermission_User_Read = DMibBit(16)
 			, EPermission_User_Write = DMibBit(17)
 			, EPermission_User_Remove = DMibBit(18)
-			, EPermission_UserPermissions = EPermission_User_Read | EPermission_User_Write | EPermission_User_Remove
 
 			, EPermission_UserPrivate_Read = DMibBit(19)
 
 			, EPermission_ConnectionsDebugStats_Read = DMibBit(20)
+
+			, EPermission_Listen_Write = DMibBit(21)
+
+			, EPermission_Listen = EPermission_Listen_Read | EPermission_Listen_Write | EPermission_Listen_Add | EPermission_Listen_Remove
+			, EPermission_Client = EPermission_Client_Read | EPermission_Client_Add | EPermission_Client_Remove
+			, EPermission_ClientConnection = EPermission_ClientConnection_Read | EPermission_ClientConnection_Write | EPermission_ClientConnection_Remove
+			, EPermission_NamespacePermissions = EPermission_NamespacePermissions_Read | EPermission_NamespacePermissions_Add | EPermission_NamespacePermissions_Remove
+			, EPermission_Permissions = EPermission_Permissions_Read | EPermission_Permissions_Add | EPermission_Permissions_Remove
+			, EPermission_UserPermissions = EPermission_User_Read | EPermission_User_Write | EPermission_User_Remove
 
 			, EPermission_All =
 			(
@@ -85,6 +88,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) override;
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) override;
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) override;
+		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) override;
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
 
 		TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() override;
 		TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) override;

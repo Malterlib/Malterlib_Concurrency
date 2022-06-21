@@ -141,9 +141,12 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManager_Address ForListen;
 		if (_ForListen.f_IsEmpty())
 		{
-			if (!Internal.m_PrimaryListen.m_URL.f_IsValid())
-				co_return DMibErrorInstance("The app has not been configured to listen, so ticket cannot be generated");
-			ForListen = Internal.m_PrimaryListen;
+			auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+
+			if (!PrimaryListen)
+				co_return DMibErrorInstance("The app does not have a configured primary listen, so ticket cannot be generated");
+
+			ForListen = *PrimaryListen;
 		}
 		else
 			ForListen.m_URL = _ForListen;

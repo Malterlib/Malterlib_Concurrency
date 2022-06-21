@@ -13,6 +13,8 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_AddListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_HasListen);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_SetPrimaryListen);
+		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GetPrimaryListen);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_EnumClients);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket);
 		DMibPublishActorFunction(CDistributedActorTrustManagerInterface::f_RemoveClient);

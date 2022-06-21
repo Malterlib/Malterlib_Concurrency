@@ -213,6 +213,9 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_AddListenConfig(CListenConfig const &_Config) = 0;
 		virtual TCFuture<void> f_RemoveListenConfig(CListenConfig const &_Config) = 0;
 
+		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
+		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) = 0;
+
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) = 0;
 		virtual TCFuture<CClient> f_GetClient(NStr::CStr const &_HostID) = 0;
 		virtual TCFuture<NStorage::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) = 0;

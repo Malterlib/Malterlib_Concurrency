@@ -494,6 +494,22 @@ namespace NMib::NConcurrency
 							"Type"_= ""
 							, "Description"_= "The address you want to start listening on."
 						}
+						, "MakePrimary?"_=
+						{
+							"Default"_= false
+							, "Description"_= ""
+						}
+					}
+					, "Options"_=
+					{
+						"Primary?"_=
+						{
+							"Names"_= {"--primary", "-p"}
+							, "Default"_= false
+							, "Description"_= "Make the new address the primary listen.\n"
+							"If no listen currently exists the new address will always be made primary."
+						}
+						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
 				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -503,7 +519,7 @@ namespace NMib::NConcurrency
 							"Add trust listen address"
 							, [=]() -> TCFuture<uint32>
 							{
-								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AddListen, _pCommandLine, _Params["ListenURL"].f_String());
+								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AddListen, _pCommandLine, _Params["ListenURL"].f_String(), _Params["Primary"].f_Boolean());
 							}
 						)
 					;

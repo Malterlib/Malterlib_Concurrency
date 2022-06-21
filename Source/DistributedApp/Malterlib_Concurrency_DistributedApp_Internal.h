@@ -34,7 +34,6 @@ namespace NMib::NConcurrency
 		TCActor<CSeparateThreadActor> m_CleanupFilesActor;
 		TCDistributedActor<CCommandLine> m_CommandLine;
 		CDistributedActorPublication m_CommandLinePublication;
-		CDistributedActorTrustManager_Address m_PrimaryListen;
 		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpec;
 		NStorage::TCUniquePointer<TCActorCallOnce<void>> m_pInitOnce;
 		COnScopeExitShared m_pStdInCleanup;

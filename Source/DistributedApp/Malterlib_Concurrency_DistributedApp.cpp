@@ -282,104 +282,51 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_SetupListen()
 	{
-		TCPromise<void> Promise;
-
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up listen config");
 
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 
-		CDistributedActorTrustManager_Address LocalListen;
-		LocalListen.m_URL = fp_GetLocalAddress();
-
-		auto &Internal = *mp_pInternal;
-
-		bool bSetPrimary = false;
-
+		// Deduce primary listen from old config and remove the config
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
-		if (pListen)
+		if (!pListen)
+			co_return {};
+
+		auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+		if (!PrimaryListen)
 		{
-			bool bFirst = true;
+			CDistributedActorTrustManager_Address LocalListen;
+			LocalListen.m_URL = fp_GetLocalAddress();
+
 			for (auto &Object : pListen->f_Array())
 			{
 				if (!Object.f_IsObject())
-					return Promise <<= DMibErrorInstance("Invalid listen entry. Entry needs to be an object with 'Address' specified");
+					continue;
 
 				CDistributedActorTrustManager_Address Address;
 				if (auto pAddress = Object.f_GetMember("Address"))
 				{
 					if (pAddress->f_Type() != EJSONType_String)
-						return Promise <<= DMibErrorInstance("Listen 'Address' has wrong type, only string is supported");
+						continue;
 					if (!Address.m_URL.f_Decode(pAddress->f_String()))
-						return Promise <<= DMibErrorInstance(fg_Format("Invalid listen URL '{}'", pAddress->f_String()));
+						continue;
 					if (Address.m_URL.f_GetScheme() != "wss")
-						return Promise <<= DMibErrorInstance(fg_Format("Invalid scheme in URL '{}': Only wss is currently supported", pAddress->f_String()));
+						continue;
 				}
 				else
-					return Promise <<= DMibErrorInstance("Missing 'Address' for listen entry");
+					continue;
 
-				if (bFirst)
-				{
-					Internal.m_PrimaryListen = Address;
-					bSetPrimary = true;
-				}
-				bFirst = false;
+				if (Address == LocalListen && !mp_Settings.m_bCanUserLocalListenAsPrimary)
+					continue;
 
-				if (Address == LocalListen)
-				{
-					return Promise <<= DMibErrorInstance
-						(
-							fg_Format("'{}' cannot be used as listen address, it is reserved for local command line communication", fp_GetLocalAddress().f_Encode())
-						)
-					;
-				}
-				WantedListens[Address];
+				co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, Address);
+				break;
 			}
 		}
-		WantedListens[LocalListen];
 
-		if (!bSetPrimary && mp_Settings.m_bCanUserLocalListenAsPrimary)
-			Internal.m_PrimaryListen = LocalListen;
+		mp_State.m_ConfigDatabase.m_Data.f_RemoveMember("Listen");
+		co_await mp_State.m_ConfigDatabase.f_Save();
 
-		mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens)
-			> Promise % "Failed to enum current listen" / [this, Promise, WantedListens](TCSet<CDistributedActorTrustManager_Address> &&_Listens)
-			{
-				TCActorResultVector<void> ChangesResults;
-				bool bChanged = false;
-				for (auto const &CurrentListen : _Listens)
-				{
-					if (WantedListens.f_FindEqual(CurrentListen))
-						continue;
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, CurrentListen) > ChangesResults.f_AddResult();
-					DMibLogWithCategory(Mib/Concurrency/App, Debug, "Removing listen config {}", CurrentListen.m_URL.f_Encode());
-					bChanged = true;
-				}
-				for (auto const &WantedListen : WantedListens)
-				{
-					if (_Listens.f_FindEqual(WantedListen))
-						continue;
-					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, WantedListen) > ChangesResults.f_AddResult();
-					DMibLogWithCategory(Mib/Concurrency/App, Debug, "Adding listen config {}", WantedListen.m_URL.f_Encode());
-					bChanged = true;
-				}
-				if (!bChanged)
-				{
-					DMibLogWithCategory(Mib/Concurrency/App, Debug, "No listen config changes needed");
-					Promise.f_SetResult();
-					return;
-				}
-				ChangesResults.f_GetResults() > [Promise](TCAsyncResult<TCVector<TCAsyncResult<void>>> &&_Results)
-					{
-						if (!fg_CombineResults(Promise, fg_Move(_Results)))
-							return;
-
-						DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished changing listen config");
-						Promise.f_SetResult();
-					}
-				;
-			}
-		;
-
-		return Promise.f_MoveFuture();
+		co_return {};
 	}
 
 	void CDistributedAppActor::fp_CleanupEnclaveSockets()

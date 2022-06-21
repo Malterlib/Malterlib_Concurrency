@@ -29,6 +29,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListenConfig(CListenConfig const &_Config) override;
 		TCFuture<void> f_RemoveListenConfig(CListenConfig const &_Config) override;
 
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
+		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) override;
+
 		TCFuture<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override;
 		TCFuture<CClient> f_GetClient(NStr::CStr const &_HostID) override;
 		TCFuture<NStorage::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) override;

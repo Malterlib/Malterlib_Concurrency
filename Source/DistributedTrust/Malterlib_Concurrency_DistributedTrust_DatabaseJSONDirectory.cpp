@@ -18,6 +18,11 @@ namespace NMib::NConcurrency
 	{
 		using CActorHolder = CSeparateThreadActorHolder;
 
+		struct CPrimaryListen
+		{
+			CDistributedActorTrustManager_Address m_Address;
+		};
+
 		struct CSerial
 		{
 			int32 m_Serial = 1;
@@ -89,6 +94,9 @@ namespace NMib::NConcurrency
 		void f_FromJSON(CUserInfo &_UserInfo, CEJSON const &_JSON, CStr const &_Name) const;
 		CEJSON f_ToJSON(CUserAuthenticationFactor const &_Factor) const;
 		void f_FromJSON(CUserAuthenticationFactor &_Factor, CEJSON const &_JSON, CStr const &_Name) const;
+
+		CEJSON f_ToJSON(CPrimaryListen const &_ClientConnection) const;
+		void f_FromJSON(CPrimaryListen &o_ClientConnection, CEJSON const &_JSON, CStr const &_Name) const;
 
 		void f_DoConversion(uint32 _OldVersion);
 		void f_CheckState();
@@ -380,6 +388,44 @@ namespace NMib::NConcurrency
 				auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
 				if (!Internal.f_Delete("ListenConfigs", NameHash))
 					DMibError("No such listen config");
+			}
+		;
+	}
+
+	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPrimaryListen()
+	{
+		return TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>>::fs_RunProtected<NException::CException>() /
+			[&]
+			{
+				auto &Internal = *mp_pInternal;
+				Internal.f_CheckState();
+
+				NStorage::TCOptional<CDistributedActorTrustManager_Address> Return;
+				CInternal::CPrimaryListen PrimaryListen;
+				if (Internal.f_Read(PrimaryListen, "PrimaryListen"))
+					Return = PrimaryListen.m_Address;
+
+				return Return;
+			}
+		;
+	}
+
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	{
+		return TCFuture<void>::fs_RunProtected<NException::CException>() /
+			[&]
+			{
+				auto &Internal = *mp_pInternal;
+				Internal.f_CheckState();
+
+				if (_Address)
+				{
+					CInternal::CPrimaryListen Listen;
+					Listen.m_Address = *_Address;
+					Internal.f_Write(Listen, "PrimaryListen");
+				}
+				else
+					Internal.f_Delete("PrimaryListen");
 			}
 		;
 	}
@@ -1182,6 +1228,18 @@ namespace NMib::NConcurrency
 	{
 		o_ClientConnection.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
 		f_FromJSON(o_ClientConnection.m_ClientConnection, _JSON, _Name);
+	}
+
+	CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CPrimaryListen const &_ClientConnection) const
+	{
+		CEJSON JSON;
+		f_EncodeAddress(JSON["Address"], _ClientConnection.m_Address);
+		return JSON;
+	}
+
+	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJSON(CPrimaryListen &o_ClientConnection, CEJSON const &_JSON, CStr const &_Name) const
+	{
+		o_ClientConnection.m_Address.m_URL = _JSON["Address"].f_String();
 	}
 
 	CEJSON CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJSON(CListenConfig const &_ListenConfig) const

@@ -19,7 +19,8 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x102
-			, EProtocolVersion_Current = 0x107
+			, EProtocolVersion_SupportPrimaryListen = 0x108
+			, EProtocolVersion_Current = 0x108
 		};
 	  
 		struct CTrustTicket
@@ -256,6 +257,9 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address) = 0;
 		virtual TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address) = 0;
 		virtual TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address) = 0;
+
+		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) = 0;
+		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>> f_EnumClients() = 0;
 		virtual TCFuture<CTrustGenerateConnectionTicketResult> f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command) = 0;

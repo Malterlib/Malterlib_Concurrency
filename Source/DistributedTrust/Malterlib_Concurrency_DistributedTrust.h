@@ -311,6 +311,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<void> f_RemoveListen(CDistributedActorTrustManager_Address const &_Address);
 		TCFuture<bool> f_HasListen(CDistributedActorTrustManager_Address const &_Address);
+		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address);
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen();
 		TCFuture<void> f_Debug_BreakListenConnections(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address const &_Address, bool _bBroken);
 

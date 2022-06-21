@@ -103,6 +103,17 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
+	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CTrustManagerDatabaseTestHelper::f_GetPrimaryListen()
+	{
+		co_return m_PrimaryListen;
+	}
+
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	{
+		m_PrimaryListen = _Address;
+
+		co_return {};
+	}
 
 	TCFuture<NContainer::TCMap<CStr, CClient>> CTrustManagerDatabaseTestHelper::f_EnumClients(bool _bIncludeFullInfo)
 	{

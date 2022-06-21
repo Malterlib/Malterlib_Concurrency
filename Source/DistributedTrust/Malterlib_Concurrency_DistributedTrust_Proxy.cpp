@@ -77,7 +77,21 @@ namespace NMib::NConcurrency
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, _Address);
 	}
-	
+
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	{
+		if (!fp_CheckPermissions(EPermission_Listen_Write))
+			co_return fp_AccessDenied();
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, _Address);
+	}
+
+	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerProxy::f_GetPrimaryListen()
+	{
+		if (!fp_CheckPermissions(EPermission_Listen_Read))
+			co_return fp_AccessDenied();
+		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+	}
+
 	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Read))

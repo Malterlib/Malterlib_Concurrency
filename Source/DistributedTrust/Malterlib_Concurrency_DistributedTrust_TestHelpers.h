@@ -24,6 +24,8 @@ namespace NMib::NConcurrency
 		TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() override;
 		TCFuture<void> f_AddListenConfig(CListenConfig const &_Config) override;
 		TCFuture<void> f_RemoveListenConfig(CListenConfig const &_Config) override;
+		TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() override;
+		TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) override;
 		TCFuture<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) override;
 		TCFuture<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) override;
 		TCFuture<CClient> f_GetClient(NStr::CStr const &_HostID) override;
@@ -62,6 +64,7 @@ namespace NMib::NConcurrency
 
 		NContainer::TCMap<NStr::CStr, CServerCertificate> m_ServerCertificates;
 		NContainer::TCSet<CListenConfig> m_ListenConfigs;
+		NStorage::TCOptional<CDistributedActorTrustManager_Address> m_PrimaryListen;
 		NContainer::TCMap<NStr::CStr, CClient> m_Clients;
 		NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> m_ClientConnections;
 		NContainer::TCMap<NStr::CStr, CNamespace> m_Namespaces;

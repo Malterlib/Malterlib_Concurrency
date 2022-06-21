@@ -250,6 +250,74 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
+	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	{
+		TCPromise<void> Promise;
+		auto &Internal = *mp_pInternal;
+		Internal.f_RunAfterInit
+			(
+				Promise
+				, [this, Promise, _Address]
+				{
+					auto &Internal = *mp_pInternal;
+
+					if (_Address)
+					{
+						ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
+						ListenConfig.m_Address = *_Address;
+
+						auto pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+						if (!pListen)
+						{
+							Promise.f_SetException(DMibErrorInstance("Listen address not found"));
+							return;
+						}
+
+						Internal.m_pPrimaryListen = pListen;
+					}
+					else
+						Internal.m_pPrimaryListen = nullptr;
+
+					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetPrimaryListen, _Address) > [Promise](TCAsyncResult<void> &&_Result)
+						{
+							if (!_Result)
+							{
+								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to set primary listen in database: {}", _Result.f_GetExceptionStr())));
+								return;
+							}
+
+							Promise.f_SetResult();
+						}
+					;
+
+				}
+			)
+		;
+		return Promise.f_MoveFuture();
+	}
+
+	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_GetPrimaryListen()
+	{
+		TCPromise<NStorage::TCOptional<CDistributedActorTrustManager_Address>> Promise;
+		auto &Internal = *mp_pInternal;
+		Internal.f_RunAfterInit
+			(
+				Promise
+				, [this, Promise]
+				{
+					auto &Internal = *mp_pInternal;
+					if (Internal.m_pPrimaryListen)
+					{
+						Promise.f_SetResult(Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen).m_Address);
+						return;
+					}
+					Promise.f_SetResult(NStorage::TCOptional<CDistributedActorTrustManager_Address>());
+				}
+			)
+		;
+		return Promise.f_MoveFuture();
+	}
+
 	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
 	{
 		TCPromise<NContainer::TCSet<CDistributedActorTrustManager_Address>> Promise;
@@ -319,8 +387,46 @@ namespace NMib::NConcurrency
 											return;
 										}
 										auto &Internal = *mp_pInternal;
-										Internal.m_Listen.f_Remove(ListenConfig);
-										Promise.f_SetResult();
+										auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+										if (!pListen)
+										{
+											Promise.f_SetResult();
+											return;
+										}
+
+										bool bResetPrimaryListen = false;
+										if (pListen == Internal.m_pPrimaryListen)
+										{
+											Internal.m_pPrimaryListen = nullptr;
+											bResetPrimaryListen = true;
+										}
+
+										Internal.m_Listen.f_Remove(pListen);
+
+										if (!bResetPrimaryListen)
+										{
+											Promise.f_SetResult();
+											return;
+										}
+
+										self(&CDistributedActorTrustManager::f_SetPrimaryListen, NStorage::TCOptional<CDistributedActorTrustManager_Address>())
+											> [Promise](TCAsyncResult<void> &&_Result)
+											{
+												if (!_Result)
+												{
+													Promise.f_SetException
+														(
+															DMibErrorInstance
+															(
+																fg_Format("Failed to reset primary listen when removing listen: {}", _Result.f_GetExceptionStr())
+															)
+														)
+													;
+													return;
+												}
+												Promise.f_SetResult();
+											}
+										;
 									}
 								;
 							}

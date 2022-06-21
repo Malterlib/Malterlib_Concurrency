@@ -75,6 +75,7 @@ namespace NMib::NConcurrency
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
+			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetPrimaryListen)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumNamespaces, true)
 			+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true)
@@ -86,6 +87,7 @@ namespace NMib::NConcurrency
 				, TCAsyncResult<CDefaultUser> &&_DefaultUser
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CServerCertificate>> &&_ServerCertificates
 				, TCAsyncResult<NContainer::TCSet<CListenConfig>> &&_ListenConfigs
+				, TCAsyncResult<NStorage::TCOptional<CDistributedActorTrustManager_Address>> &&_PrimaryListen
 				, TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> &&_ClientConnections
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
 				, TCAsyncResult<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> &&_Permissions
@@ -102,6 +104,8 @@ namespace NMib::NConcurrency
 					return Promise.f_SetException(fg_Move(_ServerCertificates));
 				if (!_ListenConfigs)
 					return Promise.f_SetException(fg_Move(_ListenConfigs));
+				if (!_PrimaryListen)
+					return Promise.f_SetException(fg_Move(_PrimaryListen));
 				if (!_ClientConnections)
 					return Promise.f_SetException(fg_Move(_ClientConnections));
 				if (!_Namespaces)
@@ -119,6 +123,7 @@ namespace NMib::NConcurrency
 						, *_BasicConfig
 						, *_DefaultUser
 						, *_ListenConfigs
+						, *_PrimaryListen
 						, *_ServerCertificates
 						, *_ClientConnections
 						, *_Namespaces
@@ -162,6 +167,7 @@ namespace NMib::NConcurrency
 			, CBasicConfig const &_Basic
 			, CDefaultUser const &_DefaultUser
 			, NContainer::TCSet<CListenConfig> const &_Listen
+			, NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_PrimaryListen
 			, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
 			, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
 			, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
@@ -177,6 +183,7 @@ namespace NMib::NConcurrency
 					if (*pDestroyed)
 						return;
 					m_Listen.f_Clear();
+					m_pPrimaryListen = nullptr;
 					m_ClientConnections.f_Clear();
 					m_ClientConnectionsInDatabase.f_Clear();
 					m_Hosts.f_Clear();
@@ -359,6 +366,7 @@ namespace NMib::NConcurrency
 				this
 				,_Promise
 				, _Listen
+				, _PrimaryListen
 				, _ServerCertificates
 				, _ClientConnections
 				, _Namespaces
@@ -405,7 +413,12 @@ namespace NMib::NConcurrency
 				m_HostInfoChangedSubscription = fg_Move(*_HostInfoChangedSubscription);
 				
 				for (auto &Listen : _Listen)
-					m_Listen[Listen];
+				{
+					auto &NewListen = m_Listen[Listen];
+					if (_PrimaryListen && *_PrimaryListen == Listen.m_Address)
+						m_pPrimaryListen = &NewListen;
+				}
+
 				m_ServerCertificates = _ServerCertificates;
 				
 				for (auto &Namespace : _Namespaces)

@@ -328,6 +328,7 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 				, EStdInReaderFlag_None
+				, TCLimitsInt<mint>::mc_Max
 			)
 			> Promise / [=](CActorSubscription &&_Subscription)
 			{

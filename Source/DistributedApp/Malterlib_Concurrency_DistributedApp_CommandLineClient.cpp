@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
 			}
 
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) override
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 
 				fp_CreateInputActor();
 
-				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags);
+				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
 			}
 
 			TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
 			{
-				DMibConOutRaw(_Output);
+				NSys::fg_ConsoleOutput(_Output);
 				co_return {};
 			}
 
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
 			{
-				DMibConErrOutRaw(_Output);
+				NSys::fg_ConsoleErrorOutput(_Output);
 				co_return {};
 			}
 

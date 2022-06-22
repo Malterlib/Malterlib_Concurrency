@@ -936,6 +936,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 		{
 			// Init distribution manager
 			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / _Path;
+			fg_TestAddCleanupPath(SocketPath);
 			CDistributedActorTestHelperCombined TestState(SocketPath);
 			TestState.f_InitServer();
 		}

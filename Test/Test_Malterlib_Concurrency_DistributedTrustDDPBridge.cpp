@@ -35,6 +35,7 @@ namespace
 				CStr ProgramDirectory = NFile::CFile::fs_GetProgramDirectory();
 				CStr RootDirectory = ProgramDirectory + "/DistributedDDPBridgeTests";
 
+				fg_TestAddCleanupPath(RootDirectory);
 
 				CTrustManagerTestHelper ServerState;
 				CTrustManagerTestHelper ClientState;

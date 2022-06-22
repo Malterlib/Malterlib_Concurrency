@@ -1253,6 +1253,8 @@ public:
 		CStr ProgramDirectory = CFile::fs_GetProgramDirectory();
 		CStr RootDirectory = ProgramDirectory + "/DistributedAppAuthenticationTests";
 
+		fg_TestAddCleanupPath(RootDirectory);
+
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, g_Timeout);
 
 		for (mint i = 0; i < 5; ++i)
@@ -2223,7 +2225,9 @@ public:
 		CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
 		CStr ProgramDirectory = CFile::fs_GetProgramDirectory();
-		CStr RootDirectory = ProgramDirectory + "/DistributedAppAuthenticationTests";
+		CStr RootDirectory = ProgramDirectory + "/DistributedAppAuthenticationTestsU2F";
+
+		fg_TestAddCleanupPath(RootDirectory);
 
 		CProcessLaunch::fs_KillProcessesInDirectory("*", {}, RootDirectory, g_Timeout);
 

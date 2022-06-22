@@ -33,6 +33,7 @@ namespace
 			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{
+			fg_TestAddCleanupPath(mp_Settings.m_RootDirectory);
 		}
 
 		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override

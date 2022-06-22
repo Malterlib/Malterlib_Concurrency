@@ -16,6 +16,7 @@ namespace NMib::NConcurrency
 		, mp_ClientCryptography(NCryptography::fg_RandomID())
 		, mp_ListenSocketPath(NStr::CStr::CFormat("UNIX(666):{}") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock"))
 	{
+		NTest::fg_TestAddCleanupPath(_ListenDirectory);
 	}
 
 	CDistributedActorTestHelperCombined::~CDistributedActorTestHelperCombined()

@@ -80,6 +80,8 @@ namespace
 			{
 				mp_bFirstRun = false;
 				CStr ConfigDir = NFile::CFile::fs_GetProgramDirectory() / _Name;
+				fg_TestAddCleanupPath(ConfigDir);
+
 				for (mint i = 0; i < 5; ++i)
 				{
 					try

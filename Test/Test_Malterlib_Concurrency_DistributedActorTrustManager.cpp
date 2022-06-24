@@ -309,10 +309,17 @@ namespace NTestTrustManager
 			TCSharedPointer<CDefaultRunLoop> m_pRunLoop;
 		};
 
+		static CStr fg_GetSocketUrl(CStr const &_SocketName)
+		{
+			CStr Path = NNetwork::fg_GetSafeUnixSocketPath(NFile::CFile::fs_GetProgramDirectory() / ("Sockets/TrustManagerPermissions/{}.sock"_f << _SocketName));
+			fg_TestAddCleanupPath(Path);
+			return NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << Path;
+		}
+
 		struct CPermissionTestState
 		{
-			CPermissionTestState(CState &_State, uint16 _Port)
-				: m_Port{_Port}
+			CPermissionTestState(CState &_State, NStr::CStr const &_SocketName)
+				: m_SocketUrl(fg_GetSocketUrl(_SocketName))
 				, m_ServerTrustManager{f_CreateServerTrustManager(_State)}
 				, m_ClientTrustManager{f_CreateClientTrustManager(_State)}
 				, m_ServerHelper{f_InitServerTrustManager()}
@@ -344,7 +351,7 @@ namespace NTestTrustManager
 				m_ServerHostID = m_ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(m_pRunLoop, g_Timeout);
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:{}/"_f << m_Port;
+				ServerAddress.m_URL = m_SocketUrl;
 				if (!m_ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout))
 					m_ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout);
 
@@ -354,7 +361,7 @@ namespace NTestTrustManager
 			TCActor<CDistributedActorTrustManager> f_InitClientTrustManager()
 			{
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:{}/"_f << m_Port;
+				ServerAddress.m_URL = m_SocketUrl;
 
 				if (!m_ClientTrustManager(&CDistributedActorTrustManager::f_HasClientConnection, ServerAddress).f_CallSync(m_pRunLoop, g_Timeout))
 				{
@@ -490,7 +497,7 @@ namespace NTestTrustManager
 				;
 			}
 
-			uint16 m_Port = 0;
+			NStr::CStr m_SocketUrl;
 
 			TCSharedPointer<CDefaultRunLoop> m_pRunLoop;
 
@@ -581,7 +588,7 @@ namespace NTestTrustManager
 					CStr ClientHostID = ClientTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31394/";
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout));
 
@@ -628,7 +635,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31394/";
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
 					DMibExpectTrue(ServerTrustManager(&CDistributedActorTrustManager::f_HasListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout));
 
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
@@ -644,11 +651,11 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager();
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31395/";
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustBasicChanged");
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 					CDistributedActorTrustManager_Address OldServerAddress;
-					OldServerAddress.m_URL = "wss://localhost:31394/";
+					OldServerAddress.m_URL = fg_GetSocketUrl("TrustBasic");
 
 					ServerTrustManager(&CDistributedActorTrustManager::f_RemoveListen, OldServerAddress).f_CallSync(pRunLoop, g_Timeout);;
 
@@ -720,7 +727,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31396/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveClient");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(pRunLoop, g_Timeout);
@@ -774,7 +781,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31397/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustRemoveDisconnects");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				{
@@ -893,7 +900,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31399/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustBrokenConnections");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				{
@@ -1021,7 +1028,7 @@ namespace NTestTrustManager
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager(fg_Move(ClientOptions));
 
 					CDistributedActorTrustManager_Address ServerAddress;
-					ServerAddress.m_URL = "wss://localhost:31414/";
+					ServerAddress.m_URL = fg_GetSocketUrl("TrustHostCleanup");
 					ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 					CHostInfo HostInfo;
@@ -1166,7 +1173,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31398/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustSecurity");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				{
@@ -1258,7 +1265,7 @@ namespace NTestTrustManager
 				TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager();
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31408/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustMultipleEnclaves");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				{
@@ -1335,7 +1342,7 @@ namespace NTestTrustManager
 				CStr ServerHostID = ServerTrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(pRunLoop, g_Timeout);
 
 				CDistributedActorTrustManager_Address ServerAddress;
-				ServerAddress.m_URL = "wss://localhost:31405/";
+				ServerAddress.m_URL = fg_GetSocketUrl("TrustSubscriptions");
 				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 				{
@@ -1728,7 +1735,7 @@ namespace NTestTrustManager
 					CDistributedActorTestHelper ServerHelper2{ServerTrustManager};
 					{
 						CDistributedActorTrustManager_Address ServerAddress;
-						ServerAddress.m_URL = "wss://localhost:31406/";
+						ServerAddress.m_URL = fg_GetSocketUrl("Trust2HostsNoSub");
 						ServerTrustManager2(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(pRunLoop, g_Timeout);
 
 						auto TrustTicket = ServerTrustManager2(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(pRunLoop, g_Timeout);
@@ -1902,7 +1909,7 @@ namespace NTestTrustManager
 
 				CState State{pRunLoop, _fDatabaseFactory, _fCleanup};
 
-				CPermissionTestState TestState{State, 31407};
+				CPermissionTestState TestState{State, "Permissions"};
 
 				{
 					DMibTestPath("General");
@@ -2100,7 +2107,7 @@ namespace NTestTrustManager
 				CState State{pRunLoop, _fDatabaseFactory, _fCleanup};
 				{
 					DMibTestPath("Setup");
-					CPermissionTestState TestState{State, 31411};
+					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
 							 &CDistributedActorTrustManager::f_SubscribeToPermissions
@@ -2115,7 +2122,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("After Reload");
-					CPermissionTestState TestState{State, 31411};
+					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
 							 &CDistributedActorTrustManager::f_SubscribeToPermissions
@@ -2138,7 +2145,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("After Remove Reload");
-					CPermissionTestState TestState{State, 31411};
+					CPermissionTestState TestState{State, "PermissionsDatabase"};
 					auto TrustedSubscription = TestState.m_ClientTrustManager
 						(
 							 &CDistributedActorTrustManager::f_SubscribeToPermissions
@@ -2189,7 +2196,7 @@ namespace NTestTrustManager
 				TCSet<CStr> NoRemove;
 				{
 					DMibTestPath("Initial");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(pRunLoop, g_Timeout);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(pRunLoop, g_Timeout);
@@ -2246,7 +2253,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("From database");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					auto AllUsers = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUsers, true).f_CallSync(pRunLoop, g_Timeout);
 
@@ -2271,7 +2278,7 @@ namespace NTestTrustManager
 				;
 				{
 					DMibTestPath("Register Authentication");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors).f_CallSync(pRunLoop, g_Timeout);
 					DMibExpect(Factors.f_GetLen(), >=, 2u);
@@ -2292,7 +2299,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Export/Import");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					auto Exported1 = fg_ExportUser(TestState.m_ServerTrustManager, ID1, true).f_CallSync(pRunLoop, g_Timeout);
 					auto Exported2 = fg_ExportUser(TestState.m_ServerTrustManager, ID2, true).f_CallSync(pRunLoop, g_Timeout);
@@ -2394,7 +2401,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Basic testing of the trust proxy");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 					CDistributedActorTrustManagerProxy::CPermissions Permissions;
 					Permissions.m_Permissions = CDistributedActorTrustManagerProxy::EPermission_All;
 
@@ -2441,7 +2448,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Set userinfo and remove metadata");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					TCOptional<NStr::CStr> SetUserName{"NewUser1"};
 					CMetadata UnsetMetadata;
@@ -2474,7 +2481,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Unregister Authentication");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 					TCSharedPointer<CCommandLineControl> pCommandLine;
 
 					auto Factors = TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID1).f_CallSync(pRunLoop, g_Timeout);
@@ -2494,7 +2501,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Remove user");
-					CPermissionTestState TestState{State, 31407};
+					CPermissionTestState TestState{State, "UserDatabase"};
 
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(pRunLoop, g_Timeout);
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID4).f_CallSync(pRunLoop, g_Timeout);
@@ -2539,7 +2546,7 @@ namespace NTestTrustManager
 				CState State{pRunLoop, _fDatabaseFactory, _fCleanup};
 				{
 					DMibTestPath("Basic HostID+UserID permission checks");
-					CPermissionTestState TestState{State, 31415};
+					CPermissionTestState TestState{State, "PermissionsCombos"};
 
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID1, "User1").f_CallSync(pRunLoop, g_Timeout);
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_AddUser, ID2, "User2").f_CallSync(pRunLoop, g_Timeout);

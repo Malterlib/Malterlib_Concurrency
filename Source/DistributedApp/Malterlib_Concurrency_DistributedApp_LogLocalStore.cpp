@@ -130,9 +130,36 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_PerformLocalCleanup()
 	{
-		auto WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
-		WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-		co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
+		bool bForceCompact = false;
+		do
+		{
+			auto WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+			WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+			if (bForceCompact)
+				co_await m_Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
+			else
+			{
+				auto Result = co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction)).f_Wrap();
+				if (!Result)
+				{
+					if (!bForceCompact && Result.f_GetExceptionStr().f_Find("MDB_MAP_FULL") >= 0)
+					{
+						DMibLogWithCategory(LogLocalStore, Warning, "Failed to commit cleanup transaction, forcing compaction of database");
+						bForceCompact = true;
+						continue;
+					}
+					co_return Result.f_GetException();
+				}
+			}
+
+			auto StaleReadersRemoved = co_await m_Database(&CDatabaseActor::f_CheckForStaleReaders);
+			if (StaleReadersRemoved)
+				DMibLogWithCategory(LogLocalStore, Info, "Removed {} stale readers", StaleReadersRemoved);
+
+			break;
+		}
+		while (true)
+			;
 
 		co_return {};
 	}

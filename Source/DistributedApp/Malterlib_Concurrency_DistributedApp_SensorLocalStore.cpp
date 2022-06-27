@@ -130,36 +130,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_PerformLocalCleanup()
 	{
-		bool bForceCompact = false;
-		do
-		{
-			auto WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
-			WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-			if (bForceCompact)
-				co_await m_Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
-			else
-			{
-				auto Result = co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction)).f_Wrap();
-				if (!Result)
+		co_await m_Database
+			(
+				&CDatabaseActor::f_WriteWithCompaction
+				, g_ActorFunctorWeak / [=](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					if (!bForceCompact && Result.f_GetExceptionStr().f_Find("MDB_MAP_FULL") >= 0)
-					{
-						DMibLogWithCategory(LogLocalStore, Warning, "Failed to commit cleanup transaction, forcing compaction of database");
-						bForceCompact = true;
-						continue;
-					}
-					co_return Result.f_GetException();
+					co_return co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(_Transaction));
 				}
-			}
-
-			auto StaleReadersRemoved = co_await m_Database(&CDatabaseActor::f_CheckForStaleReaders);
-			if (StaleReadersRemoved)
-				DMibLogWithCategory(LogLocalStore, Info, "Removed {} stale readers", StaleReadersRemoved);
-
-			break;
-		}
-		while (true)
-			;
+			)
+		;
 
 		co_return {};
 	}
@@ -201,7 +180,7 @@ namespace NMib::NConcurrency
 
 		if (m_RetentionDays && !m_fCleanup)
 		{
-			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup);
+			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap() > fg_LogError("SensorLocalStore", "Failed to perform initial database cleanup");;
 
 			m_CleanupTimerSubscription = co_await fg_RegisterTimer
 				(
@@ -227,7 +206,7 @@ namespace NMib::NConcurrency
 				{
 					auto Result = co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
 					if (!Result)
-						DMibLogWithCategory(LogLocalStore, Error, "Failures adding new sensor reporter: {}", Result.f_GetExceptionStr());
+						DMibLogWithCategory(SensorLocalStore, Error, "Failures adding new sensor reporter: {}", Result.f_GetExceptionStr());
 
 					co_return {};
 				}
@@ -276,7 +255,7 @@ namespace NMib::NConcurrency
 
 		auto Result = co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceAdded, fg_Move(_SensorReporter), _TrustInfo).f_Wrap();
 		if (!Result)
-			DMibLogWithCategory(LogLocalStore, Error, "Failures adding extra sensor reporter: {}", Result.f_GetExceptionStr());
+			DMibLogWithCategory(SensorLocalStore, Error, "Failures adding extra sensor reporter: {}", Result.f_GetExceptionStr());
 
 		co_return fg_Move(Subscription);
 	}

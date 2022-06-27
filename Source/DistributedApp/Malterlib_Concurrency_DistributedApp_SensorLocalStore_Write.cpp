@@ -20,88 +20,79 @@ namespace NMib::NConcurrency
 
 		auto pCanDestroyTracker = m_pCanDestroyStoringLocal;
 
-		bool bForceCompact = false;
-		do
-		{
-			auto WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
-
-			auto DatabaseKey = _DatabaseKey;
-
-			try
-			{
-				auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
-				smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
-				auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
-				smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
-
-				for (auto &Reading : _Readings)
+		auto Result = co_await m_Database
+			(
+				&CDatabaseActor::f_WriteWithCompaction
+				, g_ActorFunctorWeak / [=](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					smint nBytesInserted = WriteTransaction.m_Transaction.f_SizeStatistics().m_UsedBytes - SizeStats.m_UsedBytes;
-					bool bFreeUpSpace = nBytesInserted >= nBytesLimit || bForceCompact;
+					co_await ECoroutineFlag_CaptureExceptions;
 
-					if (bFreeUpSpace)
-						WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+					auto WriteTransaction = fg_Move(_Transaction);
+					auto DatabaseKey = _DatabaseKey;
 
-					if (nBytesInserted > BatchLimit || bFreeUpSpace)
+					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
+					auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
+					smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
+
+					for (auto &Reading : _Readings)
 					{
-						if (bForceCompact)
-							co_await m_Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
-						else
+						smint nBytesInserted = WriteTransaction.m_Transaction.f_SizeStatistics().m_UsedBytes - SizeStats.m_UsedBytes;
+						bool bFreeUpSpace = nBytesInserted >= nBytesLimit || _bCompacting;
+
+						if (bFreeUpSpace)
+							WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+						if (nBytesInserted > BatchLimit || bFreeUpSpace)
 						{
-							co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
-							if (bFreeUpSpace)
-								co_await m_Database(&CDatabaseActor::f_WaitForAllReaders);
+							if (_bCompacting)
+								co_await m_Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
+							else
+							{
+								co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
+								if (bFreeUpSpace)
+									co_await m_Database(&CDatabaseActor::f_WaitForAllReaders);
+							}
+							WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+							SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+							nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 						}
-						WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
-						SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
-						nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
+
+						DatabaseKey.m_UniqueSequence = Reading.m_UniqueSequence;
+
+						if (WriteTransaction.m_Transaction.f_Exists(DatabaseKey))
+							continue; // Already reported
+
+						NSensorStoreLocalDatabase::CSensorReadingValue Value;
+						Value.m_Timestamp = Reading.m_Timestamp;
+						Value.m_Data = Reading.m_Data;
+
+						NSensorStoreLocalDatabase::CSensorReadingByTime ByTime;
+						ByTime.m_DbPrefix = DatabaseKey.m_DbPrefix;
+						ByTime.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix;
+						ByTime.m_Timestamp = Reading.m_Timestamp;
+						ByTime.m_UniqueSequence = DatabaseKey.m_UniqueSequence;
+
+						ByTime.m_HostID = DatabaseKey.m_HostID;
+						ByTime.m_ApplicationName = DatabaseKey.m_ApplicationName;
+						ByTime.m_Identifier = DatabaseKey.m_Identifier;
+						ByTime.m_IdentifierScope = DatabaseKey.m_IdentifierScope;
+
+						WriteTransaction.m_Transaction.f_Insert(DatabaseKey, Value);
+						WriteTransaction.m_Transaction.f_Insert(ByTime, NSensorStoreLocalDatabase::CSensorReadingByTimeValue());
 					}
 
-					DatabaseKey.m_UniqueSequence = Reading.m_UniqueSequence;
-
-					if (WriteTransaction.m_Transaction.f_Exists(DatabaseKey))
-						continue; // Already reported
-
-					NSensorStoreLocalDatabase::CSensorReadingValue Value;
-					Value.m_Timestamp = Reading.m_Timestamp;
-					Value.m_Data = Reading.m_Data;
-
-					NSensorStoreLocalDatabase::CSensorReadingByTime ByTime;
-					ByTime.m_DbPrefix = DatabaseKey.m_DbPrefix;
-					ByTime.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix;
-					ByTime.m_Timestamp = Reading.m_Timestamp;
-					ByTime.m_UniqueSequence = DatabaseKey.m_UniqueSequence;
-
-					ByTime.m_HostID = DatabaseKey.m_HostID;
-					ByTime.m_ApplicationName = DatabaseKey.m_ApplicationName;
-					ByTime.m_Identifier = DatabaseKey.m_Identifier;
-					ByTime.m_IdentifierScope = DatabaseKey.m_IdentifierScope;
-
-					WriteTransaction.m_Transaction.f_Insert(DatabaseKey, Value);
-					WriteTransaction.m_Transaction.f_Insert(ByTime, NSensorStoreLocalDatabase::CSensorReadingByTimeValue());
+					co_return fg_Move(WriteTransaction);
 				}
+			)
+			.f_Wrap()
+		;
 
-				co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
-			}
-			catch ([[maybe_unused]] CException const &_Exception)
-			{
-				if (!bForceCompact && _Exception.f_GetErrorStr().f_Find("MDB_MAP_FULL") >= 0)
-				{
-					DMibLogWithCategory(LogLocalStore, Warning, "Failed to commit cleanup transaction, forcing compaction of database");
-					bForceCompact = true;
-					continue;
-				}
-				else
-				{
-					DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", _Exception);
-					co_return _Exception.f_ExceptionPointer();
-				}
-			}
-
-			break;
+		if (!Result)
+		{
+			DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Result.f_GetExceptionStr());
+			co_return Result.f_GetException();
 		}
-		while (true)
-			;
 
 		co_return {};
 	}
@@ -245,23 +236,32 @@ namespace NMib::NConcurrency
 			if (bWasChanged)
 			{
 				pSensor->m_SensorInfo = _SensorInfo;
-				try
+
+				auto Result = co_await Internal.m_Database
+					(
+						&CDatabaseActor::f_WriteWithCompaction
+						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorKey>(_SensorInfo)]
+						(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+						{
+							co_await ECoroutineFlag_CaptureExceptions;
+
+							auto WriteTransaction = fg_Move(_Transaction);
+
+							NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
+							DatabaseSensorInfo.m_Info = _SensorInfo;
+							DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
+
+							WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
+
+							co_return fg_Move(WriteTransaction);
+						}
+					)
+					.f_Wrap()
+				;
+
+				if (!Result)
 				{
-					auto WriteTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionWrite);
-
-					auto DatabaseKey = Internal.f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorKey>(_SensorInfo);
-
-					NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
-					DatabaseSensorInfo.m_Info = _SensorInfo;
-					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
-
-					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
-
-					co_await Internal.m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
-				}
-				catch ([[maybe_unused]] CException const &_Exception)
-				{
-					DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", _Exception);
+					DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Result.f_GetExceptionStr());
 					co_return DMibErrorInstance("Failed to store sensor in database, see log for error.");
 				}
 			}

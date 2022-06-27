@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 
 			DMibLogWithCategory
 				(
-					LogLocalStore
+					SensorLocalStore
 					, Info
 					, "Freed up {ns } bytes by deleting {} sensor readings spanning from {tc5} UTC{}{sj2,sf0}:{sj2,sf0} to {tc5} UTC{}{sj2,sf0}:{sj2,sf0}"
 					, OriginalStats.m_UsedBytes - CurrentStats.m_UsedBytes

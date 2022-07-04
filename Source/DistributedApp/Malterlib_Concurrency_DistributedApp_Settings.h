@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_UpdateType(EDistributedAppUpdateType _UpdateType) &&;
 		CDistributedAppActor_Settings &&f_InterfaceSettings(CDistributedAppActor_InterfaceSettings const &_InterfaceSettings) &&;
 		CDistributedAppActor_Settings &&f_SupportUserAuthentication(bool _bSupportUserAuthentication) &&;
-		CDistributedAppActor_Settings &&f_CanUserLocalListenAsPrimary(bool _bCanUserLocalListenAsPrimary) &&;
+		CDistributedAppActor_Settings &&f_CanUseLocalListenAsPrimary(bool _bCanUseLocalListenAsPrimary) &&;
 		CDistributedAppActor_Settings &&f_WaitForRemotes(bool _bWaitForRemotes) &&;
 		CDistributedAppActor_Settings &&f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&;
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;

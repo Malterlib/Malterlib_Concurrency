@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 		bool m_bSeparateDistributionManager = false;
 		bool m_bSupportUserAuthentication = true;
 		bool m_bWaitForRemotes = true;
-		bool m_bCanUserLocalListenAsPrimary = true;
+		bool m_bCanUseLocalListenAsPrimary = true;
 		bool m_bCommandLineBeforeAppStart = false;
 	};
 }

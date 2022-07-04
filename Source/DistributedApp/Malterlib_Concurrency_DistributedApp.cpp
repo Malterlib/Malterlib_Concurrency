@@ -289,7 +289,20 @@ namespace NMib::NConcurrency
 		// Deduce primary listen from old config and remove the config
 		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
 		if (!pListen)
+		{
+			if (mp_Settings.m_bCanUseLocalListenAsPrimary)
+			{
+				auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+				if (!PrimaryListen)
+				{
+					CDistributedActorTrustManager_Address LocalListen;
+					LocalListen.m_URL = fp_GetLocalAddress();
+					co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListen).f_Wrap();
+				}
+			}
+
 			co_return {};
+		}
 
 		auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
 		if (!PrimaryListen)
@@ -315,7 +328,7 @@ namespace NMib::NConcurrency
 				else
 					continue;
 
-				if (Address == LocalListen && !mp_Settings.m_bCanUserLocalListenAsPrimary)
+				if (Address == LocalListen && !mp_Settings.m_bCanUseLocalListenAsPrimary)
 					continue;
 
 				co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, Address);

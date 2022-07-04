@@ -24,7 +24,22 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Add listen '{}' from command line", _URL);
 
-		if (_bPrimary || !(co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen)))
+		if (!_bPrimary)
+		{
+			auto CurrentPrimary = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+			if (!CurrentPrimary)
+				_bPrimary = true;
+			else
+			{
+				CDistributedActorTrustManager_Address LocalListen;
+				LocalListen.m_URL = fp_GetLocalAddress();
+
+				if (*CurrentPrimary == LocalListen)
+					_bPrimary = true;
+			}
+		}
+
+		if (_bPrimary)
 		{
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, Address);
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "Added listen '{}' set as primary", _URL);

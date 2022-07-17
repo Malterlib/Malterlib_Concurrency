@@ -77,11 +77,15 @@ namespace NMib::NConcurrency
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
 			return Promise <<= DMibErrorInstance("Invalid namespace name");
 
-		auto &Internal = *mp_pInternal;
-		auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
 		auto pDistributedActorData = static_cast<NPrivate::CDistributedActorData const *>(_Actor->f_GetDistributedActorData().f_Get());
 		DMibRequire(pDistributedActorData);
 
+		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_PublishedActors.f_FindEqual(pDistributedActorData->m_ActorID))
+			return Promise <<= DMibErrorInstance("An actor can only be published in one namespace");
+
+		auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
 		auto &PublishedActor = LocalNamespace.m_Actors[pDistributedActorData->m_ActorID];
 
 		if (PublishedActor.m_Actor)

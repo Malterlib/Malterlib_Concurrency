@@ -640,6 +640,7 @@ namespace NMib::NConcurrency
 						pCleanup->f_Clear();
 
 						m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
+						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 
 						TCPromise<void> PublishPromise;
 						if (m_bSupportAuthentication)
@@ -656,8 +657,6 @@ namespace NMib::NConcurrency
 						else
 							PublishPromise.f_SetResult();
 
-						m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
-						
 						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
 							+ PublishPromise.f_MoveFuture()
 							> [this, _Promise]

@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 						Timer.m_NextElapse += Period;
 					Time = m_Clock.f_GetTime();
 				}
-				m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+				m_TimerQueue.f_InsertSorted(Timer, CSort_Default());
 				break;
 			}
 
@@ -346,7 +346,7 @@ namespace NMib::NConcurrency
 		Timer.m_pDestroyed = fg_Construct(false);
 		Timer.m_bFireAtExit = _bFireAtExit;
 
-		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted(Timer, CSort_Default());
 
 		// This makes it self-referencing, so it will not be deleted until the callback is run. Because the callback handler saves the actor weakly it will not prevent deletion of
 		// _Actor unless it's referenced from within _fCallback
@@ -369,7 +369,7 @@ namespace NMib::NConcurrency
 		Timer.m_TimerType = CInternal::ETimerType_Oneshot;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted(Timer, CSort_Default());
 
 		CInternal::CTimer *pTimer = &Timer;
 		auto pDestroyed = Timer.m_pDestroyed;
@@ -408,7 +408,7 @@ namespace NMib::NConcurrency
 			Timer.m_NextElapse = ((Internal.m_Clock.f_GetTime() + _Period) / _Period).f_Floor() * _Period;
 			Timer.m_TimerType = CInternal::ETimerType_Normal;
 			Timer.m_pDestroyed = fg_Construct(false);
-			Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+			Internal.m_TimerQueue.f_InsertSorted(Timer, CSort_Default());
 		}
 
 		auto &Callback = Timer.m_Callbacks.f_Insert();
@@ -450,7 +450,7 @@ namespace NMib::NConcurrency
 		Timer.m_TimerType = CInternal::ETimerType_Exact;
 		Timer.m_pDestroyed = fg_Construct(false);
 
-		Internal.m_TimerQueue.f_InsertSorted<CCompare_Default>(Timer);
+		Internal.m_TimerQueue.f_InsertSorted(Timer, CSort_Default());
 
 		auto &Callback = Timer.m_Callbacks.f_Insert();
 		Callback.m_fCallback = g_ActorFunctorWeak(_Actor) / fg_Move(_fCallback);

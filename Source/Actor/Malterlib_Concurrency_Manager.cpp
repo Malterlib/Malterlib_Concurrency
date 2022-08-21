@@ -887,6 +887,20 @@ namespace NMib::NConcurrency
 		return m_bDestroyingAlwaysAliveActors.f_Load();
 	}
 
+	mint CConcurrencyManager::f_GetConcurrency() const
+	{
+		return m_nThreads;
+	}
+
+	mint CConcurrencyManager::f_GetQueue() const
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pThisQueue)
+			return ThreadLocal.m_pThisQueue->m_iQueue;
+
+		return TCLimitsInt<mint>::mc_Max;
+	}
+
 	inline_never mint CConcurrencyManager::fp_InitConcurrentActors()
 	{
 		DMibLock(m_pConcurrentActorLock);

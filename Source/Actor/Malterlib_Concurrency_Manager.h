@@ -83,6 +83,9 @@ namespace NMib::NConcurrency
 
 		bool f_DestroyingAlwaysAliveActors() const;
 
+		mint f_GetConcurrency() const;
+		mint f_GetQueue() const;
+
 	private:
 		template <typename t_CActor>
 		friend class TCActorInternal;

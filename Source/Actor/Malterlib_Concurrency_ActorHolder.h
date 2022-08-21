@@ -39,6 +39,8 @@ namespace NMib::NConcurrency
 			~CQueueEntry();
 		};
 
+		static_assert(sizeof(CQueueEntry) <= gc_ActorQueueDispatchFunctionMemory);
+
 		struct CLocalQueueData
 		{
 			~CLocalQueueData();

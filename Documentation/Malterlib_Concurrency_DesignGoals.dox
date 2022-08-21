@@ -609,7 +609,7 @@ co_await fg_DoGlobalThing();
 
  \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_OnScopeExit On scope exit
 ~~~
-auto Cleanup = g_OnScopeExitActor > [this]
+auto Cleanup = g_OnScopeExitActor / [this]
 	{
 		fp_CleanupThing();
 	}

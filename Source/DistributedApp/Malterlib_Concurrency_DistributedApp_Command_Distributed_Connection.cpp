@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 
 		if (bHasPermissions)
 		{
-			pCleanup = g_OnScopeExitActor > [this, TicketPermissionRequestID]
+			pCleanup = g_OnScopeExitActor / [this, TicketPermissionRequestID]
 				{
 					auto &Internal = *mp_pInternal;
 

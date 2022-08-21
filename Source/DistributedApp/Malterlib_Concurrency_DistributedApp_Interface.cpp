@@ -282,7 +282,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CState> pState = fg_Construct();
 
-		Internal.m_pStdInCleanup = g_OnScopeExitActor > [pState]
+		Internal.m_pStdInCleanup = g_OnScopeExitActor / [pState]
 			{
 				pState->f_Clear();
 			}

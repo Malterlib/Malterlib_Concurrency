@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_FOnScopeExit>
-		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) &&
+		COnScopeExitShared operator / (tf_FOnScopeExit &&_fOnExitFunctor) &&
 		{
 			return fg_Construct<TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>>
 				(
@@ -138,26 +138,6 @@ namespace NMib::NConcurrency
 
 	struct COnScopeExitActorHelper
 	{
-		template <typename tf_FOnScopeExit>
-		COnScopeExitShared operator > (tf_FOnScopeExit &&_fOnExitFunctor) const
-		{
-			DMibFastCheck(fg_CurrentActor());
-			return fg_Construct<TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>>
-				(
-					[Actor = fg_CurrentActor(), fOnExitFunctor = fg_Move(_fOnExitFunctor)]() mutable
-					{
-						fg_Dispatch
-							(
-								fg_Move(Actor)
-								, fg_Move(fOnExitFunctor)
-							)
-							> fg_DiscardResult()
-						;
-					}
-				)
-			;
-		}
-
 		template <typename tf_FOnScopeExit>
 		COnScopeExitShared operator / (tf_FOnScopeExit &&_fOnExitFunctor) const
 		{

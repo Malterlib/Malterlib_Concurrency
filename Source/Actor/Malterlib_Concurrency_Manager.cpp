@@ -55,7 +55,13 @@ namespace NMib::NConcurrency
 			}
 
 			NThread::TCThreadLocal<CConcurrencyThreadLocal, NMemory::CAllocator_Heap, NThread::EThreadLocalFlag_AlwaysCreated> m_ThreadLocal;
-			EExecutionPriority m_DefaultExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
+			EExecutionPriority m_DefaultExecutionPriority[EPriority_Max]
+#ifdef DPlatformFamily_macOS
+				= {EExecutionPriority_BelowNormal, EExecutionPriority_Normal}
+#else
+				= {EExecutionPriority_Lowest, EExecutionPriority_Normal}
+#endif
+			;
 		};
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};

@@ -221,12 +221,22 @@ namespace NMib::NConcurrency
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
-	CAnyConcurrentActorImpl::~CAnyConcurrentActorImpl()
+	CThisConcurrentActorImpl::~CThisConcurrentActorImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
-	CAnyConcurrentActorLowPrioImpl::~CAnyConcurrentActorLowPrioImpl()
+	CThisConcurrentActorLowPrioImpl::~CThisConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	COtherConcurrentActorImpl::~COtherConcurrentActorImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	COtherConcurrentActorLowPrioImpl::~COtherConcurrentActorLowPrioImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}

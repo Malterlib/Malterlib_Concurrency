@@ -125,7 +125,7 @@ namespace
 
 				CEvent Event;
 
-				pActor.f_Destroy() > fg_AnyConcurrentActor() / [&](TCAsyncResult<void> &&)
+				pActor.f_Destroy() > fg_ThisConcurrentActor() / [&](TCAsyncResult<void> &&)
 					{
 						Event.f_SetSignaled();
 					}

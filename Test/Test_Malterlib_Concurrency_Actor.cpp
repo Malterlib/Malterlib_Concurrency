@@ -1525,7 +1525,7 @@ namespace
 										return Actor(Start, End);
 									}
 								)
-								> fg_AnyConcurrentActor() / [Promise](TCAsyncResult<uint32> &&_Result0, TCAsyncResult<uint32> &&_Result1)
+								> fg_ThisConcurrentActor() / [Promise](TCAsyncResult<uint32> &&_Result0, TCAsyncResult<uint32> &&_Result1)
 								{
 									Promise.f_SetResult(*_Result0 + *_Result1);
 								}

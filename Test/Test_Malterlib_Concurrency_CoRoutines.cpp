@@ -269,7 +269,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestCleanup()
 		{
-			auto Cleanup = g_OnScopeExitActor > [this]
+			auto Cleanup = g_OnScopeExitActor / [this]
 				{
 					m_WaitForCleanupScopeExit.f_SetResult();
 				}

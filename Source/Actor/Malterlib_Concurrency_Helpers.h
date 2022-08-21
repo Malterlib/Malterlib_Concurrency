@@ -52,8 +52,10 @@ namespace NMib::NConcurrency
 	struct CConcurrentActor;
 	class CActorHolder;
 
-	struct CAnyConcurrentActor;
-	struct CAnyConcurrentActorLowPrio;
+	struct CThisConcurrentActor;
+	struct CThisConcurrentActorLowPrio;
+	struct COtherConcurrentActor;
+	struct COtherConcurrentActorLowPrio;
 
 	struct CCurrentActorScope
 	{

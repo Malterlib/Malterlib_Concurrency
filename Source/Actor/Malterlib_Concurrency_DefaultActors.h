@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 		TCActor<CDirectResultActor> const &fg_DirectResultActor();
 	}
 
-	struct CAnyConcurrentActor : public CConcurrentActor
+	struct CThisConcurrentActor : public CConcurrentActor
 	{
 		using CActorHolder = CShamActorHolder;
 
@@ -67,16 +67,16 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
-	struct CAnyConcurrentActorImpl : public CAnyConcurrentActor
+	struct CThisConcurrentActorImpl : public CThisConcurrentActor
 	{
-		~CAnyConcurrentActorImpl();
+		~CThisConcurrentActorImpl();
 
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
-	TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor();
+	TCActor<CThisConcurrentActor> const &fg_ThisConcurrentActor();
 
-	struct CAnyConcurrentActorLowPrio : public CConcurrentActor
+	struct CThisConcurrentActorLowPrio : public CConcurrentActor
 	{
 		using CActorHolder = CShamActorHolder;
 
@@ -88,14 +88,56 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
-	struct CAnyConcurrentActorLowPrioImpl : public CAnyConcurrentActorLowPrio
+	struct CThisConcurrentActorLowPrioImpl : public CThisConcurrentActorLowPrio
 	{
-		~CAnyConcurrentActorLowPrioImpl();
+		~CThisConcurrentActorLowPrioImpl();
 
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
-	TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();
+	TCActor<CThisConcurrentActorLowPrio> const &fg_ThisConcurrentActorLowPrio();
+
+	struct COtherConcurrentActor : public CConcurrentActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct COtherConcurrentActorImpl : public COtherConcurrentActor
+	{
+		~COtherConcurrentActorImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
+	TCActor<COtherConcurrentActor> const &fg_OtherConcurrentActor();
+
+	struct COtherConcurrentActorLowPrio : public CConcurrentActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
+		static constexpr EPriority mc_Priority = EPriority_Low;
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct COtherConcurrentActorLowPrioImpl : public COtherConcurrentActorLowPrio
+	{
+		~COtherConcurrentActorLowPrioImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
+	TCActor<COtherConcurrentActorLowPrio> const &fg_OtherConcurrentActorLowPrio();
+
 
 	struct CDynamicConcurrentActor : public CActor
 	{

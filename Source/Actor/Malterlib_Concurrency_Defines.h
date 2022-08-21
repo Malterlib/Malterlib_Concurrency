@@ -325,8 +325,10 @@ namespace NMib::NConcurrency
 	struct CConcurrentActor;
 	struct CConcurrentActorLowPrio;
 	struct CTimerActor;
-	struct CAnyConcurrentActor;
-	struct CAnyConcurrentActorLowPrio;
+	struct CThisConcurrentActor;
+	struct CThisConcurrentActorLowPrio;
+	struct COtherConcurrentActor;
+	struct COtherConcurrentActorLowPrio;
 	namespace NPrivate
 	{
 		struct CDirectResultActor;
@@ -367,8 +369,10 @@ namespace NMib::NConcurrency
 DMibDefineActorType(NMib::NConcurrency::NPrivate::CDirectResultActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
-DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActor, true);
-DMibDefineActorType(NMib::NConcurrency::CAnyConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActor, true);
+DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActor, true);
+DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActorLowPrio, true);
 
 template <>
 struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>

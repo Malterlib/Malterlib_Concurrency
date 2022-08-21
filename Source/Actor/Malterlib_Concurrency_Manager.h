@@ -64,10 +64,13 @@ namespace NMib::NConcurrency
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor(TCWeakActor<CActor> const &_Actor);
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
+		TCActor<CConcurrentActor> const &f_GetConcurrentActorForOtherThread(EPriority _Priority);
 		TCActor<CTimerActor> const &f_GetTimerActor();
 		TCActor<CDirectCallActor> const &f_GetDirectCallActor();
-		TCActor<CAnyConcurrentActor> const &f_GetAnyConcurrentActor();
-		TCActor<CAnyConcurrentActorLowPrio> const &f_GetAnyConcurrentActorLowPrio();
+		TCActor<CThisConcurrentActor> const &f_GetThisConcurrentActor();
+		TCActor<CThisConcurrentActorLowPrio> const &f_GetThisConcurrentActorLowPrio();
+		TCActor<COtherConcurrentActor> const &f_GetOtherConcurrentActor();
+		TCActor<COtherConcurrentActorLowPrio> const &f_GetOtherConcurrentActorLowPrio();
 		TCActor<NPrivate::CDirectResultActor> const &f_GetDirectResultActor();
 		TCActor<CDynamicConcurrentActor> const &f_GetDynamicConcurrentActor();
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
@@ -159,15 +162,19 @@ namespace NMib::NConcurrency
 		NThread::CMutual m_ThreadCreateLock;
 
 		TCActor<CDirectCallActorImpl> m_DirectCallActor;
-		TCActor<CAnyConcurrentActorImpl> m_AnyConcurrentActor;
-		TCActor<CAnyConcurrentActorLowPrioImpl> m_AnyConcurrentActorLowPrio;
+		TCActor<CThisConcurrentActorImpl> m_ThisConcurrentActor;
+		TCActor<CThisConcurrentActorLowPrioImpl> m_ThisConcurrentActorLowPrio;
+		TCActor<COtherConcurrentActorImpl> m_OtherConcurrentActor;
+		TCActor<COtherConcurrentActorLowPrioImpl> m_OtherConcurrentActorLowPrio;
 		TCActor<CDynamicConcurrentActorImpl> m_DynamicConcurrentActor;
 		TCActor<CDynamicConcurrentActorLowPrioImpl> m_DynamicConcurrentActorLowPrio;
 		TCActor<NPrivate::CDirectResultActorImpl> m_DirectResultActor;
 
 		TCActor<CDirectCallActor> m_DirectCallActorRef;
-		TCActor<CAnyConcurrentActor> m_AnyConcurrentActorRef;
-		TCActor<CAnyConcurrentActorLowPrio> m_AnyConcurrentActorLowPrioRef;
+		TCActor<CThisConcurrentActor> m_ThisConcurrentActorRef;
+		TCActor<CThisConcurrentActorLowPrio> m_ThisConcurrentActorLowPrioRef;
+		TCActor<COtherConcurrentActor> m_OtherConcurrentActorRef;
+		TCActor<COtherConcurrentActorLowPrio> m_OtherConcurrentActorLowPrioRef;
 		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
 		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
 		TCActor<NPrivate::CDirectResultActor> m_DirectResultActorRef;

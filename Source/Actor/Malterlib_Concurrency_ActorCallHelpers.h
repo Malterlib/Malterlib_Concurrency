@@ -1469,8 +1469,16 @@ namespace NMib::NConcurrency
 
 		inline_always CConcurrencyManager &f_ConcurrencyManager()
 		{
-			if constexpr (NTraits::TCIsSame<t_CActor, CAnyConcurrentActor>::mc_Value || NTraits::TCIsSame<t_CActor, CAnyConcurrentActorLowPrio>::mc_Value)
+			if constexpr
+				(
+					NTraits::TCIsSame<t_CActor, CThisConcurrentActor>::mc_Value
+					|| NTraits::TCIsSame<t_CActor, CThisConcurrentActorLowPrio>::mc_Value
+					|| NTraits::TCIsSame<t_CActor, COtherConcurrentActor>::mc_Value
+					|| NTraits::TCIsSame<t_CActor, COtherConcurrentActorLowPrio>::mc_Value
+				)
+			{
 				return fg_ConcurrencyManager();
+			}
 			return m_pActorInternal->f_ConcurrencyManager();
 		}
 

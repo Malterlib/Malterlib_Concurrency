@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		State.m_fOnNewActor.f_Clear();
 		State.m_fOnRemovedActor.f_Clear();
 
-		co_await fg_ContinueRunningOnActor(fg_AnyConcurrentActor());
+		co_await fg_ContinueRunningOnActor(fg_ThisConcurrentActor());
 
 		if (State.m_Subscription)
 			co_await fg_Move(State.m_Subscription)->f_Destroy();

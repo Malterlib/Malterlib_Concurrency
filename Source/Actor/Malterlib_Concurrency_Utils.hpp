@@ -1016,14 +1016,14 @@ namespace NMib::NConcurrency
 
 			pRealActor->f_QueueProcess
 				(
-					[Actor, _Handle, KeepAlive = fg_Move(KeepAlive)]() mutable
+					[Actor, _Handle, KeepAlive = fg_Move(KeepAlive), pRealActor]() mutable
 					{
 #if DMibEnableSafeCheck > 0
 						if (!KeepAlive.f_HasValidCoroutine())
 							return;
 #endif
 						auto &CoroutineContext = _Handle.promise();
-						CCurrentActorScope CurrentActorScope(Actor);
+						CCurrentActorScope CurrentActorScope(fg_ThisActor(pRealActor));
 						bool bAborted = false;
 						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
 						if (!bAborted)

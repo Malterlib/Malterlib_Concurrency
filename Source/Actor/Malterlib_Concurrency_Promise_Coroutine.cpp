@@ -66,6 +66,9 @@ namespace NMib::NConcurrency
 
 	void CActor::f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext)
 	{
+		if (self.m_pThis->mp_bIsAlwaysAlive)
+			return;
+
 		mp_SuspendedCoroutines.f_Insert(_CoroutineContext);
 	}
 

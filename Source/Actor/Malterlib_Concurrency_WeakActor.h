@@ -22,7 +22,7 @@ namespace NMib::NConcurrency
 		using CWeak = TCWeakActor;
 
 		static constexpr bool mc_bIsWeak = true;
-		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<CContainedActor>::mc_Value;
+		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<CContainedActor>::mc_bImpl;
 
 	private:
 		using CPointerType = typename TCChooseType

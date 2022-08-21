@@ -84,12 +84,14 @@ namespace NMib::NConcurrency
 		struct TCIsActorAlwaysAliveImpl
 		{
 			static constexpr bool mc_Value = false;
+			static constexpr bool mc_bImpl = false;
 		};
 
 		template <typename t_CActor>
 		struct TCIsActorAlwaysAliveImpl<t_CActor, true>
 		{
 			static constexpr bool mc_Value = t_CActor::mc_bIsAlwaysAlive;
+			static constexpr bool mc_bImpl = t_CActor::mc_bIsAlwaysAliveImpl;
 		};
 	}
 
@@ -103,6 +105,7 @@ namespace NMib::NConcurrency
 	struct ::NMib::NConcurrency::TCIsActorAlwaysAlive<d_Type>\
 	{\
 		static constexpr bool mc_Value = d_AlwaysAlive;\
+		static constexpr bool mc_bImpl = d_AlwaysAlive;\
 	};
 
 	template <typename t_CHolder>
@@ -134,7 +137,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	class TCActor /// \brief Contain an instance of a CActor
-		: public TCChooseType<TCIsActorAlwaysAlive<t_CActor>::mc_Value, CEmpty, CActorCommon>::CType
+		: public TCChooseType<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CEmpty, CActorCommon>::CType
 	{
 		friend class CConcurrencyManager;
 		template <typename t_CActor2>
@@ -156,14 +159,14 @@ namespace NMib::NConcurrency
 		using CContainedActor = t_CActor;
 
 		static constexpr bool mc_bIsWeak = false;
-		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<t_CActor>::mc_Value;
+		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<t_CActor>::mc_bImpl;
 		using CNonWeak = TCActor;
 		using CWeak = TCWeakActor<t_CActor>;
 
 	private:
 		using CPointerType = typename TCChooseType
 			<
-				TCIsActorAlwaysAlive<t_CActor>::mc_Value
+				TCIsActorAlwaysAlive<t_CActor>::mc_bImpl
 				, CActorInternal *
 				, TCActorHolderSharedPointer<CActorInternal>
 			>

@@ -109,6 +109,7 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bImmediateDelete = false;
 		static constexpr EPriority mc_Priority = EPriority_Normal;
 		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 
 		NPrivate::CThisActor self;
 

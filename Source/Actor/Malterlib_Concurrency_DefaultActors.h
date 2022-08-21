@@ -11,12 +11,14 @@ namespace NMib::NConcurrency
 	{
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
+	
 	struct CConcurrentActorImpl : public CConcurrentActor
 	{
 		~CConcurrentActorImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	struct CConcurrentActorLowPrio : public CConcurrentActorImpl
@@ -24,11 +26,13 @@ namespace NMib::NConcurrency
 		static constexpr EPriority mc_Priority = EPriority_Low;
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
+
 	struct CConcurrentActorLowPrioImpl : public CConcurrentActorLowPrio
 	{
 		~CConcurrentActorLowPrioImpl();
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	namespace NPrivate
@@ -39,13 +43,14 @@ namespace NMib::NConcurrency
 
 			static constexpr bool mc_bImmediateDelete = true;
 			static constexpr bool mc_bIsAlwaysAlive = true;
+			static constexpr bool mc_bIsAlwaysAliveImpl = true;
 		};
 
 		struct CDirectResultActorImpl : public CDirectResultActor
 		{
 			~CDirectResultActorImpl();
 
-			static constexpr bool mc_bIsAlwaysAlive = false;
+			static constexpr bool mc_bIsAlwaysAliveImpl = false;
 		};
 
 		TCActor<CDirectResultActor> const &fg_DirectResultActor();
@@ -59,13 +64,14 @@ namespace NMib::NConcurrency
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
 	struct CAnyConcurrentActorImpl : public CAnyConcurrentActor
 	{
 		~CAnyConcurrentActorImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	TCActor<CAnyConcurrentActor> const &fg_AnyConcurrentActor();
@@ -79,13 +85,14 @@ namespace NMib::NConcurrency
 		static constexpr EPriority mc_Priority = EPriority_Low;
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
 	struct CAnyConcurrentActorLowPrioImpl : public CAnyConcurrentActorLowPrio
 	{
 		~CAnyConcurrentActorLowPrioImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	TCActor<CAnyConcurrentActorLowPrio> const &fg_AnyConcurrentActorLowPrio();
@@ -98,13 +105,14 @@ namespace NMib::NConcurrency
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
 	struct CDynamicConcurrentActorImpl : public CDynamicConcurrentActor
 	{
 		~CDynamicConcurrentActorImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	TCActor<CDynamicConcurrentActor> const &fg_DynamicConcurrentActor();
@@ -117,13 +125,14 @@ namespace NMib::NConcurrency
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
 	struct CDynamicConcurrentActorLowPrioImpl : public CDynamicConcurrentActorLowPrio
 	{
 		~CDynamicConcurrentActorLowPrioImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	TCActor<CDynamicConcurrentActorLowPrio> const &fg_DynamicConcurrentActorLowPrio();
@@ -136,13 +145,14 @@ namespace NMib::NConcurrency
 
 		static constexpr bool mc_bImmediateDelete = true;
 		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
 	struct CDirectCallActorImpl : public CDirectCallActor
 	{
 		~CDirectCallActorImpl();
 
-		static constexpr bool mc_bIsAlwaysAlive = false;
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
 	TCActor<CDirectCallActor> const &fg_DirectCallActor();

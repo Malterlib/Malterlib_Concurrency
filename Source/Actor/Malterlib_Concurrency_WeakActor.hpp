@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
 		(void)pDummy;
 
-		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_Value)
+		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_bImpl)
 			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
 		else
 			return reinterpret_cast<TCActorHolderWeakPointer<TCActorInternal<tf_CActor>> const &>(_pActorHolder);
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 		auto pDummy = static_cast<tf_CActor *>((tf_CActorSource *)nullptr);
 		(void)pDummy;
 
-		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_Value)
+		if constexpr (TCIsActorAlwaysAlive<tf_CActor>::mc_bImpl)
 			return reinterpret_cast<TCActorInternal<tf_CActor> *>(_pActorHolder.f_Get());
 		else
 			return reinterpret_cast<TCActorHolderWeakPointer<TCActorInternal<tf_CActor>> &&>(_pActorHolder);

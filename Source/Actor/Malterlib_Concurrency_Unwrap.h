@@ -12,6 +12,10 @@ namespace NMib::NConcurrency::NUnwrap
 		operator CUnwrapHelperWithTransformer const &();
 	};
 
+	struct CUnwrapFirstHelper
+	{
+	};
+
 	struct CUnwrapHelperWithTransformer
 	{
 		CUnwrapHelperWithTransformer(NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer);
@@ -25,6 +29,7 @@ namespace NMib::NConcurrency::NUnwrap
 namespace NMib::NConcurrency
 {
 	extern NUnwrap::CUnwrapHelper g_Unwrap;
+	extern NUnwrap::CUnwrapFirstHelper g_UnwrapFirst;
 }
 
 #include "Malterlib_Concurrency_Unwrap.hpp"

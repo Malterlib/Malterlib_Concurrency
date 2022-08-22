@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 	}
 
 	template<typename t_CType>
-	DMibSuppressUndefinedSanitizerLinux TCFuture<CStr> fg_ExportUser(TCActor<t_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
+	TCFuture<CStr> DMibWorkaroundUBSanSectionErrors fg_ExportUser(TCActor<t_CType> _TrustManager, CStr _UserID, bool _bIncludePrivate)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -222,7 +222,7 @@ namespace NMib::NConcurrency
 	}
 
 	template<typename t_CType>
-	DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData)
+	TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrors fg_ImportUser(TCActor<t_CType> _TrustManager, NStr::CStr _UserData)
 	{
 		struct CResult
 		{
@@ -321,10 +321,10 @@ namespace NMib::NConcurrency
 		co_return Result.m_UserID;
 	}
 
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
-	template DMibSuppressUndefinedSanitizerLinux TCFuture<NStr::CStr> fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ImportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserData);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ImportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ImportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserData);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ExportUser(TCActor<CDistributedActorTrustManager> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
+	template TCFuture<NStr::CStr> DMibWorkaroundUBSanSectionErrorsDisable fg_ExportUser(TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
 }

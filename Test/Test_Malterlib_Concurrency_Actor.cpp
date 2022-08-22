@@ -976,7 +976,7 @@ namespace
 			};
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<uint32> fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End)
+		static TCFuture<uint32> DMibWorkaroundUBSanSectionErrors fs_BranchedConcurrentCoroutine(uint32 _Start, uint32 _End)
 		{
 			if (_End - _Start == 1)
 				co_return 1;

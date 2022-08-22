@@ -249,7 +249,7 @@ namespace NMib::NConcurrency::NPrivate
 		CU2FDevice &operator = (CU2FDevice &&) = default;
 		CU2FDevice &operator = (CU2FDevice const &) = default;
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CU2FDevice> fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
+		static TCFuture<CU2FDevice> DMibWorkaroundUBSanSectionErrorsDisable fs_Init(TCActor<CHumanInterfaceDeviceActor> _Device, CStr _Path)
 		{
 			static mint const c_InitNonceSize = 8;
 
@@ -280,7 +280,7 @@ namespace NMib::NConcurrency::NPrivate
 			co_return CU2FDevice{_Device, Resonse.m_ChannelID, _Path};
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CFrame> fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
+		static TCFuture<CFrame> DMibWorkaroundUBSanSectionErrorsDisable fs_ReadFrame(TCActor<CHumanInterfaceDeviceActor> _Device)
 		{
 			constexpr static mint c_HIDTimeout = 2;
 			constexpr static mint c_HIDMaxTimeout = 4096;
@@ -315,7 +315,7 @@ namespace NMib::NConcurrency::NPrivate
 			co_return co_await fs_SendReceive(_Command, _Send, m_ChannelID, m_Device);
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSecureByteVector> fs_SendReceive(uint8_t _Command, CSecureByteVector _Send, uint32 _ChannelID, TCActor<CHumanInterfaceDeviceActor> _Device)
+		static TCFuture<CSecureByteVector> DMibWorkaroundUBSanSectionErrorsDisable fs_SendReceive(uint8_t _Command, CSecureByteVector _Send, uint32 _ChannelID, TCActor<CHumanInterfaceDeviceActor> _Device)
 		{
 			{
 				uint8 Sequence = 0;
@@ -519,7 +519,8 @@ namespace NMib::NConcurrency::NPrivate
 			return -1;
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+			-> TCFuture<CUsageResult>
 		{
 			CUsageResult Result;
 			int DescriptorSize;
@@ -540,13 +541,14 @@ namespace NMib::NConcurrency::NPrivate
 			co_return {};
 		}
 #else
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CUsageResult> fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
+			-> TCFuture<CUsageResult>
 		{
 			co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
 		}
 #endif
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<TCSharedPointer<CU2FDevices>> fs_DiscoverDevices()
+		static TCFuture<TCSharedPointer<CU2FDevices>> DMibWorkaroundUBSanSectionErrorsDisable fs_DiscoverDevices()
 		{
 			TCSharedPointer<CU2FDevices> pDevices = fg_Construct();
 
@@ -706,7 +708,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CSendAPDUResult> fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
+		static TCFuture<CSendAPDUResult> DMibWorkaroundUBSanSectionErrorsDisable fs_SendAPDUs(uint32 _Command, TCVector<CSecureByteVector> _Data, TCFunction<void ()> _fPrompt)
 		{
 			auto Data = _Data;
 			auto fPrompt = _fPrompt;
@@ -953,7 +955,7 @@ namespace NMib::NConcurrency::NPrivate
 			co_return co_await f_VerifyRegistrationResponse(RegistrationData.m_Data, ChallengeDigest, AppDigest, m_AppID);
 		}
 
-		static DMibSuppressUndefinedSanitizerLinux TCFuture<CAuthenticationResponse> fs_Authenticate(TCVector<CU2FContext> _U2FContexts, TCFunction<void ()> _fPrompt)
+		static TCFuture<CAuthenticationResponse> DMibWorkaroundUBSanSectionErrorsDisable fs_Authenticate(TCVector<CU2FContext> _U2FContexts, TCFunction<void ()> _fPrompt)
 		{
 			struct CFactorValues
 			{

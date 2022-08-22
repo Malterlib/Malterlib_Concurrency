@@ -85,7 +85,7 @@ namespace NTestTrustManager
 		CStr m_Name;
 	};
 
-	TCFuture<void> fg_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
+	TCFuture<void> DMibWorkaroundUBSanSectionErrors fg_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
 	{
 		co_return {};
 	}

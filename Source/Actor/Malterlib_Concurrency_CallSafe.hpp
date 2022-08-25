@@ -43,7 +43,7 @@ namespace NMib::NConcurrency
 		{
 			tf_CFunction m_Function;
 			CTupleStorage m_ParamList;
-			[[no_unique_address]] typename TCChooseType<NPrivate::TCIsFuture<tf_CReturn>::mc_Value, TCPromise<CReturn>, CEmpty>::CType m_Promise;
+			DMibNoUniqueAddress typename TCChooseType<NPrivate::TCIsFuture<tf_CReturn>::mc_Value, TCPromise<CReturn>, CEmpty>::CType m_Promise;
 		};
 
 		NStorage::TCUniquePointer<CState> pState = NStorage::TCUniquePointer<CState> (new CState{fg_Forward<tf_CFunction>(_Function), {fg_Forward<tfp_CParams>(p_Params)...}, {}});

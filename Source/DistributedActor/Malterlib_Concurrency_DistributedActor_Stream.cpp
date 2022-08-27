@@ -93,7 +93,7 @@ namespace NMib::NConcurrency::NPrivate
 					o_Error = "No matching subscription for actor functors or interfaces or interfaces";
 					return false; // We have registered functors/actors without a matching subscription
 				}
-				if (ActorFunctor.m_PendingSubscriptions.f_GetLen() > 1)
+				if (ActorFunctor.m_PendingSubscriptions.f_HasMoreThanOneEntry())
 				{
 					o_Error = "Two subscriptions with the same sequence ID";
 					return false;

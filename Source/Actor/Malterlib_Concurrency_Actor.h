@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <Mib/Storage/BitStorePointer>
+
 namespace NMib::NConcurrency
 {
 	struct CActor;

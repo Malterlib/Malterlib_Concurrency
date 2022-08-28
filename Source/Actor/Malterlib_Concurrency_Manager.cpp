@@ -157,6 +157,8 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetDynamicConcurrentActorLowPrio();
 	}
 
+//#define DMibNoConcurrency
+
 	CConcurrencyThreadLocal::CConcurrencyThreadLocal()
 	{
 		for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
@@ -168,9 +170,13 @@ namespace NMib::NConcurrency
 					, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
 				}
 			;
-			mint nCores = NSys::fg_Thread_GetVirtualCores();
-			m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
-			m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nCores);
+#ifdef DMibNoConcurrency
+			mint nThreads = 1;
+#else
+			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+#endif
+			m_JobQueueIndex[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
+			m_iConcurrentActor[iQueue] = RandomGenerator.f_GetValue<uint32>(0, nThreads);
 		}
 	}
 
@@ -193,7 +199,6 @@ namespace NMib::NConcurrency
 	///
 	/// CConcurrencyManager
 	/// ===================
-//#define DMibNoConcurrency
 
 	CConcurrencyManager::CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max])
 	{

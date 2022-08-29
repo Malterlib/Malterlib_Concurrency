@@ -48,6 +48,9 @@ namespace NMib::NConcurrency
 		}
 		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportLaunchID)
 			_Stream % m_LaunchID;
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SupportMaxMapCount)
+			_Stream % m_Resources_MaxMapCount;
 	}
 	DMibDistributedStreamImplement(CDistributedAppInterfaceServer::CRegisterInfo);
 	
@@ -58,6 +61,7 @@ namespace NMib::NConcurrency
 			&& m_Resources_FilesPerProcess == _Right.m_Resources_FilesPerProcess 
 			&& m_Resources_Threads == _Right.m_Resources_Threads 
 			&& m_Resources_Processes == _Right.m_Resources_Processes
+			&& m_Resources_MaxMapCount == _Right.m_Resources_MaxMapCount
 		;
 	}
 }

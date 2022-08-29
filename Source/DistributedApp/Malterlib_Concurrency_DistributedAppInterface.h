@@ -66,7 +66,8 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SupportResources = 0x103
 			, EProtocolVersion_SupportLaunchID = 0x104
 			, EProtocolVersion_SupportLogReporter = 0x105
-			, EProtocolVersion_Current = 0x105
+			, EProtocolVersion_SupportMaxMapCount = 0x106
+			, EProtocolVersion_Current = 0x106
 		};
 
 		struct CRegisterInfo
@@ -81,6 +82,7 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<uint32> m_Resources_FilesPerProcess;
 			NStorage::TCOptional<uint32> m_Resources_Threads;
 			NStorage::TCOptional<uint32> m_Resources_Processes;
+			NStorage::TCOptional<uint32> m_Resources_MaxMapCount;
 			NStorage::TCOptional<NStr::CStr> m_LaunchID;
 		};
 

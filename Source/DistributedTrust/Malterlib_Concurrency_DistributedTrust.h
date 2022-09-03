@@ -292,6 +292,7 @@ namespace NMib::NConcurrency
 			bool m_bRetryOnListenFailureDuringInit = true;
 			bool m_bWaitForConnectionsDuringInit = true;
 			bool m_bSupportAuthentication = true;
+			bool m_bTimeoutForUnixSockets = true;
 		};
 
 		CDistributedActorTrustManager

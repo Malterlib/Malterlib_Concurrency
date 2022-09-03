@@ -34,6 +34,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_WaitForRemotes(bool _bWaitForRemotes) &&;
 		CDistributedAppActor_Settings &&f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&;
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;
+		CDistributedAppActor_Settings &&f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&;
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
 	};

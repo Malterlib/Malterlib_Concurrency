@@ -287,6 +287,8 @@ namespace NMib::NConcurrency
 		, m_HostTimeout(_InitSettings.m_HostTimeout)
 		, m_HostDaemonTimeout(_InitSettings.m_HostDaemonTimeout)
 	{
+		m_WebsocketSettings.m_bTimeoutForUnixSockets = _InitSettings.m_bTimeoutForUnixSockets;
+
 		if (m_FriendlyName.f_IsEmpty())
 			m_FriendlyName = fg_Format("{}@{}", NProcess::NPlatform::fg_Process_GetUserName(), NProcess::NPlatform::fg_Process_GetComputerName());
 	}

@@ -243,6 +243,7 @@ namespace NMib::NConcurrency
 
 		DistributionManagerInitSettings.m_HostTimeout = m_HostTimeout;
 		DistributionManagerInitSettings.m_HostDaemonTimeout = m_HostDaemonTimeout;
+		DistributionManagerInitSettings.m_bTimeoutForUnixSockets = m_bTimeoutForUnixSockets;
 
 		if (m_fDistributionManagerFactory)
 			m_ActorDistributionManager = m_fDistributionManagerFactory(fg_Move(DistributionManagerInitSettings));

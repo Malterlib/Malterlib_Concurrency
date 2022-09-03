@@ -480,6 +480,7 @@ namespace NMib::NConcurrency
 		Options.m_bWaitForConnectionsDuringInit = mp_Settings.m_bWaitForRemotes;
 		Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
 		Options.m_bSupportAuthentication = bSupportAuthentication;
+		Options.m_bTimeoutForUnixSockets = mp_Settings.m_bTimeoutForUnixSockets;
 
 		auto &Internal = *mp_pInternal;
 

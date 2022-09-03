@@ -177,6 +177,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&
+	{
+		m_bTimeoutForUnixSockets = _bTimeoutForUnixSockets;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&
 	{
 		m_DefaultCommandLineFunctionality = _DefaultCommandLineFunctionality;

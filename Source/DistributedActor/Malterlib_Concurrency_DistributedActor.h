@@ -510,6 +510,7 @@ namespace NMib::NConcurrency
 
 		fp64 m_HostTimeout = 10.0 * 60.0; // 10 minutes
 		fp64 m_HostDaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
+		bool m_bTimeoutForUnixSockets = true;
 	};
 
 	template <typename t_CInterface, typename t_CDelegateTo>

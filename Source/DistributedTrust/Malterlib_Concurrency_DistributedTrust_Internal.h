@@ -317,6 +317,7 @@ namespace NMib::NConcurrency
 		bool m_bWaitForConnectionsDuringInit = true;
 		bool m_bSupportAuthentication = true;
 		bool m_bConnectionsInitialized = false;
+		bool m_bTimeoutForUnixSockets = true;
 	};
 }
 

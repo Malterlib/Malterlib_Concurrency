@@ -92,5 +92,6 @@ namespace NMib::NConcurrency
 		bool m_bWaitForRemotes = true;
 		bool m_bCanUseLocalListenAsPrimary = true;
 		bool m_bCommandLineBeforeAppStart = false;
+		bool m_bTimeoutForUnixSockets = true;
 	};
 }

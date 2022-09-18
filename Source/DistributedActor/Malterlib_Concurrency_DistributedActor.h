@@ -485,7 +485,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> f_GetHost() const;
 
 		bool operator == (CCallingHostInfo const &_Right) const;
-		COrdering_Weak operator <=> (CCallingHostInfo const &_Right) const;
+		COrdering_Strong operator <=> (CCallingHostInfo const &_Right) const;
 
 	protected:
 		TCWeakActor<CActorDistributionManager> mp_DistributionManager;

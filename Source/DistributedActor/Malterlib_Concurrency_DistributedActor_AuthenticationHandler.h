@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
-			COrdering_Weak operator <=> (CPermissionWithRequirements const &_Right) const;
+			COrdering_Strong operator <=> (CPermissionWithRequirements const &_Right) const;
 			bool operator == (CPermissionWithRequirements const &_Right) const;
 
 			NStr::CStr m_Permission;

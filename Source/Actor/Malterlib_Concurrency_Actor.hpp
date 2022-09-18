@@ -329,7 +329,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	COrdering_Weak TCActor<t_CActor>::operator <=> (TCActor<tf_CActor> const& _Right) const
+	COrdering_Strong TCActor<t_CActor>::operator <=> (TCActor<tf_CActor> const& _Right) const
 	{
 		return (TCActorHolderSharedPointer<CActorHolder> const &)m_pInternalActor
 			<=> (TCActorHolderSharedPointer<CActorHolder> const &)_Right.m_pInternalActor
@@ -338,7 +338,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename tf_CActor>
-	COrdering_Weak TCActor<t_CActor>::operator <=> (TCWeakActor<tf_CActor> const& _Right) const
+	COrdering_Strong TCActor<t_CActor>::operator <=> (TCWeakActor<tf_CActor> const& _Right) const
 	{
 		return (TCActorHolderSharedPointer<CActorHolder> const &)m_pInternalActor
 			<=> (TCActorHolderWeakPointer<CActorHolder> const &)_Right.m_pInternalActor

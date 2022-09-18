@@ -400,7 +400,7 @@ namespace NMib::NConcurrency
 							m_Worst = fg_Max(m_Worst, _ActorInfo[Factor].m_Category);
 					}
 
-					COrdering_Weak operator <=> (CFulfillingFactors const &_Other) const
+					COrdering_Strong operator <=> (CFulfillingFactors const &_Other) const
 					{
 						// A smaller set of factors is better than a larger set
 						auto LeftLen = m_Factors.f_GetLen();

@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 		; 
 	}		
 
-	COrdering_Weak CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const
+	COrdering_Strong CCallingHostInfo::operator <=> (CCallingHostInfo const &_Right) const
 	{
 		return NStorage::fg_TupleReferences(mp_UniqueHostID, mp_HostInfo.m_HostID, mp_LastExecutionID)
 			<=> NStorage::fg_TupleReferences(_Right.mp_UniqueHostID, _Right.mp_HostInfo.m_HostID, _Right.mp_LastExecutionID)

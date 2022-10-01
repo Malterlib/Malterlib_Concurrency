@@ -1661,19 +1661,24 @@ namespace
 				}
 			;
 
-			TCVector<CPerformanceTestActorEmul> ToDispatch;
+			TCVector<TCOptional<CPerformanceTestActorEmul>> Actors;
+			Actors.f_SetLen(nIterations);
 
 			for (mint i = 0; i < gc_nRepetitions; ++i)
 			{
 				{
 					DMibTestScopeMeasure(DispatchMeasure, nIterations);
-					ToDispatch.f_SetLen(nIterations);
+					for (auto &Actor : Actors)
+						Actor.f_Set<1>();
+
 				}
 				{
 					DMibTestScopeMeasure(DispatchMeasureDestroy, nIterations);
-					ToDispatch.f_Clear();
+					for (auto &Actor : Actors)
+						Actor.f_Set<0>();
 				}
 			}
+			Actors.f_Clear();
 #ifdef DDoGarbageCollection
 			_CreateContext.m_Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
 #endif

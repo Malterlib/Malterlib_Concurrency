@@ -1649,14 +1649,14 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
 			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
 			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 
 			auto Cleanup = g_OnScopeExit / [&]
 				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
 					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
 				}
 			;
@@ -1695,13 +1695,13 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
 			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
 			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 			auto Cleanup = g_OnScopeExit / [&]
 				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
 					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
 				}
 			;
@@ -1743,13 +1743,13 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
 			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
 			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 			auto Cleanup = g_OnScopeExit / [&]
 				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
 					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
 				}
 			;

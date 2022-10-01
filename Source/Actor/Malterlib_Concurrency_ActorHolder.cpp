@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 			DMibFastCheck((OriginalWorking & gc_ProcessingMask) == 0);
 			fp_StartQueueProcessing();
 
-			auto pOldActorHalder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
+			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
 #	if DMibEnableSafeCheck > 0
 			auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
 #endif
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 #endif
 			auto CleanupWorking = g_OnScopeExit / [&]
 				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHalder;
+					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
 #	if DMibEnableSafeCheck > 0
 					ThreadLocal.m_pCurrentlyConstructingActor = pOldConstructing;
 #endif

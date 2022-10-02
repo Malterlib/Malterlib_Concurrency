@@ -324,7 +324,7 @@ namespace NMib::NContainer
 		typedef TCThreadSafeQueueListEntry<t_CType> CListEntry;
 		typedef TCThreadSafeQueueEntry<t_CType, t_CAllocator> CReturnEntry;
 
-		mutable NThread::CMutual m_Lock;
+		mutable NThread::CLowLevelLock m_Lock;
 		DMibListLinkDS_List_FromTemplate(CListEntry, m_Link) m_Queue;
 
 		typedef t_CAllocator CAllocator;

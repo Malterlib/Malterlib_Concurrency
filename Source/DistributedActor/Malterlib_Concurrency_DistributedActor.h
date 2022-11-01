@@ -126,6 +126,8 @@ namespace NMib::NConcurrency
 		NStr::CStr f_GetDesc() const;
 		NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
 
+		bool f_IsEmpty() const;
+
 		auto operator <=> (CHostInfo const &_Right) const = default;
 
 		template <typename tf_CString>

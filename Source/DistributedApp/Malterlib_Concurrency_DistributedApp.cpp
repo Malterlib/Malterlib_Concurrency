@@ -187,10 +187,14 @@ namespace NMib::NConcurrency
 					Message += " ({})"_f << CStr::fs_Join(PermissionSets, " and ");
 			}
 
+			auto &HostInfo = _AuditParams.m_CallingHostInfo.f_GetHostInfo();
+
 			if (UserName || UserID)
-				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}, {} [{}]> {}", _AuditParams.m_CallingHostInfo.f_GetHostInfo(), UserID, UserName, Message);
+				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}, {} [{}]> {}", HostInfo, UserID, UserName, Message);
+			else if (!HostInfo.f_IsEmpty())
+				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", HostInfo, Message);
 			else
-				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", _AuditParams.m_CallingHostInfo.f_GetHostInfo(), Message);
+				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "{}", Message);
 		}
 #endif
 		switch (Internal.m_AppType)

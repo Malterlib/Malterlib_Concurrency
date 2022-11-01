@@ -540,7 +540,12 @@ namespace NMib::NConcurrency
 		_Stream >> m_HostID;
 		_Stream >> m_FriendlyName;
 	}
-	
+
+	bool CHostInfo::f_IsEmpty() const
+	{
+		return m_FriendlyName.f_IsEmpty() && m_HostID.f_IsEmpty();
+	}
+
 	NStr::CStr CHostInfo::f_GetDesc() const
 	{
 		if (m_FriendlyName.f_IsEmpty())

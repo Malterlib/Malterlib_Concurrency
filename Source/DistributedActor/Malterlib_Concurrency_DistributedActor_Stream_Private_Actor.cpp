@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		}
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor)
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 		{
 			CDefaultActorHolder::fp_QueueProcessDestroy
 				(
@@ -58,11 +58,12 @@ namespace NMib::NConcurrency
 						;
 						Functor();
 					}
+					, _ThreadLocal
 				)
 			;
 		}
 
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor)
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 		{
 			CDefaultActorHolder::fp_QueueProcess
 				(
@@ -80,6 +81,7 @@ namespace NMib::NConcurrency
 						;
 						Functor();
 					}
+					, _ThreadLocal
 				)
 			;
 		}

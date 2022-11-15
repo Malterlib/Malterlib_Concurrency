@@ -109,15 +109,15 @@ namespace NMib::NConcurrency
 		struct CDestroyHandler;
 
 	protected:
-		bool fp_AddToQueue(FActorQueueDispatch &&_Functor);
+		bool fp_AddToQueue(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
 		virtual void fp_StartQueueProcessing();
 
 		template <typename tf_CActor>
 		TCActor<tf_CActor> fp_GetAsActor();
 
 		virtual void fp_DestroyThreaded();
-		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) = 0;
-		virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor) = 0;
+		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
+		virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
 		void fp_RunProcess();
 		virtual TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
 		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise);
@@ -180,7 +180,13 @@ namespace NMib::NConcurrency
 	private:
 		void fp_ConstructActor(NFunction::TCFunctionNoAllocMovable<void ()> &&_fConstruct, void *_pActorMemory);
 
-		void fp_DestroyActorHolder(NFunction::TCFunctionNoAllocMovable<void ()> &&_fOnDestroyed, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference);
+		void fp_DestroyActorHolder
+			(
+				NFunction::TCFunctionNoAllocMovable<void ()> &&_fOnDestroyed
+				, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
+				, CConcurrencyThreadLocal &_ThreadLocal
+			)
+		;
 		bool fp_Terminate();
 
 		bool fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal);
@@ -217,18 +223,22 @@ namespace NMib::NConcurrency
 		DMibRefCountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
 	protected:
-		// Alignment zone 3 = 8+8+8+8+8 = 40 => 64 bytes
+		// Alignment zone 3 = 8+8+8+8+4+1+1 = 38 => 64 bytes
 		align_cacheline CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
 		CConcurrencyManager *mp_pConcurrencyManager;
-		mint mp_iFixedCore:sizeof(mint)*8 - 5 = 0;
-		mint mp_Priority:1 = 0;
-		mint mp_bImmediateDelete:1 = false;
-		mint mp_bYield:1 = false;
-		mint mp_bIsAlwaysAlive:1 = false;
-		mint mp_bHasOverriddenDestroy:1 = false;
 
 		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe = nullptr;
 		mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
+
+		uint32 mp_iFixedCore = 0;
+
+		// Note: Changing these is not thread safe
+		uint8 mp_Priority:1 = 0;
+		uint8 mp_bImmediateDelete:1 = false;
+		uint8 mp_bIsAlwaysAlive:1 = false;
+		uint8 mp_bHasOverriddenDestroy:1 = false;
+
+		bool mp_bYield = false;
 
 		// Alignment zone 4: Actor storage, other actor holder data
 	};
@@ -251,8 +261,8 @@ namespace NMib::NConcurrency
 		~CDefaultActorHolder();
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 	};
 
 	class CDispatchingActorHolder : public CDefaultActorHolder
@@ -269,8 +279,8 @@ namespace NMib::NConcurrency
 		;
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
 		NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
 	};
@@ -295,8 +305,8 @@ namespace NMib::NConcurrency
 #endif
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
 		TCActorHolderSharedPointer<CActorHolder> mp_pDelegateTo;
 		COnTerminate *mp_pOnTerminateEntry = nullptr;
@@ -319,8 +329,8 @@ namespace NMib::NConcurrency
 	protected:
 		void fp_StartQueueProcessing() override;
 		void fp_DestroyThreaded() override;
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
 		NStorage::TCUniquePointer<NThread::CThreadObject> m_pThread;
 		NStr::CStr mp_ThreadName;
@@ -340,8 +350,8 @@ namespace NMib::NConcurrency
 		~CDirectCallActorHolder();
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 	};
 
 	struct CShamActorHolder : public CDefaultActorHolder
@@ -357,8 +367,8 @@ namespace NMib::NConcurrency
 		~CShamActorHolder();
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor) override;
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor) override;
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 	};
 }
 

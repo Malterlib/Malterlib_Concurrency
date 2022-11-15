@@ -108,6 +108,7 @@ namespace NMib::NConcurrency
 			EPriority m_Priority;
 			NThread::CEventAutoReset m_Event;
 			NStorage::TCUniquePointer<NThread::CThreadObjectNonTracked, NMemory::CAllocator_NonTrackedHeap> m_pThread;
+			NAtomic::TCAtomic<bool> m_bThreadCreated;
 			CQueue(CQueue &&_Other);
 			CQueue();
 			void f_Signal(CConcurrencyManager *_pThis);
@@ -115,9 +116,11 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, bool _bForceNonLocal);
-		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, bool _bForceNonLocal);
+		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
 		inline_never mint fp_InitConcurrentActors();
+		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
 		void fp_AddedActor();
 		void fp_RemovedActor();
@@ -199,6 +202,7 @@ namespace NMib::NConcurrency
 		mint m_JobQueueIndex[EPriority_Max];
 		mint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
 		bool m_bCurrentlyProcessingInActorHolder = false;
+		bool m_bForceNonLocal = false;
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *m_pCallstacks = nullptr;

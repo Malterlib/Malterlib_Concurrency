@@ -133,18 +133,18 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	void COSThreadRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor)
+	void COSThreadRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		if (fp_AddToQueue(fg_Move(_Functor)))
+		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 			fp_QueueProcess();
 	}
 
-	void COSThreadRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor)
+	void COSThreadRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
 		TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
 
-		if (fp_AddToQueue(fg_Move(_Functor)))
+		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 			fp_QueueProcess();
 	}
 

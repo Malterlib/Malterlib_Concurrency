@@ -421,12 +421,13 @@ namespace NMib::NConcurrency
 				)
 			)
 		;
+		m_bThreadCreated.f_Exchange(true);
 	}
 
 	inline_always void CConcurrencyManager::CQueue::f_Signal(CConcurrencyManager *_pThis)
 	{
 		m_Event.f_Signal();
-		if (!m_pThread)
+		if (!m_bThreadCreated.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			fp_CreateThread(_pThis);
 	}
 
@@ -445,12 +446,11 @@ namespace NMib::NConcurrency
 		return m_ExecutionPriority[_Priority];
 	}
 
-	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (ThreadLocal.m_pThisQueue)
+		if (_ThreadLocal.m_pThisQueue)
 		{
-			ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocalFirst(fg_Move(_ToQueue), ThreadLocal.m_pThisQueue->m_JobQueueLocal);
+			_ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocalFirst(fg_Move(_ToQueue), _ThreadLocal.m_pThisQueue->m_JobQueueLocal);
 			return;
 		}
 
@@ -458,40 +458,48 @@ namespace NMib::NConcurrency
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
-		if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
-			ThreadLocal.m_iConcurrentActor[_Priority] = 0;
-		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
-		++ThreadLocal.m_iConcurrentActor[_Priority];
+		if (_ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
+			_ThreadLocal.m_iConcurrentActor[_Priority] = 0;
+		auto &Queue = m_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
+		++_ThreadLocal.m_iConcurrentActor[_Priority];
 
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), false))
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
+			Queue.f_Signal(this);
+	}
+
+	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	{
+		fp_DispatchOnCurrentThreadOrConcurrentFirst(_Priority, fg_Move(_ToQueue), fg_ConcurrencyThreadLocal());
+	}
+
+	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		if (_ThreadLocal.m_pThisQueue)
+		{
+			_ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocal(fg_Move(_ToQueue), _ThreadLocal.m_pThisQueue->m_JobQueueLocal);
+			return;
+		}
+
+		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
+		if (!nActors)
+			nActors = fp_InitConcurrentActors();
+
+		if (_ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
+			_ThreadLocal.m_iConcurrentActor[_Priority] = 0;
+		auto &Queue = m_Queues[_Priority].f_GetArray()[_ThreadLocal.m_iConcurrentActor[_Priority]];
+		++_ThreadLocal.m_iConcurrentActor[_Priority];
+
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
 			Queue.f_Signal(this);
 	}
 
 	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (ThreadLocal.m_pThisQueue)
-		{
-			ThreadLocal.m_pThisQueue->m_JobQueue.f_AddToQueueLocal(fg_Move(_ToQueue), ThreadLocal.m_pThisQueue->m_JobQueueLocal);
-			return;
-		}
-
-		mint nActors = m_nConcurrentActors.f_Load(NAtomic::EMemoryOrder_Acquire);
-		if (!nActors)
-			nActors = fp_InitConcurrentActors();
-
-		if (ThreadLocal.m_iConcurrentActor[_Priority] >= nActors)
-			ThreadLocal.m_iConcurrentActor[_Priority] = 0;
-		auto &Queue = m_Queues[_Priority].f_GetArray()[ThreadLocal.m_iConcurrentActor[_Priority]];
-		++ThreadLocal.m_iConcurrentActor[_Priority];
-
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), false))
-			Queue.f_Signal(this);
+		fp_DispatchOnCurrentThreadOrConcurrent(_Priority, fg_Move(_ToQueue), fg_ConcurrencyThreadLocal());
 	}
 
-	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, bool _bForceNonLocal)
+	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		mint iJobQueue;
 		if (_iFixedCore < m_nThreads)
 			iJobQueue = _iFixedCore;
@@ -500,18 +508,18 @@ namespace NMib::NConcurrency
 			do
 			{
 				mint iThisQueue = TCLimitsInt<mint>::mc_Max;
-				if (ThreadLocal.m_pThisQueue)
-					iThisQueue = ThreadLocal.m_pThisQueue->m_iQueue;
-				if (ThreadLocal.m_pCurrentActor)
+				if (_ThreadLocal.m_pThisQueue)
+					iThisQueue = _ThreadLocal.m_pThisQueue->m_iQueue;
+				if (_ThreadLocal.m_pCurrentActor)
 				{
-					mint iCurrentCore = ThreadLocal.m_pCurrentActor->self.m_pThis->mp_iFixedCore;
+					mint iCurrentCore = _ThreadLocal.m_pCurrentActor->self.m_pThis->mp_iFixedCore;
 					if (iCurrentCore < m_nThreads)
 					{
 						iJobQueue = iCurrentCore;
 						break;
 					}
 				}
-				auto &iJobQueueNew = ThreadLocal.m_JobQueueIndex[_Priority];
+				auto &iJobQueueNew = _ThreadLocal.m_JobQueueIndex[_Priority];
 				if (iJobQueueNew == iThisQueue) // Don't queue new actors on the same queue
 					++iJobQueueNew;
 				if (iJobQueueNew >= m_nThreads)
@@ -524,17 +532,15 @@ namespace NMib::NConcurrency
 		}
 
 		auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _bForceNonLocal))
+		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
 			Queue.f_Signal(this);
 	}
 
 	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 
-	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, bool _bForceNonLocal)
+	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-
-		if (ThreadLocal.m_pThisQueue == &_Queue && !_bForceNonLocal)
+		if (_ThreadLocal.m_pThisQueue == &_Queue && !_ThreadLocal.m_bForceNonLocal)
 		{
 			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
 			return false;

@@ -1,1 +1,5 @@
-../../External/hidapi 4ebce6b5059b086d05ca7e091ce04a5fd08ac3ac
+{
+	"../../External/hidapi": {
+		"Hash": "4ebce6b5059b086d05ca7e091ce04a5fd08ac3ac"
+	}
+}

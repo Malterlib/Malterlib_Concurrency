@@ -81,9 +81,48 @@ Target
 	}
 }
 
+%Group "{Malterlib}/{Lib_Malterlib_Concurrency}/{TargetInjection}"
+{
+	Property
+	{
+		MalterlibExeFSExtraFiles =+ "ExeFS/MalterlibLogo.png"->MakeAbsolute()
+		{
+			!!PlatformFamily "macOS"
+		}
+	}
+	Compile
+	{
+		!!CompileDialect "C"
+
+		PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h`
+		{
+			&
+			{
+				|
+				{
+					Compile.Type "C++"
+					!GeneratorFamily "VisualStudio"
+				}
+				|
+				{
+					Compile.PrefixHeader undefined
+					Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
+				}
+				!DocumentationEnabled true
+				!MalterlibQtSupport true
+				!Target.Type "Driver"
+			}
+		}
+	}
+}
+
 %Group "{Malterlib}/{Lib_Malterlib_Concurrency}"
 {
-	Property.MalterlibConcurrency_DistributedActors true
+	Target
+	{
+		DependencyInjectionGroups =+ "{Malterlib}/{Lib_Malterlib_Concurrency}/{TargetInjection}"
+		ExtraGroups =+ "{Malterlib}/{Lib_Malterlib_Concurrency}/{TargetInjection}"
+	}
 	%Group "Concurrency"
 	{
 		%Group "Include"
@@ -133,54 +172,13 @@ Target
 
 Property
 {
-	MalterlibConcurrencyTargetInDependencies define bool = fg_IsTargetInDependencies("Lib_Malterlib_Concurrency")
-	MalterlibConcurrency_DistributedActors define bool = MalterlibConcurrencyTargetInDependencies
-
-	MalterlibExeFSExtraFiles =+ "ExeFS/MalterlibLogo.png"->MakeAbsolute()
-	{
-		&
-		{
-			PlatformFamily "macOS"
-			MalterlibConcurrency_DistributedActors true
-		}
-	}
-}
-
-Compile
-{
-	!!CompileDialect "C"
-
-	PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Concurrency/Source/PrefixHeader/PCH.h`
-	{
-		&
-		{
-			|
-			{
-				Compile.Type "C++"
-				!GeneratorFamily "VisualStudio"
-			}
-			MalterlibConcurrency_DistributedActors true
-			|
-			{
-				Compile.PrefixHeader undefined
-				Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
-			}
-			!DocumentationEnabled true
-			!MalterlibQtSupport true
-			!Target.Type "Driver"
-		}
-	}
-}
-
-Property
-{
-	MalterlibLibrary_Concurrency define bool = MalterlibLibrary_All
+	MalterlibLibrary_Concurrency: bool = MalterlibLibrary_All
 	MalterlibSubLibraries =+ "Concurrency"
 	{
 		!!MalterlibLibrary_Concurrency true
 	}
-	MalterlibLibrarySeparate_Lib_Malterlib_Concurrency define bool = true
-//	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency define bool = true
+	MalterlibLibrarySeparate_Lib_Malterlib_Concurrency: bool = true
+//	MalterlibSubLibrarySeparate_Lib_Malterlib_Concurrency: bool = true
 	MalterlibIncludeRoots =+ "Include"->MakeAbsolute()
 	{
 		!!MalterlibLibrary_Concurrency true
@@ -189,8 +187,6 @@ Property
 
 %Group "{Test}/{Malterlib_Concurrency}"
 {
-	Property.MalterlibConcurrency_DistributedActors true
-
 	%Group "Tests"
 	{
 		%File "Test/*"
@@ -205,11 +201,11 @@ Property
 	!!MalterlibEnableInternalTests true
 
 	MalterlibTests =+ "Malterlib_Concurrency"
-	MalterlibTestExtraGroups_Malterlib_Concurrency define [string] = ["{Test}/{Malterlib_Concurrency}"]
-	MalterlibTestFiles_Malterlib_Concurrency define [type(CEntity)] = []
+	MalterlibTestExtraGroups_Malterlib_Concurrency: [string] = ["{Test}/{Malterlib_Concurrency}"]
+	MalterlibTestFiles_Malterlib_Concurrency: [type(CEntity)] = []
 }
 
-Property.Malterlib_Concurrency_App_Targets define [type(CEntity)] = []
+Property.Malterlib_Concurrency_App_Targets: [type(CEntity)] = []
 
 %Workspace "Apps_Malterlib_Concurrency"
 {
@@ -233,10 +229,10 @@ Property.Malterlib_Concurrency_App_Targets define [type(CEntity)] = []
 
 Property
 {
-	MalterlibConcurrency_DebugActorCallstacks define bool = false // User(Debug)=true: Set to true to enable actor calls callstack debugging
-	MalterlibConcurrency_DebugBlockDestroy define bool = false // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
-	MalterlibConcurrency_DebugFutures define bool = false // User(Debug)=true: Set to true to enable future reference debugging
-	MalterlibConcurrency_DebugUnobservedException define bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
+	MalterlibConcurrency_DebugActorCallstacks: bool = false // User(Debug)=true: Set to true to enable actor calls callstack debugging
+	MalterlibConcurrency_DebugBlockDestroy: bool = false // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
+	MalterlibConcurrency_DebugFutures: bool = false // User(Debug)=true: Set to true to enable future reference debugging
+	MalterlibConcurrency_DebugUnobservedException: bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
 }
 
 Compile

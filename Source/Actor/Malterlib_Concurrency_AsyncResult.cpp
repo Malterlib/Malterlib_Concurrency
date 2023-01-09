@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 
 	void CAsyncResult::f_Access() const
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 
 	CVoidTag TCAsyncResult<void>::f_Get() const
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 	
 	CVoidTag TCAsyncResult<void>::f_Get()
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 	
 	CVoidTag TCAsyncResult<void>::f_Move()
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 
 	bool CAsyncResult::f_IsSet() const
 	{
-		return m_bHasBeenSet || m_pException != nullptr;
+		return m_bHasBeenSet || m_pException;
 	}
 }
 

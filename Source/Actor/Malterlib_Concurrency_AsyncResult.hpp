@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	t_CType const &TCAsyncResult<t_CType>::f_Get() const
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	t_CType &TCAsyncResult<t_CType>::f_Get()
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	t_CType TCAsyncResult<t_CType>::f_Move()
 	{
-		if (m_pException != nullptr)
+		if (m_pException)
 			std::rethrow_exception(m_pException);
 		else if (!m_bHasBeenSet)
 		{

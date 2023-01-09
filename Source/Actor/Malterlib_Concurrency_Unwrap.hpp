@@ -48,8 +48,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CData, typename tf_CAllocator, typename tf_COptions>
 	NContainer::TCVector<tf_CData, tf_CAllocator, tf_COptions> fg_Unwrap(NContainer::TCVector<TCAsyncResult<tf_CData>, tf_CAllocator, tf_COptions> &&_Results)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCVector<tf_CData, tf_CAllocator, tf_COptions> Return;
@@ -60,16 +59,20 @@ namespace NMib::NConcurrency
 				Return.f_Insert(fg_Move(*Result));
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result vector"
+					, fg_Move(ErrorCollector).f_GetException()
+				)
+			;
 		}
 
 		return Return;
@@ -109,8 +112,7 @@ namespace NMib::NConcurrency
 		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCVector<tf_CData, tf_CAllocator, tf_COptions> Return;
@@ -121,16 +123,20 @@ namespace NMib::NConcurrency
 				Return.f_Insert(fg_Move(*Result));
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result vector"
+					, _fTransformer(fg_Move(ErrorCollector).f_GetException())
+				)
+			;
 		}
 
 		return Return;
@@ -139,24 +145,27 @@ namespace NMib::NConcurrency
 	template <typename tf_CAllocator, typename tf_COptions>
 	void fg_Unwrap(NContainer::TCVector<TCAsyncResult<void>, tf_CAllocator, tf_COptions> &&_Results)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		for (auto &Result : _Results)
 		{
 			if (!Result)
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result vector"
+					, fg_Move(ErrorCollector).f_GetException()
+				)
+			;
 		}
 	}
 
@@ -188,32 +197,34 @@ namespace NMib::NConcurrency
 		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		for (auto &Result : _Results)
 		{
 			if (!Result)
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result vector", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result vector"
+					, _fTransformer(fg_Move(ErrorCollector).f_GetException())
+				)
+			;
 		}
 	}
 
 	template <typename tf_CKey, typename tf_CData, typename tf_CCompare, typename tf_CAllocator>
 	auto fg_Unwrap(NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CData>, tf_CCompare, tf_CAllocator> &&_Results)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCMap<tf_CKey, tf_CData, tf_CCompare, tf_CAllocator> Return;
@@ -224,16 +235,20 @@ namespace NMib::NConcurrency
 				Return(_Results.fs_GetKey(Result), fg_Move(*Result));
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result map", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result map"
+					, fg_Move(ErrorCollector).f_GetException()
+				)
+			;
 		}
 
 		return Return;
@@ -273,8 +288,7 @@ namespace NMib::NConcurrency
 		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCMap<tf_CKey, tf_CData, tf_CCompare, tf_CAllocator> Return;
@@ -285,16 +299,20 @@ namespace NMib::NConcurrency
 				Return(_Results.fs_GetKey(Result), fg_Move(*Result));
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result map", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result map"
+					, _fTransformer(fg_Move(ErrorCollector).f_GetException())
+				)
+			;
 		}
 
 		return Return;
@@ -303,8 +321,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CCompare, typename tf_CAllocator>
 	NContainer::TCSet<tf_CKey, tf_CCompare, tf_CAllocator> fg_Unwrap(NContainer::TCMap<tf_CKey, TCAsyncResult<void>, tf_CCompare, tf_CAllocator> &&_Results)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCSet<tf_CKey, tf_CCompare, tf_CAllocator> Return;
@@ -315,16 +332,20 @@ namespace NMib::NConcurrency
 				Return[_Results.fs_GetKey(Result)];
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result map", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer());
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result map"
+					, fg_Move(ErrorCollector).f_GetException()
+				)
+			;
 		}
 
 		return Return;
@@ -364,8 +385,7 @@ namespace NMib::NConcurrency
 		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
-		NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-		NStr::CStr ErrorStr;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
 		NContainer::TCSet<tf_CKey, tf_CCompare, tf_CAllocator> Return;
@@ -376,16 +396,20 @@ namespace NMib::NConcurrency
 				Return[_Results.fs_GetKey(Result)];
 			else
 			{
-				Exceptions.f_Insert(Result.f_GetException());
 				bSuccess = false;
-				NStr::fg_AddStrSep(ErrorStr, Result.f_GetExceptionStr(), "\n");
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 
 		if (!bSuccess)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			DMibErrorCoroutineWrapper("Exception unwrapping async result map", _fTransformer(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions)).f_ExceptionPointer()));
+			DMibErrorCoroutineWrapper
+				(
+					"Exception unwrapping async result map"
+					, _fTransformer(fg_Move(ErrorCollector).f_GetException())
+				)
+			;
 		}
 
 		return Return;

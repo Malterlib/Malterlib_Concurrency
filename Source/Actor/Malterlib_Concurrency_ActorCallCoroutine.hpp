@@ -181,8 +181,7 @@ namespace NMib::NConcurrency
 	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_Unwrap
 		(
 		 	CUnwrappedType &o_Results
-		 	, NStr::CStr &o_Errors
-		 	, NContainer::TCVector<NException::CExceptionPointer> &o_Exceptions
+			, NException::CExceptionExceptionVectorData::CErrorCollector &o_ErrorCollector
 		 	, NMeta::TCIndices<tfp_Indices...>
 		)
 	{
@@ -194,9 +193,8 @@ namespace NMib::NConcurrency
 					auto &SourceResult = fg_Get<tfp_Indices>(mp_Results);
 					if (!SourceResult)
 					{
-						o_Exceptions.f_Insert(SourceResult.f_GetException());
 						bSuccess = false;
-						NStr::fg_AddStrSep(o_Errors, SourceResult.f_GetExceptionStr(), "\n");
+						o_ErrorCollector.f_AddError(SourceResult.f_GetException());
 					}
 					else
 						fg_Get<tfp_Indices>(o_Results) = fg_Move(*SourceResult);
@@ -306,25 +304,40 @@ namespace NMib::NConcurrency
 		if constexpr (t_bUnwrap)
 		{
 			CUnwrappedType Results;
-			NContainer::TCVector<NException::CExceptionPointer> Exceptions;
-			NStr::CStr ErrorStr;
+			NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 
 			if
 				(
 					!fp_Unwrap
 					(
 						Results
-						, ErrorStr
-					 	, Exceptions
+						, ErrorCollector
 						, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()
 					)
 				)
 			{
 				NException::CDisableExceptionTraceScope DisableExceptionTrace;
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-					DMibErrorCoroutineWrapper("Exception calling async result", DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions), false).f_ExceptionPointer());
+				{
+					DMibErrorCoroutineWrapper
+						(
+							"Exception calling async result"
+							, fg_Move(ErrorCollector).f_GetException()
+						)
+					;
+				}
 				else
-					DMibErrorCoroutineWrapper("Exception calling async result", mp_fExceptionTransform(DMibErrorInstanceExceptionVector(ErrorStr, fg_Move(Exceptions), false).f_ExceptionPointer()));
+				{
+					DMibErrorCoroutineWrapper
+						(
+							"Exception calling async result"
+							, mp_fExceptionTransform
+							(
+								fg_Move(ErrorCollector).f_GetException()
+							)
+						)
+					;
+				}
 			}
 
 			return Results;

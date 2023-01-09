@@ -95,6 +95,17 @@ namespace NMib::NConcurrency
 		return (Internal.mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask) == 0;
 	}
 
+	template <typename tf_CType>
+	bool fg_AnyFailed(NContainer::TCVector<TCAsyncResult<tf_CType>> const &_Results)
+	{
+		for (auto &Result : _Results)
+		{
+			if (!Result)
+				return true;
+		}
+		return false;
+	}
+
 	template <typename tf_CType, typename tf_FOnResult>
 	void fg_CombineResults
 		(
@@ -102,7 +113,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -111,11 +122,14 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
-			DMibError(Errors);
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
+			throw fg_Move(ErrorCollector).f_GetException();
+		}
 	}
 
 	template <typename tf_FOnResult>
@@ -125,7 +139,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -134,11 +148,14 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
-			DMibError(Errors);
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
+			throw fg_Move(ErrorCollector).f_GetException();
+		}
 	}
 
 	template <typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
@@ -149,12 +166,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -165,13 +182,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -185,12 +202,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -201,13 +218,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -221,12 +238,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -237,13 +254,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -257,12 +274,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -273,13 +290,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -294,7 +311,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -303,12 +320,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -322,7 +339,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -331,12 +348,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -350,7 +367,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -359,12 +376,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -378,7 +395,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -387,12 +404,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -407,7 +424,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -416,11 +433,14 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
-			DMibError(Errors);
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
+			throw fg_Move(ErrorCollector).f_GetException();
+		}
 	}
 
 	template <typename tf_CKey, typename tf_FOnResult>
@@ -430,7 +450,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -439,11 +459,14 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
-			DMibError(Errors);
+		{
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
+			throw fg_Move(ErrorCollector).f_GetException();
+		}
 	}
 
 	template <typename tf_CKey, typename tf_CReturn, typename tf_CType, typename tf_FOnResult>
@@ -454,12 +477,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -470,13 +493,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -490,12 +513,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -506,13 +529,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -526,12 +549,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -542,13 +565,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -562,12 +585,12 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		if (!_Results)
 		{
-			bIsError = true;
-			fg_AddStrSep(Errors, _Results.f_GetExceptionStr(), DMibNewLine);
+			_Promise.f_SetException(_Results.f_GetException());
+			return false;
 		}
 		else
 		{
@@ -578,13 +601,13 @@ namespace NMib::NConcurrency
 				else
 				{
 					bIsError = true;
-					fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+					ErrorCollector.f_AddError(Result.f_GetException());
 				}
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -598,7 +621,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -607,12 +630,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -626,7 +649,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -635,12 +658,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -654,7 +677,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -663,12 +686,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;
@@ -682,7 +705,7 @@ namespace NMib::NConcurrency
 			, tf_FOnResult &&_fOnResult
 		)
 	{
-		NStr::CStr Errors;
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bIsError = false;
 		for (auto &Result : _Results)
 		{
@@ -691,12 +714,12 @@ namespace NMib::NConcurrency
 			else
 			{
 				bIsError = true;
-				fg_AddStrSep(Errors, Result.f_GetExceptionStr(), DMibNewLine);
+				ErrorCollector.f_AddError(Result.f_GetException());
 			}
 		}
 		if (bIsError)
 		{
-			_Promise.f_SetException(DMibErrorInstance(Errors));
+			_Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
 			return false;
 		}
 		return true;

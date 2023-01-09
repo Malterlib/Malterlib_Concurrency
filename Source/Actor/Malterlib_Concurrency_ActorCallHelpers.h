@@ -414,7 +414,13 @@ namespace NMib::NConcurrency
 		void fp_ActorCall(tf_CResultFunctor &&_ResultFunctor, TCActor<> &&_ResultActor, NMeta::TCIndices<tfp_Indices...>);
 
 		template <mint... tfp_Indices>
-		bool fp_Unwrap(CUnwrappedType &o_Results, NStr::CStr &o_Errors, NContainer::TCVector<NException::CExceptionPointer> &o_Exceptions, NMeta::TCIndices<tfp_Indices...>);
+		bool fp_Unwrap
+			(
+				CUnwrappedType &o_Results
+				, NException::CExceptionExceptionVectorData::CErrorCollector &o_ErrorCollector
+				, NMeta::TCIndices<tfp_Indices...>
+			)
+		;
 
 		template <mint... tfp_Indices>
 		bool fp_HasException(NMeta::TCIndices<tfp_Indices...>);

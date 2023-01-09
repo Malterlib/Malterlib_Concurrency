@@ -21,8 +21,8 @@ namespace NMib::NConcurrency
 	{
 		enum : uint32
 		{
-			EProtocolVersion_Min = 0x105
-			, EProtocolVersion_Current = 0x105
+			EProtocolVersion_Min = 0x106
+			, EProtocolVersion_Current = 0x106
 		};
 
 		ICCommandLineControl();
@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector const &_Input, NStr::CStr const &_Error)
 			>
 		;
-		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> ()>;
+		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
 
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;

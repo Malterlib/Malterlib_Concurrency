@@ -541,10 +541,10 @@ namespace NMib::NConcurrency
 					{
 					}
 				)
-				/ [Cancelled]() -> TCFuture<void>
+				/ [Cancelled]() -> TCFuture<bool>
 				{
 					Cancelled.f_SetResult();
-					co_return {};
+					co_return false;
 				}
 			)
 		;

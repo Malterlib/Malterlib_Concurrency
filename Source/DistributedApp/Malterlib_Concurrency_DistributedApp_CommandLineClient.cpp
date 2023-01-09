@@ -147,18 +147,24 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 
-			TCFuture<void> f_Cancel()
+			TCFuture<bool> f_Cancel()
 			{
-				TCActorResultVector<void> Results;
+				TCActorResultVector<bool> Results;
 
 				mp_bCancelled = true;
+
+				bool bDestroyApp = mp_CancellationSubscriptions.f_IsEmpty();
 
 				for (auto &Subscription : mp_CancellationSubscriptions)
 					Subscription.m_fOnCancel() > Results.f_AddResult();
 
-				co_await Results.f_GetResults() | g_Unwrap;
+				for (auto &bResult : co_await Results.f_GetResults() | g_Unwrap)
+				{
+					if (bResult)
+						bDestroyApp = true;
+				}
 
-				co_return {};
+				co_return bDestroyApp;
 			}
 
 		private:
@@ -255,14 +261,17 @@ namespace NMib::NConcurrency
 				(
 				 	[pState, pCommandLineControl]
 				 	{
-						pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
+						pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
 							{
 								if (!_Result)
 									DMibConErrOut("Failed to cancel: {}\n", _Result.f_GetExceptionStr());
 
-								DMibLock(pState->m_ResultLock);
-								pState->m_bAborted = true;
-								pState->m_Event.f_Signal();
+								if (*_Result)
+								{
+									DMibLock(pState->m_ResultLock);
+									pState->m_bAborted = true;
+									pState->m_Event.f_Signal();
+								}
 							}
 						;
 					}

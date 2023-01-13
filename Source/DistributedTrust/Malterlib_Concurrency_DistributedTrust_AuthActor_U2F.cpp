@@ -913,15 +913,15 @@ namespace NMib::NConcurrency::NPrivate
 				{
 					uint8 Init = 0;
 					Hash.f_AddData(&Init, 1);
-					Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.fs_GetSize());
-					Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.fs_GetSize());
+					Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.mc_Size);
+					Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.mc_Size);
 					Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
 					Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
 				}
 				auto Digest = Hash.f_GetDigest();
 
 				ERR_clear_error();
-				int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.fs_GetSize(), pSig, pECKey);
+				int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSig, pECKey);
 				if (VerifyResult != 1)
 				{
 					if (VerifyResult == -1)
@@ -944,10 +944,10 @@ namespace NMib::NConcurrency::NPrivate
 			CSecureByteVector Data;
 
 			auto ChallengeDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
-			Data.f_Insert(ChallengeDigest.f_GetData(), ChallengeDigest.fs_GetSize());
+			Data.f_Insert(ChallengeDigest.f_GetData(), ChallengeDigest.mc_Size);
 
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
-			Data.f_Insert(AppDigest.f_GetData(), AppDigest.fs_GetSize());
+			Data.f_Insert(AppDigest.f_GetData(), AppDigest.mc_Size);
 
 			auto RegistrationData = co_await fs_SendAPDUs(U2F_REGISTER, {Data}, _fPrompt);
 			DMibRequire(RegistrationData.m_Index == 0);
@@ -973,10 +973,10 @@ namespace NMib::NConcurrency::NPrivate
 				FactorValues.f_InsertLast({Context.m_AppID, Context.m_FactorID, Context.m_FactorName});
 
 				auto Digest = CHash_SHA256::fs_DigestFromData(Context.m_SignatureBytes);
-				Data.f_Insert(Digest.f_GetData(), Digest.fs_GetSize());
+				Data.f_Insert(Digest.f_GetData(), Digest.mc_Size);
 
 				Digest = CHash_SHA256::fs_DigestFromData(Context.m_AppID.f_GetStr(), Context.m_AppID.f_GetLen());
-				Data.f_Insert(Digest.f_GetData(), Digest.fs_GetSize());
+				Data.f_Insert(Digest.f_GetData(), Digest.mc_Size);
 
 				Data.f_Insert(Context.m_KeyHandle.f_GetLen());
 				Data.f_Insert(Context.m_KeyHandle);
@@ -1027,15 +1027,15 @@ namespace NMib::NConcurrency::NPrivate
 			auto AppDigest = CHash_SHA256::fs_DigestFromData(m_AppID.f_GetStr(), m_AppID.f_GetLen());
 			auto ClientDigest = CHash_SHA256::fs_DigestFromData(m_SignatureBytes);
 
-			Hash.f_AddData(AppDigest.f_GetData(), AppDigest.fs_GetSize());
+			Hash.f_AddData(AppDigest.f_GetData(), AppDigest.mc_Size);
 			Hash.f_AddData((uint8 *)&Result.m_UserPresence, 1);
 			Hash.f_AddData((uint8 *)&Result.m_Counter, U2F_COUNTER_LEN);
-			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.fs_GetSize());
+			Hash.f_AddData(ClientDigest.f_GetData(), ClientDigest.mc_Size);
 			auto Digest = Hash.f_GetDigest();
 
 			CSSLPointer<EC_KEY *, EC_KEY_free> Key = fg_DecodeUserKey(m_PublicKey);
 			ERR_clear_error();
-			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.fs_GetSize(), pSignature, Key);
+			auto Verified = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSignature, Key);
 			if (Verified != 1)
 			{
 				if (Verified == -1)

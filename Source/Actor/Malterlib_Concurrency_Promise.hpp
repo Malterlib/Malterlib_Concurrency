@@ -794,14 +794,6 @@ namespace NMib::NConcurrency::NPrivate
 		}
 #endif
 
-		try
-		{
-			fp_ReportNothingSet();
-		}
-		catch (...)
-		{
-		}
-
 		if (m_Coroutine)
 		{
 #if DMibEnableSafeCheck > 0
@@ -809,6 +801,14 @@ namespace NMib::NConcurrency::NPrivate
 			DMibFastCheck(Owner && Owner->f_CurrentlyProcessing() || m_bIsGenerator);
 #endif
 			m_Coroutine.destroy();
+		}
+
+		try
+		{
+			fp_ReportNothingSet();
+		}
+		catch (...)
+		{
 		}
 	}
 

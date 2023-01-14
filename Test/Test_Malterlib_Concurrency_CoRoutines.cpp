@@ -5,6 +5,7 @@
 #include <Mib/Concurrency/Coroutine>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/Actor/Timer>
+#include <Mib/Concurrency/AsyncDestroy>
 #include <Mib/Test/Exception>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
@@ -1147,6 +1148,392 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
+		struct CAsyncDestroyTestState
+		{
+			NAtomic::TCAtomic<int32> m_Sequence = 0;
+			int32 m_ExitSequence = -1;
+			int32 m_DestroyCalledSequence = -1;
+
+			NAtomic::TCAtomic<int32> m_nDestructed = 0;
+			NAtomic::TCAtomic<int32> m_nDestroyed = 0;
+			NAtomic::TCAtomic<int32> m_nStartDestroy = 0;
+		};
+
+		struct CToAsyncDestroy : public CAllowUnsafeThis
+		{
+			CToAsyncDestroy(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
+				: m_pTestState(_pTestState)
+			{
+			}
+			CToAsyncDestroy(CToAsyncDestroy &&) = default;
+
+			~CToAsyncDestroy()
+			{
+				if (m_pTestState)
+					++m_pTestState->m_nDestructed;
+			}
+
+			TCFuture<void> f_Destroy()
+			{
+				++m_pTestState->m_nStartDestroy;
+				co_await fg_Timeout(0.001);
+				++m_pTestState->m_nDestroyed;
+				co_return {};
+			}
+
+			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
+		};
+
+		struct CAsyncDestroyActor : public CActor
+		{
+			CAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
+				: m_pTestState(_pTestState)
+			{
+			}
+
+			~CAsyncDestroyActor()
+			{
+				++m_pTestState->m_nDestructed;
+			}
+
+			TCFuture<void> fp_Destroy()
+			{
+				++m_pTestState->m_nStartDestroy;
+				co_await fg_Timeout(0.001);
+				++m_pTestState->m_nDestroyed;
+				co_return {};
+			}
+
+			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
+		};
+
+		void f_TestAsyncDestroy()
+		{
+			DMibTestSuite("Async Destroy")
+			{
+				DMibTestCategory("Sequence") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&, pTestState]() -> TCFuture<void>
+										{
+											auto ToDestroy = fg_Move(Variable);
+											pTestState->m_DestroyCalledSequence = pTestState->m_Sequence.f_FetchAdd(1);
+
+											co_await ToDestroy.f_Destroy();
+
+											co_return {};
+										}
+									)
+								;
+
+								co_await fg_Timeout(0.001);
+
+								pTestState->m_ExitSequence = pTestState->m_Sequence.f_FetchAdd(1);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						)
+					;
+
+					DMibExpect(pTestState->m_ExitSequence, ==, 0);
+					DMibExpect(pTestState->m_DestroyCalledSequence, ==, 1);
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+				DMibTestCategory("Actor") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_Timeout(0.001);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						)
+					;
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
+				DMibTestCategory("Object") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_Timeout(0.001);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						)
+					;
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
+				DMibTestCategory("Exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_Timeout(0.001);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								DMibError("Test");
+
+								co_return {};
+							}
+						)
+						.f_Wrap()
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
+				DMibTestCategory("Explicit") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_Timeout(0.001);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_await fg_Move(AsyncDestroy);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+								co_return {};
+							}
+						)
+					;
+
+					{
+						DMibTestPath("After");
+						DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+						DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					}
+					co_return {};
+				};
+				DMibTestCategory("For Loop") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								for (mint i = 0; i < 10; ++i)
+								{
+									CToAsyncDestroy Variable(pTestState);
+									auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+								}
+
+								DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						)
+					;
+
+					{
+						DMibTestPath("After");
+						DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);
+						DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 10);
+						DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 10);
+					}
+
+					co_return {};
+				};
+				DMibTestCategory("For Loop Wait") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								for (mint i = 0; i < 10; ++i)
+								{
+									{
+										CToAsyncDestroy Variable(pTestState);
+										auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+									}
+									co_await g_AsyncDestroy;
+								}
+
+								DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 10);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 10);
+
+								co_return {};
+							}
+						)
+					;
+
+					{
+						DMibTestPath("After");
+						DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);
+						DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 10);
+						DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 10);
+					}
+
+					co_return {};
+				};
+				DMibTestCategory("Destroy exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&, pTestState]() -> TCFuture<void>
+										{
+											auto ToDestroy = fg_Move(Variable);
+
+											co_await ToDestroy.f_Destroy();
+
+											co_return DMibErrorInstance("Test");
+
+											co_return {};
+										}
+									)
+								;
+
+								co_await fg_Timeout(0.001);
+
+								pTestState->m_ExitSequence = pTestState->m_Sequence.f_FetchAdd(1);
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						).f_Wrap()
+					;
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					co_return {};
+				};
+#if DMibEnableSafeCheck > 0
+				DMibTestCategory("Require co_await") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+								auto AsyncDestroy = fg_AsyncDestroy(Variable);
+
+								co_return {};
+							}
+						)
+						.f_Wrap();
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstanceSafeCheck("fg_Exchange(mp_bAwaited, true) 'You forgot to co_await the async destroy'"));
+					co_return {};
+				};
+				DMibTestCategory("Require co_await double exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+								auto AsyncDestroy = fg_AsyncDestroy(Variable);
+
+								co_return DMibErrorInstance("Test");
+
+								co_return {};
+							}
+						)
+						.f_Wrap();
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstanceExceptionVector("Test\nfg_Exchange(mp_bAwaited, true) 'You forgot to co_await the async destroy'", {}));
+					co_return {};
+				};
+#endif
+			};
+		}
+
 		void f_DoTests()
 		{
 #if DMibEnableSafeCheck > 0
@@ -1161,6 +1548,7 @@ namespace NMib::NConcurrency::NTest
 			f_TestGeneral();
 			f_TestAuditor();
 			f_TestDestroy();
+			f_TestAsyncDestroy();
 		}
 	};
 

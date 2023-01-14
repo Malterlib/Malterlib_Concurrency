@@ -321,6 +321,74 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
+	struct CFutureCoroutineContext::CFinalAwaiter
+	{
+		CFinalAwaiter(TCFuture<void> &&_Future)
+			: mp_Future(fg_Move(_Future))
+		{
+		}
+
+		bool await_ready() noexcept
+		{
+			if (!mp_Future.f_IsValid())
+				return true;
+
+			if (mp_Future.f_ObserveIfAvailable())
+				return true;
+
+			return false;
+		}
+
+		template <typename tf_CCoroutineContext>
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept
+		{
+			DMibFastCheck(fg_CurrentActor());
+			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
+
+			auto &CoroutineContext = _Handle.promise();
+
+			auto Future = fg_Move(mp_Future);
+			if
+				(
+					Future.f_OnResultSetOrAvailable
+					(
+						[KeepAlive = CoroutineContext.f_KeepAlive(fg_CurrentActor()), _Handle](TCAsyncResult<void> &&_Result) mutable
+						{
+							auto Actor = KeepAlive.f_MoveActor();
+							if (!Actor)
+								return;
+
+							auto pRealActor = Actor.f_GetRealActor();
+							pRealActor->f_QueueProcess
+								(
+									[Actor, _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
+									{
+										if (!Result)
+										{
+											auto &CoroutineContext = _Handle.promise();
+											CoroutineContext.m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(Result).f_GetException());
+										}
+									}
+								)
+							;
+						}
+					)
+				)
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+		void await_resume() noexcept
+		{
+		}
+
+	private:
+		TCFuture<void> mp_Future;
+	};
+
 	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	struct TCFutureAwaiter
 	{
@@ -342,7 +410,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CCoroutineContext>
-		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept(NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
 		{
 			DMibFastCheck(fg_CurrentActor());
 			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());

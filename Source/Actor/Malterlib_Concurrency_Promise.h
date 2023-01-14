@@ -82,6 +82,25 @@ namespace NMib::NConcurrency
 		return TCFutureForwardThis<tf_CThis const &, tf_Flags>(_This);
 	}
 
+	struct CFutureCoroutineContext;
+
+	struct CAsyncDestroyHelperNoWrap
+	{
+	};
+
+	struct CAsyncDestroyHelper
+	{
+		CAsyncDestroyHelperNoWrap f_Wrap() const
+		{
+			return CAsyncDestroyHelperNoWrap();
+		}
+	};
+
+	extern CAsyncDestroyHelper g_AsyncDestroy;
+
+	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
+	struct TCFutureAwaiter;
+
 	struct CFutureCoroutineContext : public CCoroutineHandler
 	{
 		CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept;
@@ -102,8 +121,10 @@ namespace NMib::NConcurrency
 		using CInitialSuspend = CSuspendNever;
 #endif
 
+		struct CFinalAwaiter;
+
 		CInitialSuspend initial_suspend() noexcept;
-		CSuspendNever final_suspend() noexcept;
+		CFinalAwaiter final_suspend() noexcept;
 
 		template <typename t_CThis, ECoroutineFlag tf_Flags>
 		decltype(auto) await_transform(TCFutureForwardThis<t_CThis, tf_Flags> &&_MoveThis)
@@ -128,6 +149,9 @@ namespace NMib::NConcurrency
 			return {};
 		}
 
+		TCFutureAwaiter<void, true, void *> await_transform(CAsyncDestroyHelper);
+		TCFutureAwaiter<void, false, void *> await_transform(CAsyncDestroyHelperNoWrap);
+
 		template <typename t_CAwaitable>
 		decltype(auto) await_transform(t_CAwaitable &&_Awaitable)
 		{
@@ -149,6 +173,7 @@ namespace NMib::NConcurrency
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
 		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> m_RestoreScopes;
+		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
 		static bool ms_bDebugCoroutineSafeCheck;

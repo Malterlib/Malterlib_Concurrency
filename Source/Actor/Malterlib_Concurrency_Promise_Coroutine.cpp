@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		return {};
 	}
 
-	CSuspendNever CFutureCoroutineContext::final_suspend() noexcept
+	auto CFutureCoroutineContext::final_suspend() noexcept -> CFinalAwaiter
 	{
 		if (m_pPreviousCoroutineHandler != this)
 		{
@@ -40,7 +40,28 @@ namespace NMib::NConcurrency
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 			m_pPreviousCoroutineHandler = this;
 		}
-		return {};
+
+		if (!m_AsyncDestructors.f_IsEmpty())
+		{
+			TCActorResultVector<void> DestroyResults;
+
+			for (auto &fAsyncDestroy : m_AsyncDestructors)
+			{
+				if (!fAsyncDestroy.f_ObserveIfAvailable())
+					fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+			}
+
+			m_AsyncDestructors.f_Clear();
+
+			if (!DestroyResults.f_IsEmpty())
+			{
+				TCPromise<void> Promise;
+				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
+				return fg_Move(Promise.f_MoveFuture());
+			}
+		}
+
+		return TCFuture<void>();
 	}
 
 #ifdef DMibSanitizerEnabled_Address

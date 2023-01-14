@@ -56,10 +56,7 @@ namespace NMib::NConcurrency
 			TCActorResultVector<void> DestroyResults;
 
 			for (auto &fAsyncDestroy : m_AsyncDestructors)
-			{
-				if (!fAsyncDestroy.f_ObserveIfAvailable())
-					fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
-			}
+				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
 
 			m_AsyncDestructors.f_Clear();
 

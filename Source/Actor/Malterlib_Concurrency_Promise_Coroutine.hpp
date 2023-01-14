@@ -285,9 +285,6 @@ namespace NMib::NConcurrency
 			if (!mp_Future.f_IsValid())
 				return true;
 
-			if (mp_Future.f_ObserveIfAvailable())
-				return true;
-
 			return false;
 		}
 
@@ -327,6 +324,10 @@ namespace NMib::NConcurrency
 					)
 				)
 			{
+				auto Result = Future.f_MoveResult();
+				if (!Result)
+					CoroutineContext.m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(Result).f_GetException());
+
 				return false;
 			}
 

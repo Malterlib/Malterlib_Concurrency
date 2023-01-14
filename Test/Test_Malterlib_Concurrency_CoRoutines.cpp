@@ -1910,8 +1910,6 @@ namespace NMib::NConcurrency::NTest
 											co_await ToDestroy.f_Destroy();
 
 											co_return DMibErrorInstance("Test");
-
-											co_return {};
 										}
 									)
 								;
@@ -1930,6 +1928,32 @@ namespace NMib::NConcurrency::NTest
 
 					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					co_return {};
+				};
+				DMibTestCategory("Destroy exception direct") -> TCFuture<void>
+				{
+					auto Result = co_await fg_CallSafe
+						(
+							[]() -> TCFuture<void>
+							{
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&]() -> TCFuture<void>
+										{
+											co_return DMibErrorInstance("Test");
+										}
+									)
+								;
+
+								co_await fg_Timeout(0.001);
+
+								co_return {};
+							}
+						).f_Wrap()
+					;
+
 					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
 
 					co_return {};

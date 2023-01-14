@@ -208,7 +208,7 @@ namespace NMib::NConcurrency::NPrivate
 			{
 				throw;
 			}
-#if DMibEnableSafeCheck > 0
+#ifdef DMibNeedDebugException
 			catch (NException::CDebugException const &)
 			{
 				this->m_pPromiseData->f_SetCurrentExceptionNoReport();

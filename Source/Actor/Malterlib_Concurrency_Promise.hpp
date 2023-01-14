@@ -747,7 +747,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	TCPromiseData<t_CReturnValue>::~TCPromiseData()
 	{
-#if DMibEnableSafeCheck > 0
+#ifdef DMibNeedDebugException
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
 		if

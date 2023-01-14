@@ -1364,9 +1364,12 @@ namespace NMib::NConcurrency
 
 				PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<CReturnType>();
 				CLocalResultType Result;
+#ifdef DMibNeedDebugException
 				bool bWasDebugException = false;
+#endif
 				if constexpr (mc_bIsFuture)
 				{
+#ifdef DMibNeedDebugException
 					try
 					{
 						Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
@@ -1376,9 +1379,13 @@ namespace NMib::NConcurrency
 						Result = TCPromise<CReturnType>() <<= NException::fg_CurrentException();
 						bWasDebugException = true;
 					}
+#else
+					Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+#endif
 				}
 				else
 				{
+#ifdef DMibNeedDebugException
 					try
 					{
 						Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
@@ -1388,6 +1395,9 @@ namespace NMib::NConcurrency
 						Result.f_SetException(NException::fg_CurrentException());
 						bWasDebugException = true;
 					}
+#else
+					Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
+#endif
 				}
 
 				auto &ResultDeref = [&]() -> decltype(auto)
@@ -1415,10 +1425,25 @@ namespace NMib::NConcurrency
 				Cleanup.f_Clear();
 #else
 				CLocalResultType Result;
+#ifdef DMibNeedDebugException
+				try
+				{
+					if constexpr (mc_bIsFuture)
+						Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
+					else
+						Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
+				}
+				catch (NException::CDebugException const &)
+				{
+					Result.f_SetException(NException::fg_CurrentException());
+					bWasDebugException = true;
+				}
+#else
 				if constexpr (mc_bIsFuture)
 					Result = State.m_ToCall(*pActor, typename t_CFunctor::CIndices());
 				else
 					Result.f_SetResult(State.m_ToCall(*pActor, typename t_CFunctor::CIndices()));
+#endif
 #endif
 
 				if constexpr (mc_bIsFuture)

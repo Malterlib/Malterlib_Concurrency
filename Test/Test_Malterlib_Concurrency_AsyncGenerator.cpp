@@ -136,6 +136,14 @@ namespace
 			co_return DMibErrorInstance("Test error");
 		}
 
+		TCAsyncGenerator<int32> f_TestAsyncGeneratorExceptionCaptured()
+		{
+			co_await ECoroutineFlag_CaptureExceptions;
+			DMibError("Test error");
+
+			co_return {};
+		}
+
 		TCFuture<int32> f_TestAsyncGeneratorExceptionSecondConsumer()
 		{
 			int32 Return = 0;
@@ -856,6 +864,12 @@ namespace
 					TCActor<> ProcessingActor = fg_Construct();
 					CCurrentActorScope ActorScope(ProcessingActor);
 					DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorException).f_CallSync(g_Timeout).f_GetIterator().f_CallSync(g_Timeout), DMibErrorInstance("Test error"));
+					DMibExpectException
+						(
+							TestActor(&CTestActor::f_TestAsyncGeneratorExceptionCaptured).f_CallSync(g_Timeout).f_GetIterator().f_CallSync(g_Timeout)
+							, DMibErrorInstance("Test error")
+						)
+					;
 				}
 				DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorExceptionSecondConsumer).f_CallSync(g_Timeout), DMibErrorInstance("Test error"));
 			};

@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAny();
+		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
 
 		return Promise.f_Future();
 	}
@@ -87,7 +87,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAny();
+		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
 
 		return Promise.f_Future();
 	}
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAny();
+		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
 
 		return Promise.f_Future();
 	}

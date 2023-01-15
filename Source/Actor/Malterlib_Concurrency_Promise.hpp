@@ -198,13 +198,28 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	auto TCPromise<t_CReturnValue>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>
+	auto TCPromise<t_CReturnValue>::f_ReceiveAny() const & -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>
 	{
 		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<t_CReturnValue>>{*this};
 	}
 
+	template <typename t_CReturnValue>
+	auto TCPromise<t_CReturnValue>::f_ReceiveAny() && -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>
+	{
+		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<t_CReturnValue>>{fg_Move(*this)};
+	}
+
 	template <>
-	auto TCPromise<void>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>;
+	auto TCPromise<void>::f_ReceiveAny() const & -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>;
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAnyUnwrap() const & -> NPrivate::CPromiseReceiveAnyUnwrapFunctor;
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAny() && -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>;
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAnyUnwrap() && -> NPrivate::CPromiseReceiveAnyUnwrapFunctor;
 
 	namespace NPrivate
 	{

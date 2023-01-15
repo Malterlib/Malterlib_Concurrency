@@ -193,6 +193,8 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CPromise>
 	struct TCPromiseReceiveAnyFunctor;
 
+	struct CPromiseReceiveAnyUnwrapFunctor;
+
 	template <typename t_CReturnValue>
 	struct TCPromiseData;
 
@@ -567,7 +569,10 @@ namespace NMib::NConcurrency
 		template <typename tf_CException, typename tf_CResult>
 		void f_SetExceptionOrResult(tf_CException &&_Exception, tf_CResult &&_Result) const;
 		void f_SetCurrentException() const;
-		auto f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>;
+		auto f_ReceiveAny() const & -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>;
+		auto f_ReceiveAnyUnwrap() const & -> NPrivate::CPromiseReceiveAnyUnwrapFunctor;
+		auto f_ReceiveAny() && -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise>;
+		auto f_ReceiveAnyUnwrap() && -> NPrivate::CPromiseReceiveAnyUnwrapFunctor;
 		template <typename tf_FOnEmpty>
 		void f_Abandon(tf_FOnEmpty &&_fOnEmpty);
 		TCAsyncResult<t_CReturnValue> &&f_MoveResult();

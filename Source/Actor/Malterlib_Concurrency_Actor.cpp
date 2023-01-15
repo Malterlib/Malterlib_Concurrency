@@ -154,9 +154,27 @@ namespace NMib::NConcurrency
 	}
 
 	template <>
-	auto TCPromise<void>::f_ReceiveAny() const -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>
+	auto TCPromise<void>::f_ReceiveAny() const & -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>
 	{
 		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>{*this};
+	}
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAnyUnwrap() const & -> NPrivate::CPromiseReceiveAnyUnwrapFunctor
+	{
+		return NPrivate::CPromiseReceiveAnyUnwrapFunctor{*this};
+	}
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAny() && -> NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>
+	{
+		return NPrivate::TCPromiseReceiveAnyFunctor<TCPromise<void>>{fg_Move(*this)};
+	}
+
+	template <>
+	auto TCPromise<void>::f_ReceiveAnyUnwrap() && -> NPrivate::CPromiseReceiveAnyUnwrapFunctor
+	{
+		return NPrivate::CPromiseReceiveAnyUnwrapFunctor{fg_Move(*this)};
 	}
 
 	constexpr CDispatchHelper g_DispatchInit{};

@@ -12,11 +12,9 @@ namespace NMib::NFunction
 
 namespace NMib::NConcurrency
 {
-	DMibImpErrorClassImplement(CExceptionCoroutineWrapper);
-	
-	CFutureMakeHelper g_Future;
-	CCoroutineOnSuspendHelper g_OnSuspend;
-	CCoroutineOnResumeHelper g_OnResume;
+	constinit CFutureMakeHelper g_Future;
+	constinit CCoroutineOnSuspendHelper g_OnSuspend;
+	constinit CCoroutineOnResumeHelper g_OnResume;
 
 	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
 		: m_fOnSuspend(fg_Move(_fOnSuspend))

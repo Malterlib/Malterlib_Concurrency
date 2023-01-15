@@ -92,9 +92,9 @@ namespace NMib::NConcurrency::NPrivate
 			{
 				std::rethrow_exception(_Value);
 			}
-			catch (CExceptionCoroutineWrapper const &_WrappedException) // When a co_await returns an exception
+			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReport(fg_Move(_WrappedException.f_GetSpecific().m_pException));
 			}
 			catch (...)
 			{

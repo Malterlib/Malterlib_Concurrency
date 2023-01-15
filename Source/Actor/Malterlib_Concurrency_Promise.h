@@ -426,27 +426,6 @@ extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFuncti
 
 namespace NMib::NConcurrency
 {
-	struct CExceptionCoroutineData
-	{
-		CExceptionCoroutineData() = default;
-		CExceptionCoroutineData(NException::CExceptionPointer &&_pException)
-			: m_pException(fg_Move(_pException))
-		{
-		}
-
-		template <typename tf_CStream>
-		void f_Stream(tf_CStream &_Stream)
-		{
-			DMibPDebugBreak; // Not valid for streaming
-		}
-
-		NException::CExceptionPointer m_pException;
-	};
-
-	DMibImpErrorSpecificClassDefine(CExceptionCoroutineWrapper, NMib::NException::CExceptionBase, CExceptionCoroutineData);
-#	define DMibErrorCoroutineWrapper(d_Description, d_Specific) DMibImpErrorSpecific(NMib::NConcurrency::CExceptionCoroutineWrapper, d_Description, d_Specific, false)
-#	define DMibErrorInstanceCoroutineWrapper(d_Description, d_Specific) DMibImpExceptionInstanceSpecific(NMib::NConcurrency::CExceptionCoroutineWrapper, d_Description, d_Specific, false)
-
 	template <typename t_CReturnValue>
 	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCPromiseWithError;
 

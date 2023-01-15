@@ -578,6 +578,10 @@ namespace NMib::NConcurrency
 
 	using CUnsafeFuture = TCUnsafeFuture<void>;
 
+	struct CPromiseConstructEmpty
+	{
+	};
+
 	template <typename t_CReturnValue>
 	struct [[nodiscard]] TCPromise
 	{
@@ -587,8 +591,10 @@ namespace NMib::NConcurrency
 		TCPromise &operator =(TCPromise const &_Other);
 		TCPromise &operator =(TCPromise &&_Other);
 		TCPromise();
+		TCPromise(CPromiseConstructEmpty);
 
 		bool f_IsSet() const;
+		bool f_IsValid() const;
 		void f_SetResult() const;
 		template <typename tf_CResult>
 		void f_SetResult(tf_CResult &&_Result) const;

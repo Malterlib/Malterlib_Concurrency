@@ -67,6 +67,16 @@ namespace NMib::NConcurrency
 		: mp_pData(fg_Construct())
 	{
 	}
+	template <typename t_CReturnValue>
+	TCPromise<t_CReturnValue>::TCPromise(CPromiseConstructEmpty)
+	{
+	}
+
+	template <typename t_CReturnValue>
+	bool TCPromise<t_CReturnValue>::f_IsValid() const
+	{
+		return !!mp_pData;
+	}
 
 	enum EFutureResultFlag
  	{

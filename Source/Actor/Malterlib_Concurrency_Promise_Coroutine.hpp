@@ -195,11 +195,11 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
 			}
 			catch (...)
 			{
-				this->m_pPromiseData->f_SetCurrentExceptionNoReport();
+				this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
 			}
 		}
 		else
@@ -211,12 +211,12 @@ namespace NMib::NConcurrency::NPrivate
 #ifdef DMibNeedDebugException
 			catch (NException::CDebugException const &)
 			{
-				this->m_pPromiseData->f_SetCurrentExceptionNoReport();
+				this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
 			}
 #endif
 			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
 			{
-				this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
+				this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
 			}
 			// All other exceptionss falls through and crashes the application
 		}
@@ -310,11 +310,11 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
 		{
-			this->m_pPromiseData->f_SetExceptionNoReport(_WrappedException.f_GetSpecific().m_pException);
+			this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
 		}
 		catch (...)
 		{
-			this->m_pPromiseData->f_SetCurrentExceptionNoReport();
+			this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
 		}
 	}
 }

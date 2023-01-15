@@ -389,7 +389,10 @@ namespace NMib::NConcurrency::NPrivate
 		void f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &_Result);
 		template <typename tf_CResult>
 		void f_SetExceptionNoReport(TCAsyncResult<tf_CResult> &&_Result);
-		void f_SetCurrentExceptionNoReport();
+		void f_SetCurrentExceptionNoReportAppendable();
+
+		void f_SetExceptionNoReportAppendable(NException::CExceptionPointer &&_pException);
+
 
 		NAtomic::EMemoryOrder f_MemoryOrder(NAtomic::EMemoryOrder _Default = NAtomic::EMemoryOrder_SequentiallyConsistent) const;
 

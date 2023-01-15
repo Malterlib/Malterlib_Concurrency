@@ -30,8 +30,10 @@ namespace NMib::NConcurrency
 
 			TCActorFunctorWeak<TCFuture<void> ()> m_fCallback;
 			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
+			TCPromise<void> m_DestroyPromise = CPromiseConstructEmpty();
 			bool m_bOutstanding = false;
 			bool m_bMissed = false;
+			bool m_bDestroying = false;
 		};
 
 		struct CTimer
@@ -46,7 +48,7 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<bool> m_pDestroyed;
 			fp64 m_NextElapse = 0.0;
 			fp64 m_Period = 0.0;
-			ETimerType m_TimerType;
+			ETimerType m_TimerType = ETimerType_Oneshot;
 			bool m_bFireAtExit = false;
 
 			COrdering_Partial operator <=> (CTimer const &_Right) const
@@ -98,6 +100,12 @@ namespace NMib::NConcurrency
 					return;
 
 				pCallback->m_bOutstanding = false;
+				if (pCallback->m_bDestroying)
+				{
+					if (pCallback->m_DestroyPromise.f_IsValid() && !pCallback->m_DestroyPromise.f_IsSet())
+						pCallback->m_DestroyPromise.f_SetResult();
+					return;
+				}
 
 				if (pCallback->m_bMissed && m_Clock.f_GetTime() < (pTimer->m_NextElapse - pTimer->m_Period * 0.1))
 					fp_CallTimerCallback(*pTimer, *pCallback);
@@ -109,7 +117,7 @@ namespace NMib::NConcurrency
 	{
 		for (auto &Callback : _Timer.m_Callbacks)
 		{
-			if (Callback.m_bOutstanding)
+			if (Callback.m_bOutstanding || Callback.m_bDestroying)
 				continue;
 			fp_CallTimerCallback(_Timer, Callback);
 		}
@@ -421,6 +429,14 @@ namespace NMib::NConcurrency
 				if (*pDestroyed)
 					co_return {};
 
+				Callback.m_bDestroying = true;
+
+				if (Callback.m_bOutstanding)
+				{
+					Callback.m_DestroyPromise = {};
+					co_await Callback.m_DestroyPromise.f_Future();
+				}
+
 				auto &Internal = *mp_pInternal;
 
 				auto ToDestroy = fg_Move(Callback.m_fCallback);
@@ -461,6 +477,13 @@ namespace NMib::NConcurrency
 			{
 				if (*pDestroyed)
 					co_return {};
+
+				Callback.m_bDestroying = true;
+				if (Callback.m_bOutstanding)
+				{
+					Callback.m_DestroyPromise = {};
+					co_await Callback.m_DestroyPromise.f_Future();
+				}
 
 				auto &Internal = *mp_pInternal;
 

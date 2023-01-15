@@ -270,9 +270,22 @@ namespace NMib::NConcurrency
 				TCFuture<void> DispatchFuture;
 
 				if (Actor && pFunctor)
-					DispatchFuture = fg_Dispatch(fg_Move(Actor), [pFunctor = fg_Move(pFunctor)] {}).f_Future();
+				{
+					DispatchFuture = fg_Dispatch
+						(
+							fg_Move(Actor)
+							, [pFunctor = fg_Move(pFunctor)]() mutable
+							{
+								pFunctor.f_Clear();
+							}
+						).f_Future()
+					;
+				}
 				else
+				{
+					pFunctor.f_Clear();
 					DispatchFuture = TCPromise<void>() <<= g_Void;
+				}
 
 				fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise = fg_Move(Promise), Result = fg_Move(_Result)](TCAsyncResult<void> &&) mutable
 					{

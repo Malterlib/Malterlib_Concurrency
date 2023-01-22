@@ -249,10 +249,15 @@ namespace NMib::NConcurrency
 	template <typename tf_CValue>
 	static TCVector<TCSet<tf_CValue>> fg_PowerSet(TCSet<tf_CValue> const &_SourceSet)
 	{
+		if (_SourceSet.f_IsEmpty())
+			return {};
+
 		TCVector<TCSet<tf_CValue>> PowerSet;
 		TCVector<tf_CValue> SourceSetArray;
 		for (auto &Value : _SourceSet)
 			SourceSetArray.f_Insert(Value);
+
+		DMibFastCheck(!SourceSetArray.f_IsEmpty());
 
 		mint nSubSets = _SourceSet.f_GetLen();
 		mint nElements = mint(1) << nSubSets;
@@ -585,7 +590,11 @@ namespace NMib::NConcurrency
 				co_return {};
 			}
 		;
+#ifndef DMibClangAnalyzerWorkaround
 		co_return CMultipleRequestData{fg_Move(Subscription), fg_Move(MultipleRequestID)};
+#else
+		co_return DMibErrorInstance("Workaround analyzer bug");
+#endif
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication

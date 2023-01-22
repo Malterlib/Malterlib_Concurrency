@@ -507,7 +507,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	TCPromiseWithError<t_CReturnValue>::TCPromiseWithError(TCPromise<t_CReturnValue> const &_Promise, NStr::CStr const &_Error)
-		: CActorWithErrorBase{_Error}
+		: CActorWithErrorBase(_Error)
 		, m_Promise(_Promise)
 	{
 	}

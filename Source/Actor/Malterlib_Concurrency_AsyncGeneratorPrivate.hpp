@@ -64,13 +64,16 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(CEmpty)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		this->m_pPromiseData->f_SetResultNoReport(NStorage::TCOptional<t_CReturnType>{});
+#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 
 		if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
@@ -103,12 +106,14 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Can only return exceptions from generators");
+#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::yield_value(tf_CReturnType &&_Value) -> CYieldSuspender
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
@@ -118,15 +123,16 @@ namespace NMib::NConcurrency::NPrivate
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
 		else
 			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
-
+#endif
 		return {};
 	}
 
 	template <typename t_CReturnType>
 	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::yield_value(t_CReturnType &&_Value) -> CYieldSuspender
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		this->m_pPromiseData->f_SetResult(fg_Move(_Value));
-
+#endif
 		return {};
 	}
 

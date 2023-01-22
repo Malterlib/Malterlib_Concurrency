@@ -340,7 +340,7 @@ namespace NMib::NConcurrency::NTest
 
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 
-			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+			[[maybe_unused]] uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 
 			DMibError("Test Exception");
 

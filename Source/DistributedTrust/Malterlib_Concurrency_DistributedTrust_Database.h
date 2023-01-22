@@ -174,7 +174,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		void f_Consume(tf_CStream &_Stream);
 		CUserAuthenticationFactor const &operator = (NConcurrency::CAuthenticationData const &_Data);
 
-		EAuthenticationFactorCategory m_Category;
+		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PublicData;
 		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PrivateData;

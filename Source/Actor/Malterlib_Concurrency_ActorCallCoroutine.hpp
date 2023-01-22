@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActorCall, typename ...tp_CCalls>
 	TCActorCallPackWithError<t_CActorCall, tp_CCalls...>::TCActorCallPackWithError(t_CActorCall *_pActorCall, NStr::CStr const &_Error)
-		: CActorWithErrorBase{_Error}
+		: CActorWithErrorBase(_Error)
 		, mp_pActorCall{_pActorCall}
 	{
 	}
@@ -391,7 +391,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActorCall, typename t_CReturnType>
 	TCActorCallWithError<t_CActorCall, t_CReturnType>::TCActorCallWithError(t_CActorCall *_pActorCall, NStr::CStr const &_Error)
-		: CActorWithErrorBase{_Error}
+		: CActorWithErrorBase(_Error)
 		, mp_pActorCall{_pActorCall}
 	{
 	}

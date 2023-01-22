@@ -43,20 +43,25 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContextShared<t_CReturnType>::f_SetOwner(TCWeakActor<> const &_CoroutineOwner)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		m_pPromiseData->m_CoroutineOwner = _CoroutineOwner;
+#endif
 	}
 #endif
 
 	template <typename t_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::return_value(t_CReturnType &&_Value)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		this->m_pPromiseData->f_SetResultNoReport(fg_Move(_Value));
+	#endif
 	}
 
 	template <typename t_CReturnType>
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContext<t_CReturnType>::return_value(tf_CReturnType &&_Value)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
@@ -90,11 +95,13 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
+#endif
 	}
 
 	template <typename tf_CReturnType>
 	void TCFutureCoroutineContext<void>::return_value(tf_CReturnType &&_Value)
 	{
+#ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		static_assert
 			(
@@ -141,6 +148,7 @@ namespace NMib::NConcurrency::NPrivate
 				}
 			}
 		}
+#endif
 	}
 
 	template <typename t_CReturnType>
@@ -519,7 +527,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	TCFutureWithError<t_CReturnValue>::TCFutureWithError(TCFuture<t_CReturnValue> &&_Future, NStr::CStr const &_Error)
-		: CActorWithErrorBase{_Error}
+		: CActorWithErrorBase(_Error)
 		, m_Future(fg_Move(_Future))
 	{
 	}

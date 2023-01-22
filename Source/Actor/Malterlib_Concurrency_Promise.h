@@ -129,6 +129,7 @@ namespace NMib::NConcurrency
 		template <typename t_CThis, ECoroutineFlag tf_Flags>
 		decltype(auto) await_transform(TCFutureForwardThis<t_CThis, tf_Flags> &&_MoveThis)
 		{
+#ifndef DMibClangAnalyzerWorkaround
 			DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
 
 #if DMibEnableSafeCheck > 0
@@ -140,12 +141,15 @@ namespace NMib::NConcurrency
 			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions)) != ECoroutineFlag_None)
 				m_Flags |= tf_Flags;
 #endif
+#endif
 			return fg_Move(_MoveThis);
 		}
 
 		CSuspendNever await_transform(ECoroutineFlag _Flags)
 		{
+#ifndef DMibClangAnalyzerWorkaround
 			m_Flags |= _Flags;
+#endif
 			return {};
 		}
 
@@ -648,6 +652,11 @@ namespace NMib::NConcurrency
 
 	struct CActorWithErrorBase
 	{
+		CActorWithErrorBase(NStr::CStr const &_Error)
+			: m_Error(_Error)
+		{
+		}
+		
 		NStr::CStr m_Error;
 	protected:
 		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fp_GetTransformer();

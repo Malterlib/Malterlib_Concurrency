@@ -17,7 +17,6 @@ namespace NMib::NConcurrency
 			NSys::fg_Mem_GetNumaNodes(NumaNodes.f_GetArray(), nNumaNodes);
 
 			mint iNode = NMisc::fg_GetRandomUnsigned() % NumaNodes.f_GetLen(); // Randomize
-			iNode = 0;
 			fg_GetSys()->f_MemoryManager_SetNumaNode(NumaNodes[iNode]); // Set main thread to one specific numa node
 			NSys::fg_Thread_SetNumaAffinity(NSys::fg_Thread_GetCurrent(), NumaNodes[iNode]);
 		}

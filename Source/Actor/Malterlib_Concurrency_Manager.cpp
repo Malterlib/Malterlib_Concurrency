@@ -1009,6 +1009,8 @@ namespace NMib::NConcurrency
 		if (!nActors)
 			nActors = fp_InitConcurrentActors();
 
+		DMibFastCheck(nActors > 0);
+
 		mint HashData = reinterpret_cast<mint>(static_cast<void const *>(_Actor.fp_Get()));
 
 		mint iActor = fg_JenkinsHash((ch8 const *)&HashData, sizeof(HashData), 0) % nActors;

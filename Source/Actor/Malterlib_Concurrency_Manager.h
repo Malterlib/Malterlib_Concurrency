@@ -204,6 +204,8 @@ namespace NMib::NConcurrency
 		bool m_bCurrentlyProcessingInActorHolder = false;
 		bool m_bForceNonLocal = false;
 
+		NException::CExceptionPointer m_pNoResultException;
+
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *m_pCallstacks = nullptr;
 #endif

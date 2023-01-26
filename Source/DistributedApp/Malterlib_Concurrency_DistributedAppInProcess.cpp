@@ -71,9 +71,9 @@ namespace NMib::NConcurrency
 			{
 				mp_DistributedApp = _fDistributedAppFactory();
 			}
-			catch (NException::CException const &_Exception)
+			catch (NException::CException const &)
 			{
-				co_return _Exception.f_ExceptionPointer();
+				co_return NException::fg_CurrentException();
 			}
 		}
 
@@ -113,9 +113,9 @@ namespace NMib::NConcurrency
 			{
 				CommandLine = CommandLineClient.f_ParseCommandLine(Params);
 			}
-			catch (NException::CException const &_Exception)
+			catch (NException::CException const &)
 			{
-				co_return _Exception.f_ExceptionPointer();
+				co_return NException::fg_CurrentException();
 			}
 			AppParams = fg_Move(CommandLine.m_Params);
 		}

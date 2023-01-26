@@ -168,13 +168,30 @@ namespace NMib::NConcurrency
 
 			return RestoreScopes;
 		}
+		catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
+		{
+			if (iHandler)
+				--iHandler;
+			for (; iHandler; --iHandler)
+				iHandler->f_Suspend();
+
+			f_ResumeException(fg_Move(_WrappedException.f_GetSpecific().m_pException));
+
+			f_Abort();
+
+			o_bAborted = true;
+
+			return {};
+		}
 		catch (...)
 		{
 			if (iHandler)
 				--iHandler;
 			for (; iHandler; --iHandler)
 				iHandler->f_Suspend();
-			f_ResumeException();
+
+			f_ResumeException(NException::fg_CurrentException());
+
 			f_Abort();
 
 			o_bAborted = true;
@@ -183,6 +200,94 @@ namespace NMib::NConcurrency
 		}
 	}
 
+	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer const &_Exception)
+	{
+		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
+			(
+				_Exception
+				, [&](NException::CExceptionCoroutineWrapper const &_Exception)
+				{
+					o_Result.f_SetException(_Exception.f_GetSpecific().m_pException);
+				}
+			)
+		;
+
+		if (!bHandled)
+			o_Result.f_SetException(_Exception);
+	}
+
+	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception)
+	{
+		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
+			(
+				_Exception
+				, [&](NException::CExceptionCoroutineWrapper &&_Exception)
+				{
+					o_Result.f_SetException(fg_Move(_Exception.f_GetSpecific().m_pException));
+				}
+			)
+		;
+
+		if (!bHandled)
+			o_Result.f_SetException(fg_Move(_Exception));
+	}
+
+	void fg_UnwrapCoroutineWrapperAppendable(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception)
+	{
+		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
+			(
+				_Exception
+				, [&](NException::CExceptionCoroutineWrapper &&_Exception)
+				{
+					o_Result.f_SetExceptionAppendable(fg_Move(_Exception.f_GetSpecific().m_pException));
+				}
+			)
+		;
+
+		if (!bHandled)
+			o_Result.f_SetExceptionAppendable(fg_Move(_Exception));
+	}
+
+	void fg_UnwrapCoroutineWrapperAppendableWrapperOnly(CAsyncResult &o_Result, NException::CExceptionPointer &&_pException)
+	{
+		bool bHandled = NException::fg_VisitException
+			<
+				NException::CExceptionCoroutineWrapper
+#ifdef DMibNeedDebugException
+				, NException::CDebugException
+#endif
+			>
+			(
+				_pException
+				, [&]<typename tf_CException>(tf_CException &&_Exception)
+				{
+#ifdef DMibNeedDebugException
+					using CExceptionType = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType;
+					if constexpr (NTraits::TCIsSame<CExceptionType, NException::CDebugException>::mc_Value)
+					{
+						o_Result.f_SetExceptionAppendable(fg_Move(_pException));
+					}
+					else
+#endif
+					{
+						o_Result.f_SetExceptionAppendable(fg_Move(_Exception.f_GetSpecific().m_pException));
+					}
+				}
+			)
+		;
+
+		// All other exceptionss falls through and crashes the application
+		if (!bHandled)
+			std::rethrow_exception(fg_Move(_pException));
+	}
+
+#ifdef DMibNeedDebugException
+	bool fg_IsDebugException(NException::CExceptionPointer const &_pException)
+	{
+		return NException::fg_ExceptionIsOfType<NException::CDebugException>(_pException);
+	}
+#endif
+	
 #if DMibConcurrencySupportCoroutineFreeFunctionDebug
 	extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite)
 	{

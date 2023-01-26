@@ -117,9 +117,9 @@ namespace NMib::NConcurrency
 		{
 			ValidatedParams = SpecInternal.f_ValidateParams(**pCommand, _Params);
 		}
-		catch (CException const &_Exception)
+		catch (CException const &)
 		{
-			co_return _Exception.f_ExceptionPointer();
+			co_return NException::fg_CurrentException();
 		}
 
 		if ((*pCommand)->m_Flags & EDistributedAppCommandFlag_WaitForRemotes)
@@ -149,9 +149,9 @@ namespace NMib::NConcurrency
 			co_await _pCommandLine->f_StdOut(""); // Syncronize with output
 			co_return Result;
 		}
-		catch (CException const &_Exception)
+		catch (CException const &)
 		{
-			co_return _Exception.f_ExceptionPointer();
+			co_return NException::fg_CurrentException();
 		}
 	}
 

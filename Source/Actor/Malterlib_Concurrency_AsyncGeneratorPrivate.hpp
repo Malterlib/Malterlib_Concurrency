@@ -89,20 +89,8 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
-			NException::CDisableExceptionFilterScope DisableExceptionFilter;
-
-			try
-			{
-				std::rethrow_exception(_Value);
-			}
-			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-			{
-				this->m_pPromiseData->f_SetExceptionNoReport(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-			}
-			catch (...)
-			{
-				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
-			}
+			fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->m_bPendingResult = true;
 		}
 		else
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Can only return exceptions from generators");

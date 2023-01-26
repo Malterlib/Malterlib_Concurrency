@@ -82,6 +82,14 @@ namespace NMib::NConcurrency
 		return TCFutureForwardThis<tf_CThis const &, tf_Flags>(_This);
 	}
 
+	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer const &_Exception);
+	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
+	void fg_UnwrapCoroutineWrapperAppendable(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
+	void fg_UnwrapCoroutineWrapperAppendableWrapperOnly(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
+#ifdef DMibNeedDebugException
+	bool fg_IsDebugException(NException::CExceptionPointer const &_pException);
+#endif
+
 	struct CFutureCoroutineContext;
 
 	struct CAsyncDestroyHelperNoWrap
@@ -169,7 +177,7 @@ namespace NMib::NConcurrency
 		;
 		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_Resume(bool &o_bAborted, bool _bException);
 		virtual void f_Abort() = 0;
-		virtual void f_ResumeException() = 0;
+		virtual void f_ResumeException(NException::CExceptionPointer &&_pException) = 0;
 		virtual bool f_IsException() = 0;
 
 		CCoroutineHandler *m_pPreviousCoroutineHandler = this;
@@ -274,7 +282,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCFutureCoroutineKeepAlive<t_CReturnType> f_KeepAlive(TCActor<> &&_Actor);
 		TCFutureCoroutineKeepAliveImplicit<t_CReturnType> f_KeepAliveImplicit();
 		void f_Abort() override;
-		void f_ResumeException() override;
+		void f_ResumeException(NException::CExceptionPointer &&_pException) override;
 		bool f_IsException() override;
 
 		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();

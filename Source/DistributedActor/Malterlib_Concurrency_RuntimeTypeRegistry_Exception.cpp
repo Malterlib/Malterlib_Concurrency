@@ -49,19 +49,18 @@ namespace NMib::NConcurrency::NPrivate
 		 	, uint32 _ActorProtocolVersion
 		)
 	{
-		NException::CDisableExceptionTraceScope DisableTrace;
-		try
-		{
-			_Result.f_Access();
-			DMibFastCheck(false); // Should never get here
-		}
-		catch (NException::CExceptionBase const &_Exception)
-		{
-			return fg_StreamAsyncResultException(_Stream, _Exception, _ActorProtocolVersion);
-		}
-		catch (...)
-		{
-		}
+		bool bHandled = NException::fg_VisitException<NException::CExceptionBase>
+			(
+				_Result.f_GetException()
+				, [&](NException::CExceptionBase const &_Exception)
+				{
+					fg_StreamAsyncResultException(_Stream, _Exception, _ActorProtocolVersion);
+				}
+			)
+		;
+
+		if (bHandled)
+			return;
 
 		return fg_StreamAsyncResultException(_Stream, DMibErrorInstance("Non Malterlib exception encountered in remote actor call"), _ActorProtocolVersion);
 	}

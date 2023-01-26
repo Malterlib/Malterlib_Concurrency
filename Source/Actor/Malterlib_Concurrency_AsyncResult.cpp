@@ -24,40 +24,84 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	NException::CExceptionPointer CAsyncResult::f_GetException() const &
+	namespace
 	{
-		return m_pException;
+		NException::CExceptionPointer const &fg_NoResultException() noexcept
+		{
+			CConcurrencyThreadLocal &ThreadLocal = fg_ConcurrencyThreadLocal();
+			if (!ThreadLocal.m_pNoResultException)
+				ThreadLocal.m_pNoResultException = fg_MakeException(DMibErrorInstance("No result specified"));
+			return ThreadLocal.m_pNoResultException;
+		}
 	}
 
-	NException::CExceptionPointer &&CAsyncResult::f_GetException() &&
+	NException::CExceptionPointer CAsyncResult::f_GetException() const & noexcept
 	{
-		return fg_Move(m_pException);
+		if (m_pException)
+			return m_pException;
+		else if (!m_bHasBeenSet)
+			return fg_NoResultException();
+		return nullptr;
 	}
 
-	NStr::CStr CAsyncResult::f_GetExceptionStr() const
+	NException::CExceptionPointer CAsyncResult::f_GetException() && noexcept
 	{
-		try
+		if (m_pException)
+			return m_pException;
+		else if (!m_bHasBeenSet)
+			return fg_NoResultException();
+		return nullptr;
+	}
+
+	NStr::CStr CAsyncResult::f_GetExceptionStr() const noexcept
+	{
+		if (m_pException)
 		{
-			f_Access();
+			NStr::CStr Return;
+			if
+				(
+					!NException::fg_VisitException<NException::CExceptionBase>
+					(
+						m_pException
+						, [&](NException::CExceptionBase const& _Exception)
+						{
+							Return = _Exception.f_GetErrorStr();
+						}
+					)
+				)
+			{
+				return NStr::gc_Str<"Unknown exception type">;
+			}
+
+			return Return;
 		}
-		catch (NException::CException const& _Exception)
+		else if (!m_bHasBeenSet)
 		{
-			return _Exception.f_GetErrorStr();
+			return NStr::gc_Str<"No result specified">;
 		}
-		return NStr::CStr("No error (no exception was set)");
+
+		return NStr::gc_Str<"No error (no exception was set)">;
 	}
 	
 	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const
 	{
-		try
+		if (m_pException)
 		{
-			f_Access();
+			NStr::CStr Return;
+			NException::fg_VisitException<NException::CExceptionBase>
+				(
+					m_pException
+					, [&](NException::CExceptionBase const& _Exception)
+					{
+						Return = _Exception.f_GetCallstackStr(_Indent);
+					}
+				)
+			;
+
+			return Return;
 		}
-		catch (NException::CException const& _Exception)
-		{
-			return _Exception.f_GetCallstackStr(_Indent);
-		}
-		return NStr::CStr();
+
+		return {};
 	}
 	
 	TCAsyncResult<void>::TCAsyncResult() = default;
@@ -148,6 +192,28 @@ namespace NMib::NConcurrency
 	void CAsyncResult::f_SetException(NException::CExceptionPointer &&_pException)
 	{
 		m_pException = fg_Move(_pException);
+	}
+
+	void CAsyncResult::f_SetExceptionAppendable(NException::CExceptionPointer &&_pException)
+	{
+		if (f_IsSet())
+		{
+			if (*this)
+				*this = {};
+			else
+			{
+				NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+				ErrorCollector.f_AddError(fg_Move(*this).f_GetException());
+				ErrorCollector.f_AddError(fg_Move(_pException));
+
+				*this = {};
+				f_SetException(fg_Move(ErrorCollector).f_GetException());
+
+				return;
+			}
+		}
+
+		f_SetException(_pException);
 	}
 
 	void CAsyncResult::f_SetException(CAsyncResult &&_AsyncResult)

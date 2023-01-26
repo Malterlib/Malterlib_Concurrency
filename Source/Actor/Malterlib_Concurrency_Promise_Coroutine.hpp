@@ -78,20 +78,8 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 		{
-			NException::CDisableExceptionFilterScope DisableExceptionFilter;
-
-			try
-			{
-				std::rethrow_exception(_Value);
-			}
-			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-			{
-				this->m_pPromiseData->f_SetExceptionNoReport(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-			}
-			catch (...)
-			{
-				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
-			}
+			fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
+			this->m_pPromiseData->m_bPendingResult = true;
 		}
 		else
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
@@ -132,20 +120,8 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			else
 			{
-				NException::CDisableExceptionFilterScope DisableExceptionFilter;
-
-				try
-				{
-					std::rethrow_exception(_Value);
-				}
-				catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-				{
-					this->m_pPromiseData->f_SetExceptionNoReport(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-				}
-				catch (...)
-				{
-					this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
-				}
+				fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
+				this->m_pPromiseData->m_bPendingResult = true;
 			}
 		}
 #endif
@@ -195,38 +171,13 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 		{
-			NException::CDisableExceptionFilterScope DisableExceptionFilter;
-
-			try
-			{
-				throw;
-			}
-			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-			{
-				this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-			}
-			catch (...)
-			{
-				this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
-			}
+			fg_UnwrapCoroutineWrapperAppendable(this->m_pPromiseData->m_Result, NException::fg_CurrentException());
+			this->m_pPromiseData->m_bPendingResult = true;
 		}
 		else
 		{
-			try
-			{
-				throw;
-			}
-#ifdef DMibNeedDebugException
-			catch (NException::CDebugException const &)
-			{
-				this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
-			}
-#endif
-			catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-			{
-				this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-			}
-			// All other exceptionss falls through and crashes the application
+			fg_UnwrapCoroutineWrapperAppendableWrapperOnly(this->m_pPromiseData->m_Result, NException::fg_CurrentException());
+			this->m_pPromiseData->m_bPendingResult = true;
 		}
 	}
 
@@ -308,22 +259,9 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException()
+	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException(NException::CExceptionPointer &&_pException)
 	{
-		NException::CDisableExceptionFilterScope DisableExceptionFilter;
-
-		try
-		{
-			throw;
-		}
-		catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-		{
-			this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-		}
-		catch (...)
-		{
-			this->m_pPromiseData->f_SetCurrentExceptionNoReportAppendable();
-		}
+		this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_pException));
 	}
 }
 

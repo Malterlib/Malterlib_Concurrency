@@ -27,10 +27,10 @@ namespace NMib::NConcurrency
 		CAsyncResult &operator =(CAsyncResult &&_Other);
 		
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
-		NStr::CStr f_GetExceptionStr() const; ///< Returns a string for the contained exception.
+		NStr::CStr f_GetExceptionStr() const noexcept; ///< Returns a string for the contained exception.
 		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
-		NException::CExceptionPointer f_GetException() const &; ///< Returns the contained exception as an exception pointer
-		NException::CExceptionPointer &&f_GetException() &&; ///< Returns the contained exception as an exception pointer
+		NException::CExceptionPointer f_GetException() const & noexcept; ///< Returns the contained exception as an exception pointer
+		NException::CExceptionPointer f_GetException() && noexcept; ///< Returns the contained exception as an exception pointer
 		template <typename tf_CException>
 		bool f_HasExceptionType() const; ///< Returns true if the contained exception is of the specified exception type
 
@@ -46,6 +46,7 @@ namespace NMib::NConcurrency
 		void f_SetException(CAsyncResult const &_AsyncResult); ///< Set exception from another async result. Usually only used from TCPromise implementation
 		void f_SetException(NException::CExceptionPointer const &_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
 		void f_SetException(NException::CExceptionPointer &&_pException); ///< Set exception from exception pointer. Usually only used from TCPromise implementation
+		void f_SetExceptionAppendable(NException::CExceptionPointer &&_pException); ///< Set exception from exception pointer and append if one already exists
 
 		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
 		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`

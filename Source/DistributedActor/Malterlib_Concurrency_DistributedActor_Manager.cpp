@@ -83,18 +83,23 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			try
-			{
+			bool bHandled = NException::fg_VisitException<CExceptionActorDeleted, NException::CException>
+				(
+					_Result.f_GetException()
+					, [&]<typename tf_CException>(tf_CException const &_Exception)
+					{
+						if constexpr (NTraits::TCIsSame<tf_CException, CExceptionActorDeleted>::mc_Value)
+						{
+							// Ignore already deleted close
+						}
+						else
+							DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Closed with error '{}' {{{}}: {}", _Desc, _ServerURL, _ConnectionID, _Exception.f_GetErrorStr());
+					}
+				)
+			;
+
+			if (!bHandled)
 				_Result.f_Access();
-			}
-			catch (CExceptionActorDeleted const &)
-			{
-				// Ignore already deleted close
-			}
-			catch (NException::CException const &)
-			{
-				DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Closed with error '{}' {{{}}: {}", _Desc, _ServerURL, _ConnectionID, _Result.f_GetExceptionStr());
-			}
 		}
 	}
 

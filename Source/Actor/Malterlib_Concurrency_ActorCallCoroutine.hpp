@@ -78,24 +78,18 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
+	void fg_ThrowExceptionCallingAsyncResult(NException::CExceptionPointer &&_Exception);
+
 	template <typename tf_CType, typename tf_FExceptionTransform>
 	auto fg_UnwrapCoroutineAsyncResult(TCAsyncResult<tf_CType> &&_AsyncResult, tf_FExceptionTransform &_fExceptionTransform)
 	{
 		if (!_AsyncResult)
 		{
-			NException::CDisableExceptionFilterScope DisableExceptionFilter;
-			try
-			{
-				_AsyncResult.f_Get();
-			}
-			catch (...)
-			{
-				NException::CDisableExceptionTraceScope DisableExceptionTrace;
-				if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, void *>::mc_Value)
-					DMibErrorCoroutineWrapper("Exception calling async result", NException::fg_CurrentException());
-				else
-					DMibErrorCoroutineWrapper("Exception calling async result", _fExceptionTransform(NException::fg_CurrentException()));
-			}
+			NException::CDisableExceptionTraceScope DisableExceptionTrace;
+			if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, void *>::mc_Value)
+				fg_ThrowExceptionCallingAsyncResult(fg_Move(_AsyncResult).f_GetException());
+			else
+				fg_ThrowExceptionCallingAsyncResult(_fExceptionTransform(fg_Move(_AsyncResult).f_GetException()));
 		}
 		return fg_Move(*_AsyncResult);
 	}
@@ -318,26 +312,9 @@ namespace NMib::NConcurrency
 			{
 				NException::CDisableExceptionTraceScope DisableExceptionTrace;
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-				{
-					DMibErrorCoroutineWrapper
-						(
-							"Exception calling async result"
-							, fg_Move(ErrorCollector).f_GetException()
-						)
-					;
-				}
+					fg_ThrowExceptionCallingAsyncResult(fg_Move(ErrorCollector).f_GetException());
 				else
-				{
-					DMibErrorCoroutineWrapper
-						(
-							"Exception calling async result"
-							, mp_fExceptionTransform
-							(
-								fg_Move(ErrorCollector).f_GetException()
-							)
-						)
-					;
-				}
+					fg_ThrowExceptionCallingAsyncResult(mp_fExceptionTransform(fg_Move(ErrorCollector).f_GetException()));
 			}
 
 			return Results;

@@ -933,9 +933,9 @@ namespace NMib::NConcurrency::NPrivate
 				CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
 				co_return CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID};
 			}
-			catch (NException::CException const &_Exception)
+			catch (NException::CException const &)
 			{
-				co_return _Exception.f_ExceptionPointer();
+				co_return NException::fg_CurrentException();
 			}
 		}
 

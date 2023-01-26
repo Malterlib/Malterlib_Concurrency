@@ -787,20 +787,8 @@ namespace NMib::NConcurrency::NPrivate
 
 			auto pCurrentException = NException::fg_CurrentException();
 
-			if (pCurrentException)
-			{
-				try
-				{
-					std::rethrow_exception(pCurrentException);
-				}
-				catch (NException::CDebugException const &)
-				{
-					f_SetException(fg_Move(pCurrentException));
-				}
-				catch (...)
-				{
-				}
-			}
+			if (pCurrentException && fg_IsDebugException(pCurrentException))
+				f_SetException(fg_Move(pCurrentException));
 		}
 #endif
 
@@ -1047,48 +1035,14 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetCurrentExceptionNoReportAppendable()
 	{
-		if (m_Result.f_IsSet())
-		{
-			if (m_Result)
-				m_Result = {};
-			else
-			{
-				NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
-				ErrorCollector.f_AddError(fg_Move(m_Result).f_GetException());
-				ErrorCollector.f_AddError(NException::fg_CurrentException());
-
-				m_Result = {};
-				m_Result.f_SetException(fg_Move(ErrorCollector).f_GetException());
-
-				return;
-			}
-		}
-
-		m_Result.f_SetCurrentException();
+		m_Result.f_SetExceptionAppendable(NException::fg_CurrentException());
 		m_bPendingResult = true;
 	}
 
 	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_SetExceptionNoReportAppendable(NException::CExceptionPointer &&_pException)
 	{
-		if (m_Result.f_IsSet())
-		{
-			if (m_Result)
-				m_Result = {};
-			else
-			{
-				NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
-				ErrorCollector.f_AddError(fg_Move(m_Result).f_GetException());
-				ErrorCollector.f_AddError(fg_Move(_pException));
-
-				m_Result = {};
-				m_Result.f_SetException(fg_Move(ErrorCollector).f_GetException());
-
-				return;
-			}
-		}
-
-		m_Result.f_SetException(_pException);
+		m_Result.f_SetExceptionAppendable(fg_Move(_pException));
 		m_bPendingResult = true;
 	}
 

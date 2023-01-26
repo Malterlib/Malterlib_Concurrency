@@ -242,9 +242,9 @@ namespace NMib::NConcurrency
 					break;
 				}
 			}
-			catch (NException::CException const &_Exception)
+			catch (NException::CException const &)
 			{
-				fp_OnInvalidConnection(_pConnection, _Exception.f_ExceptionPointer());
+				fp_OnInvalidConnection(_pConnection, NException::fg_CurrentException());
 				return;
 			}
 

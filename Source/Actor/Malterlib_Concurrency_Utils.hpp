@@ -781,7 +781,7 @@ namespace NMib::NConcurrency
 					(
 						NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>::CType...)>
 						(
-							[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)](auto && ...p_InnerParams) mutable mark_no_coroutine_debug -> CProtectedReturn
+							[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)] mark_no_coroutine_debug (auto && ...p_InnerParams) mutable -> CProtectedReturn
 							{
 								return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
 							}

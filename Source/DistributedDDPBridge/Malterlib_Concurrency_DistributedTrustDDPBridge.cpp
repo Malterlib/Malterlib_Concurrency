@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 					
 					pMethodHandler->m_fHandlerFunction.f_CallWrapped
 						(
-						 	[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)](auto &&_fToDispatch) mutable mark_no_coroutine_debug -> TCFuture<CEJSON>
+						 	[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)] mark_no_coroutine_debug (auto &&_fToDispatch) mutable -> TCFuture<CEJSON>
 						 	{
 								CCallingHostInfoScope Scope(fg_Move(ThisCallingHostInfo));
 								return _fToDispatch();

@@ -192,9 +192,9 @@ namespace NMib::NConcurrency
 		TCActor(TCActor const &_Other);
 		TCActor(TCActor &&_Other);
 		template <typename tf_CActor>
-		TCActor(TCActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer TCActor(TCActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		TCActor(TCActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer TCActor(TCActor<tf_CActor> &&_Other);
 		TCActor &operator =(TCActorHolderSharedPointer<CActorInternal> const &_pActor);
 		TCActor &operator =(TCActorHolderSharedPointer<CActorInternal> &&_pActor);
 		TCActor &operator =(TCActor const &_Other);
@@ -206,9 +206,9 @@ namespace NMib::NConcurrency
 		TCActor &operator =(TCConstruct<tf_CType, tfp_CParams...> &&_Construct);
 
 		template <typename tf_CActor>
-		TCActor &operator =(TCActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer TCActor &operator =(TCActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		TCActor &operator =(TCActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer TCActor &operator =(TCActor<tf_CActor> &&_Other);
 		CActorInternal *operator ->() const;
 		CActorInternal *f_Get() const;
 		void f_Clear();
@@ -297,7 +297,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		inline_always TCActorInternal<CActor> *f_GetRealActor() const;
+		DMibSuppressUndefinedSanitizer inline_always TCActorInternal<CActor> *f_GetRealActor() const;
 	};
 
 	template <typename tf_CActor, typename tf_CActorSource>

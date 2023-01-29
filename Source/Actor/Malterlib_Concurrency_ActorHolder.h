@@ -113,13 +113,13 @@ namespace NMib::NConcurrency
 		virtual void fp_StartQueueProcessing();
 
 		template <typename tf_CActor>
-		TCActor<tf_CActor> fp_GetAsActor();
+		DMibSuppressUndefinedSanitizer TCActor<tf_CActor> fp_GetAsActor();
 
 		virtual void fp_DestroyThreaded();
 		virtual void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
 		virtual void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) = 0;
 		void fp_RunProcess();
-		virtual TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
+		virtual DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
 		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise);
 
 		void fp_DeleteActor();
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 				, typename tf_CResultActor
 				, typename tf_CResultFunctor
 			>
-		bool f_Call
+		DMibSuppressUndefinedSanitizer bool f_Call
 			(
 				tf_CFunctor &&_fToCall
 				, TCActor<tf_CResultActor> &&_ResultActor

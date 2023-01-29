@@ -6,7 +6,7 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CActor>
-	TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor)
+	DMibSuppressUndefinedSanitizer TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor)
 	{
 		TCActorInternal<tf_CActor> *pActor = static_cast<TCActorInternal<tf_CActor> *>(_pActor->self.m_pThis.f_Get());
 		DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor)
+	DMibSuppressUndefinedSanitizer TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor)
 	{
 		TCActorInternal<tf_CActor> *pActor = static_cast<TCActorInternal<tf_CActor> *>(_pActor->self.m_pThis.f_Get());
 		DMibRequire(pActor)("Actor not yet fully constructed, override f_Construct instead");

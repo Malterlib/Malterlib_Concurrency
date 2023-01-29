@@ -52,13 +52,13 @@ namespace NMib::NConcurrency
 		TCWeakActor(TCWeakActor &&_Other);
 
 		template <typename tf_CActor>
-		TCWeakActor(TCWeakActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor(TCWeakActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		TCWeakActor(TCWeakActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor(TCWeakActor<tf_CActor> &&_Other);
 		template <typename tf_CActor>
-		explicit TCWeakActor(TCActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer explicit TCWeakActor(TCActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		explicit TCWeakActor(TCActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer explicit TCWeakActor(TCActor<tf_CActor> &&_Other);
 
 		TCWeakActor(TCActor<t_CActor> const &_Other);
 		TCWeakActor(TCActor<t_CActor> &&_Other);
@@ -71,13 +71,13 @@ namespace NMib::NConcurrency
 		TCWeakActor &operator =(TCWeakActor &&_Other);
 
 		template <typename tf_CActor>
-		TCWeakActor &operator =(TCWeakActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor &operator =(TCWeakActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		TCWeakActor &operator =(TCWeakActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor &operator =(TCWeakActor<tf_CActor> &&_Other);
 		template <typename tf_CActor>
-		TCWeakActor &operator =(TCActor<tf_CActor> const &_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor &operator =(TCActor<tf_CActor> const &_Other);
 		template <typename tf_CActor>
-		TCWeakActor &operator =(TCActor<tf_CActor> &&_Other);
+		DMibSuppressUndefinedSanitizer TCWeakActor &operator =(TCActor<tf_CActor> &&_Other);
 
 		void f_Clear();
 		bool f_IsEmpty() const;

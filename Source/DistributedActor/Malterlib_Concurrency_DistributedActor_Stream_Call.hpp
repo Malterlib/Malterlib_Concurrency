@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 
 				if constexpr (NPrivate::TCIsAsyncGenerator<COriginalReturn>::mc_Value)
 				{
-					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug -> TCFuture<CReturn>
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)] mark_no_coroutine_debug () mutable -> TCFuture<CReturn>
 						{
 							return NStorage::fg_TupleApplyAs<CMoveList>
 								(
@@ -166,11 +166,11 @@ namespace NMib::NConcurrency
 				}
 				else if constexpr (NPrivate::TCIsFuture<COriginalReturn>::mc_Value)
 				{
-					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)]() mutable mark_no_coroutine_debug -> TCFuture<CReturn>
+					ToDispatch = [pActor, Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...)] mark_no_coroutine_debug () mutable -> TCFuture<CReturn>
 						{
 							return NStorage::fg_TupleApplyAs<CMoveList>
 								(
-									[&](auto &&..._Params) mutable mark_no_coroutine_debug -> TCFuture<CReturn>
+									[&] mark_no_coroutine_debug (auto &&..._Params) mutable -> TCFuture<CReturn>
 									{
 										return (pActor->*tf_pMemberFunction)(fg_Forward<decltype(_Params)>(_Params)...);
 									}

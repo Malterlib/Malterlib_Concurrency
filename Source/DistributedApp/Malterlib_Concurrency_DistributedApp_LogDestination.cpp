@@ -100,9 +100,12 @@ namespace NMib::NConcurrency
 					DMibConErrOut2("Failed to open log reporter in distributed app: {}\n", _LogReporter.f_GetExceptionStr());
 					return;
 				}
-
-				pInternal->m_LogReporter = fg_Move(*_LogReporter);
-				pInternal->f_ProcessDeferredMessages();
+				auto &Internal = *pInternal;
+				{
+					DMibLock(Internal.m_Lock);
+					Internal.m_LogReporter = fg_Move(*_LogReporter);
+				}
+				Internal.f_ProcessDeferredMessages();
 			}
 		;
 	}

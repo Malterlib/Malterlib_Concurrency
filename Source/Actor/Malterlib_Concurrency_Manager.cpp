@@ -1192,5 +1192,5 @@ namespace NMib::NConcurrency
 
 namespace NMib
 {
-	template class TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>;
+	template struct TCOnScopeExit<NFunction::TCFunctionMovable<void ()>>;
 }

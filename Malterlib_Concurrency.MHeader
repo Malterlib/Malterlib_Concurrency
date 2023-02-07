@@ -103,11 +103,7 @@ Target
 					Compile.Type "C++"
 					!GeneratorFamily "VisualStudio"
 				}
-				|
-				{
-					Compile.PrefixHeader undefined
-					Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
-				}
+				Compile.PrefixHeader `@(Builtin.BasePathAbsolute)/Malterlib/Core/Source/PrefixHeader/PCH.h`
 				!DocumentationEnabled true
 				!MalterlibQtSupport true
 				!Target.Type "Driver"

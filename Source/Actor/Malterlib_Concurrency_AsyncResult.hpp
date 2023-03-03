@@ -16,12 +16,11 @@ namespace NMib::NConcurrency
 	template <typename tf_CException>
 	bool CAsyncResult::f_HasExceptionType() const
 	{
-		if (!m_pException)
-			return false;
+		if (m_pException)
+			return NException::fg_ExceptionIsOfType<tf_CException>(m_pException);
 		else if (!m_bHasBeenSet)
 			return NTraits::TCIsBaseOfOrSame<NException::CException, tf_CException>::mc_Value;
-
-		return NException::fg_ExceptionIsOfType<tf_CException>(m_pException);
+		return false;
 	}
 	
 	template <typename t_CType>

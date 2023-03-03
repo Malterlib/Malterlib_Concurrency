@@ -76,9 +76,7 @@ namespace NMib::NConcurrency
 			return Return;
 		}
 		else if (!m_bHasBeenSet)
-		{
 			return NStr::gc_Str<"No result specified">;
-		}
 
 		return NStr::gc_Str<"No error (no exception was set)">;
 	}

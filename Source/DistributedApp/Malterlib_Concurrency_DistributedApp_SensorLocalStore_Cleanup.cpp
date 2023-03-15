@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 
 			auto CurrentStats = OriginalStats;
 
-			mint nReadingsDeleted = 1;
+			[[maybe_unused]] mint nReadingsDeleted = 1;
 			NTime::CTime EndTime;
 
 			while (Helper.f_DeleteOne(WriteTransaction, EndTime))

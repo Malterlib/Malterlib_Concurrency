@@ -8,6 +8,11 @@
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Storage/Variant>
 
+namespace NMib::NCommandLine
+{
+	struct CAnsiEncoding;
+}
+
 namespace NMib::NConcurrency
 {
 	struct CDistributedAppSensorReporter : public CActor
@@ -114,10 +119,33 @@ namespace NMib::NConcurrency
 			>
 		;
 
+		struct CSensorInfo;
+
+		enum EOutdatedStatusOutputFlag : uint32
+		{
+			EOutdatedStatusOutputFlag_None = 0
+			, EOutdatedStatusOutputFlag_IncludeStatus = DMibBit(0)
+		};
+
 		struct CSensorReading
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
+
+			EStatusSeverity f_Status() const;
+			EStatusSeverity f_CriticalityStatus(CSensorInfo const &_SensorInfo) const;
+			EStatusSeverity f_OutdatedStatus(CSensorInfo const &_SensorInfo, NTime::CTime const &_Now, fp64 &o_OutdatedSeconds) const;
+			EStatusSeverity f_GetCombinedStatus(CSensorInfo const *_pSensorInfo, NTime::CTime const &_Now) const;
+
+			NStr::CStr f_GetFormattedData(NCommandLine::CAnsiEncoding const &_AnsiEncoding, CSensorInfo const *_pSensorInfo) const;
+			NStr::CStr f_GetFormattedOutdatedStatus
+				(
+					NCommandLine::CAnsiEncoding const &_AnsiEncoding
+					, CSensorInfo const *_pSensorInfo
+					, NTime::CTime const &_Now
+					, EOutdatedStatusOutputFlag _Flags
+				) const
+			;
 
 			uint64 m_UniqueSequence = TCLimitsInt<uint64>::mc_Max; /// This will be filled in automatically when using CDistributedAppSensorStoreLocal
 			NTime::CTime m_Timestamp = NTime::CTime::fs_NowUTC();
@@ -200,6 +228,7 @@ namespace NMib::NConcurrency
 			bool f_IsValueWarning(CSensorData const &_Value) const;
 			bool f_IsValueCritical(CSensorData const &_Value) const;
 			bool f_HasValueWarnings() const;
+			bool f_HasExpectedReportInterval() const;
 
 			NStr::CStr m_Identifier;
 			NStr::CStr m_IdentifierScope;
@@ -220,6 +249,9 @@ namespace NMib::NConcurrency
 			TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CSensorReading> &&_Readings)> m_fReportReadings;
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
+
+		static EStatusSeverity fs_CombineStatusSeverity(EStatusSeverity _Severity0, EStatusSeverity _Severity1);
+		static NStr::CStr fs_StatusSeverityToColor(EStatusSeverity _Severity, NCommandLine::CAnsiEncoding const &_AnsiEncoding);
 
 		static ch8 const *fs_SensorDataTypeToString(ESensorDataType _Type);
 		static ch8 const *fs_StatusSeverityToString(EStatusSeverity _Severity);

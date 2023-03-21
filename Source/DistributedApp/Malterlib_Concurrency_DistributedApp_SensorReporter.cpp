@@ -89,6 +89,199 @@ namespace NMib::NConcurrency
 		return m_WarnValue || m_CriticalValue;
 	}
 
+	bool CDistributedAppSensorReporter::CSensorInfo::f_HasExpectedReportInterval() const
+	{
+		return m_ExpectedReportInterval != fp32::fs_Inf();
+	}
+
+	auto CDistributedAppSensorReporter::CSensorReading::f_Status() const -> EStatusSeverity
+	{
+		EStatusSeverity Status = EStatusSeverity_Info;
+		if (m_Data.f_IsOfType<CDistributedAppSensorReporter::CStatus>())
+			Status = m_Data.f_GetAsType<CDistributedAppSensorReporter::CStatus>().m_Severity;
+		return Status;
+	}
+
+	auto CDistributedAppSensorReporter::CSensorReading::f_CriticalityStatus(CSensorInfo const &_SensorInfo) const -> EStatusSeverity
+	{
+		if (_SensorInfo.f_IsValueCritical(m_Data))
+			return EStatusSeverity_Error;
+		else if (_SensorInfo.f_IsValueWarning(m_Data))
+			return EStatusSeverity_Warning;
+		else if (_SensorInfo.f_HasValueWarnings())
+			return EStatusSeverity_Ok;
+
+		return EStatusSeverity_Info;
+	}
+
+	auto CDistributedAppSensorReporter::CSensorReading::f_OutdatedStatus(CSensorInfo const &_SensorInfo, NTime::CTime const &_Now, fp64 &o_OutdatedSeconds) const -> EStatusSeverity
+	{
+		if (!_SensorInfo.f_HasExpectedReportInterval())
+			return EStatusSeverity_Ok;
+
+		o_OutdatedSeconds = (_Now - m_Timestamp).f_GetSecondsFraction() - _SensorInfo.m_ExpectedReportInterval;
+
+		if (o_OutdatedSeconds > _SensorInfo.m_ExpectedReportInterval * 2)
+			return EStatusSeverity_Error;
+
+		if (o_OutdatedSeconds > _SensorInfo.m_ExpectedReportInterval)
+			return EStatusSeverity_Warning;
+
+		return EStatusSeverity_Ok;
+	}
+
+	auto CDistributedAppSensorReporter::CSensorReading::f_GetCombinedStatus(CSensorInfo const *_pSensorInfo, NTime::CTime const &_Now) const -> EStatusSeverity
+	{
+		EStatusSeverity Status = f_Status();
+
+		if (_pSensorInfo)
+		{
+			fp64 OutdatedSeconds;
+			Status = fs_CombineStatusSeverity(Status, f_OutdatedStatus(*_pSensorInfo, _Now, OutdatedSeconds));
+			Status = fs_CombineStatusSeverity(Status, f_CriticalityStatus(*_pSensorInfo));
+		}
+
+		return Status;
+	}
+
+	auto CDistributedAppSensorReporter::fs_CombineStatusSeverity(EStatusSeverity _Severity0, EStatusSeverity _Severity1) -> EStatusSeverity
+	{
+		if (_Severity0 >= EStatusSeverity_Warning)
+		{
+			if (_Severity1 >= EStatusSeverity_Warning)
+				return fg_Max(_Severity0, _Severity1);
+			else
+				return _Severity0;
+		} else if (_Severity1 >= EStatusSeverity_Warning)
+			return _Severity1;
+
+		if (_Severity0 == EStatusSeverity_Ok || _Severity1 == EStatusSeverity_Ok)
+			return EStatusSeverity_Ok;
+
+		return EStatusSeverity_Info;
+	}
+
+	NStr::CStr CDistributedAppSensorReporter::fs_StatusSeverityToColor(EStatusSeverity _Severity, NCommandLine::CAnsiEncoding const &_AnsiEncoding)
+	{
+		switch (_Severity)
+		{
+		case CDistributedAppSensorReporter::EStatusSeverity_Ok: return _AnsiEncoding.f_StatusNormal();
+		case CDistributedAppSensorReporter::EStatusSeverity_Info: break;
+		case CDistributedAppSensorReporter::EStatusSeverity_Warning: return _AnsiEncoding.f_StatusWarning();
+		case CDistributedAppSensorReporter::EStatusSeverity_Error: return _AnsiEncoding.f_StatusError();
+		}
+
+		return {};
+	}
+
+	NStr::CStr CDistributedAppSensorReporter::CSensorReading::f_GetFormattedData(NCommandLine::CAnsiEncoding const &_AnsiEncoding, CSensorInfo const *_pSensorInfo) const
+	{
+		using namespace NStr;
+
+		EStatusSeverity Severity = EStatusSeverity_Info;
+
+		if (_pSensorInfo)
+			Severity = f_CriticalityStatus(*_pSensorInfo);
+
+		CStr Value;
+		m_Data.f_Visit
+			(
+				[&](auto const &_Value)
+				{
+					using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
+					if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
+						Value = "Unsupported";
+					else if constexpr (NTraits::TCIsSame<CValueType, bool>::mc_Value)
+						Value = _Value ? "true" : "false";
+					else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
+					{
+						Value = _Value.m_Description;
+						Severity = fs_CombineStatusSeverity(Severity, _Value.m_Severity);
+					}
+					else
+					{
+						if (_pSensorInfo)
+						{
+							auto *pDivisorUnit = _pSensorInfo->m_UnitDivisors.f_FindLargestLessThanEqual(CDistributedAppSensorReporter::CSensorData(fg_Abs(_Value)));
+							if (!pDivisorUnit)
+								pDivisorUnit = _pSensorInfo->m_UnitDivisors.f_FindLargestLessThanEqual(CDistributedAppSensorReporter::CSensorData(fp64(fg_Abs(_Value))));
+
+							if (pDivisorUnit)
+							{
+								auto &Divisor = _pSensorInfo->m_UnitDivisors.fs_GetKey(pDivisorUnit);
+								if (Divisor.template f_IsOfType<CValueType>())
+								{
+									if (Divisor.template f_GetAsType<CValueType>())
+										Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << (_Value / Divisor.template f_GetAsType<CValueType>());
+									else
+										Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << _Value;
+									return;
+								}
+								else if (Divisor.template f_IsOfType<fp64>())
+								{
+									// Allow floating point division for integer data
+
+									if (Divisor.template f_GetAsType<fp64>())
+										Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << (fp64(_Value) / Divisor.template f_GetAsType<fp64>());
+									else
+										Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << fp64(_Value);
+									return;
+								}
+							}
+						}
+						Value = "{}"_f << _Value;
+					}
+				}
+			)
+		;
+
+		auto ValueColor = fs_StatusSeverityToColor(Severity, _AnsiEncoding);
+		if (ValueColor)
+			Value = ("{}{}{}"_f << ValueColor << Value << _AnsiEncoding.f_Default()).f_GetStr();
+
+		return Value;
+	}
+
+	NStr::CStr CDistributedAppSensorReporter::CSensorReading::f_GetFormattedOutdatedStatus
+		(
+			NCommandLine::CAnsiEncoding const &_AnsiEncoding
+			, CSensorInfo const *_pSensorInfo
+			, NTime::CTime const &_Now
+			, EOutdatedStatusOutputFlag _Flags
+		) const
+	{
+		using namespace NStr;
+
+		fp64 OutdatedSeconds = fp64::fs_Inf();
+		CStr OutdatedString;
+
+		if (!_pSensorInfo)
+			OutdatedString = "Unknown";
+		else if (_pSensorInfo->f_HasExpectedReportInterval())
+		{
+			auto OutdatedStatus = f_OutdatedStatus(*_pSensorInfo, _Now, OutdatedSeconds);
+
+			if (_Flags & EOutdatedStatusOutputFlag_IncludeStatus)
+			{
+				OutdatedString = CDistributedAppSensorReporter::fs_StatusSeverityToColor(OutdatedStatus, _AnsiEncoding);
+				OutdatedString += CDistributedAppSensorReporter::fs_StatusSeverityToString(OutdatedStatus);
+				OutdatedString += ": ";
+				OutdatedString += _AnsiEncoding.f_Default();
+			}
+
+			if (OutdatedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning)
+			{
+				auto MissedUpdates = (OutdatedSeconds / _pSensorInfo->m_ExpectedReportInterval).f_ToInt();
+				if (MissedUpdates > 10)
+					OutdatedString += "Sensor missed more than 10 updates"_f << MissedUpdates; // Make the message constant so notification system won't get overloaded
+				else
+					OutdatedString += "Sensor missed {} updates"_f << MissedUpdates;
+			}
+		}
+
+		return OutdatedString;
+	}
+
 	ch8 const *CDistributedAppSensorReporter::fs_SensorDataTypeToString(ESensorDataType _Type)
 	{
 		switch (_Type)

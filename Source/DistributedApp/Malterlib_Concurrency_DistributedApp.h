@@ -86,6 +86,7 @@ namespace NMib::NConcurrency
 			ESensorOutputFlag_None = 0
 			, ESensorOutputFlag_Verbose = DMibBit(0)
 			, ESensorOutputFlag_Json = DMibBit(1)
+			, ESensorOutputFlag_Status = DMibBit(2)
 		};
 
 		enum ELogOutputFlag : uint32

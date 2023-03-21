@@ -693,6 +693,7 @@ namespace NMib::NConcurrency
 		fAddHeading("Timestamp", false);
 		fAddHeading("Sequence");
 		fAddHeading("Value", false);
+		fAddHeading("Outdated", false);
 
 		TableRenderer.f_AddHeadingsVector(Headings);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -700,6 +701,7 @@ namespace NMib::NConcurrency
 		bool bHasHostID = false;
 		bool bHasHostName = false;
 		bool bHasApplication = false;
+		bool bHasOutdated = false;
 		uint64 nEntries = 0;
 
 		CEJSON JsonOutput;
@@ -718,6 +720,8 @@ namespace NMib::NConcurrency
 		;
 
 		uint32 Return = 0;
+
+		NTime::CTime Now = NTime::CTime::fs_NowUTC();
 
 		for (auto iReadings = co_await fg_Move(_SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
 		{
@@ -742,6 +746,24 @@ namespace NMib::NConcurrency
 				else
 					Name = "Unknown";
 
+				fp64 OutdatedSeconds = fp64::fs_Inf();
+				auto OutdatedStatus = CDistributedAppSensorReporter::EStatusSeverity_Ok;
+				if (pSensorInfo)
+				{
+					OutdatedStatus = Reading.m_Reading.f_OutdatedStatus(*pSensorInfo, Now, OutdatedSeconds);
+					if (OutdatedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning)
+						bHasOutdated = true;
+				}
+
+				{
+					auto CombinedStatus = Reading.m_Reading.f_GetCombinedStatus(pSensorInfo, Now);
+
+					if (CombinedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Error)
+						Return = fg_Max(Return, 2u);
+					else if (CombinedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning)
+						Return = fg_Max(Return, 1u);
+				}
+
 				if (_Flags & ESensorOutputFlag_Json)
 				{
 					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSON>(gc_fSensorDataToJSON);
@@ -758,107 +780,30 @@ namespace NMib::NConcurrency
 								, "Timestamp"_= Reading.m_Reading.m_Timestamp
 								, "UniqueSequence"_= Reading.m_Reading.m_UniqueSequence
 								, "Value"_= fg_Move(Value)
+								, "OutdatedStatus"_= CDistributedAppSensorReporter::fs_StatusSeverityToString(OutdatedStatus)
+								, "OutdatedSeconds"_= OutdatedSeconds
 							}
 						)
 					;
 				}
 				else
 				{
-					CStr Value;
+					auto Value = Reading.m_Reading.f_GetFormattedData(AnsiEncoding, pSensorInfo);
 
-					CStr ValueColor;
-					if (pSensorInfo)
+					CStr OutdatedString;
+					if (_Flags & ESensorOutputFlag_Status)
 					{
-						if (pSensorInfo->f_IsValueCritical(Reading.m_Reading.m_Data))
-						{
-							ValueColor = AnsiEncoding.f_StatusError();
-							Return = fg_Max(Return, 2u);
-						}
-						else if (pSensorInfo->f_IsValueWarning(Reading.m_Reading.m_Data))
-						{
-							ValueColor = AnsiEncoding.f_StatusWarning();
-							Return = fg_Max(Return, 1u);
-						}
-						else if (pSensorInfo->f_HasValueWarnings())
-							ValueColor = AnsiEncoding.f_StatusNormal();
+						OutdatedString = Reading.m_Reading.f_GetFormattedOutdatedStatus
+							(
+								AnsiEncoding
+								, pSensorInfo
+								, Now
+								, CDistributedAppSensorReporter::EOutdatedStatusOutputFlag_IncludeStatus
+							)
+						;
 					}
-
-					Reading.m_Reading.m_Data.f_Visit
-						(
-							[&](auto const &_Value)
-							{
-								using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
-								if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
-									Value = "Unsupported";
-								else if constexpr (NTraits::TCIsSame<CValueType, bool>::mc_Value)
-									Value = _Value ? "true" : "false";
-								else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
-								{
-									Value = _Value.m_Description;
-
-									switch (_Value.m_Severity)
-									{
-									case CDistributedAppSensorReporter::EStatusSeverity_Ok:
-										if (!ValueColor)
-											ValueColor = AnsiEncoding.f_StatusNormal();
-										break;
-									case CDistributedAppSensorReporter::EStatusSeverity_Info:
-										break;
-									case CDistributedAppSensorReporter::EStatusSeverity_Warning:
-										if (!ValueColor)
-											ValueColor = AnsiEncoding.f_StatusWarning();
-										break;
-									case CDistributedAppSensorReporter::EStatusSeverity_Error:
-										if (!ValueColor)
-											ValueColor = AnsiEncoding.f_StatusError();
-										break;
-									}
-								}
-								else
-								{
-									if (pSensorInfo)
-									{
-										auto *pDivisorUnit = pSensorInfo->m_UnitDivisors.f_FindLargestLessThanEqual(CDistributedAppSensorReporter::CSensorData(fg_Abs(_Value)));
-										if (!pDivisorUnit)
-											pDivisorUnit = pSensorInfo->m_UnitDivisors.f_FindLargestLessThanEqual(CDistributedAppSensorReporter::CSensorData(fp64(fg_Abs(_Value))));
-
-										if (pDivisorUnit)
-										{
-											auto &Divisor = pSensorInfo->m_UnitDivisors.fs_GetKey(pDivisorUnit);
-											if (Divisor.template f_IsOfType<CValueType>())
-											{
-												if (Divisor.template f_GetAsType<CValueType>())
-													Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << (_Value / Divisor.template f_GetAsType<CValueType>());
-												else
-													Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << _Value;
-												return;
-											}
-											else if (Divisor.template f_IsOfType<fp64>())
-											{
-												// Allow floating point division for integer data
-
-												if (Divisor.template f_GetAsType<fp64>())
-													Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << (fp64(_Value) / Divisor.template f_GetAsType<fp64>());
-												else
-													Value = CStr::CFormat(pDivisorUnit->m_UnitFormatter) << fp64(_Value);
-												return;
-											}
-										}
-									}
-									Value = "{}"_f << _Value;
-								}
-							}
-						)
-					;
-
-					if (ValueColor)
-						Value = ("{}{}{}"_f << ValueColor << Value << AnsiEncoding.f_Default()).f_GetStr();
-
-					CStr TimeStamp;
-					if (_Flags & ESensorOutputFlag_Verbose)
-						TimeStamp = "{tf}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal();
-					else
-						TimeStamp = "{}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal();
+					else if (pSensorInfo && pSensorInfo->f_HasExpectedReportInterval())
+						OutdatedString = "{fe0} s"_f << OutdatedSeconds;
 
 					TableRenderer.f_AddRow
 						(
@@ -868,9 +813,10 @@ namespace NMib::NConcurrency
 							, Reading.m_SensorInfoKey.m_Identifier
 							, Reading.m_SensorInfoKey.m_IdentifierScope
 							, Name
-							, TimeStamp
+							, CStr((_Flags & ESensorOutputFlag_Verbose) ? "{tf}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal() : "{}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal())
 							, Reading.m_Reading.m_UniqueSequence
 							, Value
+							, OutdatedString
 						)
 					;
 				}
@@ -905,6 +851,8 @@ namespace NMib::NConcurrency
 					fSetVerbose("Host Name");
 				if (!bHasApplication)
 					fSetVerbose("Application");
+				if (!bHasOutdated)
+					fSetVerbose("Outdated");
 
 				while (auto pLargest = VerboseHeadings.f_FindLargest())
 				{
@@ -919,7 +867,10 @@ namespace NMib::NConcurrency
 			TableRenderer.f_Output(_TableType);
 		}
 
-		co_return Return;
+		if (_Flags & ESensorOutputFlag_Status)
+			co_return Return;
+		else
+			co_return 0;
 	}
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorStatus
@@ -944,7 +895,7 @@ namespace NMib::NConcurrency
 				, fg_Move(ReadingsGenerator)
 				, fg_Move(SensorsGenerator)
 				, 0
-				, _Flags
+				, _Flags | ESensorOutputFlag_Status
 				, _TableType
 				, Filter
 			)

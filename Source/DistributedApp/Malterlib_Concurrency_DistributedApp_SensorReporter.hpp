@@ -31,19 +31,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStr>
 	void CDistributedAppSensorReporter::CStatus::f_Format(tf_CStr &o_Str) const
 	{
-		auto fSeverity = [&]
-			{
-				switch (m_Severity)
-				{
-					case EStatusSeverity_Ok: return "Ok";
-					case EStatusSeverity_Info: return "Info";
-					case EStatusSeverity_Warning: return "Warning";
-					case EStatusSeverity_Error: return "Error";
-				}
-				return "Unknown";
-			}
-		;
-		o_Str += typename tf_CStr::CFormat("{}: {}") << fSeverity() << m_Description;
+		o_Str += typename tf_CStr::CFormat("{}: {}") << fs_StatusSeverityToString(m_Severity) << m_Description;
 	}
 
 	template <typename tf_CStream>

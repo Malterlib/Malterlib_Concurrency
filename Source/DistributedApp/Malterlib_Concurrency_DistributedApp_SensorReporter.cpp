@@ -93,11 +93,23 @@ namespace NMib::NConcurrency
 	{
 		switch (_Type)
 		{
-		case CDistributedAppSensorReporter::ESensorDataType_Unsupported: return "Unsupported";
-		case CDistributedAppSensorReporter::ESensorDataType_Integer: return "Integer";
-		case CDistributedAppSensorReporter::ESensorDataType_Float: return "Floating Point";
-		case CDistributedAppSensorReporter::ESensorDataType_Boolean: return "Boolean";
-		case CDistributedAppSensorReporter::ESensorDataType_Status: return "Status";
+		case ESensorDataType_Unsupported: return "Unsupported";
+		case ESensorDataType_Integer: return "Integer";
+		case ESensorDataType_Float: return "Floating Point";
+		case ESensorDataType_Boolean: return "Boolean";
+		case ESensorDataType_Status: return "Status";
+		}
+		return "Unknown";
+	}
+
+	ch8 const *CDistributedAppSensorReporter::fs_StatusSeverityToString(EStatusSeverity _Severity)
+	{
+		switch (_Severity)
+		{
+		case EStatusSeverity_Ok: return "Ok";
+		case EStatusSeverity_Info: return "Info";
+		case EStatusSeverity_Warning: return "Warning";
+		case EStatusSeverity_Error: return "Error";
 		}
 		return "Unknown";
 	}

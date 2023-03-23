@@ -19,7 +19,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() const &;
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() &&;
 
-		static constexpr ch8 mc_Prefix[] = "Log";
+		static const NStr::CStr mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix;
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		static constexpr ch8 mc_Prefix[] = "LogEntry";
+		static const NStr::CStr mc_Prefix;
 
 		uint64 m_UniqueSequence = 0;
 	};
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		static constexpr ch8 mc_Prefix[] = "LogEntryByDate";
+		static const NStr::CStr mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix;

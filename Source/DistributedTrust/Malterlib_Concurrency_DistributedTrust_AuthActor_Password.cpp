@@ -32,14 +32,14 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-			 	, TCMap<CStr, CAuthenticationData> const &_Factors
+				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse const &_Response
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, CAuthenticationData const &_AuthenticationData
 			) override
 		;
 
@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, CStr const &_Description
-		 	, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
+			, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
@@ -235,7 +235,7 @@ namespace NMib::NConcurrency
 
 		auto Return = co_await
 			(
-			 	g_ConcurrentDispatch / [=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
+				g_ConcurrentDispatch / [=, PublicKey = pValue->f_Binary().f_ToSecure()]() -> CVerifyAuthenticationReturn
 				{
 					CVerifyAuthenticationReturn Return;
 					Return.m_bVerified = CPublicCrypto::fs_VerifySignature(SignatureBytes, PublicKey, _Response.m_Signature);

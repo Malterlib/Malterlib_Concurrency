@@ -122,8 +122,8 @@ namespace NMib::NConcurrency
 	{
 		m_IdentifyPromise.f_Abandon
 			(
-			 	[&]()
-			 	{
+				[&]()
+				{
 					return DMibErrorInstance(_Error).f_ExceptionPointer();
 				}
 			)
@@ -132,8 +132,8 @@ namespace NMib::NConcurrency
 		{
 			Finished.f_Abandon
 				(
-			 		[&]()
-			 		{
+					[&]()
+					{
 						return DMibErrorInstance(_Error).f_ExceptionPointer();
 					}
 				)

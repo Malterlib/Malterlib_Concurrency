@@ -807,10 +807,10 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCFuture<CRegistrationResult> f_VerifyRegistrationResponse
 			(
-			 	CSecureByteVector _RegistrationData
-			 	, CHashDigest_SHA256 _ChallengeDigest
-			 	, CHashDigest_SHA256 _AppDigest
-			 	, CStr _AppID
+				CSecureByteVector _RegistrationData
+				, CHashDigest_SHA256 _ChallengeDigest
+				, CHashDigest_SHA256 _AppDigest
+				, CStr _AppID
 			) const
 		{
 			try
@@ -1077,14 +1077,14 @@ namespace NMib::NConcurrency
 				TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-			 	, TCMap<CStr, CAuthenticationData> const &_Factors
+				, TCMap<CStr, CAuthenticationData> const &_Factors
 			) override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse const &_Response
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, CAuthenticationData const &_AuthenticationData
 			) override
 		;
 

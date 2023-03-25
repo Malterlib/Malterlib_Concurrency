@@ -260,15 +260,15 @@ namespace NMib::NConcurrency
 		{
 			fg_AddStrSep
 				(
-				 	Result
-				 	, "{}User{}: {} [{}{}{}]"_f
-				 	<< AnsiEncoding.f_Bold()
-				 	<< AnsiEncoding.f_Default()
-				 	<< f_GetIdentifiers().f_GetUserID()
-				 	<< AnsiEncoding.f_Prompt()
-				 	<< m_UserInfo->m_UserName
-				 	<< AnsiEncoding.f_Default()
-				 	, " "
+					Result
+					, "{}User{}: {} [{}{}{}]"_f
+					<< AnsiEncoding.f_Bold()
+					<< AnsiEncoding.f_Default()
+					<< f_GetIdentifiers().f_GetUserID()
+					<< AnsiEncoding.f_Prompt()
+					<< m_UserInfo->m_UserName
+					<< AnsiEncoding.f_Default()
+					, " "
 				)
 			;
 		}

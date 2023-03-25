@@ -137,9 +137,9 @@ namespace NMib::NConcurrency
 	>
 	void TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_ActorCall
 		(
-		 	tf_CResultFunctor &&_ResultFunctor
-		 	, TCActor<> &&_ResultActor
-		 	, NMeta::TCIndices<tfp_Indices...>
+			tf_CResultFunctor &&_ResultFunctor
+			, TCActor<> &&_ResultActor
+			, NMeta::TCIndices<tfp_Indices...>
 		)
 	{
 		typedef NMeta::TCTypeList
@@ -174,9 +174,9 @@ namespace NMib::NConcurrency
 	template <mint... tfp_Indices>
 	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_Unwrap
 		(
-		 	CUnwrappedType &o_Results
+			CUnwrappedType &o_Results
 			, NException::CExceptionExceptionVectorData::CErrorCollector &o_ErrorCollector
-		 	, NMeta::TCIndices<tfp_Indices...>
+			, NMeta::TCIndices<tfp_Indices...>
 		)
 	{
 		bool bSuccess = true;

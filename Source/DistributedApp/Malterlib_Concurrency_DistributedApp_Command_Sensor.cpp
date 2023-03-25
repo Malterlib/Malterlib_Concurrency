@@ -442,7 +442,7 @@ namespace NMib::NConcurrency
 					{
 						UnitDivisorsArray.f_Insert
 							(
-	 							CEJSON
+								CEJSON
 								{
 									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSON>(gc_fSensorDataToJSON)
 									, "nDecimals"_= Divisor.m_nDecimals
@@ -719,7 +719,7 @@ namespace NMib::NConcurrency
 					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSON>(gc_fSensorDataToJSON);
 					JsonOutputArray.f_Insert
 						(
- 							CEJSON
+							CEJSON
 							{
 								"HostID"_= Reading.m_SensorInfoKey.m_HostID
 								, "HostName"_= HostName

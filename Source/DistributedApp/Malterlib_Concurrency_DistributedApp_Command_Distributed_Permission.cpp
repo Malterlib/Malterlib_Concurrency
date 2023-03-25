@@ -47,9 +47,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListPermissions
 		(
-		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
-		 	, bool _bIncludeTargets
-		 	, CStr const &_TableType
+			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, bool _bIncludeTargets
+			, CStr const &_TableType
 		)
 	{
 		auto Permissions = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumPermissions, _bIncludeTargets);

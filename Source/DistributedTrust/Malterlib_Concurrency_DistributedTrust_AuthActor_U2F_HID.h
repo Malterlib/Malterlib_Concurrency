@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 
 		enum
 		{
-			EReportSize = 64 	// Default size of raw HID report
+			EReportSize = 64	// Default size of raw HID report
 		};
 
 		struct CDeviceInfo

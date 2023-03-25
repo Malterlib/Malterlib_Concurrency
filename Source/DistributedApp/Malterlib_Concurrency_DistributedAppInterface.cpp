@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	CDistributedAppInterfaceBackup::CDistributedAppInterfaceBackup()
- 	{
+	{
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_AppendManifest);
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeInitialFinished);
 		DMibPublishActorFunction(CDistributedAppInterfaceBackup::f_SubscribeBackupStopped);

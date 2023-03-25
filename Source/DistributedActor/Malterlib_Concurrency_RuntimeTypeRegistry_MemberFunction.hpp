@@ -327,7 +327,7 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			pState = NStorage::TCUniquePointer<CState>
 				(
-				 	new CState{*pContext, fg_DecodeParams(_ParamsStream, _Indices, _TypeList), _ParamsStream.f_GetVersion()}
+					new CState{*pContext, fg_DecodeParams(_ParamsStream, _Indices, _TypeList), _ParamsStream.f_GetVersion()}
 				)
 			;
 		}

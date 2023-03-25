@@ -417,14 +417,14 @@ namespace NMib::NConcurrency
 	CCallingHostInfo::CCallingHostInfo
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
-		 	, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+			, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
 			, NStr::CStr const &_UniqueHostID
 			, CHostInfo const &_HostInfo
 			, NStr::CStr const &_LastExecutionID
 			, uint32 _ProtocolVersion
 			, NStr::CStr const &_ClaimedUserID
 			, NStr::CStr const &_ClaimedUserName
-		 	, NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
+			, NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
 		)
 		: mp_DistributionManager(_DistributionManager)
 		, mp_AuthenticationHandler(_AuthenticationHandler)

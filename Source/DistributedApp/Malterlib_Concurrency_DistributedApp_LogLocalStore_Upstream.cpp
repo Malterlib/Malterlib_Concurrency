@@ -360,7 +360,7 @@ namespace NMib::NConcurrency
 	}
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo)
- 	{
+	{
 		auto *pInterface = m_LogInterfaces.f_FindEqual(_Actor);
 
 		if (!pInterface)

@@ -122,14 +122,14 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_Ticket
 				, bool _bIncludeFriendlyHostName
 				, int32 _ConnectionConcurrency
-			 	, NContainer::TCSet<NStr::CStr> &&_TrustedNamespaces
+				, NContainer::TCSet<NStr::CStr> &&_TrustedNamespaces
 			)
 		;
 		TCFuture<uint32> f_CommandLine_GenerateTrustTicket
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_ForListen
-			 	, NContainer::TCSet<NStr::CStr> const &_Permissions
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_ForListen
+				, NContainer::TCSet<NStr::CStr> const &_Permissions
 				, NStr::CStr const &_UserID
 				, NEncoding::CEJSON const &_AuthenticationFactors
 			)
@@ -155,9 +155,9 @@ namespace NMib::NConcurrency
 		;
 		TCFuture<uint32> f_CommandLine_SetConnectionConcurrency
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_URL
-			 	, int32 _ConnectionConcurrency
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_URL
+				, int32 _ConnectionConcurrency
 			)
 		;
 
@@ -169,16 +169,16 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_CommandLine_ListNamespaces(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeTrustedHosts, NStr::CStr const &_TableType);
 		TCFuture<uint32> f_CommandLine_TrustHostForNamespace
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_Namespace
-			 	, NStr::CStr const &_Host
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Namespace
+				, NStr::CStr const &_Host
 			)
 		;
 		TCFuture<uint32> f_CommandLine_UntrustHostForNamespace
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_Namespace
-			 	, NStr::CStr const &_Host
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_Namespace
+				, NStr::CStr const &_Host
 			)
 		;
 
@@ -214,24 +214,24 @@ namespace NMib::NConcurrency
 
 		TCFuture<uint32> f_CommandLine_RegisterAuthenticationFactor
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_UserID
-			 	, NStr::CStr const &_Factor
-			 	, bool _bQuiet
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_Factor
+				, bool _bQuiet
 			)
 		;
 		TCFuture<uint32> f_CommandLine_UnregisterAuthenticationFactor
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_UserID
-			 	, NStr::CStr const &_Factor
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_Factor
 			)
 		;
 		TCFuture<uint32> f_CommandLine_EnumUserAuthenticationFactors
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_UserID
-			 	, NStr::CStr const &_TableType
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_TableType
 			)
 		;
 		TCFuture<uint32> f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
@@ -284,7 +284,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
-	 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
 				, uint64 _MaxEntries
 				, ESensorOutputFlag _Flags
 				, NStr::CStr const &_TableType
@@ -324,7 +324,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> &&_LogEntries
-	 			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+				, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
 				, uint64 _MaxEntries
 				, ELogOutputFlag _Flags
 				, uint32 _Verbosity
@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 						, NStr::CStr const &_TableType
 					)
 				> && _fSensorReadingsList
- 				, EDistributedAppCommandFlag _CommandFlags
+				, EDistributedAppCommandFlag _CommandFlags
 			)
 		;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
@@ -466,16 +466,16 @@ namespace NMib::NConcurrency
 		// To enable authentication override fp_SetupAuthentication and call fp_EnableAuthentication
         virtual TCFuture<CActorSubscription> fp_SetupAuthentication
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, int64 _AuthenticationLifetime
-			 	, NStr::CStr const &_UserID
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, int64 _AuthenticationLifetime
+				, NStr::CStr const &_UserID
 			)
 		;
         TCFuture<CActorSubscription> fp_EnableAuthentication
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
-			 	, int64 _AuthenticationLifetime
-			 	, NStr::CStr _UserID
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, int64 _AuthenticationLifetime
+				, NStr::CStr _UserID
 			)
 		;
 

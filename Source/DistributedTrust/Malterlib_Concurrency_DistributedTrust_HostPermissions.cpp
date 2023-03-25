@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CDistributedActorTrustManager::f_RemovePermissions
 		(
-		 	CPermissionIdentifiers const &_Identity
+			CPermissionIdentifiers const &_Identity
 			 , NContainer::TCSet<NStr::CStr> const &_Permissions
 			 , EDistributedActorTrustManagerOrderingFlag _OrderingFlags
 		)
@@ -275,8 +275,8 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr const &_Pattern
 			, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-		 	, CCallingHostInfo const &_CallingHostInfo
-		 	, NStr::CStr const &_RequestID
+			, CCallingHostInfo const &_CallingHostInfo
+			, NStr::CStr const &_RequestID
 		)
 	{
 		using namespace NStr;
@@ -381,7 +381,7 @@ namespace NMib::NConcurrency
 			CPermissionIdentifiers const &_Identity
 			, NContainer::TCSet<NStr::CStr> &&_AuthenticatedPermissions
 			, NTime::CTime const &_ExpirationTime
-		 	, NTime::CTime const &_CacheTime
+			, NTime::CTime const &_CacheTime
 		)
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
@@ -431,7 +431,7 @@ namespace NMib::NConcurrency
 	}
 	
 	namespace NPrivate
- 	{
+	{
 		CTrustedPermissionSubscriptionState::CTrustedPermissionSubscriptionState()
 		{
 		}
@@ -511,8 +511,8 @@ namespace NMib::NConcurrency
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr &&_Pattern
 				, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactors
-			 	, NTime::CTime const &_ExpirationTime
-			 	, NTime::CTime const &_CacheTime
+				, NTime::CTime const &_ExpirationTime
+				, NTime::CTime const &_CacheTime
 			)
 		{
 			return g_Future <<= g_Dispatch(m_DispatchActor) /
@@ -539,7 +539,7 @@ namespace NMib::NConcurrency
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr const &_Permission
 				, NTime::CTime const &_ExpirationTime
-			 	, NTime::CTime const &_CacheTime
+				, NTime::CTime const &_CacheTime
 			)
 		{
 			return g_Future <<= g_Dispatch(m_DispatchActor) /
@@ -624,9 +624,9 @@ namespace NMib::NConcurrency
 		(
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements> &o_RequestedPermissions
-		 	, CPermissionIdentifiers const &_Identity
-		 	, CPermissionIdentifiers const &_FullIdentity
-		 	, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
+			, CPermissionIdentifiers const &_Identity
+			, CPermissionIdentifiers const &_FullIdentity
+			, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
 		) const
 	{
 		auto fFindAllInGroup = [](NContainer::TCSet<NStr::CStr> const &_Preauthenticated, NContainer::TCSet<NStr::CStr> const &_FactorGroup)
@@ -677,7 +677,7 @@ namespace NMib::NConcurrency
 						}
 						o_RequestedPermissions.f_InsertLast
 							(
-							 	ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
+								ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
 								{
 									Permission
 									, m_Description
@@ -716,8 +716,8 @@ namespace NMib::NConcurrency
 					auto &Permission = _Permissions.fs_GetKey(pFactors);
 					o_RequestedPermissions.f_InsertLast
 						(
-						 	ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
-						 	{
+							ICDistributedActorAuthenticationHandler::CPermissionWithRequirements
+							{
 								Permission
 								, m_Description
 								, pFactors->m_AuthenticationFactors
@@ -737,7 +737,7 @@ namespace NMib::NConcurrency
 		(
 			NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 			, NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &_AuthenticatedPermissions
-		 	, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
+			, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
 		) const
 	{
 		auto fMatchesRequirements = [&](CPermissionRequirements const &_Requirements, NStr::CStr const &_Permission) -> bool
@@ -1023,9 +1023,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<bool> CTrustedPermissionSubscription::f_HasPermission
 		(
-		 	NStr::CStr const &_Description
-		 	, NContainer::TCVector<NStr::CStr> const &_Permissions
-		 	, CCallingHostInfo const &_CallingHostInfo
+			NStr::CStr const &_Description
+			, NContainer::TCVector<NStr::CStr> const &_Permissions
+			, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
@@ -1055,9 +1055,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<bool> CTrustedPermissionSubscription::f_HasPermissions
 		(
-		 	NStr::CStr const &_Description
-		 	, NContainer::TCVector<CPermissionQuery> const &_PermissionsQueries
-		 	, CCallingHostInfo const &_CallingHostInfo
+			NStr::CStr const &_Description
+			, NContainer::TCVector<CPermissionQuery> const &_PermissionsQueries
+			, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
@@ -1086,8 +1086,8 @@ namespace NMib::NConcurrency
 	TCFuture<NContainer::TCMap<NStr::CStr, bool>> CTrustedPermissionSubscription::f_HasPermissions
 		(
 			NStr::CStr const &_Description
-		 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
-		 	, CCallingHostInfo const &_CallingHostInfo
+			, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
+			, CCallingHostInfo const &_CallingHostInfo
 		) const
 	{
 		DMibRequire(_CallingHostInfo.f_GetRealHostID());
@@ -1256,10 +1256,10 @@ namespace NMib::NConcurrency
 	void CTrustedPermissionSubscription::f_OnPermissionsAdded
 		(
 			NFunction::TCFunctionMovable
-		 	<
-		 		void (CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded)
-		 	>
-		 	&&_fOnPermissionsAdded
+			<
+				void (CPermissionIdentifiers const &_Identity, NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_PermissionsAdded)
+			>
+			&&_fOnPermissionsAdded
 		)
 	{
 		mp_pState->m_fOnPermissionsAdded = fg_Move(_fOnPermissionsAdded);

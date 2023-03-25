@@ -338,7 +338,7 @@ namespace
 #endif
 				DMibExpectException
 					(
-					 	fDoubleDestroy()
+						fDoubleDestroy()
 						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
 						, DMibImpExceptionInstance(CExceptionActorDeleted, DeletedError)
 					)
@@ -346,7 +346,7 @@ namespace
 #else
 				DMibExpectException
 					(
-					 	fDoubleDestroy()
+						fDoubleDestroy()
 						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
 						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
 					)

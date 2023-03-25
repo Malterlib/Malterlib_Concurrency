@@ -335,7 +335,7 @@ namespace NMib::NConcurrency
 			return;
 
 		CDistributedActorCommand_RemoteCallResult Result;
- 		Result.m_ReplyToPacketID = _PacketID;
+		Result.m_ReplyToPacketID = _PacketID;
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
 		
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
@@ -565,7 +565,7 @@ namespace NMib::NConcurrency
 					, ParamData = fg_Move(ParamData)
 					, HostID = Host.m_HostInfo.m_RealHostID
 					, CallingHostInfo = CCallingHostInfo
-				 		(
+						(
 							fg_ThisActor(m_pThis)
 							, Host.m_AuthenticationHandler
 							, Host.m_HostInfo.m_UniqueHostID
@@ -574,7 +574,7 @@ namespace NMib::NConcurrency
 							, ProtocolVersion
 							, Host.m_ClaimedUserID
 							, Host.m_ClaimedUserName
-						 	, pHost
+							, pHost
 						)
 					, Context
 					, fCall = fg_Move(fCall)

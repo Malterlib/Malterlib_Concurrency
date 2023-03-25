@@ -141,7 +141,7 @@ struct CMyOtherActor
 		// The result functor after > is automatically associated with the current running actor so the result
 		// functor is called from the right thread/queue.
 
- 		m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Value)
+		m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Value)
 			{
 				if (!_Value)
 				{
@@ -279,7 +279,7 @@ co_await m_MyActor(&CMyActor::f_MyFunction);
 
  Action												| Actor call			| Direct call
  ---------------------------------------------------|-----------------------|---------------
- All parameters values 								| Safe					| Safe
+ All parameters values								| Safe					| Safe
  Reference parameter								| Safe					| Unsafe (runtime contract violation)
  Reference parameter before first suspension point	| Safe					| Safe (runtime contract violation)
  Reference this (actor member function)				| Safe					| Safe
@@ -477,7 +477,7 @@ TCFuture<void> f_MyBrokenFunction()
 TCFuture<void> f_MyBrokenFunction()
 {
 	co_await m_MyActor(&CMyActor::f_MyFunction);
- 	co_return {};
+	co_return {};
 }
 ~~~
 
@@ -559,11 +559,11 @@ TCFuture<void> f_DestroyActor()
 ~~~
 	// Old way
 	auto Result = co_await MyActor(&CMyActor::f_MyFunction, 5);
- 	auto Result2 = co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)(5);
+	auto Result2 = co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)(5);
 
 	// New way
 	auto Result = co_await MyActor->f_MyFunction(5);
- 	auto Result2 = co_await MyDistributedActor->f_MyFunction(5);
+	auto Result2 = co_await MyDistributedActor->f_MyFunction(5);
 ~~~
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_ReceiveResult Receiving result and error handling
@@ -624,18 +624,18 @@ auto Cleanup = g_OnScopeExitActor / [this]
 // Optimal way
 TCFuture<void> f_MyFunction()
 {
- 	if (ErrorCondition)
- 		co_return DMibErrorInstance("Error encountered");
+	if (ErrorCondition)
+		co_return DMibErrorInstance("Error encountered");
 	co_await fp_OtherFunction();
 }
 
 // Workaround way
 TCFuture<void> f_MyFunction()
 {
- 	if (ErrorCondition)
- 		co_return DMibErrorInstance("Error encountered");
+	if (ErrorCondition)
+		co_return DMibErrorInstance("Error encountered");
 	co_await fp_OtherFunction();
- 	co_return {}; // Void return
+	co_return {}; // Void return
 }
 ~~~
 
@@ -842,8 +842,8 @@ CStr FileContents = co_await
 		g_Dispatch(mp_FileActor) / [FilePath]() mutable
 		{
 			// You have to be careful what you capture in this lambda, the
- 			// code will run concurrently with your actor, so don't capture 'this' and make
- 			// sure that you are not sharing any data.
+			// code will run concurrently with your actor, so don't capture 'this' and make
+			// sure that you are not sharing any data.
 
 			return CFile::fs_ReadStringFromFile(FilePath)
 		}

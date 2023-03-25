@@ -10,8 +10,8 @@ namespace NMib::NConcurrency
 
 	void fg_Unwrap
 		(
-		 	TCAsyncResult<void> &&_ToUnwrap
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			TCAsyncResult<void> &&_ToUnwrap
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	;
 
@@ -34,8 +34,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CData>
 	tf_CData fg_Unwrap
 		(
-		 	TCAsyncResult<tf_CData> &&_ToUnwrap
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			TCAsyncResult<tf_CData> &&_ToUnwrap
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		if (_ToUnwrap)
@@ -108,8 +108,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CData, typename tf_CAllocator, typename tf_COptions>
 	NContainer::TCVector<tf_CData, tf_CAllocator, tf_COptions> fg_Unwrap
 		(
-		 	NContainer::TCVector<TCAsyncResult<tf_CData>, tf_CAllocator, tf_COptions> &&_Results
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			NContainer::TCVector<TCAsyncResult<tf_CData>, tf_CAllocator, tf_COptions> &&_Results
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
@@ -193,8 +193,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CAllocator, typename tf_COptions>
 	void fg_Unwrap
 		(
-		 	NContainer::TCVector<TCAsyncResult<void>, tf_CAllocator, tf_COptions> &&_Results
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			NContainer::TCVector<TCAsyncResult<void>, tf_CAllocator, tf_COptions> &&_Results
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
@@ -284,8 +284,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CData, typename tf_CCompare, typename tf_CAllocator>
 	NContainer::TCMap<tf_CKey, tf_CData, tf_CCompare, tf_CAllocator> fg_Unwrap
 		(
-		 	NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CData>, tf_CCompare, tf_CAllocator> &&_Results
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CData>, tf_CCompare, tf_CAllocator> &&_Results
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
@@ -381,8 +381,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CKey, typename tf_CCompare, typename tf_CAllocator>
 	NContainer::TCSet<tf_CKey, tf_CCompare, tf_CAllocator> fg_Unwrap
 		(
-		 	NContainer::TCMap<tf_CKey, TCAsyncResult<void>, tf_CCompare, tf_CAllocator> &&_Results
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			NContainer::TCMap<tf_CKey, TCAsyncResult<void>, tf_CCompare, tf_CAllocator> &&_Results
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;

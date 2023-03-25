@@ -64,7 +64,7 @@ namespace NMib::NConcurrency::NPrivate
 				, NStr::CStr &&_Pattern
 				, NContainer::TCSet<NStr::CStr> &&_AuthenticationFactors
 				, NTime::CTime const &_ExpirationTime
-			 	, NTime::CTime const &_CacheTime
+				, NTime::CTime const &_CacheTime
 			)
 		;
 		TCFuture<void> f_AddAuthenticatedPermission
@@ -72,7 +72,7 @@ namespace NMib::NConcurrency::NPrivate
 				CPermissionIdentifiers const &_Identity
 				, NStr::CStr const &_Permission
 				, NTime::CTime const &_ExpirationTime
-			 	, NTime::CTime const &_CacheTime
+				, NTime::CTime const &_CacheTime
 			)
 		;
 	};

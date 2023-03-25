@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
- 		ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
+		ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
 		Cleanup.f_Clear();
 #else
 		auto Return = State.m_Function(fg_Move(fg_Get<tfp_Indices>(State.m_ParamList))...);

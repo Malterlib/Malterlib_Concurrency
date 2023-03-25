@@ -55,8 +55,8 @@ namespace NMib::NConcurrency
 			//
 			// For the enum secrets case our vector of vectors could contain
 			// {
-			// 		{SecretsManager/AllCommand, SecretsManager/Command/EnumerateSecrets}
-			// 		, {SecretsManager/Read/SemanticID/sem/Tag/tag, SecretsManager/Read/NoSemanticID/NoTag}
+			//		{SecretsManager/AllCommand, SecretsManager/Command/EnumerateSecrets}
+			//		, {SecretsManager/Read/SemanticID/sem/Tag/tag, SecretsManager/Read/NoSemanticID/NoTag}
 			// }
 			//
 			// To authenticate this request we need authentication for at least one permission in each of the inner vectors.

@@ -16,10 +16,10 @@ namespace NMib::NConcurrency
 		virtual ~CDistributedTool() {}
 		virtual void f_Register
 			(
-			 	TCActor<CDistributedToolAppActor> const &_ToolActor
-			 	, CDistributedAppCommandLineSpecification::CSection &o_ToolsSection
-			 	, CDistributedAppCommandLineSpecification &o_CommandLine
-			 	, NStr::CStr const &_ClassName
+				TCActor<CDistributedToolAppActor> const &_ToolActor
+				, CDistributedAppCommandLineSpecification::CSection &o_ToolsSection
+				, CDistributedAppCommandLineSpecification &o_CommandLine
+				, NStr::CStr const &_ClassName
 			) = 0
 		;
 	};

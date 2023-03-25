@@ -20,8 +20,8 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCPromiseWithAppAuditorWithError<t_CReturnValue>::TCPromiseWithAppAuditorWithError
 		(
-		 	TCPromise<t_CReturnValue> const &_Promise
-		 	, CDistributedAppAuditorWithError const &_Auditor
+			TCPromise<t_CReturnValue> const &_Promise
+			, CDistributedAppAuditorWithError const &_Auditor
 		)
 		: m_Promise(_Promise)
 		, m_Auditor(_Auditor)

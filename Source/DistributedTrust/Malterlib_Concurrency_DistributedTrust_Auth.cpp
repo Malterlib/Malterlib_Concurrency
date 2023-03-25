@@ -47,12 +47,12 @@ namespace NMib::NConcurrency
 
 		co_await Internal.m_ActorDistributionManager
 			(
-			 	&CActorDistributionManager::f_SetAuthenticationHandler
-			 	, pHost
-			 	, CallingHostInfo.f_LastExecutionID()
-			 	, fg_Move(_Handler)
-			 	, _UserID
-			 	, UserName
+				&CActorDistributionManager::f_SetAuthenticationHandler
+				, pHost
+				, CallingHostInfo.f_LastExecutionID()
+				, fg_Move(_Handler)
+				, _UserID
+				, UserName
 			)
 		;
 
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr const &_Pattern
 			, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-		 	, NStr::CStr const &_RequestID
+			, NStr::CStr const &_RequestID
 		)
 	{
 		auto &Internal = *m_pThis->mp_pInternal;
@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 	TCFuture<NContainer::TCVector<bool>> CDistributedActorTrustManager::f_VerifyAuthenticationResponses
 		(
 			ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-		 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
+			, ICDistributedActorAuthenticationHandler::CRequest const &_Request
 			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
 		)
 	{
@@ -147,11 +147,11 @@ namespace NMib::NConcurrency
 			{
 				DMibLogWithCategory
 					(
-					 	Mib/Concurrency/Trust
-					 	, Info
-					 	, "Verify authentication response failed for user '{}': Factor of type '{}' not supported"
-					 	, _Challenge.m_UserID
-					 	,  pRegisteredFactor->m_AuthenticationFactor.m_Name
+						Mib/Concurrency/Trust
+						, Info
+						, "Verify authentication response failed for user '{}': Factor of type '{}' not supported"
+						, _Challenge.m_UserID
+						,  pRegisteredFactor->m_AuthenticationFactor.m_Name
 					)
 				;
 				fAddFalseResult();

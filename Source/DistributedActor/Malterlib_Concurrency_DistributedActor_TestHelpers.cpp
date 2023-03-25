@@ -243,7 +243,7 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, _Namespace
 				, mp_ProcessingActor 
-				, 	
+				,
 				[
 					this
 					, pRemoteLock = mp_pRemoteLock

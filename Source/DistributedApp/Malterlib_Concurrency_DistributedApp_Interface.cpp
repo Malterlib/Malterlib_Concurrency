@@ -358,7 +358,7 @@ namespace NMib::NConcurrency
 
 		auto [bHasCurrent, bHasExpected] = co_await
 			(
-			 	mp_State.m_TrustManager
+				mp_State.m_TrustManager
 				(
 					&CDistributedActorTrustManager::f_HasClientConnection
 					, CURL(CurrentServerAddress.f_IsEmpty() ? ServerAddress: CurrentServerAddress)
@@ -372,8 +372,8 @@ namespace NMib::NConcurrency
 			DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface address changed: {} != {}", ServerAddress, CurrentServerAddress);
 			co_await
 				(
-				 	mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, CURL(CurrentServerAddress), false)
-				 	% "Failed to remove old app interface client connection"
+					mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, CURL(CurrentServerAddress), false)
+					% "Failed to remove old app interface client connection"
 				)
 			;
 		}
@@ -401,7 +401,7 @@ namespace NMib::NConcurrency
 
 			co_await
 				(
-				 	mp_State.m_TrustManager
+					mp_State.m_TrustManager
 					(
 						&CDistributedActorTrustManager::f_AllowHostsForNamespace
 						, CDistributedAppInterfaceServer::mc_pDefaultNamespace

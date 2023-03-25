@@ -302,7 +302,7 @@ namespace NMib::NConcurrency
 	}
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo)
- 	{
+	{
 		auto *pInterface = m_SensorInterfaces.f_FindEqual(_Actor);
 
 		if (!pInterface)

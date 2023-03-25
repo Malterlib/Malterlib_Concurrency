@@ -1253,8 +1253,8 @@ namespace NMib::NConcurrency
 				m_pActorInternal = nullptr;
 				pActor->f_QueueProcess
 					(
-					 	[pState = fg_Move(m_pState), Result = fg_Move(_Result)]() mutable
-					 	{
+						[pState = fg_Move(m_pState), Result = fg_Move(_Result)]() mutable
+						{
 							NPrivate::fg_CallResultFunctor(pState->m_ResultFunctor, NPrivate::fg_GetInternalActor(*pState->m_ResultActor.f_GetRealActor()), fg_Move(Result));
 						}
 					)
@@ -1414,9 +1414,9 @@ namespace NMib::NConcurrency
 				DMibFastCheck
 					(
 						bWasDebugException
-					 	|| ThreadLocal.m_bExpectCoroutineCall
-					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
-					 	|| ResultDeref.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
+						|| ThreadLocal.m_bExpectCoroutineCall
+						|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
+						|| ResultDeref.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
 				;
 

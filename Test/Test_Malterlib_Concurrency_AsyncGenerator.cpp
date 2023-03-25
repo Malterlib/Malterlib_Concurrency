@@ -117,7 +117,7 @@ namespace
 			co_return Return;
 		}
 
- 		TCFuture<int32> f_TestAsyncGeneratorConsumerForCoAwait()
+		TCFuture<int32> f_TestAsyncGeneratorConsumerForCoAwait()
 		{
 			int32 Return = 0;
 			for (auto iValue = co_await f_TestAsyncGenerator().f_GetIterator(); iValue; co_await ++iValue)

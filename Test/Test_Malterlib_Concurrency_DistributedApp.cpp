@@ -24,10 +24,10 @@ namespace
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings(_Name)
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
-			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{
 		}

@@ -436,7 +436,7 @@ namespace NMib::NConcurrency
 
 											NStr::CStr CloseMessage = fg_Format
 												(
-												 	"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
+													"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
 													, pConnection->f_GetHostInfo()
 													, bLast ? "last" : "additional"
 													, Address.f_GetString()
@@ -465,10 +465,10 @@ namespace NMib::NConcurrency
 
 											fp_DestroyServerConnection
 												(
-												 	*pConnection
-												 	, false
-												 	, CloseMessage
-												 	, _Reason == NWeb::EWebSocketStatus_NormalClosure
+													*pConnection
+													, false
+													, CloseMessage
+													, _Reason == NWeb::EWebSocketStatus_NormalClosure
 													&& bLast
 													&& _Message != "Remove connection (preserve host)"
 													&& !_Message.f_StartsWith("Invalid connection:")
@@ -536,7 +536,7 @@ namespace NMib::NConcurrency
 																	(
 																		Mib/Concurrency/Actors
 																		, Error
-																	 	, "Error identifying connection from '{}' {{{}}: {}"
+																		, "Error identifying connection from '{}' {{{}}: {}"
 																		, Address.f_GetString()
 																		, pConnection->f_GetConnectionID()
 																		, _Result.f_GetExceptionStr()
@@ -549,7 +549,7 @@ namespace NMib::NConcurrency
 
 															NStr::CStr ToLog = NStr::fg_Format
 																(
-																 	"<{}> Accepted '{}' {{{}}"
+																	"<{}> Accepted '{}' {{{}}"
 																	, pConnection->f_GetHostInfo()
 																	, Address.f_GetString()
 																	, pConnection->f_GetConnectionID()

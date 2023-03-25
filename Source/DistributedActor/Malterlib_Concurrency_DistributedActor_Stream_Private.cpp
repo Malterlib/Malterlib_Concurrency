@@ -11,10 +11,10 @@ namespace NMib::NConcurrency::NPrivate
 	template <>
 	void fg_CopyReplyToPromise
 		(
-		 	TCPromise<void> &_Promise
-		 	, NContainer::CSecureByteVector const &_Data
-		 	, CDistributedActorStreamContext &_Context
-		 	, uint32 _Version
+			TCPromise<void> &_Promise
+			, NContainer::CSecureByteVector const &_Data
+			, CDistributedActorStreamContext &_Context
+			, uint32 _Version
 		)
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;

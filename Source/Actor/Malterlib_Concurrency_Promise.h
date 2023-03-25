@@ -346,7 +346,7 @@ namespace NMib::NConcurrency::NPrivate
 	NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> fg_ConsumeFutureOnResultSet
 		(
 #if DMibEnableSafeCheck > 0
-		 	void const *_pConsumedBy
+			void const *_pConsumedBy
 			, EConsumeFutureOnResultSetFlag _Flags
 #endif
 		)

@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 			(
 				NStr::CStr const &_Pattern
 				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-			 	, NStr::CStr const &_RequestID
+				, NStr::CStr const &_RequestID
 			) = 0
 		;
 	};

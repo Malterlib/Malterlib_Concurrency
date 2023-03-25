@@ -13,11 +13,11 @@ namespace NMib::NConcurrency
 	using namespace NCommandLine;
 	using namespace NContainer;
 
- 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces
 		(
-		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
-		 	, bool _bIncludeTrustedHosts
-		 	, CStr const &_TableType
+			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, bool _bIncludeTrustedHosts
+			, CStr const &_TableType
 		)
 	{
 

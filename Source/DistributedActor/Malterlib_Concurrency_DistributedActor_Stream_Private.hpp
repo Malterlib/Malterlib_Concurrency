@@ -124,7 +124,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CType> 
 		static constexpr inline_always_debug typename NTraits::TCRemoveReferenceAndQualifiers<t_CType>::CType fs_Forward(tf_CType &&_Value) noexcept
 		{
-    		return fg_Forward<tf_CType>(_Value);
+			return fg_Forward<tf_CType>(_Value);
 		}
 	};
 
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CType> 
 		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
 		{
-    		return fg_Move(fg_Forward<tf_CType>(_Value));
+			return fg_Move(fg_Forward<tf_CType>(_Value));
 		}
 	};
 
@@ -144,7 +144,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CType> 
 		static constexpr inline_always_debug t_CType &&fs_Forward(tf_CType &&_Value) noexcept
 		{
-    		return fg_Move(fg_Forward<tf_CType>(_Value));
+			return fg_Move(fg_Forward<tf_CType>(_Value));
 		}
 	};
 
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename tf_CType> 
 		static constexpr inline_always_debug t_CType const &fs_Forward(tf_CType &&_Value) noexcept
 		{
-    		return fg_Forward<tf_CType>(_Value);
+			return fg_Forward<tf_CType>(_Value);
 		}
 	};
 	

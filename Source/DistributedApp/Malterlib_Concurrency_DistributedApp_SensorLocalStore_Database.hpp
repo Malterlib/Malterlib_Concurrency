@@ -98,5 +98,5 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		DMibBinaryStreamVersion(_Stream, Version);
 		_Stream % m_Timestamp;
 		_Stream % m_Data;
- 	}
+	}
 }

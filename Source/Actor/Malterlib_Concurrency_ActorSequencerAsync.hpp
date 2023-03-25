@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 				return fg_CallSafe
 					(
 						fg_Move(fToSequence)
-					 	, g_ActorSubscription / [pState]
+						, g_ActorSubscription / [pState]
 						{
 							auto &State = *pState;
 

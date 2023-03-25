@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 				ToDispatch =
 					[
 						pDistributionManager
-					 	, Data = Stream.f_MoveVector()
+						, Data = Stream.f_MoveVector()
 						, pActorData = fg_Move(pActorData)
 						, Context
 						, ProtocolVersion

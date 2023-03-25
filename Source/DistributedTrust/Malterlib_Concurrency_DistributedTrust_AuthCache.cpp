@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			CPermissionIdentifiers const &_Identity
 			, CStr const &_Permission
 			, NTime::CTime const &_ExpirationTime
-		 	, NTime::CTime const &_CacheTime
+			, NTime::CTime const &_CacheTime
 		)
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 			CPermissionIdentifiers const &_Identity
 			, CStr const &_Permission
 			, bool _bIsWildcard
-		 	, int64 _MaximumAuthenticationLifetime
+			, int64 _MaximumAuthenticationLifetime
 		)
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 			, CStr &&_Pattern
 			, TCSet<CStr> &&_AuthenticationFactors
 			, NTime::CTime const &_ExpirationTime
-		 	, NTime::CTime const &_CacheTime
+			, NTime::CTime const &_CacheTime
 		)
 	{
 		DMibRequire(_ExpirationTime.f_IsValid());
@@ -132,9 +132,9 @@ namespace NMib::NConcurrency
 
 	TCSet<CStr> CDistributedActorTrustManagerAuthenticationCache::f_HasAuthenticatedPermissionPattern
 		(
-		 	CPermissionIdentifiers const &_Identity
-		 	, CStr const &_Permission
-		 	, int64 _MaximumAuthenticationLifetime
+			CPermissionIdentifiers const &_Identity
+			, CStr const &_Permission
+			, int64 _MaximumAuthenticationLifetime
 		)
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());

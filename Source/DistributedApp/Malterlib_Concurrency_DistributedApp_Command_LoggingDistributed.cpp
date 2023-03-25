@@ -692,7 +692,7 @@ namespace NMib::NConcurrency
 				{
 					JsonOutputArray.f_Insert
 						(
- 							CEJSON
+							CEJSON
 							{
 								"HostID"_= Entry.m_LogInfoKey.m_HostID
 								, "HostName"_= HostName
@@ -716,13 +716,13 @@ namespace NMib::NConcurrency
 						{
 						case CDistributedAppLogReporter::ELogSeverity_Critical:
 						case CDistributedAppLogReporter::ELogSeverity_Error:
-						 	SeverityColor = AnsiEncoding.f_StatusError();
+							SeverityColor = AnsiEncoding.f_StatusError();
 							break;
 						case CDistributedAppLogReporter::ELogSeverity_Warning:
-						 	SeverityColor = AnsiEncoding.f_StatusWarning();
-						 	break;
+							SeverityColor = AnsiEncoding.f_StatusWarning();
+							break;
 						case CDistributedAppLogReporter::ELogSeverity_Info:
-						 	SeverityColor = AnsiEncoding.f_StatusNormal();
+							SeverityColor = AnsiEncoding.f_StatusNormal();
 							break;
 						case CDistributedAppLogReporter::ELogSeverity_Unsupported:
 						case CDistributedAppLogReporter::ELogSeverity_Debug:

@@ -125,13 +125,13 @@ namespace NMib::NConcurrency
 		return CTableRenderHelper
 			(
 				[this](CStr const &_Output)
-			 	{
+				{
 					*this += _Output;
 				}
-			 	, CTableRenderHelper::EOption_Rounded
-			 	, m_AnsiFlags
-		 		, m_CommandLineWidth
-		 	)
+				, CTableRenderHelper::EOption_Rounded
+				, m_AnsiFlags
+				, m_CommandLineWidth
+			)
 		;
 	}
 

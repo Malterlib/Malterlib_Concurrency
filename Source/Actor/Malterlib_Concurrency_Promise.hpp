@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 	}
 
 	enum EFutureResultFlag
- 	{
+	{
 		EFutureResultFlag_None = 0
 		, EFutureResultFlag_DataSet = DMibBit(0)
 		, EFutureResultFlag_ResultFunctorSet = DMibBit(1)
@@ -777,10 +777,10 @@ namespace NMib::NConcurrency::NPrivate
 
 		if
 			(
-			 	ThreadLocal.m_PromiseThreadLocal.m_bCaptureDebugException
-			 	&& !(m_OnResultSet.f_Load() & EFutureResultFlag_DataSet)
-			 	&& NException::fg_UncaughtExceptions()
-			 	&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
+				ThreadLocal.m_PromiseThreadLocal.m_bCaptureDebugException
+				&& !(m_OnResultSet.f_Load() & EFutureResultFlag_DataSet)
+				&& NException::fg_UncaughtExceptions()
+				&& ThreadLocal.m_PromiseThreadLocal.m_pOnResultSetConsumedBy == (void *)this
 			)
 		{
 			NException::CDisableExceptionFilterScope DisableExceptionFilter;
@@ -1050,7 +1050,7 @@ namespace NMib::NConcurrency::NPrivate
 	NFunction::TCFunctionMovable<void (TCAsyncResult<tf_CReturnValue> &&_AsyncResult)> fg_ConsumeFutureOnResultSet
 		(
 #if DMibEnableSafeCheck > 0
-		 	void const *_pConsumedBy
+			void const *_pConsumedBy
 			, EConsumeFutureOnResultSetFlag _Flags
 #endif
 		)

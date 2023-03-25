@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 				NStr::CStr const &_Description
 				, NStr::CStr const &_HomeDirectory
 				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
-			 	, NContainer::TCVector<NStr::CStr> &&_Params
+				, NContainer::TCVector<NStr::CStr> &&_Params
 			)
 		;
 

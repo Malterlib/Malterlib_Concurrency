@@ -25,8 +25,8 @@ namespace NMib::NConcurrency
 
 	void fg_Unwrap
 		(
-		 	TCAsyncResult<void> &&_ToUnwrap
-		 	, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
+			TCAsyncResult<void> &&_ToUnwrap
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
 		)
 	{
 		if (_ToUnwrap)
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency::NUnwrap
 	{
 		return CUnwrapHelperWithTransformer
 			(
-			 	[Message = _Message, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
+				[Message = _Message, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
 				{
 					auto pException = fPreviousTransformer(fg_Move(_pException));
 					try

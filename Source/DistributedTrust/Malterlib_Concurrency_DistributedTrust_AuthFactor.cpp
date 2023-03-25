@@ -71,10 +71,10 @@ namespace NMib::NConcurrency
 
 		co_return co_await Internal.m_Database
 			(
-			 	&ICDistributedActorTrustManagerDatabase::f_SetUserAuthenticationFactor
-			 	, _UserID
-			 	, _FactorID
-			 	, pAuthenticationFactorState->m_AuthenticationFactor
+				&ICDistributedActorTrustManagerDatabase::f_SetUserAuthenticationFactor
+				, _UserID
+				, _FactorID
+				, pAuthenticationFactorState->m_AuthenticationFactor
 			)
 		;
 	}

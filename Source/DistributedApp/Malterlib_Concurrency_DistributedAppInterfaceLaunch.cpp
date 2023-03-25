@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			NWeb::NHTTP::CURL const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
-		 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
+			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
 			, NStr::CStr const &_Description
 			, NStr::CStr const &_LaunchID
 			, bool _bDelegateTrust
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-			 	, nullptr
+				, nullptr
 			)
 			> [this, HandleRequestID](TCAsyncResult<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> &&_Ticket)
 			{

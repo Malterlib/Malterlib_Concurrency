@@ -67,16 +67,16 @@ namespace NMib::NConcurrency::NPrivate
 
 	void fg_StreamAsyncResultException
 		(
-		 	NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
-		 	, NException::CExceptionBase const &_Exception
-		 	, uint32 _ActorProtocolVersion
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
+			, NException::CExceptionBase const &_Exception
+			, uint32 _ActorProtocolVersion
 		)
 	;
 	void fg_StreamAsyncResultException
 		(
-		 	NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
-		 	, NConcurrency::CAsyncResult const &_Result
-		 	, uint32 _ActorProtocolVersion
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
+			, NConcurrency::CAsyncResult const &_Result
+			, uint32 _ActorProtocolVersion
 		)
 	;
 

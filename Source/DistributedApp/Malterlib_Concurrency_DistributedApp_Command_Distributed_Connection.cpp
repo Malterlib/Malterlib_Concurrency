@@ -287,9 +287,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListConnections
 		(
-		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
-		 	, bool _bIncludeFriendlyHostName
-		 	, CStr const &_TableType
+			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, bool _bIncludeFriendlyHostName
+			, CStr const &_TableType
 		)
 	{
 		auto ClientConnections = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
@@ -444,7 +444,7 @@ namespace NMib::NConcurrency
 					"Discarded: {0}{6,nt32,l6}{1} ({0}{7,nt32,l9}{1} b)"_f
 					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
 					<< AnsiEncoding.f_Default()
-		 			<< Host.m_nSentPackets
+					<< Host.m_nSentPackets
 					<< Host.m_nSentBytes
 					<< Host.m_nReceivedPackets
 					<< Host.m_nReceivedBytes

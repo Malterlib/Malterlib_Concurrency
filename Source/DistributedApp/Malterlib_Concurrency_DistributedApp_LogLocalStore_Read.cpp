@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 					if (_Filter.m_MaxSequence)
 						iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
 					else
-			 			iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+						iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
 
 					if (!iEntryByTime)
 						iEntryByTime.f_Last();
@@ -202,7 +202,7 @@ namespace NMib::NConcurrency
 					if (_Filter.m_MinSequence)
 						iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
 					else
-			 			iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+						iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp);
 				}
 			}
 

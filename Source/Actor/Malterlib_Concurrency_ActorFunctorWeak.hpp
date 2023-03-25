@@ -213,8 +213,8 @@ namespace NMib::NConcurrency
 				{
 					return fDispatcher
 						(
-						 	[&] mark_no_coroutine_debug () -> TCFuture<CStripedReturn>
-						 	{
+							[&] mark_no_coroutine_debug () -> TCFuture<CStripedReturn>
+							{
 								return NStorage::fg_TupleApplyAs<CMoveList>
 									(
 										[&] mark_no_coroutine_debug (auto &&..._Params) mutable -> TCFuture<CStripedReturn>

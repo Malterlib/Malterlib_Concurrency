@@ -584,12 +584,12 @@ namespace NMib::NConcurrency
 
 		DMibLogWithCategory
 			(
-			 	Mib/Concurrency/App
-			 	, Info
-			 	, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
-			 	, mp_Settings.m_AppName
-			 	, fg_GetAppTypeName(mp_pInternal->m_AppType)
-			 	, CFile::fs_GetFileNoExt(ProgramPath)
+				Mib/Concurrency/App
+				, Info
+				, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
+				, mp_Settings.m_AppName
+				, fg_GetAppTypeName(mp_pInternal->m_AppType)
+				, CFile::fs_GetFileNoExt(ProgramPath)
 				, VersionInfo.m_Major
 				, VersionInfo.m_Minor
 				, VersionInfo.m_Revision

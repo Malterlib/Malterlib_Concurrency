@@ -63,14 +63,14 @@ namespace NMib::NConcurrency
 	TCActor<t_CActor>::TCActor(TCActorHolderSharedPointer<CActorInternal> const &_pActor)
 		: m_pInternalActor
 		(
-		 	[&]
-		 	{
+			[&]
+			{
 				if constexpr (mc_bIsAlwaysAlive)
 					return _pActor.f_Get();
 				else
 					return _pActor;
 			}
-		 	()
+			()
 		)
 	{
 	}
@@ -79,14 +79,14 @@ namespace NMib::NConcurrency
 	TCActor<t_CActor>::TCActor(TCActorHolderSharedPointer<CActorInternal> &&_pActor)
 		: m_pInternalActor
 		(
-		 	[&]
-		 	{
+			[&]
+			{
 				if constexpr (mc_bIsAlwaysAlive)
 					return _pActor.f_Get();
 				else
 					return fg_Move(_pActor);
 			}
-		 	()
+			()
 		)
 	{
 	}
@@ -587,9 +587,9 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-			 	(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
-			 	|| !_Actor->f_GetDistributedActorData()
-			 	|| _Actor->f_GetDistributedActorData()->f_IsValidForCall()
+				(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				|| !_Actor->f_GetDistributedActorData()
+				|| _Actor->f_GetDistributedActorData()->f_IsValidForCall()
 			)
 		;
 
@@ -681,9 +681,9 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-			 	(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
-			 	|| !(*this)->f_GetDistributedActorData()
-			 	|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
+				(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				|| !(*this)->f_GetDistributedActorData()
+				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
 		;
 

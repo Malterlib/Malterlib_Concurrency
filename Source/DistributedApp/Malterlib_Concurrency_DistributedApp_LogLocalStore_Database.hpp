@@ -98,5 +98,5 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		DMibBinaryStreamVersion(_Stream, Version);
 		_Stream % m_Timestamp;
 		_Stream % m_Data;
- 	}
+	}
 }

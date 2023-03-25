@@ -197,7 +197,7 @@ namespace NMib::NConcurrency
 	{
 #ifdef DMibDebug
 		static_assert(NTraits::TCIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface::*)>::mc_Value);
-// 		If you get this static assert, add a dummy self like below:
+//		If you get this static assert, add a dummy self like below:
 //
 //		DDelegatedActorImplementation(CMyActor);
 //

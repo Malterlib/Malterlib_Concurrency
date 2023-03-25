@@ -680,8 +680,8 @@ namespace NMib::NConcurrency
 
 	void CActorHolder::fp_DestroyActorHolder
 		(
-		 	NFunction::TCFunctionNoAllocMovable<void ()> &&_fOnDestroyed
-		 	, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
+			NFunction::TCFunctionNoAllocMovable<void ()> &&_fOnDestroyed
+			, TCActorHolderSharedPointer<CActorHolder> &&_pSelfReference
 			, CConcurrencyThreadLocal &_ThreadLocal
 		)
 	{

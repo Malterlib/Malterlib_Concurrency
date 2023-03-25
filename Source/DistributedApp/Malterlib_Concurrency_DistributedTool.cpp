@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 		pRuntimeTypeInfo->f_ForEachLeafChild
 			(
 				[&](CRunTimeObjectInfo const &_RuntimeObjectInfo)
-			 	{
+				{
 					mp_Tools.f_Insert
 						(
 							{
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 						)
 					;
 				}
-		 	)
+			)
 		;
 	}
 

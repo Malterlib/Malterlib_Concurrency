@@ -137,7 +137,7 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetThisConcurrentActorLowPrio();
 	}
 
- 	TCActor<COtherConcurrentActor> const &fg_OtherConcurrentActor()
+	TCActor<COtherConcurrentActor> const &fg_OtherConcurrentActor()
 	{
 		return fg_ConcurrencyManager().f_GetOtherConcurrentActor();
 	}
@@ -706,7 +706,7 @@ namespace NMib::NConcurrency
 							if
 								(
 									Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorImpl") >= 0
-								 	|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorLowPrioImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CConcurrentActorLowPrioImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CTimerActor") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectCallActorImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CThisConcurrentActorImpl") >= 0
@@ -723,8 +723,8 @@ namespace NMib::NConcurrency
 
 							DMibTrace
 								(
-								 	"    {}   Destroyed {}   RefCount {}   WeakCount {}{\n}"
-								 	, Actor.m_ActorTypeName << Actor.mp_bDestroyed.f_Load() << Actor.m_RefCount.f_Get() << Actor.m_RefCount.f_WeakGet()
+									"    {}   Destroyed {}   RefCount {}   WeakCount {}{\n}"
+									, Actor.m_ActorTypeName << Actor.mp_bDestroyed.f_Load() << Actor.m_RefCount.f_Get() << Actor.m_RefCount.f_WeakGet()
 								)
 							;
 

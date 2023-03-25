@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
-		 	, int64 _AuthenticationLifetime
+			, int64 _AuthenticationLifetime
 		)
 		: mp_pCommandLine(_pCommandLine)
 		, mp_TrustManager(_TrustManager)
@@ -297,8 +297,8 @@ namespace NMib::NConcurrency
 			+ mp_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _pInfo->m_UserID)
 			> [this, pState, pCommandLine = mp_pCommandLine, _pInfo]
 			(
-			 	TCAsyncResult<TCMap<CStr, CAuthenticationActorInfo>> &&_ActorInfo
-			 	, TCAsyncResult<TCMap<CStr, CAuthenticationData>> &&_RegisteredFactors
+				TCAsyncResult<TCMap<CStr, CAuthenticationActorInfo>> &&_ActorInfo
+				, TCAsyncResult<TCMap<CStr, CAuthenticationData>> &&_RegisteredFactors
 			) mutable
 			{
 				auto &State = *pState;
@@ -499,7 +499,7 @@ namespace NMib::NConcurrency
 		(
 			CRequest const &_Request
 			, CChallenge const &_Challenge
-		 	, CStr const &_MultipleRequestID
+			, CStr const &_MultipleRequestID
 		)
 	{
 		if (f_IsDestroyed())
@@ -599,9 +599,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
 		(
-		 	TCSharedPointer<CCommandLineControl> const &_pCommandLine
-		 	, int64 _AuthenticationLifetime
-		 	, CStr const &_UserID
+			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			, int64 _AuthenticationLifetime
+			, CStr const &_UserID
 		)
 	{
 		TCPromise<CActorSubscription> Promise;
@@ -613,9 +613,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
 		(
-		 	TCSharedPointer<CCommandLineControl> _pCommandLine
-		 	, int64 _AuthenticationLifetime
-		 	, CStr _UserID
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, int64 _AuthenticationLifetime
+			, CStr _UserID
 		)
 	{
 		if (mp_AuthenticationHandlerImplementation)

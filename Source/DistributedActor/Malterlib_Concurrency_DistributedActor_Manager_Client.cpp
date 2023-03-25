@@ -132,7 +132,7 @@ namespace NMib::NConcurrency
 			, bool _bRetry
 			, mint _Sequence
 			, NStr::CStr const &_ConnectionError
-		 	, bool _bResetHost
+			, bool _bResetHost
 		)
 	{
 		_pConnection->f_Reset(_bResetHost, *this, "Reconnect");
@@ -222,7 +222,7 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<CClientConnection, NStorage::CSupportWeakTag> const &_pConnection
 			, NStorage::TCSharedPointer<TCPromise<CActorDistributionManager::CConnectionResult>> const &_pPromise
 			, bool _bRetry
-		 	, bool _bRetryOnFirst
+			, bool _bRetryOnFirst
 			, fp64 _Timeout
 		)
 	{
@@ -411,9 +411,9 @@ namespace NMib::NConcurrency
 
 						NStr::CStr Error = fg_Format
 							(
-							 	"<{}> Lost {} outgoing connection to '{}' {{{}}: {} {} {}"
+								"<{}> Lost {} outgoing connection to '{}' {{{}}: {} {} {}"
 								, pConnection->f_GetHostInfo()
-							 	, bLast ? "last" : "additional"
+								, bLast ? "last" : "additional"
 								, pConnection->m_ServerURL.f_Encode()
 								, pConnection->f_GetConnectionID()
 								, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
@@ -565,7 +565,7 @@ namespace NMib::NConcurrency
 
 									NStr::CStr ToLog = NStr::fg_Format
 										(
-										 	"<{}> Connected '{}' {{{}}"
+											"<{}> Connected '{}' {{{}}"
 											, pConnection->f_GetHostInfo()
 											, pConnection->m_ServerURL.f_Encode()
 											, pConnection->f_GetConnectionID()

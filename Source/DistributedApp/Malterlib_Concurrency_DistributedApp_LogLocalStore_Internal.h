@@ -85,14 +85,14 @@ namespace NMib::NConcurrency
 				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 			)
 		;
- 		TCFuture<void> f_StoreLogEntries
+		TCFuture<void> f_StoreLogEntries
 			(
 				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
 				, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey
 				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 			)
 		;
- 		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey);
+		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey);
 
 		auto f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey)
 			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>

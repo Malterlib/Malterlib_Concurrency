@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CNamespace>> &&_Namespaces
 				, TCAsyncResult<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> &&_Permissions
 				, TCAsyncResult<NContainer::TCMap<NStr::CStr, CUserInfo>> &&_Users
-			 	, TCAsyncResult<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> &&_AuthenticationFactors
+				, TCAsyncResult<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> &&_AuthenticationFactors
 
 			) mutable
 			{
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency
 				, _Namespaces
 				, _Permissions
 				, _Users
-			 	, _AuthenticationFactors
+				, _AuthenticationFactors
 				, pCleanup
 			]
 			(
@@ -603,7 +603,7 @@ namespace NMib::NConcurrency
 					> [this, _Promise, pCleanup]
 					(
 						TCAsyncResult<NContainer::TCMap<CListenConfig, TCAsyncResult<CDistributedActorListenReference>>> &&_ListenResults
-					 	, TCAsyncResult<void> &&_ConnectionsResults
+						, TCAsyncResult<void> &&_ConnectionsResults
 					)
 					{
 						if (!_ListenResults)
@@ -648,9 +648,9 @@ namespace NMib::NConcurrency
 						{
 							m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
 								(
-								 	m_ActorDistributionManager
-								 	, m_pThis
-								 	, ICDistributedActorAuthentication::mc_pDefaultNamespace
+									m_ActorDistributionManager
+									, m_pThis
+									, ICDistributedActorAuthentication::mc_pDefaultNamespace
 								)
 								> PublishPromise
 							;

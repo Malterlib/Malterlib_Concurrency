@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
 		(
-		 	NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
+			NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
 		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
@@ -259,8 +259,8 @@ namespace NMib::NConcurrency
 
 			auto Subscription = NProcess::NPlatform::fg_Process_WaitForTermination
 				(
-				 	[pState, pCommandLineControl]
-				 	{
+					[pState, pCommandLineControl]
+					{
 						pCommandLineControl(&CCommandLineControlActor::f_Cancel) > fg_DirectCallActor() / [pState](TCAsyncResult<bool> &&_Result)
 							{
 								if (!_Result)

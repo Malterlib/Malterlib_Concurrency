@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 				, bool _bRetry
 				, mint _Sequence
 				, NStr::CStr const &_ConnectionError
-			 	, bool _bResetHost = false
+				, bool _bResetHost = false
 			)
 		;
 		void fp_Reconnect

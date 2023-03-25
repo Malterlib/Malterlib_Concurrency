@@ -370,9 +370,9 @@ namespace NMib::NConcurrency
 				DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Result.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 				DMibFastCheck
 					(
-					 	ThreadLocal.m_bExpectCoroutineCall
-					 	|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
-					 	|| Result.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
+						ThreadLocal.m_bExpectCoroutineCall
+						|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
+						|| Result.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
 					)
 				;
 

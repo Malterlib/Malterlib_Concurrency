@@ -119,7 +119,7 @@ namespace NMib::NConcurrency
 				return fg_CallSafe
 					(
 						fg_Move(fToSequence)
-					 	, g_ActorSubscription / [this]
+						, g_ActorSubscription / [this]
 						{
 							--m_nRunning;
 

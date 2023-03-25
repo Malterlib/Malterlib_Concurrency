@@ -550,7 +550,7 @@ namespace NMib::NConcurrency
 				, mp_Period
 				, fg_CurrentActor()
 				, [Promise]
-			 	{
+				{
 					Promise.f_SetResult();
 				}
 				, mp_bFireAtExit

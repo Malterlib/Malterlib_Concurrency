@@ -69,9 +69,9 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			static_assert
 				(
-				 	(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
-				 	&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
-				 	, "Only safe to return newly created exceptions, otherwise use exception pointers"
+					(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
+					&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
 			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
@@ -93,11 +93,11 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		static_assert
 			(
-			 	NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
+				NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
 				|| NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value
-			 	|| NException::TCIsExcption<CReturnNoReference>::mc_Value
-			 	|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
-			 	, "You can only return exceptions, async results or promises"
+				|| NException::TCIsExcption<CReturnNoReference>::mc_Value
+				|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
+				, "You can only return exceptions, async results or promises"
 			)
 		;
 
@@ -481,8 +481,8 @@ namespace NMib::NConcurrency
 	{
 		return TCFutureAwaiter<t_CReturnValue, true, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
-			 	fg_Move(m_Future)
-			 	, this->fp_GetTransformer()
+				fg_Move(m_Future)
+				, this->fp_GetTransformer()
 			)
 		;
 	}
@@ -492,8 +492,8 @@ namespace NMib::NConcurrency
 	{
 		return TCFutureAwaiter<t_CReturnValue, false, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)>>
 			(
-			 	fg_Move(m_pWrapped->m_Future)
-			 	, m_pWrapped->fp_GetTransformer()
+				fg_Move(m_pWrapped->m_Future)
+				, m_pWrapped->fp_GetTransformer()
 			)
 		;
 	}

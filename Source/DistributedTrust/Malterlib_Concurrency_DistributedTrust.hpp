@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
-		 	, CDistributedActorProtocolVersions const &_Versions
+			, CDistributedActorProtocolVersions const &_Versions
 		)
 	{
 		TCPromise<TCTrustedActorSubscription<tf_CActor>> Promise;

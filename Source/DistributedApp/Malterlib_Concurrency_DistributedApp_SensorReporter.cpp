@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	CDistributedAppSensorReporter::CDistributedAppSensorReporter()
- 	{
+	{
 		DMibPublishActorFunction(CDistributedAppSensorReporter::f_OpenSensorReporter);
 	}
 

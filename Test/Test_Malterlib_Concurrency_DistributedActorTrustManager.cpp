@@ -400,9 +400,9 @@ namespace NTestTrustManager
 				TCMap<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>::CType, typename NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>::CType> Return;
 				fg_CreateMapHelper<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CKey>::CType, typename NTraits::TCRemoveReferenceAndQualifiers<tf_CValue>::CType>
 					(
-					 	Return
-					 	, fg_Forward<tf_CKey>(_First)
-					 	, fg_Forward<tf_CParams>(p_Params)...
+						Return
+						, fg_Forward<tf_CKey>(_First)
+						, fg_Forward<tf_CParams>(p_Params)...
 					)
 				;
 				return Return;
@@ -429,7 +429,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_AddPermissions
-					 	, CPermissionIdentifiers{m_ServerHostID, ""}
+						, CPermissionIdentifiers{m_ServerHostID, ""}
 						, fg_CreateMap<CStr, CPermissionRequirements>(p_Permissions...)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -442,7 +442,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_RemovePermissions
-					 	, CPermissionIdentifiers{m_ServerHostID, ""}
+						, CPermissionIdentifiers{m_ServerHostID, ""}
 						, fg_CreateSet<CStr>(p_Permissions...)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -454,7 +454,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_AddPermissions
-					 	, CPermissionIdentifiers{"", _UserID}
+						, CPermissionIdentifiers{"", _UserID}
 						, fs_CreateMap(_Permission, _Methods)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -466,7 +466,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_RemovePermissions
-					 	, CPermissionIdentifiers{"", _UserID}
+						, CPermissionIdentifiers{"", _UserID}
 						, fg_CreateSet<CStr>(_Permission)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -478,7 +478,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_AddPermissions
-					 	, CPermissionIdentifiers{m_ServerHostID, _UserID}
+						, CPermissionIdentifiers{m_ServerHostID, _UserID}
 						, fs_CreateMap(_Permission, _Methods)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -490,7 +490,7 @@ namespace NTestTrustManager
 				m_ClientTrustManager
 					(
 						&CDistributedActorTrustManager::f_RemovePermissions
-					 	, CPermissionIdentifiers{m_ServerHostID, _UserID}
+						, CPermissionIdentifiers{m_ServerHostID, _UserID}
 						, fg_CreateSet<CStr>(_Permission)
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					).f_CallSync(m_pRunLoop, g_Timeout)
@@ -1865,7 +1865,7 @@ namespace NTestTrustManager
 							}
 						)
 						.f_CallSync(pRunLoop, g_Timeout)
- 					;
+					;
 
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions).f_CallSync(pRunLoop, g_Timeout);
 					fg_Dispatch(HelperActor, []{}).f_CallSync(pRunLoop, g_Timeout);
@@ -2367,7 +2367,7 @@ namespace NTestTrustManager
 					for (auto &Factor : Factors1)
 						nNonEmpty1 += !Factor.m_PrivateData.f_IsEmpty();
 
- 					DMibExpect(nNonEmpty1, ==, Factors1.f_GetLen());
+					DMibExpect(nNonEmpty1, ==, Factors1.f_GetLen());
 
 					// Add two more, this time only export public data, check all factors exported two still have private data
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor, pCommandLine, ID5, "Test1").f_CallSync(pRunLoop, g_Timeout);
@@ -2378,8 +2378,8 @@ namespace NTestTrustManager
 					int nNonEmpty2 = 0;
 					for (auto &Factor : Factors2)
 						nNonEmpty2 += !Factor.m_PrivateData.f_IsEmpty();
- 					DMibExpect(nNonEmpty2, ==, 2);
- 					DMibExpect(Factors2.f_GetLen(), ==, 4);
+					DMibExpect(nNonEmpty2, ==, 2);
+					DMibExpect(Factors2.f_GetLen(), ==, 4);
 
 					// Export private data this time, check that all factors exported now have private data
 					Exported5 = fg_ExportUser(TestState.m_ServerTrustManager, ID5, true).f_CallSync(pRunLoop, g_Timeout);
@@ -2388,8 +2388,8 @@ namespace NTestTrustManager
 					int nNonEmpty3 = 0;
 					for (auto &Factor : Factors3)
 						nNonEmpty3 += !Factor.m_PrivateData.f_IsEmpty();
- 					DMibExpect(nNonEmpty3, ==, 4);
- 					DMibExpect(Factors3.f_GetLen(), ==, 4);
+					DMibExpect(nNonEmpty3, ==, 4);
+					DMibExpect(Factors3.f_GetLen(), ==, 4);
 
 					// Cleanup on the client side
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID1).f_CallSync(pRunLoop, g_Timeout);
@@ -2421,7 +2421,7 @@ namespace NTestTrustManager
 					auto AllUsers = ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUsers, true).f_CallSync(pRunLoop, g_Timeout);
 					DMibExpect(AllUsers.f_GetLen(), ==, 1);
 					DMibExpect(AllUsers[ID5].m_UserName, ==, "User5");
- 					DMibExpect(TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 4);
+					DMibExpect(TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 4);
 
 					ClientProxy
 						(&CDistributedActorTrustManagerInterface::f_AddUserAuthenticationFactor
@@ -2430,9 +2430,9 @@ namespace NTestTrustManager
 							, CAuthenticationData{EAuthenticationFactorCategory_Knowledge, "Junk"}
 						).f_CallSync(pRunLoop, g_Timeout)
 					;
- 					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 5);
+					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 5);
 					ClientProxy(&CDistributedActorTrustManagerInterface::f_RemoveUserAuthenticationFactor, ID5, "AjPPPXBWJMB8PfZiC").f_CallSync(pRunLoop, g_Timeout);
- 					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 5 - 1);
+					DMibExpect(ClientProxy(&CDistributedActorTrustManagerInterface::f_EnumUserAuthenticationFactors, ID5).f_CallSync(pRunLoop, g_Timeout).f_GetLen(), ==, 5 - 1);
 
 					ClientProxy(&CDistributedActorTrustManagerInterface::f_AddUser, ID1, "User1").f_CallSync(pRunLoop, g_Timeout);
 					DMibExpectTrue(ClientProxy(&CDistributedActorTrustManagerInterface::f_TryGetUser, ID1).f_CallSync(pRunLoop, g_Timeout));
@@ -2644,8 +2644,8 @@ namespace NTestTrustManager
 									, Info.f_LastExecutionID()
 									, Info.f_GetProtocolVersion()
 									, _UserID
-								 	, "Test"
-								 	, Info.f_GetHost()
+									, "Test"
+									, Info.f_GetHost()
 								)
 							;
 						}
@@ -3015,8 +3015,8 @@ namespace NTestTrustManager
 				NFile::CFile::fs_CreateDirectory(BaseDirectory / "HostPermissions");
 				NFile::CFile::fs_WriteStringToFile
 					(
-					 	BaseDirectory / "BasicConfig.json"
-					 	, R"---(
+						BaseDirectory / "BasicConfig.json"
+						, R"---(
 							{
 								"HostID": "gib5oMQHBfS6hpSDv",
 								"CAPrivateKey": {
@@ -3026,13 +3026,13 @@ namespace NTestTrustManager
 									"$binary": ""
 								}
 							}
-					 	)---"
+						)---"
 					)
 				;
 				NFile::CFile::fs_WriteStringToFile
 					(
-					 	BaseDirectory / "HostPermissions/8MJEEHW9rbRfQKcf8.json"
-					 	, R"---(
+						BaseDirectory / "HostPermissions/8MJEEHW9rbRfQKcf8.json"
+						, R"---(
 							{
 								"Permissions": [
 									"Application/ReadAll",

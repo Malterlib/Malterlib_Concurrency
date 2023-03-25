@@ -8,7 +8,7 @@
 namespace NMib::NConcurrency
 {
 	CDistributedAppSensorReader::CDistributedAppSensorReader()
- 	{
+	{
 		DMibPublishActorFunction(CDistributedAppSensorReader::f_GetSensors);
 		DMibPublishActorFunction(CDistributedAppSensorReader::f_GetSensorReadings);
 		DMibPublishActorFunction(CDistributedAppSensorReader::f_GetSensorStatus);

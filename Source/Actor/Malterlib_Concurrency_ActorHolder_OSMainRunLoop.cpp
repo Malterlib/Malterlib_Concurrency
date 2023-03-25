@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 				, ^()
 				{
 					pThis->fp_RunProcess();
- 				}
+				}
 			)
 		;
 #endif

@@ -18,10 +18,10 @@ namespace NMib::NConcurrency
 
 	CDistributedAppAuditorWithError::CDistributedAppAuditorWithError
 		(
-		 	CDistributedAppAuditor const &_Auditor
-		 	, NStr::CStr const &_UserError
-		 	, NStr::CStr const &_InternalError
-		 	, NStr::CStr const &_Category
+			CDistributedAppAuditor const &_Auditor
+			, NStr::CStr const &_UserError
+			, NStr::CStr const &_InternalError
+			, NStr::CStr const &_Category
 		)
 		: m_Auditor(_Auditor)
 		, m_UserError(_UserError)

@@ -123,9 +123,9 @@ namespace NTestAuthentication
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsServer")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Server")
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Server")
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -304,9 +304,9 @@ namespace NTestAuthentication
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsManyServer")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/ManyServer")
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/ManyServer")
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -527,9 +527,9 @@ namespace NTestAuthentication
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsSlowServer")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/SlowServer")
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/SlowServer")
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
 			)
 		{
 		}
@@ -625,10 +625,10 @@ namespace NTestAuthentication
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings("DistributedAppAuthenticationTestsClient")
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Client")
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
-			 	.f_SupportUserAuthentication(false)
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() + "/DistributedAppAuthenticationTests/Client")
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_SupportUserAuthentication(false)
 			)
 			, m_DefaultUserID(_DefaultUserID)
 		{
@@ -636,9 +636,9 @@ namespace NTestAuthentication
 
 		TCFuture<CActorSubscription> fp_SetupAuthentication
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, int64 _AuthenticationLifetime
-			 	, CStr const &_UserID
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, int64 _AuthenticationLifetime
+				, CStr const &_UserID
 			) override
 		{
 			return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
@@ -1037,9 +1037,9 @@ namespace NTestAuthentication
 	{
 		CAuthenticationActorTestSucceed
 			(
-			 	TCWeakActor<CDistributedActorTrustManager> const &_TrustManager
-			 	, CStr const &_Name
-			 	, EAuthenticationFactorCategory _Category
+				TCWeakActor<CDistributedActorTrustManager> const &_TrustManager
+				, CStr const &_Name
+				, EAuthenticationFactorCategory _Category
 			)
 			: m_TrustManager(_TrustManager)
 			, m_Name(_Name)
@@ -1348,10 +1348,10 @@ public:
 		CFile::fs_CreateDirectory(ManyServerDirectory);
 		auto ManyServerLaunch = LaunchHelper
 			(
-			 	&CDistributedApp_LaunchHelper::f_LaunchInProcess
-			 	, ManyServerName
-			 	, ManyServerDirectory
-			 	, &fg_ConstructApp_ManyServer
+				&CDistributedApp_LaunchHelper::f_LaunchInProcess
+				, ManyServerName
+				, ManyServerDirectory
+				, &fg_ConstructApp_ManyServer
 				, NContainer::TCVector<NStr::CStr>{}
 			)
 			.f_CallSync(pRunLoop, g_Timeout)
@@ -1542,8 +1542,8 @@ public:
 						, Info.f_LastExecutionID()
 						, Info.f_GetProtocolVersion()
 						, _UserID
-					 	, "Test"
-					 	, Info.f_GetHost()
+						, "Test"
+						, Info.f_GetHost()
 					)
 				;
 			}
@@ -1581,7 +1581,7 @@ public:
 				auto &ServerTrust = *_pServerTrust;
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
-					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
+						CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
 					).f_CallSync(pRunLoop, g_Timeout)
 				;
 			}
@@ -1926,8 +1926,8 @@ public:
 			//Select the simplest factor if there are multiple choices
 			auto Many3 = fMQ1
 				(
-				 	"Tag"
-				 	, {{"com.malterlib/Succeed1", "com.malterlib/Succeed2", "com.malterlib/Fail1"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed2", "com.malterlib/Succeed3"}}
+					"Tag"
+					, {{"com.malterlib/Succeed1", "com.malterlib/Succeed2", "com.malterlib/Fail1"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed2", "com.malterlib/Succeed3"}}
 				)
 			;
 			DMibExpectTrue(fPerformCall3(Many3)["Tag"]);
@@ -1940,8 +1940,8 @@ public:
 
 			auto Many5 = fMQ1
 				(
-				 	"Tag"
-				 	, {{"com.malterlib/Succeed1", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed2", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed23"}}
+					"Tag"
+					, {{"com.malterlib/Succeed1", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed2", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed23"}}
 				)
 			;
 			DMibExpectTrue(fPerformCall3(Many5)["Tag"]);
@@ -1950,8 +1950,8 @@ public:
 			// 12 is better than 23 (lower category)
 			auto Many6 = fMQ1
 				(
-				 	"Tag"
-				 	, {{"com.malterlib/Succeed12", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed2", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed23"}}
+					"Tag"
+					, {{"com.malterlib/Succeed12", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed2", "com.malterlib/Succeed3"}, {"com.malterlib/Succeed1", "com.malterlib/Succeed23"}}
 				)
 			;
 			DMibExpectTrue(fPerformCall3(Many6)["Tag"]);
@@ -2116,7 +2116,7 @@ public:
 				DMibTestPath("Preauthentication should not work when the permission has been removed");
 				pManyServerTrust->f_CallActor(&CDistributedActorTrustManagerInterface::f_RemovePermissions)
 					(
-					 	CDistributedActorTrustManagerInterface::CRemovePermissions
+						CDistributedActorTrustManagerInterface::CRemovePermissions
 						{
 							{ClientHostID, DefaultUserID}
 							, {"com.manymalterlib/Succeed3_Cacheable"}
@@ -2180,7 +2180,7 @@ public:
 				DMibTestPath("Cached permission should be removed when the permission is removed");
 				pManyServerTrust->f_CallActor(&CDistributedActorTrustManagerInterface::f_RemovePermissions)
 					(
-					 	CDistributedActorTrustManagerInterface::CRemovePermissions
+						CDistributedActorTrustManagerInterface::CRemovePermissions
 						{
 							{ClientHostID, DefaultUserID}
 							, {"com.manymalterlib/Succeed2_Cacheable"}
@@ -2413,8 +2413,8 @@ public:
 						, Info.f_LastExecutionID()
 						, Info.f_GetProtocolVersion()
 						, _UserID
-					 	, "(Test)"
-					 	, Info.f_GetHost()
+						, "(Test)"
+						, Info.f_GetHost()
 					)
 				;
 			}
@@ -2442,7 +2442,7 @@ public:
 				auto &ServerTrust = *_pServerTrust;
 				ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddPermissions)
 					(
-					 	CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
+						CDistributedActorTrustManagerInterface::CAddPermissions{{HostID, UserID}, Permissions, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions}
 					).f_CallSync(pRunLoop, g_Timeout)
 				;
 			}

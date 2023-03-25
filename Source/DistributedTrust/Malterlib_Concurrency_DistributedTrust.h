@@ -113,16 +113,16 @@ namespace NMib::NConcurrency
 			(
 				NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 				, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements> &o_RequestedPermissions
-			 	, CPermissionIdentifiers const &_Identity
-			 	, CPermissionIdentifiers const &_FullIdentity
-			 	, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
+				, CPermissionIdentifiers const &_Identity
+				, CPermissionIdentifiers const &_FullIdentity
+				, CDistributedActorTrustManagerAuthenticationCache &_AuthenticationCache
 			) const
 		;
 		bool f_MatchesAuthentication
 			(
 				NContainer::TCMap<NStr::CStr, CPermissionRequirements> const &_Permissions
 				, NContainer::TCMap<NStr::CStr, NContainer::TCSet<NStr::CStr>> const &_AuthenticatedPermissions
-			 	, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
+				, NContainer::TCMap<NStr::CStr, int64> &o_AuthenticatedPermissions
 			) const
 		;
 
@@ -142,23 +142,23 @@ namespace NMib::NConcurrency
 
 		TCFuture<bool> f_HasPermission
 			(
-			 	NStr::CStr const &_Description
-			 	, NContainer::TCVector<NStr::CStr> const &_Permissions
-			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+				NStr::CStr const &_Description
+				, NContainer::TCVector<NStr::CStr> const &_Permissions
+				, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
 		TCFuture<bool> f_HasPermissions
 			(
-			 	NStr::CStr const &_Description
-			 	, NContainer::TCVector<CPermissionQuery> const &_Permissions
-			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+				NStr::CStr const &_Description
+				, NContainer::TCVector<CPermissionQuery> const &_Permissions
+				, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
 		TCFuture<NContainer::TCMap<NStr::CStr, bool>> f_HasPermissions
 			(
-			 	NStr::CStr const &_Description
-			 	, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
-			 	, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
+				NStr::CStr const &_Description
+				, NContainer::TCMap<NStr::CStr, NContainer::TCVector<CPermissionQuery>> const &_NamedPermissionQueries
+				, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()
 			) const
 		;
 
@@ -185,9 +185,9 @@ namespace NMib::NConcurrency
 	private:
 		TCFuture<bool> fp_AuthenticatePermissions
 			(
-			 	NContainer::TCVector<CPermissionQuery> _PermissionsQueries
-			 	, ICDistributedActorAuthenticationHandler::CRequest _Request
-			 	, CCallingHostInfo _CallingHostInfo
+				NContainer::TCVector<CPermissionQuery> _PermissionsQueries
+				, ICDistributedActorAuthenticationHandler::CRequest _Request
+				, CCallingHostInfo _CallingHostInfo
 			) const
 		;
 
@@ -210,7 +210,7 @@ namespace NMib::NConcurrency
 			(
 				CPermissionQuery const &_Permission
 				, CCallingHostInfo const &_CallingHostInfo
-			 	, NContainer::TCVector<CPermissionIdentifiers> const &_IdentityPowerSet
+				, NContainer::TCVector<CPermissionIdentifiers> const &_IdentityPowerSet
 				, NContainer::TCVector<NContainer::TCVector<ICDistributedActorAuthenticationHandler::CPermissionWithRequirements>> &o_RequestedPermissions
 			) const
 		;
@@ -250,7 +250,7 @@ namespace NMib::NConcurrency
 		{
 			NStr::CStr m_Error;
 			NTime::CTime m_ErrorTime;
- 			bool m_bConnected = false;
+			bool m_bConnected = false;
 		};
 		
 		struct CAddressConnectionState
@@ -331,7 +331,7 @@ namespace NMib::NConcurrency
 					)
 				> 
 				&&_fOnUseTicket
-			 	, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
+				, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 			)
 		;
 		TCFuture<void> f_RemoveClient(NStr::CStr const &_HostID);
@@ -365,9 +365,9 @@ namespace NMib::NConcurrency
 		template <typename tf_CActor>
 		TCFuture<TCTrustedActorSubscription<tf_CActor>> f_SubscribeTrustedActorsWithVersion
 			(
-			 	NStr::CStr const &_Namespace
-			 	, TCActor<CActor> const &_Actor
-			 	, CDistributedActorProtocolVersions const &_Versions
+				NStr::CStr const &_Namespace
+				, TCActor<CActor> const &_Actor
+				, CDistributedActorProtocolVersions const &_Versions
 			)
 		;
 
@@ -397,8 +397,8 @@ namespace NMib::NConcurrency
 			(
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
-			 	, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
-			 	, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+				, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
+				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
 			)
 		;
 		TCFuture<NStr::CStr> f_GetDefaultUser();
@@ -412,9 +412,9 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID);
 		TCFuture<NStr::CStr> f_RegisterUserAuthenticationFactor
 			(
-			 	NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 	, NStr::CStr const &_UserID
-			 	, NStr::CStr const &_Factor
+				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				, NStr::CStr const &_UserID
+				, NStr::CStr const &_Factor
 			)
 		;
 
@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 		TCFuture<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses
 			(
 				ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, ICDistributedActorAuthenticationHandler::CRequest const &_Request
+				, ICDistributedActorAuthenticationHandler::CRequest const &_Request
 				, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
 			)
 		;
@@ -493,9 +493,9 @@ namespace NMib::NConcurrency
 	extern template TCFuture<NStr::CStr> fg_ExportUser(TCActor<CDistributedActorTrustManagerInterface> _TrustManager, NStr::CStr _UserID, bool _bIncludePrivate);
 	extern template TCFuture<NStr::CStr> fg_ExportUser
 		(
-		 	TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager
-		 	, NStr::CStr _UserID
-		 	, bool _bIncludePrivate
+			TCDistributedActor<CDistributedActorTrustManagerInterface> _TrustManager
+			, NStr::CStr _UserID
+			, bool _bIncludePrivate
 		)
 	;
 }

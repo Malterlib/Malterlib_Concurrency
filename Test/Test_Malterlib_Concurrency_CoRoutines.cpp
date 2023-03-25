@@ -28,10 +28,10 @@ namespace NMib::NConcurrency::NTest
 			: CDistributedAppActor
 			(
 				CDistributedAppActor_Settings(_Name)
-			 	.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
-			 	.f_SeparateDistributionManager(true)
-			 	.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
-			 	.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
+				.f_RootDirectory(NFile::CFile::fs_GetProgramDirectory() / _Name)
+				.f_SeparateDistributionManager(true)
+				.f_KeySetting(NConcurrency::CDistributedActorTestKeySettings{})
+				.f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality_None)
 			)
 		{
 			fg_TestAddCleanupPath(mp_Settings.m_RootDirectory);
@@ -568,7 +568,7 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	() > Promise
+				() > Promise
 			;
 
 			return Promise.f_MoveFuture();
@@ -588,7 +588,7 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	> Promise
+				> Promise
 			;
 
 			return Promise.f_MoveFuture();
@@ -603,7 +603,7 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	() > Promise
+				() > Promise
 			;
 
 			return Promise.f_MoveFuture();
@@ -623,7 +623,7 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-			 	> Promise
+				> Promise
 			;
 
 			return Promise.f_MoveFuture();
@@ -902,7 +902,7 @@ namespace NMib::NConcurrency::NTest
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
 					self / [TestDestruction = CTestDestruction{}] () -> TCFuture<void>
-	 					{
+						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{
 									DMibFastCheck(TestDestruction.m_Test == 20);
@@ -1007,7 +1007,7 @@ namespace NMib::NConcurrency::NTest
 				NException::CExceptionPointer pDummy;
 
 				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
- 				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
+				DMibExpectException(TestActor(&CTestActor::f_TestFutureWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallWithErrorWrapped).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception", pDummy));
 				DMibExpectException(TestActor(&CTestActor::f_TestActorCallPackWithError).f_CallSync(), DMibErrorInstanceWrapped("Extra error: Test Exception - x2", pDummy));

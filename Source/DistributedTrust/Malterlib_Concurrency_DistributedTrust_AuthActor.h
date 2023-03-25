@@ -41,14 +41,14 @@ namespace NMib::NConcurrency
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 				, NStr::CStr const &_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-			 	, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors
+				, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors
 			) = 0
 		;
 		virtual TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-			 	ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			 	, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			 	, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse const &_Response
+				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
+				, CAuthenticationData const &_AuthenticationData
 			) = 0
 		;
 

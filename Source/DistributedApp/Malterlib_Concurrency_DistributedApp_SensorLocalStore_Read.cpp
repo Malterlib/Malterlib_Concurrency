@@ -6,52 +6,10 @@
 
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Internal.h"
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Database.h"
+#include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Filter.h"
 
 namespace NMib::NConcurrency
 {
-	namespace
-	{
-		template <typename tf_CKey>
-		bool fg_FilterSensorKey(tf_CKey const &_Key, CDistributedAppSensorReader_SensorFilter const &_Filter)
-		{
-			if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
-				return false;
-
-			if (_Filter.m_Scope)
-			{
-				switch (_Filter.m_Scope->f_GetTypeID())
-				{
-				case CDistributedAppSensorReporter::ESensorScope_Unsupported:
-					{
-						return false;
-					}
-					break;
-				case CDistributedAppSensorReporter::ESensorScope_Host:
-					{
-						if (!_Key.m_ApplicationName.f_IsEmpty())
-							return false;
-					}
-					break;
-				case CDistributedAppSensorReporter::ESensorScope_Application:
-					{
-						auto &Application = _Filter.m_Scope->f_Get<CDistributedAppSensorReporter::ESensorScope_Application>();
-						if (_Key.m_ApplicationName != Application.m_ApplicationName)
-							return false;
-					}
-					break;
-				}
-			}
-
-			if (_Filter.m_Identifier && _Key.m_Identifier != *_Filter.m_Identifier)
-				return false;
-
-			if (_Filter.m_IdentifierScope && _Key.m_IdentifierScope != *_Filter.m_IdentifierScope)
-				return false;
-
-			return true;
-		}
-	}
-
 	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
 	{
@@ -81,7 +39,7 @@ namespace NMib::NConcurrency
 			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
 			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
 
-			if (!fg_FilterSensorKey(Key, _Filter))
+			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
@@ -219,7 +177,7 @@ namespace NMib::NConcurrency
 				co_await g_Yield;
 			}
 
-			if (!fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
+			if (!NSensorStore::fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
 				continue;
 
 			if (_Filter.m_MinSequence && KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
@@ -280,7 +238,7 @@ namespace NMib::NConcurrency
 			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
 			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
 
-			if (!fg_FilterSensorKey(Key, _Filter.m_SensorFilter))
+			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter.m_SensorFilter))
 				continue;
 
 			NSensorStoreLocalDatabase::CSensorKey ReadingKey = Key;

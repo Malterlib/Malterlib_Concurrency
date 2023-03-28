@@ -34,4 +34,12 @@ namespace NMib::NConcurrency
 		_Stream % m_SensorInfoKey;
 		_Stream % m_Reading;
 	}
+
+	template <typename tf_CStream>
+	void CDistributedAppSensorReader_SensorStatusFilter::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_SensorFilter;
+		if (_Stream.f_GetVersion() >= CDistributedAppSensorReporter::EProtocolVersion_SensorStatusFilter)
+			_Stream % m_Flags;
+	}
 }

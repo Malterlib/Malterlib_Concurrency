@@ -42,4 +42,70 @@ namespace NMib::NConcurrency::NSensorStore
 
 		return true;
 	}
+
+	template <typename tf_CReading>
+	bool fg_FilterSensorValueStatusIsProblem(tf_CReading const &_Reading)
+	{
+		if (_Reading.m_Data.template f_IsOfType<CDistributedAppSensorReporter::CStatus>())
+		{
+			auto &Status = _Reading.m_Data.template f_GetAsType<CDistributedAppSensorReporter::CStatus>();
+			if (Status.m_Severity >= CDistributedAppSensorReporter::EStatusSeverity_Warning)
+				return true;
+		}
+
+		return false;
+	}
+
+	template <typename tf_CSensor, typename tf_CReading>
+	bool fg_FilterSensorValueStatus
+		(
+			tf_CSensor const &_Sensor
+			, tf_CReading const &_Reading
+			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
+			, NTime::CTime const &_Now
+		)
+	{
+		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
+			return true;
+
+		if (fg_FilterSensorValueStatusIsProblem(_Reading))
+			return true;
+
+		if (_Sensor.m_Info.f_IsValueCritical(_Reading.m_Data))
+			return true;
+		else if (_Sensor.m_Info.f_IsValueWarning(_Reading.m_Data))
+			return true;
+
+		if (_Sensor.m_Info.f_HasExpectedReportInterval())
+		{
+			fp64 OutdatedSeconds = (_Now - _Reading.m_Timestamp).f_GetSecondsFraction() - _Sensor.m_Info.m_ExpectedReportInterval;
+
+			if (OutdatedSeconds > _Sensor.m_Info.m_ExpectedReportInterval)
+				return true;
+		}
+
+		return false;
+	}
+
+	template <typename tf_CSensor, typename tf_CReading>
+	bool fg_FilterSensorReadingValueWithSensor
+		(
+			tf_CSensor const &_Sensor
+			, tf_CReading const &_Reading
+			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
+		)
+	{
+		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
+			return true;
+
+		if (fg_FilterSensorValueStatusIsProblem(_Reading))
+			return true;
+
+		if (_Sensor.m_Info.f_IsValueCritical(_Reading.m_Data))
+			return true;
+		else if (_Sensor.m_Info.f_IsValueWarning(_Reading.m_Data))
+			return true;
+
+		return false;
+	}
 }

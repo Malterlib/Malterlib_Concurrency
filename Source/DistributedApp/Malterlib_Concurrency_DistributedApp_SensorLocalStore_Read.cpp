@@ -132,9 +132,10 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction};
+
 		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 		{
-			CSensorReadingValue Value;
 			auto KeyByTime = iReadingByTime.f_Key<CSensorReadingByTime>();
 
 			if (bReportNewestFirst)
@@ -193,10 +194,24 @@ namespace NMib::NConcurrency
 				continue;
 
 			auto Key = KeyByTime.f_Key();
+			CSensorReadingValue Value;
 			if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
 			{
 				DMibLogWithCategory(SensorLocalStore, Error, "Missing sensor reading: {}", Key);
 				continue;
+			}
+
+			auto *pSensor = Internal.m_Sensors.f_FindEqual(Key.f_SensorInfoKey());
+
+			if (pSensor)
+			{
+				if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(*pSensor, Value, _Filter.m_Flags))
+					continue;
+			}
+			else
+			{
+				if (!NSensorStore::fg_FilterSensorReadingValue(Value, _Filter.m_Flags, Key, FilterContext))
+					continue;
 			}
 
 			Batch.f_Insert(CDistributedAppSensorReader_SensorKeyAndReading{fg_Move(Key).f_SensorInfoKey(), fg_Move(Value).f_Reading(Key)});
@@ -211,13 +226,17 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
+	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader_SensorStatusFilter &&_Filter, uint32 _BatchSize)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
+
+		NTime::CTime Now;
+		if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems)
+			Now = NTime::CTime::fs_NowUTC();
 
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
@@ -251,12 +270,17 @@ namespace NMib::NConcurrency
 			if (!iReading.f_Last())
 				continue;
 
+			auto ReadingValue = iReading.f_Value<CSensorReadingValue>();
+
+			if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, _Filter.m_Flags, Now))
+				continue;
+
 			Batch.f_Insert
 				(
 					CDistributedAppSensorReader_SensorKeyAndReading
 					{
 						fg_Move(Key).f_SensorInfoKey()
-						, fg_Move(iReading.f_Value<CSensorReadingValue>().f_Reading(iReading.f_Key<CSensorReadingKey>()))
+						, fg_Move(ReadingValue).f_Reading(iReading.f_Key<CSensorReadingKey>())
 					}
 				)
 			;

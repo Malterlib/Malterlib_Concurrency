@@ -16,10 +16,12 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
+		auto operator <=>(CSensorKey const &_Right) const = default;
+
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() const &;
 		CDistributedAppSensorReporter::CSensorInfoKey f_SensorInfoKey() &&;
 
-		static constexpr ch8 mc_Prefix[] = "Sensor";
+		static NStr::CStr const mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix;
@@ -47,7 +49,10 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStr>
 		void f_Format(tf_CStr &o_Str) const;
 
-		static constexpr ch8 mc_Prefix[] = "SensorReading";
+		CSensorKey f_SensorKey() const &;
+		CSensorKey f_SensorKey() &&;
+
+		static NStr::CStr const mc_Prefix;
 
 		uint64 m_UniqueSequence = 0;
 	};
@@ -61,7 +66,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		static constexpr ch8 mc_Prefix[] = "SensorReadingByDate";
+		static NStr::CStr const mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
 		NStr::CStr m_Prefix;

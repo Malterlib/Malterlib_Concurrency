@@ -27,6 +27,7 @@ namespace NMib::NConcurrency
 		{
 			ESensorReadingsFlag_None = 0
 			, ESensorReadingsFlag_ReportNewestFirst = DMibBit(0)
+			, ESensorReadingsFlag_OnlyProblems = DMibBit(1)
 		};
 
 		template <typename tf_CStream>
@@ -41,6 +42,16 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<NTime::CTime> m_MaxTimestamp;
 
 		ESensorReadingsFlag m_Flags = ESensorReadingsFlag_ReportNewestFirst;
+	};
+
+	struct CDistributedAppSensorReader_SensorStatusFilter
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		CDistributedAppSensorReader_SensorFilter m_SensorFilter;
+
+		CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 	};
 
 	struct CDistributedAppSensorReader_SensorKeyAndReading
@@ -71,7 +82,7 @@ namespace NMib::NConcurrency
 		virtual auto f_GetSensorReadings(CDistributedAppSensorReader_SensorReadingFilter &&_Filter, uint32 _BatchSize)
 			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0
 		;
-		virtual auto f_GetSensorStatus(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
+		virtual auto f_GetSensorStatus(CDistributedAppSensorReader_SensorStatusFilter &&_Filter, uint32 _BatchSize)
 			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0
 		;
 	};

@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 		if (pSensorReporter->m_Reporter.m_fReportReadings)
 			co_await fg_Move(pSensorReporter->m_Reporter.m_fReportReadings).f_Destroy();
 
-		auto Reporter = co_await pSensorInterface->m_Actor.f_CallActor(&CDistributedAppSensorReporter::f_OpenSensorReporter)(pSensor->m_SensorInfo);
+		auto Reporter = co_await pSensorInterface->m_Actor.f_CallActor(&CDistributedAppSensorReporter::f_OpenSensorReporter)(pSensor->m_Info);
 		if (!Reporter.m_fReportReadings)
 			co_return DMibErrorInstance("Invalid report readings functor returned from f_OpenSensorReporter");
 
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 		{
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(pSensor->m_SensorInfo);
+			auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(pSensor->m_Info);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
 			auto iSensorReading = ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 					, "Detected incorrect database last unique sequence. Reset from {} to {}\n{}"
 					, pSensor->m_LastSeenUniqueSequence
 					, Reporter.m_LastSeenUniqueSequence
-					, pSensor->m_SensorInfo
+					, pSensor->m_Info
 				)
 			;
 			pSensor->m_LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence;

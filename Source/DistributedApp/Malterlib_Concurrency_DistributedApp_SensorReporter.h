@@ -21,7 +21,8 @@ namespace NMib::NConcurrency
 		{
 			EProtocolVersion_Min = 0x101
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
-			, EProtocolVersion_Current = 0x102
+			, EProtocolVersion_SensorStatusFilter = 0x103
+			, EProtocolVersion_Current = 0x103
 		};
 
 		enum ESensorDataType

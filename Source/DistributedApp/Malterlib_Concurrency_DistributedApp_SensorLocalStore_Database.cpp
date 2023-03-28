@@ -8,6 +8,10 @@
 
 namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 {
+	constexpr NStr::CStr const CSensorKey::mc_Prefix = NStr::gc_Str<"Sensor">;
+	constexpr NStr::CStr const CSensorReadingKey::mc_Prefix = NStr::gc_Str<"SensorReading">;
+	constexpr NStr::CStr const CSensorReadingByTime::mc_Prefix = NStr::gc_Str<"SensorReadingByDate">;
+
 	CSensorReadingKey CSensorReadingByTime::f_Key() const
 	{
 		CSensorReadingKey Key;
@@ -22,6 +26,24 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		Key.m_IdentifierScope = m_IdentifierScope;
 
 		return Key;
+	}
+
+	CSensorKey CSensorReadingKey::f_SensorKey() const &
+	{
+		CSensorKey Return = *this;
+
+		Return.m_Prefix = CSensorKey::mc_Prefix;
+
+		return Return;
+	}
+
+	CSensorKey CSensorReadingKey::f_SensorKey() &&
+	{
+		CSensorKey Return = fg_Move(*this);
+
+		Return.m_Prefix = CSensorKey::mc_Prefix;
+
+		return Return;
 	}
 
 	CDistributedAppSensorReporter::CSensorInfoKey CSensorKey::f_SensorInfoKey() const &

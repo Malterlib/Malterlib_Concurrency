@@ -51,10 +51,10 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		for (auto &Sensor : Internal.m_Sensors)
 		{
-			auto DatabaseKey = Internal.f_GetDatabaseKey<CSensorKey>(Sensor.m_SensorInfo);
+			auto DatabaseKey = Internal.f_GetDatabaseKey<CSensorKey>(Sensor.m_Info);
 
 			CSensorValue DatabaseSensorInfo;
-			DatabaseSensorInfo.m_Info = Sensor.m_SensorInfo;
+			DatabaseSensorInfo.m_Info = Sensor.m_Info;
 			DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = Sensor.m_LastSeenUniqueSequence;
 
 			_WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);

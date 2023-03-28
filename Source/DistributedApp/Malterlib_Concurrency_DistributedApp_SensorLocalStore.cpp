@@ -177,11 +177,10 @@ namespace NMib::NConcurrency
 				auto Value = iSensor.f_Value<CSensorValue>();
 
 				auto &Sensor = *m_Sensors(Key.f_SensorInfoKey(), CSensor{fg_Move(Value.m_Info)});
-
 				Sensor.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
 
 				{
-					auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(Sensor.m_SensorInfo);
+					auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(Sensor.m_Info);
 					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
 					if (ReadCursor.f_Last())
 						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);

@@ -22,6 +22,7 @@ namespace NMib::NConcurrency
 	struct CDistributedAppInterfaceClient;
 	struct CDistributedAppSensorReader_SensorFilter;
 	struct CDistributedAppSensorReader_SensorReadingFilter;
+	struct CDistributedAppSensorReader_SensorStatusFilter;
 	struct CDistributedAppSensorReader_SensorKeyAndReading;
 	struct CDistributedAppSensorStoreLocal;
 
@@ -255,7 +256,7 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_CommandLine_SensorStatus
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CDistributedAppSensorReader_SensorFilter const &_Filter
+				, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 				, ESensorOutputFlag _Flags
 				, NStr::CStr const &_TableType
 			)
@@ -427,7 +428,7 @@ namespace NMib::NConcurrency
 					(
 						NEncoding::CEJSON const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-						, CDistributedAppSensorReader_SensorFilter const &_Filter
+						, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 						, ESensorOutputFlag _Flags
 						, NStr::CStr const &_TableType
 					)

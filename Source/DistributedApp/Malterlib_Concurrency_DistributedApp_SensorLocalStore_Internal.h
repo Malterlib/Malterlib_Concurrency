@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 				return TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor>::fs_GetKey(*this);
 			}
 
-			CDistributedAppSensorReporter::CSensorInfo m_SensorInfo;
+			CDistributedAppSensorReporter::CSensorInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
 			mint m_ActiveRefCount = 0;
 

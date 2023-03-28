@@ -242,11 +242,11 @@ namespace NMib::NConcurrency
 			auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
 
-			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_SensorInfo;
+			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_Info;
 
 			if (bWasChanged)
 			{
-				pSensor->m_SensorInfo = _SensorInfo;
+				pSensor->m_Info = _SensorInfo;
 
 				auto Result = co_await Internal.m_Database
 					(

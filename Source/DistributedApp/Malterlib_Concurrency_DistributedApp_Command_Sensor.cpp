@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 				(
 					CEJSON const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorFilter const &_Filter
+					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 					, ESensorOutputFlag _Flags
 					, CStr const &_TableType
 				)
@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 				(
 					CEJSON const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorFilter const &_Filter
+					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 					, ESensorOutputFlag _Flags
 					, CStr const &_TableType
 				)
@@ -153,6 +153,18 @@ namespace NMib::NConcurrency
 				"Names"_= {"--json", "-j"}
 				, "Default"_= false
 				, "Description"_= "Output in json format."
+			}
+		;
+
+		auto fOption_OnlyProblems = [](bool _bDefault)
+			{
+				return "OnlyProblems?"_=
+					{
+						"Names"_= {"--only-problems"}
+						, "Default"_= _bDefault
+						, "Description"_= "Only report problems."
+					}
+				;
 			}
 		;
 
@@ -241,17 +253,24 @@ namespace NMib::NConcurrency
 						, Option_SensorIdentifierScope
 						, Option_Verbose
 						, Option_Json
+						, fOption_OnlyProblems(true)
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
 				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags]
 				(CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
+					CDistributedAppSensorReader_SensorStatusFilter Filter;
+					Filter.m_SensorFilter = fParseSensorFilter(_Params);
+
+					if (_Params["OnlyProblems"].f_Boolean())
+						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems;
+
 					co_return co_await fSensorStatus
 						(
 							_Params
 							, _pCommandLine
-							, fParseSensorFilter(_Params)
+							, Filter
 							, fParseFlags(_Params)
 							, _Params["TableType"].f_String()
 						)
@@ -305,6 +324,7 @@ namespace NMib::NConcurrency
 							, "Default"_= true
 							, "Description"_= "When applying entry limit, show newest entries first."
 						}
+						, fOption_OnlyProblems(false)
 						, "MaxEntries?"_=
 						{
 							"Names"_= {"--max-entries"}
@@ -336,6 +356,8 @@ namespace NMib::NConcurrency
 					Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 					if (_Params["ReportNewestFirst"].f_Boolean())
 						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
+					if (_Params["OnlyProblems"].f_Boolean())
+						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems;
 
 					co_return co_await fSensorReadingsList
 						(
@@ -903,14 +925,14 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorStatus
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppSensorReader_SensorFilter const &_Filter
+			, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 			, ESensorOutputFlag _Flags
 			, CStr const &_TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorStatus, fg_TempCopy(_Filter), 1024);
-		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter), 1024);
+		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter.m_SensorFilter), 1024);
 
 		CDistributedAppSensorReader_SensorReadingFilter Filter;
 		Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;

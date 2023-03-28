@@ -39,6 +39,8 @@ namespace NMib::NConcurrency
 						if (_Value.f_IsOfType<fp64>())
 							return _Value.f_GetAsType<fp64>() < fp64(m_CompareToValue.f_GetAsType<int64>());
 					}
+
+					return false;
 				}
 
 				return _Value < m_CompareToValue;
@@ -58,6 +60,8 @@ namespace NMib::NConcurrency
 						if (_Value.f_IsOfType<fp64>())
 							return _Value.f_GetAsType<fp64>() > fp64(m_CompareToValue.f_GetAsType<int64>());
 					}
+
+					return false;
 				}
 
 				return _Value > m_CompareToValue;

@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 
 		if (m_RetentionDays && !m_fCleanup)
 		{
-			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap() > fg_LogError("SensorLocalStore", "Failed to perform initial database cleanup");;
+			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap() > fg_LogError("SensorLocalStore", "Failed to perform initial database cleanup");
 
 			m_CleanupTimerSubscription = co_await fg_RegisterTimer
 				(

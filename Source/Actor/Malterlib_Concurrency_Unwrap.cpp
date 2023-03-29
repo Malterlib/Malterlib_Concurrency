@@ -9,31 +9,14 @@ namespace NMib::NConcurrency
 	NUnwrap::CUnwrapHelper g_Unwrap;
 	NUnwrap::CUnwrapFirstHelper g_UnwrapFirst;
 
-	void fg_Unwrap(TCAsyncResult<void> &&_ToUnwrap)
+	TCAsyncResult<void> fg_Unwrap(TCAsyncResult<void> &&_ToUnwrap)
 	{
-		if (_ToUnwrap)
-			return;
-
-		NException::CDisableExceptionTraceScope DisableExceptionTrace;
-		DMibErrorCoroutineWrapper("Exception unwrapping async result", _ToUnwrap.f_GetException());
+		return fg_Move(_ToUnwrap);
 	}
 
-	void fg_UnwrapFirst(TCAsyncResult<void> &&_ToUnwrap)
+	TCAsyncResult<void> fg_UnwrapFirst(TCAsyncResult<void> &&_ToUnwrap)
 	{
-		return fg_Unwrap(fg_Move(_ToUnwrap));
-	}
-
-	void fg_Unwrap
-		(
-			TCAsyncResult<void> &&_ToUnwrap
-			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> const &_fTransformer
-		)
-	{
-		if (_ToUnwrap)
-			return;
-
-		NException::CDisableExceptionTraceScope DisableExceptionTrace;
-		DMibErrorCoroutineWrapper("Exception unwrapping async result", _fTransformer(_ToUnwrap.f_GetException()));
+		return fg_Move(_ToUnwrap);
 	}
 }
 

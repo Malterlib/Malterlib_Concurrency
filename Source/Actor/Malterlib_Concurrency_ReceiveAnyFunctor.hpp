@@ -131,18 +131,10 @@ namespace NMib::NConcurrency::NPrivate
 					{
 						if constexpr (NContainer::TCIsContainer<typename NTraits::TCRemoveReferenceAndQualifiers<decltype(*p_Result)>::CType>::mc_Value)
 						{
-							try
+							auto Result = fg_Unwrap(fg_Move(*p_Result));
+							if (!Result)
 							{
-								fg_Unwrap(fg_Move(*p_Result));
-							}
-							catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-							{
-								ErrorCollector.f_AddError(fg_Move(_WrappedException.f_GetSpecific().m_pException));
-								bSuccess = false;
-							}
-							catch (NException::CExceptionBase &_Exception)
-							{
-								ErrorCollector.f_AddError(fg_Move(_Exception).f_ExceptionPointer());
+								ErrorCollector.f_AddError(fg_Move(Result).f_GetException());
 								bSuccess = false;
 							}
 						}

@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUser, _UserID) > Results.f_AddResult();
 		Internal.m_Users.f_Remove(_UserID);
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await (co_await Results.f_GetResults() | g_Unwrap);
 
 		co_return {};
 	}
@@ -314,9 +314,9 @@ namespace NMib::NConcurrency
 
 #ifdef DCompiler_MSVC_Workaround
 		auto Temp = co_await Results.f_GetResults();
-		fg_Move(Temp) | g_Unwrap;
+		co_await (fg_Move(Temp) | g_Unwrap);
 #else
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await (co_await Results.f_GetResults() | g_Unwrap);
 #endif
 		co_return Result.m_UserID;
 	}

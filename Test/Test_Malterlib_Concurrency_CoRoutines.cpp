@@ -875,16 +875,16 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestActorResultUnwrapped()
 		{
-			auto Result = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | g_Unwrap;
-			auto Result2 = co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | (g_Unwrap % "Test error");
+			auto Result = co_await (co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | g_Unwrap);
+			auto Result2 = co_await (co_await m_TestActor(&CTestActor2::f_Test).f_Wrap() | (g_Unwrap % "Test error"));
 
 			co_return Result + Result2;
 		}
 
 		TCFuture<uint32> f_TestActorResultVoidUnwrapped()
 		{
-			co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | g_Unwrap;
-			co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | (g_Unwrap % "Test error");
+			co_await (co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | g_Unwrap);
+			co_await (co_await m_TestActor(&CTestActor2::f_TestVoid).f_Wrap() | (g_Unwrap % "Test error"));
 
 			co_return 0;
 		}
@@ -902,10 +902,10 @@ namespace NMib::NConcurrency::NTest
 
 			uint32 Value = 0;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
 				Value += Result;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
 				Value += Result;
 
 			co_return Value + _Value;
@@ -922,8 +922,8 @@ namespace NMib::NConcurrency::NTest
 				}
 			;
 
-			co_await fResultContainer().f_GetResults() | g_Unwrap;
-			co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error");
+			co_await (co_await fResultContainer().f_GetResults() | g_Unwrap);
+			co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"));
 
 			co_return _Value;
 		}
@@ -941,10 +941,10 @@ namespace NMib::NConcurrency::NTest
 
 			uint32 Value = 0;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
 				Value += Result;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
 				Value += Result;
 
 			co_return Value + _Value;
@@ -961,10 +961,10 @@ namespace NMib::NConcurrency::NTest
 				}
 			;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | g_Unwrap)
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
 				;
 
-			for (auto &Result : co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"))
+			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
 				;
 
 			co_return _Value;

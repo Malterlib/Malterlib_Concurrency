@@ -158,7 +158,7 @@ namespace NMib::NConcurrency
 				for (auto &Subscription : mp_CancellationSubscriptions)
 					Subscription.m_fOnCancel() > Results.f_AddResult();
 
-				for (auto &bResult : co_await Results.f_GetResults() | g_Unwrap)
+				for (auto &bResult : co_await (co_await Results.f_GetResults() | g_Unwrap))
 				{
 					if (bResult)
 						bDestroyApp = true;

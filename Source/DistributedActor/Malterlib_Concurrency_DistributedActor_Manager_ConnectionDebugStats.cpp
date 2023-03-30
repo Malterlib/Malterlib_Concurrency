@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 					OutConnection.m_URL = pListen->m_ListenAddresses.f_GetFirst();
 			}
 
-			auto DebugStats = co_await WebsocketDebugStats.f_GetResults() | g_Unwrap;
+			auto DebugStats = co_await (co_await WebsocketDebugStats.f_GetResults() | g_Unwrap);
 
 			for (auto &Stats : DebugStats)
 			{

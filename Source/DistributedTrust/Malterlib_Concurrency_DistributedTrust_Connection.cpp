@@ -499,7 +499,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		fg_Move(OtherConnections) | (g_Unwrap % "Failed update client certificate for other client connection");
+		co_await (fg_Move(OtherConnections) | (g_Unwrap % "Failed update client certificate for other client connection"));
 
 		CActorDistributionConnectionSettings FinalConnectionSettings;
 		FinalConnectionSettings.m_ServerURL = Address.m_URL;
@@ -726,7 +726,7 @@ namespace NMib::NConcurrency
 		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
 			ConnectionReference.f_Debug_Break(_Timeout, _DebugFlags) > BreakResults.f_AddResult();
 
-		co_await (BreakResults.f_GetResults() % "Failed to break client connections") | g_Unwrap;
+		co_await (co_await (BreakResults.f_GetResults() % "Failed to break client connections") | g_Unwrap);
 
 		co_return {};
 	}

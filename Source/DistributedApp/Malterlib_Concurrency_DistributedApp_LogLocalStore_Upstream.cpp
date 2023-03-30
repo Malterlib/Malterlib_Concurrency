@@ -204,7 +204,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await (co_await Results.f_GetResults() | g_Unwrap);
 
 		co_return {};
 	}
@@ -229,7 +229,7 @@ namespace NMib::NConcurrency
 		if (!m_FailedReporters.f_IsEmpty())
 			f_ScheduleFailedRetry();
 
-		fg_Move(AwaitedResults) | g_Unwrap;
+		co_await (fg_Move(AwaitedResults) | g_Unwrap);
 
 		co_return {};
 	}
@@ -330,7 +330,7 @@ namespace NMib::NConcurrency
 		}
 
 		uint32 MaxReportDepth = 0;
-		for (auto ReportDepth : co_await Results.f_GetResults() | g_Unwrap)
+		for (auto ReportDepth : co_await (co_await Results.f_GetResults() | g_Unwrap))
 			MaxReportDepth = fg_Max(ReportDepth, MaxReportDepth);
 
 		co_return MaxReportDepth + 1;
@@ -359,7 +359,7 @@ namespace NMib::NConcurrency
 			fg_CallSafe(*this, &CInternal::f_UpdateLogForReporter, LogKey, WeakActor).f_Dispatch() % f_GetLogUpdateFailedMessage(LogReporter) > Results.f_AddResult();
 		}
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await (co_await Results.f_GetResults() | g_Unwrap);
 
 		co_return {};
 	}

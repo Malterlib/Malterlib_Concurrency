@@ -702,7 +702,7 @@ namespace NMib::NConcurrency
 				pServerConnection->m_Connection(&NWeb::CWebSocketActor::f_DebugSetFlags, _Timeout, _DebugFlags) > Results.f_AddResult();
 		}
 
-		co_await Results.f_GetResults() | g_Unwrap;
+		co_await (co_await Results.f_GetResults() | g_Unwrap);
 
 		co_return {};
 	}

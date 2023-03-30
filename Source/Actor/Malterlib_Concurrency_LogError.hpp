@@ -9,20 +9,14 @@ namespace NMib::NConcurrency
 	void CLogErrorResultFunctor::operator() (TCAsyncResult<tf_CResult> &&_Result) const
 	{
 		if (!_Result)
-		{
-			DMibLogCategoryStr(m_Category.f_GetStr());
-			DMibLog(Error, "{}: {}", m_Description, _Result.f_GetExceptionStr());
-		}
+			f_LogException(_Result.f_GetException());
 	}
 
 	template <typename tf_CResult>
 	void operator > (TCAsyncResult<tf_CResult> const &_Result, CLogErrorResultFunctor const &_LogError)
 	{
 		if (!_Result)
-		{
-			DMibLogCategoryStr(_LogError.m_Category.f_GetStr());
-			DMibLog(Error, "{}: {}", _LogError.m_Description, _Result.f_GetExceptionStr());
-		}
+			_LogError.f_LogException(_Result.f_GetException());
 	}
 
 	template <typename tf_CResult>
@@ -31,10 +25,7 @@ namespace NMib::NConcurrency
 		for (auto &Result : _Result)
 		{
 			if (!Result)
-			{
-				DMibLogCategoryStr(_LogError.m_Category.f_GetStr());
-				DMibLog(Error, "{}: {}", _LogError.m_Description, Result.f_GetExceptionStr());
-			}
+				_LogError.f_LogException(Result.f_GetException());
 		}
 	}
 
@@ -44,17 +35,14 @@ namespace NMib::NConcurrency
 		for (auto &Result : _Result)
 		{
 			if (!Result)
-			{
-				DMibLogCategoryStr(_LogError.m_Category.f_GetStr());
-				DMibLog(Error, "{}: {}", _LogError.m_Description, Result.f_GetExceptionStr());
-			}
+				_LogError.f_LogException(Result.f_GetException());
 		}
 	}
 
 	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Category = m_Category, Description = m_Description]
+		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -66,8 +54,7 @@ namespace NMib::NConcurrency
 						{
 							if (!p_Results)
 							{
-								DMibLogCategoryStr(Category.f_GetStr());
-								DMibLog(Error, "{}: {}", Description, p_Results.f_GetExceptionStr());
+								This.f_LogException(p_Results.f_GetException());
 								bFailed = true;
 							}
 							return true;
@@ -86,7 +73,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
 	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) const
 	{
-		return [Promise = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), Category = m_Category, Description = m_Description]
+		return [Promise = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
@@ -96,8 +83,7 @@ namespace NMib::NConcurrency
 						{
 							if (!p_Results)
 							{
-								DMibLogCategoryStr(Category.f_GetStr());
-								DMibLog(Error, "{}: {}", Description, p_Results.f_GetExceptionStr());
+								This.f_LogException(p_Results.f_GetException());
 								bFailed = true;
 							}
 							return true;
@@ -112,4 +98,18 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
+
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CLogErrorResultFunctor const &_LogError
+		)
+	;
+
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CLogErrorResultFunctorWithUserError const &_LogError
+		)
+	;
 }

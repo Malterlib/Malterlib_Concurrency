@@ -5,10 +5,9 @@
 
 namespace NMib::NConcurrency
 {
+	struct CLogErrorResultFunctorWithUserError;
 	struct CLogErrorResultFunctor
 	{
-		CLogErrorResultFunctor(NStr::CStr const &_Category, NStr::CStr const &_Description);
-
 		template <typename tf_CResult>
 		void operator() (TCAsyncResult<tf_CResult> &&_Result) const;
 
@@ -27,17 +26,31 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
 		auto operator / (tf_FResultHandler &&_fResultHandler) const;
 
+		CLogErrorResultFunctorWithUserError operator % (NStr::CStr &&_UserError);
+
+		void f_LogException(NException::CExceptionPointer const &_pException) const;
+
 		NStr::CStr m_Category;
 		NStr::CStr m_Description;
+		NLog::ESeverity m_Severity = NLog::ESeverity_Error;
 	};
 
+	struct CLogErrorResultFunctorWithUserError : public CLogErrorResultFunctor
+	{
+		NStr::CStr m_UserError;
+	};
+
+	CLogErrorResultFunctor fg_LogWarning(NStr::CStr const &_Category, NStr::CStr const &_Description);
 	CLogErrorResultFunctor fg_LogError(NStr::CStr const &_Category, NStr::CStr const &_Description);
+	CLogErrorResultFunctor fg_LogCritical(NStr::CStr const &_Category, NStr::CStr const &_Description);
 
 	struct CLogError
 	{
 		CLogError(NStr::CStr const &_Category);
 
 		CLogErrorResultFunctor operator () (NStr::CStr const &_Description) const;
+		CLogErrorResultFunctor f_Warning(NStr::CStr const &_Description) const;
+		CLogErrorResultFunctor f_Critical(NStr::CStr const &_Description) const;
 
 		void f_Log(NStr::CStr const &_Description, CAsyncResult const &_Result) const;
 		void f_Log(NStr::CStr const &_Description, NException::CExceptionPointer const &_pException) const;

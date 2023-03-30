@@ -68,8 +68,8 @@ namespace NMib::NConcurrency
 
 		auto WriteTransaction = co_await m_pThis->self(&CDistributedAppLogStoreLocal::f_PrepareForCleanup, fg_Move(_WriteTransaction));
 
-		try
 		{
+			auto CaptureScope = co_await g_CaptureExceptions;
 			auto OriginalStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 
 			auto TargetSize = OriginalStats.m_MapSize - fg_Min(fg_Max(OriginalStats.m_MapSize / 5, 32 * OriginalStats.m_PageSize), OriginalStats.m_MapSize / 2);
@@ -136,10 +136,6 @@ namespace NMib::NConcurrency
 					, UtcMinuteOffset
 				)
 			;
-		}
-		catch (CException const &)
-		{
-			co_return NException::fg_CurrentException();
 		}
 
 		co_return fg_Move(WriteTransaction);

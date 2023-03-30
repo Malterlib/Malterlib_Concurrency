@@ -53,15 +53,8 @@ namespace NMib::NConcurrency
 		bool bExistingClient = !pExistingClient.f_IsEmpty();
 		if (bExistingClient)
 		{
-			try
-			{
-				NException::CDisableExceptionTraceScope DisableTrace;
-				NCryptography::CCertificate::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, pExistingClient->m_PublicCertificate);
-			}
-			catch (NException::CException const &_Exception)
-			{
-				co_return DMibErrorInstance(fg_Format("Fraudulent client sign attempt: {}", _Exception.f_GetErrorStr()));
-			}
+			auto CaptureScope = co_await (g_CaptureExceptions % "Fraudulent client sign attempt");
+			NCryptography::CCertificate::fs_VerifyCertificateRequestSameKeyAsCertificate(_CertificateRequest, pExistingClient->m_PublicCertificate);
 		}
 
 		if (fOnUseTicket)
@@ -336,14 +329,9 @@ namespace NMib::NConcurrency
 		co_await Internal.f_WaitForInit();
 
 		NStr::CStr ServerHostID;
-		try
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
+			auto CaptureScope = co_await (g_CaptureExceptions % "Error getting server host ID from certificate");
 			ServerHostID = CActorDistributionManager::fs_GetCertificateHostID(_TrustTicket.m_ServerPublicCert);
-		}
-		catch (NException::CException const &_Exception)
-		{
-			co_return DMibErrorInstance("Error getting server host ID from certificate: {}"_f << _Exception.f_GetErrorStr());
 		}
 
 		if (ServerHostID.f_IsEmpty())
@@ -421,9 +409,9 @@ namespace NMib::NConcurrency
 		Extension.m_Value = Internal.m_BasicConfig.m_HostID;
 
 		NContainer::CByteVector CertificateRequest;
-		try
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
+			auto CaptureScope = co_await (g_CaptureExceptions % "Failed to generate certificate request for trust");
+
 			NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 				(
 					Options
@@ -431,10 +419,6 @@ namespace NMib::NConcurrency
 					, Internal.m_BasicConfig.m_CAPrivateKey
 				)
 			;
-		}
-		catch (NException::CException const &_Exception)
-		{
-			co_return DMibErrorInstance("Failed to generate certificate request for trust: {}"_f << _Exception.f_GetErrorStr());
 		}
 
 		auto PublicCertificate = co_await

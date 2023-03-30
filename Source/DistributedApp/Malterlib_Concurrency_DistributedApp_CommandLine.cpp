@@ -113,13 +113,9 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Non-existant command line command");
 
 		CEJSON ValidatedParams;
-		try
 		{
+			auto CaptureScope = co_await g_CaptureExceptions;
 			ValidatedParams = SpecInternal.f_ValidateParams(**pCommand, _Params);
-		}
-		catch (CException const &)
-		{
-			co_return NException::fg_CurrentException();
 		}
 
 		if ((*pCommand)->m_Flags & EDistributedAppCommandFlag_WaitForRemotes)
@@ -143,15 +139,12 @@ namespace NMib::NConcurrency
 		if (!Command.m_pActorRunCommand)
 			co_return DMibErrorInstance("Non-actor cammand");
 
-		try
 		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
 			uint32 Result = co_await (*Command.m_pActorRunCommand)(ValidatedParams, _pCommandLine);
 			co_await _pCommandLine->f_StdOut(""); // Syncronize with output
 			co_return Result;
-		}
-		catch (CException const &)
-		{
-			co_return NException::fg_CurrentException();
 		}
 	}
 

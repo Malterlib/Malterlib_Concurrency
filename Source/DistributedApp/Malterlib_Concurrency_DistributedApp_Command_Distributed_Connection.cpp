@@ -55,14 +55,11 @@ namespace NMib::NConcurrency
 			TicketStr = _Ticket;
 
 		CDistributedActorTrustManager::CTrustTicket Ticket;
-		try
 		{
+			auto CaptureScope = co_await (g_CaptureExceptions % "Failed to decode ticket");
+
 			CDisableExceptionTraceScope DisableExceptionTrace;
 			Ticket = CDistributedActorTrustManager::CTrustTicket::fs_FromStringTicket(TicketStr);
-		}
-		catch (CException const &_Exception)
-		{
-			co_return DMibErrorInstance(fg_Format("Faild to decode ticket: {}", _Exception.f_GetErrorStr()));
 		}
 
 		CHostInfo HostInfo = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, Ticket, 30.0, _ConnectionConcurrency);

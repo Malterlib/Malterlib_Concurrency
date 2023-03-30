@@ -300,7 +300,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestFutureWithErrorWrapped()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 			uint32 Value = *(co_await (f_TestExceptionAfterSuspend() % "Extra error").f_Wrap());
 			co_return Value;
@@ -314,7 +314,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestActorCallWithErrorWrapped()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 			auto Value = co_await (fg_ThisActor(this)(&CTestActor::f_TestExceptionAfterSuspend) % "Extra error").f_Wrap();
 			co_return *Value;
@@ -330,7 +330,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestActorCallPackWithErrorWrapped()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 			auto Results = co_await (f_TestExceptionAfterSuspend() + f_TestExceptionAfterSuspend() ^ "Extra error").f_Wrap();
 
@@ -340,7 +340,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestThrowException()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 			DMibError("Test Exception");
 
@@ -413,7 +413,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestThrowExceptionAfterSuspend()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 
@@ -1611,7 +1611,7 @@ namespace NMib::NConcurrency::NTest
 						(
 							[pTestState]() -> TCFuture<void>
 							{
-								co_await ECoroutineFlag_CaptureExceptions;
+								co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 								CToAsyncDestroy Variable(pTestState);
 

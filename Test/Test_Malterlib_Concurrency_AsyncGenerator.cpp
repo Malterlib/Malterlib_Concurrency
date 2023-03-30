@@ -138,7 +138,7 @@ namespace
 
 		TCAsyncGenerator<int32> f_TestAsyncGeneratorExceptionCaptured()
 		{
-			co_await ECoroutineFlag_CaptureExceptions;
+			co_await ECoroutineFlag_CaptureMalterlibExceptions;
 			DMibError("Test error");
 
 			co_return {};

@@ -164,8 +164,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		try
 		{
+			auto CaptureScope = co_await (g_CaptureExceptions % "Error reading log data from database (f_Start)");
+
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
 			for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, NLogStoreLocalDatabase::CLogKey::mc_Prefix); iLog; ++iLog)
@@ -184,10 +185,6 @@ namespace NMib::NConcurrency
 						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<NLogStoreLocalDatabase::CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
 				}
 			}
-		}
-		catch (CException const &_Exception)
-		{
-			co_return DMibErrorInstance("Error reading log data from database (f_Start): {}"_f << _Exception);
 		}
 
 		if (m_RetentionDays && !m_fCleanup)

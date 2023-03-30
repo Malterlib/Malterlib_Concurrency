@@ -164,8 +164,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		try
 		{
+			auto CaptureScope = co_await (g_CaptureExceptions % "Error reading sensor data from database (f_Start)");
+
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
 			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
@@ -184,10 +185,6 @@ namespace NMib::NConcurrency
 						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
 				}
 			}
-		}
-		catch (CException const &_Exception)
-		{
-			co_return DMibErrorInstance("Error reading sensor data from database (f_Start): {}"_f << _Exception);
 		}
 
 		if (m_RetentionDays && !m_fCleanup)

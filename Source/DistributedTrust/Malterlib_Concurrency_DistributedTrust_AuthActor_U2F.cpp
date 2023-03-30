@@ -813,130 +813,124 @@ namespace NMib::NConcurrency::NPrivate
 				, CStr _AppID
 			) const
 		{
-			try
+			auto CaptureScope = co_await g_CaptureExceptions;
+			// Verify that the registration data is genuine
+
+			/*
+				Layout of data
+				+-------------------------------------------------------------------+
+				| 1 |     65    | 1 |    L    |    implied               | 64       |
+				+-------------------------------------------------------------------+
+				0x05
+				public key
+				key handle length
+				key handle
+				attestation cert
+				signature
+			*/
+
+			if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
 			{
-				// Verify that the registration data is genuine
+				co_return DMibErrorInstance("Registration data too short");
+			}
 
-				/*
-					Layout of data
-					+-------------------------------------------------------------------+
-					| 1 |     65    | 1 |    L    |    implied               | 64       |
-					+-------------------------------------------------------------------+
-					0x05
-					public key
-					key handle length
-					key handle
-					attestation cert
-					signature
-				*/
+			NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
+			Stream.f_OpenRead(_RegistrationData);
 
-				if (_RegistrationData.f_GetLen() < 1 + 65 + 1 + 64)
-				{
-					co_return DMibErrorInstance("Registration data too short");
-				}
+			{
+				uint8 Reserverd;
+				Stream >> Reserverd;
 
-				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamBigEndian> Stream;
-				Stream.f_OpenRead(_RegistrationData);
+				if (Reserverd != 0x05)
+					co_return DMibErrorInstance("Reserved byte mismatch");
+			}
 
-				{
-					uint8 Reserverd;
-					Stream >> Reserverd;
+			CSecureByteVector PublicKey;
+			Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
 
-					if (Reserverd != 0x05)
-						co_return DMibErrorInstance("Reserved byte mismatch");
-				}
+			uint8 KeyHandleLen;
+			Stream >> KeyHandleLen;
 
-				CSecureByteVector PublicKey;
-				Stream.f_ConsumeBytes(PublicKey.f_GetArray(U2F_PUBLIC_KEY_LEN), U2F_PUBLIC_KEY_LEN);
+			CSecureByteVector KeyHandle;
+			Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
 
-				uint8 KeyHandleLen;
-				Stream >> KeyHandleLen;
+			CSecureByteVector AttestationCertData;
+			{
+				uint8 Reserved0;
+				uint8 Reserved1;
 
-				CSecureByteVector KeyHandle;
-				Stream.f_ConsumeBytes(KeyHandle.f_GetArray(KeyHandleLen), KeyHandleLen);
+				Stream >> Reserved0;
+				Stream >> Reserved1;
 
-				CSecureByteVector AttestationCertData;
-				{
-					uint8 Reserved0;
-					uint8 Reserved1;
+				// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
+				// Length is big-endian encoded in offset+3 and offset+4
+				if (Reserved0 != 0x30 || Reserved1 != 0x82)
+					co_return DMibErrorInstance("Reserved byte mismatch");
 
-					Stream >> Reserved0;
-					Stream >> Reserved1;
+				uint16 AttestationCertificateLen;
+				Stream >> AttestationCertificateLen;
+				Stream.f_AddPosition(-4);
+				AttestationCertificateLen += 4;
+				Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
+			}
 
-					// Skip over offset and offset+1 (0x30, 0x82 respecitvely)
-					// Length is big-endian encoded in offset+3 and offset+4
-					if (Reserved0 != 0x30 || Reserved1 != 0x82)
-						co_return DMibErrorInstance("Reserved byte mismatch");
-
-					uint16 AttestationCertificateLen;
-					Stream >> AttestationCertificateLen;
-					Stream.f_AddPosition(-4);
-					AttestationCertificateLen += 4;
-					Stream.f_ConsumeBytes(AttestationCertData.f_GetArray(AttestationCertificateLen), AttestationCertificateLen);
-				}
-
-				CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
-				{
-					uint8 const *pTempData = AttestationCertData.f_GetArray();
-					ERR_clear_error();
-					pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
-					if (!pCertificate)
-						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
-				}
-
-				CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
-				{
-					size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
-					CSecureByteVector SignatureBuffer;
-					Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
-
-					uint8 const *pTempData = SignatureBuffer.f_GetArray();
-					ERR_clear_error();
-					pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
-					if (!pSig)
-						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
-				}
-
-				CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
-				if (!pKey)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
-
-				CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
-				if (!pECKey)
-					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
-
-				CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-				EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
-				EC_KEY_set_group(pECKey, pECGroup);
-
-				CHash_SHA256 Hash;
-				{
-					uint8 Init = 0;
-					Hash.f_AddData(&Init, 1);
-					Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.mc_Size);
-					Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.mc_Size);
-					Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
-					Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
-				}
-				auto Digest = Hash.f_GetDigest();
-
+			CSSLPointer<X509 *, X509_free> pCertificate{nullptr};
+			{
+				uint8 const *pTempData = AttestationCertData.f_GetArray();
 				ERR_clear_error();
-				int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSig, pECKey);
-				if (VerifyResult != 1)
-				{
-					if (VerifyResult == -1)
-						co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)"));
-					else
-						co_return DMibErrorInstance("Invalid signature");
-				}
+				pCertificate = d2i_X509(nullptr, &pTempData, AttestationCertData.f_GetLen());
+				if (!pCertificate)
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_X509)"));
+			}
 
-				CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
-				co_return CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID};
-			}
-			catch (NException::CException const &)
+			CSSLPointer<ECDSA_SIG *, ECDSA_SIG_free> pSig{nullptr};
 			{
-				co_return NException::fg_CurrentException();
+				size_t SignatureLen = Stream.f_GetLength() - Stream.f_GetPosition();
+				CSecureByteVector SignatureBuffer;
+				Stream.f_ConsumeBytes(SignatureBuffer.f_GetArray(SignatureLen), SignatureLen);
+
+				uint8 const *pTempData = SignatureBuffer.f_GetArray();
+				ERR_clear_error();
+				pSig = d2i_ECDSA_SIG(nullptr, &pTempData, SignatureBuffer.f_GetLen());
+				if (!pSig)
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (d2i_ECDSA_SIG)"));
 			}
+
+			CSSLPointer<EVP_PKEY *, EVP_PKEY_free> pKey = X509_get_pubkey(pCertificate);
+			if (!pKey)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (X509_get_pubkey)"));
+
+			CSSLPointer<EC_KEY *, EC_KEY_free> pECKey = EVP_PKEY_get1_EC_KEY(pKey);
+			if (!pECKey)
+				co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (EVP_PKEY_get1_EC_KEY)"));
+
+			CSSLPointer<EC_GROUP *, EC_GROUP_free> pECGroup = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+			EC_KEY_set_asn1_flag(pECKey, OPENSSL_EC_NAMED_CURVE);
+			EC_KEY_set_group(pECKey, pECGroup);
+
+			CHash_SHA256 Hash;
+			{
+				uint8 Init = 0;
+				Hash.f_AddData(&Init, 1);
+				Hash.f_AddData(_AppDigest.f_GetData(), _AppDigest.mc_Size);
+				Hash.f_AddData(_ChallengeDigest.f_GetData(), _ChallengeDigest.mc_Size);
+				Hash.f_AddData(KeyHandle.f_GetArray(), KeyHandle.f_GetLen());
+				Hash.f_AddData(PublicKey.f_GetArray(), PublicKey.f_GetLen());
+			}
+			auto Digest = Hash.f_GetDigest();
+
+			ERR_clear_error();
+			int VerifyResult = ECDSA_do_verify(Digest.f_GetData(), Digest.mc_Size, pSig, pECKey);
+			if (VerifyResult != 1)
+			{
+				if (VerifyResult == -1)
+					co_return DMibErrorInstance(NCryptography::NBoringSSL::fg_GetExceptionStr("Failed to verify registration response (ECDSA_do_verify)"));
+				else
+					co_return DMibErrorInstance("Invalid signature");
+			}
+
+			CSSLPointer<EC_KEY *, EC_KEY_free> pUserPublicKey = fg_DecodeUserKey(PublicKey);
+			co_return CRegistrationResult{KeyHandle, fg_DumpUserKey(pUserPublicKey), fg_DumpX509Cert(pCertificate), _AppID};
 		}
 
 		TCFuture<CRegistrationResult> f_Register(TCFunction<void ()> _fPrompt)

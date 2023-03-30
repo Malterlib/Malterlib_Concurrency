@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					co_await ECoroutineFlag_CaptureExceptions;
+					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 					auto DatabaseKey = _DatabaseKey;
 					auto WriteTransaction = fg_Move(_Transaction);
@@ -358,7 +358,7 @@ namespace NMib::NConcurrency
 						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<NLogStoreLocalDatabase::CLogKey>(_LogInfo)]
 						(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 						{
-							co_await ECoroutineFlag_CaptureExceptions;
+							co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 							auto WriteTransaction = fg_Move(_Transaction);
 

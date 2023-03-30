@@ -195,8 +195,9 @@ namespace NMib::NConcurrency
 			= co_await _TrustManager.template f_CallActor(&t_CType::f_EnumUserAuthenticationFactors)(_UserID)
 		;
 
-		try
 		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
 			NStream::CBinaryStreamMemory<> Stream;
 			uint32 Version = CDistributedActorTrustManagerInterface::EProtocolVersion_Current;
 			DMibBinaryStreamVersion(Stream, Version);
@@ -214,10 +215,7 @@ namespace NMib::NConcurrency
 
 			co_return NEncoding::fg_Base64Encode(Stream.f_GetVector());
 		}
-		catch (NException::CException const &)
-		{
-			co_return NException::fg_CurrentException();
-		}
+
 		co_return {};
 	}
 
@@ -233,8 +231,9 @@ namespace NMib::NConcurrency
 
 		CResult Result;
 
-		try
 		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
 			NContainer::CByteVector Data;
 
 			NEncoding::fg_Base64Decode(_UserData, Data);
@@ -281,10 +280,6 @@ namespace NMib::NConcurrency
 						DMibError("Invalid public data for key '{}' in factor '{}'"_f << Factor.m_PublicData.fs_GetKey(Data) << FactorName);
 				}
 			}
-		}
-		catch (NException::CException const &)
-		{
-			co_return NException::fg_CurrentException();
 		}
 
 		NStr::CStr UserID = Result.m_UserID;

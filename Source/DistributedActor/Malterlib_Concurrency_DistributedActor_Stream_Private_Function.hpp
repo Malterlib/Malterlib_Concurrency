@@ -210,8 +210,9 @@ namespace NMib::NConcurrency
 										auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(StreamData), Context);
 
 										NException::CDisableExceptionTraceScope DisableTrace;
-										try
 										{
+											auto CaptureScope = co_await (g_CaptureExceptions % "Exception reading remote result");
+
 											CDistributedActorReadStream ReplyStream;
 											ReplyStream.f_OpenRead(Data);
 
@@ -238,10 +239,6 @@ namespace NMib::NConcurrency
 											NStr::CStr Error;
 											if (!Context.f_ValidateContext(Error))
 												co_return DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error));
-										}
-										catch (NException::CException const &)
-										{
-											co_return DMibErrorInstance(fg_Format("Exception reading remote result: {}", NException::fg_CurrentExceptionString()));
 										}
 									}
 

@@ -67,13 +67,9 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			try
 			{
+				auto CaptureScope = co_await g_CaptureExceptions;
 				mp_DistributedApp = _fDistributedAppFactory();
-			}
-			catch (NException::CException const &)
-			{
-				co_return NException::fg_CurrentException();
 			}
 		}
 
@@ -109,14 +105,11 @@ namespace NMib::NConcurrency
 				Params.f_Remove(iRunStandalone);
 
 			CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
-			try
 			{
+				auto CaptureScope = co_await g_CaptureExceptions;
 				CommandLine = CommandLineClient.f_ParseCommandLine(Params);
 			}
-			catch (NException::CException const &)
-			{
-				co_return NException::fg_CurrentException();
-			}
+
 			AppParams = fg_Move(CommandLine.m_Params);
 		}
 

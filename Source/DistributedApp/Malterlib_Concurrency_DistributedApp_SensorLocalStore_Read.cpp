@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/Concurrency/LogError>
 
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Internal.h"
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Database.h"
@@ -59,34 +60,38 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		try
+		auto ReadTransactionWapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+
+		auto CaptureScope = co_await
+			(
+				g_CaptureExceptions %
+				(
+					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensors)")
+					% "Internal error reading from database, see log"
+				)
+			)
+		;
+
+		auto &ReadTransaction = *ReadTransactionWapped; // To force exception to be thrown here
+
+		TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
+
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
-			auto ReadTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead);
+			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
+			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
 
-			TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
+			if (!fg_FilterSensorKey(Key, _Filter))
+				continue;
 
-			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
-			{
-				auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
-				auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
+			Batch.f_Insert(fg_Move(Value.m_Info));
 
-				if (!fg_FilterSensorKey(Key, _Filter))
-					continue;
-
-				Batch.f_Insert(fg_Move(Value.m_Info));
-
-				if (Batch.f_GetLen() >= _BatchSize)
-					co_yield fg_Move(Batch);
-			}
-
-			if (!Batch.f_IsEmpty())
+			if (Batch.f_GetLen() >= _BatchSize)
 				co_yield fg_Move(Batch);
 		}
-		catch ([[maybe_unused]] CException const &_Exception)
-		{
-			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensors): {}", _Exception);
-			co_return DMibErrorInstance("Internal error reading from database, see log");
-		}
+
+		if (!Batch.f_IsEmpty())
+			co_yield fg_Move(Batch);
 
 		co_return {};
 	}
@@ -103,7 +108,7 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		auto ReadTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead);
+		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;
 
@@ -111,133 +116,137 @@ namespace NMib::NConcurrency
 
 		// From here on you can't access Internal
 
-		try
+		auto CaptureScope = co_await
+			(
+				g_CaptureExceptions %
+				(
+					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorReadings)")
+					% "Internal error reading from database, see log"
+				)
+			)
+		;
+
+		auto &ReadTransaction = *ReadTransactionWrapped; // To force exception to be thrown here
+
+		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
+
+		auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
+
+		bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
+
+		if (bReportNewestFirst)
 		{
-			TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
-
-			auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
-
-			bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
-
-			if (bReportNewestFirst)
+			if (_Filter.m_MaxTimestamp)
 			{
-				if (_Filter.m_MaxTimestamp)
-				{
-					if (_Filter.m_MaxSequence)
-						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
-					else
-						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
-
-					if (!iReadingByTime)
-						iReadingByTime.f_Last();
-				}
+				if (_Filter.m_MaxSequence)
+					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
 				else
+					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+
+				if (!iReadingByTime)
 					iReadingByTime.f_Last();
 			}
 			else
+				iReadingByTime.f_Last();
+		}
+		else
+		{
+			if (_Filter.m_MinTimestamp)
+			{
+				if (_Filter.m_MinSequence)
+					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+				else
+					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+			}
+		}
+
+		NTime::CCyclesClock YieldClock(true);
+
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					YieldClock.f_Start();
+					return {};
+				}
+			)
+		;
+
+		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
+		{
+			NSensorStoreLocalDatabase::CSensorReadingValue Value;
+			auto KeyByTime = iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>();
+
+			if (bReportNewestFirst)
 			{
 				if (_Filter.m_MinTimestamp)
 				{
-					if (_Filter.m_MinSequence)
-						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
-					else
-						iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+					auto &MinTimestamp = *_Filter.m_MinTimestamp;
+
+					if (KeyByTime.m_Timestamp < MinTimestamp)
+						break;
+					else if (KeyByTime.m_Timestamp == MinTimestamp && _Filter.m_MinSequence)
+					{
+						if (KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+							break;
+					}
 				}
 			}
-
-			NTime::CCyclesClock YieldClock(true);
-
-			auto OnResume = co_await fg_OnResume
-				(
-					[&]() -> CExceptionPointer
-					{
-						YieldClock.f_Start();
-						return {};
-					}
-				)
-			;
-
-			for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
+			else
 			{
-				NSensorStoreLocalDatabase::CSensorReadingValue Value;
-				auto KeyByTime = iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>();
-
-				if (bReportNewestFirst)
+				if (_Filter.m_MaxTimestamp)
 				{
-					if (_Filter.m_MinTimestamp)
-					{
-						auto &MinTimestamp = *_Filter.m_MinTimestamp;
+					auto &MaxTimestamp = *_Filter.m_MaxTimestamp;
 
-						if (KeyByTime.m_Timestamp < MinTimestamp)
+					if (KeyByTime.m_Timestamp > MaxTimestamp)
+						break;
+					else if (KeyByTime.m_Timestamp == MaxTimestamp && _Filter.m_MaxSequence)
+					{
+						if (KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
 							break;
-						else if (KeyByTime.m_Timestamp == MinTimestamp && _Filter.m_MinSequence)
-						{
-							if (KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
-								break;
-						}
 					}
 				}
-				else
-				{
-					if (_Filter.m_MaxTimestamp)
-					{
-						auto &MaxTimestamp = *_Filter.m_MaxTimestamp;
-
-						if (KeyByTime.m_Timestamp > MaxTimestamp)
-							break;
-						else if (KeyByTime.m_Timestamp == MaxTimestamp && _Filter.m_MaxSequence)
-						{
-							if (KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
-								break;
-						}
-					}
-				}
-
-				if (YieldClock.f_GetTime() > 0.1)
-				{
-					if (co_await g_bShouldAbort)
-						co_return DMibErrorInstance("Aborted");
-
-					if (Batch.f_GetLen() > 0)
-						co_yield fg_Move(Batch);
-
-					co_await g_Yield;
-				}
-
-				if (!fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
-					continue;
-
-				if (_Filter.m_MinSequence && KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
-					continue;
-				if (_Filter.m_MaxSequence && KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
-					continue;
-
-				if (_Filter.m_MinTimestamp && KeyByTime.m_Timestamp < *_Filter.m_MinTimestamp)
-					continue;
-				if (_Filter.m_MaxTimestamp && KeyByTime.m_Timestamp > *_Filter.m_MaxTimestamp)
-					continue;
-
-				auto Key = KeyByTime.f_Key();
-				if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
-				{
-					DMibLogWithCategory(SensorLocalStore, Error, "Missing sensor reading: {}", Key);
-					continue;
-				}
-
-				Batch.f_Insert(CDistributedAppSensorReader_SensorKeyAndReading{fg_Move(Key).f_SensorInfoKey(), fg_Move(Value).f_Reading(Key)});
-
-				if (Batch.f_GetLen() >= _BatchSize)
-					co_yield fg_Move(Batch);
 			}
 
-			if (!Batch.f_IsEmpty())
+			if (YieldClock.f_GetTime() > 0.1)
+			{
+				if (co_await g_bShouldAbort)
+					co_return DMibErrorInstance("Aborted");
+
+				if (Batch.f_GetLen() > 0)
+					co_yield fg_Move(Batch);
+
+				co_await g_Yield;
+			}
+
+			if (!fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
+				continue;
+
+			if (_Filter.m_MinSequence && KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+				continue;
+			if (_Filter.m_MaxSequence && KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
+				continue;
+
+			if (_Filter.m_MinTimestamp && KeyByTime.m_Timestamp < *_Filter.m_MinTimestamp)
+				continue;
+			if (_Filter.m_MaxTimestamp && KeyByTime.m_Timestamp > *_Filter.m_MaxTimestamp)
+				continue;
+
+			auto Key = KeyByTime.f_Key();
+			if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
+			{
+				DMibLogWithCategory(SensorLocalStore, Error, "Missing sensor reading: {}", Key);
+				continue;
+			}
+
+			Batch.f_Insert(CDistributedAppSensorReader_SensorKeyAndReading{fg_Move(Key).f_SensorInfoKey(), fg_Move(Value).f_Reading(Key)});
+
+			if (Batch.f_GetLen() >= _BatchSize)
 				co_yield fg_Move(Batch);
 		}
-		catch ([[maybe_unused]] CException const &_Exception)
-		{
-			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensorReadings): {}", _Exception);
-			co_return DMibErrorInstance("Internal error reading from database, see log");
-		}
+
+		if (!Batch.f_IsEmpty())
+			co_yield fg_Move(Batch);
 
 		co_return {};
 	}
@@ -250,50 +259,54 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		try
+		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
+
+		auto CaptureScope = co_await
+			(
+				g_CaptureExceptions %
+				(
+					fg_LogCritical("SensorLocalStore", "Error reading sensor data from database (f_GetSensorStatus)")
+					% "Internal error reading from database, see log"
+				)
+			)
+		;
+
+		auto &ReadTransaction = *ReadTransactionWrapped; // To force exception to be thrown here
+
+		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
+
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
-			auto ReadTransaction = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead);
+			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
+			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
 
-			TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
+			if (!fg_FilterSensorKey(Key, _Filter.m_SensorFilter))
+				continue;
 
-			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
-			{
-				auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
-				auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
+			NSensorStoreLocalDatabase::CSensorKey ReadingKey = Key;
+			ReadingKey.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingKey::mc_Prefix;
 
-				if (!fg_FilterSensorKey(Key, _Filter))
-					continue;
+			auto iReading = ReadTransaction.m_Transaction.f_ReadCursor(ReadingKey);
 
-				NSensorStoreLocalDatabase::CSensorKey ReadingKey = Key;
-				ReadingKey.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingKey::mc_Prefix;
+			if (!iReading.f_Last())
+				continue;
 
-				auto iReading = ReadTransaction.m_Transaction.f_ReadCursor(ReadingKey);
+			Batch.f_Insert
+				(
+					CDistributedAppSensorReader_SensorKeyAndReading
+					{
+						fg_Move(Key).f_SensorInfoKey()
+						, fg_Move(iReading.f_Value<NSensorStoreLocalDatabase::CSensorReadingValue>().f_Reading(iReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>()))
+					}
+				)
+			;
 
-				if (!iReading.f_Last())
-					continue;
-
-				Batch.f_Insert
-					(
-						CDistributedAppSensorReader_SensorKeyAndReading
-						{
-							fg_Move(Key).f_SensorInfoKey()
-							, fg_Move(iReading.f_Value<NSensorStoreLocalDatabase::CSensorReadingValue>().f_Reading(iReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>()))
-						}
-					)
-				;
-
-				if (Batch.f_GetLen() >= _BatchSize)
-					co_yield fg_Move(Batch);
-			}
-
-			if (!Batch.f_IsEmpty())
+			if (Batch.f_GetLen() >= _BatchSize)
 				co_yield fg_Move(Batch);
 		}
-		catch ([[maybe_unused]] CException const &_Exception)
-		{
-			DMibLogWithCategory(SensorLocalStore, Critical, "Error reading sensor data from database (f_GetSensorStatus): {}", _Exception);
-			co_return DMibErrorInstance("Internal error reading from database, see log");
-		}
+
+		if (!Batch.f_IsEmpty())
+			co_yield fg_Move(Batch);
 
 		co_return {};
 	}

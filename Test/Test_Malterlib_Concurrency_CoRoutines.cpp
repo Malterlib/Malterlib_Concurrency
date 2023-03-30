@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/AsyncDestroy>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Test/Exception>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
@@ -21,6 +22,18 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
+
+	DMibImpErrorClassDefine(CCustomException, NMib::NException::CException);
+	DMibImpErrorClassImplement(CCustomException);
+
+	DMibImpErrorClassDefine(CCustomException2, NMib::NException::CException);
+	DMibImpErrorClassImplement(CCustomException2);
+
+#	define DMibCustomException(_Description) DMibImpError(CCustomException, _Description)
+#	define DMibCustomExceptionInstance(_Description) DMibImpErrorInstance(CCustomException, _Description)
+
+#	define DMibCustomException2(_Description) DMibImpError(CCustomException2, _Description)
+#	define DMibCustomException2Instance(_Description) DMibImpErrorInstance(CCustomException2, _Description)
 
 	struct CTestDistributedApp : public CDistributedAppActor
 	{
@@ -332,6 +345,70 @@ namespace NMib::NConcurrency::NTest
 			DMibError("Test Exception");
 
 			co_return 5;
+		}
+
+		TCFuture<uint32> f_TestThrowExceptionCaptureScope()
+		{
+			{
+				auto CaptureScope = co_await g_CaptureExceptions;
+				DMibError("Test Exception");
+			}
+
+			co_return 5;
+		}
+
+		TCFuture<uint32> f_TestThrowExceptionCaptureScopeDouble()
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+			{
+				auto CaptureScope = co_await g_CaptureExceptions;
+				DMibError("Test Exception");
+			}
+
+			co_return 5;
+		}
+
+		TCFuture<uint32> f_TestThrowExceptionCaptureScopeOuterScope()
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+			DMibError("Test Exception");
+
+			co_return 5;
+		}
+
+		TCFuture<void> f_TestThrowExceptionCaptureScopeNoException()
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestThrowExceptionCaptureScopeNoExceptionCaught()
+		{
+			auto CaptureScope = co_await g_CaptureExceptions;
+			try
+			{
+				DMibError("Test Exception");
+			}
+			catch (...)
+			{
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestThrowExceptionCaptureScopeNoExceptionInsideTry()
+		{
+			try
+			{
+				auto CaptureScope = co_await g_CaptureExceptions;
+				DMibError("Test Exception");
+			}
+			catch (...)
+			{
+			}
+
+			co_return {};
 		}
 
 		TCFuture<uint32> f_TestThrowExceptionAfterSuspend()
@@ -956,6 +1033,186 @@ namespace NMib::NConcurrency::NTest
 			TCPromise<void> Promise;
 			Promise.f_SetResult();
 			co_await Promise.f_Future();
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecific()
+		{
+			auto CaptureExceptions = co_await g_CaptureExceptions.f_Specific<CCustomException>();
+
+			DMibCustomException("Test Custom");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecificUserMessage()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions.f_Specific<CCustomException>() % (fg_LogError("Test", "Test") % "User Message Custom"));
+
+			DMibCustomException("Test Custom");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecific2()
+		{
+			auto CaptureExceptions = co_await g_CaptureExceptions.f_Specific<CCustomException, CCustomException2>();
+
+			DMibCustomException2("Test Custom");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecificInner()
+		{
+			auto CaptureExceptions = co_await g_CaptureExceptions;
+			{
+				auto CaptureExceptions = co_await g_CaptureExceptions.f_Specific<CCustomException, CCustomException2>();
+				DMibCustomException2("Test Custom");
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecificInnerNormal()
+		{
+			auto CaptureExceptions = co_await g_CaptureExceptions;
+			{
+				auto CaptureExceptions = co_await g_CaptureExceptions.f_Specific<CCustomException, CCustomException2>();
+				DMibError("Test Normal");
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecificOuter()
+		{
+			auto CaptureExceptions = co_await g_CaptureExceptions.f_Specific<CCustomException, CCustomException2>();
+			{
+				auto CaptureExceptions = co_await g_CaptureExceptions;
+				DMibError("Test Normal");
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogError()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % fg_LogError("Test", "Test"));
+			DMibError("Test Log");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessage()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			DMibError("Test Log");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageNested()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				DMibError("Test Log");
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageLeaked()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			try
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				DMibError("Test Log");
+			}
+			catch (...)
+			{
+			}
+			DMibError("Test Log2");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureSpecificAfterSupend()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions.f_Specific<CCustomException>() % (fg_LogError("Test", "Test") % "User Message Custom"));
+
+			co_await fg_Timeout(0.001);
+			DMibCustomException("Test Custom");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorAfterSupend()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % fg_LogError("Test", "Test"));
+
+			co_await fg_Timeout(0.001);
+			DMibError("Test Log");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageAfterSupend()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+
+			co_await fg_Timeout(0.001);
+			DMibError("Test Log");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageNestedAfterSupend()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				co_await fg_Timeout(0.001);
+				DMibError("Test Log");
+			}
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageLeakedAfterSupend()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			try
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				co_await fg_Timeout(0.001);
+				DMibError("Test Log");
+			}
+			catch (...)
+			{
+			}
+			DMibError("Test Log2");
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestCaptureLogErrorUserMessageLeakedAfterSupendOuter()
+		{
+			auto CaptureExceptions = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message"));
+			try
+			{
+				auto CaptureExceptionsNested = co_await (g_CaptureExceptions % (fg_LogError("Test", "Test") % "User Message Nested"));
+				DMibError("Test Log");
+			}
+			catch (...)
+			{
+			}
+
+			co_await fg_Timeout(0.001);
+			DMibError("Test Log2");
 
 			co_return {};
 		}
@@ -1647,6 +1904,76 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
+		void f_TestCapture()
+		{
+			DMibTestSuite("Capture")
+			{
+				DMibTestCategory("General")
+				{
+					NStr::CStr CaptureInsideTryCatchError = "false 'It's not supported to capture exceptions inside a try/catch statement'";
+
+					TCActor<CTestActor> TestActor(fg_Construct());
+
+					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScope).f_CallSync(), DMibErrorInstance("Test Exception"));
+					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeDouble).f_CallSync(), DMibErrorInstance("Test Exception"));
+					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeOuterScope).f_CallSync(), DMibErrorInstance("Test Exception"));
+					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeNoException).f_CallSync());
+					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeNoExceptionCaught).f_CallSync());
+
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecific).f_CallSync(), DMibCustomExceptionInstance("Test Custom"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecificUserMessage).f_CallSync(), DMibErrorInstance("User Message Custom"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecific2).f_CallSync(), DMibCustomException2Instance("Test Custom"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecificInner).f_CallSync(), DMibCustomException2Instance("Test Custom"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecificInnerNormal).f_CallSync(), DMibErrorInstance("Test Normal"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecificOuter).f_CallSync(), DMibErrorInstance("Test Normal"));
+
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogError).f_CallSync(), DMibErrorInstance("Test Log"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessage).f_CallSync(), DMibErrorInstance("User Message"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageNested).f_CallSync(), DMibErrorInstance("User Message Nested"));
+
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureSpecificAfterSupend).f_CallSync(), DMibErrorInstance("User Message Custom"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogErrorAfterSupend).f_CallSync(), DMibErrorInstance("Test Log"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageAfterSupend).f_CallSync(), DMibErrorInstance("User Message"));
+					DMibExpectException(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageNestedAfterSupend).f_CallSync(), DMibErrorInstance("User Message Nested"));
+#if DMibEnableSafeCheck > 0
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeNoExceptionInsideTry).f_CallSync(), CaptureInsideTryCatchError);
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeaked).f_CallSync(), CaptureInsideTryCatchError)(ETest_ExpectFail);
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeakedAfterSupend).f_CallSync(), CaptureInsideTryCatchError)(ETest_ExpectFail);
+					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeakedAfterSupendOuter).f_CallSync(), CaptureInsideTryCatchError);
+#endif
+				};
+#ifndef DCompiler_MSVC_Workaround
+				// throwing from unhandled_exception is not supported
+				DMibTestCategory("NotCaught")
+				{
+					TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
+					auto CleanupRunLoop = g_OnScopeExit / [&]
+						{
+							while (pRunLoop->m_RefCount.f_Get() > 0)
+								pRunLoop->f_WaitOnceTimeout(0.1);
+						}
+					;
+					TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
+					auto CleanupHelperActor = g_OnScopeExit / [&]
+						{
+							HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
+						}
+					;
+					CCurrentlyProcessingActorScope CurrentActor{HelperActor};
+
+					auto fTest = [&]() -> TCFuture<void>
+						{
+							auto CaptureExceptions = co_await (g_CaptureExceptions.f_Specific<CCustomException>() % (fg_LogError("Test", "Test") % "User Message Custom"));
+							DMibError("Test Custom");
+							co_return {};
+						}
+					;
+					DMibExpectException(fTest().f_CallSync(pRunLoop), DMibErrorInstance("Test Custom"));
+				};
+#endif
+			};
+		}
+
 		void f_DoTests()
 		{
 #if DMibEnableSafeCheck > 0
@@ -1663,6 +1990,7 @@ namespace NMib::NConcurrency::NTest
 			f_TestDestroy();
 			f_TestAsyncDestroy();
 			f_TestOnResume();
+			f_TestCapture();
 		}
 	};
 

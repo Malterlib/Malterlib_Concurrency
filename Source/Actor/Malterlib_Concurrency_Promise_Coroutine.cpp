@@ -33,6 +33,16 @@ namespace NMib::NConcurrency
 
 	auto CFutureCoroutineContext::final_suspend() noexcept -> CFinalAwaiter
 	{
+#if DMibEnableSafeCheck > 0
+		try
+		{
+			fp_CheckCaptureExceptions();
+		}
+		catch (NException::CDebugException const &_Exception)
+		{
+			return TCPromise<void>() <<= _Exception;
+		}
+#endif
 		if (m_pPreviousCoroutineHandler != this)
 		{
 			auto &ThreadLocal = **g_SystemThreadLocal;
@@ -137,10 +147,19 @@ namespace NMib::NConcurrency
 		this->m_pPreviousCoroutineHandler = this;
 
 #if DMibEnableSafeCheck > 0
-		if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
-			fp_CheckUnsafeThisPointer();
-		else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
-			fp_CheckUnsafeReferenceParams();
+		try
+		{
+			if (m_Flags & ECoroutineFlag_UnsafeThisPointer)
+				fp_CheckUnsafeThisPointer();
+			else if (m_Flags & ECoroutineFlag_UnsafeReferenceParameters)
+				fp_CheckUnsafeReferenceParams();
+
+			fp_CheckCaptureExceptions();
+		}
+		catch (NException::CDebugException const &_Exception)
+		{
+			m_pSuspendDebugException = _Exception.f_ExceptionPointer();
+		}
 #endif
 	}
 
@@ -155,6 +174,15 @@ namespace NMib::NConcurrency
 		this->m_pPreviousCoroutineHandler = ThreadLocal.m_pCurrentCoroutineHandler;
 		ThreadLocal.m_pCurrentCoroutineHandler = this;
 
+#if DMibEnableSafeCheck > 0
+		if (m_pSuspendDebugException)
+		{
+			auto pException = fg_Move(m_pSuspendDebugException);
+			f_HandleAwaitedException(fg_Move(pException));
+			o_bAborted = true;
+			return {};
+		}
+#endif
 		auto iHandler = this->m_ThreadLocalHandlers.f_GetIterator();
 		for (; iHandler; ++iHandler)
 		{

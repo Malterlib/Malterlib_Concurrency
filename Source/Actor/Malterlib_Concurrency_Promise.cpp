@@ -14,6 +14,16 @@ namespace NMib::NConcurrency
 {
 	constinit CFutureMakeHelper g_Future;
 	constinit CCoroutineOnSuspendHelper g_OnSuspend;
+	constinit CCaptureExceptionsHelper g_CaptureExceptions;
+
+	CCaptureExceptionsHelperWithTransformer CCaptureExceptionsHelperWithTransformer::ms_EmptyTransformer
+		{
+			[](NException::CExceptionPointer &&_pException)
+			{
+				return fg_Move(_pException);
+			}
+		}
+	;
 
 	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
 		: m_fOnSuspend(fg_Move(_fOnSuspend))
@@ -59,6 +69,88 @@ namespace NMib::NConcurrency
 	CCoroutineOnSuspendScope CCoroutineOnSuspendHelper::operator / (NFunction::TCFunctionMovable<void ()> &&_fOnSuspend) const
 	{
 		return CCoroutineOnSuspendScope(fg_Move(_fOnSuspend));
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionScope::CCaptureExceptionScope(CFutureCoroutineContext *_pThis)
+		: mp_pThis(_pThis)
+		, mp_OriginalExceptions(NException::fg_UncaughtExceptions())
+	{
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionScope::CCaptureExceptionScope(CCaptureExceptionScope &&_Other)
+		: mp_pThis(fg_Exchange(_Other.mp_pThis, nullptr))
+		, mp_OriginalExceptions(_Other.mp_OriginalExceptions)
+	{
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionScope::~CCaptureExceptionScope()
+	{
+		if (mp_pThis && NException::fg_UncaughtExceptions() != mp_OriginalExceptions)
+ 			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert();
+	}
+
+	void CFutureCoroutineContext::CCaptureExceptionScope::f_Suspend() noexcept
+	{
+	}
+
+	void CFutureCoroutineContext::CCaptureExceptionScope::f_ResumeNoExcept() noexcept
+	{
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		// Clean up any leaked pending transformers
+		DMibFastCheck(ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty());
+		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
+		mp_OriginalExceptions = NException::fg_UncaughtExceptions();
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionScope CFutureCoroutineContext::CCaptureExceptionScopeAwaiter::await_resume() const noexcept
+	{
+		return CCaptureExceptionScope(m_pThis);
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::CCaptureExceptionWithTransformerScope
+		(
+			CFutureCoroutineContext *_pThis
+			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer
+		)
+		: mp_pThis(_pThis)
+		, mp_fTransformer(fg_Move(_fTransformer))
+		, mp_OriginalExceptions(NException::fg_UncaughtExceptions())
+	{
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::CCaptureExceptionWithTransformerScope(CCaptureExceptionWithTransformerScope &&_Other)
+		: mp_pThis(fg_Exchange(_Other.mp_pThis, nullptr))
+		, mp_fTransformer(fg_Move(_Other.mp_fTransformer))
+		, mp_OriginalExceptions(_Other.mp_OriginalExceptions)
+	{
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		// Clean up any leaked pending transformers
+		DMibFastCheck(ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty());
+		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
+	}
+
+	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::~CCaptureExceptionWithTransformerScope()
+	{
+		if (mp_pThis && NException::fg_UncaughtExceptions() != mp_OriginalExceptions)
+			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert().m_fTransformer = fg_Move(mp_fTransformer);
+	}
+
+	void CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::f_Suspend() noexcept
+	{
+	}
+
+	void CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::f_ResumeNoExcept() noexcept
+	{
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		// Clean up any leaked pending transformers
+		DMibFastCheck(ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty());
+		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
+		mp_OriginalExceptions = NException::fg_UncaughtExceptions();
+	}
+
+	auto CFutureCoroutineContext::CCaptureExceptionScopeWithTransformerAwaiter::await_resume() noexcept -> CCaptureExceptionWithTransformerScope
+	{
+		return CCaptureExceptionWithTransformerScope(m_pThis, fg_Move(m_fTransformer));
 	}
 
 	CCoroutineOnResumeScope CFutureCoroutineContext::COnResumeScopeAwaiter::await_resume() noexcept
@@ -122,25 +214,70 @@ namespace NMib::NConcurrency
 		return CFutureCoroutineContext::COnResumeScopeAwaiter(fg_Move(_fOnResume));
 	}
 
+	CFutureCoroutineContext::CCaptureExceptionScopeAwaiter CFutureCoroutineContext::await_transform(CCaptureExceptionsHelper)
+	{
+		return CCaptureExceptionScopeAwaiter{{}, this};
+	}
+
+	auto CFutureCoroutineContext::await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer) -> CCaptureExceptionScopeWithTransformerAwaiter
+	{
+		return CCaptureExceptionScopeWithTransformerAwaiter{{}, this, fg_Move(_Transformer.m_fTransformer)};
+	}
+
 	void CFutureCoroutineContext::unhandled_exception()
 	{
-		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
-			f_SetExceptionResult(NException::fg_CurrentException());
-		else
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		auto PendingCaptureExceptions = fg_Move(ConcurrencyThreadLocal.m_PendingCaptureExceptions);
+		auto pException = NException::fg_CurrentException();
+
+		if (!PendingCaptureExceptions.f_IsEmpty())
 		{
-			auto pException = NException::fg_CurrentException();
-#ifdef DMibNeedDebugException
-			if (fg_IsDebugException(pException))
+			for (auto &CaptureExceptions : PendingCaptureExceptions)
 			{
-				f_SetExceptionResult(fg_Move(pException));
-				return;
+				if (CaptureExceptions.m_fTransformer)
+				{
+					auto pNewException = CaptureExceptions.m_fTransformer(fg_TempCopy(pException));
+					if (pNewException)
+						return f_SetExceptionResult(fg_Move(pNewException));
+				}
+				else if (NException::fg_ExceptionIsOfType<NException::CException>(pException))
+					return f_SetExceptionResult(fg_Move(pException));
 			}
+		}
+
+		if (this->m_Flags & ECoroutineFlag_CaptureMalterlibExceptions)
+		{
+			if (NException::fg_ExceptionIsOfType<NException::CException>(pException))
+				return f_SetExceptionResult(fg_Move(pException));
+		}
+		else if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
+			return f_SetExceptionResult(fg_Move(pException));
+		
+#ifdef DMibNeedDebugException
+		if (fg_IsDebugException(pException))
+			return f_SetExceptionResult(fg_Move(pException));
 #endif
 
-			// All other exceptions falls through and crashes the application
-			std::rethrow_exception(fg_Move(pException));
-		}
+		// All other exceptions falls through and crashes the application
+		std::rethrow_exception(fg_Move(pException));
 	}
+
+#if DMibEnableSafeCheck > 0
+	void CFutureCoroutineContext::fp_CheckCaptureExceptions() const
+	{
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+
+		if (ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty())
+			return;
+		
+		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
+
+		if (ms_bDebugCoroutineSafeCheck)
+			DMibSafeCheck(false, "It's not supported to capture exceptions inside a try/catch statement");
+
+		DMibFastCheck(false);
+	}
+#endif
 
 	void CFutureCoroutineContext::f_HandleAwaitedException(NException::CExceptionPointer &&_pException)
 	{

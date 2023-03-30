@@ -696,6 +696,48 @@ namespace NMib::NConcurrency
 	{
 		return fg_Move(*this);
 	}
+
+	inline_always CCaptureExceptionsHelper::operator CCaptureExceptionsHelperWithTransformer const &()
+	{
+		return CCaptureExceptionsHelperWithTransformer::ms_EmptyTransformer;
+	}
+
+	template <typename tf_CTransformerParam>
+	CCaptureExceptionsHelperWithTransformer operator % (CCaptureExceptionsHelperWithTransformer const &_Helper, tf_CTransformerParam &&_Param)
+	{
+		return CCaptureExceptionsHelperWithTransformer{fg_ExceptionTransformer(fg_TempCopy(_Helper.m_fTransformer), fg_Forward<tf_CTransformerParam>(_Param))};
+	}
+
+	template <typename tf_CTransformerParam>
+	CCaptureExceptionsHelperWithTransformer operator % (CCaptureExceptionsHelperWithTransformer &&_Helper, tf_CTransformerParam &&_Param)
+	{
+		return CCaptureExceptionsHelperWithTransformer{fg_ExceptionTransformer(fg_Move(_Helper.m_fTransformer), fg_Forward<tf_CTransformerParam>(_Param))};
+	}
+
+	template <typename ...tfp_CExceptions>
+	CCaptureExceptionsHelperWithTransformer CCaptureExceptionsHelper::f_Specific() const
+	{
+		return CCaptureExceptionsHelperWithTransformer
+			{
+				[](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+				{
+					auto bFound = NException::fg_VisitException<tfp_CExceptions...>
+						(
+							_pException
+							, [](auto &&)
+							{
+							}
+						)
+					;
+
+					if (bFound)
+						return fg_Move(_pException);
+					else
+						return nullptr;
+				}
+			}
+		;
+	}
 }
 
 namespace NMib::NConcurrency::NPrivate

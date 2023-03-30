@@ -138,6 +138,7 @@ namespace NMib::NConcurrency::NPrivate
 		pPromiseData->m_bIsCoroutine = true;
 #if DMibEnableSafeCheck > 0
 		pPromiseData->m_CoroutineOwner = fg_CurrentActor();
+		DMibFastCheck(!pPromiseData->m_CoroutineOwner.f_Lock().f_IsEmpty());
 		this->fp_UpdateSafeCall(bSafeCall);
 		if (bSafeCall)
 		{

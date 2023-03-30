@@ -189,6 +189,11 @@ namespace NMib::NConcurrency
 		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
 	};
 
+	struct CCaptureExceptionSettings
+	{
+		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
+	};
+
 	struct CConcurrencyThreadLocal
 	{
 		CConcurrencyThreadLocal();
@@ -205,6 +210,8 @@ namespace NMib::NConcurrency
 		bool m_bForceNonLocal = false;
 
 		NException::CExceptionPointer m_pNoResultException;
+
+		NContainer::TCVector<CCaptureExceptionSettings> m_PendingCaptureExceptions;
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *m_pCallstacks = nullptr;

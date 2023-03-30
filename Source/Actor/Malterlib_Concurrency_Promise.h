@@ -105,11 +105,75 @@ namespace NMib::NConcurrency
 
 	extern CAsyncDestroyHelper g_AsyncDestroy;
 
+	struct CCaptureExceptionsHelperWithTransformer;
+	struct CCaptureExceptionsHelper
+	{
+		template <typename ...tfp_CExceptions>
+		CCaptureExceptionsHelperWithTransformer f_Specific() const;
+
+		operator CCaptureExceptionsHelperWithTransformer const &();
+	};
+
+	struct CCaptureExceptionsHelperWithTransformer
+	{
+		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
+		static CCaptureExceptionsHelperWithTransformer ms_EmptyTransformer;
+	};
+
+	extern CCaptureExceptionsHelper g_CaptureExceptions;
+
 	template <typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	struct TCFutureAwaiter;
 
 	struct CFutureCoroutineContext : public CCoroutineHandler
 	{
+		struct [[nodiscard("You need to capture the scope")]] CCaptureExceptionScope : public CCoroutineThreadLocalHandler
+		{
+			CCaptureExceptionScope(CFutureCoroutineContext *_pThis);
+			CCaptureExceptionScope(CCaptureExceptionScope &&_Other);
+			~CCaptureExceptionScope();
+			void f_Suspend() noexcept override;
+			void f_ResumeNoExcept() noexcept override;
+
+		private:
+			CFutureCoroutineContext *mp_pThis;
+			int mp_OriginalExceptions;
+		};
+
+		struct [[nodiscard("You need to capture the scope")]] CCaptureExceptionWithTransformerScope : public CCoroutineThreadLocalHandler
+		{
+			CCaptureExceptionWithTransformerScope
+				(
+					CFutureCoroutineContext *_pThis
+					, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer
+				)
+			;
+			CCaptureExceptionWithTransformerScope(CCaptureExceptionWithTransformerScope &&_Other);
+			~CCaptureExceptionWithTransformerScope();
+			void f_Suspend() noexcept override;
+			void f_ResumeNoExcept() noexcept override;
+
+		private:
+			CFutureCoroutineContext *mp_pThis;
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> mp_fTransformer;
+			int mp_OriginalExceptions;
+		};
+
+		struct CCaptureExceptionScopeAwaiter : public CSuspendNever
+		{
+			CCaptureExceptionScope await_resume() const noexcept;
+
+			CFutureCoroutineContext *m_pThis;
+		};
+
+		struct CCaptureExceptionScopeWithTransformerAwaiter : public CSuspendNever
+		{
+			CCaptureExceptionWithTransformerScope await_resume() noexcept;
+
+			CFutureCoroutineContext *m_pThis;
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
+		};
+
 		struct COnResumeScopeAwaiter : public CSuspendNever
 		{
 			COnResumeScopeAwaiter(COnResumeScopeAwaiter &&) = delete;
@@ -171,12 +235,12 @@ namespace NMib::NConcurrency
 			DMibFastCheck(m_Flags & ECoroutineFlag_UnsafeThisPointer); // You don't need to move this
 
 #if DMibEnableSafeCheck > 0
-			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_AllowReferences)) != ECoroutineFlag_None)
+			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions | ECoroutineFlag_AllowReferences)) != ECoroutineFlag_None)
 				m_Flags |= tf_Flags;
 			if (!(m_Flags & ECoroutineFlag_UnsafeReferenceParameters))
 				m_Flags |= ECoroutineFlag_AllowReferences;
 #else
-			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions)) != ECoroutineFlag_None)
+			if constexpr ((tf_Flags & (ECoroutineFlag_CaptureExceptions | ECoroutineFlag_CaptureMalterlibExceptions)) != ECoroutineFlag_None)
 				m_Flags |= tf_Flags;
 #endif
 #endif
@@ -190,6 +254,9 @@ namespace NMib::NConcurrency
 #endif
 			return {};
 		}
+
+		CCaptureExceptionScopeAwaiter await_transform(CCaptureExceptionsHelper);
+		CCaptureExceptionScopeWithTransformerAwaiter await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer);
 
 		TCFutureAwaiter<void, true, void *> await_transform(CAsyncDestroyHelper);
 		TCFutureAwaiter<void, false, void *> await_transform(CAsyncDestroyHelperNoWrap);
@@ -223,6 +290,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
+		NException::CExceptionPointer m_pSuspendDebugException;
 		static bool ms_bDebugCoroutineSafeCheck;
 #endif
 
@@ -232,6 +300,7 @@ namespace NMib::NConcurrency
 
 		inline_never void fp_CheckUnsafeReferenceParams();
 		inline_never void fp_CheckUnsafeThisPointer();
+		inline_never void fp_CheckCaptureExceptions() const;
 #endif
 	};
 }

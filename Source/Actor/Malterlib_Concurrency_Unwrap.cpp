@@ -52,25 +52,4 @@ namespace NMib::NConcurrency::NUnwrap
 		: m_fTransformer(fg_Move(_fTransformer))
 	{
 	}
-
-	CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, NStr::CStr const &_Message)
-	{
-		return CUnwrapHelperWithTransformer
-			(
-				[Message = _Message, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
-				{
-					auto pException = fPreviousTransformer(fg_Move(_pException));
-					try
-					{
-						std::rethrow_exception(pException);
-					}
-					catch (NException::CExceptionBase const &_Exception)
-					{
-						return NException::fg_ExceptionPointer(DMibErrorInstanceWrapped(NStr::fg_Format("{}: {}", Message, _Exception), fg_Move(pException), false));
-					}
-					return fg_Move(_pException);
-				}
-			)
-		;
-	}
 }

@@ -252,9 +252,17 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	namespace NUnwrap
-	{
-		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditor const &_Auditor);
-		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditorWithError const &_Auditor);
-	}
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CDistributedAppAuditor const &_Auditor
+		)
+	;
+
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CDistributedAppAuditorWithError const &_Auditor
+		)
+	;
 }

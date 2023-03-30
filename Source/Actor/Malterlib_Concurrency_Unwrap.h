@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "Malterlib_Concurrency_ExceptionTransform.h"
+
 namespace NMib::NConcurrency::NUnwrap
 {
 	struct CUnwrapHelperWithTransformer;

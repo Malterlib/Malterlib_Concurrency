@@ -5,6 +5,7 @@
 
 #include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_Coroutine.h"
+#include "Malterlib_Concurrency_ExceptionTransform.h"
 #include "Malterlib_Concurrency_WeakActor.h"
 #include <Mib/Core/CoroutineFlags>
 

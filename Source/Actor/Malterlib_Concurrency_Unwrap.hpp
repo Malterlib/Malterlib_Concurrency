@@ -441,5 +441,15 @@ namespace NMib::NConcurrency::NUnwrap
 		return fg_Unwrap(fg_Forward<tf_CData>(_ToUnwrap), _Helper.m_fTransformer);
 	}
 
-	CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, NStr::CStr const &_Message);
+	template <typename tf_CTransformerParam>
+	CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, tf_CTransformerParam &&_Param)
+	{
+		return CUnwrapHelperWithTransformer(fg_ExceptionTransformer(fg_TempCopy(_Helper.m_fTransformer), fg_Forward<tf_CTransformerParam>(_Param)));
+	}
+
+	template <typename tf_CTransformerParam>
+	CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer &&_Helper, tf_CTransformerParam &&_Param)
+	{
+		return CUnwrapHelperWithTransformer(fg_ExceptionTransformer(fg_Move(_Helper.m_fTransformer), fg_Forward<tf_CTransformerParam>(_Param)));
+	}
 }

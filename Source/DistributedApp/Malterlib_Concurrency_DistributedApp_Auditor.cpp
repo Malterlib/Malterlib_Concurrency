@@ -270,34 +270,39 @@ namespace NMib::NConcurrency
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category, CDistributedAppAuditExtraData_AccessDenied{.m_Permissions = Permissions}));
 	}
 
-	namespace NUnwrap
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CDistributedAppAuditor const &_Auditor
+		)
 	{
-		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditor const &_Auditor)
-		{
-			return CUnwrapHelperWithTransformer
-				(
-					[_Auditor, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
-					{
-						auto pException = fPreviousTransformer(fg_Move(_pException));
-						_Auditor.f_Error(NException::fg_ExceptionString(pException));
-						return fg_Move(_pException);
-					}
-				)
-			;
-		}
+		return [_Auditor, fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+			{
+				auto pException = fPreviousTransformer(fg_Move(_pException));
+				if (!pException)
+					return nullptr;
 
-		CUnwrapHelperWithTransformer operator % (CUnwrapHelperWithTransformer const &_Helper, CDistributedAppAuditorWithError const &_Auditor)
-		{
-			return CUnwrapHelperWithTransformer
-				(
-					[_Auditor, fPreviousTransformer = _Helper.m_fTransformer](NException::CExceptionPointer &&_pException)
-					{
-						auto pException = fPreviousTransformer(fg_Move(_pException));
-						_Auditor.m_Auditor.f_Error(_Auditor.f_InternalError(NException::fg_ExceptionString(pException)));
-						return NException::fg_ExceptionPointer(DMibErrorInstance(_Auditor.m_UserError));
-					}
-				)
-			;
-		}
+				_Auditor.f_Error(NException::fg_ExceptionString(pException));
+				return fg_Move(pException);
+			}
+		;
+	}
+
+	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+		(
+			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			, CDistributedAppAuditorWithError const &_Auditor
+		)
+	{
+		return [_Auditor, fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+			{
+				auto pException = fPreviousTransformer(fg_Move(_pException));
+				if (!pException)
+					return nullptr;
+				
+				_Auditor.m_Auditor.f_Error(_Auditor.f_InternalError(NException::fg_ExceptionString(pException)));
+				return NException::fg_MakeException(DMibErrorInstance(_Auditor.m_UserError));
+			}
+		;
 	}
 }

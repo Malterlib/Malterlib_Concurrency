@@ -1048,7 +1048,7 @@ namespace NMib::NConcurrency
 						auto &CoroutineContext = _Handle.promise();
 						CCurrentActorScope CurrentActorScope(fg_ThisActor(pRealActor));
 						bool bAborted = false;
-						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 						if (!bAborted)
 							_Handle.resume();
 					}

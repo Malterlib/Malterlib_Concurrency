@@ -550,7 +550,7 @@ namespace NMib::NConcurrency
 		~CCallingHostInfoScope();
 		void f_Suspend() noexcept override;
 		void f_ResumeNoExcept() noexcept override;
-		NFunction::TCFunctionMovable<void (bool _bException) noexcept> f_StoreState(bool _bFromSuspend) override;
+		NFunction::TCFunctionMovable<void () noexcept> f_StoreState(bool _bFromSuspend) override;
 		void f_InitialSuspend() override;
 
 	private:

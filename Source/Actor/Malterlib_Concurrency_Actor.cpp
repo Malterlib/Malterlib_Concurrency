@@ -205,12 +205,12 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> CReportLocalState::f_RestoreCallStates()
+	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CReportLocalState::f_RestoreCallStates()
 	{
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> Return = fg_Move(m_RestoreStates);
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> Return = fg_Move(m_RestoreStates);
 
 		for (auto &fRestoreState : Return)
-			fRestoreState(false);
+			fRestoreState();
 
 		return Return;
 	}

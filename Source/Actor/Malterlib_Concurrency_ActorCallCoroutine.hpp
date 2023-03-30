@@ -31,6 +31,16 @@ namespace NMib::NConcurrency
 		, ECoroutineAwaiterResult_Set = DMibBit(1)
 	};
 
+	template <typename tf_FExceptionTransform>
+	auto fg_TransformException(NException::CExceptionPointer &&_pException, tf_FExceptionTransform &_fExceptionTransform)
+	{
+		NException::CDisableExceptionTraceScope DisableExceptionTrace;
+		if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, void *>::mc_Value)
+			return fg_Move(_pException);
+		else
+			return _fExceptionTransform(fg_Move(_pException));
+	}
+
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
 	template <typename tf_CCoroutineContext>
 	bool TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
@@ -63,8 +73,17 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
+					if constexpr (t_bUnwrap)
+					{
+						if (!mp_Result)
+						{
+							CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+							return;
+						}
+					}
+
 					bool bAborted = false;
-					auto RestoreStates = CoroutineContext.f_Resume(bAborted, !mp_Result);
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 					if (!bAborted)
 						_Handle.resume();
 				}
@@ -72,33 +91,31 @@ namespace NMib::NConcurrency
 		;
 
 		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
+		{
+			if constexpr (t_bUnwrap)
+			{
+				if (!mp_Result)
+				{
+					CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+					return true;
+				}
+			}
+
 			return false;
+		}
 
 		CoroutineContext.f_Suspend(true);
 		return true;
 	}
 
-	void fg_ThrowExceptionCallingAsyncResult(NException::CExceptionPointer &&_Exception);
-
-	template <typename tf_CType, typename tf_FExceptionTransform>
-	auto fg_UnwrapCoroutineAsyncResult(TCAsyncResult<tf_CType> &&_AsyncResult, tf_FExceptionTransform &_fExceptionTransform)
-	{
-		if (!_AsyncResult)
-		{
-			NException::CDisableExceptionTraceScope DisableExceptionTrace;
-			if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, void *>::mc_Value)
-				fg_ThrowExceptionCallingAsyncResult(fg_Move(_AsyncResult).f_GetException());
-			else
-				fg_ThrowExceptionCallingAsyncResult(_fExceptionTransform(fg_Move(_AsyncResult).f_GetException()));
-		}
-		return fg_Move(*_AsyncResult);
-	}
-
 	template <typename t_CActorCall, typename t_CReturnType, bool t_bUnwrap, typename t_FExceptionTransform>
-	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume() noexcept(!t_bUnwrap)
+	auto TCActorCallAwaiter<t_CActorCall, t_CReturnType, t_bUnwrap, t_FExceptionTransform>::await_resume() noexcept
 	{
 		if constexpr (t_bUnwrap)
-			return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
+		{
+			DMibFastCheck(mp_Result);
+			return fg_Move(*mp_Result);
+		}
 		else
 		{
 			if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
@@ -172,53 +189,36 @@ namespace NMib::NConcurrency
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
 	template <mint... tfp_Indices>
-	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_Unwrap
-		(
-			CUnwrappedType &o_Results
-			, NException::CExceptionExceptionVectorData::CErrorCollector &o_ErrorCollector
-			, NMeta::TCIndices<tfp_Indices...>
-		)
+	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_Unwrap(NMeta::TCIndices<tfp_Indices...>) -> CUnwrappedType
 	{
-		bool bSuccess = true;
-		TCInitializerList<bool> Dummy =
-			{
-				[&]
-				{
-					auto &SourceResult = fg_Get<tfp_Indices>(mp_Results);
-					if (!SourceResult)
-					{
-						bSuccess = false;
-						o_ErrorCollector.f_AddError(SourceResult.f_GetException());
-					}
-					else
-						fg_Get<tfp_Indices>(o_Results) = fg_Move(*SourceResult);
-					return false;
-				}
-				()...
-			}
-		;
-		(void)Dummy;
-		return bSuccess;
+		return {fg_Move(*fg_Get<tfp_Indices>(mp_Results))...};
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
 	template <mint... tfp_Indices>
-	bool TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_HasException(NMeta::TCIndices<tfp_Indices...>)
+	NException::CExceptionPointer TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::fp_HasException(NMeta::TCIndices<tfp_Indices...>)
 	{
+		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
-		TCInitializerList<bool> Dummy =
+		(
+			... || [&]
 			{
-				[&]
+				auto &SourceResult = fg_Get<tfp_Indices>(mp_Results);
+				if (!SourceResult)
 				{
-					if (!fg_Get<tfp_Indices>(mp_Results))
-						bSuccess = false;
-					return false;
+					bSuccess = false;
+					ErrorCollector.f_AddError(SourceResult.f_GetException());
 				}
-				()...
+
+				return false;
 			}
-		;
-		(void)Dummy;
-		return !bSuccess;
+			()
+		);
+
+		if (bSuccess)
+			return {};
+		else
+			return fg_Move(ErrorCollector).f_GetException();
 	}
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CCalls>
@@ -275,8 +275,18 @@ namespace NMib::NConcurrency
 						return;
 
 					auto &CoroutineContext = _Handle.promise();
+
+					if constexpr (t_bUnwrap)
+					{
+						if (auto pException = fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()))
+						{
+							CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(pException), mp_fExceptionTransform));
+							return;
+						}
+					}
+
 					bool bAborted = false;
-					auto RestoreStates = CoroutineContext.f_Resume(bAborted, fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()));
+					auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 					if (!bAborted)
 						_Handle.resume();
 				}
@@ -286,7 +296,18 @@ namespace NMib::NConcurrency
 		;
 
 		if (mp_ResultAvailable.f_FetchOr(ECoroutineAwaiterResult_Observed) & ECoroutineAwaiterResult_Set)
+		{
+			if constexpr (t_bUnwrap)
+			{
+				if (auto pException = fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()))
+				{
+					CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(pException), mp_fExceptionTransform));
+					return true;
+				}
+			}
+
 			return false;
+		}
 
 		CoroutineContext.f_Suspend(true);
 		return true;
@@ -296,29 +317,7 @@ namespace NMib::NConcurrency
 	auto TCActorCallPackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CCalls...>::await_resume() noexcept(!t_bUnwrap)
 	{
 		if constexpr (t_bUnwrap)
-		{
-			CUnwrappedType Results;
-			NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
-
-			if
-				(
-					!fp_Unwrap
-					(
-						Results
-						, ErrorCollector
-						, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType()
-					)
-				)
-			{
-				NException::CDisableExceptionTraceScope DisableExceptionTrace;
-				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)
-					fg_ThrowExceptionCallingAsyncResult(fg_Move(ErrorCollector).f_GetException());
-				else
-					fg_ThrowExceptionCallingAsyncResult(mp_fExceptionTransform(fg_Move(ErrorCollector).f_GetException()));
-			}
-
-			return Results;
-		}
+			return fp_Unwrap(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CCalls)>::CType());
 		else
 		{
 			if constexpr (!NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)

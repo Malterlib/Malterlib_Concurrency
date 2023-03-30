@@ -85,10 +85,6 @@ namespace NMib::NConcurrency
 		return TCFutureForwardThis<tf_CThis const &, tf_Flags>(_This);
 	}
 
-	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer const &_Exception);
-	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
-	void fg_UnwrapCoroutineWrapperAppendable(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
-	void fg_UnwrapCoroutineWrapperAppendableWrapperOnly(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception);
 #ifdef DMibNeedDebugException
 	bool fg_IsDebugException(NException::CExceptionPointer const &_pException);
 #endif
@@ -199,6 +195,8 @@ namespace NMib::NConcurrency
 		TCFutureAwaiter<void, false, void *> await_transform(CAsyncDestroyHelperNoWrap);
 		COnResumeScopeAwaiter &&await_transform(COnResumeScopeAwaiter &&_Awaiter);
 
+		void unhandled_exception();
+
 		void f_HandleAwaitedException(NException::CExceptionPointer &&_pException);
 
 		template <typename t_CAwaitable>
@@ -212,7 +210,7 @@ namespace NMib::NConcurrency
 			noexcept
 #endif
 		;
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_Resume(bool &o_bAborted, bool _bException);
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_Resume(bool &o_bAborted);
 		virtual void f_Abort() = 0;
 		virtual void f_SetExceptionResult(NException::CExceptionPointer &&_pException) = 0;
 		virtual bool f_IsException() = 0;
@@ -221,7 +219,7 @@ namespace NMib::NConcurrency
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException) noexcept>> m_RestoreScopes;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void () noexcept>> m_RestoreScopes;
 		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
@@ -323,7 +321,6 @@ namespace NMib::NConcurrency::NPrivate
 		bool f_IsException() override;
 
 		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();
-		void unhandled_exception();
 
 #if DMibEnableSafeCheck > 0
 		void f_SetOwner(TCWeakActor<> const &_CoroutineOwner);

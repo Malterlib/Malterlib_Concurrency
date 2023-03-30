@@ -121,13 +121,20 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_FeedException(NStream::CBinaryStreamDefault &_Stream, NException::CExceptionPointer const &_pException)
 	{
 		NException::CDisableExceptionTraceScope DisableTrace;
-		try
+		if
+			(
+				!NException::fg_VisitException<NException::CExceptionBase>
+				(
+					_pException
+					, [&](NException::CExceptionBase const &_Exception)
+					{
+						fg_FeedException(_Stream, _Exception);
+					}
+				)
+			)
 		{
-			std::rethrow_exception(_pException);
-		}
-		catch (NException::CException const &_Exception)
-		{
-			return fg_FeedException(_Stream, _Exception);
+			// Unknow exception cannot be streamed
+			DMibPDebugBreak;
 		}
 	}
 }

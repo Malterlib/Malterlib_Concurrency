@@ -88,10 +88,7 @@ namespace NMib::NConcurrency::NPrivate
 			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
-		{
-			fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
-			this->m_pPromiseData->m_bPendingResult = true;
-		}
+			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Can only return exceptions from generators");
 #endif
@@ -215,7 +212,7 @@ namespace NMib::NConcurrency::NPrivate
 		 #endif
 							auto &CoroutineContext = CoroutineHandle.promise();
 							bool bAborted = false;
-							auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+							auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 							if (!bAborted)
 								CoroutineHandle.resume();
 						}

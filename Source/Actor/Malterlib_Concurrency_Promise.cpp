@@ -122,6 +122,26 @@ namespace NMib::NConcurrency
 		return CFutureCoroutineContext::COnResumeScopeAwaiter(fg_Move(_fOnResume));
 	}
 
+	void CFutureCoroutineContext::unhandled_exception()
+	{
+		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
+			f_SetExceptionResult(NException::fg_CurrentException());
+		else
+		{
+			auto pException = NException::fg_CurrentException();
+#ifdef DMibNeedDebugException
+			if (fg_IsDebugException(pException))
+			{
+				f_SetExceptionResult(fg_Move(pException));
+				return;
+			}
+#endif
+
+			// All other exceptions falls through and crashes the application
+			std::rethrow_exception(fg_Move(pException));
+		}
+	}
+
 	void CFutureCoroutineContext::f_HandleAwaitedException(NException::CExceptionPointer &&_pException)
 	{
 		f_SetExceptionResult(fg_Move(_pException));

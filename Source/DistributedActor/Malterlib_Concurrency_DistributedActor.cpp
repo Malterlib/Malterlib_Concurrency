@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	NFunction::TCFunctionMovable<void (bool _bException) noexcept> CCallingHostInfoScope::f_StoreState(bool _bFromSuspend)
+	NFunction::TCFunctionMovable<void () noexcept> CCallingHostInfoScope::f_StoreState(bool _bFromSuspend)
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		if (ThreadLocal.m_pCurrentCallingHostInfoScope != this)
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 #endif
 		};
 
-		return [State = CState{ThreadLocal.m_CallingHostInfo}](bool _bException) mutable noexcept
+		return [State = CState{ThreadLocal.m_CallingHostInfo}]() mutable noexcept
 			{
 				DMibFastCheck(!State.m_Scope);
 #if DMibEnableSafeCheck > 0

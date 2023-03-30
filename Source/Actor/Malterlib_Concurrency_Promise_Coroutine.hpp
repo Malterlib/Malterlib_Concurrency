@@ -77,10 +77,7 @@ namespace NMib::NConcurrency::NPrivate
 			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
-		{
-			fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
-			this->m_pPromiseData->m_bPendingResult = true;
-		}
+			this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 #endif
@@ -119,10 +116,7 @@ namespace NMib::NConcurrency::NPrivate
 				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 			}
 			else
-			{
-				fg_UnwrapCoroutineWrapper(this->m_pPromiseData->m_Result, fg_Forward<tf_CReturnType>(_Value));
-				this->m_pPromiseData->m_bPendingResult = true;
-			}
+				this->m_pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
 #endif
 	}
@@ -164,21 +158,6 @@ namespace NMib::NConcurrency::NPrivate
 	mark_no_coroutine_debug TCFuture<t_CReturnType> TCFutureCoroutineContextShared<t_CReturnType>::get_return_object()
 	{
 		return TCFuture<t_CReturnType>(fp_GetReturnObject());
-	}
-
-	template <typename t_CReturnType>
-	void TCFutureCoroutineContextShared<t_CReturnType>::unhandled_exception()
-	{
-		if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
-		{
-			fg_UnwrapCoroutineWrapperAppendable(this->m_pPromiseData->m_Result, NException::fg_CurrentException());
-			this->m_pPromiseData->m_bPendingResult = true;
-		}
-		else
-		{
-			fg_UnwrapCoroutineWrapperAppendableWrapperOnly(this->m_pPromiseData->m_Result, NException::fg_CurrentException());
-			this->m_pPromiseData->m_bPendingResult = true;
-		}
 	}
 
 	template <typename t_CReturnType>
@@ -350,7 +329,13 @@ namespace NMib::NConcurrency
 			{
 				auto Future = fg_Move(mp_Future);
 				mp_Result = Future.f_MoveResult();
-				return true;
+				if constexpr (t_bUnwrap)
+				{
+					if (mp_Result)
+						return true;
+				}
+				else
+					return true;
 			}
 			return false;
 		}
@@ -362,6 +347,16 @@ namespace NMib::NConcurrency
 			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
 
 			auto &CoroutineContext = _Handle.promise();
+
+			if constexpr (t_bUnwrap)
+			{
+				if (mp_Result.f_IsSet())
+				{
+					DMibFastCheck(!mp_Result);
+					CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+					return true;
+				}
+			}
 
 			auto Future = fg_Move(mp_Future);
 			if
@@ -384,10 +379,24 @@ namespace NMib::NConcurrency
 											return; // Can happen when f_Suspend throws
 #endif
 										auto &CoroutineContext = _Handle.promise();
+										if constexpr (t_bUnwrap)
+										{
+											if (!Result)
+											{
+												CoroutineContext.f_HandleAwaitedException
+													(
+														fg_TransformException(fg_Move(Result).f_GetException(), mp_fExceptionTransform)
+													)
+												;
+												return;
+											}
+										}
+
 										mp_Result = fg_Move(Result);
+
 										CCurrentActorScope CurrentActorScope(fg_ThisActor(pRealActor));
 										bool bAborted = false;
-										auto RestoreStates = CoroutineContext.f_Resume(bAborted, !mp_Result);
+										auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 										if (!bAborted)
 											_Handle.resume();
 									}
@@ -398,6 +407,16 @@ namespace NMib::NConcurrency
 				)
 			{
 				mp_Result = Future.f_MoveResult();
+
+				if constexpr (t_bUnwrap)
+				{
+					if (!mp_Result)
+					{
+						CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+						return true;
+					}
+				}
+
 				return false;
 			}
 
@@ -405,10 +424,13 @@ namespace NMib::NConcurrency
 			return true;
 		}
 
-		auto await_resume() noexcept(!t_bUnwrap)
+		auto await_resume() noexcept
 		{
 			if constexpr (t_bUnwrap)
-				return fg_UnwrapCoroutineAsyncResult(fg_Move(mp_Result), mp_fExceptionTransform);
+			{
+				DMibFastCheck(mp_Result);
+				return fg_Move(*mp_Result);
+			}
 			else
 			{
 				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, void *>::mc_Value)

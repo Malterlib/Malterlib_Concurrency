@@ -414,16 +414,10 @@ namespace NMib::NConcurrency
 		void fp_ActorCall(tf_CResultFunctor &&_ResultFunctor, TCActor<> &&_ResultActor, NMeta::TCIndices<tfp_Indices...>);
 
 		template <mint... tfp_Indices>
-		bool fp_Unwrap
-			(
-				CUnwrappedType &o_Results
-				, NException::CExceptionExceptionVectorData::CErrorCollector &o_ErrorCollector
-				, NMeta::TCIndices<tfp_Indices...>
-			)
-		;
+		CUnwrappedType fp_Unwrap(NMeta::TCIndices<tfp_Indices...>);
 
 		template <mint... tfp_Indices>
-		bool fp_HasException(NMeta::TCIndices<tfp_Indices...>);
+		NException::CExceptionPointer fp_HasException(NMeta::TCIndices<tfp_Indices...>);
 
 		template <mint... tfp_Indices>
 		void fp_TransformExceptions(CWrappedType &o_Results, NMeta::TCIndices<tfp_Indices...>);
@@ -668,7 +662,7 @@ namespace NMib::NConcurrency
 		bool await_ready() const noexcept;
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle);
-		auto await_resume() noexcept(!t_bUnwrap);
+		auto await_resume() noexcept;
 
 	private:
 		t_CActorCall mp_ActorCall;
@@ -1147,9 +1141,9 @@ namespace NMib::NConcurrency
 		CReportLocalState();
 		~CReportLocalState();
 		void f_StoreCallStates();
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_RestoreCallStates();
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> f_RestoreCallStates();
 
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> m_RestoreStates;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> m_RestoreStates;
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks m_Callstacks;
 #endif

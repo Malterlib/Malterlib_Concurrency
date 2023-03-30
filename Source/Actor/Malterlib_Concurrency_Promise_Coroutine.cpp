@@ -144,7 +144,7 @@ namespace NMib::NConcurrency
 #endif
 	}
 
-	NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> CFutureCoroutineContext::f_Resume(bool &o_bAborted, bool _bException)
+	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CFutureCoroutineContext::f_Resume(bool &o_bAborted)
 	{
 		auto &ThreadLocal = **g_SystemThreadLocal;
 
@@ -179,90 +179,9 @@ namespace NMib::NConcurrency
 		auto RestoreScopes = fg_Move(m_RestoreScopes);
 
 		for (auto &fRestoreScope : RestoreScopes)
-			fRestoreScope(_bException);
+			fRestoreScope();
 
 		return RestoreScopes;
-	}
-
-	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer const &_Exception)
-	{
-		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
-			(
-				_Exception
-				, [&](NException::CExceptionCoroutineWrapper const &_Exception)
-				{
-					o_Result.f_SetException(_Exception.f_GetSpecific().m_pException);
-				}
-			)
-		;
-
-		if (!bHandled)
-			o_Result.f_SetException(_Exception);
-	}
-
-	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception)
-	{
-		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
-			(
-				_Exception
-				, [&](NException::CExceptionCoroutineWrapper &&_Exception)
-				{
-					o_Result.f_SetException(fg_Move(_Exception.f_GetSpecific().m_pException));
-				}
-			)
-		;
-
-		if (!bHandled)
-			o_Result.f_SetException(fg_Move(_Exception));
-	}
-
-	void fg_UnwrapCoroutineWrapperAppendable(CAsyncResult &o_Result, NException::CExceptionPointer &&_Exception)
-	{
-		bool bHandled = NException::fg_VisitException<NException::CExceptionCoroutineWrapper>
-			(
-				_Exception
-				, [&](NException::CExceptionCoroutineWrapper &&_Exception)
-				{
-					o_Result.f_SetExceptionAppendable(fg_Move(_Exception.f_GetSpecific().m_pException));
-				}
-			)
-		;
-
-		if (!bHandled)
-			o_Result.f_SetExceptionAppendable(fg_Move(_Exception));
-	}
-
-	void fg_UnwrapCoroutineWrapperAppendableWrapperOnly(CAsyncResult &o_Result, NException::CExceptionPointer &&_pException)
-	{
-		bool bHandled = NException::fg_VisitException
-			<
-				NException::CExceptionCoroutineWrapper
-#ifdef DMibNeedDebugException
-				, NException::CDebugException
-#endif
-			>
-			(
-				_pException
-				, [&]<typename tf_CException>(tf_CException &&_Exception)
-				{
-#ifdef DMibNeedDebugException
-					using CExceptionType = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType;
-					if constexpr (NTraits::TCIsSame<CExceptionType, NException::CDebugException>::mc_Value)
-					{
-						o_Result.f_SetExceptionAppendable(fg_Move(_pException));
-					}
-					else
-#endif
-					{
-						o_Result.f_SetExceptionAppendable(fg_Move(_Exception.f_GetSpecific().m_pException));
-					}
-				}
-			)
-		;
-
-		// All other exceptionss falls through and crashes the application
-		if (!bHandled)
-			std::rethrow_exception(fg_Move(_pException));
 	}
 
 #ifdef DMibNeedDebugException

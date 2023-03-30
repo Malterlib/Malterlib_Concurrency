@@ -904,7 +904,7 @@ namespace NMib::NConcurrency
 						CoroutineContext.f_SetOwner(ProcessingActor.f_Weak());
 #endif
 						bool bAborted = false;
-						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 						if (!bAborted)
 							_Handle.resume();
 					}
@@ -961,7 +961,7 @@ namespace NMib::NConcurrency
 						CoroutineContext.m_AsyncGeneratorOwner = ProcessingActor;
 						CCurrentActorScope CurrentActorScope(ProcessingActor);
 						bool bAborted = false;
-						auto RestoreStates = CoroutineContext.f_Resume(bAborted, false);
+						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
 						if (!bAborted)
 							_Handle.resume();
 					}

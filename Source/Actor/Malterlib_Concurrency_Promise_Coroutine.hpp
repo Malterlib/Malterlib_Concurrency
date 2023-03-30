@@ -65,7 +65,7 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+		else if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
 		{
 			static_assert
 				(
@@ -95,7 +95,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
 				|| NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value
-				|| NException::TCIsExcption<CReturnNoReference>::mc_Value
+				|| NException::TCIsException<CReturnNoReference>::mc_Value
 				|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
 				, "You can only return exceptions, async results or promises"
 			)
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency::NPrivate
 			this->m_pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 		{
-			if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+			if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
 			{
 				static_assert
 					(

@@ -76,7 +76,7 @@ namespace NMib::NConcurrency::NPrivate
 #ifndef DMibClangAnalyzerWorkaround
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 
-		if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+		if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
 		{
 			static_assert
 				(
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency::NPrivate
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
 			this->m_pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NException::TCIsExcption<CReturnNoReference>::mc_Value)
+		else if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");

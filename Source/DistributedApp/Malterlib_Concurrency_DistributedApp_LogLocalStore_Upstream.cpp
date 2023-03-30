@@ -35,23 +35,28 @@ namespace NMib::NConcurrency
 		CLogReporter *pLogReporter;
 		CRemoteLogReporterInterface *pLogInterface;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				if (m_pThis->f_IsDestroyed())
-					DMibError("Shutting down");
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					if (m_pThis->f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
 
-				pLog = m_Logs.f_FindEqual(_LogInfoKey);
-				if (!pLog)
-					DMibError("Aborted");
+					pLog = m_Logs.f_FindEqual(_LogInfoKey);
+					if (!pLog)
+						return DMibErrorInstance("Aborted");
 
-				pLogReporter = pLog->m_LogReporters.f_FindEqual(_WeakActor);
-				if (!pLogReporter)
-					DMibError("Aborted");
+					pLogReporter = pLog->m_LogReporters.f_FindEqual(_WeakActor);
+					if (!pLogReporter)
+						return DMibErrorInstance("Aborted");
 
-				pLogInterface = m_LogInterfaces.f_FindEqual(_WeakActor);
-				if (!pLogInterface)
-					DMibError("Aborted");
-			}
+					pLogInterface = m_LogInterfaces.f_FindEqual(_WeakActor);
+					if (!pLogInterface)
+						return DMibErrorInstance("Aborted");
+
+					return {};
+				}
+			)
 		;
 
 		auto SequenceSubscription = co_await pLogReporter->m_WriteSequencer.f_Sequence();

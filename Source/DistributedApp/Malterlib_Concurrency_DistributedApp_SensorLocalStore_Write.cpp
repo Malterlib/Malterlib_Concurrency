@@ -100,12 +100,16 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey)
 	{
 		CInternal::CSensor *pSensor = nullptr;
-		auto OnResume = g_OnResume / [&]
-			{
-				pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
-				if (!pSensor)
-					DMibError("Sensor removed");
-			}
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+					if (!pSensor)
+						return DMibErrorInstance("Sensor removed");
+					return {};
+				}
+			)
 		;
 
 		if (--pSensor->m_ActiveRefCount == 0)
@@ -208,17 +212,22 @@ namespace NMib::NConcurrency
 
 		auto *pSensor = &*SensorMap;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				auto &Internal = *mp_pInternal;
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					auto &Internal = *mp_pInternal;
 
-				if (f_IsDestroyed())
-					DMibError("Shutting down");
+					if (f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
 
-				pSensor = Internal.m_Sensors.f_FindEqual(SensorInfoKey);
-				if (!pSensor)
-					DMibError("Aborted");
-			}
+					pSensor = Internal.m_Sensors.f_FindEqual(SensorInfoKey);
+					if (!pSensor)
+						return DMibErrorInstance("Aborted");
+
+					return {};
+				}
+			)
 		;
 
 		bool bWasCreated = SensorMap.f_WasCreated();

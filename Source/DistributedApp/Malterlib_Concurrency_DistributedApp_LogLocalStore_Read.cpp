@@ -208,10 +208,14 @@ namespace NMib::NConcurrency
 
 			NTime::CCyclesClock YieldClock(true);
 
-			auto OnResume = g_OnResume / [&]
-				{
-					YieldClock.f_Start();
-				}
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> CExceptionPointer
+					{
+						YieldClock.f_Start();
+						return {};
+					}
+				)
 			;
 
 			mint nBytesInBatch = 0;

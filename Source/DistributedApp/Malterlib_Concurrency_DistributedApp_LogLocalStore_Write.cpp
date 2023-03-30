@@ -102,12 +102,16 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey)
 	{
 		CInternal::CLog *pLog = nullptr;
-		auto OnResume = g_OnResume / [&]
-			{
-				pLog = m_Logs.f_FindEqual(_LogInfoKey);
-				if (!pLog)
-					DMibError("Log removed");
-			}
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					pLog = m_Logs.f_FindEqual(_LogInfoKey);
+					if (!pLog)
+						return DMibErrorInstance("Log removed");
+					return {};
+				}
+			)
 		;
 
 		if (--pLog->m_ActiveRefCount == 0)
@@ -315,17 +319,22 @@ namespace NMib::NConcurrency
 
 		auto *pLog = &*LogMap;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				auto &Internal = *mp_pInternal;
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					auto &Internal = *mp_pInternal;
 
-				if (f_IsDestroyed())
-					DMibError("Shutting down");
+					if (f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
 
-				pLog = Internal.m_Logs.f_FindEqual(LogInfoKey);
-				if (!pLog)
-					DMibError("Aborted");
-			}
+					pLog = Internal.m_Logs.f_FindEqual(LogInfoKey);
+					if (!pLog)
+						return DMibErrorInstance("Aborted");
+
+					return {};
+				}
+			)
 		;
 
 		bool bWasCreated = LogMap.f_WasCreated();

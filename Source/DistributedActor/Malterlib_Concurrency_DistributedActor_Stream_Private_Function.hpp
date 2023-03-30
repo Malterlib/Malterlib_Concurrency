@@ -401,6 +401,11 @@ namespace NMib::NConcurrency
 				return Return.f_MoveFuture();
 			}
 		};
+
+		template <typename t_CReturn, typename ...tp_CParams>
+		struct TCStreamingFunctionHelper<t_CReturn (tp_CParams...) noexcept> : public TCStreamingFunctionHelper<t_CReturn (tp_CParams...)>
+		{
+		};
 	}
 
 	template <typename ...tf_CFunctionOptions>

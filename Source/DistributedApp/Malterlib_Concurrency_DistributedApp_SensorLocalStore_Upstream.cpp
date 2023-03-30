@@ -35,23 +35,28 @@ namespace NMib::NConcurrency
 		CSensorReporter *pSensorReporter;
 		CRemoteSensorReporterInterface *pSensorInterface;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				if (m_pThis->f_IsDestroyed())
-					DMibError("Shutting down");
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					if (m_pThis->f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
 
-				pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
-				if (!pSensor)
-					DMibError("Aborted");
+					pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+					if (!pSensor)
+						return DMibErrorInstance("Aborted");
 
-				pSensorReporter = pSensor->m_SensorReporters.f_FindEqual(_WeakActor);
-				if (!pSensorReporter)
-					DMibError("Aborted");
+					pSensorReporter = pSensor->m_SensorReporters.f_FindEqual(_WeakActor);
+					if (!pSensorReporter)
+						return DMibErrorInstance("Aborted");
 
-				pSensorInterface = m_SensorInterfaces.f_FindEqual(_WeakActor);
-				if (!pSensorInterface)
-					DMibError("Aborted");
-			}
+					pSensorInterface = m_SensorInterfaces.f_FindEqual(_WeakActor);
+					if (!pSensorInterface)
+						return DMibErrorInstance("Aborted");
+
+					return {};
+				}
+			)
 		;
 
 		auto SequenceSubscription = co_await pSensorReporter->m_WriteSequencer.f_Sequence();

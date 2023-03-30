@@ -156,48 +156,32 @@ namespace NMib::NConcurrency
 		ThreadLocal.m_pCurrentCoroutineHandler = this;
 
 		auto iHandler = this->m_ThreadLocalHandlers.f_GetIterator();
-		try
+		for (; iHandler; ++iHandler)
 		{
-			for (; iHandler; ++iHandler)
-				iHandler->f_Resume();
+			auto pException = iHandler->f_Resume();
+			if (pException)
+			{
+				if (iHandler)
+					--iHandler;
+				for (; iHandler; --iHandler)
+					iHandler->f_Suspend();
 
-			auto RestoreScopes = fg_Move(m_RestoreScopes);
+				f_SetExceptionResult(fg_Move(pException));
 
-			for (auto &fRestoreScope : RestoreScopes)
-				fRestoreScope(_bException);
+				f_Abort();
 
-			return RestoreScopes;
+				o_bAborted = true;
+
+				return {};
+			}
 		}
-		catch (NException::CExceptionCoroutineWrapper &_WrappedException) // When a co_await returns an exception
-		{
-			if (iHandler)
-				--iHandler;
-			for (; iHandler; --iHandler)
-				iHandler->f_Suspend();
 
-			f_ResumeException(fg_Move(_WrappedException.f_GetSpecific().m_pException));
+		auto RestoreScopes = fg_Move(m_RestoreScopes);
 
-			f_Abort();
+		for (auto &fRestoreScope : RestoreScopes)
+			fRestoreScope(_bException);
 
-			o_bAborted = true;
-
-			return {};
-		}
-		catch (...)
-		{
-			if (iHandler)
-				--iHandler;
-			for (; iHandler; --iHandler)
-				iHandler->f_Suspend();
-
-			f_ResumeException(NException::fg_CurrentException());
-
-			f_Abort();
-
-			o_bAborted = true;
-			
-			return {};
-		}
+		return RestoreScopes;
 	}
 
 	void fg_UnwrapCoroutineWrapper(CAsyncResult &o_Result, NException::CExceptionPointer const &_Exception)

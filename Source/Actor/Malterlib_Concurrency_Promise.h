@@ -33,6 +33,8 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency
 {
+	struct CCoroutineOnResumeScope;
+
 	template <typename t_CThis, ECoroutineFlag t_Flags = ECoroutineFlag_None>
 	struct TCFutureForwardThis
 	{
@@ -112,6 +114,37 @@ namespace NMib::NConcurrency
 
 	struct CFutureCoroutineContext : public CCoroutineHandler
 	{
+		struct COnResumeScopeAwaiter : public CSuspendNever
+		{
+			COnResumeScopeAwaiter(COnResumeScopeAwaiter &&) = delete;
+			COnResumeScopeAwaiter(COnResumeScopeAwaiter const &) = delete;
+			~COnResumeScopeAwaiter()
+#if DMibEnableSafeCheck > 0
+				noexcept(false)
+#endif
+			;
+
+			constexpr bool await_ready() const noexcept
+			{
+				return false;
+			}
+
+			bool await_suspend(TCCoroutineHandle<> &&_Handle);
+			CCoroutineOnResumeScope await_resume() noexcept;
+
+		private:
+			friend struct CFutureCoroutineContext;
+			friend COnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
+
+			COnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
+
+			NFunction::TCFunctionMovable<NException::CExceptionPointer ()> mp_fOnResume;
+			CFutureCoroutineContext *mp_pThis = nullptr;
+#if DMibEnableSafeCheck > 0
+			bool mp_bAwaited = false;
+#endif
+		};
+
 		CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept;
 		~CFutureCoroutineContext() noexcept;
 
@@ -164,6 +197,9 @@ namespace NMib::NConcurrency
 
 		TCFutureAwaiter<void, true, void *> await_transform(CAsyncDestroyHelper);
 		TCFutureAwaiter<void, false, void *> await_transform(CAsyncDestroyHelperNoWrap);
+		COnResumeScopeAwaiter &&await_transform(COnResumeScopeAwaiter &&_Awaiter);
+
+		void f_HandleAwaitedException(NException::CExceptionPointer &&_pException);
 
 		template <typename t_CAwaitable>
 		decltype(auto) await_transform(t_CAwaitable &&_Awaitable)
@@ -178,14 +214,14 @@ namespace NMib::NConcurrency
 		;
 		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> f_Resume(bool &o_bAborted, bool _bException);
 		virtual void f_Abort() = 0;
-		virtual void f_ResumeException(NException::CExceptionPointer &&_pException) = 0;
+		virtual void f_SetExceptionResult(NException::CExceptionPointer &&_pException) = 0;
 		virtual bool f_IsException() = 0;
 
 		CCoroutineHandler *m_pPreviousCoroutineHandler = this;
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
 
 		DMibListLinkDS_Link(CFutureCoroutineContext, m_Link);
-		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException)>> m_RestoreScopes;
+		NContainer::TCVector<NFunction::TCFunctionMovable<void (bool _bException) noexcept>> m_RestoreScopes;
 		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 #if DMibEnableSafeCheck > 0
 		bool m_bIsCalledSafely = false;
@@ -283,7 +319,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCFutureCoroutineKeepAlive<t_CReturnType> f_KeepAlive(TCActor<> &&_Actor);
 		TCFutureCoroutineKeepAliveImplicit<t_CReturnType> f_KeepAliveImplicit();
 		void f_Abort() override;
-		void f_ResumeException(NException::CExceptionPointer &&_pException) override;
+		void f_SetExceptionResult(NException::CExceptionPointer &&_pException) override;
 		bool f_IsException() override;
 
 		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();
@@ -715,29 +751,27 @@ namespace NMib::NConcurrency
 
 	extern CFutureMakeHelper g_Future;
 
-	struct CCoroutineOnSuspendScope final : public CCoroutineThreadLocalHandler
+	struct [[nodiscard("You should store the on suspend scope")]] CCoroutineOnSuspendScope final : public CCoroutineThreadLocalHandler
 	{
 		CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend);
 		~CCoroutineOnSuspendScope();
-		void f_Suspend() override;
-		void f_Resume() override;
+		void f_Suspend() noexcept override;
+		void f_ResumeNoExcept() noexcept override;
 		void operator ()();
 
 	private:
 		NFunction::TCFunctionMovable<void ()> m_fOnSuspend;
 	};
 
-	struct CCoroutineOnResumeScope final : public CCoroutineThreadLocalHandler
+	struct [[nodiscard("You should store the on resume scope")]] CCoroutineOnResumeScope final : public CCoroutineThreadLocalHandler
 	{
-		CCoroutineOnResumeScope(NFunction::TCFunctionMovable<void ()> &&_fOnResume);
+		CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
 		~CCoroutineOnResumeScope();
-		void f_Suspend() override;
-		void f_Resume() override;
-
-		void operator ()();
+		void f_Suspend() noexcept override;
+		NException::CExceptionPointer f_Resume() noexcept override;
 
 	private:
-		NFunction::TCFunctionMovable<void ()> m_fOnResume;
+		NFunction::TCFunctionMovable<NException::CExceptionPointer ()> mp_fOnResume;
 	};
 
 	struct CCoroutineOnSuspendHelper
@@ -745,13 +779,8 @@ namespace NMib::NConcurrency
 		CCoroutineOnSuspendScope operator / (NFunction::TCFunctionMovable<void ()> &&_fOnSuspend) const;
 	};
 
-	struct CCoroutineOnResumeHelper
-	{
-		CCoroutineOnResumeScope operator / (NFunction::TCFunctionMovable<void ()> &&_fOnResume) const;
-	};
-
 	extern CCoroutineOnSuspendHelper g_OnSuspend;
-	extern CCoroutineOnResumeHelper g_OnResume;
+	CFutureCoroutineContext::COnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume);
 }
 
 namespace NMib::NFunction

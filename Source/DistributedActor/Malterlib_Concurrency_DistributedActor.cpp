@@ -168,7 +168,7 @@ namespace NMib::NConcurrency
 		ThreadLocal.m_pCurrentCallingHostInfoScope = mp_pPrevScope;
 	}
 
-	void CCallingHostInfoScope::f_Suspend()
+	void CCallingHostInfoScope::f_Suspend() noexcept
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		ThreadLocal.m_CallingHostInfo = fg_Move(mp_PrevInfo);
@@ -176,9 +176,9 @@ namespace NMib::NConcurrency
 		CCrossActorCallStateScope::f_Suspend();
 	}
 
-	void CCallingHostInfoScope::f_Resume()
+	void CCallingHostInfoScope::f_ResumeNoExcept() noexcept
 	{
-		CCrossActorCallStateScope::f_Resume();
+		CCrossActorCallStateScope::f_ResumeNoExcept();
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		mp_PrevInfo = fg_Move(ThreadLocal.m_CallingHostInfo);
 		mp_pPrevScope = ThreadLocal.m_pCurrentCallingHostInfoScope;
@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	NFunction::TCFunctionMovable<void (bool _bException)> CCallingHostInfoScope::f_StoreState(bool _bFromSuspend)
+	NFunction::TCFunctionMovable<void (bool _bException) noexcept> CCallingHostInfoScope::f_StoreState(bool _bFromSuspend)
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
 		if (ThreadLocal.m_pCurrentCallingHostInfoScope != this)
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 #endif
 		};
 
-		return [State = CState{ThreadLocal.m_CallingHostInfo}](bool _bException) mutable
+		return [State = CState{ThreadLocal.m_CallingHostInfo}](bool _bException) mutable noexcept
 			{
 				DMibFastCheck(!State.m_Scope);
 #if DMibEnableSafeCheck > 0

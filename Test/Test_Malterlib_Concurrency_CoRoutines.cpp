@@ -920,6 +920,46 @@ namespace NMib::NConcurrency::NTest
 			co_return {};
 		}
 
+		TCFuture<void> f_TestOnResumeException(bool _bThrowInitial)
+		{
+			bool bThrow = _bThrowInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> NException::CExceptionPointer
+					{
+						if (bThrow)
+							return DMibErrorInstance("Aborted");
+						return {};
+					}
+				)
+			;
+			bThrow = !_bThrowInitial;
+			co_await fg_Timeout(0.001);
+
+			co_return {};
+		}
+
+		TCFuture<void> f_TestOnResumeExceptionNoSuspend(bool _bThrowInitial)
+		{
+			bool bThrow = _bThrowInitial;
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> NException::CExceptionPointer
+					{
+						if (bThrow)
+							return DMibErrorInstance("Aborted");
+						return {};
+					}
+				)
+			;
+			bThrow = !_bThrowInitial;
+			TCPromise<void> Promise;
+			Promise.f_SetResult();
+			co_await Promise.f_Future();
+
+			co_return {};
+		}
+
 		TCActor<CTestActor2> m_TestActor = fg_Construct();
 		TCPromise<void> m_WaitForCleanupScopeExit;
 		TCPromise<uint32> m_WaitForResultCallToFinish;
@@ -1534,6 +1574,79 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
+		void f_TestOnResume()
+		{
+			DMibTestSuite("OnResume")
+			{
+				DMibTestCategory("General")
+				{
+					TCActor<CTestActor> TestActor(fg_Construct());
+
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeException, false).f_CallSync(), DMibErrorInstance("Aborted"));
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeException, true).f_CallSync(), DMibErrorInstance("Aborted"));
+
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionNoSuspend, false).f_CallSync());
+					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeExceptionNoSuspend, true).f_CallSync(), DMibErrorInstance("Aborted"));
+				};
+#if DMibEnableSafeCheck > 0
+				DMibTestCategory("Require co_await") -> TCFuture<void>
+				{
+					auto Result = co_await fg_CallSafe
+						(
+							[]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureExceptions;
+
+								auto OnResume = fg_OnResume
+									(
+										[&]() -> NException::CExceptionPointer
+										{
+											return {};
+										}
+									)
+								;
+
+								co_return {};
+							}
+						)
+						.f_Wrap();
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstanceSafeCheck("fg_Exchange(mp_bAwaited, true) 'You forgot to co_await the on resume'"));
+					co_return {};
+				};
+				DMibTestCategory("Require co_await double exception") -> TCFuture<void>
+				{
+					auto Result = co_await fg_CallSafe
+						(
+							[]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureExceptions;
+
+								auto OnResume = fg_OnResume
+									(
+										[&]() -> NException::CExceptionPointer
+										{
+											return {};
+										}
+									)
+								;
+
+								co_return DMibErrorInstance("Test");
+
+								co_return {};
+							}
+						)
+						.f_Wrap();
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstanceExceptionVector("Test\nfg_Exchange(mp_bAwaited, true) 'You forgot to co_await the on resume'", {}));
+					co_return {};
+				};
+#endif
+			};
+		}
+
 		void f_DoTests()
 		{
 #if DMibEnableSafeCheck > 0
@@ -1549,6 +1662,7 @@ namespace NMib::NConcurrency::NTest
 			f_TestAuditor();
 			f_TestDestroy();
 			f_TestAsyncDestroy();
+			f_TestOnResume();
 		}
 	};
 

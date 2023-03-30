@@ -14,11 +14,11 @@
 \subsection p_Malterlib_Concurrency_Coroutines_Helpers_OnResume On resume
 
  To help with checking preconditions that need to be checked after every resumption point in the coroutine
- you can use `g_OnResume` to check the preconditions.
+ you can use `fg_OnResume` to check the preconditions.
 
- Any exception you throw in this functor is forwarded as the error result for the coroutine.
+ Any exception you return from this functor is forwarded as the error result for the coroutine.
 
- The functor is run once in the constructor so preconditions are checked at once.
+ The functor is run when awaited so preconditions are checked at once.
 
 ~~~
 struct CMyActor : public CActor
@@ -29,15 +29,20 @@ struct CMyActor : public CActor
 	{
 		CDependency *pDependency = nullptr;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				if (f_IsDestroyed())
-					DError("Shutting down");
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> CExceptionPointer
+				{
+					if (f_IsDestroyed())
+						return DErrorInstance("Shutting down");
 
-				pDependency = mp_Dependencies.f_FindEqual(_Name);
-				if (!pDependency)
-					DError("Dependency no longer exists");
-			}
+					pDependency = mp_Dependencies.f_FindEqual(_Name);
+					if (!pDependency)
+						return DErrorInstance("Dependency no longer exists");
+
+					return {};
+				}
+			)
 		;
 
 		// Here you can trust that pDependency is valid as OnResume is run once on construction

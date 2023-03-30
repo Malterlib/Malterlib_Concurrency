@@ -18,16 +18,21 @@ namespace NMib::NConcurrency
 
 		TCActor<CDistributedAppLogStoreLocal> AppLogStoreLocal;
 
-		auto OnResume = g_OnResume / [&]
-			{
-				if (f_IsDestroyed())
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
 				{
-					if (AppLogStoreLocal)
-						fg_Move(AppLogStoreLocal).f_Destroy() > fg_DiscardResult();
+					if (f_IsDestroyed())
+					{
+						if (AppLogStoreLocal)
+							fg_Move(AppLogStoreLocal).f_Destroy() > fg_DiscardResult();
 
-					DMibError("Shutting down");
+						return DMibErrorInstance("Shutting down");
+					}
+
+					return {};
 				}
-			}
+			)
 		;
 
 		auto InitSequenceSubscription = co_await Internal.m_AppLogStoreLocalInitSequencer.f_Sequence();
@@ -54,11 +59,15 @@ namespace NMib::NConcurrency
 				, g_ActorFunctor / [this](TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
-					auto OnResume = g_OnResume / [&]
-						{
-							if (f_IsDestroyed() || !Internal.m_AppLogStoreLocal)
-								DMibError("Shutting down");
-						}
+					auto OnResume = co_await fg_OnResume
+						(
+							[&]() -> NException::CExceptionPointer
+							{
+								if (f_IsDestroyed() || !Internal.m_AppLogStoreLocal)
+									return DMibErrorInstance("Shutting down");
+								return {};
+							}
+						)
 					;
 
 					auto SequenceSubscription = co_await Internal.m_AppLogStoreLocalAppServerChangeSequencer.f_Sequence();

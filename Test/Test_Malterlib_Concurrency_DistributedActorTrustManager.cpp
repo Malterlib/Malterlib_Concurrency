@@ -1837,11 +1837,15 @@ namespace NTestTrustManager
 						(
 							[&, pExited]() -> TCFuture<void>
 							{
-								auto OnResume = g_OnResume / [&]
-									{
-										if (*pExited)
-											DMibError("Aborted");
-									}
+								auto OnResume = co_await fg_OnResume
+									(
+										[&]() -> NException::CExceptionPointer
+										{
+											if (*pExited)
+												return DMibErrorInstance("Aborted");
+											return {};
+										}
+									)
 								;
 
 								co_await TrustedSubscription0.f_OnActor

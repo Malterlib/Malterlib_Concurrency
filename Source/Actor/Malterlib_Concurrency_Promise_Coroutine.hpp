@@ -259,7 +259,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
-	void TCFutureCoroutineContextShared<t_CReturnType>::f_ResumeException(NException::CExceptionPointer &&_pException)
+	void TCFutureCoroutineContextShared<t_CReturnType>::f_SetExceptionResult(NException::CExceptionPointer &&_pException)
 	{
 		this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_pException));
 	}

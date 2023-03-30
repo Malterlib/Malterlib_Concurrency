@@ -190,10 +190,14 @@ namespace NMib::NConcurrency
 		if (!pNamespace)
 			co_return {};
 
-		auto OnResume = g_OnResume / [&]
-			{
-				pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
-			}
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
+				{
+					pNamespace = Internal.m_Namespaces.f_FindEqual(_Namespace);
+					return {};
+				}
+			)
 		;
 
 		NContainer::TCSet<NStr::CStr> HostsRemoved;

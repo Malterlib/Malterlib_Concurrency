@@ -100,11 +100,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams)
 	{
-		auto OnResume = g_OnResume / [&]
-			{
-				if (f_IsDestroyed())
-					DMibError("Shutting down");
-			}
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
+				{
+					if (f_IsDestroyed())
+						return DMibErrorInstance("Shutting down");
+					return {};
+				}
+			)
 		;
 
 		auto &Internal = *mp_pInternal;
@@ -435,16 +439,21 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 		fp_CleanupOldExecutables();
 #endif
-		auto OnResume = g_OnResume / [&]
-			{
-				if (mp_State.m_bStoppingApp)
+		auto OnResume = co_await fg_OnResume
+			(
+				[&]() -> NException::CExceptionPointer
 				{
-					if (mp_Settings.m_bSeparateDistributionManager)
-						mp_State.m_DistributionManager.f_Destroy() > fg_DiscardResult();
+					if (mp_State.m_bStoppingApp)
+					{
+						if (mp_Settings.m_bSeparateDistributionManager)
+							mp_State.m_DistributionManager.f_Destroy() > fg_DiscardResult();
 
-					DMibError("Startup aborted");
+						return DMibErrorInstance("Startup aborted");
+					}
+
+					return {};
 				}
-			}
+			)
 		;
 
 		co_await (mp_State.m_StateDatabase.f_Load() + mp_State.m_ConfigDatabase.f_Load());

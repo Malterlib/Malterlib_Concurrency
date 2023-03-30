@@ -548,9 +548,9 @@ namespace NMib::NConcurrency
 		CCallingHostInfoScope(CCallingHostInfo &&_NewInfo, bool _bAddToCoroutine = true);
 		CCallingHostInfoScope(CCallingHostInfoScope &&_Other) = default;
 		~CCallingHostInfoScope();
-		void f_Suspend() override;
-		void f_Resume() override;
-		NFunction::TCFunctionMovable<void (bool _bException)> f_StoreState(bool _bFromSuspend) override;
+		void f_Suspend() noexcept override;
+		void f_ResumeNoExcept() noexcept override;
+		NFunction::TCFunctionMovable<void (bool _bException) noexcept> f_StoreState(bool _bFromSuspend) override;
 		void f_InitialSuspend() override;
 
 	private:

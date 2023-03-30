@@ -14,7 +14,6 @@ namespace NMib::NConcurrency
 {
 	constinit CFutureMakeHelper g_Future;
 	constinit CCoroutineOnSuspendHelper g_OnSuspend;
-	constinit CCoroutineOnResumeHelper g_OnResume;
 
 	CCoroutineOnSuspendScope::CCoroutineOnSuspendScope(NFunction::TCFunctionMovable<void ()> &&_fOnSuspend)
 		: m_fOnSuspend(fg_Move(_fOnSuspend))
@@ -25,12 +24,12 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CCoroutineOnSuspendScope::f_Suspend()
+	void CCoroutineOnSuspendScope::f_Suspend() noexcept
 	{
 		m_fOnSuspend();
 	}
 
-	void CCoroutineOnSuspendScope::f_Resume()
+	void CCoroutineOnSuspendScope::f_ResumeNoExcept() noexcept
 	{
 	}
 
@@ -39,8 +38,8 @@ namespace NMib::NConcurrency
 		m_fOnSuspend();
 	}
 
-	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<void ()> &&_fOnResume)
-		: m_fOnResume(fg_Move(_fOnResume))
+	CCoroutineOnResumeScope::CCoroutineOnResumeScope(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+		: mp_fOnResume(fg_Move(_fOnResume))
 	{
 	}
 
@@ -48,18 +47,13 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void CCoroutineOnResumeScope::f_Suspend()
+	void CCoroutineOnResumeScope::f_Suspend() noexcept
 	{
 	}
 
-	void CCoroutineOnResumeScope::f_Resume()
+	NException::CExceptionPointer CCoroutineOnResumeScope::f_Resume() noexcept
 	{
-		m_fOnResume();
-	}
-
-	void CCoroutineOnResumeScope::operator ()()
-	{
-		m_fOnResume();
+		return mp_fOnResume();
 	}
 
 	CCoroutineOnSuspendScope CCoroutineOnSuspendHelper::operator / (NFunction::TCFunctionMovable<void ()> &&_fOnSuspend) const
@@ -67,18 +61,71 @@ namespace NMib::NConcurrency
 		return CCoroutineOnSuspendScope(fg_Move(_fOnSuspend));
 	}
 
-	CCoroutineOnResumeScope CCoroutineOnResumeHelper::operator / (NFunction::TCFunctionMovable<void ()> &&_fOnResume) const
+	CCoroutineOnResumeScope CFutureCoroutineContext::COnResumeScopeAwaiter::await_resume() noexcept
 	{
-		try
+		return CCoroutineOnResumeScope(fg_Move(mp_fOnResume));
+	}
+
+	bool CFutureCoroutineContext::COnResumeScopeAwaiter::await_suspend(TCCoroutineHandle<> &&_Handle)
+	{
+		DMibFastCheck(fg_CurrentActor());
+		DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
+
+		auto pException = mp_fOnResume();
+		if (pException)
 		{
-			NException::CDisableExceptionTraceScope DisableTrace;
-			_fOnResume();
+			mp_pThis->f_SetExceptionResult(fg_Move(pException));
+			mp_pThis->f_Abort();
+			return true;
 		}
-		catch (...)
-		{
-			DMibErrorCoroutineWrapper("Exception on initial 'on resume'", NException::fg_CurrentException());
-		}
-		return CCoroutineOnResumeScope(fg_Move(_fOnResume));
+
+		return false;
+	}
+
+	CFutureCoroutineContext::COnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(COnResumeScopeAwaiter &&_Awaiter)
+	{
+		_Awaiter.mp_pThis = this;
+#if DMibEnableSafeCheck > 0
+		_Awaiter.mp_bAwaited = true;
+#endif
+		return fg_Move(_Awaiter);
+	}
+
+	CFutureCoroutineContext::COnResumeScopeAwaiter::~COnResumeScopeAwaiter()
+#if DMibEnableSafeCheck > 0
+		noexcept(false)
+#endif
+	{
+		DMibSafeCheck(fg_Exchange(mp_bAwaited, true), "You forgot to co_await the on resume");
+		// Correct usage:
+		/*
+			auto OnResume = co_await fg_OnResume
+				(
+					[&]() -> CExceptionPointer
+					{
+						if (f_IsDestroyed())
+							return DMibErrorInstance("Shutting down");
+						return {};
+					}
+				)
+			;
+		*/
+	}
+
+	CFutureCoroutineContext::COnResumeScopeAwaiter::COnResumeScopeAwaiter(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+		: mp_fOnResume(fg_Move(_fOnResume))
+	{
+	}
+
+	CFutureCoroutineContext::COnResumeScopeAwaiter fg_OnResume(NFunction::TCFunctionMovable<NException::CExceptionPointer ()> &&_fOnResume)
+	{
+		return CFutureCoroutineContext::COnResumeScopeAwaiter(fg_Move(_fOnResume));
+	}
+
+	void CFutureCoroutineContext::f_HandleAwaitedException(NException::CExceptionPointer &&_pException)
+	{
+		f_SetExceptionResult(fg_Move(_pException));
+		f_Abort();
 	}
 }
 

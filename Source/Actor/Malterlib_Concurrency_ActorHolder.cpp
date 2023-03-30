@@ -184,8 +184,18 @@ namespace NMib::NConcurrency
 
 	bool CActorHolder::fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal)
 	{
+#if DMibEnableSafeCheck > 0
+		auto OriginalExceptions = NException::fg_UncaughtExceptions();
+#endif
 		if (auto *pJob = mp_ConcurrentRunQueue.f_FirstQueueEntry(mp_ConcurrentRunQueueLocal))
 		{
+#if DMibEnableSafeCheck > 0
+			auto Cleanup = g_OnScopeExit / [&]
+				{
+					DMibFastCheck(NException::fg_UncaughtExceptions() == OriginalExceptions); // Unwinding exceptions through queue processing is not supported
+				}
+			;
+#endif
 			if (fp_GetActorRelaxed() != nullptr)
 				(*pJob)();
 			mp_ConcurrentRunQueue.f_PopQueueEntry(pJob);

@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 	NException::CExceptionPointer CActor::fp_CheckDestroyed()
 	{
 		if (f_IsDestroyed())
-			return NException::fg_ExceptionPointer(DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Actor is being destroyed"));
+			return NException::fg_MakeException(DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Actor is being destroyed"));
 		return nullptr;
 	}
 

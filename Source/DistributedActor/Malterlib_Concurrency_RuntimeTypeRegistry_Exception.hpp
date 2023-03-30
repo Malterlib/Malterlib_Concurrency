@@ -125,7 +125,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
 
-		return NException::fg_ExceptionPointer(fg_Move(Exception));
+		return NException::fg_MakeException(fg_Move(Exception));
 	}
 
 	template <typename t_CException>
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
 
-		return NException::fg_ExceptionPointer(fg_Move(Exception));
+		return NException::fg_MakeException(fg_Move(Exception));
 	}
 
 	template <typename t_CException>
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto Exception = DMibImpExceptionInstance(t_CException, "");
 		_Stream >> Exception;
 
-		return NException::fg_ExceptionPointer(fg_Move(Exception));
+		return NException::fg_MakeException(fg_Move(Exception));
 	}
 
 	template <typename t_CException>

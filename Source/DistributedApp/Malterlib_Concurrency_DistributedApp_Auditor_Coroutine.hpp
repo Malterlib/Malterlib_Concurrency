@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 				, [Auditor = m_Auditor](NException::CExceptionPointer &&_pException)
 				{
 					Auditor.m_Auditor.f_Error(Auditor.f_InternalError(NException::fg_ExceptionString(_pException)));
-					return NException::fg_ExceptionPointer(DMibErrorInstance(Auditor.m_UserError));
+					return NException::fg_MakeException(DMibErrorInstance(Auditor.m_UserError));
 				}
 			)
 		;
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency
 				, [Auditor = m_pWrapped->m_Auditor](NException::CExceptionPointer &&_pException)
 				{
 					Auditor.m_Auditor.f_Error(Auditor.f_InternalError(NException::fg_ExceptionString(_pException)));
-					return NException::fg_ExceptionPointer(DMibErrorInstance(Auditor.m_UserError));
+					return NException::fg_MakeException(DMibErrorInstance(Auditor.m_UserError));
 				}
 			)
 		;
@@ -231,7 +231,7 @@ namespace NMib::NConcurrency
 				, [Auditor = m_Auditor, Error = m_Future.m_Error](NException::CExceptionPointer &&_pException)
 				{
 					Auditor.m_Auditor.f_Exception(Auditor.f_InternalError(NStr::fg_Format("{}: {}", Error, NException::fg_ExceptionString(_pException))));
-					return NException::fg_ExceptionPointer(DMibErrorInstance(Auditor.m_UserError));
+					return NException::fg_MakeException(DMibErrorInstance(Auditor.m_UserError));
 				}
 			)
 		;
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency
 				, [Auditor = m_pWrapped->m_Auditor, Error = m_pWrapped->m_Future.m_Error](NException::CExceptionPointer &&_pException)
 				{
 					Auditor.m_Auditor.f_Exception(Auditor.f_InternalError(NStr::fg_Format("{}: {}", Error, NException::fg_ExceptionString(_pException))));
-					return NException::fg_ExceptionPointer(DMibErrorInstance(Auditor.m_UserError));
+					return NException::fg_MakeException(DMibErrorInstance(Auditor.m_UserError));
 				}
 			)
 		;

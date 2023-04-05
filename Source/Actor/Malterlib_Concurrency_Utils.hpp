@@ -89,6 +89,20 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CKey, typename t_CValue>
+	TCUnsafeFuture<NContainer::TCMap<t_CKey, t_CValue>> TCActorResultMap<t_CKey, t_CValue>::f_GetUnwrappedResults()
+		requires(!NTraits::TCIsVoid<t_CValue>::mc_Value)
+	{
+		co_return co_await (co_await f_GetResults() | g_Unwrap);
+	}
+
+	template <typename t_CKey, typename t_CValue>
+	TCUnsafeFuture<NContainer::TCSet<t_CKey>> TCActorResultMap<t_CKey, t_CValue>::f_GetUnwrappedResults()
+		requires(NTraits::TCIsVoid<t_CValue>::mc_Value)
+	{
+		co_return co_await (co_await f_GetResults() | g_Unwrap);
+	}
+
+	template <typename t_CKey, typename t_CValue>
 	bool TCActorResultMap<t_CKey, t_CValue>::f_IsEmpty() const
 	{
 		auto &Internal = mp_Actor->f_AccessInternal();
@@ -1344,5 +1358,20 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
+	}
+
+	template <typename t_CType>
+	TCUnsafeFuture<NContainer::TCVector<t_CType>> TCActorResultVector<t_CType>::f_GetUnwrappedResults()
+		requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
+	{
+		co_return co_await (co_await f_GetResults() | g_Unwrap);
+	}
+
+	template <typename t_CType>
+	TCUnsafeFuture<void> TCActorResultVector<t_CType>::f_GetUnwrappedResults()
+		requires(NTraits::TCIsVoid<t_CType>::mc_Value)
+	{
+		co_await (co_await f_GetResults() | g_Unwrap);
+		co_return {};
 	}
 }

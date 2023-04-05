@@ -76,6 +76,12 @@ namespace NMib::NConcurrency
 		~TCActorResultVector();
 		TCActorResultCall<TCActor<NPrivate::CDirectResultActor>, CResultReceived> f_AddResult();
 		auto f_GetResults();
+		TCUnsafeFuture<NContainer::TCVector<t_CType>> f_GetUnwrappedResults()
+			requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
+		;
+		TCUnsafeFuture<void> f_GetUnwrappedResults()
+			requires(NTraits::TCIsVoid<t_CType>::mc_Value)
+		;
 		void f_SetLen(mint _DefinedSize);
 		bool f_IsEmpty() const;
 	};
@@ -212,6 +218,12 @@ namespace NMib::NConcurrency
 		template <typename tf_CKey>
 		TCActorResultCall<TCActor<CInternalActor>, CResultReceived> f_AddResult(tf_CKey &&_Key);
 		auto f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults));
+		TCUnsafeFuture<NContainer::TCMap<t_CKey, t_CValue>> f_GetUnwrappedResults()
+			requires(!NTraits::TCIsVoid<t_CValue>::mc_Value)
+		;
+		TCUnsafeFuture<NContainer::TCSet<t_CKey>> f_GetUnwrappedResults()
+			requires(NTraits::TCIsVoid<t_CValue>::mc_Value)
+		;
 		bool f_IsEmpty() const;
 	};
 

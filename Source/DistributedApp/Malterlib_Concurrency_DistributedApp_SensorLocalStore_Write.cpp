@@ -255,6 +255,8 @@ namespace NMib::NConcurrency
 							co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 							auto WriteTransaction = fg_Move(_Transaction);
+							if (_bCompacting)
+								WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
 
 							NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
 							DatabaseSensorInfo.m_Info = _SensorInfo;

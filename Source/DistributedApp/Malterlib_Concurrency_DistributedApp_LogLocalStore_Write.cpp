@@ -360,7 +360,11 @@ namespace NMib::NConcurrency
 						{
 							co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
+							auto &Internal = *mp_pInternal;
+
 							auto WriteTransaction = fg_Move(_Transaction);
+							if (_bCompacting)
+								WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
 
 							NLogStoreLocalDatabase::CLogValue DatabaseLogInfo;
 							DatabaseLogInfo.m_Info = _LogInfo;

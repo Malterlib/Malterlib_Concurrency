@@ -166,10 +166,14 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		CSensorGlobalStateKey GlobalStateKey{.m_Prefix = m_Prefix};
+		CSensorGlobalStateValue GlobalStateValue;
 		{
 			auto CaptureScope = co_await (g_CaptureExceptions % "Error reading sensor data from database (f_Start)");
 
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
+
+			ReadTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
 
 			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 			{
@@ -186,6 +190,62 @@ namespace NMib::NConcurrency
 						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
 				}
 			}
+		}
+
+		if (!GlobalStateValue.m_bConvertedKnownHosts)
+		{
+			co_await m_Database
+				(
+					&CDatabaseActor::f_WriteWithCompaction
+					, g_ActorFunctorWeak / [=]
+					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+					{
+						co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+						auto WriteTransaction = fg_Move(_Transaction);
+						if (_bCompacting)
+							WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+						CSensorGlobalStateValue GlobalStateValue;
+						WriteTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
+
+						if (GlobalStateValue.m_bConvertedKnownHosts)
+							co_return fg_Move(WriteTransaction);
+
+						for (auto iSensor = WriteTransaction.m_Transaction.f_ReadCursor(m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
+						{
+							auto Key = iSensor.f_Key<CSensorKey>();
+							auto Value = iSensor.f_Value<CSensorValue>();
+
+							CSensorKey ReadingKey = Key;
+							ReadingKey.m_Prefix = CSensorReadingKey::mc_Prefix;
+
+							auto iReading = WriteTransaction.m_Transaction.f_ReadCursor(ReadingKey);
+
+							if (!iReading.f_Last())
+								continue;
+
+							auto ReadingValue = iReading.f_Value<CSensorReadingValue>();
+
+							if (!Key.m_HostID)
+								continue;
+
+							CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = Key.m_HostID};
+
+							CKnownHostValue KnownHostValue;
+							_Transaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
+
+							KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, ReadingValue.m_Timestamp);
+							_Transaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+						}
+
+						GlobalStateValue.m_bConvertedKnownHosts = true;
+						WriteTransaction.m_Transaction.f_Upsert(GlobalStateKey, GlobalStateValue);
+
+						co_return fg_Move(WriteTransaction);
+					}
+				)
+			;
 		}
 
 		if (m_RetentionDays && !m_fCleanup)

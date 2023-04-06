@@ -181,6 +181,18 @@ namespace NMib::NConcurrency
 					else
 						f_Subscription_SensorInfoChanged(*pSensor);
 
+					if (DatabaseKey.m_HostID)
+					{
+						CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = DatabaseKey.m_HostID};
+
+						CKnownHostValue KnownHostValue;
+						WriteTransaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
+
+						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, pSensor->m_Info.m_LastSeen);
+
+						WriteTransaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+					}
+
 					CSensorValue DatabaseSensorInfo;
 					DatabaseSensorInfo.m_Info = pSensor->m_Info;
 					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;

@@ -9,6 +9,54 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 {
 	static constexpr uint32 gc_Version = CDistributedAppSensorReporter::EProtocolVersion_Current;
 
+	struct CSensorGlobalStateKey
+	{
+		template <typename tf_CStream>
+		void f_FeedLexicographic(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_ConsumeLexicographic(tf_CStream &_Stream);
+
+		auto operator <=>(CSensorGlobalStateKey const &_Right) const = default;
+
+		static NStr::CStr const mc_Prefix;
+
+		NStr::CStr m_DbPrefix;
+		NStr::CStr m_Prefix = mc_Prefix;
+	};
+
+	struct CSensorGlobalStateValue
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		bool m_bConvertedKnownHosts = false;
+	};
+
+	struct CKnownHostKey
+	{
+		template <typename tf_CStream>
+		void f_FeedLexicographic(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_ConsumeLexicographic(tf_CStream &_Stream);
+
+		auto operator <=>(CKnownHostKey const &_Right) const = default;
+
+		static NStr::CStr const mc_Prefix;
+
+		NStr::CStr m_DbPrefix;
+		NStr::CStr m_Prefix = mc_Prefix;
+		NStr::CStr m_HostID;
+	};
+
+	struct CKnownHostValue
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		NTime::CTime m_LastSeen;
+		bool m_bRemoved = false;
+	};
+
 	struct CSensorKey
 	{
 		template <typename tf_CStream>

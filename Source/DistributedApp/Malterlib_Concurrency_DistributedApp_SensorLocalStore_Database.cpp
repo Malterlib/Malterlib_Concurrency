@@ -8,9 +8,11 @@
 
 namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 {
+	constexpr NStr::CStr const CSensorGlobalStateKey::mc_Prefix = NStr::gc_Str<"SensorGlobal">;
 	constexpr NStr::CStr const CSensorKey::mc_Prefix = NStr::gc_Str<"Sensor">;
 	constexpr NStr::CStr const CSensorReadingKey::mc_Prefix = NStr::gc_Str<"SensorReading">;
 	constexpr NStr::CStr const CSensorReadingByTime::mc_Prefix = NStr::gc_Str<"SensorReadingByDate">;
+	constexpr NStr::CStr const CKnownHostKey::mc_Prefix = NStr::gc_Str<"SensorKnownHost">;
 
 	CSensorReadingKey CSensorReadingByTime::f_Key() const
 	{

@@ -29,8 +29,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
 			, EProtocolVersion_SensorStatusFilter = 0x103
 			, EProtocolVersion_MultipleFilters = 0x104
+			, EProtocolVersion_IgnoreRemoved = 0x105
 
-			, EProtocolVersion_Current = 0x104
+			, EProtocolVersion_Current = 0x105
 		};
 
 		enum ESensorDataType
@@ -242,6 +243,8 @@ namespace NMib::NConcurrency
 			fp32 m_ExpectedReportInterval = fp32::fs_Inf();
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
+			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
+			bool m_bRemoved = false;
 		};
 
 		struct CSensorReporter

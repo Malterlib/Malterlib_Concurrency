@@ -94,6 +94,13 @@ namespace NMib::NConcurrency
 		_Stream % m_ExpectedReportInterval;
 		_Stream % m_WarnValue;
 		_Stream % m_CriticalValue;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_IgnoreRemoved)
+		{
+			_Stream % m_LastSeen;
+			_Stream % m_bRemoved;
+		}
+		else if constexpr (tf_CStream::mc_bConsume)
+			m_LastSeen = NTime::CTime();
 	}
 
 	template <typename tf_CStream>
@@ -127,7 +134,9 @@ namespace NMib::NConcurrency
 				"    UnitDivisors: {}\n"
 				"    ExpectedReportInterval: {}\n"
 				"    WarnValue: {}\n"
-				"    CriticalValue: {}"
+				"    CriticalValue: {}\n"
+				"    LastSeen: {}\n"
+				"    Removed: {}"
 			)
 			<< m_HostID
 			<< m_HostName
@@ -140,6 +149,8 @@ namespace NMib::NConcurrency
 			<< m_ExpectedReportInterval
 			<< m_WarnValue
 			<< m_CriticalValue
+			<< m_LastSeen
+			<< (m_bRemoved ? "true" : "false")
 		;
 	}
 

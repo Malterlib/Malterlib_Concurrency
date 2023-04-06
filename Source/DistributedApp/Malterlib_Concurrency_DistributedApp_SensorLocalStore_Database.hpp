@@ -6,6 +6,55 @@
 namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 {
 	template <typename tf_CStream>
+	void CSensorGlobalStateKey::f_FeedLexicographic(tf_CStream &_Stream) const
+	{
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_DbPrefix);
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_Prefix);
+	}
+
+	template <typename tf_CStream>
+	void CSensorGlobalStateKey::f_ConsumeLexicographic(tf_CStream &_Stream)
+	{
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_DbPrefix);
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_Prefix);
+	}
+
+	template <typename tf_CStream>
+	void CSensorGlobalStateValue::f_Stream(tf_CStream &_Stream)
+	{
+		uint32 Version = gc_Version;
+		_Stream % Version;
+		DMibBinaryStreamVersion(_Stream, Version);
+		_Stream % m_bConvertedKnownHosts;
+	}
+
+	template <typename tf_CStream>
+	void CKnownHostKey::f_FeedLexicographic(tf_CStream &_Stream) const
+	{
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_DbPrefix);
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_Prefix);
+		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_HostID);
+	}
+
+	template <typename tf_CStream>
+	void CKnownHostKey::f_ConsumeLexicographic(tf_CStream &_Stream)
+	{
+		NDatabase::CDatabaseValue::fs_ConsumeLexicographic(_Stream, m_DbPrefix);
+		NDatabase::CDatabaseValue::fs_ConsumeLexicographic(_Stream, m_Prefix);
+		NDatabase::CDatabaseValue::fs_ConsumeLexicographic(_Stream, m_HostID);
+	}
+
+	template <typename tf_CStream>
+	void CKnownHostValue::f_Stream(tf_CStream &_Stream)
+	{
+		uint32 Version = gc_Version;
+		_Stream % Version;
+		DMibBinaryStreamVersion(_Stream, Version);
+		_Stream % m_LastSeen;
+		_Stream % m_bRemoved;
+	}
+
+	template <typename tf_CStream>
 	void CSensorKey::f_FeedLexicographic(tf_CStream &_Stream) const
 	{
 		NDatabase::CDatabaseValue::fs_FeedLexicographic(_Stream, m_DbPrefix);

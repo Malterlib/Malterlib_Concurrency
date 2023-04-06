@@ -56,6 +56,9 @@ namespace NMib::NConcurrency
 			-> TCFuture<CActorSubscription>
 		;
 
+		TCFuture<void> f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen);
+		TCFuture<void> f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs);
+
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 
 		struct CCleanupHelper

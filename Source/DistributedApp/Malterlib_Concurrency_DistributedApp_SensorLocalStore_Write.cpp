@@ -245,46 +245,10 @@ namespace NMib::NConcurrency
 			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_Info;
 
 			if (bWasChanged)
-			{
 				pSensor->m_Info = _SensorInfo;
 
-				auto Result = co_await Internal.m_Database
-					(
-						&CDatabaseActor::f_WriteWithCompaction
-						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorKey>(_SensorInfo)]
-						(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
-						{
-							co_await ECoroutineFlag_CaptureMalterlibExceptions;
-
-							auto WriteTransaction = fg_Move(_Transaction);
-							if (_bCompacting)
-								WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-
-							NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
-							DatabaseSensorInfo.m_Info = _SensorInfo;
-							DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
-
-							WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
-
-							co_return fg_Move(WriteTransaction);
-						}
-					)
-					.f_Wrap()
-				;
-
-				if (!Result)
-				{
-					DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Result.f_GetExceptionStr());
-					co_return DMibErrorInstance("Failed to store sensor in database, see log for error.");
-				}
-			}
-
 			if (bWasChanged || bWasAdded)
-			{
-				auto ChangeInfoResult = co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, bWasChanged || bWasAdded).f_Wrap();
-				if (!ChangeInfoResult)
-					DMibLogWithCategory(SensorLocalStore, Error, "Failed to add/change sensor info in upstream: {}", ChangeInfoResult.f_GetExceptionStr());
-			}
+				co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, bWasAdded || bWasCreated);
 		}
 
 		CDistributedAppSensorReporter::CSensorReporter Reporter;

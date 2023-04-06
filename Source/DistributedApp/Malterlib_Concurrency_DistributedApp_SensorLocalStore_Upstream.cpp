@@ -150,16 +150,60 @@ namespace NMib::NConcurrency
 		return "Failed to update sensor '{}' for reporter on host '{}'"_f << _Reporter.m_pSensor->f_GetKey() << _Reporter.m_pInterface->m_Actor->f_GetHostInfo().m_RealHostID;
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasCreated)
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasAdded)
 	{
-		auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+		auto Result = co_await m_Database
+			(
+				&CDatabaseActor::f_WriteWithCompaction
+				, g_ActorFunctorWeak / [=, DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey)]
+				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				{
+					co_await ECoroutineFlag_CaptureMalterlibExceptions;
+					auto WriteTransaction = fg_Move(_Transaction);
 
+					CSensor *pSensor;
+
+					auto OnResume = co_await fg_OnResume
+						(
+							[&]() -> CExceptionPointer
+							{
+								pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+								if (!pSensor)
+									return DMibErrorInstance("Sensor was removed");
+
+								return {};
+							}
+						)
+					;
+
+					if (_bCompacting)
+						WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+					CSensorValue DatabaseSensorInfo;
+					DatabaseSensorInfo.m_Info = pSensor->m_Info;
+					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
+
+					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
+
+					co_return fg_Move(WriteTransaction);
+				}
+			)
+			.f_Wrap()
+		;
+
+		if (!Result)
+		{
+			DMibLogWithCategory(SensorLocalStore, Critical, "Error saving sensor data to database: {}", Result.f_GetExceptionStr());
+			co_return DMibErrorInstance("Failed to store sensor in database, see log for error.");
+		}
+
+		auto pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 		if (!pSensor)
 			co_return {};
 
 		TCActorResultVector<void> Results;
 
-		if (_bWasCreated)
+		if (_bWasAdded)
 		{
 			for (auto &SensorInterface : m_SensorInterfaces)
 			{
@@ -181,7 +225,10 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		auto UpstreamResult = co_await Results.f_GetUnwrappedResults().f_Wrap();
+
+		if (!UpstreamResult)
+			DMibLogWithCategory(SensorLocalStore, Error, "Failed to add/change sensor info in upstream: {}", UpstreamResult.f_GetExceptionStr());
 
 		co_return {};
 	}

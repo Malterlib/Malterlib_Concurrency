@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
-		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasCreated);
+		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasAdded);
 		TCFuture<void> f_NewSensorReadings(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings);
 		TCFuture<void> f_StoreSensorReadings
 			(
@@ -101,8 +101,8 @@ namespace NMib::NConcurrency
 
 		CStr f_GetSensorUpdateFailedMessage(CSensorReporter const &_Reporter);
 
-		template <typename tf_CKey>
-		tf_CKey f_GetDatabaseKey(CDistributedAppSensorReporter::CSensorInfo const &_SensorInfo) const;
+		template <typename tf_CKey, typename tf_CInfoOrKey>
+		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const;
 
 		TCMap<TCWeakDistributedActor<CActor>, CRemoteSensorReporterInterface> m_SensorInterfaces;
 

@@ -175,6 +175,9 @@ namespace NMib::NConcurrency
 				if (auto pValue = _Params.f_GetMember("Identifier"))
 					Filter.m_Identifier = pValue->f_String();
 
+				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
+					Filter.m_IdentifierScope = pValue->f_String();
+
 				return Filter;
 			}
 		;
@@ -202,6 +205,7 @@ namespace NMib::NConcurrency
 						Option_SensorHostID
 						, Option_SensorApplication
 						, Option_SensorIdentifier
+						, Option_SensorIdentifierScope
 						, Option_Verbose
 						, Option_Json
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -234,6 +238,7 @@ namespace NMib::NConcurrency
 						Option_SensorHostID
 						, Option_SensorApplication
 						, Option_SensorIdentifier
+						, Option_SensorIdentifierScope
 						, Option_Verbose
 						, Option_Json
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -267,6 +272,7 @@ namespace NMib::NConcurrency
 						Option_SensorHostID
 						, Option_SensorApplication
 						, Option_SensorIdentifier
+						, Option_SensorIdentifierScope
 						, Option_Verbose
 						, Option_Json
 						, "MinTimestamp?"_=

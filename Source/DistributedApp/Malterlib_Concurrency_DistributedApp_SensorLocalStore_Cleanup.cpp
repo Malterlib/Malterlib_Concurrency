@@ -8,13 +8,15 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NSensorStoreLocalDatabase;
+
 	bool CDistributedAppSensorStoreLocal::CCleanupHelper::f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, CStr const &_Prefix, NTime::CTime &o_Time)
 	{
-		mp_iReadingByTime = _WriteTransaction.m_Transaction.f_WriteCursor(_Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
+		mp_iReadingByTime = _WriteTransaction.m_Transaction.f_WriteCursor(_Prefix, CSensorReadingByTime::mc_Prefix);
 
 		if (mp_iReadingByTime)
 		{
-			o_Time = mp_iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>().m_Timestamp;
+			o_Time = mp_iReadingByTime.f_Key<CSensorReadingByTime>().m_Timestamp;
 			return true;
 		}
 
@@ -26,7 +28,7 @@ namespace NMib::NConcurrency
 		if (!mp_iReadingByTime)
 			return {};
 
-		auto KeyByTime = mp_iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>();
+		auto KeyByTime = mp_iReadingByTime.f_Key<CSensorReadingByTime>();
 
 		auto Key = KeyByTime.f_Key();
 
@@ -37,7 +39,7 @@ namespace NMib::NConcurrency
 
 		if (mp_iReadingByTime)
 		{
-			o_Time = mp_iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>().m_Timestamp;
+			o_Time = mp_iReadingByTime.f_Key<CSensorReadingByTime>().m_Timestamp;
 			return true;
 		}
 
@@ -49,9 +51,9 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		for (auto &Sensor : Internal.m_Sensors)
 		{
-			auto DatabaseKey = Internal.f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorKey>(Sensor.m_SensorInfo);
+			auto DatabaseKey = Internal.f_GetDatabaseKey<CSensorKey>(Sensor.m_SensorInfo);
 
-			NSensorStoreLocalDatabase::CSensorValue DatabaseSensorInfo;
+			CSensorValue DatabaseSensorInfo;
 			DatabaseSensorInfo.m_Info = Sensor.m_SensorInfo;
 			DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = Sensor.m_LastSeenUniqueSequence;
 

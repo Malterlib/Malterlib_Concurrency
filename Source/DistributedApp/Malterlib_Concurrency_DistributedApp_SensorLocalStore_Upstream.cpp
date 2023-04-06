@@ -7,6 +7,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NSensorStoreLocalDatabase;
+
 	void CDistributedAppSensorStoreLocal::CInternal::f_ScheduleFailedRetry()
 	{
 		if (m_bScheduledFailedReportersRetry)
@@ -88,15 +90,15 @@ namespace NMib::NConcurrency
 		{
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			auto DatabaseKey = f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorReadingKey>(pSensor->m_SensorInfo);
+			auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(pSensor->m_SensorInfo);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
-			auto iSensorReading = ReadTransaction.m_Transaction.f_ReadCursor((NSensorStoreLocalDatabase::CSensorKey const &)DatabaseKey);
+			auto iSensorReading = ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
 			iSensorReading.f_FindLowerBound(DatabaseKey);
 
 			if (iSensorReading)
 			{
-				auto Key = iSensorReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>();
+				auto Key = iSensorReading.f_Key<CSensorReadingKey>();
 				if (Key.m_UniqueSequence == Reporter.m_LastSeenUniqueSequence)
 					++iSensorReading;
 			}
@@ -107,8 +109,8 @@ namespace NMib::NConcurrency
 
 			for (; iSensorReading; ++iSensorReading)
 			{
-				auto Key = iSensorReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>();
-				auto Value = iSensorReading.f_Value<NSensorStoreLocalDatabase::CSensorReadingValue>();
+				auto Key = iSensorReading.f_Key<CSensorReadingKey>();
+				auto Value = iSensorReading.f_Value<CSensorReadingValue>();
 
 				Batch.f_Insert(fg_Move(Value).f_Reading(Key));
 

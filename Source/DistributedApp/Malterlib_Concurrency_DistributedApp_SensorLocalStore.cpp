@@ -8,6 +8,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NSensorStoreLocalDatabase;
+
 	CDistributedAppSensorStoreLocal::CDistributedAppSensorStoreLocal
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
@@ -169,20 +171,20 @@ namespace NMib::NConcurrency
 
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
+			for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 			{
-				auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
-				auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
+				auto Key = iSensor.f_Key<CSensorKey>();
+				auto Value = iSensor.f_Value<CSensorValue>();
 
 				auto &Sensor = *m_Sensors(Key.f_SensorInfoKey(), CSensor{fg_Move(Value.m_Info)});
 
 				Sensor.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
 
 				{
-					auto DatabaseKey = f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorReadingKey>(Sensor.m_SensorInfo);
-					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((NSensorStoreLocalDatabase::CSensorKey const &)DatabaseKey);
+					auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(Sensor.m_SensorInfo);
+					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
 					if (ReadCursor.f_Last())
-						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
+						Sensor.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CSensorReadingKey>().m_UniqueSequence, Sensor.m_LastSeenUniqueSequence);
 				}
 			}
 		}

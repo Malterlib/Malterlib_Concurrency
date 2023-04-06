@@ -10,6 +10,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NSensorStoreLocalDatabase;
+
 	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
 	{
@@ -34,10 +36,10 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
 
-		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
-			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
-			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
+			auto Key = iSensor.f_Key<CSensorKey>();
+			auto Value = iSensor.f_Value<CSensorValue>();
 
 			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter))
 				continue;
@@ -88,7 +90,7 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
-		auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix);
+		auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CSensorReadingByTime::mc_Prefix);
 
 		bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
 
@@ -97,9 +99,9 @@ namespace NMib::NConcurrency
 			if (_Filter.m_MaxTimestamp)
 			{
 				if (_Filter.m_MaxSequence)
-					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
 				else
-					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
 
 				if (!iReadingByTime)
 					iReadingByTime.f_Last();
@@ -112,9 +114,9 @@ namespace NMib::NConcurrency
 			if (_Filter.m_MinTimestamp)
 			{
 				if (_Filter.m_MinSequence)
-					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
 				else
-					iReadingByTime.f_FindLowerBound(Prefix, NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
 			}
 		}
 
@@ -132,8 +134,8 @@ namespace NMib::NConcurrency
 
 		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 		{
-			NSensorStoreLocalDatabase::CSensorReadingValue Value;
-			auto KeyByTime = iReadingByTime.f_Key<NSensorStoreLocalDatabase::CSensorReadingByTime>();
+			CSensorReadingValue Value;
+			auto KeyByTime = iReadingByTime.f_Key<CSensorReadingByTime>();
 
 			if (bReportNewestFirst)
 			{
@@ -233,16 +235,16 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
-		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NSensorStoreLocalDatabase::CSensorKey::mc_Prefix); iSensor; ++iSensor)
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
-			auto Key = iSensor.f_Key<NSensorStoreLocalDatabase::CSensorKey>();
-			auto Value = iSensor.f_Value<NSensorStoreLocalDatabase::CSensorValue>();
+			auto Key = iSensor.f_Key<CSensorKey>();
+			auto Value = iSensor.f_Value<CSensorValue>();
 
 			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter.m_SensorFilter))
 				continue;
 
-			NSensorStoreLocalDatabase::CSensorKey ReadingKey = Key;
-			ReadingKey.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingKey::mc_Prefix;
+			CSensorKey ReadingKey = Key;
+			ReadingKey.m_Prefix = CSensorReadingKey::mc_Prefix;
 
 			auto iReading = ReadTransaction.m_Transaction.f_ReadCursor(ReadingKey);
 
@@ -254,7 +256,7 @@ namespace NMib::NConcurrency
 					CDistributedAppSensorReader_SensorKeyAndReading
 					{
 						fg_Move(Key).f_SensorInfoKey()
-						, fg_Move(iReading.f_Value<NSensorStoreLocalDatabase::CSensorReadingValue>().f_Reading(iReading.f_Key<NSensorStoreLocalDatabase::CSensorReadingKey>()))
+						, fg_Move(iReading.f_Value<CSensorReadingValue>().f_Reading(iReading.f_Key<CSensorReadingKey>()))
 					}
 				)
 			;

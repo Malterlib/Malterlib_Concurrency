@@ -7,10 +7,12 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NSensorStoreLocalDatabase;
+
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_StoreSensorReadings
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-			, NSensorStoreLocalDatabase::CSensorReadingKey const &_DatabaseKey
+			, CSensorReadingKey const &_DatabaseKey
 			, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
 		)
 	{
@@ -63,13 +65,13 @@ namespace NMib::NConcurrency
 						if (WriteTransaction.m_Transaction.f_Exists(DatabaseKey))
 							continue; // Already reported
 
-						NSensorStoreLocalDatabase::CSensorReadingValue Value;
+						CSensorReadingValue Value;
 						Value.m_Timestamp = Reading.m_Timestamp;
 						Value.m_Data = Reading.m_Data;
 
-						NSensorStoreLocalDatabase::CSensorReadingByTime ByTime;
+						CSensorReadingByTime ByTime;
 						ByTime.m_DbPrefix = DatabaseKey.m_DbPrefix;
-						ByTime.m_Prefix = NSensorStoreLocalDatabase::CSensorReadingByTime::mc_Prefix;
+						ByTime.m_Prefix = CSensorReadingByTime::mc_Prefix;
 						ByTime.m_Timestamp = Reading.m_Timestamp;
 						ByTime.m_UniqueSequence = DatabaseKey.m_UniqueSequence;
 
@@ -79,7 +81,7 @@ namespace NMib::NConcurrency
 						ByTime.m_IdentifierScope = DatabaseKey.m_IdentifierScope;
 
 						WriteTransaction.m_Transaction.f_Insert(DatabaseKey, Value);
-						WriteTransaction.m_Transaction.f_Insert(ByTime, NSensorStoreLocalDatabase::CSensorReadingByTimeValue());
+						WriteTransaction.m_Transaction.f_Insert(ByTime, CSensorReadingByTimeValue());
 					}
 
 					co_return fg_Move(WriteTransaction);
@@ -140,7 +142,7 @@ namespace NMib::NConcurrency
 	auto CDistributedAppSensorStoreLocal::CInternal::f_GetReportReadingsFunctor
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
-			, NSensorStoreLocalDatabase::CSensorReadingKey _DatabaseKey
+			, CSensorReadingKey _DatabaseKey
 		)
 		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings)>
 	{
@@ -287,7 +289,7 @@ namespace NMib::NConcurrency
 
 		CDistributedAppSensorReporter::CSensorReporter Reporter;
 		Reporter.m_LastSeenUniqueSequence = pSensor->m_LastSeenUniqueSequence;
-		Reporter.m_fReportReadings = Internal.f_GetReportReadingsFunctor(SensorInfoKey, Internal.f_GetDatabaseKey<NSensorStoreLocalDatabase::CSensorReadingKey>(_SensorInfo));
+		Reporter.m_fReportReadings = Internal.f_GetReportReadingsFunctor(SensorInfoKey, Internal.f_GetDatabaseKey<CSensorReadingKey>(_SensorInfo));
 
 		co_return fg_Move(Reporter);
 	}

@@ -344,7 +344,6 @@ namespace NMib::NConcurrency
 
 		if (!pLog->m_pCanDestroy)
 			pLog->m_pCanDestroy = fg_Construct();
-
 		{
 			auto SequenceSubscription = co_await pLog->m_LogSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
@@ -352,47 +351,10 @@ namespace NMib::NConcurrency
 			bool bWasChanged = bWasCreated || _LogInfo != pLog->m_Info;
 
 			if (bWasChanged)
-			{
 				pLog->m_Info = _LogInfo;
-				auto Result = co_await Internal.m_Database
-					(
-						&CDatabaseActor::f_WriteWithCompaction
-						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(_LogInfo)]
-						(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
-						{
-							co_await ECoroutineFlag_CaptureMalterlibExceptions;
-
-							auto &Internal = *mp_pInternal;
-
-							auto WriteTransaction = fg_Move(_Transaction);
-							if (_bCompacting)
-								WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-
-							CLogValue DatabaseLogInfo;
-							DatabaseLogInfo.m_Info = _LogInfo;
-							DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = pLog->m_LastSeenUniqueSequence;
-
-							WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseLogInfo);
-
-							co_return fg_Move(WriteTransaction);
-						}
-					)
-					.f_Wrap()
-				;
-
-				if (!Result)
-				{
-					DMibLogWithCategory(LogLocalStore, Critical, "Error saving log data to database: {}", Result.f_GetExceptionStr());
-					co_return DMibErrorInstance("Failed to store log in database, see log for error.");
-				}
-			}
 
 			if (bWasChanged || bWasAdded)
-			{
-				auto ChangeInfoResult = co_await fg_CallSafe(Internal, &CInternal::f_LogInfoChanged, LogInfoKey, bWasChanged || bWasAdded).f_Wrap();
-				if (!ChangeInfoResult)
-					DMibLogWithCategory(LogLocalStore, Error, "Failed to add/change log info in upstream: {}", ChangeInfoResult.f_GetExceptionStr());
-			}
+				co_await fg_CallSafe(Internal, &CInternal::f_LogInfoChanged, LogInfoKey, bWasAdded || bWasCreated);
 		}
 
 		CDistributedAppLogReporter::CLogReporter Reporter;

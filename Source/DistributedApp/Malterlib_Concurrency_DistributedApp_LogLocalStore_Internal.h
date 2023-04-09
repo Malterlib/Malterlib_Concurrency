@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
-		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasCreated);
+		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasAdded);
 		TCFuture<uint32> f_NewLogEntries
 			(
 				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
@@ -106,8 +106,8 @@ namespace NMib::NConcurrency
 
 		CStr f_GetLogUpdateFailedMessage(CLogReporter const &_Reporter);
 
-		template <typename tf_CKey>
-		tf_CKey f_GetDatabaseKey(CDistributedAppLogReporter::CLogInfo const &_LogInfo) const;
+		template <typename tf_CKey, typename tf_CInfoOrKey>
+		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const;
 
 		TCMap<TCWeakDistributedActor<CActor>, CRemoteLogReporterInterface> m_LogInterfaces;
 

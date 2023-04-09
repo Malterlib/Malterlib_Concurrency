@@ -175,8 +175,53 @@ namespace NMib::NConcurrency
 		return "Failed to update log '{}' for reporter on host '{}'"_f << _Reporter.m_pLog->f_GetKey() << _Reporter.m_pInterface->m_Actor->f_GetHostInfo().m_RealHostID;
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasCreated)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasAdded)
 	{
+		auto Result = co_await m_Database
+			(
+				&CDatabaseActor::f_WriteWithCompaction
+				, g_ActorFunctorWeak / [=, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey)]
+				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				{
+					co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+					CLog *pLog;
+
+					auto OnResume = co_await fg_OnResume
+						(
+							[&]() -> CExceptionPointer
+							{
+								pLog = m_Logs.f_FindEqual(_LogInfoKey);
+								if (!pLog)
+									return DMibErrorInstance("Log was removed");
+
+								return {};
+							}
+						)
+					;
+
+					auto WriteTransaction = fg_Move(_Transaction);
+					if (_bCompacting)
+						WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+					CLogValue DatabaseLogInfo;
+					DatabaseLogInfo.m_Info = pLog->m_Info;
+					DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = pLog->m_LastSeenUniqueSequence;
+
+					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseLogInfo);
+
+					co_return fg_Move(WriteTransaction);
+				}
+			)
+			.f_Wrap()
+		;
+
+		if (!Result)
+		{
+			DMibLogWithCategory(LogLocalStore, Critical, "Error saving log data to database: {}", Result.f_GetExceptionStr());
+			co_return DMibErrorInstance("Failed to store log in database, see log for error.");
+		}
+
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 
 		if (!pLog)
@@ -184,7 +229,7 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<void> Results;
 
-		if (_bWasCreated)
+		if (_bWasAdded)
 		{
 			for (auto &LogInterface : m_LogInterfaces)
 			{
@@ -206,7 +251,10 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		auto UpstreamResult = co_await Results.f_GetUnwrappedResults().f_Wrap();
+
+		if (!UpstreamResult)
+			DMibLogWithCategory(LogLocalStore, Error, "Failed to add/change log info in upstream: {}", UpstreamResult.f_GetExceptionStr());
 
 		co_return {};
 	}

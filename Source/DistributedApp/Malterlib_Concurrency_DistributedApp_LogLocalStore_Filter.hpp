@@ -42,4 +42,25 @@ namespace NMib::NConcurrency::NLogStore
 
 		return true;
 	}
+
+	template <typename tf_CKey>
+	bool fg_FilterLogKey
+		(
+			tf_CKey const &_Key
+			, TCVector<CDistributedAppLogReader_LogFilter> const &_Filters
+		)
+	{
+		bool bPassFilter = _Filters.f_IsEmpty();
+
+		for (auto &Filter : _Filters)
+		{
+			if (!fg_FilterLogKey(_Key, Filter))
+				continue;
+
+			bPassFilter = true;
+			break;
+		}
+
+		return bPassFilter;
+	}
 }

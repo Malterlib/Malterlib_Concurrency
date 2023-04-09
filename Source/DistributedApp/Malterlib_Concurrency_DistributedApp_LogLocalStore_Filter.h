@@ -10,6 +10,8 @@ namespace NMib::NConcurrency::NLogStore
 {
 	template <typename tf_CKey>
 	bool fg_FilterLogKey(tf_CKey const &_Key, CDistributedAppLogReader_LogFilter const &_Filter);
+	template <typename tf_CKey>
+	bool fg_FilterLogKey(tf_CKey const &_Key, TCVector<CDistributedAppLogReader_LogFilter> const &_Filters);
 	bool fg_MatchMultipleValuesWildcards(NContainer::TCVector<NStr::CStr> const &_Values, NContainer::TCSet<NStr::CStr> const &_Wildcards);
 	bool fg_FilterLogValue(CDistributedAppLogReporter::CLogData const &_Value, CDistributedAppLogReader_LogDataFilter const &_Filter);
 }

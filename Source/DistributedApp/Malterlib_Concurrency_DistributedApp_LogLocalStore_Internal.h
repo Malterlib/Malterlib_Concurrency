@@ -60,6 +60,34 @@ namespace NMib::NConcurrency
 			DMibListLinkDS_List(CLogReporter, m_LinkInterface) m_Reporters;
 		};
 
+		struct CLogSubscription
+		{
+			TCVector<CDistributedAppLogReader_LogFilter> m_Filters;
+			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange &&_Change)> m_fOnChange;
+
+			TCMap<CDistributedAppLogReporter::CLogInfoKey, CDistributedAppLogReader::CLogChange> m_QueuedChanges;
+		};
+
+		struct CEntryFilter
+		{
+			CDistributedAppLogReader_LogEntryFilter m_Filter;
+			bool m_bIsDataFiltered = false;
+		};
+
+		struct CEntrySubscriptionFilter
+		{
+			CDistributedAppLogReader_LogEntrySubscriptionFilter m_Filter;
+			bool m_bIsDataFiltered = false;
+		};
+
+		struct CEntrySubscription
+		{
+			TCMap<CDistributedAppLogReporter::CLogInfoKey, zuint64> m_LastSeenEntry;
+			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> m_fOnEntry;
+			TCVector<CDistributedAppLogReader_LogKeyAndEntry> m_QueuedEntries;
+			TCVector<CEntrySubscriptionFilter> m_Filters;
+		};
+
 		CInternal
 			(
 				CDistributedAppLogStoreLocal *_pThis
@@ -106,6 +134,9 @@ namespace NMib::NConcurrency
 
 		CStr f_GetLogUpdateFailedMessage(CLogReporter const &_Reporter);
 
+		void f_Subscription_Entries(CLog const &_Log, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries);
+		void f_Subscription_LogInfoChanged(CLog const &_Log);
+
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const;
 
@@ -126,6 +157,9 @@ namespace NMib::NConcurrency
 		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
+
+		TCMap<CStr, CLogSubscription> m_LogSubscriptions;
+		TCMap<CStr, CEntrySubscription> m_EntrySubscriptions;
 
 		uint64 m_RetentionDays = 0;
 

@@ -59,6 +59,19 @@ namespace NMib::NConcurrency
 		ELogEntriesFlag m_Flags = ELogEntriesFlag_ReportNewestFirst;
 	};
 
+	struct CDistributedAppLogReader_LogEntrySubscriptionFilter
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+		CDistributedAppLogReader_LogEntryFilter f_ToEntryFilter() const;
+
+		CDistributedAppLogReader_LogFilter m_LogFilter;
+		CDistributedAppLogReader_LogDataFilter m_LogDataFilter;
+
+		NStorage::TCOptional<uint64> m_MinSequence; ///< If specified historic entries will also be reported, but will not be applied to not yet generated entries
+		NStorage::TCOptional<NTime::CTime> m_MinTimestamp; ///< If specified historic entries will also be reported, but will not be applied to not yet generated entries
+	};
+
 	struct CDistributedAppLogReader_LogKeyAndEntry
 	{
 		template <typename tf_CStream>
@@ -81,9 +94,52 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_Current = CDistributedAppLogReporter::EProtocolVersion_Current
 		};
 
-		virtual TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>>> f_GetLogs(CDistributedAppLogReader_LogFilter &&_Filter, uint32 _BatchSize) = 0;
-		virtual auto f_GetLogEntries(CDistributedAppLogReader_LogEntryFilter &&_Filter, uint32 _BatchSize)
-			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>> = 0
+		enum ELogChange : uint32
+		{
+			ELogChange_AddedOrUpdated
+			, ELogChange_Removed
+		};
+
+		using CLogChange = NStorage::TCStreamableVariant
+			<
+				ELogChange
+				, NStorage::TCMember<CDistributedAppLogReporter::CLogInfo, ELogChange_AddedOrUpdated>
+				, NStorage::TCMember<CDistributedAppLogReporter::CLogInfoKey, ELogChange_Removed>
+			>
+		;
+
+		struct CGetLogs
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppLogReader_LogFilter> m_Filters;
+			uint32 m_BatchSize = 1024;
+		};
+
+		struct CGetLogEntries
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppLogReader_LogEntryFilter> m_Filters;
+			uint32 m_BatchSize = 1024;
+		};
+
+		template <typename tf_CStream, typename tf_CFilter>
+		static void fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters);
+
+		virtual TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>>> f_GetLogs(CGetLogs &&_Params) = 0;
+		virtual auto f_GetLogEntries(CGetLogEntries &&_Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>> = 0;
+		virtual auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> &&_Filters, TCActorFunctorWithID<TCFuture<void> (CLogChange &&_Change)> &&_fOnChange)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
+		;
+		virtual auto f_SubscribeLogEntries
+			(
+				NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> &&_Filters
+				, TCActorFunctorWithID<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> &&_fOnEntry
+			)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 	};
 }

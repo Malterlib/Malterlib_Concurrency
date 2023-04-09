@@ -12,8 +12,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NLogStoreLocalDatabase;
 
-	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader_LogFilter &&_Filter, uint32 _BatchSize)
-		-> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
+	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader::CGetLogs &&_Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -40,12 +39,12 @@ namespace NMib::NConcurrency
 			auto Key = iLog.f_Key<CLogKey>();
 			auto Value = iLog.f_Value<CLogValue>();
 
-			if (!NLogStore::fg_FilterLogKey(Key, _Filter))
+			if (!NLogStore::fg_FilterLogKey(Key, _Params.m_Filters))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
 
-			if (Batch.f_GetLen() >= _BatchSize)
+			if (Batch.f_GetLen() >= _Params.m_BatchSize)
 				co_yield fg_Move(Batch);
 		}
 
@@ -55,12 +54,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppLogStoreLocal::f_GetLogEntries
-		(
-			CDistributedAppLogReader_LogEntryFilter &&_Filter
-			, uint32 _BatchSize
-		)
-		-> TCAsyncGenerator<TCVector<CDistributedAppLogReader_LogKeyAndEntry>>
+	auto CDistributedAppLogStoreLocal::f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries &&_Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReader_LogKeyAndEntry>>
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -90,17 +84,60 @@ namespace NMib::NConcurrency
 
 		auto iEntryByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CLogEntryByTime::mc_Prefix);
 
-		bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst;
-		bool bIsDataFiltered = _Filter.m_LogDataFilter.f_IsFiltered();
+		TCVector<CInternal::CEntryFilter> Filters;
+		for (auto &Filter : _Params.m_Filters)
+		{
+			auto &OutFilter = Filters.f_Insert();
+			OutFilter.m_Filter = fg_Move(Filter);
+			OutFilter.m_bIsDataFiltered = OutFilter.m_Filter.m_LogDataFilter.f_IsFiltered();
+		}
+
+		NStorage::TCOptional<uint64> MinSequence;
+		NStorage::TCOptional<uint64> MaxSequence;
+
+		NStorage::TCOptional<NTime::CTime> MinTimestamp;
+		NStorage::TCOptional<NTime::CTime> MaxTimestamp;
+
+		bool bReportNewestFirst = true;
+		{
+			bool bFirst = true;
+			for (auto &Filter : Filters)
+			{
+				bool bReportNewestFirstValue = !!(Filter.m_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst);
+				if (bFirst)
+				{
+					bFirst = false;
+					bReportNewestFirst = bReportNewestFirstValue;
+
+					MinSequence = Filter.m_Filter.m_MinSequence;
+					MaxSequence = Filter.m_Filter.m_MaxSequence;
+
+					MinTimestamp = Filter.m_Filter.m_MinTimestamp;
+					MaxTimestamp = Filter.m_Filter.m_MaxTimestamp;
+					continue;
+				}
+
+				if (bReportNewestFirstValue != bReportNewestFirst)
+					co_return DMibErrorInstance("ESensorReadingsFlag_ReportNewestFirst cannot be varied per filter");
+				if (MinSequence != Filter.m_Filter.m_MinSequence)
+					co_return DMibErrorInstance("MinSequence cannot be varied per filter");
+				if (MaxSequence != Filter.m_Filter.m_MaxSequence)
+					co_return DMibErrorInstance("MaxSequence cannot be varied per filter");
+				if (MinTimestamp != Filter.m_Filter.m_MinTimestamp)
+					co_return DMibErrorInstance("MinTimestamp cannot be varied per filter");
+				if (MaxTimestamp != Filter.m_Filter.m_MaxTimestamp)
+					co_return DMibErrorInstance("MaxTimestamp cannot be varied per filter");
+			}
+		}
 
 		if (bReportNewestFirst)
 		{
-			if (_Filter.m_MaxTimestamp)
+			if (MaxTimestamp)
 			{
-				if (_Filter.m_MaxSequence)
-					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
+				if (MaxSequence)
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MaxTimestamp, *MaxSequence);
 				else
-					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MaxTimestamp);
 
 				if (!iEntryByTime)
 					iEntryByTime.f_Last();
@@ -110,12 +147,12 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			if (_Filter.m_MinTimestamp)
+			if (MinTimestamp)
 			{
-				if (_Filter.m_MinSequence)
-					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+				if (MinSequence)
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MinTimestamp, *MinSequence);
 				else
-					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MinTimestamp);
 			}
 		}
 
@@ -139,30 +176,30 @@ namespace NMib::NConcurrency
 
 			if (bReportNewestFirst)
 			{
-				if (_Filter.m_MinTimestamp)
+				if (MinTimestamp)
 				{
-					auto &MinTimestamp = *_Filter.m_MinTimestamp;
+					auto &MinTimestampValue = *MinTimestamp;
 
-					if (KeyByTime.m_Timestamp < MinTimestamp)
+					if (KeyByTime.m_Timestamp < MinTimestampValue)
 						break;
-					else if (KeyByTime.m_Timestamp == MinTimestamp && _Filter.m_MinSequence)
+					else if (KeyByTime.m_Timestamp == MinTimestampValue && MinSequence)
 					{
-						if (KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+						if (KeyByTime.m_UniqueSequence < *MinSequence)
 							break;
 					}
 				}
 			}
 			else
 			{
-				if (_Filter.m_MaxTimestamp)
+				if (MaxTimestamp)
 				{
-					auto &MaxTimestamp = *_Filter.m_MaxTimestamp;
+					auto &MaxTimestampValue = *MaxTimestamp;
 
-					if (KeyByTime.m_Timestamp > MaxTimestamp)
+					if (KeyByTime.m_Timestamp > MaxTimestampValue)
 						break;
-					else if (KeyByTime.m_Timestamp == MaxTimestamp && _Filter.m_MaxSequence)
+					else if (KeyByTime.m_Timestamp == MaxTimestampValue && MaxSequence)
 					{
-						if (KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
+						if (KeyByTime.m_UniqueSequence > *MaxSequence)
 							break;
 					}
 				}
@@ -182,10 +219,9 @@ namespace NMib::NConcurrency
 				co_await g_Yield;
 			}
 
-			if (!NLogStore::fg_FilterLogKey(KeyByTime, _Filter.m_LogFilter))
-				continue;
-
 			auto Key = KeyByTime.f_Key();
+
+			auto *pLog = Internal.m_Logs.f_FindEqual(Key.f_LogInfoKey());
 
 			CLogEntryValue Value;
 			if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
@@ -194,8 +230,24 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (bIsDataFiltered && !NLogStore::	fg_FilterLogValue(Value.m_Data, _Filter.m_LogDataFilter))
-				continue;
+			{
+				bool bPassFilter = Filters.f_IsEmpty();
+
+				for (auto &Filter : Filters)
+				{
+					if (!NLogStore::fg_FilterLogKey(KeyByTime, Filter.m_Filter.m_LogFilter))
+						continue;
+
+					if (Filter.m_bIsDataFiltered && !NLogStore::fg_FilterLogValue(Value.m_Data, Filter.m_Filter.m_LogDataFilter))
+						continue;
+
+					bPassFilter = true;
+					break;
+				}
+
+				if (!bPassFilter)
+					continue;
+			}
 
 			CDistributedAppLogReader_LogKeyAndEntry LogKeyAndEntry{fg_Move(Key).f_LogInfoKey(), fg_Move(Value).f_Entry(Key)};
 
@@ -210,7 +262,7 @@ namespace NMib::NConcurrency
 			Batch.f_Insert(fg_Move(LogKeyAndEntry));
 			nBytesInBatch += ThisTime;
 
-			if (Batch.f_GetLen() >= _BatchSize)
+			if (Batch.f_GetLen() >= _Params.m_BatchSize)
 			{
 				co_yield fg_Move(Batch);
 				nBytesInBatch = 0;

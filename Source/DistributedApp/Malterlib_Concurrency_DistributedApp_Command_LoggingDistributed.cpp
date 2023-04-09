@@ -511,7 +511,7 @@ namespace NMib::NConcurrency
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
 
-		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, fg_TempCopy(_Filter), 1024);
+		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter}});
 
 		co_return co_await self
 			(
@@ -855,8 +855,8 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
-		auto EntriesGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogEntries, fg_TempCopy(_Filter), 1024);
-		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, fg_TempCopy(_Filter.m_LogFilter), 1024);
+		auto EntriesGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogEntries, CDistributedAppLogReader::CGetLogEntries{.m_Filters = {_Filter}});
+		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter.m_LogFilter}});
 
 		co_await self
 			(

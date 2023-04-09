@@ -24,8 +24,9 @@ namespace NMib::NConcurrency
 
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
 			, EProtocolVersion_ReportEntriesDepth = 0x103
+			, EProtocolVersion_MultipleFilters = 0x104
 
-			, EProtocolVersion_Current = 0x103
+			, EProtocolVersion_Current = 0x104
 		};
 
 		enum ELogSeverity : uint32

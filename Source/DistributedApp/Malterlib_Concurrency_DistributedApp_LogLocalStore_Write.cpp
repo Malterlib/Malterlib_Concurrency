@@ -277,6 +277,8 @@ namespace NMib::NConcurrency
 
 				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(Entries));
 
+				f_Subscription_Entries(*pLog, *pEntries);
+
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
 						fg_CallSafe(this, &CInternal::f_StoreLogEntries, _LogInfoKey, _DatabaseKey, pEntries)

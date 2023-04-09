@@ -29,10 +29,23 @@ namespace NMib::NConcurrency
 		TCFuture<CActorSubscription> f_AddExtraLogReporter(TCDistributedActorInterface<CDistributedAppLogReporter> &&_LogReporter, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<CDistributedAppLogReporter::CLogReporter> f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo);
 
-		TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> f_GetLogs(CDistributedAppLogReader_LogFilter &&_Filter, uint32 _BatchSize);
-		auto f_GetLogEntries(CDistributedAppLogReader_LogEntryFilter &&_Filter, uint32 _BatchSize)
-			-> TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>
+		TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> f_GetLogs(CDistributedAppLogReader::CGetLogs &&_Params);
+		auto f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries &&_Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>;
+		auto f_SubscribeLogs
+			(
+				NContainer::TCVector<CDistributedAppLogReader_LogFilter> &&_Filters
+				, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange &&_Change)> &&_fOnChange
+			)
+			-> TCFuture<CActorSubscription>
 		;
+		auto f_SubscribeLogEntries
+			(
+				NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> &&_Filters
+				, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> &&_fOnEntry
+			)
+			-> TCFuture<CActorSubscription>
+		;
+
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 
 		struct CCleanupHelper

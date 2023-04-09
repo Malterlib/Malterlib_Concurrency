@@ -203,6 +203,8 @@ namespace NMib::NConcurrency
 					auto WriteTransaction = fg_Move(_Transaction);
 					if (_bCompacting)
 						WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+					else
+						f_Subscription_LogInfoChanged(*pLog);
 
 					CLogValue DatabaseLogInfo;
 					DatabaseLogInfo.m_Info = pLog->m_Info;

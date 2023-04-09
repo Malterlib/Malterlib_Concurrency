@@ -41,9 +41,61 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CDistributedAppLogReader_LogEntrySubscriptionFilter::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_LogFilter;
+		_Stream % m_LogDataFilter;
+		
+		_Stream % m_MinSequence;
+		_Stream % m_MinTimestamp;
+	}
+
+	template <typename tf_CStream>
 	void CDistributedAppLogReader_LogKeyAndEntry::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_LogInfoKey;
 		_Stream % m_Entry;
+	}
+
+	template <typename tf_CStream, typename tf_CFilter>
+	void CDistributedAppLogReader::fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters)
+	{
+		if (_Stream.f_GetVersion() >= CDistributedAppLogReporter::EProtocolVersion_MultipleFilters)
+			_Stream % o_Filters;
+		else
+		{
+			if constexpr (tf_CStream::mc_bConsume)
+			{
+				tf_CFilter Filter;
+				_Stream >> Filter;
+				o_Filters.f_Clear();
+				o_Filters.f_Insert(fg_Move(Filter));
+			}
+			else
+			{
+				if (o_Filters.f_GetLen() >= 0)
+					_Stream << o_Filters[0];
+				else
+				{
+					tf_CFilter Default;
+					_Stream << Default;
+				}
+			}
+		}
+	}
+
+	template <typename tf_CStream>
+	void CDistributedAppLogReader::CGetLogs::f_Stream(tf_CStream &_Stream)
+	{
+		fs_StreamFilterVector(_Stream, m_Filters);
+		_Stream % m_BatchSize;
+	}
+
+
+	template <typename tf_CStream>
+	void CDistributedAppLogReader::CGetLogEntries::f_Stream(tf_CStream &_Stream)
+	{
+		fs_StreamFilterVector(_Stream, m_Filters);
+		_Stream % m_BatchSize;
 	}
 }

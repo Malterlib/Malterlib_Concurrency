@@ -21,14 +21,30 @@ namespace NMib::NConcurrency::NSensorStore
 		CDistributedAppSensorReporter::CSensorInfo const *f_GetSensor(NSensorStoreLocalDatabase::CSensorKey const &_Key);
 
 		NDatabase::CDatabaseSubReadTransaction &m_Transaction;
+		CStr const &m_ThisHostID;
+		CStr const &m_Prefix;
 
 		TCMap<NSensorStoreLocalDatabase::CSensorKey, CSensorCacheValue> m_SensorValues;
 	};
 
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey(tf_CKey const &_Key, CDistributedAppSensorReader_SensorFilter const &_Filter);
+	bool fg_FilterSensorKey
+		(
+			tf_CKey const &_Key
+			, CDistributedAppSensorReader_SensorFilter const &_Filter
+			, CFilterSensorKeyContext &_Context
+			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+		)
+	;
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey(tf_CKey const &_Key, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters);
+	bool fg_FilterSensorKey
+		(
+			tf_CKey const &_Key
+			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
+			, CFilterSensorKeyContext &_Context
+			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+		)
+	;
 
 	template <typename tf_CReading>
 	bool fg_FilterSensorValueStatusIsProblem(tf_CReading const &_Reading);

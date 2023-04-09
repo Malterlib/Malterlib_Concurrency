@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 					if (_bCompacting)
 						WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
 					else
-						f_Subscription_SensorInfoChanged(*pSensor);
+						f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction);
 
 					if (DatabaseKey.m_HostID)
 					{

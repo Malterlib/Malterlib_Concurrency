@@ -272,12 +272,15 @@ namespace NMib::NConcurrency
 		(
 			CSensor const &_Sensor
 			, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
+			, NDatabase::CDatabaseSubReadTransaction &_Transaction
 		)
 	{
 		auto SensorDatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 		auto SensorKey = _Sensor.f_GetKey();
 
 		NTime::CTime Now = NTime::CTime::fs_NowUTC();
+
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Reading : _Readings)
 		{
@@ -288,7 +291,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter))
+						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info))
 							continue;
 
 						if (!NSensorStore::fg_FilterSensorValueStatus(_Sensor, Reading, Filter.m_Flags, Now))
@@ -319,7 +322,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter))
+						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info))
 							continue;
 
 						if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(_Sensor, Reading, Filter.m_Flags))
@@ -345,13 +348,15 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged(CSensor const &_Sensor)
+	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged(CSensor const &_Sensor, NDatabase::CDatabaseSubReadTransaction &_Transaction)
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+
 		for (auto &Subscription : m_SensorSubscriptions)
 		{
-			if (!NSensorStore::fg_FilterSensorKey(DatabaseKey, Subscription.m_Filters))
+			if (!NSensorStore::fg_FilterSensorKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Sensor.m_Info))
 				continue;
 
 			if (Subscription.m_fOnChange)

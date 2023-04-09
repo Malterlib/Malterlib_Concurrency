@@ -12,6 +12,12 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppSensorReader_SensorFilter
 	{
+		enum ESensorFlag
+		{
+			ESensorFlag_None = 0
+			, ESensorFlag_IgnoreRemoved = DMibBit(0)
+		};
+
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
@@ -19,6 +25,7 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<CDistributedAppSensorReporter::CSensorScope> m_Scope;
 		NStorage::TCOptional<NStr::CStr> m_Identifier;
 		NStorage::TCOptional<NStr::CStr> m_IdentifierScope;
+		ESensorFlag m_Flags = ESensorFlag_None;
 	};
 
 	struct CDistributedAppSensorReader_SensorReadingFilter

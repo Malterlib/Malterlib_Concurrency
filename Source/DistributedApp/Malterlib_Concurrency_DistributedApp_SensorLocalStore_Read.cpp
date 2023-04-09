@@ -36,12 +36,14 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
 
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+
 		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
 			auto Key = iSensor.f_Key<CSensorKey>();
 			auto Value = iSensor.f_Value<CSensorValue>();
 
-			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters))
+			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
@@ -164,7 +166,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 		{
@@ -237,7 +239,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Filter : _Params.m_Filters)
 				{
-					if (!NSensorStore::fg_FilterSensorKey(KeyByTime, Filter.m_SensorFilter))
+					if (!NSensorStore::fg_FilterSensorKey(KeyByTime, Filter.m_SensorFilter, FilterContext, pSensor ? &pSensor->m_Info : nullptr))
 						continue;
 
 					if (pSensor)
@@ -305,6 +307,8 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+
 		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
 			auto Key = iSensor.f_Key<CSensorKey>();
@@ -325,7 +329,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Filter : _Params.m_Filters)
 				{
-					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter))
+					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter, FilterContext, &Value.m_Info))
 						continue;
 
 					if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, Filter.m_Flags, Now))

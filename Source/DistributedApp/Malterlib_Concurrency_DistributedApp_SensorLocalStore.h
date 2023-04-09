@@ -58,6 +58,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen);
 		TCFuture<void> f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs);
+		TCFuture<uint32> f_RemoveSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys);
 
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 

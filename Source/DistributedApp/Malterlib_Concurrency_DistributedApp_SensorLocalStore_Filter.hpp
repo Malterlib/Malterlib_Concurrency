@@ -4,7 +4,13 @@
 namespace NMib::NConcurrency::NSensorStore
 {
 	template <typename tf_CKey>
-	bool fg_FilterSensorKey(tf_CKey const &_Key, CDistributedAppSensorReader_SensorFilter const &_Filter)
+	bool fg_FilterSensorKey
+		(
+			tf_CKey const &_Key
+			, CDistributedAppSensorReader_SensorFilter const &_Filter
+			, CFilterSensorKeyContext &_Context
+			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+		)
 	{
 		if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
 			return false;
@@ -40,6 +46,26 @@ namespace NMib::NConcurrency::NSensorStore
 		if (_Filter.m_IdentifierScope && _Key.m_IdentifierScope != *_Filter.m_IdentifierScope)
 			return false;
 
+		if (_Filter.m_Flags & CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved)
+		{
+			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID)
+			{
+				NSensorStoreLocalDatabase::CKnownHostKey Key{.m_DbPrefix = _Context.m_Prefix, .m_HostID = _Key.m_HostID};
+				NSensorStoreLocalDatabase::CKnownHostValue Value;
+				if (_Context.m_Transaction.f_Get(Key, Value))
+				{
+					if (Value.m_bRemoved)
+						return false;
+				}
+			}
+
+			if (!_pSensorInfo)
+				_pSensorInfo = _Context.f_GetSensor(_Key.f_SensorKey());
+
+			if (_pSensorInfo && _pSensorInfo->m_bRemoved)
+				return false;
+		}
+
 		return true;
 	}
 
@@ -48,12 +74,14 @@ namespace NMib::NConcurrency::NSensorStore
 		(
 			tf_CKey const &_Key
 			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
+			, CFilterSensorKeyContext &_Context
+			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
 		)
 	{
 		bool bPassFilter = _Filters.f_IsEmpty();
 		for (auto &Filter : _Filters)
 		{
-			if (fg_FilterSensorKey(_Key, Filter))
+			if (fg_FilterSensorKey(_Key, Filter, _Context, _pSensorInfo))
 			{
 				bPassFilter = true;
 				break;

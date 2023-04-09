@@ -168,6 +168,18 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		auto fOption_IgnoreRemoved = [](bool _bDefault)
+			{
+				return "IgnoreRemoved?"_=
+					{
+						"Names"_= {"--ignore-removed"}
+						, "Default"_= _bDefault
+						, "Description"_= "Ignore sensors that were removed, or that were owned by a removed application or app manager."
+					}
+				;
+			}
+		;
+
 		auto fParseSensorFilter = [](CEJSON const &_Params) -> CDistributedAppSensorReader_SensorFilter
 			{
 				CDistributedAppSensorReader_SensorFilter Filter;
@@ -189,6 +201,9 @@ namespace NMib::NConcurrency
 
 				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
 					Filter.m_IdentifierScope = pValue->f_String();
+					
+				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue->f_Boolean())
+					Filter.m_Flags |= CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved;
 
 				return Filter;
 			}
@@ -218,6 +233,7 @@ namespace NMib::NConcurrency
 						, Option_SensorApplication
 						, Option_SensorIdentifier
 						, Option_SensorIdentifierScope
+						, fOption_IgnoreRemoved(false)
 						, Option_Verbose
 						, Option_Json
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -251,6 +267,7 @@ namespace NMib::NConcurrency
 						, Option_SensorApplication
 						, Option_SensorIdentifier
 						, Option_SensorIdentifierScope
+						, fOption_IgnoreRemoved(true)
 						, Option_Verbose
 						, Option_Json
 						, fOption_OnlyProblems(true)
@@ -292,6 +309,7 @@ namespace NMib::NConcurrency
 						, Option_SensorApplication
 						, Option_SensorIdentifier
 						, Option_SensorIdentifierScope
+						, fOption_IgnoreRemoved(false)
 						, Option_Verbose
 						, Option_Json
 						, "MinTimestamp?"_=
@@ -443,6 +461,7 @@ namespace NMib::NConcurrency
 		fAddHeading("Unit Divisors");
 		fAddHeading("Warn Value");
 		fAddHeading("Critical Value");
+		fAddHeading("Removed");
 
 		TableRenderer.f_AddHeadingsVector(Headings);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -511,6 +530,7 @@ namespace NMib::NConcurrency
 								, "UnitDivisors"_= fg_Move(UnitDivisors)
 								, "WarnValue"_= fComparisonValue(SensorInfo.m_WarnValue)
 								, "CriticalValue"_= fComparisonValue(SensorInfo.m_CriticalValue)
+								, "Removed"_= SensorInfo.m_bRemoved
 							}
 						)
 					;
@@ -534,6 +554,7 @@ namespace NMib::NConcurrency
 							, CDistributedAppSensorReporter::fs_FormatSensorDivisors(SensorInfo.m_UnitDivisors, "\n")
 							, SensorInfo.m_WarnValue
 							, SensorInfo.m_CriticalValue
+							, SensorInfo.m_bRemoved ? "true" : "false"
 						)
 					;
 				}

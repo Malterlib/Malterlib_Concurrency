@@ -166,6 +166,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		m_ThisHostID = co_await m_TrustManager(&CDistributedActorTrustManager::f_GetHostID);
+
 		CSensorGlobalStateKey GlobalStateKey{.m_Prefix = m_Prefix};
 		CSensorGlobalStateValue GlobalStateValue;
 		{

@@ -110,6 +110,32 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_RemoveSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys)
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (!Internal.m_bStarted)
+			co_return DMibErrorInstance("Local store not yet started");
+
+		uint32 nRemoved = 0;
+
+		for (auto &SensorInfoKey : _SensorInfoKeys)
+		{
+			auto *pSensor = Internal.m_Sensors.f_FindEqual(SensorInfoKey);
+			if (!pSensor)
+				continue;
+
+			if (pSensor->m_Info.m_bRemoved)
+				continue;
+
+			++nRemoved;
+			pSensor->m_Info.m_bRemoved = true;
+			co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, false);
+		}
+
+		co_return nRemoved;
+	}
+
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_StoreSensorReadings
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
@@ -133,6 +159,12 @@ namespace NMib::NConcurrency
 
 					auto WriteTransaction = fg_Move(_Transaction);
 					auto DatabaseKey = _DatabaseKey;
+
+					if (!_bCompacting)
+					{
+						if (auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey))
+							f_Subscription_Readings(*pSensor, _Readings, WriteTransaction.m_Transaction);
+					}
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
@@ -287,8 +319,6 @@ namespace NMib::NConcurrency
 						pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
 				}
 
-				f_Subscription_Readings(*pSensor, _Readings);
-
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
 						fg_CallSafe(this, &CInternal::f_StoreSensorReadings, _SensorInfoKey, _DatabaseKey, _Readings)
@@ -356,6 +386,10 @@ namespace NMib::NConcurrency
 		{
 			auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
+
+			// Reset removed state when a sensor has been opened again after being marked as removed. Last seen will only be updated when a sensor is opened in an non-upstream context.
+			if (!_SensorInfo.m_LastSeen.f_IsValid() || _SensorInfo.m_LastSeen == pSensor->m_Info.m_LastSeen)
+				_SensorInfo.m_bRemoved = pSensor->m_Info.m_bRemoved;
 
 			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_Info;
 

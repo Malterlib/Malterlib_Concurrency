@@ -275,28 +275,35 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_NewSensorReadings
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-			, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
+			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
 		)
 	{
 		auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 		if (!pSensor)
 			co_return {};
 
-		TCVector<TCVector<CDistributedAppSensorReporter::CSensorReading>> ReadingsChunks;
+		TCVector<TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const>> ReadingsChunks;
 
 		static constexpr mint c_ChunkSize = 32768;
 
-		mint nReadings = _Readings.f_GetLen();
+		mint nReadings = _pReadings->f_GetLen();
 
 		if (nReadings < c_ChunkSize)
-			ReadingsChunks.f_Insert(_Readings);
+			ReadingsChunks.f_Insert(fg_Move(_pReadings));
 		else
 		{
 			for (mint iStartReading = 0; iStartReading < nReadings;)
 			{
 				mint ThisTime = fg_Min(nReadings - iStartReading, c_ChunkSize);
 
-				ReadingsChunks.f_Insert(TCVector<CDistributedAppSensorReporter::CSensorReading>(_Readings.f_GetArray() + iStartReading, ThisTime));
+				ReadingsChunks.f_Insert
+					(
+						TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const>
+						(
+							fg_Construct<TCVector<CDistributedAppSensorReporter::CSensorReading>>(_pReadings->f_GetArray() + iStartReading, ThisTime)
+						)
+					)
+				;
 
 				iStartReading += ThisTime;
 			}
@@ -304,12 +311,12 @@ namespace NMib::NConcurrency
 
 		TCActorResultVector<void> Results;
 
-		for (auto &Readings : ReadingsChunks)
+		for (auto &pReadings : ReadingsChunks)
 		{
 			for (auto &Reporter : pSensor->m_SensorReporters)
 			{
 				auto WeakActor = pSensor->m_SensorReporters.fs_GetKey(Reporter);
-				Reporter.m_WriteSequencer / [this, Readings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
+				Reporter.m_WriteSequencer / [this, pReadings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
 					{
 						auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 						if (!pSensor)
@@ -325,7 +332,7 @@ namespace NMib::NConcurrency
 						if (!pReporter->m_Reporter.m_fReportReadings)
 							co_return {};
 
-						co_await pReporter->m_Reporter.m_fReportReadings(fg_Move(Readings));
+						co_await pReporter->m_Reporter.m_fReportReadings(*pReadings);
 
 						(void)_DoneSubscription;
 

@@ -140,7 +140,7 @@ namespace NMib::NConcurrency
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
 			, CSensorReadingKey const &_DatabaseKey
-			, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
+			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
 		)
 	{
 		auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
@@ -163,7 +163,7 @@ namespace NMib::NConcurrency
 					if (!_bCompacting)
 					{
 						if (auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey))
-							f_Subscription_Readings(*pSensor, _Readings, WriteTransaction.m_Transaction);
+							f_Subscription_Readings(*pSensor, *_pReadings, WriteTransaction.m_Transaction);
 					}
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 					if (HostID)
 						_Transaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
 
-					for (auto &Reading : _Readings)
+					for (auto &Reading : *_pReadings)
 					{
 						smint nBytesInserted = WriteTransaction.m_Transaction.f_SizeStatistics().m_UsedBytes - SizeStats.m_UsedBytes;
 						bool bFreeUpSpace = nBytesInserted >= nBytesLimit || _bCompacting;
@@ -319,10 +319,12 @@ namespace NMib::NConcurrency
 						pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
 				}
 
+				TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading>> pReadings = fg_Construct(fg_Move(_Readings));
+
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
-						fg_CallSafe(this, &CInternal::f_StoreSensorReadings, _SensorInfoKey, _DatabaseKey, _Readings)
-						+ fg_CallSafe(this, &CInternal::f_NewSensorReadings, _SensorInfoKey, _Readings)
+						fg_CallSafe(this, &CInternal::f_StoreSensorReadings, _SensorInfoKey, _DatabaseKey, pReadings)
+						+ fg_CallSafe(this, &CInternal::f_NewSensorReadings, _SensorInfoKey, pReadings)
 					)
 					.f_Wrap()
 				;

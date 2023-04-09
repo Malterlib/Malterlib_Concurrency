@@ -104,12 +104,17 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
 		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasAdded);
-		TCFuture<void> f_NewSensorReadings(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings);
+		TCFuture<void> f_NewSensorReadings
+			(
+				CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
+				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
+			)
+		;
 		TCFuture<void> f_StoreSensorReadings
 			(
 				CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
 				, NSensorStoreLocalDatabase::CSensorReadingKey const &_DatabaseKey
-				, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings
+				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
 			)
 		;
 		TCFuture<void> f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey);

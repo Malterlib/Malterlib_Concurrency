@@ -6,111 +6,10 @@
 
 #include "Malterlib_Concurrency_DistributedApp_LogLocalStore_Internal.h"
 #include "Malterlib_Concurrency_DistributedApp_LogLocalStore_Database.h"
+#include "Malterlib_Concurrency_DistributedApp_LogLocalStore_Filter.h"
 
 namespace NMib::NConcurrency
 {
-	namespace
-	{
-		template <typename tf_CKey>
-		bool fg_FilterLogKey(tf_CKey const &_Key, CDistributedAppLogReader_LogFilter const &_Filter)
-		{
-			if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
-				return false;
-
-			if (_Filter.m_Scope)
-			{
-				switch (_Filter.m_Scope->f_GetTypeID())
-				{
-				case CDistributedAppLogReporter::ELogScope_Unsupported:
-					{
-						return false;
-					}
-					break;
-				case CDistributedAppLogReporter::ELogScope_Host:
-					{
-						if (!_Key.m_ApplicationName.f_IsEmpty())
-							return false;
-					}
-					break;
-				case CDistributedAppLogReporter::ELogScope_Application:
-					{
-						auto &Application = _Filter.m_Scope->f_Get<CDistributedAppLogReporter::ELogScope_Application>();
-						if (_Key.m_ApplicationName != Application.m_ApplicationName)
-							return false;
-					}
-					break;
-				}
-			}
-
-			if (_Filter.m_Identifier && _Key.m_Identifier != *_Filter.m_Identifier)
-				return false;
-
-			if (_Filter.m_IdentifierScope && _Key.m_IdentifierScope != *_Filter.m_IdentifierScope)
-				return false;
-
-			return true;
-		}
-
-		bool fg_MatchMultipleValuesWildcards(NContainer::TCVector<NStr::CStr> const &_Values, NContainer::TCSet<NStr::CStr> const &_Wildcards)
-		{
-			bool bMatched = false;
-			for (auto &Category : _Values)
-			{
-				if (fg_StrMatchesAnyWildcardInContainer(Category, _Wildcards))
-				{
-					bMatched = true;
-					break;
-				}
-			}
-
-			return bMatched;
-		}
-
-		bool fg_FilterLogValue(CDistributedAppLogReporter::CLogData const &_Value, CDistributedAppLogReader_LogDataFilter const &_Filter)
-		{
-			if (_Filter.m_Flags)
-			{
-				if (!(_Value.m_Flags & *_Filter.m_Flags))
-					return false;
-			}
-
-			if (_Filter.m_Severities)
-			{
-				if (!_Filter.m_Severities->f_FindEqual(_Value.m_Severity))
-					return false;
-			}
-
-			if (_Filter.m_CategoriesWildcards)
-			{
-				if (!fg_MatchMultipleValuesWildcards(_Value.m_Categories, *_Filter.m_CategoriesWildcards))
-					return false;
-			}
-
-			if (_Filter.m_OperationsWildcards)
-			{
-				if (!fg_MatchMultipleValuesWildcards(_Value.m_Operations, *_Filter.m_OperationsWildcards))
-					return false;
-			}
-
-			if (_Filter.m_MessageWildcards)
-			{
-				if (!fg_StrMatchesAnyWildcardInContainer(_Value.m_Message, *_Filter.m_MessageWildcards))
-					return false;
-			}
-
-			if (_Filter.m_SourceLocationFileWildcards)
-			{
-				if (!_Value.m_SourceLocation)
-					return false;
-
-				if (!fg_StrMatchesAnyWildcardInContainer(_Value.m_SourceLocation->m_File, *_Filter.m_SourceLocationFileWildcards))
-					return false;
-			}
-
-			return true;
-		}
-	}
-
 	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader_LogFilter &&_Filter, uint32 _BatchSize)
 		-> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
 	{
@@ -139,7 +38,7 @@ namespace NMib::NConcurrency
 			auto Key = iLog.f_Key<NLogStoreLocalDatabase::CLogKey>();
 			auto Value = iLog.f_Value<NLogStoreLocalDatabase::CLogValue>();
 
-			if (!fg_FilterLogKey(Key, _Filter))
+			if (!NLogStore::fg_FilterLogKey(Key, _Filter))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
@@ -281,7 +180,7 @@ namespace NMib::NConcurrency
 				co_await g_Yield;
 			}
 
-			if (!fg_FilterLogKey(KeyByTime, _Filter.m_LogFilter))
+			if (!NLogStore::fg_FilterLogKey(KeyByTime, _Filter.m_LogFilter))
 				continue;
 
 			auto Key = KeyByTime.f_Key();
@@ -293,7 +192,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (bIsDataFiltered && !fg_FilterLogValue(Value.m_Data, _Filter.m_LogDataFilter))
+			if (bIsDataFiltered && !NLogStore::	fg_FilterLogValue(Value.m_Data, _Filter.m_LogDataFilter))
 				continue;
 
 			CDistributedAppLogReader_LogKeyAndEntry LogKeyAndEntry{fg_Move(Key).f_LogInfoKey(), fg_Move(Value).f_Entry(Key)};

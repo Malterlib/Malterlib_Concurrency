@@ -7,6 +7,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NLogStoreLocalDatabase;
+
 	void CDistributedAppLogStoreLocal::CInternal::f_ScheduleFailedRetry()
 	{
 		if (m_bScheduledFailedReportersRetry)
@@ -88,15 +90,15 @@ namespace NMib::NConcurrency
 		{
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			auto DatabaseKey = f_GetDatabaseKey<NLogStoreLocalDatabase::CLogEntryKey>(pLog->m_LogInfo);
+			auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(pLog->m_LogInfo);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
-			auto iLogEntry = ReadTransaction.m_Transaction.f_ReadCursor((NLogStoreLocalDatabase::CLogKey const &)DatabaseKey);
+			auto iLogEntry = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
 			iLogEntry.f_FindLowerBound(DatabaseKey);
 
 			if (iLogEntry)
 			{
-				auto Key = iLogEntry.f_Key<NLogStoreLocalDatabase::CLogEntryKey>();
+				auto Key = iLogEntry.f_Key<CLogEntryKey>();
 				if (Key.m_UniqueSequence == Reporter.m_LastSeenUniqueSequence)
 					++iLogEntry;
 			}
@@ -109,8 +111,8 @@ namespace NMib::NConcurrency
 
 			for (; iLogEntry; ++iLogEntry)
 			{
-				auto Key = iLogEntry.f_Key<NLogStoreLocalDatabase::CLogEntryKey>();
-				auto Value = iLogEntry.f_Value<NLogStoreLocalDatabase::CLogEntryValue>();
+				auto Key = iLogEntry.f_Key<CLogEntryKey>();
+				auto Value = iLogEntry.f_Value<CLogEntryValue>();
 
 				auto NewEntry = fg_Move(Value).f_Entry(Key);
 

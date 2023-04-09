@@ -7,10 +7,12 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NLogStoreLocalDatabase;
+
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_StoreLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-			, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey
+			, CLogEntryKey const &_DatabaseKey
 			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 		)
 	{
@@ -65,13 +67,13 @@ namespace NMib::NConcurrency
 						if (WriteTransaction.m_Transaction.f_Exists(DatabaseKey))
 							continue; // Already reported
 
-						NLogStoreLocalDatabase::CLogEntryValue Value;
+						CLogEntryValue Value;
 						Value.m_Timestamp = Entry.m_Timestamp;
 						Value.m_Data = Entry.m_Data;
 
-						NLogStoreLocalDatabase::CLogEntryByTime ByTime;
+						CLogEntryByTime ByTime;
 						ByTime.m_DbPrefix = DatabaseKey.m_DbPrefix;
-						ByTime.m_Prefix = NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix;
+						ByTime.m_Prefix = CLogEntryByTime::mc_Prefix;
 						ByTime.m_Timestamp = Entry.m_Timestamp;
 						ByTime.m_UniqueSequence = DatabaseKey.m_UniqueSequence;
 
@@ -81,7 +83,7 @@ namespace NMib::NConcurrency
 						ByTime.m_IdentifierScope = DatabaseKey.m_IdentifierScope;
 
 						WriteTransaction.m_Transaction.f_Insert(DatabaseKey, Value);
-						WriteTransaction.m_Transaction.f_Insert(ByTime, NLogStoreLocalDatabase::CLogEntryByTimeValue());
+						WriteTransaction.m_Transaction.f_Insert(ByTime, CLogEntryByTimeValue());
 					}
 
 					co_return fg_Move(WriteTransaction);
@@ -237,7 +239,7 @@ namespace NMib::NConcurrency
 	auto CDistributedAppLogStoreLocal::CInternal::f_GetReportEntriesFunctor
 		(
 			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
-			, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey
+			, CLogEntryKey _DatabaseKey
 		)
 		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
 	{
@@ -355,7 +357,7 @@ namespace NMib::NConcurrency
 				auto Result = co_await Internal.m_Database
 					(
 						&CDatabaseActor::f_WriteWithCompaction
-						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<NLogStoreLocalDatabase::CLogKey>(_LogInfo)]
+						, g_ActorFunctorWeak / [=, DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(_LogInfo)]
 						(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 						{
 							co_await ECoroutineFlag_CaptureMalterlibExceptions;
@@ -366,7 +368,7 @@ namespace NMib::NConcurrency
 							if (_bCompacting)
 								WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
 
-							NLogStoreLocalDatabase::CLogValue DatabaseLogInfo;
+							CLogValue DatabaseLogInfo;
 							DatabaseLogInfo.m_Info = _LogInfo;
 							DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = pLog->m_LastSeenUniqueSequence;
 
@@ -395,7 +397,7 @@ namespace NMib::NConcurrency
 
 		CDistributedAppLogReporter::CLogReporter Reporter;
 		Reporter.m_LastSeenUniqueSequence = pLog->m_LastSeenUniqueSequence;
-		Reporter.m_fReportEntries = Internal.f_GetReportEntriesFunctor(LogInfoKey, Internal.f_GetDatabaseKey<NLogStoreLocalDatabase::CLogEntryKey>(_LogInfo));
+		Reporter.m_fReportEntries = Internal.f_GetReportEntriesFunctor(LogInfoKey, Internal.f_GetDatabaseKey<CLogEntryKey>(_LogInfo));
 
 		co_return fg_Move(Reporter);
 	}

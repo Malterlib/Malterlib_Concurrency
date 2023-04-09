@@ -10,6 +10,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NLogStoreLocalDatabase;
+
 	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader_LogFilter &&_Filter, uint32 _BatchSize)
 		-> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
 	{
@@ -33,10 +35,10 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppLogReporter::CLogInfo> Batch;
 
-		for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, NLogStoreLocalDatabase::CLogKey::mc_Prefix); iLog; ++iLog)
+		for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 		{
-			auto Key = iLog.f_Key<NLogStoreLocalDatabase::CLogKey>();
-			auto Value = iLog.f_Value<NLogStoreLocalDatabase::CLogValue>();
+			auto Key = iLog.f_Key<CLogKey>();
+			auto Value = iLog.f_Value<CLogValue>();
 
 			if (!NLogStore::fg_FilterLogKey(Key, _Filter))
 				continue;
@@ -86,7 +88,7 @@ namespace NMib::NConcurrency
 		auto &ReadTransaction = *ReadTransactionWrapped; // To force exception to be thrown here
 		TCVector<CDistributedAppLogReader_LogKeyAndEntry> Batch;
 
-		auto iEntryByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix);
+		auto iEntryByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CLogEntryByTime::mc_Prefix);
 
 		bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst;
 		bool bIsDataFiltered = _Filter.m_LogDataFilter.f_IsFiltered();
@@ -96,9 +98,9 @@ namespace NMib::NConcurrency
 			if (_Filter.m_MaxTimestamp)
 			{
 				if (_Filter.m_MaxSequence)
-					iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
 				else
-					iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
 
 				if (!iEntryByTime)
 					iEntryByTime.f_Last();
@@ -111,9 +113,9 @@ namespace NMib::NConcurrency
 			if (_Filter.m_MinTimestamp)
 			{
 				if (_Filter.m_MinSequence)
-					iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
 				else
-					iEntryByTime.f_FindLowerBound(Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *_Filter.m_MinTimestamp);
 			}
 		}
 
@@ -133,7 +135,7 @@ namespace NMib::NConcurrency
 
 		for (; iEntryByTime; bReportNewestFirst ? --iEntryByTime : ++iEntryByTime)
 		{
-			auto KeyByTime = iEntryByTime.f_Key<NLogStoreLocalDatabase::CLogEntryByTime>();
+			auto KeyByTime = iEntryByTime.f_Key<CLogEntryByTime>();
 
 			if (bReportNewestFirst)
 			{
@@ -185,7 +187,7 @@ namespace NMib::NConcurrency
 
 			auto Key = KeyByTime.f_Key();
 
-			NLogStoreLocalDatabase::CLogEntryValue Value;
+			CLogEntryValue Value;
 			if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
 			{
 				DMibLogWithCategory(LogLocalStore, Error, "Missing log reading: {}", Key);

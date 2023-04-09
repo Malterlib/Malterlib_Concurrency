@@ -8,13 +8,15 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NLogStoreLocalDatabase;
+
 	bool CDistributedAppLogStoreLocal::CCleanupHelper::f_Init(NDatabase::CDatabaseActor::CTransactionWrite &_WriteTransaction, CStr const &_Prefix, NTime::CTime &o_Time)
 	{
-		mp_iEntryByTime = _WriteTransaction.m_Transaction.f_WriteCursor(_Prefix, NLogStoreLocalDatabase::CLogEntryByTime::mc_Prefix);
+		mp_iEntryByTime = _WriteTransaction.m_Transaction.f_WriteCursor(_Prefix, CLogEntryByTime::mc_Prefix);
 
 		if (mp_iEntryByTime)
 		{
-			o_Time = mp_iEntryByTime.f_Key<NLogStoreLocalDatabase::CLogEntryByTime>().m_Timestamp;
+			o_Time = mp_iEntryByTime.f_Key<CLogEntryByTime>().m_Timestamp;
 			return true;
 		}
 
@@ -26,7 +28,7 @@ namespace NMib::NConcurrency
 		if (!mp_iEntryByTime)
 			return {};
 
-		auto KeyByTime = mp_iEntryByTime.f_Key<NLogStoreLocalDatabase::CLogEntryByTime>();
+		auto KeyByTime = mp_iEntryByTime.f_Key<CLogEntryByTime>();
 
 		auto Key = KeyByTime.f_Key();
 
@@ -37,7 +39,7 @@ namespace NMib::NConcurrency
 
 		if (mp_iEntryByTime)
 		{
-			o_Time = mp_iEntryByTime.f_Key<NLogStoreLocalDatabase::CLogEntryByTime>().m_Timestamp;
+			o_Time = mp_iEntryByTime.f_Key<CLogEntryByTime>().m_Timestamp;
 			return true;
 		}
 
@@ -49,9 +51,9 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		for (auto &Log : Internal.m_Logs)
 		{
-			auto DatabaseKey = Internal.f_GetDatabaseKey<NLogStoreLocalDatabase::CLogKey>(Log.m_LogInfo);
+			auto DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(Log.m_LogInfo);
 
-			NLogStoreLocalDatabase::CLogValue DatabaseLogInfo;
+			CLogValue DatabaseLogInfo;
 			DatabaseLogInfo.m_Info = Log.m_LogInfo;
 			DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = Log.m_LastSeenUniqueSequence;
 

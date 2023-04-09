@@ -8,6 +8,8 @@
 
 namespace NMib::NConcurrency
 {
+	using namespace NLogStoreLocalDatabase;
+
 	CDistributedAppLogStoreLocal::CDistributedAppLogStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager)
 		: mp_pInternal(fg_Construct(this, _DistributionManager, _TrustManager))
 	{
@@ -169,20 +171,20 @@ namespace NMib::NConcurrency
 
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, NLogStoreLocalDatabase::CLogKey::mc_Prefix); iLog; ++iLog)
+			for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 			{
-				auto Key = iLog.f_Key<NLogStoreLocalDatabase::CLogKey>();
-				auto Value = iLog.f_Value<NLogStoreLocalDatabase::CLogValue>();
+				auto Key = iLog.f_Key<CLogKey>();
+				auto Value = iLog.f_Value<CLogValue>();
 
 				auto &Log = *m_Logs(Key.f_LogInfoKey(), CLog{fg_Move(Value.m_Info)});
 
 				Log.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
 
 				{
-					auto DatabaseKey = f_GetDatabaseKey<NLogStoreLocalDatabase::CLogEntryKey>(Log.m_LogInfo);
-					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((NLogStoreLocalDatabase::CLogKey const &)DatabaseKey);
+					auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(Log.m_LogInfo);
+					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
 					if (ReadCursor.f_Last())
-						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<NLogStoreLocalDatabase::CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
+						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
 				}
 			}
 		}

@@ -60,6 +60,31 @@ namespace NMib::NConcurrency
 			DMibListLinkDS_List(CSensorReporter, m_LinkInterface) m_Reporters;
 		};
 
+		struct CSensorSubscription
+		{
+			TCVector<CDistributedAppSensorReader_SensorFilter> m_Filters;
+			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange &&_Change)> m_fOnChange;
+
+			TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReader::CSensorChange> m_QueuedChanges;
+		};
+
+		struct CReadingSubscriptionShared
+		{
+			TCMap<CDistributedAppSensorReporter::CSensorInfoKey, zuint64> m_LastSeenReading;
+			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> m_fOnReading;
+			TCVector<CDistributedAppSensorReader_SensorKeyAndReading> m_QueuedReadings;
+		};
+
+		struct CReadingSubscription : public CReadingSubscriptionShared
+		{
+			TCVector<CDistributedAppSensorReader_SensorReadingSubscriptionFilter> m_Filters;
+		};
+
+		struct CStatusSubscription : public CReadingSubscriptionShared
+		{
+			TCVector<CDistributedAppSensorReader_SensorStatusFilter> m_Filters;
+		};
+
 		CInternal
 			(
 				CDistributedAppSensorStoreLocal *_pThis
@@ -101,6 +126,9 @@ namespace NMib::NConcurrency
 
 		CStr f_GetSensorUpdateFailedMessage(CSensorReporter const &_Reporter);
 
+		void f_Subscription_Readings(CSensor const &_Sensor, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings);
+		void f_Subscription_SensorInfoChanged(CSensor const &_Sensor);
+
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const;
 
@@ -121,6 +149,12 @@ namespace NMib::NConcurrency
 		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
+
+		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReporter::CSensorReading> m_LastReadings;
+
+		TCMap<CStr, CSensorSubscription> m_SensorSubscriptions;
+		TCMap<CStr, CReadingSubscription> m_ReadingSubscriptions;
+		TCMap<CStr, CStatusSubscription> m_StatusSubscriptions;
 
 		uint64 m_RetentionDays = 0;
 		

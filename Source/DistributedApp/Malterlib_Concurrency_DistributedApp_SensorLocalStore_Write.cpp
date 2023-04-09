@@ -174,6 +174,8 @@ namespace NMib::NConcurrency
 						pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
 				}
 
+				f_Subscription_Readings(*pSensor, _Readings);
+
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
 						fg_CallSafe(this, &CInternal::f_StoreSensorReadings, _SensorInfoKey, _DatabaseKey, _Readings)

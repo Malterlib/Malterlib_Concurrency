@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
+	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader::CGetSensors &&_Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -41,12 +41,12 @@ namespace NMib::NConcurrency
 			auto Key = iSensor.f_Key<CSensorKey>();
 			auto Value = iSensor.f_Value<CSensorValue>();
 
-			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter))
+			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
 
-			if (Batch.f_GetLen() >= _BatchSize)
+			if (Batch.f_GetLen() >= _Params.m_BatchSize)
 				co_yield fg_Move(Batch);
 		}
 
@@ -56,17 +56,51 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensorReadings
-		(
-			CDistributedAppSensorReader_SensorReadingFilter &&_Filter
-			, uint32 _BatchSize
-		)
+	auto CDistributedAppSensorStoreLocal::f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings &&_Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
+
+		NStorage::TCOptional<uint64> MinSequence;
+		NStorage::TCOptional<uint64> MaxSequence;
+
+		NStorage::TCOptional<NTime::CTime> MinTimestamp;
+		NStorage::TCOptional<NTime::CTime> MaxTimestamp;
+
+		bool bReportNewestFirst = true;
+		{
+			bool bFirst = true;
+			for (auto &Filter : _Params.m_Filters)
+			{
+				bool bReportNewestFirstValue = !!(Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst);
+				if (bFirst)
+				{
+					bFirst = false;
+					bReportNewestFirst = bReportNewestFirstValue;
+
+					MinSequence = Filter.m_MinSequence;
+					MaxSequence = Filter.m_MaxSequence;
+
+					MinTimestamp = Filter.m_MinTimestamp;
+					MaxTimestamp = Filter.m_MaxTimestamp;
+					continue;
+				}
+
+				if (bReportNewestFirstValue != bReportNewestFirst)
+					co_return DMibErrorInstance("ESensorReadingsFlag_ReportNewestFirst cannot be varied per filter");
+				if (MinSequence != Filter.m_MinSequence)
+					co_return DMibErrorInstance("MinSequence cannot be varied per filter");
+				if (MaxSequence != Filter.m_MaxSequence)
+					co_return DMibErrorInstance("MaxSequence cannot be varied per filter");
+				if (MinTimestamp != Filter.m_MinTimestamp)
+					co_return DMibErrorInstance("MinTimestamp cannot be varied per filter");
+				if (MaxTimestamp != Filter.m_MaxTimestamp)
+					co_return DMibErrorInstance("MaxTimestamp cannot be varied per filter");
+			}
+		}
 
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
@@ -92,16 +126,14 @@ namespace NMib::NConcurrency
 
 		auto iReadingByTime = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CSensorReadingByTime::mc_Prefix);
 
-		bool bReportNewestFirst = _Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
-
 		if (bReportNewestFirst)
 		{
-			if (_Filter.m_MaxTimestamp)
+			if (MaxTimestamp)
 			{
-				if (_Filter.m_MaxSequence)
-					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp, *_Filter.m_MaxSequence);
+				if (MaxSequence)
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MaxTimestamp, *MaxSequence);
 				else
-					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MaxTimestamp);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MaxTimestamp);
 
 				if (!iReadingByTime)
 					iReadingByTime.f_Last();
@@ -111,12 +143,12 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			if (_Filter.m_MinTimestamp)
+			if (MinTimestamp)
 			{
-				if (_Filter.m_MinSequence)
-					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp, *_Filter.m_MinSequence);
+				if (MinSequence)
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MinTimestamp, *MinSequence);
 				else
-					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *_Filter.m_MinTimestamp);
+					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MinTimestamp);
 			}
 		}
 
@@ -140,30 +172,30 @@ namespace NMib::NConcurrency
 
 			if (bReportNewestFirst)
 			{
-				if (_Filter.m_MinTimestamp)
+				if (MinTimestamp)
 				{
-					auto &MinTimestamp = *_Filter.m_MinTimestamp;
+					auto &MinTimestampValue = *MinTimestamp;
 
-					if (KeyByTime.m_Timestamp < MinTimestamp)
+					if (KeyByTime.m_Timestamp < MinTimestampValue)
 						break;
-					else if (KeyByTime.m_Timestamp == MinTimestamp && _Filter.m_MinSequence)
+					else if (KeyByTime.m_Timestamp == MinTimestampValue && MinSequence)
 					{
-						if (KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+						if (KeyByTime.m_UniqueSequence < *MinSequence)
 							break;
 					}
 				}
 			}
 			else
 			{
-				if (_Filter.m_MaxTimestamp)
+				if (MaxTimestamp)
 				{
-					auto &MaxTimestamp = *_Filter.m_MaxTimestamp;
+					auto &MaxTimestampValue = *MaxTimestamp;
 
-					if (KeyByTime.m_Timestamp > MaxTimestamp)
+					if (KeyByTime.m_Timestamp > MaxTimestampValue)
 						break;
-					else if (KeyByTime.m_Timestamp == MaxTimestamp && _Filter.m_MaxSequence)
+					else if (KeyByTime.m_Timestamp == MaxTimestampValue && MaxSequence)
 					{
-						if (KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
+						if (KeyByTime.m_UniqueSequence > *MaxSequence)
 							break;
 					}
 				}
@@ -180,17 +212,14 @@ namespace NMib::NConcurrency
 				co_await g_Yield;
 			}
 
-			if (!NSensorStore::fg_FilterSensorKey(KeyByTime, _Filter.m_SensorFilter))
+			if (MinSequence && KeyByTime.m_UniqueSequence < *MinSequence)
+				continue;
+			if (MaxSequence && KeyByTime.m_UniqueSequence > *MaxSequence)
 				continue;
 
-			if (_Filter.m_MinSequence && KeyByTime.m_UniqueSequence < *_Filter.m_MinSequence)
+			if (MinTimestamp && KeyByTime.m_Timestamp < *MinTimestamp)
 				continue;
-			if (_Filter.m_MaxSequence && KeyByTime.m_UniqueSequence > *_Filter.m_MaxSequence)
-				continue;
-
-			if (_Filter.m_MinTimestamp && KeyByTime.m_Timestamp < *_Filter.m_MinTimestamp)
-				continue;
-			if (_Filter.m_MaxTimestamp && KeyByTime.m_Timestamp > *_Filter.m_MaxTimestamp)
+			if (MaxTimestamp && KeyByTime.m_Timestamp > *MaxTimestamp)
 				continue;
 
 			auto Key = KeyByTime.f_Key();
@@ -203,20 +232,36 @@ namespace NMib::NConcurrency
 
 			auto *pSensor = Internal.m_Sensors.f_FindEqual(Key.f_SensorInfoKey());
 
-			if (pSensor)
 			{
-				if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(*pSensor, Value, _Filter.m_Flags))
-					continue;
-			}
-			else
-			{
-				if (!NSensorStore::fg_FilterSensorReadingValue(Value, _Filter.m_Flags, Key, FilterContext))
+				bool bPassFilter = _Params.m_Filters.f_IsEmpty();
+
+				for (auto &Filter : _Params.m_Filters)
+				{
+					if (!NSensorStore::fg_FilterSensorKey(KeyByTime, Filter.m_SensorFilter))
+						continue;
+
+					if (pSensor)
+					{
+						if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(*pSensor, Value, Filter.m_Flags))
+							continue;
+					}
+					else
+					{
+						if (!NSensorStore::fg_FilterSensorReadingValue(Value, Filter.m_Flags, Key, FilterContext))
+							continue;
+					}
+
+					bPassFilter = true;
+					break;
+				}
+
+				if (!bPassFilter)
 					continue;
 			}
 
 			Batch.f_Insert(CDistributedAppSensorReader_SensorKeyAndReading{fg_Move(Key).f_SensorInfoKey(), fg_Move(Value).f_Reading(Key)});
 
-			if (Batch.f_GetLen() >= _BatchSize)
+			if (Batch.f_GetLen() >= _Params.m_BatchSize)
 				co_yield fg_Move(Batch);
 		}
 
@@ -226,7 +271,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader_SensorStatusFilter &&_Filter, uint32 _BatchSize)
+	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus &&_Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -235,8 +280,14 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Local store not yet started");
 
 		NTime::CTime Now;
-		if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems)
-			Now = NTime::CTime::fs_NowUTC();
+		for (auto &Filter : _Params.m_Filters)
+		{
+			if (Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems)
+			{
+				Now = NTime::CTime::fs_NowUTC();
+				break;
+			}
+		}
 
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
@@ -259,9 +310,6 @@ namespace NMib::NConcurrency
 			auto Key = iSensor.f_Key<CSensorKey>();
 			auto Value = iSensor.f_Value<CSensorValue>();
 
-			if (!NSensorStore::fg_FilterSensorKey(Key, _Filter.m_SensorFilter))
-				continue;
-
 			CSensorKey ReadingKey = Key;
 			ReadingKey.m_Prefix = CSensorReadingKey::mc_Prefix;
 
@@ -272,8 +320,24 @@ namespace NMib::NConcurrency
 
 			auto ReadingValue = iReading.f_Value<CSensorReadingValue>();
 
-			if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, _Filter.m_Flags, Now))
-				continue;
+			{
+				bool bPassFilter = _Params.m_Filters.f_IsEmpty();
+
+				for (auto &Filter : _Params.m_Filters)
+				{
+					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter))
+						continue;
+
+					if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, Filter.m_Flags, Now))
+						continue;
+
+					bPassFilter = true;
+					break;
+				}
+
+				if (!bPassFilter)
+					continue;
+			}
 
 			Batch.f_Insert
 				(
@@ -285,7 +349,7 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			if (Batch.f_GetLen() >= _BatchSize)
+			if (Batch.f_GetLen() >= _Params.m_BatchSize)
 				co_yield fg_Move(Batch);
 		}
 

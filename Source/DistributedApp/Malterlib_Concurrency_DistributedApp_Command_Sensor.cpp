@@ -576,7 +576,7 @@ namespace NMib::NConcurrency
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 
-		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter), 1024);
+		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter}});
 
 		co_return co_await self
 			(
@@ -882,8 +882,8 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
-		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorStatus, fg_TempCopy(_Filter), 1024);
-		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter.m_SensorFilter), 1024);
+		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorStatus, CDistributedAppSensorReader::CGetSensorStatus{.m_Filters = {_Filter}});
+		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter.m_SensorFilter}});
 
 		CDistributedAppSensorReader_SensorReadingFilter Filter;
 		Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
@@ -912,8 +912,8 @@ namespace NMib::NConcurrency
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
-		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorReadings, fg_TempCopy(_Filter), 1024);
-		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, fg_TempCopy(_Filter.m_SensorFilter), 1024);
+		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorReadings, CDistributedAppSensorReader::CGetSensorReadings{.m_Filters = {_Filter}});
+		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter.m_SensorFilter}});
 
 		co_await self
 			(

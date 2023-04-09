@@ -15,4 +15,16 @@ namespace NMib::NConcurrency
 	}
 
 	CDistributedAppSensorReader::~CDistributedAppSensorReader() = default;
+
+	CDistributedAppSensorReader_SensorReadingFilter CDistributedAppSensorReader_SensorReadingSubscriptionFilter::f_ToReadingFilter() const
+	{
+		CDistributedAppSensorReader_SensorReadingFilter Return;
+
+		Return.m_SensorFilter = m_SensorFilter;
+		Return.m_MinSequence = m_MinSequence;
+		Return.m_MinTimestamp = m_MinTimestamp;
+		Return.m_Flags = m_Flags;
+
+		return Return;
+	}
 }

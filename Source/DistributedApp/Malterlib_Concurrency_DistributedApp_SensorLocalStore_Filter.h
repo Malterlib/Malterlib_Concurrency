@@ -27,6 +27,8 @@ namespace NMib::NConcurrency::NSensorStore
 
 	template <typename tf_CKey>
 	bool fg_FilterSensorKey(tf_CKey const &_Key, CDistributedAppSensorReader_SensorFilter const &_Filter);
+	template <typename tf_CKey>
+	bool fg_FilterSensorKey(tf_CKey const &_Key, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters);
 
 	template <typename tf_CReading>
 	bool fg_FilterSensorValueStatusIsProblem(tf_CReading const &_Reading);

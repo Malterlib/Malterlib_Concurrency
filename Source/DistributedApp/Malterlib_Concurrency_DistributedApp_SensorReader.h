@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 		enum ESensorReadingsFlag
 		{
 			ESensorReadingsFlag_None = 0
-			, ESensorReadingsFlag_ReportNewestFirst = DMibBit(0)
+			, ESensorReadingsFlag_ReportNewestFirst = DMibBit(0) ///< Not supported for subscriptions
 			, ESensorReadingsFlag_OnlyProblems = DMibBit(1)
 		};
 
@@ -42,6 +42,20 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<NTime::CTime> m_MaxTimestamp;
 
 		ESensorReadingsFlag m_Flags = ESensorReadingsFlag_ReportNewestFirst;
+	};
+
+	struct CDistributedAppSensorReader_SensorReadingSubscriptionFilter
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+		CDistributedAppSensorReader_SensorReadingFilter f_ToReadingFilter() const;
+
+		CDistributedAppSensorReader_SensorFilter m_SensorFilter;
+
+		NStorage::TCOptional<uint64> m_MinSequence; ///< If specified historic readings will also be reported, but will not be applied to not yet generated readings
+		NStorage::TCOptional<NTime::CTime> m_MinTimestamp; ///< If specified historic readings will also be reported, but will not be applied to not yet generated readings
+
+		CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 	};
 
 	struct CDistributedAppSensorReader_SensorStatusFilter
@@ -76,14 +90,73 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_Current = CDistributedAppSensorReporter::EProtocolVersion_Current
 		};
 
-		virtual auto f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize)
-			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>>> = 0
+		enum ESensorChange : uint32
+		{
+			ESensorChange_AddedOrUpdated
+			, ESensorChange_Removed
+		};
+
+		using CSensorChange = NStorage::TCStreamableVariant
+			<
+				ESensorChange
+				, NStorage::TCMember<CDistributedAppSensorReporter::CSensorInfo, ESensorChange_AddedOrUpdated>
+				, NStorage::TCMember<CDistributedAppSensorReporter::CSensorInfoKey, ESensorChange_Removed>
+			>
 		;
-		virtual auto f_GetSensorReadings(CDistributedAppSensorReader_SensorReadingFilter &&_Filter, uint32 _BatchSize)
-			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0
+
+		struct CGetSensors
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> m_Filters;
+			uint32 m_BatchSize = 1024;
+		};
+
+		struct CGetSensorReadings
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppSensorReader_SensorReadingFilter> m_Filters;
+			uint32 m_BatchSize = 1024;
+		};
+
+		struct CGetSensorStatus
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppSensorReader_SensorStatusFilter> m_Filters;
+			uint32 m_BatchSize = 1024;
+		};
+
+		template <typename tf_CStream, typename tf_CFilter>
+		static void fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters);
+
+		virtual auto f_GetSensors(CGetSensors &&_Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>>> = 0;
+		virtual auto f_GetSensorReadings(CGetSensorReadings &&_Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
+		virtual auto f_GetSensorStatus(CGetSensorStatus &&_Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0;
+		virtual auto f_SubscribeSensors
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> &&_Filters
+				, TCActorFunctorWithID<TCFuture<void> (CSensorChange &&_Change)> &&_fOnChange
+			)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
-		virtual auto f_GetSensorStatus(CDistributedAppSensorReader_SensorStatusFilter &&_Filter, uint32 _BatchSize)
-			-> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>> = 0
+		virtual auto f_SubscribeSensorReadings
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorReadingSubscriptionFilter> &&_Filters
+				, TCActorFunctorWithID<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
+		;
+		virtual auto f_SubscribeSensorStatus
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorStatusFilter> &&_Filters
+				, TCActorFunctorWithID<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			)
+			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
 	};
 }

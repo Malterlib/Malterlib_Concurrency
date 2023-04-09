@@ -29,12 +29,31 @@ namespace NMib::NConcurrency
 		TCFuture<CActorSubscription> f_AddExtraSensorReporter(TCDistributedActorInterface<CDistributedAppSensorReporter> &&_SensorReporter, CTrustedActorInfo const &_TrustInfo);
 		TCFuture<CDistributedAppSensorReporter::CSensorReporter> f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo);
 
-		TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> f_GetSensors(CDistributedAppSensorReader_SensorFilter &&_Filter, uint32 _BatchSize);
-		auto f_GetSensorReadings(CDistributedAppSensorReader_SensorReadingFilter &&_Filter, uint32 _BatchSize)
+		TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> f_GetSensors(CDistributedAppSensorReader::CGetSensors &&_Params);
+		auto f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings &&_Params) -> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>;
+		auto f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus &&_Params)
 			-> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 		;
-		auto f_GetSensorStatus(CDistributedAppSensorReader_SensorStatusFilter &&_Filter, uint32 _BatchSize)
-			-> TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
+		auto f_SubscribeSensors
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> &&_Filters
+				, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange &&_Change)> &&_fOnChange
+			)
+			-> TCFuture<CActorSubscription>
+		;
+		auto f_SubscribeSensorReadings
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorReadingSubscriptionFilter> &&_Filters
+				, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			)
+			-> TCFuture<CActorSubscription>
+		;
+		auto f_SubscribeSensorStatus
+			(
+				NContainer::TCVector<CDistributedAppSensorReader_SensorStatusFilter> &&_Filters
+				, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			)
+			-> TCFuture<CActorSubscription>
 		;
 
 		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);

@@ -43,6 +43,25 @@ namespace NMib::NConcurrency::NSensorStore
 		return true;
 	}
 
+	template <typename tf_CKey>
+	bool fg_FilterSensorKey
+		(
+			tf_CKey const &_Key
+			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
+		)
+	{
+		bool bPassFilter = _Filters.f_IsEmpty();
+		for (auto &Filter : _Filters)
+		{
+			if (fg_FilterSensorKey(_Key, Filter))
+			{
+				bPassFilter = true;
+				break;
+			}
+		}
+		return bPassFilter;
+	}
+
 	template <typename tf_CReading>
 	bool fg_FilterSensorValueStatusIsProblem(tf_CReading const &_Reading)
 	{

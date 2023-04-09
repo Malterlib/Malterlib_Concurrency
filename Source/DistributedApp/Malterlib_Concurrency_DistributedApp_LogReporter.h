@@ -25,8 +25,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_UniqueSequenceAtLastCleanup = 0x102
 			, EProtocolVersion_ReportEntriesDepth = 0x103
 			, EProtocolVersion_MultipleFilters = 0x104
+			, EProtocolVersion_IgnoreRemoved = 0x105
 
-			, EProtocolVersion_Current = 0x104
+			, EProtocolVersion_Current = 0x105
 		};
 
 		enum ELogSeverity : uint32
@@ -178,6 +179,9 @@ namespace NMib::NConcurrency
 			NStr::CStr m_IdentifierScope;
 
 			NStr::CStr m_Name;
+
+			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
+			bool m_bRemoved = false;
 		};
 
 		struct CReportEntriesResult

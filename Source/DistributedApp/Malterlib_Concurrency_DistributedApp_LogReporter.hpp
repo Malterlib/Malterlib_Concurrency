@@ -70,6 +70,14 @@ namespace NMib::NConcurrency
 		_Stream % m_Identifier;
 		_Stream % m_IdentifierScope;
 		_Stream % m_Name;
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_IgnoreRemoved)
+		{
+			_Stream % m_LastSeen;
+			_Stream % m_bRemoved;
+		}
+		else if constexpr (tf_CStream::mc_bConsume)
+			m_LastSeen = NTime::CTime();
 	}
 
 	template <typename tf_CStream>
@@ -98,7 +106,9 @@ namespace NMib::NConcurrency
 				"    Scope: {}\n"
 				"    Identifier: {}\n"
 				"    IdentifierScope: {}\n"
-				"    Name: {}"
+				"    Name: {}\n"
+				"    LastSeen: {}\n"
+				"    Removed: {}"
 			)
 			<< m_HostID
 			<< m_HostName
@@ -106,6 +116,8 @@ namespace NMib::NConcurrency
 			<< m_Identifier
 			<< m_IdentifierScope
 			<< m_Name
+			<< m_LastSeen
+			<< (m_bRemoved ? "true" : "false")
 		;
 	}
 

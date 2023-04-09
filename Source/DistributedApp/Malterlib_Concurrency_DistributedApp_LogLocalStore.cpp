@@ -166,10 +166,14 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		CLogGlobalStateKey GlobalStateKey{.m_Prefix = m_Prefix};
+		CLogGlobalStateValue GlobalStateValue;
 		{
 			auto CaptureScope = co_await (g_CaptureExceptions % "Error reading log data from database (f_Start)");
 
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
+
+			ReadTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
 
 			for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 			{
@@ -187,6 +191,62 @@ namespace NMib::NConcurrency
 						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
 				}
 			}
+		}
+
+		if (!GlobalStateValue.m_bConvertedKnownHosts)
+		{
+			co_await m_Database
+				(
+					&CDatabaseActor::f_WriteWithCompaction
+					, g_ActorFunctorWeak / [=]
+					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+					{
+						co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+						auto WriteTransaction = fg_Move(_Transaction);
+						if (_bCompacting)
+							WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+
+						CLogGlobalStateValue GlobalStateValue;
+						WriteTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
+
+						if (GlobalStateValue.m_bConvertedKnownHosts)
+							co_return fg_Move(WriteTransaction);
+
+						for (auto iLog = WriteTransaction.m_Transaction.f_ReadCursor(m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
+						{
+							auto Key = iLog.f_Key<CLogKey>();
+							auto Value = iLog.f_Value<CLogValue>();
+
+							CLogKey EntryKey = Key;
+							EntryKey.m_Prefix = CLogEntryKey::mc_Prefix;
+
+							auto iEntry = WriteTransaction.m_Transaction.f_ReadCursor(EntryKey);
+
+							if (!iEntry.f_Last())
+								continue;
+
+							auto EntryValue = iEntry.f_Value<CLogEntryValue>();
+
+							if (!Key.m_HostID)
+								continue;
+
+							CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = Key.m_HostID};
+
+							CKnownHostValue KnownHostValue;
+							_Transaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
+
+							KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, EntryValue.m_Timestamp);
+							_Transaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+						}
+
+						GlobalStateValue.m_bConvertedKnownHosts = true;
+						WriteTransaction.m_Transaction.f_Upsert(GlobalStateKey, GlobalStateValue);
+
+						co_return fg_Move(WriteTransaction);
+					}
+				)
+			;
 		}
 
 		if (m_RetentionDays && !m_fCleanup)

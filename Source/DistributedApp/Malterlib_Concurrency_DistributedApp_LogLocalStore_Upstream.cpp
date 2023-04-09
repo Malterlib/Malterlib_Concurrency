@@ -206,6 +206,18 @@ namespace NMib::NConcurrency
 					else
 						f_Subscription_LogInfoChanged(*pLog);
 
+					if (DatabaseKey.m_HostID)
+					{
+						CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = DatabaseKey.m_HostID};
+
+						CKnownHostValue KnownHostValue;
+						WriteTransaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
+
+						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, pLog->m_Info.m_LastSeen);
+
+						WriteTransaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+					}
+
 					CLogValue DatabaseLogInfo;
 					DatabaseLogInfo.m_Info = pLog->m_Info;
 					DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = pLog->m_LastSeenUniqueSequence;

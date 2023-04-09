@@ -9,6 +9,54 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 {
 	static constexpr uint32 gc_Version = CDistributedAppLogReporter::EProtocolVersion_Current;
 
+	struct CLogGlobalStateKey
+	{
+		template <typename tf_CStream>
+		void f_FeedLexicographic(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_ConsumeLexicographic(tf_CStream &_Stream);
+
+		auto operator <=>(CLogGlobalStateKey const &_Right) const = default;
+
+		static NStr::CStr const mc_Prefix;
+
+		NStr::CStr m_DbPrefix;
+		NStr::CStr m_Prefix = mc_Prefix;
+	};
+
+	struct CLogGlobalStateValue
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		bool m_bConvertedKnownHosts = false;
+	};
+
+	struct CKnownHostKey
+	{
+		template <typename tf_CStream>
+		void f_FeedLexicographic(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_ConsumeLexicographic(tf_CStream &_Stream);
+
+		auto operator <=>(CKnownHostKey const &_Right) const = default;
+
+		static NStr::CStr const mc_Prefix;
+
+		NStr::CStr m_DbPrefix;
+		NStr::CStr m_Prefix = mc_Prefix;
+		NStr::CStr m_HostID;
+	};
+
+	struct CKnownHostValue
+	{
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+
+		NTime::CTime m_LastSeen;
+		bool m_bRemoved = false;
+	};
+
 	struct CLogKey
 	{
 		template <typename tf_CStream>

@@ -8,9 +8,11 @@
 
 namespace NMib::NConcurrency::NLogStoreLocalDatabase
 {
+	constexpr NStr::CStr const CLogGlobalStateKey::mc_Prefix = NStr::gc_Str<"LogGlobal">;
 	constexpr NStr::CStr CLogKey::mc_Prefix = NStr::gc_Str<"Log">;
 	constexpr NStr::CStr CLogEntryKey::mc_Prefix = NStr::gc_Str<"LogEntry">;
 	constexpr NStr::CStr CLogEntryByTime::mc_Prefix = NStr::gc_Str<"LogEntryByDate">;
+	constexpr NStr::CStr const CKnownHostKey::mc_Prefix = NStr::gc_Str<"LogKnownHost">;
 
 	CLogEntryKey CLogEntryByTime::f_Key() const
 	{

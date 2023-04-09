@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 				Log.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
 
 				{
-					auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(Log.m_LogInfo);
+					auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(Log.m_Info);
 					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
 					if (ReadCursor.f_Last())
 						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);

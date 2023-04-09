@@ -51,10 +51,10 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		for (auto &Log : Internal.m_Logs)
 		{
-			auto DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(Log.m_LogInfo);
+			auto DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(Log.m_Info);
 
 			CLogValue DatabaseLogInfo;
-			DatabaseLogInfo.m_Info = Log.m_LogInfo;
+			DatabaseLogInfo.m_Info = Log.m_Info;
 			DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = Log.m_LastSeenUniqueSequence;
 
 			_WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseLogInfo);

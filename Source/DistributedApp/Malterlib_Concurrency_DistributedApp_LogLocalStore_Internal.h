@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 				return TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog>::fs_GetKey(*this);
 			}
 
-			CDistributedAppLogReporter::CLogInfo m_LogInfo;
+			CDistributedAppLogReporter::CLogInfo m_Info;
 			uint64 m_LastSeenUniqueSequence = 0;
 			mint m_ActiveRefCount = 0;
 

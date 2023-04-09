@@ -349,11 +349,11 @@ namespace NMib::NConcurrency
 			auto SequenceSubscription = co_await pLog->m_LogSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
 
-			bool bWasChanged = bWasCreated || _LogInfo != pLog->m_LogInfo;
+			bool bWasChanged = bWasCreated || _LogInfo != pLog->m_Info;
 
 			if (bWasChanged)
 			{
-				pLog->m_LogInfo = _LogInfo;
+				pLog->m_Info = _LogInfo;
 				auto Result = co_await Internal.m_Database
 					(
 						&CDatabaseActor::f_WriteWithCompaction

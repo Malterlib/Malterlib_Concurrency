@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 		if (pLogReporter->m_Reporter.m_fReportEntries)
 			co_await fg_Move(pLogReporter->m_Reporter.m_fReportEntries).f_Destroy();
 
-		auto Reporter = co_await pLogInterface->m_Actor.f_CallActor(&CDistributedAppLogReporter::f_OpenLogReporter)(pLog->m_LogInfo);
+		auto Reporter = co_await pLogInterface->m_Actor.f_CallActor(&CDistributedAppLogReporter::f_OpenLogReporter)(pLog->m_Info);
 		if (!Reporter.m_fReportEntries)
 			co_return DMibErrorInstance("Invalid report readings functor returned from f_OpenLogReporter");
 
@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 		{
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(pLog->m_LogInfo);
+			auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(pLog->m_Info);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
 			auto iLogEntry = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 					, "Detected incorrect database last unique sequence. Reset from {} to {}\n{}"
 					, pLog->m_LastSeenUniqueSequence
 					, Reporter.m_LastSeenUniqueSequence
-					, pLog->m_LogInfo
+					, pLog->m_Info
 				)
 			;
 			pLog->m_LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence;

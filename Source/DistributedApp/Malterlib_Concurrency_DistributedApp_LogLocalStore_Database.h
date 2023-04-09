@@ -64,13 +64,17 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
+		auto operator <=> (CLogKey const &_Right) const = default;
+
+		CLogKey const &f_LogKey() const &;
+
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() const &;
 		CDistributedAppLogReporter::CLogInfoKey f_LogInfoKey() &&;
 
 		static const NStr::CStr mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
-		NStr::CStr m_Prefix;
+		NStr::CStr m_Prefix = mc_Prefix;
 		NStr::CStr m_HostID;
 		NStr::CStr m_ApplicationName;
 		NStr::CStr m_Identifier;
@@ -88,6 +92,8 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 
 	struct CLogEntryKey : public CLogKey
 	{
+		CLogEntryKey();
+
 		template <typename tf_CStream>
 		void f_FeedLexicographic(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
@@ -103,6 +109,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 	struct CLogEntryByTime
 	{
 		CLogEntryKey f_Key() const;
+		CLogKey f_LogKey() const &;
 
 		template <typename tf_CStream>
 		void f_FeedLexicographic(tf_CStream &_Stream) const;
@@ -112,7 +119,7 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		static const NStr::CStr mc_Prefix;
 
 		NStr::CStr m_DbPrefix;
-		NStr::CStr m_Prefix;
+		NStr::CStr m_Prefix = mc_Prefix;
 
 		NTime::CTime m_Timestamp;
 		uint64 m_UniqueSequence = 0;

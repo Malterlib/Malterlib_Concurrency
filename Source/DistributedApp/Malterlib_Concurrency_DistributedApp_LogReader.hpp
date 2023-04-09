@@ -12,6 +12,8 @@ namespace NMib::NConcurrency
 		_Stream % m_Scope;
 		_Stream % m_Identifier;
 		_Stream % m_IdentifierScope;
+		if (_Stream.f_GetVersion() >= CDistributedAppLogReporter::EProtocolVersion_IgnoreRemoved)
+			_Stream % m_Flags;
 	}
 
 	template <typename tf_CStream>

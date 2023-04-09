@@ -110,6 +110,32 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	TCFuture<uint32> CDistributedAppLogStoreLocal::f_RemoveLogs(NContainer::TCSet<CDistributedAppLogReporter::CLogInfoKey> &&_LogInfoKeys)
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (!Internal.m_bStarted)
+			co_return DMibErrorInstance("Local store not yet started");
+
+		uint32 nRemoved = 0;
+
+		for (auto &LogInfoKey : _LogInfoKeys)
+		{
+			auto *pLog = Internal.m_Logs.f_FindEqual(LogInfoKey);
+			if (!pLog)
+				continue;
+
+			if (pLog->m_Info.m_bRemoved)
+				continue;
+
+			++nRemoved;
+			pLog->m_Info.m_bRemoved = true;
+			co_await fg_CallSafe(Internal, &CInternal::f_LogInfoChanged, LogInfoKey, false);
+		}
+
+		co_return nRemoved;
+	}
+
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_StoreLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
@@ -135,6 +161,12 @@ namespace NMib::NConcurrency
 
 					auto DatabaseKey = _DatabaseKey;
 					auto WriteTransaction = fg_Move(_Transaction);
+
+					if (!_bCompacting)
+					{
+						if (auto *pLog = m_Logs.f_FindEqual(_LogInfoKey))
+							f_Subscription_Entries(*pLog, *_pEntries, WriteTransaction.m_Transaction);
+					}
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
@@ -390,8 +422,6 @@ namespace NMib::NConcurrency
 
 				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(Entries));
 
-				f_Subscription_Entries(*pLog, *pEntries);
-
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
 						fg_CallSafe(this, &CInternal::f_StoreLogEntries, _LogInfoKey, _DatabaseKey, pEntries)
@@ -462,6 +492,10 @@ namespace NMib::NConcurrency
 		{
 			auto SequenceSubscription = co_await pLog->m_LogSequencer.f_Sequence();
 			auto &Internal = *mp_pInternal;
+
+			// Reset removed state when a log has been opened again after being marked as removed. Last seen will only be updated when a log is opened in an non-upstream context.
+			if (!_LogInfo.m_LastSeen.f_IsValid() || _LogInfo.m_LastSeen == pLog->m_Info.m_LastSeen)
+				_LogInfo.m_bRemoved = pLog->m_Info.m_bRemoved;
 
 			bool bWasChanged = bWasCreated || _LogInfo != pLog->m_Info;
 

@@ -14,6 +14,16 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 	constexpr NStr::CStr CLogEntryByTime::mc_Prefix = NStr::gc_Str<"LogEntryByDate">;
 	constexpr NStr::CStr const CKnownHostKey::mc_Prefix = NStr::gc_Str<"LogKnownHost">;
 
+	CLogKey const &CLogKey::f_LogKey() const &
+	{
+		return *this;
+	}
+
+	CLogEntryKey::CLogEntryKey()
+		: CLogKey{.m_Prefix = mc_Prefix}
+	{
+	}
+
 	CLogEntryKey CLogEntryByTime::f_Key() const
 	{
 		CLogEntryKey Key;
@@ -28,6 +38,15 @@ namespace NMib::NConcurrency::NLogStoreLocalDatabase
 		Key.m_IdentifierScope = m_IdentifierScope;
 
 		return Key;
+	}
+
+	CLogKey CLogEntryByTime::f_LogKey() const &
+	{
+		CLogKey Return = f_Key();
+
+		Return.m_Prefix = CLogKey::mc_Prefix;
+
+		return Return;
 	}
 
 	CDistributedAppLogReporter::CLogInfoKey CLogKey::f_LogInfoKey() const &

@@ -134,8 +134,8 @@ namespace NMib::NConcurrency
 
 		CStr f_GetLogUpdateFailedMessage(CLogReporter const &_Reporter);
 
-		void f_Subscription_Entries(CLog const &_Log, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries);
-		void f_Subscription_LogInfoChanged(CLog const &_Log);
+		void f_Subscription_Entries(CLog const &_Log, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries, NDatabase::CDatabaseSubReadTransaction &_Transaction);
+		void f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction);
 
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const;
@@ -157,6 +157,7 @@ namespace NMib::NConcurrency
 		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
+		CStr m_ThisHostID;
 
 		TCMap<CStr, CLogSubscription> m_LogSubscriptions;
 		TCMap<CStr, CEntrySubscription> m_EntrySubscriptions;

@@ -12,6 +12,12 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppLogReader_LogFilter
 	{
+		enum ELogFlag
+		{
+			ELogFlag_None = 0
+			, ELogFlag_IgnoreRemoved = DMibBit(0)
+		};
+
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
@@ -19,6 +25,7 @@ namespace NMib::NConcurrency
 		NStorage::TCOptional<CDistributedAppLogReporter::CLogScope> m_Scope;
 		NStorage::TCOptional<NStr::CStr> m_Identifier;
 		NStorage::TCOptional<NStr::CStr> m_IdentifierScope;
+		ELogFlag m_Flags = ELogFlag_None;
 	};
 
 	struct CDistributedAppLogReader_LogDataFilter

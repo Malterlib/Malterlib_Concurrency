@@ -5,6 +5,21 @@
 
 namespace NMib::NConcurrency::NLogStore
 {
+	using namespace NLogStoreLocalDatabase;
+
+	CDistributedAppLogReporter::CLogInfo const *CFilterLogKeyContext::f_GetLog(CLogKey const &_Key)
+	{
+		auto Mapping = m_LogValues(_Key);
+		auto &CachedValue = *Mapping;
+		if (!Mapping.f_WasCreated())
+			return CachedValue.m_pValue;
+
+		if (m_Transaction.f_Get(_Key, CachedValue.m_Value))
+			CachedValue.m_pValue = &CachedValue.m_Value.m_Info;
+
+		return CachedValue.m_pValue;
+	}
+
 	bool fg_MatchMultipleValuesWildcards(NContainer::TCVector<NStr::CStr> const &_Values, NContainer::TCSet<NStr::CStr> const &_Wildcards)
 	{
 		bool bMatched = false;

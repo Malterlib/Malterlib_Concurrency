@@ -137,6 +137,18 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		auto fOption_IgnoreRemoved = [](bool _bDefault)
+			{
+				return "IgnoreRemoved?"_=
+					{
+						"Names"_= {"--ignore-removed"}
+						, "Default"_= _bDefault
+						, "Description"_= "Ignore logs that were removed, or that were owned by a removed application or app manager."
+					}
+				;
+			}
+		;
+
 		auto fParseLogFilter = [](CEJSON const &_Params) -> CDistributedAppLogReader_LogFilter
 			{
 				CDistributedAppLogReader_LogFilter Filter;
@@ -158,6 +170,9 @@ namespace NMib::NConcurrency
 
 				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
 					Filter.m_IdentifierScope = pValue->f_String();
+					
+				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue->f_Boolean())
+					Filter.m_Flags |= CDistributedAppLogReader_LogFilter::ELogFlag_IgnoreRemoved;
 
 				return Filter;
 			}
@@ -187,6 +202,7 @@ namespace NMib::NConcurrency
 						, Option_LogApplication
 						, Option_LogIdentifier
 						, Option_LogIdentifierScope
+						, fOption_IgnoreRemoved(false)
 						, Option_Verbose
 						, Option_Json
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -221,6 +237,7 @@ namespace NMib::NConcurrency
 						, Option_LogApplication
 						, Option_LogIdentifier
 						, Option_LogIdentifierScope
+						, fOption_IgnoreRemoved(false)
 						, Option_Verbose
 						, Option_Json
 						, "Raw?"_=
@@ -419,6 +436,7 @@ namespace NMib::NConcurrency
 		fAddHeading("Identifier", false);
 		fAddHeading("Identifier Scope", false);
 		fAddHeading("Name", false);
+		fAddHeading("Removed");
 
 		TableRenderer.f_AddHeadingsVector(Headings);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -450,6 +468,7 @@ namespace NMib::NConcurrency
 								, "Identifier"_= LogInfo.m_Identifier
 								, "IdentifierScope"_= LogInfo.m_IdentifierScope
 								, "Name"_= LogInfo.m_Name
+								, "Removed"_= LogInfo.m_bRemoved
 							}
 						)
 					;
@@ -468,6 +487,7 @@ namespace NMib::NConcurrency
 							, LogInfo.m_Identifier
 							, LogInfo.m_IdentifierScope
 							, LogInfo.m_Name
+							, LogInfo.m_bRemoved ? "true" : "false"
 						)
 					;
 				}

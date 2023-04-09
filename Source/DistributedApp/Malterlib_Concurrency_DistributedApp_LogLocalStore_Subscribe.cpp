@@ -191,10 +191,13 @@ namespace NMib::NConcurrency
 		(
 			CLog const &_Log
 			, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries
+			, NDatabase::CDatabaseSubReadTransaction &_Transaction
 		)
 	{
 		auto LogDatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 		auto LogKey = _Log.f_GetKey();
+
+		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Entry : _Entries)
 		{
@@ -205,7 +208,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NLogStore::fg_FilterLogKey(LogDatabaseKey, Filter.m_Filter.m_LogFilter))
+						if (!NLogStore::fg_FilterLogKey(LogDatabaseKey, Filter.m_Filter.m_LogFilter, FilterContext, &_Log.m_Info))
 							continue;
 
 						if (Filter.m_bIsDataFiltered && !NLogStore::fg_FilterLogValue(Entry.m_Data, Filter.m_Filter.m_LogDataFilter))
@@ -231,13 +234,15 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedAppLogStoreLocal::CInternal::f_Subscription_LogInfoChanged(CLog const &_Log)
+	void CDistributedAppLogStoreLocal::CInternal::f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction)
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 
+		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+
 		for (auto &Subscription : m_LogSubscriptions)
 		{
-			if (!NLogStore::fg_FilterLogKey(DatabaseKey, Subscription.m_Filters))
+			if (!NLogStore::fg_FilterLogKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Log.m_Info))
 				continue;
 
 			if (Subscription.m_fOnChange)

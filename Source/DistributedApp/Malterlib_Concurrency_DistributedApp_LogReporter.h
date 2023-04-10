@@ -64,6 +64,8 @@ namespace NMib::NConcurrency
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
 
+			auto operator <=> (CSourceLocation const &_Right) const = default;
+
 			NStr::CStr m_File;
 			int32 m_Line = 0;
 		};
@@ -115,6 +117,8 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
 			NEncoding::CEJSON f_ToJSON() const;
+
+			auto operator <=> (CLogData const &_Right) const = default;
 
 			NContainer::TCVector<NStr::CStr> m_Categories;
 			NContainer::TCVector<NStr::CStr> m_Operations;

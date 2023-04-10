@@ -311,15 +311,27 @@ namespace NMib::NConcurrency
 
 				auto SequenceSubscription = co_await pSensor->m_SensorSequencer.f_Sequence();
 
+				TCVector<CDistributedAppSensorReporter::CSensorReading> NewReadings;
+
 				for (auto &Reading : _Readings)
 				{
 					if (Reading.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
 						Reading.m_UniqueSequence = ++pSensor->m_LastSeenUniqueSequence;
 					else
+					{
+						if (Reading.m_UniqueSequence <= pSensor->m_LastSeenUniqueSequence)
+							continue; // Can happen if readings are being reported with two interfaces
+						
 						pSensor->m_LastSeenUniqueSequence = fg_Max(pSensor->m_LastSeenUniqueSequence, Reading.m_UniqueSequence);
+					}
+
+					NewReadings.f_Insert(fg_Move(Reading));
 				}
 
-				TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading>> pReadings = fg_Construct(fg_Move(_Readings));
+				if (NewReadings.f_IsEmpty())
+					co_return {};
+
+				TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading>> pReadings = fg_Construct(fg_Move(NewReadings));
 
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(

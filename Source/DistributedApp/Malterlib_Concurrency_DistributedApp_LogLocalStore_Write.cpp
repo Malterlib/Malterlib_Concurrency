@@ -143,6 +143,9 @@ namespace NMib::NConcurrency
 			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
 		)
 	{
+		if (_pEntries->f_IsEmpty())
+			co_return {};
+		
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 		if (!pLog)
 			co_return {};
@@ -412,15 +415,27 @@ namespace NMib::NConcurrency
 
 				auto Entries = fg_SplitEntriesByMaxSize(fg_Move(_Entries));
 
+				TCVector<CDistributedAppLogReporter::CLogEntry> NewEntries;
+
 				for (auto &Entry : Entries)
 				{
 					if (Entry.m_UniqueSequence == TCLimitsInt<uint64>::mc_Max)
 						Entry.m_UniqueSequence = ++pLog->m_LastSeenUniqueSequence;
 					else
+					{
+						if (Entry.m_UniqueSequence <= pLog->m_LastSeenUniqueSequence)
+							continue; // Can happen if entries are being reported with two interfaces
+
 						pLog->m_LastSeenUniqueSequence = fg_Max(pLog->m_LastSeenUniqueSequence, Entry.m_UniqueSequence);
+					}
+
+					NewEntries.f_Insert(fg_Move(Entry));
 				}
 
-				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(Entries));
+				if (NewEntries.f_IsEmpty() && !Entries.f_IsEmpty())
+					co_return {};
+
+				NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> pEntries = fg_Construct(fg_Move(NewEntries));
 
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(

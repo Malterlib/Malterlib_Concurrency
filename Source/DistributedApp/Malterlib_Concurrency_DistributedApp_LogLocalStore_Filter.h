@@ -18,7 +18,7 @@ namespace NMib::NConcurrency::NLogStore
 
 		CDistributedAppLogReporter::CLogInfo const *f_GetLog(NLogStoreLocalDatabase::CLogKey const &_Key);
 
-		NDatabase::CDatabaseSubReadTransaction &m_Transaction;
+		NDatabase::CDatabaseSubReadTransaction *m_pTransaction = nullptr;
 		CStr const &m_ThisHostID;
 		CStr const &m_Prefix;
 

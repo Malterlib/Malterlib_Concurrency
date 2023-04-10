@@ -20,7 +20,7 @@ namespace NMib::NConcurrency::NSensorStore
 
 		CDistributedAppSensorReporter::CSensorInfo const *f_GetSensor(NSensorStoreLocalDatabase::CSensorKey const &_Key);
 
-		NDatabase::CDatabaseSubReadTransaction &m_Transaction;
+		NDatabase::CDatabaseSubReadTransaction *m_pTransaction = nullptr;
 		CStr const &m_ThisHostID;
 		CStr const &m_Prefix;
 

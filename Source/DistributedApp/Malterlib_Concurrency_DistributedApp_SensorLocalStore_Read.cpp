@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 		{
@@ -323,7 +323,7 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{

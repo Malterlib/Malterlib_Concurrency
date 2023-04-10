@@ -48,11 +48,11 @@ namespace NMib::NConcurrency::NSensorStore
 
 		if (_Filter.m_Flags & CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved)
 		{
-			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID)
+			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
 			{
 				NSensorStoreLocalDatabase::CKnownHostKey Key{.m_DbPrefix = _Context.m_Prefix, .m_HostID = _Key.m_HostID};
 				NSensorStoreLocalDatabase::CKnownHostValue Value;
-				if (_Context.m_Transaction.f_Get(Key, Value))
+				if (_Context.m_pTransaction->f_Get(Key, Value))
 				{
 					if (Value.m_bRemoved)
 						return false;

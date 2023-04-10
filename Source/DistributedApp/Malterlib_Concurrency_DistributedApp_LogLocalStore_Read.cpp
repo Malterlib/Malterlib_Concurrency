@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppLogReporter::CLogInfo> Batch;
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 		{
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 
 		mint nBytesInBatch = 0;
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
 		for (; iEntryByTime; bReportNewestFirst ? --iEntryByTime : ++iEntryByTime)
 		{

@@ -48,11 +48,11 @@ namespace NMib::NConcurrency::NLogStore
 
 		if (_Filter.m_Flags & CDistributedAppLogReader_LogFilter::ELogFlag_IgnoreRemoved)
 		{
-			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID)
+			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
 			{
 				NLogStoreLocalDatabase::CKnownHostKey Key{.m_DbPrefix = _Context.m_Prefix, .m_HostID = _Key.m_HostID};
 				NLogStoreLocalDatabase::CKnownHostValue Value;
-				if (_Context.m_Transaction.f_Get(Key, Value))
+				if (_Context.m_pTransaction->f_Get(Key, Value))
 				{
 					if (Value.m_bRemoved)
 						return false;

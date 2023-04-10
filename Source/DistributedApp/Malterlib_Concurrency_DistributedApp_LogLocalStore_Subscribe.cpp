@@ -197,7 +197,7 @@ namespace NMib::NConcurrency
 		auto LogDatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 		auto LogKey = _Log.f_GetKey();
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Entry : _Entries)
 		{
@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Subscription : m_LogSubscriptions)
 		{

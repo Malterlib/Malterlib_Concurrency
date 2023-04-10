@@ -14,7 +14,7 @@ namespace NMib::NConcurrency::NLogStore
 		if (!Mapping.f_WasCreated())
 			return CachedValue.m_pValue;
 
-		if (m_Transaction.f_Get(_Key, CachedValue.m_Value))
+		if (m_pTransaction && m_pTransaction->f_Get(_Key, CachedValue.m_Value))
 			CachedValue.m_pValue = &CachedValue.m_Value.m_Info;
 
 		return CachedValue.m_pValue;

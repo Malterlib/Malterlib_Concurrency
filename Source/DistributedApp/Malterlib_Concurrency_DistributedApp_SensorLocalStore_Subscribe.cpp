@@ -280,7 +280,7 @@ namespace NMib::NConcurrency
 
 		NTime::CTime Now = NTime::CTime::fs_NowUTC();
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Reading : _Readings)
 		{
@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_Transaction = _Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Subscription : m_SensorSubscriptions)
 		{

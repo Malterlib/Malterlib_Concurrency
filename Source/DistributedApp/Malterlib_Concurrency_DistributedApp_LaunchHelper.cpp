@@ -197,17 +197,18 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedApp_LaunchHelper::fp_Destroy()
 	{
 		TCActorResultVector<void> Destroys;
-		for (auto &Launch : m_Launches)
-		{
-			Launch.f_Destroy() > Destroys.f_AddResult();
-			Launch.f_Abort();
-		}
-		
 		for (auto &Destroy : m_PendingDestroys)
 			Destroy.f_MoveFuture() > Destroys.f_AddResult();
 		m_PendingDestroys.f_Clear();
 
 		co_await Destroys.f_GetResults();
+
+		while (auto pLaunch = m_OrderdedLaunches.f_Pop())
+		{
+			auto Future = pLaunch->f_Destroy();
+			pLaunch->f_Abort();
+			co_await fg_Move(Future);
+		}
 
 		co_await m_AppInterfaceServer.f_Destroy();
 
@@ -254,6 +255,7 @@ namespace NMib::NConcurrency
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
+		m_OrderdedLaunches.f_InsertFirst(LaunchInfo);
 		auto Promise = LaunchInfo.m_Promise;
 		LaunchInfo.m_LaunchID = LaunchID;
 		LaunchInfo.m_InProcess = fg_ConstructActor<CDistributedAppInProcessActor>
@@ -363,6 +365,7 @@ namespace NMib::NConcurrency
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
 		auto &LaunchInfo = m_Launches[LaunchID];
+		m_OrderdedLaunches.f_InsertFirst(LaunchInfo);
 		auto Promise = LaunchInfo.m_Promise;
 		LaunchInfo.m_LaunchID = LaunchID;
 		LaunchInfo.m_Launch = fg_ConstructActor<CDistributedAppInterfaceLaunchActor>

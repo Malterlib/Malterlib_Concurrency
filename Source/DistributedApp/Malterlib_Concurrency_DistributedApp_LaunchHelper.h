@@ -91,6 +91,7 @@ namespace NMib::NConcurrency
 			void f_Abort();
 
 			TCPromise<CDistributedApp_LaunchInfo> m_Promise;
+			DMibListLinkDS_Link(CLaunchInfo, m_Link);
 		};
 
 		struct CPendingLaunch
@@ -120,6 +121,7 @@ namespace NMib::NConcurrency
 
 		CDistributedApp_LaunchHelperDependencies m_Dependencies;
 		NContainer::TCMap<NStr::CStr, CLaunchInfo> m_Launches;
+		DMibListLinkDS_List(CLaunchInfo, m_Link) m_OrderdedLaunches;
 		NContainer::TCMap<NStr::CStr, CPendingLaunch> m_PendingLaunches;
 		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingDestroys;
 		TCDistributedActorInstance<CDistributedAppInterfaceServerImplementation> m_AppInterfaceServer;

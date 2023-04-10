@@ -148,9 +148,25 @@ namespace NMib::NConcurrency
 			if (MinTimestamp)
 			{
 				if (MinSequence)
+				{
 					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MinTimestamp, *MinSequence);
+					if (iReadingByTime)
+					{
+						auto KeyByTime = iReadingByTime.f_Key<CSensorReadingByTime>();
+						if (KeyByTime.m_Timestamp == *MinTimestamp && KeyByTime.m_UniqueSequence == *MinSequence)
+							++iReadingByTime;
+					}
+				}
 				else
+				{
 					iReadingByTime.f_FindLowerBound(Prefix, CSensorReadingByTime::mc_Prefix, *MinTimestamp);
+					if (iReadingByTime)
+					{
+						auto KeyByTime = iReadingByTime.f_Key<CSensorReadingByTime>();
+						if (KeyByTime.m_Timestamp == *MinTimestamp)
+							++iReadingByTime;
+					}
+				}
 			}
 		}
 

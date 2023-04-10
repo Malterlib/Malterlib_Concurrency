@@ -152,9 +152,25 @@ namespace NMib::NConcurrency
 			if (MinTimestamp)
 			{
 				if (MinSequence)
+				{
 					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MinTimestamp, *MinSequence);
+					if (iEntryByTime)
+					{
+						auto KeyByTime = iEntryByTime.f_Key<CLogEntryByTime>();
+						if (KeyByTime.m_Timestamp == *MinTimestamp && KeyByTime.m_UniqueSequence == *MinSequence)
+							++iEntryByTime;
+					}
+				}
 				else
+				{
 					iEntryByTime.f_FindLowerBound(Prefix, CLogEntryByTime::mc_Prefix, *MinTimestamp);
+					if (iEntryByTime)
+					{
+						auto KeyByTime = iEntryByTime.f_Key<CLogEntryByTime>();
+						if (KeyByTime.m_Timestamp == *MinTimestamp)
+							++iEntryByTime;
+					}
+				}
 			}
 		}
 

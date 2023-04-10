@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStr>
 	void CDistributedAppLogReporter::CSourceLocation::f_Format(tf_CStr &o_Str) const
 	{
-		o_Str += tf_CStr::CFormat(DMibPFileLineFormat) << m_File << m_Line;
+		o_Str += typename tf_CStr::CFormat(DMibPFileLineFormat) << m_File << m_Line;
 	}
 
 	template <typename tf_CStream>

@@ -777,6 +777,9 @@ namespace NMib::NConcurrency
 			if (Internal.m_AppInterfaceClientRegistrationSubscription)
 				Internal.m_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
 
+			if (Internal.m_AppInterfaceClientRegistrationConfigSubscription)
+				Internal.m_AppInterfaceClientRegistrationConfigSubscription->f_Destroy() > Destroys.f_AddResult();
+
 			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
 			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
 

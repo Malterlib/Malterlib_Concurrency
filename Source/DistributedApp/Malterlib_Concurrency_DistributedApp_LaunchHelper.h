@@ -50,8 +50,8 @@ namespace NMib::NConcurrency
 
 		NStr::CStr m_HostID;
 		NStr::CStr m_LaunchID;
-		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
-		NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
+		NStorage::TCSharedPointer<TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
+		NStorage::TCSharedPointer<TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 	};
 
 	struct CDistributedApp_LaunchInfo : public CDistributedApp_LaunchInfoData
@@ -73,15 +73,17 @@ namespace NMib::NConcurrency
 	{
 		struct CDistributedAppInterfaceServerImplementation : public CDistributedAppInterfaceServer
 		{
-			NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterDistributedApp
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 				(
-					NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-					, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
+					TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
+					, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
 					, CRegisterInfo const &_RegisterInfo
 				) override
 			;
-			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
-			NConcurrency::TCFuture<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() override;
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles) override;
+
+			TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
+			TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() override;
 
 			DMibDelegatedActorImplementation(CDistributedApp_LaunchHelper);
 		};
@@ -96,8 +98,8 @@ namespace NMib::NConcurrency
 
 		struct CPendingLaunch
 		{
-			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
-			NStorage::TCSharedPointer<NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
+			NStorage::TCSharedPointer<TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient>> m_pClientInterface;
+			NStorage::TCSharedPointer<TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface>> m_pTrustInterface;
 		};
 
 		CDistributedApp_LaunchHelper(CDistributedApp_LaunchHelperDependencies const &_Dependencies, bool _bLogToStderr);

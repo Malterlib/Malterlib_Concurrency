@@ -63,11 +63,14 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x102
+
 			, EProtocolVersion_SupportResources = 0x103
 			, EProtocolVersion_SupportLaunchID = 0x104
 			, EProtocolVersion_SupportLogReporter = 0x105
 			, EProtocolVersion_SupportMaxMapCount = 0x106
-			, EProtocolVersion_Current = 0x106
+			, EProtocolVersion_SupportConfigFiles = 0x107
+
+			, EProtocolVersion_Current = 0x107
 		};
 
 		struct CRegisterInfo
@@ -86,8 +89,39 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<NStr::CStr> m_LaunchID;
 		};
 
+		enum EMonitorConfigType
+		{
+			EMonitorConfigType_GeneralText = 0
+			, EMonitorConfigType_GeneralBinary
+			, EMonitorConfigType_Registry
+			, EMonitorConfigType_Json
+		};
+
+		struct CConfigFile
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			template <typename tf_CStr>
+			void f_Format(tf_CStr &o_Str) const;
+
+			auto operator <=> (CConfigFile const &_Other) const = default;
+
+			EMonitorConfigType m_Type = EMonitorConfigType_GeneralText;
+		};
+
+		struct CConfigFiles
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCMap<NStr::CStr, CConfigFile> m_Files;
+		};
+
 		CDistributedAppInterfaceServer();
 		~CDistributedAppInterfaceServer();
+
+		static NStr::CStr fs_MonitorConfigTypeToString(EMonitorConfigType _Type);
 
 		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() = 0;
 		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() = 0;
@@ -98,5 +132,8 @@ namespace NMib::NConcurrency
 				, CRegisterInfo const &_RegisterInfo
 			) = 0
 		;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles) = 0;
 	};
 }
+
+#include "Malterlib_Concurrency_DistributedAppInterface.hpp"

@@ -29,6 +29,7 @@ namespace NMib::NConcurrency
 	CDistributedAppInterfaceServer::CDistributedAppInterfaceServer()
 	{
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_RegisterDistributedApp);
+		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_RegisterConfigFiles);
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetSensorReporter);
 		DMibPublishActorFunction(CDistributedAppInterfaceServer::f_GetLogReporter);
 	}
@@ -63,5 +64,18 @@ namespace NMib::NConcurrency
 			&& m_Resources_Processes == _Right.m_Resources_Processes
 			&& m_Resources_MaxMapCount == _Right.m_Resources_MaxMapCount
 		;
+	}
+
+	NStr::CStr CDistributedAppInterfaceServer::fs_MonitorConfigTypeToString(EMonitorConfigType _Type)
+	{
+		switch (_Type)
+		{
+		case EMonitorConfigType_GeneralText: return NStr::gc_Str<"General Text">;
+		case EMonitorConfigType_GeneralBinary: return NStr::gc_Str<"General Binary">;
+		case EMonitorConfigType_Registry: return NStr::gc_Str<"Registry">;
+		case EMonitorConfigType_Json: return NStr::gc_Str<"JSON">;
+		}
+
+		return NStr::gc_Str<"Unknown">;
 	}
 }

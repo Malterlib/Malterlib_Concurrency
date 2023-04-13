@@ -137,8 +137,16 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	void CDistributedAppActor::fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params)
+	void CDistributedAppActor::fp_PopulateAppInterfaceInfo
+		(
+			CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo
+			, CDistributedAppInterfaceServer::CConfigFiles &o_ConfigFiles
+			, NEncoding::CEJSON const &_Params
+		)
 	{
+		DMibCheck(!mp_State.m_ConfigDatabase.f_GetFileName().f_IsEmpty()); // Is currently guaranteed to be initialized in constructor, make sure this doesn't change
+
+		o_ConfigFiles.m_Files[mp_State.m_ConfigDatabase.f_GetFileName()].m_Type = CDistributedAppInterfaceServer::EMonitorConfigType_Json;
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
@@ -190,14 +198,16 @@ namespace NMib::NConcurrency
 		if (mp_Settings.m_InterfaceSettings.m_LaunchID)
 			RegisterInfo.m_LaunchID = mp_Settings.m_InterfaceSettings.m_LaunchID;
 
-		fp_PopulateAppInterfaceRegisterInfo(RegisterInfo, _Params);
+		CDistributedAppInterfaceServer::CConfigFiles ConfigFiles;
+
+		fp_PopulateAppInterfaceInfo(RegisterInfo, ConfigFiles, _Params);
 
 		Internal.m_AppInteraceServerSubscription = co_await mp_State.m_TrustManager->f_SubscribeTrustedActors<CDistributedAppInterfaceServer>();
 
 		co_await Internal.m_AppInteraceServerSubscription.f_OnActor
 			(
-				g_ActorFunctor / [=, RegisterInfo = fg_Move(RegisterInfo)]
-				(TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable -> TCFuture<void>
+				g_ActorFunctor / [=, RegisterInfo = fg_Move(RegisterInfo), ConfigFiles = fg_Move(ConfigFiles)]
+				(TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -214,29 +224,56 @@ namespace NMib::NConcurrency
 					if (Internal.m_AppInterfaceClientTrustProxy)
 						TrustInterface = Internal.m_AppInterfaceClientTrustProxy->f_ShareInterface<CDistributedActorTrustManagerInterface>();
 
-					auto Subscription = co_await _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)
-						(fg_Move(ClientInterface), fg_Move(TrustInterface), fg_Move(RegisterInfo))
+					TCFuture<TCActorSubscriptionWithID<>> RegisterConfigFilesFuture;
+					if (_NewActor->f_InterfaceVersion() >= CDistributedAppInterfaceServer::EProtocolVersion_SupportConfigFiles)
+						RegisterConfigFilesFuture = _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterConfigFiles)(ConfigFiles).f_Future();
+					else
+						RegisterConfigFilesFuture = TCPromise<TCActorSubscriptionWithID<>>() <<= (g_ActorSubscription / []{});
+
+					auto [Subscription, RegisterConfigSubscription] = co_await
+						(
+							_NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterDistributedApp)(fg_Move(ClientInterface), fg_Move(TrustInterface), RegisterInfo)
+							+ fg_Move(RegisterConfigFilesFuture)
+						)
 						.f_Wrap()
 					;
 					if (!Subscription)
 					{
+						auto ErrorStr = Subscription.f_GetExceptionStr();
 						DMibLogWithCategory
 							(
 								Mib/Concurrency/App
 								, Error
 								, "Register with app interface server {} failed: {}"
 								, _ActorInfo.m_HostInfo.f_GetDesc()
-								, Subscription.f_GetExceptionStr()
+								, ErrorStr
 							)
 						;
 						co_return {};
 					}
+
 
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Successfully registered with {}", _ActorInfo.m_HostInfo.f_GetDesc());
 
 					Internal.m_AppInterfaceClientRegistrationSubscription = fg_Move(*Subscription);
 					mp_State.m_AppInterfaceServer = _NewActor;
 					mp_State.m_AppInterfaceServerActorInfo = _ActorInfo;
+
+					if (RegisterConfigSubscription)
+						Internal.m_AppInterfaceClientRegistrationConfigSubscription = fg_Move(*RegisterConfigSubscription);
+					else
+					{
+						auto ErrorStr = RegisterConfigSubscription.f_GetExceptionStr();
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/App
+								, Error
+								, "Register config files with app interface server {} failed: {}"
+								, _ActorInfo.m_HostInfo.f_GetDesc()
+								, ErrorStr
+							)
+						;
+					}
 
 					TCActorResultVector<void> OnChangeResults;
 

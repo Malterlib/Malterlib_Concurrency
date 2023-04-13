@@ -91,10 +91,10 @@ namespace NMib::NConcurrency
 	CDistributedApp_LaunchInfoData::CDistributedApp_LaunchInfoData() = default;
 	CDistributedApp_LaunchInfoData::~CDistributedApp_LaunchInfoData() = default;
 	
-	NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
+	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
 		(
-			NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-			, NConcurrency::TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
+			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
+			, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
 			, CRegisterInfo const &_RegisterInfo
 		)
 	{
@@ -157,6 +157,11 @@ namespace NMib::NConcurrency
 		if (_TrustInterface)
 			PendingLaunch.m_pTrustInterface = fg_Construct(fg_Move(_TrustInterface));
 		
+		co_return g_ActorSubscription / []{};
+	}
+
+	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles)
+	{
 		co_return g_ActorSubscription / []{};
 	}
 
@@ -454,7 +459,7 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		LaunchInfo.m_Launch(&NProcess::CProcessLaunchActor::f_Launch, Launch, fg_ThisActor(this)) > Promise / [this, LaunchID](NConcurrency::CActorSubscription &&_Subscription)
+		LaunchInfo.m_Launch(&NProcess::CProcessLaunchActor::f_Launch, Launch, fg_ThisActor(this)) > Promise / [this, LaunchID](CActorSubscription &&_Subscription)
 			{
 				auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 				if (!pLaunch)

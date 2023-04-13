@@ -453,7 +453,13 @@ namespace NMib::NConcurrency
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
 
 		virtual TCFuture<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
-		virtual void fp_PopulateAppInterfaceRegisterInfo(CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo, NEncoding::CEJSON const &_Params);
+		virtual void fp_PopulateAppInterfaceInfo
+			(
+				CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo
+				, CDistributedAppInterfaceServer::CConfigFiles &o_ConfigFiles
+				, NEncoding::CEJSON const &_Params
+			)
+		;
 
 		virtual TCFuture<void> fp_PreUpdate();
 		virtual TCFuture<void> fp_PreStop(); /// Stop generating new data here to make backups consistent

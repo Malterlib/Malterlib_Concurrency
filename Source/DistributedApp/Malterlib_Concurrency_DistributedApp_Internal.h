@@ -42,6 +42,7 @@ namespace NMib::NConcurrency
 		TCDistributedActorInstance<CDistributedAppInterfaceClientImplementation> m_AppInterfaceClientImplementation;
 		TCDistributedActor<CDistributedActorTrustManagerInterface> m_AppInterfaceClientTrustProxy;
 		CActorSubscription m_AppInterfaceClientRegistrationSubscription;
+		CActorSubscription m_AppInterfaceClientRegistrationConfigSubscription;
 		TCAsyncResult<void> m_AppStartupResult;
 		NContainer::TCVector<TCPromise<void>> m_DeferredAppStartupResults;
 		TCAsyncResult<void> m_DistributedTrustInitResult;

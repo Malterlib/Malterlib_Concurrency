@@ -409,36 +409,17 @@ namespace NMib::NConcurrency
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 
-		TCVector<CStr> Headings;
-		TCSet<mint> VerboseHeadings;
-		TCMap<CStr, mint> HeadingIndices;
+		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
-		auto fAddHeading = [&](CStr const &_Name, bool _bVerbose = true)
-			{
-				auto HeadingIndex = Headings.f_GetLen();
-				HeadingIndices[_Name] = HeadingIndex;
-				if (_bVerbose)
-					VerboseHeadings[HeadingIndex];
+		Columns.f_AddHeading("Host ID", 0);
+		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Application", 0);
+		Columns.f_AddHeading("Identifier", 0);
+		Columns.f_AddHeading("Identifier Scope", 0);
+		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Removed", 1);
 
-				Headings.f_Insert(_Name);
-			}
-		;
-		auto fSetVerbose = [&](CStr const &_Heading)
-			{
-				DMibRequire(HeadingIndices.f_FindEqual(_Heading));
-				VerboseHeadings[HeadingIndices[_Heading]];
-			}
-		;
-
-		fAddHeading("Host ID", false);
-		fAddHeading("Host Name", false);
-		fAddHeading("Application", false);
-		fAddHeading("Identifier", false);
-		fAddHeading("Identifier Scope", false);
-		fAddHeading("Name", false);
-		fAddHeading("Removed");
-
-		TableRenderer.f_AddHeadingsVector(Headings);
+		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
 		bool bHasHostID = false;
@@ -498,21 +479,12 @@ namespace NMib::NConcurrency
 			*_pCommandLine += JsonOutput.f_ToString();
 		else
 		{
-			if (!_Verbosity)
-			{
-				if (!bHasHostID)
-					fSetVerbose("Host ID");
-				if (!bHasHostName)
-					fSetVerbose("Host Name");
-				if (!bHasApplication)
-					fSetVerbose("Application");
-
-				while (auto pLargest = VerboseHeadings.f_FindLargest())
-				{
-					TableRenderer.f_RemoveColumn(*pLargest);
-					VerboseHeadings.f_Remove(pLargest);
-				}
-			}
+			if (!bHasHostID)
+				Columns.f_SetVerbose("Host ID");
+			if (!bHasHostName)
+				Columns.f_SetVerbose("Host Name");
+			if (!bHasApplication)
+				Columns.f_SetVerbose("Application");
 
 			TableRenderer.f_Output(_TableType);
 		}
@@ -622,44 +594,25 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCVector<CStr> Headings;
-		TCMap<mint, uint32> VerboseHeadings;
-		TCMap<CStr, mint> HeadingIndices;
+		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
-		auto fAddHeading = [&](CStr const &_Name, uint32 _Verbosity)
-			{
-				auto HeadingIndex = Headings.f_GetLen();
-				HeadingIndices[_Name] = HeadingIndex;
-				if (_Verbosity)
-					VerboseHeadings[HeadingIndex] = _Verbosity;
+		Columns.f_AddHeading("Host ID", 5);
+		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Application", 0);
+		Columns.f_AddHeading("Identifier", 4);
+		Columns.f_AddHeading("Identifier Scope", 5);
+		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Timestamp", 0);
+		Columns.f_AddHeading("Sequence", 4);
+		Columns.f_AddHeading("Source Location", 6);
+		Columns.f_AddHeading("Categories", 0);
+		Columns.f_AddHeading("Operations", 3);
+		Columns.f_AddHeading("Severity", 0);
+		Columns.f_AddHeading("Flags", 1);
+		Columns.f_AddHeading("Message", 0);
+		Columns.f_AddHeading("Metadata", 2);
 
-				Headings.f_Insert(_Name);
-			}
-		;
-		auto fSetVerbose = [&](CStr const &_Heading, uint32 _Verbosity)
-			{
-				DMibRequire(HeadingIndices.f_FindEqual(_Heading));
-				VerboseHeadings[HeadingIndices[_Heading]] = _Verbosity;
-			}
-		;
-
-		fAddHeading("Host ID", 5);
-		fAddHeading("Host Name", 0);
-		fAddHeading("Application", 0);
-		fAddHeading("Identifier", 4);
-		fAddHeading("Identifier Scope", 5);
-		fAddHeading("Name", 0);
-		fAddHeading("Timestamp", 0);
-		fAddHeading("Sequence", 4);
-		fAddHeading("Source Location", 6);
-		fAddHeading("Categories", 0);
-		fAddHeading("Operations", 3);
-		fAddHeading("Severity", 0);
-		fAddHeading("Flags", 1);
-		fAddHeading("Message", 0);
-		fAddHeading("Metadata", 2);
-
-		TableRenderer.f_AddHeadingsVector(Headings);
+		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
 		bool bHasHostID = false;
@@ -840,20 +793,13 @@ namespace NMib::NConcurrency
 		else
 		{
 			if (!bHasName)
-				fSetVerbose("Name", 7);
+				Columns.f_SetVerbose("Name", 7);
 			if (!bHasHostID)
-				fSetVerbose("Host ID", 7);
+				Columns.f_SetVerbose("Host ID", 7);
 			if (!bHasHostName)
-				fSetVerbose("Host Name", 7);
+				Columns.f_SetVerbose("Host Name", 7);
 			if (!bHasApplication)
-				fSetVerbose("Application", 7);
-
-			while (auto pVerbosityLevel = VerboseHeadings.f_FindLargest())
-			{
-				if (*pVerbosityLevel > _Verbosity)
-					TableRenderer.f_RemoveColumn(VerboseHeadings.fs_GetKey(*pVerbosityLevel));
-				VerboseHeadings.f_Remove(pVerbosityLevel);
-			}
+				Columns.f_SetVerbose("Application", 7);
 
 			if (_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst)
 				TableRenderer.f_ReverseRows();

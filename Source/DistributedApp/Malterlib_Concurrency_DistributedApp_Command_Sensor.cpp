@@ -429,41 +429,22 @@ namespace NMib::NConcurrency
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 
-		TCVector<CStr> Headings;
-		TCSet<mint> VerboseHeadings;
-		TCMap<CStr, mint> HeadingIndices;
+		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
-		auto fAddHeading = [&](CStr const &_Name, bool _bVerbose = true)
-			{
-				auto HeadingIndex = Headings.f_GetLen();
-				HeadingIndices[_Name] = HeadingIndex;
-				if (_bVerbose)
-					VerboseHeadings[HeadingIndex];
+		Columns.f_AddHeading("Host ID", 0);
+		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Application", 0);
+		Columns.f_AddHeading("Identifier", 0);
+		Columns.f_AddHeading("Identifier Scope", 0);
+		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Type", 1);
+		Columns.f_AddHeading("Expected Report Interval", 1);
+		Columns.f_AddHeading("Unit Divisors", 1);
+		Columns.f_AddHeading("Warn Value", 1);
+		Columns.f_AddHeading("Critical Value", 1);
+		Columns.f_AddHeading("Removed", 1);
 
-				Headings.f_Insert(_Name);
-			}
-		;
-		auto fSetVerbose = [&](CStr const &_Heading)
-			{
-				DMibRequire(HeadingIndices.f_FindEqual(_Heading));
-				VerboseHeadings[HeadingIndices[_Heading]];
-			}
-		;
-
-		fAddHeading("Host ID", false);
-		fAddHeading("Host Name", false);
-		fAddHeading("Application", false);
-		fAddHeading("Identifier", false);
-		fAddHeading("Identifier Scope", false);
-		fAddHeading("Name", false);
-		fAddHeading("Type");
-		fAddHeading("Expected Report Interval");
-		fAddHeading("Unit Divisors");
-		fAddHeading("Warn Value");
-		fAddHeading("Critical Value");
-		fAddHeading("Removed");
-
-		TableRenderer.f_AddHeadingsVector(Headings);
+		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
 		bool bHasHostID = false;
@@ -565,21 +546,12 @@ namespace NMib::NConcurrency
 			*_pCommandLine += JsonOutput.f_ToString();
 		else
 		{
-			if (!(_Flags & ESensorOutputFlag_Verbose))
-			{
-				if (!bHasHostID)
-					fSetVerbose("Host ID");
-				if (!bHasHostName)
-					fSetVerbose("Host Name");
-				if (!bHasApplication)
-					fSetVerbose("Application");
-
-				while (auto pLargest = VerboseHeadings.f_FindLargest())
-				{
-					TableRenderer.f_RemoveColumn(*pLargest);
-					VerboseHeadings.f_Remove(pLargest);
-				}
-			}
+			if (!bHasHostID)
+				Columns.f_SetVerbose("Host ID");
+			if (!bHasHostName)
+				Columns.f_SetVerbose("Host Name");
+			if (!bHasApplication)
+				Columns.f_SetVerbose("Application");
 
 			TableRenderer.f_Output(_TableType);
 		}
@@ -684,39 +656,20 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCVector<CStr> Headings;
-		TCSet<mint> VerboseHeadings;
-		TCMap<CStr, mint> HeadingIndices;
+		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
-		auto fAddHeading = [&](CStr const &_Name, bool _bVerbose = true)
-			{
-				auto HeadingIndex = Headings.f_GetLen();
-				HeadingIndices[_Name] = HeadingIndex;
-				if (_bVerbose)
-					VerboseHeadings[HeadingIndex];
+		Columns.f_AddHeading("Host ID", 1);
+		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Application", 0);
+		Columns.f_AddHeading("Identifier", 1);
+		Columns.f_AddHeading("Identifier Scope", 1);
+		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Timestamp", 0);
+		Columns.f_AddHeading("Sequence", 1);
+		Columns.f_AddHeading("Value", 0);
+		Columns.f_AddHeading("Outdated", 0);
 
-				Headings.f_Insert(_Name);
-			}
-		;
-		auto fSetVerbose = [&](CStr const &_Heading)
-			{
-				DMibRequire(HeadingIndices.f_FindEqual(_Heading));
-				VerboseHeadings[HeadingIndices[_Heading]];
-			}
-		;
-
-		fAddHeading("Host ID");
-		fAddHeading("Host Name", false);
-		fAddHeading("Application", false);
-		fAddHeading("Identifier");
-		fAddHeading("Identifier Scope");
-		fAddHeading("Name", false);
-		fAddHeading("Timestamp", false);
-		fAddHeading("Sequence");
-		fAddHeading("Value", false);
-		fAddHeading("Outdated", false);
-
-		TableRenderer.f_AddHeadingsVector(Headings);
+		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
 		bool bHasHostID = false;
@@ -864,23 +817,14 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			if (!(_Flags & ESensorOutputFlag_Verbose))
-			{
-				if (!bHasHostID)
-					fSetVerbose("Host ID");
-				if (!bHasHostName)
-					fSetVerbose("Host Name");
-				if (!bHasApplication)
-					fSetVerbose("Application");
-				if (!bHasOutdated)
-					fSetVerbose("Outdated");
-
-				while (auto pLargest = VerboseHeadings.f_FindLargest())
-				{
-					TableRenderer.f_RemoveColumn(*pLargest);
-					VerboseHeadings.f_Remove(pLargest);
-				}
-			}
+			if (!bHasHostID)
+				Columns.f_SetVerbose("Host ID");
+			if (!bHasHostName)
+				Columns.f_SetVerbose("Host Name");
+			if (!bHasApplication)
+				Columns.f_SetVerbose("Application");
+			if (!bHasOutdated)
+				Columns.f_SetVerbose("Outdated");
 
 			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
 				TableRenderer.f_ReverseRows();

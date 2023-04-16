@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 			;
 
 			pConnection->m_pHost->m_bLoggedConnection = false;
-			DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", CloseMessage);
+			DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "{}", CloseMessage);
 
 			fp_DestroyServerConnection(*pConnection, true, CloseMessage, false);
 		}

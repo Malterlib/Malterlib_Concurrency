@@ -291,7 +291,7 @@ namespace NMib::NConcurrency
 					if (Connection.m_LastLoggedError != Error && !m_pThis->f_IsDestroyed())
 					{
 						Connection.m_LastLoggedError = Error;
-						DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+						DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "{}", Error);
 					}
 					fReportError(Error, _Result.f_GetException());
 					return;
@@ -424,7 +424,7 @@ namespace NMib::NConcurrency
 						if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
 							DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", Error);
 						else
-							DMibLogWithCategory(Mib/Concurrency/Actors, Error, "{}", Error);
+							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "{}", Error);
 
 						auto &pHost = pConnection->m_pHost;
 						if (pHost && pHost->m_HostInfo.m_bAnonymous)

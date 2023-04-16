@@ -36,10 +36,10 @@ namespace NMib::NConcurrency
 		TCActorResultVector<void> Destroys;
 		for (auto &Log : Internal.m_Logs)
 		{
-			Log.m_LogSequencer.f_Abort() > Destroys.f_AddResult();
+			fg_Move(Log.m_LogSequencer).f_Destroy() > Destroys.f_AddResult();
 			for (auto &Reporter : Log.m_LogReporters)
 			{
-				Reporter.m_WriteSequencer.f_Abort() > Destroys.f_AddResult();
+				fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
 				if (Reporter.m_Reporter.m_fReportEntries)
 					fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
 			}

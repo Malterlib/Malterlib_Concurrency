@@ -58,18 +58,18 @@ namespace NMib::NConcurrency
 		;
 
 		TCActor<CDistributedAppSensorStoreLocal> m_AppSensorStoreLocal;
-		TCActorSequencerAsync<void> m_AppSensorStoreLocalInitSequencer;
+		CSequencer m_AppSensorStoreLocalInitSequencer{"DistributedAppActor AppSensorStoreLocalInitSequencer"};
 		CActorSubscription m_AppSensorStoreLocalAppServerChangeSubscription;
 		CActorSubscription m_AppSensorStoreLocalExtraSensorInterfaceSubscription;
-		TCActorSequencerAsync<void> m_AppSensorStoreLocalAppServerChangeSequencer;
+		CSequencer m_AppSensorStoreLocalAppServerChangeSequencer{"DistributedAppActor AppSensorStoreLocalAppServerChangeSequencer"};
 
 		TCActor<CDistributedAppLogStoreLocal> m_AppLogStoreLocal;
-		TCActorSequencerAsync<void> m_AppLogStoreLocalInitSequencer;
+		CSequencer m_AppLogStoreLocalInitSequencer{"DistributedAppActor AppLogStoreLocalInitSequencer"};
 		CActorSubscription m_AppLogStoreLocalAppServerChangeSubscription;
 		CActorSubscription m_AppLogStoreLocalExtraLogInterfaceSubscription;
-		TCActorSequencerAsync<void> m_AppLogStoreLocalAppServerChangeSequencer;
+		CSequencer m_AppLogStoreLocalAppServerChangeSequencer{"DistributedAppActor AppLogStoreLocalAppServerChangeSequencer"};
 
-		TCActorSequencerAsync<void> m_AuditLogReporterInitSequencer;
+		CSequencer m_AuditLogReporterInitSequencer{"DistributedAppActor AuditLogReporterInitSequencer"};
 		NStorage::TCOptional<CDistributedAppLogReporter::CLogReporter> m_AuditLogReporter;
 
 		NStorage::TCSharedPointer<CCanDestroyTracker> m_pCanDestroyAuditLogs = fg_Construct();

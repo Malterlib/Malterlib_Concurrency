@@ -316,28 +316,31 @@ namespace NMib::NConcurrency
 			for (auto &Reporter : pSensor->m_SensorReporters)
 			{
 				auto WeakActor = pSensor->m_SensorReporters.fs_GetKey(Reporter);
-				Reporter.m_WriteSequencer / [this, pReadings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
-					{
-						auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
-						if (!pSensor)
+				Reporter.m_WriteSequencer.f_RunSequenced
+					(
+						g_ActorFunctorWeak / [this, pReadings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
+						{
+							auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
+							if (!pSensor)
+								co_return {};
+
+							auto pReporter = pSensor->m_SensorReporters.f_FindEqual(WeakActor);
+							if (!pReporter)
+								co_return {};
+
+							if (pReporter->m_LinkFailed.f_IsInList())
+								co_return {};
+
+							if (!pReporter->m_Reporter.m_fReportReadings)
+								co_return {};
+
+							co_await pReporter->m_Reporter.m_fReportReadings(*pReadings);
+
+							(void)_DoneSubscription;
+
 							co_return {};
-
-						auto pReporter = pSensor->m_SensorReporters.f_FindEqual(WeakActor);
-						if (!pReporter)
-							co_return {};
-
-						if (pReporter->m_LinkFailed.f_IsInList())
-							co_return {};
-
-						if (!pReporter->m_Reporter.m_fReportReadings)
-							co_return {};
-
-						co_await pReporter->m_Reporter.m_fReportReadings(*pReadings);
-
-						(void)_DoneSubscription;
-
-						co_return {};
-					}
+						}
+					)
 					> Results.f_AddResult()
 				;
 			}
@@ -388,7 +391,7 @@ namespace NMib::NConcurrency
 		{
 			auto &Reporter = *iReporter;
 			++iReporter;
-			Reporter.m_WriteSequencer.f_Abort() > Results.f_AddResult();
+			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results.f_AddResult();
 			fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Results.f_AddResult();
 			Reporter.m_pSensor->m_SensorReporters.f_Remove(&Reporter);
 		}

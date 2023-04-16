@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 
 		struct CSensorReporter
 		{
-			auto &f_GetID() const
+			auto f_GetID() const -> TCWeakDistributedActor<CActor> const &
 			{
 				return TCMap<TCWeakDistributedActor<CActor>, CSensorReporter>::fs_GetKey(*this);
 			}
@@ -32,13 +32,19 @@ namespace NMib::NConcurrency
 			CSensor *m_pSensor = nullptr;
 			CRemoteSensorReporterInterface *m_pInterface = nullptr;
 			CDistributedAppSensorReporter::CSensorReporter m_Reporter;
-			TCActorSequencerAsync<void> m_WriteSequencer;
+			CSequencer m_WriteSequencer{"DistributedAppSensorStoreLocal SensorReporter WriteSequencer {}"_f << f_GetID()};
 			DMibListLinkDS_Link(CSensorReporter, m_LinkInterface);
 			DMibListLinkDS_Link(CSensorReporter, m_LinkFailed);
 		};
 
 		struct CSensor
 		{
+			CSensor(CSensor &&) = default;
+			CSensor(CDistributedAppSensorReporter::CSensorInfo &&_Info)
+				: m_Info(fg_Move(_Info))
+			{
+			}
+
 			CDistributedAppSensorReporter::CSensorInfoKey const &f_GetKey() const
 			{
 				return TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor>::fs_GetKey(*this);
@@ -48,7 +54,7 @@ namespace NMib::NConcurrency
 			uint64 m_LastSeenUniqueSequence = 0;
 			mint m_ActiveRefCount = 0;
 
-			TCActorSequencerAsync<void> m_SensorSequencer;
+			CSequencer m_SensorSequencer{"DistributedAppSensorStoreLocal Sensor SensorSequencer {}"_f << m_Info.f_Key()};
 			TCMap<TCWeakDistributedActor<CActor>, CSensorReporter> m_SensorReporters;
 
 			TCSharedPointer<CCanDestroyTracker> m_pCanDestroy;

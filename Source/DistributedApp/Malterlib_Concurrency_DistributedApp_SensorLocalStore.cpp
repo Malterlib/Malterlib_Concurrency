@@ -40,10 +40,10 @@ namespace NMib::NConcurrency
 		TCActorResultVector<void> Destroys;
 		for (auto &Sensor : Internal.m_Sensors)
 		{
-			Sensor.m_SensorSequencer.f_Abort() > Destroys.f_AddResult();
+			fg_Move(Sensor.m_SensorSequencer).f_Destroy() > Destroys.f_AddResult();
 			for (auto &Reporter : Sensor.m_SensorReporters)
 			{
-				Reporter.m_WriteSequencer.f_Abort() > Destroys.f_AddResult();
+				fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
 				if (Reporter.m_Reporter.m_fReportReadings)
 					fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
 			}

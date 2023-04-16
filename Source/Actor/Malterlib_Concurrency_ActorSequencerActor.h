@@ -5,13 +5,14 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Storage/Optional>
+#include <Mib/Concurrency/ActorFunctorWeak>
 
 namespace NMib::NConcurrency
 {
 	template <typename t_CReturnType>
 	struct TCActorSequencerActor : public CActor
 	{
-		TCActorSequencerActor(mint _MaxConcurrency = 1);
+		TCActorSequencerActor(NStr::CStr const &_Name, mint _MaxConcurrency = 1);
 		~TCActorSequencerActor();
 
 		TCActorSequencerActor(TCActorSequencerActor &&_Other) = default;
@@ -22,6 +23,7 @@ namespace NMib::NConcurrency
 
 		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence);
 		TCFuture<CActorSubscription> f_Sequence();
+		TCFuture<CActorSubscription> f_TrySequence(bool _bCanSkip);
 		mint f_NumWaiting() const;
 
 	private:
@@ -36,9 +38,28 @@ namespace NMib::NConcurrency
 
 		NContainer::TCLinkedList<CToSequenceEntry> m_ToSequence;
 		NStorage::TCOptional<TCPromise<void>> m_AbortPromise;
+		NStr::CStr m_Name;
 		mint m_MaxConcurrency = 1;
 		mint m_nRunning = 0;
 	};
+
+	template <typename t_CReturnType>
+	struct TCSequencer
+	{
+		TCSequencer(NStr::CStr const &_Name, mint _MaxConcurrency = 1);
+
+		TCFuture<void> f_Destroy() &&;
+		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence);
+		TCFuture<CActorSubscription> f_Sequence();
+		TCFuture<CActorSubscription> f_TrySequence(bool _bCanSkip = true);
+		TCFuture<mint> f_NumWaiting() const;
+
+	private:
+		TCActor<TCActorSequencerActor<t_CReturnType>> mp_Actor;
+		NStr::CStr mp_Name;
+	};
+
+	using CSequencer = TCSequencer<void>;
 }
 
 #ifndef DMibPNoShortCuts

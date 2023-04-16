@@ -271,7 +271,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Reporter : pSensor->m_SensorReporters)
 				{
-					Reporter.m_WriteSequencer.f_Abort() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
 					if (Reporter.m_Reporter.m_fReportReadings)
 						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
 				}
@@ -369,7 +369,7 @@ namespace NMib::NConcurrency
 
 		auto SensorInfoKey = _SensorInfo.f_Key();
 
-		auto SensorMap = Internal.m_Sensors(SensorInfoKey);
+		auto SensorMap = Internal.m_Sensors(SensorInfoKey, fg_TempCopy(_SensorInfo));
 
 		auto *pSensor = &*SensorMap;
 

@@ -366,28 +366,31 @@ namespace NMib::NConcurrency
 			for (auto &Reporter : pLog->m_LogReporters)
 			{
 				auto WeakActor = pLog->m_LogReporters.fs_GetKey(Reporter);
-				Reporter.m_WriteSequencer / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
-					{
-						auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
-						if (!pLog)
-							co_return 0;
+				Reporter.m_WriteSequencer.f_RunSequenced
+					(
+						g_ActorFunctorWeak / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
+						{
+							auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
+							if (!pLog)
+								co_return 0;
 
-						auto pReporter = pLog->m_LogReporters.f_FindEqual(WeakActor);
-						if (!pReporter)
-							co_return 0;
+							auto pReporter = pLog->m_LogReporters.f_FindEqual(WeakActor);
+							if (!pReporter)
+								co_return 0;
 
-						if (pReporter->m_LinkFailed.f_IsInList())
-							co_return 0;
+							if (pReporter->m_LinkFailed.f_IsInList())
+								co_return 0;
 
-						if (!pReporter->m_Reporter.m_fReportEntries)
-							co_return 0;
+							if (!pReporter->m_Reporter.m_fReportEntries)
+								co_return 0;
 
-						auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(*pEntries);
+							auto ReportEntriesResult = co_await pReporter->m_Reporter.m_fReportEntries(*pEntries);
 
-						(void)_DoneSubscription;
+							(void)_DoneSubscription;
 
-						co_return ReportEntriesResult.m_ReportDepth;
-					}
+							co_return ReportEntriesResult.m_ReportDepth;
+						}
+					)
 					> Results.f_AddResult()
 				;
 			}
@@ -440,7 +443,7 @@ namespace NMib::NConcurrency
 		{
 			auto &Reporter = *iReporter;
 			++iReporter;
-			Reporter.m_WriteSequencer.f_Abort() > Results.f_AddResult();
+			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results.f_AddResult();
 			fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Results.f_AddResult();
 			Reporter.m_pLog->m_LogReporters.f_Remove(&Reporter);
 		}

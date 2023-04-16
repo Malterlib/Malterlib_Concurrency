@@ -276,7 +276,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Reporter : pLog->m_LogReporters)
 				{
-					Reporter.m_WriteSequencer.f_Abort() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
 					if (Reporter.m_Reporter.m_fReportEntries)
 						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
 				}
@@ -477,7 +477,7 @@ namespace NMib::NConcurrency
 
 		auto LogInfoKey = _LogInfo.f_Key();
 
-		auto LogMap = Internal.m_Logs(LogInfoKey);
+		auto LogMap = Internal.m_Logs(LogInfoKey, fg_TempCopy(_LogInfo));
 
 		auto *pLog = &*LogMap;
 

@@ -829,8 +829,8 @@ namespace NMib::NConcurrency
 		{
 			TCActorResultVector<void> Destroys;
 
-			Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
-			Internal.m_AppLogStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppSensorStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppLogStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
 
 			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort app server change sequencers");
 		}
@@ -868,7 +868,7 @@ namespace NMib::NConcurrency
 		{
 			TCActorResultVector<void> Destroys;
 
-			Internal.m_AuditLogReporterInitSequencer.f_Abort() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AuditLogReporterInitSequencer).f_Destroy() > Destroys.f_AddResult();
 
 			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit log init sequencers");
 		}
@@ -876,8 +876,8 @@ namespace NMib::NConcurrency
 		{
 			TCActorResultVector<void> Destroys;
 
-			Internal.m_AppSensorStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
-			Internal.m_AppLogStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppSensorStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppLogStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
 
 			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit sensor and log store sequencers");
 		}

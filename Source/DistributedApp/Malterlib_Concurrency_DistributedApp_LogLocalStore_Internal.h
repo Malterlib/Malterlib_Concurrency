@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 
 		struct CLogReporter
 		{
-			auto &f_GetID() const
+			TCWeakDistributedActor<CActor> const &f_GetID() const
 			{
 				return TCMap<TCWeakDistributedActor<CActor>, CLogReporter>::fs_GetKey(*this);
 			}
@@ -32,13 +32,19 @@ namespace NMib::NConcurrency
 			CLog *m_pLog = nullptr;
 			CRemoteLogReporterInterface *m_pInterface = nullptr;
 			CDistributedAppLogReporter::CLogReporter m_Reporter;
-			TCActorSequencerAsync<uint32> m_WriteSequencer;
+			TCSequencer<uint32> m_WriteSequencer{"DistributedAppLogStoreLocal LogReporter WriteSequencer {}"_f << f_GetID()};
 			DMibListLinkDS_Link(CLogReporter, m_LinkInterface);
 			DMibListLinkDS_Link(CLogReporter, m_LinkFailed);
 		};
 
 		struct CLog
 		{
+			CLog(CLog &&) = default;
+			CLog(CDistributedAppLogReporter::CLogInfo &&_Info)
+				: m_Info(fg_Move(_Info))
+			{
+			}
+
 			CDistributedAppLogReporter::CLogInfoKey const &f_GetKey() const
 			{
 				return TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog>::fs_GetKey(*this);
@@ -48,7 +54,7 @@ namespace NMib::NConcurrency
 			uint64 m_LastSeenUniqueSequence = 0;
 			mint m_ActiveRefCount = 0;
 
-			TCActorSequencerAsync<void> m_LogSequencer;
+			CSequencer m_LogSequencer{"DistributedAppLogStoreLocal Log LogSequencer {}"_f << m_Info.f_Key()};
 			TCMap<TCWeakDistributedActor<CActor>, CLogReporter> m_LogReporters;
 
 			TCSharedPointer<CCanDestroyTracker> m_pCanDestroy;

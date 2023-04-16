@@ -8,7 +8,7 @@
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
 #include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
 #include <Mib/Concurrency/ActorSubscription>
-#include <Mib/Concurrency/ActorSequencer>
+#include <Mib/Concurrency/ActorSequencerActor>
 
 #include <Mib/Concurrency/DistributedActorAuthenticationHandler>
 

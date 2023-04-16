@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 
 		return _Message;
 	}
-	
+
 	CStr CDistributedAppAuditor::f_Audit
 		(
 			NLog::ESeverity _Severity

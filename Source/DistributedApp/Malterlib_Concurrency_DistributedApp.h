@@ -32,6 +32,20 @@ namespace NMib::NConcurrency
 	struct CDistributedAppLogReader_LogKeyAndEntry;
 	struct CDistributedAppLogStoreLocal;
 
+	struct CDistiributedAppLogActor : public CActor
+	{
+		using CActorHolder = CSeparateThreadActorHolder;
+
+		TCFuture<CActorSubscription> f_OnStopDeferring(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnStopDefer);
+
+		TCFuture<void> f_StopDeferring();
+
+	private:
+		TCFuture<void> fp_Destroy() override;
+
+		NContainer::TCMap<NStr::CStr, TCActorFunctorWeak<TCFuture<void> ()>> mp_StopDeferSubscriptions;
+	};
+
 	struct CDistributedAppState
 	{
 		NEncoding::CSimpleJSONDatabase m_StateDatabase;
@@ -40,7 +54,7 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> m_DistributionManager;
 		TCDistributedActor<CDistributedAppInterfaceServer> m_AppInterfaceServer;
 		CTrustedActorInfo m_AppInterfaceServerActorInfo;
-		TCActor<CActor> m_LogActor;
+		TCActor<CDistiributedAppLogActor> m_LogActor;
 		NWeb::NHTTP::CURL m_LocalAddress;
 		TCWeakActor<CDistributedAppActor> m_AppActor;
 		NStr::CStr m_HostID;
@@ -99,7 +113,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 
-		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType);
+		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType);
 		TCFuture<void> f_StopApp();
 		TCFuture<CDistributedAppLogReporter::CLogReporter> f_OpenDefaultLogReporter();
 
@@ -580,7 +594,7 @@ namespace NMib::NConcurrency
 	{
 		void f_Destroy(CActorDestroyEventLoop const &_DestroyLoop);
 
-		TCActor<CActor> m_LogActor;
+		TCActor<CDistiributedAppLogActor> m_LogActor;
 		COnScopeExitShared m_CleanupLogging;
 	};
 

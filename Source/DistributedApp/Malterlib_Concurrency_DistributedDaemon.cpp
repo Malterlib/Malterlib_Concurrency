@@ -52,6 +52,7 @@ namespace NMib::NConcurrency
 				try
 				{
 					m_Actor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
+					fg_Move(m_Actor).f_Destroy().f_CallSync(m_pRunLoop);;
 				}
 				catch (NException::CException const &_Exception)
 				{

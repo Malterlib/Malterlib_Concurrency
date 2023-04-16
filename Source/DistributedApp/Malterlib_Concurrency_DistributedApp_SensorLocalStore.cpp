@@ -320,12 +320,14 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		auto Subscription = g_ActorSubscription / [this, _TrustInfo, SensorInterfaceWeak = _SensorReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable
+		auto Subscription = g_ActorSubscription / [this, _TrustInfo, SensorInterfaceWeak = _SensorReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;
-				fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceRemoved, SensorInterfaceWeak, fg_Move(TrustInfo))
+				co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceRemoved, SensorInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()
 					> fg_LogError("Malterlib/Concurrency/Sensor", "Error removing sensor reporter")
 				;
+
+				co_return {};
 			}
 		;
 

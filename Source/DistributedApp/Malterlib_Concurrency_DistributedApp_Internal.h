@@ -72,7 +72,10 @@ namespace NMib::NConcurrency
 		TCActorSequencerAsync<void> m_AuditLogReporterInitSequencer;
 		NStorage::TCOptional<CDistributedAppLogReporter::CLogReporter> m_AuditLogReporter;
 
+		NStorage::TCSharedPointer<CCanDestroyTracker> m_pCanDestroyAuditLogs = fg_Construct();
+
 		bool m_bDelegateTrustToAppInterface = false;
+		bool m_bAuditLogsDestroyed = false;
 #if DMibEnableSafeCheck > 0
 		bool m_bDestroyCalled = false;
 #endif

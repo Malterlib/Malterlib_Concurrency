@@ -154,10 +154,10 @@ namespace NMib::NConcurrency
 			TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)> &&_fOnChangeInterfaceServer
 		)
 	{
-		if (f_IsDestroyed())
-			co_return DMibErrorInstance("Shutting down");
-
 		auto &Internal = *mp_pInternal;
+
+		if (Internal.m_bAuditLogsDestroyed)
+			co_return DMibErrorInstance("Shutting down");
 
 		CStr SubscriptionID = fg_RandomID(Internal.m_AppInterfaceServerChangeSubscriptions);
 

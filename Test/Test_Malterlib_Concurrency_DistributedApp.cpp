@@ -96,7 +96,7 @@ namespace
 				}
 			}
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name);
-			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<>{}, EDistributedAppType_InProcess).f_CallSync();
+			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
 			
 			_fTests(CommandLineClient);

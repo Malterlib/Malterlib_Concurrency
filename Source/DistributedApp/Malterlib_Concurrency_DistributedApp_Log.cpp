@@ -10,6 +10,43 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 
+	TCFuture<CActorSubscription> CDistiributedAppLogActor::f_OnStopDeferring(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnStopDefer)
+	{
+		CStr SubscriptionID = NCryptography::fg_RandomID(mp_StopDeferSubscriptions);
+
+		mp_StopDeferSubscriptions[SubscriptionID] = fg_Move(_fOnStopDefer);
+
+		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
+			{
+				auto *pSubscription = mp_StopDeferSubscriptions.f_FindEqual(SubscriptionID);
+				if (*pSubscription)
+					co_await fg_Move(*pSubscription).f_Destroy();
+
+				co_return {};
+			}
+		;
+	}
+
+	TCFuture<void> CDistiributedAppLogActor::f_StopDeferring()
+	{
+		TCActorResultVector<void> Results;
+
+		for (auto &fOnStopDefer : mp_StopDeferSubscriptions)
+			fOnStopDefer() > Results.f_AddResult();
+
+		co_await Results.f_GetResults();
+
+		co_return {};
+	}
+
+	TCFuture<void> CDistiributedAppLogActor::fp_Destroy()
+	{
+		co_await f_StopDeferring();
+
+		co_return {};
+	}
+
+
 	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::fp_OpenLogStoreLocal()
 	{
 		auto &Internal = *mp_pInternal;
@@ -22,7 +59,7 @@ namespace NMib::NConcurrency
 			(
 				[&]() -> NException::CExceptionPointer
 				{
-					if (f_IsDestroyed())
+					if (Internal.m_bAuditLogsDestroyed)
 					{
 						if (AppLogStoreLocal)
 							fg_Move(AppLogStoreLocal).f_Destroy() > fg_DiscardResult();
@@ -63,7 +100,7 @@ namespace NMib::NConcurrency
 						(
 							[&]() -> NException::CExceptionPointer
 							{
-								if (f_IsDestroyed() || !Internal.m_AppLogStoreLocal)
+								if (Internal.m_bAuditLogsDestroyed || !Internal.m_AppLogStoreLocal)
 									return DMibErrorInstance("Shutting down");
 								return {};
 							}

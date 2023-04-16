@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppLogDestination
 	{
-		CDistributedAppLogDestination(TCActor<CDistributedAppActor> const &_DistributedLoggingApp, TCActor<CActor> const &_LogActor);
+		CDistributedAppLogDestination(TCActor<CDistributedAppActor> const &_DistributedLoggingApp, TCActor<CDistiributedAppLogActor> const &_LogActor);
 		CDistributedAppLogDestination(CDistributedAppLogDestination &&_Other);
 		CDistributedAppLogDestination(CDistributedAppLogDestination const &_Other);
 		~CDistributedAppLogDestination();
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 	private:
 		void fp_InitLogging(TCActor<CDistributedAppActor> const &_DistributedLoggingApp);
 
-		NStorage::TCSharedPointer<CDistributedAppLogDestination_Internal> mp_pInternal;
+		NStorage::TCSharedPointerSupportWeak<CDistributedAppLogDestination_Internal> mp_pInternal;
 	};
 }
 

@@ -5,6 +5,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
 #include <Mib/Concurrency/DistributedAppInterface>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Network/Socket>
 #include <Mib/Log/AnsiLogger>
 
@@ -100,18 +101,21 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams)
 	{
+		auto &Internal = *mp_pInternal;
+
 		auto OnResume = co_await fg_OnResume
 			(
 				[&]() -> NException::CExceptionPointer
 				{
-					if (f_IsDestroyed())
+					if (Internal.m_bAuditLogsDestroyed)
 						return DMibErrorInstance("Shutting down");
 					return {};
 				}
 			)
 		;
 
-		auto &Internal = *mp_pInternal;
+		auto pCanDestroy = Internal.m_pCanDestroyAuditLogs;
+
 		if (!Internal.m_AuditLogReporter)
 		{
 			auto InitSequenceSubscription = co_await Internal.m_AuditLogReporterInitSequencer.f_Sequence();
@@ -214,7 +218,7 @@ namespace NMib::NConcurrency
 						if (!_Result)
 						{
 							DMibLogOperation(DisableDistributedLogReporter); // Prevent generating another error
-							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to log audit message", _Result.f_GetExceptionStr());
+							DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to log audit message: {}", _Result.f_GetExceptionStr());
 						}
 					}
 				;
@@ -652,7 +656,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CActor> const &_LogActor, EDistributedAppType _AppType)
+	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType)
 	{
 		f_SetAppType(_AppType);
 
@@ -798,70 +802,120 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		Internal.m_bDestroyCalled = true;
 #endif
+		{
+			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, fg_Construct())->f_Future();
+			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap();
+		}
+		if (mp_State.m_LogActor)
+			co_await mp_State.m_LogActor(&CDistiributedAppLogActor::f_StopDeferring);
+
+		{
+			TCActorResultVector<void> Destroys;
+			if (Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription)
+				fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+			if (Internal.m_AppSensorStoreLocalAppServerChangeSubscription)
+				fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+			if (Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription)
+				fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+			if (Internal.m_AppLogStoreLocalAppServerChangeSubscription)
+				fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy sensor and log store subscriptions");
+		}
+
+		{
+			TCActorResultVector<void> Destroys;
+
+			Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+			Internal.m_AppLogStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort app server change sequencers");
+		}
+
+		{
+			TCActorResultVector<void> Destroys;
+
+			for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
+				fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy app interface server change subscriptions");
+		}
+
+		if (mp_State.m_TrustManager)
+			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy trust mangaer");
+		else if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
+			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy distribution mangaer");
+
+		{
+			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, nullptr)->f_Future();
+			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap();
+		}
+
+		if (mp_State.m_LogActor)
+			co_await mp_State.m_LogActor(&CDistiributedAppLogActor::f_StopDeferring);
+
+		Internal.m_bAuditLogsDestroyed = true;
+
 		if (Internal.m_AuditLogReporter)
 		{
 			if (Internal.m_AuditLogReporter->m_fReportEntries)
-				co_await fg_Move(Internal.m_AuditLogReporter->m_fReportEntries).f_Destroy();
+				co_await fg_Move(Internal.m_AuditLogReporter->m_fReportEntries).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy audit log reporter");
 			Internal.m_AuditLogReporter.f_Clear();
 		}
+
 		{
 			TCActorResultVector<void> Destroys;
 
 			Internal.m_AuditLogReporterInitSequencer.f_Abort() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit log init sequencers");
+		}
+
+		{
+			TCActorResultVector<void> Destroys;
+
 			Internal.m_AppSensorStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
-			Internal.m_AppSensorStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
 			Internal.m_AppLogStoreLocalInitSequencer.f_Abort() > Destroys.f_AddResult();
-			Internal.m_AppLogStoreLocalAppServerChangeSequencer.f_Abort() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit sensor and log store sequencers");
+		}
+
+		{
+			TCActorResultVector<void> Destroys;
 
 			if (Internal.m_AppSensorStoreLocal)
 				fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys.f_AddResult();
 			if (Internal.m_AppLogStoreLocal)
 				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetResults();
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy app sensor store local");
 		}
 
-		TCActorResultVector<void> Destroys;
-		if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
-			mp_State.m_DistributionManager.f_Destroy() > Destroys.f_AddResult();
-		if (mp_State.m_TrustManager)
-			mp_State.m_TrustManager.f_Destroy() > Destroys.f_AddResult();
+		{
+			TCActorResultVector<void> Destroys;
 
-		if (Internal.m_FileOperationsActor)
-			Internal.m_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
-		if (Internal.m_CleanupFilesActor)
-			Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
+			if (Internal.m_FileOperationsActor)
+				Internal.m_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
+			if (Internal.m_CleanupFilesActor)
+				Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
-		if (Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription)
-			fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
-		
-		if (Internal.m_AppSensorStoreLocalAppServerChangeSubscription)
-			fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
-
-
-		if (Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription)
-			fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
-
-		if (Internal.m_AppLogStoreLocalAppServerChangeSubscription)
-			fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
-
-		for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
-			fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
-
-		co_await Destroys.f_GetResults();
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy files actors");
+		}
 
 		if (Internal.m_TrustManagerDatabase)
-			co_await Internal.m_TrustManagerDatabase.f_Destroy();
+			co_await Internal.m_TrustManagerDatabase.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy trust manager database");
 
 		if (Internal.m_pInitOnce)
-			co_await Internal.m_pInitOnce->f_Destroy();
+			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy init once");
 
 		co_return {};
 	}
 
 	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
-		TCActor<CActor> LogActor;
+		TCActor<CDistiributedAppLogActor> LogActor;
 
 		CApplyLoggingResults Results;
 
@@ -899,7 +953,7 @@ namespace NMib::NConcurrency
 		{
 			if (pParam->f_Boolean())
 			{
-				LogActor = NMib::NConcurrency::fg_ConstructActor<NMib::NConcurrency::CSeparateThreadActor>(fg_Construct("Log Dispatcher"));
+				LogActor = fg_Construct(fg_Construct(), "Log Dispatcher");
 				fg_GetSys()->f_GetLogger().f_SetDispatcher
 					(
 						[LogActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
@@ -919,7 +973,10 @@ namespace NMib::NConcurrency
 
 		if (_DistributedLoggingApp)
 		{
-			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, nullptr), false);
+			if (!LogActor)
+				LogActor = fg_Construct(fg_Construct(), "Log Actor");
+
+			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, LogActor), false);
 
 			Results.m_CleanupLogging = g_OnScopeExitShared / [DestinationID]() mutable
 				{
@@ -976,17 +1033,6 @@ namespace NMib::NConcurrency
 				;
 				m_AppActor = _fActorFactory();
 			}
-			auto CleanupLogDispatcher = g_OnScopeExit / [&]
-				{
-#if (DMibSysLogSeverities) != 0
-					if (m_bInstalledLogDispatcher)
-					{
-						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-						m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
-					}
-#endif
-				}
-			;
 			CDistributedAppCommandLineClient CommandLineClient = m_AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync(m_pRunLoop);
 
 			if (_fMutateCommandLine)
@@ -1042,6 +1088,8 @@ namespace NMib::NConcurrency
 								{
 									m_bStartedApp = false;
 									m_AppActor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
+									fg_Move(m_AppActor).f_Destroy().f_CallSync(m_pRunLoop);
+
 									return true;
 								}
 								return false;
@@ -1068,13 +1116,38 @@ namespace NMib::NConcurrency
 		{
 			if (m_bStartedApp)
 				m_AppActor(&CDistributedAppActor::f_StopApp).f_CallSync(m_pRunLoop);
-
-			if (m_AppActor)
-				m_AppActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
 		}
 		catch (NException::CException const &_Exception)
 		{
 			DMibConErrOut("Error stopping app: {}{\n}", _Exception.f_GetErrorStr());
+		}
+
+		try
+		{
+			if (m_AppActor)
+				m_AppActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+		}
+		catch (CExceptionActorDeleted const &)
+		{
+		}
+		catch (NException::CException const &_Exception)
+		{
+			DMibConErrOut("Error destroying app: {}{\n}", _Exception.f_GetErrorStr());
+		}
+
+		try
+		{
+#if (DMibSysLogSeverities) != 0
+			if (m_bInstalledLogDispatcher)
+			{
+				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+				m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
+			}
+#endif
+		}
+		catch (NException::CException const &_Exception)
+		{
+			DMibConErrOut("Error destroying logging: {}{\n}", _Exception.f_GetErrorStr());
 		}
 
 		m_ApplyLoggingResults = {};

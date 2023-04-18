@@ -20,6 +20,13 @@ namespace NMib::NConcurrency
 			DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 		}
+
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+
+		if (ConcurrencyThreadLocal.m_bCaptureAsyncDestructors && !m_AsyncDestructors.f_IsEmpty())
+			ConcurrencyThreadLocal.m_AsyncDestructors = fg_Move(m_AsyncDestructors);
+
+		DMibFastCheck(m_AsyncDestructors.f_IsEmpty()); // Should have been handled
 	}
 }
 
@@ -242,6 +249,16 @@ namespace NMib::NConcurrency::NPrivate
 	void TCFutureCoroutineContextShared<t_CReturnType>::f_SetExceptionResult(NException::CExceptionPointer &&_pException)
 	{
 		this->m_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_pException));
+	}
+
+	template <typename t_CReturnType>
+	NFunction::TCFunctionMovable<void (NException::CExceptionPointer &&_pException)> TCFutureCoroutineContextShared<t_CReturnType>::f_PrepareExceptionResult(TCActor<CActor> &&_Actor)
+	{
+		return [KeepAlive = f_KeepAlive(fg_Move(_Actor))](NException::CExceptionPointer &&_pException) -> void
+			{
+				KeepAlive.mp_pPromiseData->f_SetExceptionNoReportAppendable(fg_Move(_pException));
+			}
+		;
 	}
 }
 

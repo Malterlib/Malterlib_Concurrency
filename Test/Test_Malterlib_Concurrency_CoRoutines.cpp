@@ -1636,6 +1636,160 @@ namespace NMib::NConcurrency::NTest
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
 					co_return {};
 				};
+				DMibTestCategory("Awaited Exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&, pTestState]() -> TCFuture<void>
+										{
+											auto ToDestroy = fg_Move(Variable);
+											co_await fg_Timeout(0.001);
+											co_await ToDestroy.f_Destroy();
+											co_return {};
+										}
+									)
+								;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_await fg_CallSafe
+									(
+										[]() -> TCFuture<void>
+										{
+											co_return DMibErrorInstance("Test");
+										}
+									)
+								;
+								co_return {};
+							}
+						)
+						.f_Wrap()
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
+				DMibTestCategory("Resume Exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&, pTestState]() -> TCFuture<void>
+										{
+											auto ToDestroy = fg_Move(Variable);
+											co_await fg_Timeout(0.001);
+											co_await ToDestroy.f_Destroy();
+											co_return {};
+										}
+									)
+								;
+
+								bool bThrowResume = false;
+
+								auto OnResume = co_await fg_OnResume
+									(
+										[&]() -> NException::CExceptionPointer
+										{
+											if (bThrowResume)
+												return DMibErrorInstance("Test");
+
+											return {};
+										}
+									)
+								;
+
+								bThrowResume = true;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_await g_Yield;
+
+								co_return {};
+							}
+						)
+						.f_Wrap()
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
+				DMibTestCategory("Initial Resume Exception") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Result = co_await fg_CallSafe
+						(
+							[pTestState]() -> TCFuture<void>
+							{
+								co_await ECoroutineFlag_CaptureMalterlibExceptions;
+
+								CToAsyncDestroy Variable(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy
+									(
+										[&, pTestState]() -> TCFuture<void>
+										{
+											auto ToDestroy = fg_Move(Variable);
+											co_await fg_Timeout(0.001);
+											co_await ToDestroy.f_Destroy();
+											co_return {};
+										}
+									)
+								;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								auto OnResume = co_await fg_OnResume
+									(
+										[&]() -> NException::CExceptionPointer
+										{
+											return DMibErrorInstance("Test");
+
+											return {};
+										}
+									)
+								;
+
+								co_return {};
+							}
+						)
+						.f_Wrap()
+					;
+
+					DMibExpectException(Result.f_Access(), DMibErrorInstance("Test"));
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+					co_return {};
+				};
 				DMibTestCategory("Explicit") -> TCFuture<void>
 				{
 					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();

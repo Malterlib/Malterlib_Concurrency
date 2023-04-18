@@ -166,8 +166,7 @@ namespace NMib::NConcurrency
 		auto pException = mp_fOnResume();
 		if (pException)
 		{
-			mp_pThis->f_SetExceptionResult(fg_Move(pException));
-			mp_pThis->f_Abort();
+			mp_pThis->f_HandleAwaitedException(fg_Move(pException));
 			return true;
 		}
 
@@ -281,8 +280,64 @@ namespace NMib::NConcurrency
 
 	void CFutureCoroutineContext::f_HandleAwaitedException(NException::CExceptionPointer &&_pException)
 	{
-		f_SetExceptionResult(fg_Move(_pException));
-		f_Abort();
+#if DMibEnableSafeCheck > 0
+		try
+		{
+			fp_CheckCaptureExceptions();
+		}
+		catch (NException::CDebugException const &_Exception)
+		{
+			_pException = _Exception.f_ExceptionPointer();
+		}
+#endif
+		auto fDeliverExceptionResult = f_PrepareExceptionResult(fg_CurrentActor());
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+
+		DMibFastCheck(ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty());
+		DMibFastCheck(!ConcurrencyThreadLocal.m_bCaptureAsyncDestructors);
+		ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
+		{ 
+			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(ConcurrencyThreadLocal.m_bCaptureAsyncDestructors, true)]
+				{
+					ConcurrencyThreadLocal.m_bCaptureAsyncDestructors = bOld;
+				}
+			;
+
+			f_Abort();
+		}
+
+		if (!ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		{
+			TCActorResultVector<void> DestroyResults;
+
+			for (auto &fAsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+
+			ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
+
+			if (!DestroyResults.f_IsEmpty())
+			{
+				TCPromise<void> Promise;
+				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
+				Promise.f_MoveFuture() > NConcurrency::NPrivate::fg_DirectResultActor()
+					/ [fDeliverExceptionResult = fg_Move(fDeliverExceptionResult), pException = fg_Move(_pException)](TCAsyncResult<void> &&_DestroyResults) mutable
+					{
+						if (!_DestroyResults)
+						{
+							NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+							ErrorCollector.f_AddError(fg_Move(pException));
+							ErrorCollector.f_AddError(fg_Move(_DestroyResults).f_GetException());
+							pException = fg_Move(ErrorCollector).f_GetException();
+						}
+
+						fDeliverExceptionResult(fg_Move(pException));
+					}
+				;
+				return;
+			}
+		}
+
+		fDeliverExceptionResult(fg_Move(_pException));
 	}
 }
 

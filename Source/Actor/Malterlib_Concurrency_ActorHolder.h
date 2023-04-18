@@ -73,6 +73,7 @@ namespace NMib::NConcurrency
 	};
 
 	struct CConcurrencyThreadLocal;
+	struct CFutureCoroutineContext;
 
 	struct ICDistributedActorData
 	{
@@ -97,6 +98,7 @@ namespace NMib::NConcurrency
 		friend struct CActor;
 		friend class CDelegatedActorHolder;
 		friend struct CActorCommon;
+		friend struct CFutureCoroutineContext;
 
 		template <typename t_CImplementation>
 		friend struct TCDistributedActorInstance;

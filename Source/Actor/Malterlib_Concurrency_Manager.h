@@ -212,6 +212,9 @@ namespace NMib::NConcurrency
 		NException::CExceptionPointer m_pNoResultException;
 
 		NContainer::TCVector<CCaptureExceptionSettings> m_PendingCaptureExceptions;
+		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
+
+		bool m_bCaptureAsyncDestructors = false;
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *m_pCallstacks = nullptr;

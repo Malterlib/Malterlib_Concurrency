@@ -134,6 +134,8 @@ namespace NMib::NConcurrency
 		{
 			auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 			auto pCurrentActor = ConcurrencyThreadLocal.m_pCurrentActor;
+			if (!pCurrentActor && ConcurrencyThreadLocal.m_pCurrentlyProcessingActorHolder)
+				pCurrentActor = ConcurrencyThreadLocal.m_pCurrentlyProcessingActorHolder->fp_GetActorRelaxed();
 
 			// This can happen when trying to suspend a coroutine while destroying an actor.
 			// In this case use fg_ContinueRunningOnActor to transfer control of the coroutine to another actor
@@ -194,9 +196,7 @@ namespace NMib::NConcurrency
 				for (; iHandler; --iHandler)
 					iHandler->f_Suspend();
 
-				f_SetExceptionResult(fg_Move(pException));
-
-				f_Abort();
+				f_HandleAwaitedException(fg_Move(pException));
 
 				o_bAborted = true;
 

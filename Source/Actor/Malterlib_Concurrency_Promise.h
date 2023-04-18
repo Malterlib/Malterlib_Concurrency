@@ -265,6 +265,7 @@ namespace NMib::NConcurrency
 		void unhandled_exception();
 
 		void f_HandleAwaitedException(NException::CExceptionPointer &&_pException);
+		virtual NFunction::TCFunctionMovable<void (NException::CExceptionPointer &&_pException)> f_PrepareExceptionResult(TCActor<CActor> &&_Actor) = 0;
 
 		template <typename t_CAwaitable>
 		decltype(auto) await_transform(t_CAwaitable &&_Awaitable)
@@ -340,6 +341,9 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCPromiseData;
 
 	template <typename t_CReturnType>
+	struct TCFutureCoroutineContextShared;
+
+	template <typename t_CReturnType>
 	struct TCFutureCoroutineKeepAlive
 	{
 		TCFutureCoroutineKeepAlive(TCActor<CActor> &&_Actor, NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> &&_pPromiseData);
@@ -352,6 +356,8 @@ namespace NMib::NConcurrency::NPrivate
 		TCActor<CActor> f_MoveActor();
 
 	private:
+		friend struct TCFutureCoroutineContextShared<t_CReturnType>;
+
 		TCActor<CActor> mp_Actor;
 		TCWeakActor<CActor> mp_WeakActor;
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> mp_pPromiseData;
@@ -388,6 +394,7 @@ namespace NMib::NConcurrency::NPrivate
 		void f_Abort() override;
 		void f_SetExceptionResult(NException::CExceptionPointer &&_pException) override;
 		bool f_IsException() override;
+		NFunction::TCFunctionMovable<void (NException::CExceptionPointer &&_pException)> f_PrepareExceptionResult(TCActor<CActor> &&_Actor) override;
 
 		mark_no_coroutine_debug TCFuture<t_CReturnType> get_return_object();
 

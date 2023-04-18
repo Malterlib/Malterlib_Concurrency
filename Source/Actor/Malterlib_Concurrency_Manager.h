@@ -86,6 +86,11 @@ namespace NMib::NConcurrency
 		mint f_GetConcurrency() const;
 		mint f_GetQueue() const;
 
+#if DMibConfig_Concurrency_DebugFutures
+		NThread::CMutual m_FutureListLock;
+		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
+		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_LinkCoro) m_Coroutines;
+#endif
 	private:
 		template <typename t_CActor>
 		friend class TCActorInternal;
@@ -144,10 +149,6 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NThread::CMutual m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
-#endif
-#if DMibConfig_Concurrency_DebugFutures
-		NThread::CMutual m_FutureListLock;
-		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
 #endif
 
 		mint m_nThreads = 0;

@@ -363,6 +363,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto &ConcurrencyManager = fg_ConcurrencyManager();
 		DMibLock(ConcurrencyManager.m_FutureListLock);
 		m_Link.f_Unlink();
+		m_LinkCoro.f_Unlink();
 	}
 #endif
 }

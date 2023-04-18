@@ -142,6 +142,15 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 		auto *pPromiseData = pPromiseDataShared.f_Get();
 		pPromiseData->m_Coroutine = TCCoroutineHandle<TCFutureCoroutineContextShared>::from_promise(*this);
+
+#if DMibConfig_Concurrency_DebugFutures
+		{
+			auto &ConcurrencyManager = fg_ConcurrencyManager();
+			DMibLock(ConcurrencyManager.m_FutureListLock);
+			ConcurrencyManager.m_Coroutines.f_Insert(pPromiseData);
+		}
+#endif
+
 		pPromiseData->m_bIsCoroutine = true;
 #if DMibEnableSafeCheck > 0
 		pPromiseData->m_CoroutineOwner = fg_CurrentActor();

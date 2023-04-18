@@ -470,6 +470,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		NStorage::CIntrusiveRefCount m_RefCount;
 		DMibListLinkDS_Link(CPromiseDataBase, m_Link);
+		DMibListLinkDS_Link(CPromiseDataBase, m_LinkCoro);		
 		NStr::CStr m_FutureTypeName;
 	};
 #endif

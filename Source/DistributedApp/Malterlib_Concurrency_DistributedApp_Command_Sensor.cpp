@@ -413,6 +413,21 @@ namespace NMib::NConcurrency
 						)
 					;
 				}
+				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
+				{
+					return CEJSONUserType
+						(
+							"Version"
+							,
+							{
+								"Identifier"__= _Value.m_Identifier
+								, "Major"__= _Value.m_Major
+								, "Minor"__= _Value.m_Minor
+								, "Revision"__= _Value.m_Revision
+							}
+						)
+					;
+				}
 				else
 					return _Value;
 			}

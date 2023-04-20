@@ -30,8 +30,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_SensorStatusFilter = 0x103
 			, EProtocolVersion_MultipleFilters = 0x104
 			, EProtocolVersion_IgnoreRemoved = 0x105
+			, EProtocolVersion_VersionData = 0x106
 
-			, EProtocolVersion_Current = 0x105
+			, EProtocolVersion_Current = 0x106
 		};
 
 		enum ESensorDataType
@@ -41,6 +42,7 @@ namespace NMib::NConcurrency
 			, ESensorDataType_Float
 			, ESensorDataType_Boolean
 			, ESensorDataType_Status
+			, ESensorDataType_Version
 		};
 
 		enum ESensorScope
@@ -71,7 +73,22 @@ namespace NMib::NConcurrency
 			NStr::CStr m_Description;
 		};
 
-		using CSensorData = NStorage::TCStreamableVariant
+		struct CVersion
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+			auto operator <=> (CVersion const &_Right) const = default;
+
+			template <typename tf_CStr>
+			void f_Format(tf_CStr &o_Str) const;
+
+			NStr::CStr m_Identifier;
+			uint32 m_Major = 0;
+			uint32 m_Minor = 0;
+			uint32 m_Revision = 0;
+		};
+
+		using CSensorDataVariant = NStorage::TCStreamableVariant
 			<
 				ESensorDataType
 				, NStorage::TCMember<void, ESensorDataType_Unsupported>
@@ -79,8 +96,18 @@ namespace NMib::NConcurrency
 				, NStorage::TCMember<fp64, ESensorDataType_Float>
 				, NStorage::TCMember<bool, ESensorDataType_Boolean>
 				, NStorage::TCMember<CStatus, ESensorDataType_Status>
+				, NStorage::TCMember<CVersion, ESensorDataType_Version>
 			>
 		;
+
+		struct CSensorData : public CSensorDataVariant
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			using CSensorDataVariant::CSensorDataVariant;
+			using CSensorDataVariant::operator =;
+		};
 
 		struct CSensorScope_Unsupported
 		{

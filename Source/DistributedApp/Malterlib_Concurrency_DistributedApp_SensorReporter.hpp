@@ -35,6 +35,50 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CStream>
+	void CDistributedAppSensorReporter::CVersion::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Identifier;
+		_Stream % m_Major;
+		_Stream % m_Minor;
+		_Stream % m_Revision;
+	}
+
+	template <typename tf_CStr>
+	void CDistributedAppSensorReporter::CVersion::f_Format(tf_CStr &o_Str) const
+	{
+		o_Str += typename tf_CStr::CFormat("{} {}.{}.{}") << m_Identifier << m_Major << m_Minor << m_Revision;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedAppSensorReporter::CSensorData::f_Stream(tf_CStream &_Stream)
+	{
+		using namespace NStr;
+		
+		if (_Stream.f_GetVersion() >= EProtocolVersion_VersionData)
+			_Stream % (CSensorDataVariant &)(*this);
+		else
+		{
+			if constexpr (tf_CStream::mc_bConsume)
+				_Stream >> (CSensorDataVariant &)(*this);
+			else
+			{
+				if (this->f_IsOfType<CVersion>())
+				{
+					CSensorDataVariant Temp = CStatus
+						{
+							.m_Severity = EStatusSeverity_Error
+							, .m_Description = "Version sensor reading is not supported. Version: {}"_f << this->f_GetAsType<CVersion>()
+						}
+					;
+					_Stream << Temp;
+				}
+				else
+					_Stream << (CSensorDataVariant &)(*this);
+			}
+		}
+	}
+
+	template <typename tf_CStream>
 	void CDistributedAppSensorReporter::CSensorReading::f_Stream(tf_CStream &_Stream)
 	{
 		_Stream % m_UniqueSequence;

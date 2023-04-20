@@ -202,6 +202,8 @@ namespace NMib::NConcurrency
 						Value = _Value.m_Description;
 						Severity = fs_CombineStatusSeverity(Severity, _Value.m_Severity);
 					}
+					else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
+						Value = "{}"_f << _Value;
 					else
 					{
 						if (_pSensorInfo)
@@ -295,6 +297,7 @@ namespace NMib::NConcurrency
 		case ESensorDataType_Float: return "Floating Point";
 		case ESensorDataType_Boolean: return "Boolean";
 		case ESensorDataType_Status: return "Status";
+		case ESensorDataType_Version: return "Version";
 		}
 		return "Unknown";
 	}

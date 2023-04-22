@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 	 Either contains an exception or the result value. If the result is an exception the exception will be thrown if you try to access the value.
 	*/
 	template <typename t_CType = void>
-	class TCAsyncResult : public CAsyncResult
+	class [[nodiscard]] TCAsyncResult : public CAsyncResult
 	{
 		template <typename t_CType2>
 		friend class TCAsyncResult;
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <>
-	class TCAsyncResult<void> : public CAsyncResult
+	class [[nodiscard]] TCAsyncResult<void> : public CAsyncResult
 	{
 		template <typename t_CType2>
 		friend class TCAsyncResult;

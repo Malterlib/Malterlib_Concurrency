@@ -5,6 +5,7 @@
 #include "Malterlib_Concurrency_DistributedTrust_Internal.h"
 #include <Mib/Stream/ByteVector>
 #include <Mib/Encoding/Base64>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -56,7 +57,9 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		co_await Internal.m_AuthenticationInterface.f_Destroy();
+		CLogError LogError("Mib/Concurrency/Trust");
+
+		co_await Internal.m_AuthenticationInterface.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy authentication interface");
 
 		TCActorResultVector<void> Stops;
 		for (auto &Connection : Internal.m_ClientConnections)
@@ -86,10 +89,10 @@ namespace NMib::NConcurrency
 		}
 
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
-			co_await Internal.m_ActorDistributionManager.f_Destroy();
+			co_await Internal.m_ActorDistributionManager.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
 
 		if (Internal.m_pInitOnce)
-			co_await Internal.m_pInitOnce->f_Destroy();
+			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy init once");
 		Internal.m_pInitOnce.f_Clear();
 
 		co_return {};
@@ -283,6 +286,14 @@ namespace NMib::NConcurrency
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
 	{
+	}
+
+	namespace NPrivate
+	{
+		void fg_HandleUndestroyedSubscription(TCFuture<void> &&_Result)
+		{
+			fg_Move(_Result) > fg_LogWarning("DistributedActorTrustManager", "Failure in trusted actor subscription destroy (subscription went out of scope)");
+		}
 	}
 }
 

@@ -59,6 +59,11 @@ namespace NMib::NConcurrency
 			{
 				struct CSubscriptionImpl : CSubscription
 				{
+					~CSubscriptionImpl()
+					{
+						m_Subscription.f_Destroy() > fg_DiscardResult();
+					}
+
 					TCTrustedActorSubscription<tf_CActor> m_Subscription;
 				};
 				NStorage::TCUniquePointer<CSubscriptionImpl> pSubscription = fg_Construct<CSubscriptionImpl>();

@@ -9,8 +9,8 @@
 #include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/ActorSequencerActor>
-
 #include <Mib/Concurrency/DistributedActorAuthenticationHandler>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -641,7 +641,7 @@ namespace NMib::NConcurrency
 				if (mp_AuthenticationHandlerImplementation)
 					fg_Move(mp_AuthenticationHandlerImplementation).f_Destroy() > Destroys.f_AddResult();
 
-				co_await Destroys.f_GetResults().f_Wrap();
+				co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogWarning("Mib/Concurrency/App", "Failed to destroy authentication subscription");
 
 				co_return {};
 			}

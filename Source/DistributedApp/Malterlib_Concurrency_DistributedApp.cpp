@@ -310,7 +310,7 @@ namespace NMib::NConcurrency
 				{
 					CDistributedActorTrustManager_Address LocalListen;
 					LocalListen.m_URL = fp_GetLocalAddress();
-					co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListen).f_Wrap();
+					(void)co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListen).f_Wrap();
 				}
 			}
 
@@ -802,10 +802,13 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		Internal.m_bDestroyCalled = true;
 #endif
+		CLogError LogError("Mib/Concurrency/App");
+
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, fg_Construct())->f_Future();
-			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap();
+			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for destroy adit logs");
 		}
+
 		if (mp_State.m_LogActor)
 			co_await mp_State.m_LogActor(&CDistiributedAppLogActor::f_StopDeferring);
 
@@ -823,7 +826,7 @@ namespace NMib::NConcurrency
 			if (Internal.m_AppLogStoreLocalAppServerChangeSubscription)
 				fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy sensor and log store subscriptions");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy sensor and log store subscriptions");
 		}
 
 		{
@@ -832,7 +835,7 @@ namespace NMib::NConcurrency
 			fg_Move(Internal.m_AppSensorStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
 			fg_Move(Internal.m_AppLogStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort app server change sequencers");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort app server change sequencers");
 		}
 
 		{
@@ -840,17 +843,28 @@ namespace NMib::NConcurrency
 
 			for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
 				fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy app interface server change subscriptions");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy app interface server change subscriptions");
+		}
+
+		{
+			TCActorResultVector<void> Destroys;
+
+			if (Internal.m_AppSensorStoreLocal)
+				Internal.m_AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_DestroyRemote) > Destroys.f_AddResult();
+			if (Internal.m_AppLogStoreLocal)
+				Internal.m_AppLogStoreLocal(&CDistributedAppLogStoreLocal::f_DestroyRemote) > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy remote for local log and sensor store");
 		}
 
 		if (mp_State.m_TrustManager)
-			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy trust mangaer");
+			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > LogError("Failed to destroy trust mangaer");
 		else if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
-			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy distribution mangaer");
+			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > LogError("Failed to destroy distribution mangaer");
 
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, nullptr)->f_Future();
-			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap();
+			co_await fg_Move(Future).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for destroy adit logs (after trust manager)");
 		}
 
 		if (mp_State.m_LogActor)
@@ -861,7 +875,7 @@ namespace NMib::NConcurrency
 		if (Internal.m_AuditLogReporter)
 		{
 			if (Internal.m_AuditLogReporter->m_fReportEntries)
-				co_await fg_Move(Internal.m_AuditLogReporter->m_fReportEntries).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy audit log reporter");
+				co_await fg_Move(Internal.m_AuditLogReporter->m_fReportEntries).f_Destroy().f_Wrap() > LogError("Failed to destroy audit log reporter");
 			Internal.m_AuditLogReporter.f_Clear();
 		}
 
@@ -870,7 +884,7 @@ namespace NMib::NConcurrency
 
 			fg_Move(Internal.m_AuditLogReporterInitSequencer).f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit log init sequencers");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort audit log init sequencers");
 		}
 
 		{
@@ -879,7 +893,7 @@ namespace NMib::NConcurrency
 			fg_Move(Internal.m_AppSensorStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
 			fg_Move(Internal.m_AppLogStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to abort audit sensor and log store sequencers");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort audit sensor and log store sequencers");
 		}
 
 		{
@@ -890,7 +904,7 @@ namespace NMib::NConcurrency
 			if (Internal.m_AppLogStoreLocal)
 				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy app sensor store local");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy for local log and sensor store");
 		}
 
 		{
@@ -901,14 +915,14 @@ namespace NMib::NConcurrency
 			if (Internal.m_CleanupFilesActor)
 				Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy files actors");
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy files actors");
 		}
 
 		if (Internal.m_TrustManagerDatabase)
-			co_await Internal.m_TrustManagerDatabase.f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy trust manager database");
+			co_await Internal.m_TrustManagerDatabase.f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager database");
 
 		if (Internal.m_pInitOnce)
-			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/App", "Failed to destroy init once");
+			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > LogError("Failed to destroy init once");
 
 		co_return {};
 	}

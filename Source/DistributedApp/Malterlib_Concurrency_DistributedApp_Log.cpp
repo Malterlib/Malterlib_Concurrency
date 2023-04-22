@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/Concurrency/LogError>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
@@ -41,7 +42,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistiributedAppLogActor::fp_Destroy()
 	{
-		co_await f_StopDeferring();
+		CLogError LogError("DistiributedAppLogActor");
+
+		co_await f_StopDeferring().f_Wrap() > LogError.f_Warning("Failed to stop deferring");;
 
 		co_return {};
 	}

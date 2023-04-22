@@ -43,7 +43,12 @@ namespace NMib::NConcurrency
 		friend struct TCTrustedActorSubscription;
 		TCFuture<void> mp_OnNewActorFinished;
 	};
-	
+
+	namespace NPrivate
+	{
+		void fg_HandleUndestroyedSubscription(TCFuture<void> &&_Result);
+	}
+
 	template <typename t_CActor>
 	struct TCTrustedActorSubscription
 	{

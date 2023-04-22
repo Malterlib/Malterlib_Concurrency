@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Concurrency/ActorSubscription>
+#include <Mib/Concurrency/LogError>
 
 #include "Malterlib_Concurrency_DistributedApp_LaunchHelper.h"
 
@@ -206,16 +207,18 @@ namespace NMib::NConcurrency
 			Destroy.f_MoveFuture() > Destroys.f_AddResult();
 		m_PendingDestroys.f_Clear();
 
-		co_await Destroys.f_GetResults();
+		CLogError LogError("DistributedAppLaunchHelper");
+
+		co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed to destroy pending destroys");
 
 		while (auto pLaunch = m_OrderdedLaunches.f_Pop())
 		{
 			auto Future = pLaunch->f_Destroy();
 			pLaunch->f_Abort();
-			co_await fg_Move(Future);
+			co_await fg_Move(Future).f_Wrap() > LogError.f_Warning("Failed to destroy ordered launch");
 		}
 
-		co_await m_AppInterfaceServer.f_Destroy();
+		co_await m_AppInterfaceServer.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy app interface server");
 
 		co_return {};
 	}

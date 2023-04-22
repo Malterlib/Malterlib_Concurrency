@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 	TCTrustedActorSubscription<t_CActor>::~TCTrustedActorSubscription()
 	{
 		if (mp_pState)
-			f_Destroy() > fg_DiscardResult();
+			NPrivate::fg_HandleUndestroyedSubscription(f_Destroy());
 	}
 
 	template <typename t_CActor>
@@ -389,7 +389,14 @@ namespace NMib::NConcurrency
 								-> TCFuture<void>
 								{
 									if (OnNewActorFinished.f_IsValid())
-										co_await fg_Move(OnNewActorFinished).f_Wrap();
+									{
+										auto Result = co_await fg_Move(OnNewActorFinished).f_Wrap();
+										if (!Result)
+										{
+											DMibLogCategoryStr(pThis->f_RemoveActorErrorCategory());
+											DMibLog(Error, "{}: Failed to destroy on new actor finished: {}", pThis->f_RemoveActorErrorPrefix(), Result.f_GetExceptionStr());
+										}
+									}
 
 									if (pThis->m_fOnRemovedActor)
 										co_await pThis->m_fOnRemovedActor(fg_Move(WeakActor), fg_Move(TrustInfo));

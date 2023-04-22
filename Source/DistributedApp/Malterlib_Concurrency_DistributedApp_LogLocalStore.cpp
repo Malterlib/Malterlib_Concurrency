@@ -19,9 +19,37 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	TCFuture<void> CDistributedAppLogStoreLocal::f_DestroyRemote()
+	{
+		auto &Internal = *mp_pInternal;
+		CLogError LogError("LogLocalStore");
+
+		co_await Internal.m_LogsInterfaceSubscription.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy local log reporters remote interface subscription");
+
+		{
+			TCActorResultVector<void> Destroys;
+			for (auto &Log : Internal.m_Logs)
+			{
+				for (auto &Reporter : Log.m_LogReporters)
+				{
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					if (Reporter.m_Reporter.m_fReportEntries)
+						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+				}
+				Log.m_LogReporters.f_Clear();
+			}
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local log reporters remote");
+		}
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedAppLogStoreLocal::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
+
+		CLogError LogError("LogLocalStore");
 
 		if (Internal.m_CleanupTimerSubscription)
 		{
@@ -31,24 +59,28 @@ namespace NMib::NConcurrency
 
 		auto CanDestroyFuture = Internal.m_pCanDestroyStoringLocal->f_Future();
 		Internal.m_pCanDestroyStoringLocal.f_Clear();
-		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap();
+		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for can destroy");
 
-		TCActorResultVector<void> Destroys;
-		for (auto &Log : Internal.m_Logs)
 		{
-			fg_Move(Log.m_LogSequencer).f_Destroy() > Destroys.f_AddResult();
-			for (auto &Reporter : Log.m_LogReporters)
+			TCActorResultVector<void> Destroys;
+			for (auto &Log : Internal.m_Logs)
 			{
-				fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
-				if (Reporter.m_Reporter.m_fReportEntries)
-					fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Log.m_LogSequencer).f_Destroy() > Destroys.f_AddResult();
+				for (auto &Reporter : Log.m_LogReporters)
+				{
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					if (Reporter.m_Reporter.m_fReportEntries)
+						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+				}
 			}
+
+			Internal.m_LogsInterfaceSubscription.f_Destroy() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local log store");;
 		}
 
-		co_await Destroys.f_GetResults();
-
 		if (Internal.m_bOwnDatabase)
-			co_await Internal.m_Database.f_Destroy();
+			co_await Internal.m_Database.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
 
 		Internal.m_LogInterfaces.f_Clear();
 		Internal.m_Logs.f_Clear();

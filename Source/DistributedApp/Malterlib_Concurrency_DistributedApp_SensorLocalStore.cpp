@@ -23,36 +23,69 @@ namespace NMib::NConcurrency
 	{
 	}
 
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_DestroyRemote()
+	{
+		auto &Internal = *mp_pInternal;
+
+		CLogError LogError("SensorLocalStore");
+
+		co_await Internal.m_SensorsInterfaceSubscription.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destory local sensors reporters remote interface subscription");
+
+		{
+			TCActorResultVector<void> Destroys;
+			for (auto &Sensor : Internal.m_Sensors)
+			{
+				for (auto &Reporter : Sensor.m_SensorReporters)
+				{
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					if (Reporter.m_Reporter.m_fReportReadings)
+						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+				}
+				Sensor.m_SensorReporters.f_Clear();
+			}
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local sensor reporters remote");;
+		}
+
+		co_return {};
+	}
+
 	TCFuture<void> CDistributedAppSensorStoreLocal::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
 
+		CLogError LogError("SensorLocalStore");
+		
 		if (Internal.m_CleanupTimerSubscription)
 		{
-			co_await Internal.m_CleanupTimerSubscription->f_Destroy();
+			co_await Internal.m_CleanupTimerSubscription->f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy cleanup timer subscription");
 			Internal.m_CleanupTimerSubscription.f_Clear();
 		}
 
 		auto CanDestroyFuture = Internal.m_pCanDestroyStoringLocal->f_Future();
 		Internal.m_pCanDestroyStoringLocal.f_Clear();
-		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap();
+		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for can destroy");
 
-		TCActorResultVector<void> Destroys;
-		for (auto &Sensor : Internal.m_Sensors)
 		{
-			fg_Move(Sensor.m_SensorSequencer).f_Destroy() > Destroys.f_AddResult();
-			for (auto &Reporter : Sensor.m_SensorReporters)
+			TCActorResultVector<void> Destroys;
+			for (auto &Sensor : Internal.m_Sensors)
 			{
-				fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
-				if (Reporter.m_Reporter.m_fReportReadings)
-					fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Sensor.m_SensorSequencer).f_Destroy() > Destroys.f_AddResult();
+				for (auto &Reporter : Sensor.m_SensorReporters)
+				{
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					if (Reporter.m_Reporter.m_fReportReadings)
+						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+				}
 			}
+
+			Internal.m_SensorsInterfaceSubscription.f_Destroy() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local sensor store");;
 		}
 
-		co_await Destroys.f_GetResults();
-
 		if (Internal.m_bOwnDatabase)
-			co_await Internal.m_Database.f_Destroy();
+			co_await Internal.m_Database.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
 
 		co_return {};
 	}

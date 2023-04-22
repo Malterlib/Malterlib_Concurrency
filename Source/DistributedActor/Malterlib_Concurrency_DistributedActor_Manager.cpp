@@ -8,6 +8,7 @@
 
 #include <Mib/Process/Platform>
 #include <Mib/Cryptography/Certificate>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -35,6 +36,8 @@ namespace NMib::NConcurrency
 		TCActorResultVector<void> Results;
 		auto &Internal = *mp_pInternal;
 
+		CLogError LogError("Mib/Concurrency/Actors");
+
 		if (Internal.m_ResolveActor)
 			fg_Move(Internal.m_ResolveActor).f_Destroy() > Results.f_AddResult();
 
@@ -57,7 +60,7 @@ namespace NMib::NConcurrency
 		if (Internal.m_CleanupTimerSubscription)
 			Internal.m_CleanupTimerSubscription->f_Destroy() > Results.f_AddResult();
 
-		co_await fg_ExchangeMove(Results).f_GetResults();
+		co_await fg_ExchangeMove(Results).f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
 
 		co_return {};
 	}

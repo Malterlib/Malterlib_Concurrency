@@ -366,6 +366,7 @@ namespace NMib::NConcurrency
 			for (auto &Reporter : pLog->m_LogReporters)
 			{
 				auto WeakActor = pLog->m_LogReporters.fs_GetKey(Reporter);
+
 				Reporter.m_WriteSequencer.f_RunSequenced
 					(
 						g_ActorFunctorWeak / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>

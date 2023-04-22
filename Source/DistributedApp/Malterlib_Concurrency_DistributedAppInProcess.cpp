@@ -4,6 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ActorSubscription>
 #include <Mib/Concurrency/ActorFunctor>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Encoding/JSONShortcuts>
 
 #include "Malterlib_Concurrency_DistributedAppInProcess.h"
@@ -118,10 +119,12 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppInProcessActor::fp_Destroy()
 	{
+		CLogError LogError("Malterlib/Concurrency/InProcessApp");
+
 		if (mp_DistributedApp)
 		{
-			co_await mp_DistributedApp(&CDistributedAppActor::f_StopApp);
-			co_await fg_Move(mp_DistributedApp).f_Destroy();
+			co_await mp_DistributedApp(&CDistributedAppActor::f_StopApp).f_Wrap() > LogError.f_Warning("Failed to stop distributed app");
+			co_await fg_Move(mp_DistributedApp).f_Destroy().f_Wrap()  > LogError.f_Warning("Failed to destroy distributed app");;
 		}
 
 		co_return {};

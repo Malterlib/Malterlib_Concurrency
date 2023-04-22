@@ -48,12 +48,22 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	TCFuture<void> TCActorSubscriptionCleanupFunctor<t_CReturnValue>::f_Destroy()
 	{
+		using namespace NStr;
+
 		TCPromise<void> Promise;
+
 		if (!mp_DispatchActor)
 			return Promise <<= g_Void;
-		
+
 		auto pDispatchActor = fg_Move(mp_DispatchActor);
-		return Promise <<= fg_Dispatch(pDispatchActor, fg_Move(mp_fCleanup));
+		auto pLockedActor = pDispatchActor.f_Lock();
+		if (!pLockedActor)
+		{
+			mp_fCleanup.f_Clear();
+			return Promise <<= DMibErrorInstance("Actor in subscription has been deleted");
+		}
+
+		return Promise <<= fg_Dispatch(pLockedActor, fg_Move(mp_fCleanup));
 	}
 
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)

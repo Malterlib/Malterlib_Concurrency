@@ -17,6 +17,8 @@ namespace NMib::NConcurrency
 		CDistributedAppLogStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppLogStoreLocal();
 
+		TCFuture<void> f_DestroyRemote();
+
 		TCFuture<void> f_StartWithDatabase
 			(
 				TCActor<NDatabase::CDatabaseActor> &&_Database

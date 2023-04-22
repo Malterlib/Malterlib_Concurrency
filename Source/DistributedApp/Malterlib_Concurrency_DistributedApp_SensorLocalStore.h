@@ -17,6 +17,8 @@ namespace NMib::NConcurrency
 		CDistributedAppSensorStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppSensorStoreLocal();
 
+		TCFuture<void> f_DestroyRemote();
+
 		TCFuture<void> f_StartWithDatabase
 			(
 				TCActor<NDatabase::CDatabaseActor> &&_Database

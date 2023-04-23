@@ -157,11 +157,12 @@ namespace NMib::NConcurrency
 			(
 				LogLocalStore
 				, Debug
-				, "Database at '{}' uses {fe2}% of allotted space ({ns } / {ns } bytes)"
+				, "Database at '{}' uses {fe2}% of allotted space ({ns } / {ns } bytes). {ns } records."
 				, _DatabasePath
 				, fp64(TotalSizeUsed) / fp64(MaxDatabaseSize) * 100.0
 				, TotalSizeUsed
 				, MaxDatabaseSize
+				, Stats.m_nDataItems
 			)
 		;
 

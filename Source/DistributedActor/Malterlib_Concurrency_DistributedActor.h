@@ -510,8 +510,9 @@ namespace NMib::NConcurrency
 		NStr::CStr m_FriendlyName;
 		NStr::CStr m_Enclave; // Hosts with the same enclave are assumed to be from the same distribution manager instance. If two use the same enclave they will disconnect each other.
 
-		fp64 m_HostTimeout = 10.0 * 60.0; // 10 minutes
-		fp64 m_HostDaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
+		fp64 m_HostTimeout = 10_minutes;
+		fp64 m_HostDaemonTimeout = 4_hours;
+		fp64 m_ReconnectDelay = 500_ms;
 		bool m_bTimeoutForUnixSockets = true;
 	};
 

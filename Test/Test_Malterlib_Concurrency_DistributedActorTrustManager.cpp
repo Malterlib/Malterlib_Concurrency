@@ -245,7 +245,7 @@ namespace NTestTrustManager
 
 		struct CState
 		{
-			auto f_CreateServerTrustManager(CDistributedActorTrustManager::COptions &&_Options = {}) const
+			auto f_CreateServerTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms}) const
 			{
 				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
@@ -262,7 +262,7 @@ namespace NTestTrustManager
 				return fg_ConstructActor<CDistributedActorTrustManager>(m_ServerDatabase, fg_Move(Options));
 			}
 
-			auto f_CreateClientTrustManager(CDistributedActorTrustManager::COptions &&_Options = {}) const
+			auto f_CreateClientTrustManager(CDistributedActorTrustManager::COptions &&_Options = {.m_ReconnectDelay = 1_ms}) const
 			{
 				CDistributedActorTrustManager::COptions Options(fg_Move(_Options));
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
@@ -1016,13 +1016,13 @@ namespace NTestTrustManager
 
 					CState State{pRunLoop, _fDatabaseFactory, _fCleanup};
 
-					CDistributedActorTrustManager::COptions ServerOptions;
-					CDistributedActorTrustManager::COptions ClientOptions;
+					CDistributedActorTrustManager::COptions ServerOptions{.m_ReconnectDelay = 1_ms};
+					CDistributedActorTrustManager::COptions ClientOptions{.m_ReconnectDelay = 1_ms};
 
 					if (i == 0)
-						ServerOptions.m_HostTimeout = ServerOptions.m_HostDaemonTimeout = 0.5;
+						ServerOptions.m_HostTimeout = ServerOptions.m_HostDaemonTimeout = 500_ms;
 					else
-						ClientOptions.m_HostTimeout = ClientOptions.m_HostDaemonTimeout = 0.5;
+						ClientOptions.m_HostTimeout = ClientOptions.m_HostDaemonTimeout = 500_ms;
 
 					TCActor<CDistributedActorTrustManager> ServerTrustManager = State.f_CreateServerTrustManager(fg_Move(ServerOptions));
 					TCActor<CDistributedActorTrustManager> ClientTrustManager = State.f_CreateClientTrustManager(fg_Move(ClientOptions));
@@ -1217,7 +1217,7 @@ namespace NTestTrustManager
 					Client2Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, BasicConfig).f_CallSync(pRunLoop, g_Timeout);
 				}
 
-				CDistributedActorTrustManager::COptions Options;
+				CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 				Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
 					{
 						return fg_ConstructActor<CActorDistributionManager>(_Settings);
@@ -1282,7 +1282,7 @@ namespace NTestTrustManager
 				TCVector<TCActor<CDistributedActorTrustManager>> ClientTrustManagers;
 				for (mint i = 0; i < 128; ++i)
 				{
-					CDistributedActorTrustManager::COptions Options;
+					CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 					Options.m_Enclave = NCryptography::fg_RandomID();
 					ClientTrustManagers.f_Insert() = State.f_CreateClientTrustManager(fg_Move(Options));
 				}

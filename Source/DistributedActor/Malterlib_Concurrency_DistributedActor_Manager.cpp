@@ -293,6 +293,7 @@ namespace NMib::NConcurrency
 		, m_HostID(_InitSettings.m_HostID)
 		, m_Enclave(_InitSettings.m_Enclave)
 		, m_HostTimeout(_InitSettings.m_HostTimeout)
+		, m_ReconnectDelay(_InitSettings.m_ReconnectDelay)
 		, m_HostDaemonTimeout(_InitSettings.m_HostDaemonTimeout)
 	{
 		m_WebsocketSettings.m_bTimeoutForUnixSockets = _InitSettings.m_bTimeoutForUnixSockets;

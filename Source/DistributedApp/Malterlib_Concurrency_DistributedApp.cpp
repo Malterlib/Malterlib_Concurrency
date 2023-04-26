@@ -499,6 +499,7 @@ namespace NMib::NConcurrency
 		Options.m_DefaultConnectionConcurrency = DefaultConcurrency;
 		Options.m_bSupportAuthentication = bSupportAuthentication;
 		Options.m_bTimeoutForUnixSockets = mp_Settings.m_bTimeoutForUnixSockets;
+		Options.m_ReconnectDelay = mp_Settings.m_ReconnectDelay;
 
 		auto &Internal = *mp_pInternal;
 

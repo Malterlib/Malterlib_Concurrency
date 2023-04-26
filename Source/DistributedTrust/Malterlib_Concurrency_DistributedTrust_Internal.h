@@ -310,6 +310,7 @@ namespace NMib::NConcurrency
 		fp64 m_InitialConnectionTimeout = 5.0;
 		fp64 m_HostTimeout;
 		fp64 m_HostDaemonTimeout;
+		fp64 m_ReconnectDelay;
 
 		int32 m_DefaultConnectionConcurrency = 1;
 

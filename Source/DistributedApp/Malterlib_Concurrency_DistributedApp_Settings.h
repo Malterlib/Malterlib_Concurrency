@@ -11,9 +11,11 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppActor_Settings : public CDistributedAppActor_SettingsProperties
 	{
-		CDistributedAppActor_Settings() = default;
+		CDistributedAppActor_Settings();
 		CDistributedAppActor_Settings(NStr::CStr const &_AppName);
-		
+
+		static CDistributedAppActor_SettingsProperties &fs_GetGlobalDefaultSettings();
+
 		NStr::CStr f_GetCompositeFriendlyName() const;
 		NStr::CStr f_GetLocalSocketHostname(bool _bEnclaveSpecific) const;
 		NStr::CStr f_GetLocalSocketFileName(bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
@@ -35,6 +37,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&;
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;
 		CDistributedAppActor_Settings &&f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&;
+		CDistributedAppActor_Settings &&f_ReconnectDelay(fp64 _ReconnectDelay) &&;
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
 	};

@@ -19,6 +19,30 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
+		struct CDefaultSettingsDefault
+		{
+			CDistributedAppActor_SettingsProperties m_Properties{CDistributedAppActor_SettingsProperties::CDefaultInit{}};
+		};
+	}
+
+	NStorage::TCAggregate<CDefaultSettingsDefault> g_DefaultSettingsDefault = {DAggregateInit};
+
+	CDistributedAppActor_SettingsProperties &CDistributedAppActor_Settings::fs_GetGlobalDefaultSettings()
+	{
+		return g_DefaultSettingsDefault->m_Properties;
+	}
+
+	CDistributedAppActor_SettingsProperties::CDistributedAppActor_SettingsProperties(CDefaultInit _Dummy)
+	{
+	}
+
+	CDistributedAppActor_SettingsProperties::CDistributedAppActor_SettingsProperties()
+	{
+		*this = g_DefaultSettingsDefault->m_Properties;
+	}
+
+	namespace
+	{
 		CUniversallyUniqueIdentifier g_HostnameRootUUID("8ED61926-AC8A-4793-92C5-DE05547999E7", EUniversallyUniqueIdentifierFormat_Bare);
 	}
 
@@ -35,6 +59,11 @@ namespace NMib::NConcurrency
 		}
 
 		return OptionFlags;
+	}
+
+	CDistributedAppActor_Settings::CDistributedAppActor_Settings()
+		: CDistributedAppActor_SettingsProperties(fg_DistributedAppThreadLocal().m_DefaultSettings)
+	{
 	}
 
 	CDistributedAppActor_Settings::CDistributedAppActor_Settings(NStr::CStr const &_AppName)
@@ -180,6 +209,12 @@ namespace NMib::NConcurrency
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&
 	{
 		m_bTimeoutForUnixSockets = _bTimeoutForUnixSockets;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_ReconnectDelay(fp64 _ReconnectDelay) &&
+	{
+		m_ReconnectDelay = _ReconnectDelay;
 		return fg_Move(*this);
 	}
 

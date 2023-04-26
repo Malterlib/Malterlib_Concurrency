@@ -61,6 +61,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
 	{
 		CActorDistributionManagerInitSettings Settings{mp_ServerCryptography.m_HostID, {}};
+		Settings.m_ReconnectDelay = 1_ms;
 		Settings.m_FriendlyName = "TestHelperServer";
 
 		mp_pServer = fg_Construct
@@ -82,6 +83,7 @@ namespace NMib::NConcurrency
 		if (!mp_pServer)
 		{
 			CActorDistributionManagerInitSettings Settings{mp_ServerCryptography.m_HostID, {}};
+			Settings.m_ReconnectDelay = 1_ms;
 			Settings.m_FriendlyName = "TestHelperServer";
 
 			mp_ServerCryptography.m_HostID = fg_InitDistributionManager(Settings).m_HostID;
@@ -119,6 +121,7 @@ namespace NMib::NConcurrency
 		if (!mp_pClient)
 		{
 			CActorDistributionManagerInitSettings Settings{mp_ClientCryptography.m_HostID, {}};
+			Settings.m_ReconnectDelay = 1_ms;
 			Settings.m_FriendlyName = "TestHelperClient";
 
 			mp_pClient = fg_Construct
@@ -147,6 +150,7 @@ namespace NMib::NConcurrency
 	{
 		{
 			CActorDistributionManagerInitSettings Settings{mp_ClientCryptography.m_HostID, {}};
+			Settings.m_ReconnectDelay = 1_ms;
 			Settings.m_FriendlyName = "TestHelperAnonClient";
 
 			mp_pClient = fg_Construct

@@ -290,9 +290,10 @@ namespace NMib::NConcurrency
 			NStr::CStr m_FriendlyName;
 			NStr::CStr m_Enclave;
 			NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
-			fp64 m_InitialConnectionTimeout = 5.0;
-			fp64 m_HostTimeout = 10.0 * 60.0; // 10 minutes
-			fp64 m_HostDaemonTimeout = 4.0 * 60.0 * 60.0; // 4 hours
+			fp64 m_InitialConnectionTimeout = 5_seconds;
+			fp64 m_HostTimeout = 10_minutes;
+			fp64 m_HostDaemonTimeout = 4_hours;
+			fp64 m_ReconnectDelay = 500_ms;
 			int32 m_DefaultConnectionConcurrency = 1;
 			bool m_bRetryOnListenFailureDuringInit = true;
 			bool m_bWaitForConnectionsDuringInit = true;

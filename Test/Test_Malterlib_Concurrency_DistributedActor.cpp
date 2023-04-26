@@ -32,6 +32,7 @@ using namespace NMib::NThread;
 using namespace NMib::NAtomic;
 using namespace NMib::NTest;
 using namespace NMib::NNetwork;
+using namespace NMib::NTime;
 
 static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
@@ -1694,8 +1695,14 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 	{
 		CStr ServerHostID = NCryptography::fg_RandomID();
 		CStr ClientHostID = NCryptography::fg_RandomID();
-		TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{ServerHostID, {}});
-		TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(CActorDistributionManagerInitSettings{ClientHostID, {}});
+
+		CActorDistributionManagerInitSettings ServerSettings{ServerHostID, {}};
+		ServerSettings.m_ReconnectDelay = 1_ms;
+		CActorDistributionManagerInitSettings ClientSettings{ClientHostID, {}};
+		ClientSettings.m_ReconnectDelay = 1_ms;
+
+		TCActor<CActorDistributionManager> ServerManager = fg_ConstructActor<CActorDistributionManager>(ServerSettings);
+		TCActor<CActorDistributionManager> ClientManager = fg_ConstructActor<CActorDistributionManager>(ClientSettings);
 
 		CActorDistributionCryptographySettings ServerCryptography{ServerHostID};
 		ServerCryptography.f_GenerateNewCert(fg_CreateVector<CStr>(_Address), CDistributedActorTestKeySettings{});

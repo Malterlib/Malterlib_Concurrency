@@ -432,6 +432,7 @@ namespace NMib::NConcurrency
 		CActorSubscription m_CleanupTimerSubscription;
 		fp64 m_HostTimeout;
 		fp64 m_HostDaemonTimeout;
+		fp64 m_ReconnectDelay;
 		bool m_bCleanupSetup = false;
 
 		void fp_CleanupUpdateTimer();

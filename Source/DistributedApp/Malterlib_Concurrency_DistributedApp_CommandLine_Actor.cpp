@@ -118,6 +118,7 @@ namespace NMib::NConcurrency
 		Options.m_Enclave = CStr();
 		Options.m_TranslateHostnames = fp_GetTranslateHostnames();
 		Options.m_DefaultConnectionConcurrency = 1;
+		Options.m_ReconnectDelay = mp_Settings.m_ReconnectDelay;
 
 		TCActor<CDistributedActorTrustManager> TrustManager = fg_ConstructActor<CDistributedActorTrustManager>(fg_Move(TrustManagerDatabase), fg_Move(Options));
 		TrustManagerDatabase.f_Clear();

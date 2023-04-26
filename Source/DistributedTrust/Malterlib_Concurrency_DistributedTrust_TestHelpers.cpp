@@ -423,7 +423,7 @@ namespace NMib::NConcurrency
 
 	TCActor<CDistributedActorTrustManager> CTrustManagerTestHelper::f_TrustManager(NStr::CStr const &_FriendlyName, CStr const &_SessionID, bool _bSupportAuthentication) const
 	{
-		CDistributedActorTrustManager::COptions Options;
+		CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 		
 		Options.m_fConstructManager = [](CActorDistributionManagerInitSettings const &_Settings)
 			{
@@ -437,7 +437,7 @@ namespace NMib::NConcurrency
 		Options.m_TranslateHostnames = {};
 		Options.m_DefaultConnectionConcurrency = 1;
 		Options.m_bSupportAuthentication = _bSupportAuthentication;
-		
+
 		return fg_ConstructActor<CDistributedActorTrustManager>(m_Database, fg_Move(Options));
 	}
 	

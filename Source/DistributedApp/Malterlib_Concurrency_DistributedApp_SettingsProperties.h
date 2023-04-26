@@ -72,7 +72,12 @@ namespace NMib::NConcurrency
 
 	struct CDistributedAppActor_SettingsProperties
 	{
-		CDistributedAppActor_SettingsProperties() = default;
+		struct CDefaultInit
+		{
+		};
+
+		CDistributedAppActor_SettingsProperties();
+		CDistributedAppActor_SettingsProperties(CDefaultInit _Dummy);
 
 		NStr::CStr m_AppName;
 		NStr::CStr m_RootDirectory = NFile::CFile::fs_GetProgramDirectory();
@@ -86,6 +91,7 @@ namespace NMib::NConcurrency
 		EDistributedAppUpdateType m_UpdateType = EDistributedAppUpdateType_Independent;
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;
 		EDefaultCommandLineFunctionality m_DefaultCommandLineFunctionality = EDefaultCommandLineFunctionality_All;
+		fp64 m_ReconnectDelay = 500_ms;
 
 		bool m_bSeparateDistributionManager = false;
 		bool m_bSupportUserAuthentication = true;

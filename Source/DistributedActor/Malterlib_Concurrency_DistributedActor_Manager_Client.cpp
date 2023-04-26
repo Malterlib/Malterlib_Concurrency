@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 		fg_TimerActor()
 			(
 				&CTimerActor::f_OneshotTimer
-				, 0.5
+				, m_ReconnectDelay
 				, fg_ThisActor(m_pThis)
 				, [this, _pConnection, _Sequence, _bRetry]() mutable
 				{

@@ -44,6 +44,7 @@ namespace NMib::NConcurrency
 		, m_bSupportAuthentication(_Options.m_bSupportAuthentication)
 		, m_HostTimeout(_Options.m_HostTimeout)
 		, m_HostDaemonTimeout(_Options.m_HostDaemonTimeout)
+		, m_ReconnectDelay(_Options.m_ReconnectDelay)
 		, m_bTimeoutForUnixSockets(_Options.m_bTimeoutForUnixSockets)
 	{
 	}

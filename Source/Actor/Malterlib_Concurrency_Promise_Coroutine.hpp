@@ -21,10 +21,13 @@ namespace NMib::NConcurrency
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 		}
 
-		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		if (!m_AsyncDestructors.f_IsEmpty())
+		{
+			auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 
-		if (ConcurrencyThreadLocal.m_bCaptureAsyncDestructors && !m_AsyncDestructors.f_IsEmpty())
-			ConcurrencyThreadLocal.m_AsyncDestructors = fg_Move(m_AsyncDestructors);
+			if (ConcurrencyThreadLocal.m_bCaptureAsyncDestructors)
+				ConcurrencyThreadLocal.m_AsyncDestructors = fg_Move(m_AsyncDestructors);
+		}
 
 		DMibFastCheck(m_AsyncDestructors.f_IsEmpty()); // Should have been handled
 	}

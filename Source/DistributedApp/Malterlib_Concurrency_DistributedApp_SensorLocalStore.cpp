@@ -97,16 +97,7 @@ namespace NMib::NConcurrency
 			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> &&_fCleanup
 		)
 	{
-		auto OnResume = co_await fg_OnResume
-			(
-				[&]() -> CExceptionPointer
-				{
-					if (f_IsDestroyed())
-						return DMibErrorInstance("Shutting down");
-					return {};
-				}
-			)
-		;
+		auto OnResume = co_await f_CheckDestroyedOnResume();
 
 		auto &Internal = *mp_pInternal;
 
@@ -125,16 +116,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabasePath(CStr const &_DatabasePath, uint64 _RetentionDays)
 	{
-		auto OnResume = co_await fg_OnResume
-			(
-				[&]() -> CExceptionPointer
-				{
-					if (f_IsDestroyed())
-						return DMibErrorInstance("Shutting down");
-					return {};
-				}
-			)
-		;
+		auto OnResume = co_await f_CheckDestroyedOnResume();
 
 		auto &Internal = *mp_pInternal;
 
@@ -189,16 +171,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_Start()
 	{
-		auto OnResume = co_await fg_OnResume
-			(
-				[&]() -> CExceptionPointer
-				{
-					if (m_pThis->f_IsDestroyed())
-						return DMibErrorInstance("Shutting down");
-					return {};
-				}
-			)
-		;
+		auto OnResume = co_await m_pThis->f_CheckDestroyedOnResume();
 
 		m_ThisHostID = co_await m_TrustManager(&CDistributedActorTrustManager::f_GetHostID);
 
@@ -338,16 +311,7 @@ namespace NMib::NConcurrency
 			, CTrustedActorInfo const &_TrustInfo
 		)
 	{
-		auto OnResume = co_await fg_OnResume
-			(
-				[&]() -> CExceptionPointer
-				{
-					if (f_IsDestroyed())
-						return DMibErrorInstance("Shutting down");
-					return {};
-				}
-			)
-		;
+		auto OnResume = co_await f_CheckDestroyedOnResume();
 
 		auto &Internal = *mp_pInternal;
 

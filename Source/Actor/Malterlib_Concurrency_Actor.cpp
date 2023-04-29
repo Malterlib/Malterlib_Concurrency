@@ -95,6 +95,21 @@ namespace NMib::NConcurrency
 		return nullptr;
 	}
 
+	CFutureCoroutineContext::COnResumeScopeAwaiter CActor::f_CheckDestroyedOnResume()
+	{
+		return fg_OnResume
+			(
+				[this]() -> NException::CExceptionPointer
+				{
+					if (f_IsDestroyed())
+						return DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Shutting down");
+
+					return {};
+				}
+			)
+		;
+	}
+
 	TCFuture<void> CActor::fp_DestroyInternal()
 	{
 		if (f_IsDestroyed())

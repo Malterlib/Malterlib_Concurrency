@@ -75,6 +75,7 @@ namespace NMib::NConcurrency
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
 		void f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
+		CFutureCoroutineContext::COnResumeScopeAwaiter f_CheckDestroyedOnResume();
 
 	protected:
 		virtual void fp_Construct();

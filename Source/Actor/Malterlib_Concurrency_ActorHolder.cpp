@@ -165,7 +165,7 @@ namespace NMib::NConcurrency
 		if (_ThreadLocal.m_pCurrentlyProcessingActorHolder == this)
 		{
 			mp_ConcurrentRunQueue.f_AddToQueueLocal(fg_Move(_Functor), mp_ConcurrentRunQueueLocal);
-			return false;
+			return _ThreadLocal.m_bForceNonLocal;
 		}
 		else if (_ThreadLocal.m_pThisQueue && mp_iFixedCore == _ThreadLocal.m_pThisQueue->m_iQueue && _ThreadLocal.m_pThisQueue->m_Priority == mp_Priority)
 		{
@@ -255,21 +255,18 @@ namespace NMib::NConcurrency
 						}
 
 						if (mp_bYield)
-							break;
+						{
+							mp_bYield = false;
+							if (!mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal))
+							{
+								ThreadLocal.m_bForceNonLocal = true;
+								fp_QueueProcess([]{}, ThreadLocal);
+								ThreadLocal.m_bForceNonLocal = false;
+							}
+							return;
+						}
 					}
 				}
-				if (mp_bYield)
-					break;
-			}
-		}
-		if (mp_bYield)
-		{
-			mp_bYield = false;
-			if (!mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal))
-			{
-				ThreadLocal.m_bForceNonLocal = true;
-				fp_QueueProcess([]{}, ThreadLocal);
-				ThreadLocal.m_bForceNonLocal = false;
 			}
 		}
 	}

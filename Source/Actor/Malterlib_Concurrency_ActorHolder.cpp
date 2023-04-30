@@ -1080,7 +1080,7 @@ namespace NMib::NConcurrency
 	{
 		mint Offset = DMibPOffsetOf(CQueueEntry, m_fToCall);
 		CQueueEntry *pEntry = (CQueueEntry *)((uint8 *)_pEntry - Offset);
-		delete pEntry;
+		fg_DeleteObjectDefiniteType(NMib::NMemory::CDefaultAllocator(), pEntry);
 	}
 
 	bool CConcurrentRunQueue::f_OneOrLessInQueue(CLocalQueueData &_LocalQueue)

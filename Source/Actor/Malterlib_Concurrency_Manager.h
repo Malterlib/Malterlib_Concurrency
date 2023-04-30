@@ -195,7 +195,7 @@ namespace NMib::NConcurrency
 		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
 	};
 
-	struct CConcurrencyThreadLocal
+	struct CConcurrencyThreadLocal final
 	{
 		CConcurrencyThreadLocal();
 		~CConcurrencyThreadLocal();

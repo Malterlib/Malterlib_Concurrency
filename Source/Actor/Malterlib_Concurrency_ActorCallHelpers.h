@@ -1165,7 +1165,7 @@ namespace NMib::NConcurrency
 		using CResultFunctorReturnType = typename NTraits::TCIsCallableWith<t_CResultFunctor, void (CResultType &&)>::CReturnType;
 		using CResultFunctor = NFunction::TCFunctionMovable<void (CResultType &&_Result)>;
 
-		struct CState : public CReportLocalState
+		struct CState final : public CReportLocalState
 		{
 			CState(t_CFunctor &&_ToCall, CResultFunctor &&_ResultFunctor, TCActor<t_CResultActor> &&_ResultActor)
 				: m_ToCall(fg_Move(_ToCall))
@@ -1576,7 +1576,7 @@ namespace NMib::NConcurrency
 		auto fg_AnyDoneImpl(NMeta::TCIndices<tfp_Indidies...> const &, TCFuture<tfp_CParams> && ...p_Futures)
 			-> TCFuture<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>>
 		{
-			struct CState
+			struct CState final
 			{
 				TCPromise<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
 				NAtomic::CAtomicFlag m_bReplied;

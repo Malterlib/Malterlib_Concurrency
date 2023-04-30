@@ -108,11 +108,7 @@ namespace NMib::NConcurrency
 	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult &&_Other) = default;
 	TCAsyncResult<void> &TCAsyncResult<void>::operator =(TCAsyncResult const &_Other) = default;
 
-	TCAsyncResult<void>::~TCAsyncResult()
-	{
-		m_pException = nullptr;
-		m_bHasBeenSet = false;
-	}
+	TCAsyncResult<void>::~TCAsyncResult() = default;
 
 	void TCAsyncResult<void>::f_Clear()
 	{

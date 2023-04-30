@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 		NStorage::CIntrusiveRefCount m_RefCount;
 	};
 
-	struct CDefaultRunLoop : public CRunLoop
+	struct CDefaultRunLoop final : public CRunLoop
 	{
 		void f_Process() override;
 		void f_WaitOnce() override;

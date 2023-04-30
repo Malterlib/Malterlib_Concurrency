@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 			static constexpr bool mc_bIsAlwaysAliveImpl = true;
 		};
 
-		struct CDirectResultActorImpl : public CDirectResultActor
+		struct CDirectResultActorImpl final : public CDirectResultActor
 		{
 			~CDirectResultActorImpl();
 
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
-	struct CThisConcurrentActorImpl : public CThisConcurrentActor
+	struct CThisConcurrentActorImpl final : public CThisConcurrentActor
 	{
 		~CThisConcurrentActorImpl();
 
@@ -190,7 +190,7 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = true;
 	};
 
-	struct CDirectCallActorImpl : public CDirectCallActor
+	struct CDirectCallActorImpl final : public CDirectCallActor
 	{
 		~CDirectCallActorImpl();
 

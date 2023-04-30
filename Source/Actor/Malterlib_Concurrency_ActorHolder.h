@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 
 	struct CConcurrentRunQueue
 	{
-		struct align_cacheline CQueueEntry
+		struct align_cacheline CQueueEntry final
 		{
 			union
 			{

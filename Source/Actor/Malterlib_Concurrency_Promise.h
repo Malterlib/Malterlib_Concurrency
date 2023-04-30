@@ -264,6 +264,21 @@ namespace NMib::NConcurrency
 
 		void unhandled_exception();
 
+		inline_always void *operator new(std::size_t _Size, std::align_val_t _Alignment)
+		{
+			return NMib::NMemory::fg_AllocAligned(_Size, (mint)_Alignment);
+		}
+
+		inline_always void *operator new(std::size_t _Size)
+		{
+			return NMib::NMemory::fg_Alloc(_Size);
+		}
+
+		inline_always void operator delete(void *_pMemory, std::size_t _Size)
+		{
+			NMib::NMemory::fg_Free(_pMemory, _Size);
+		}
+
 		void f_HandleAwaitedException(NException::CExceptionPointer &&_pException);
 		virtual NFunction::TCFunctionMovable<void (NException::CExceptionPointer &&_pException)> f_PrepareExceptionResult(TCActor<CActor> &&_Actor) = 0;
 
@@ -476,7 +491,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 
 	template <typename t_CReturnValue>
-	struct TCPromiseData
+	struct TCPromiseData final
 #if DMibConfig_Concurrency_DebugFutures
 		: public CPromiseDataBase
 #endif

@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 {
 	auto CFutureCoroutineContext::initial_suspend() noexcept -> CInitialSuspend
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		m_pPreviousCoroutineHandler = ThreadLocal.m_pCurrentCoroutineHandler;
 		ThreadLocal.m_pCurrentCoroutineHandler = this;
 
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 #endif
 		if (m_pPreviousCoroutineHandler != this)
 		{
-			auto &ThreadLocal = **g_SystemThreadLocal;
+			auto &ThreadLocal = fg_SystemThreadLocal();
 			DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 			m_pPreviousCoroutineHandler = this;
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(this->m_nThreadLocalScopes == 0); // Oustanding thread local scopes cannot escape suspension point,
 		// if needed convert thread local scope to CCoroutineThreadLocalHandler interface
 
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 
 		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
 		{
@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 
 	NContainer::TCVector<NFunction::TCFunctionMovable<void ()>> CFutureCoroutineContext::f_Resume(bool &o_bAborted)
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 
 		m_Link.f_Unlink();
 
@@ -219,7 +219,7 @@ namespace NMib::NConcurrency
 #if DMibConcurrencySupportCoroutineFreeFunctionDebug
 	extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite)
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		ThreadLocal.m_bExpectCoroutineCall = false;
 	}
 #endif

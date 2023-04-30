@@ -211,7 +211,7 @@ namespace NMib::NConcurrency
 
 	void CReportLocalState::f_StoreCallStates()
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
 		{
 			auto State = Scope.f_StoreState(false);

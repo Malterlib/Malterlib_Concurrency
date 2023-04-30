@@ -144,7 +144,7 @@ namespace NMib::NConcurrency::NPrivate
 		m_pAborted = fg_Construct(false);
 
 #if DMibEnableSafeCheck > 0
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
 		if (PromiseThreadLocal.m_pOnResultSetConsumedBy == this)
 			PromiseThreadLocal.m_pOnResultSetConsumedBy = pPromiseData.f_Get();

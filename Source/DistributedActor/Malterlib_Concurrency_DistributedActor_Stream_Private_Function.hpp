@@ -320,7 +320,7 @@ namespace NMib::NConcurrency
 					()
 				;
 
-				auto &ThreadLocal = **g_SystemThreadLocal;
+				auto &ThreadLocal = fg_SystemThreadLocal();
 
 		#if DMibEnableSafeCheck > 0
 				bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;

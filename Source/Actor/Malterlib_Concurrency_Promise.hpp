@@ -815,7 +815,7 @@ namespace NMib::NConcurrency::NPrivate
 	TCPromiseData<t_CReturnValue>::~TCPromiseData()
 	{
 #ifdef DMibNeedDebugException
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 
 		if
 			(
@@ -1097,7 +1097,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 		)
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
 		if (PromiseThreadLocal.m_pOnResultSet)
 		{

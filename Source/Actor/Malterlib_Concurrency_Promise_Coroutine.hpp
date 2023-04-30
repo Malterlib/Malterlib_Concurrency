@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	inline_always CFutureCoroutineContext::CFutureCoroutineContext(ECoroutineFlag _Flags) noexcept
 		: m_Flags(_Flags)
 	{
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		m_Flags |= ThreadLocal.m_ExtraCoroutineFlags;
 	}
 
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 	{
 		if (m_pPreviousCoroutineHandler != this)
 		{
-			auto &ThreadLocal = **g_SystemThreadLocal;
+			auto &ThreadLocal = fg_SystemThreadLocal();
 			DMibFastCheck(ThreadLocal.m_pCurrentCoroutineHandler == this);
 			ThreadLocal.m_pCurrentCoroutineHandler = m_pPreviousCoroutineHandler;
 		}
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency::NPrivate
 	NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> TCFutureCoroutineContextShared<t_CReturnType>::fp_GetReturnObject()
 	{
 #if DMibEnableSafeCheck > 0
-		auto &ThreadLocal = **g_SystemThreadLocal;
+		auto &ThreadLocal = fg_SystemThreadLocal();
 		bool bSafeCall = ThreadLocal.m_bExpectCoroutineCall;
 		ThreadLocal.m_bExpectCoroutineCall = false;
 #endif

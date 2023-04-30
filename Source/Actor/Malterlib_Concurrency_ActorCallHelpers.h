@@ -1271,7 +1271,7 @@ namespace NMib::NConcurrency
 				NPrivate::CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
 
-				auto &ThreadLocal = **g_SystemThreadLocal;
+				auto &ThreadLocal = fg_SystemThreadLocal();
 #if DMibEnableSafeCheck > 0
 				bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
 				ThreadLocal.m_bExpectCoroutineCall = true;

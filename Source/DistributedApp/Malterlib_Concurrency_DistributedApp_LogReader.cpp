@@ -39,4 +39,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	bool CDistributedAppLogReader_LogKeyAndEntry::f_IsLastSeenSentinel() const
+	{
+		return !m_LogInfoKey.m_HostID && !m_LogInfoKey.m_Identifier && !m_LogInfoKey.m_IdentifierScope;
+	}
 }

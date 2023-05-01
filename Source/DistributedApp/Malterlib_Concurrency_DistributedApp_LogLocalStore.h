@@ -40,13 +40,7 @@ namespace NMib::NConcurrency
 			)
 			-> TCFuture<CActorSubscription>
 		;
-		auto f_SubscribeLogEntries
-			(
-				NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> &&_Filters
-				, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> &&_fOnEntry
-			)
-			-> TCFuture<CActorSubscription>
-		;
+		auto f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries &&_Params) -> TCFuture<CActorSubscription>;
 
 		TCFuture<void> f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen);
 		TCFuture<void> f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs);

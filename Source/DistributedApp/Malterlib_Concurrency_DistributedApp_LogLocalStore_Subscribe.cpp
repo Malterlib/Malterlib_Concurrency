@@ -85,20 +85,15 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppLogStoreLocal::f_SubscribeLogEntries
-		(
-			TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> &&_Filters
-			, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> &&_fOnEntry
-		)
-		-> TCFuture<CActorSubscription>
+	auto CDistributedAppLogStoreLocal::f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries &&_Params) -> TCFuture<CActorSubscription>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
-		if (_fOnEntry.f_IsEmpty())
-			co_return DMibErrorInstance("Local store not yet started");
+		if (_Params.m_fOnEntry.f_IsEmpty())
+			co_return DMibErrorInstance("Invalid on entry functor");
 
 		CStr SubscriptionID = NCryptography::fg_RandomID(Internal.m_EntrySubscriptions);
 		Internal.m_EntrySubscriptions[SubscriptionID];
@@ -117,7 +112,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		for (auto &Filter : _Filters)
+		for (auto &Filter : _Params.m_Filters)
 		{
 			auto &OutFilter = pSubscription->m_Filters.f_Insert();
 			OutFilter.m_Filter = fg_Move(Filter);
@@ -126,6 +121,8 @@ namespace NMib::NConcurrency
 
 		bool bNeedInitial = false;
 		CDistributedAppLogReader::CGetLogEntries GetLogEntriesParams;
+		GetLogEntriesParams.m_Flags = _Params.m_Flags;
+
 		for (auto &Filter : pSubscription->m_Filters)
 		{
 			if (Filter.m_Filter.m_MinSequence || Filter.m_Filter.m_MinTimestamp)
@@ -134,6 +131,7 @@ namespace NMib::NConcurrency
 			GetLogEntriesParams.m_Filters.f_Insert(Filter.m_Filter.f_ToEntryFilter());
 		}
 
+		NTime::CTime LastSeenInitial;
 		if (bNeedInitial)
 		{
 			auto LogEntries = co_await self(&CDistributedAppLogStoreLocal::f_GetLogEntries, fg_Move(GetLogEntriesParams));
@@ -142,10 +140,15 @@ namespace NMib::NConcurrency
 				TCActorResultVector<void> Results;
 				for (auto &Entry : *iEntries)
 				{
+					if (_Params.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel)
+						LastSeenInitial = fg_Max(LastSeenInitial, Entry.m_Entry.m_Timestamp);
+
+					if (Entry.f_IsLastSeenSentinel())
+						continue;
+
 					auto &LastSeenEntry = pSubscription->m_LastSeenEntry[Entry.m_LogInfoKey];
 					LastSeenEntry = fg_Max(LastSeenEntry, Entry.m_Entry.m_UniqueSequence);
-
-					_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
+					_Params.m_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
 				}
 
 				co_await (co_await Results.f_GetResults() | g_Unwrap);
@@ -159,11 +162,28 @@ namespace NMib::NConcurrency
 			auto *pLastSeen = pSubscription->m_LastSeenEntry.f_FindEqual(Entry.m_LogInfoKey);
 			if (pLastSeen && Entry.m_Entry.m_UniqueSequence <= *pLastSeen)
 				continue;
-			_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
+			_Params.m_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
 		}
 		pSubscription->m_QueuedEntries.f_Clear();
 
-		pSubscription->m_fOnEntry = fg_Move(_fOnEntry);
+		if ((_Params.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel))
+		{
+			if (LastSeenInitial.f_IsValid())
+				pSubscription->m_LastSeenTimestamp = fg_Max(pSubscription->m_LastSeenTimestamp, LastSeenInitial);
+
+			if (pSubscription->m_LastSeenTimestamp.f_IsValid())
+			{
+				pSubscription->m_LastSeenTimestampLastSent = pSubscription->m_LastSeenTimestamp;
+
+				CDistributedAppLogReader_LogKeyAndEntry OutEntry;
+				OutEntry.m_Entry.m_Timestamp = pSubscription->m_LastSeenTimestamp;
+
+				_Params.m_fOnEntry(fg_Move(OutEntry)) > Results.f_AddResult();
+			}
+		}
+
+		pSubscription->m_fOnEntry = fg_Move(_Params.m_fOnEntry);
+		pSubscription->m_Flags = _Params.m_Flags;
 
 		co_await (co_await Results.f_GetResults() | g_Unwrap);
 
@@ -194,15 +214,27 @@ namespace NMib::NConcurrency
 			, NDatabase::CDatabaseSubReadTransaction &_Transaction
 		)
 	{
+		if (_Entries.f_IsEmpty())
+			return;
+
 		auto LogDatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 		auto LogKey = _Log.f_GetKey();
 
 		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
+		bool bAnyLastSeenEnabled = false;
+
 		for (auto &Entry : _Entries)
 		{
 			for (auto &Subscription : m_EntrySubscriptions)
 			{
+				if (Subscription.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel)
+				{
+					Subscription.m_LastSeenTimestamp = fg_Max(Subscription.m_LastSeenTimestamp, Entry.m_Timestamp);
+					if (Subscription.m_LastSeenTimestamp != Subscription.m_LastSeenTimestampLastSent)
+						bAnyLastSeenEnabled = true;
+				}
+
 				{
 					bool bPassFilter = Subscription.m_Filters.f_IsEmpty();
 
@@ -232,6 +264,9 @@ namespace NMib::NConcurrency
 					Subscription.m_fOnEntry(fg_Move(OutEntry)) > fg_LogError("LogLocalStore", "Failed to send log entry to subscription");
 			}
 		}
+
+		if (bAnyLastSeenEnabled)
+			f_ScheduleLastSeenFlush();
 	}
 
 	void CDistributedAppLogStoreLocal::CInternal::f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction)
@@ -250,5 +285,49 @@ namespace NMib::NConcurrency
 			else
 				Subscription.m_QueuedChanges[_Log.f_GetKey()] = _Log.m_Info;
 		}
+	}
+
+	void CDistributedAppLogStoreLocal::CInternal::f_ScheduleLastSeenFlush()
+	{
+		if (m_bScheduledLastSeenFlush)
+			return;
+
+		m_bScheduledLastSeenFlush = true;
+		fg_Timeout(60_seconds) > [this]
+			{
+				fg_CallSafe(*this, &CInternal::f_FlushLastSeen) > [](TCAsyncResult<void> &&_Result)
+					{
+						if (!_Result)
+							DMibLogWithCategory(LogLocalStore, Error, "Failed to flush last seen: {}", _Result.f_GetExceptionStr());
+					}
+				;
+			}
+		;
+	}
+
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_FlushLastSeen()
+	{
+		for (auto &Subscription : m_EntrySubscriptions)
+		{
+			if (!(Subscription.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel))
+				continue;
+
+			if (Subscription.m_LastSeenTimestamp == Subscription.m_LastSeenTimestampLastSent)
+				continue;
+
+			Subscription.m_LastSeenTimestampLastSent = Subscription.m_LastSeenTimestamp;
+
+			CDistributedAppLogReader_LogKeyAndEntry OutEntry;
+			OutEntry.m_Entry.m_Timestamp = Subscription.m_LastSeenTimestamp;
+
+			if (Subscription.m_fOnEntry.f_IsEmpty())
+				Subscription.m_QueuedEntries.f_Insert(fg_Move(OutEntry));
+			else
+				Subscription.m_fOnEntry(fg_Move(OutEntry)) > fg_LogError("LogLocalStore", "Failed to send log entry (last seen sentinel) to subscription");
+		}
+
+		m_bScheduledLastSeenFlush = false;
+
+		co_return {};
 	}
 }

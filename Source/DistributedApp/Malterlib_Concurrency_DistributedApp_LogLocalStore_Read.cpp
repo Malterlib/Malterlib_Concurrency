@@ -190,9 +190,14 @@ namespace NMib::NConcurrency
 
 		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
 
+		NTime::CTime MaxSeenTimestamp;
+
 		for (; iEntryByTime; bReportNewestFirst ? --iEntryByTime : ++iEntryByTime)
 		{
 			auto KeyByTime = iEntryByTime.f_Key<CLogEntryByTime>();
+
+			if (_Params.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel)
+				MaxSeenTimestamp = fg_Max(MaxSeenTimestamp, KeyByTime.m_Timestamp);
 
 			if (bReportNewestFirst)
 			{
@@ -288,6 +293,9 @@ namespace NMib::NConcurrency
 				nBytesInBatch = 0;
 			}
 		}
+
+		if ((_Params.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel) && MaxSeenTimestamp.f_IsValid())
+			Batch.f_Insert().m_Entry.m_Timestamp = MaxSeenTimestamp;
 
 		if (!Batch.f_IsEmpty())
 			co_yield fg_Move(Batch);

@@ -99,5 +99,16 @@ namespace NMib::NConcurrency
 	{
 		fs_StreamFilterVector(_Stream, m_Filters);
 		_Stream % m_BatchSize;
+		if (_Stream.f_GetVersion() >= CDistributedAppLogReporter::EProtocolVersion_LastSeenEntrySentinel)
+			_Stream % m_Flags;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedAppLogReader::CSubscribeLogEntries::f_Stream(tf_CStream &_Stream)
+	{
+		_Stream % m_Filters;
+		_Stream % m_fOnEntry;
+		if (_Stream.f_GetVersion() >= CDistributedAppLogReporter::EProtocolVersion_LastSeenEntrySentinel)
+			_Stream % m_Flags;
 	}
 }

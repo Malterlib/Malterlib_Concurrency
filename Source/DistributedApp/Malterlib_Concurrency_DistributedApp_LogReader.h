@@ -84,6 +84,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
+		bool f_IsLastSeenSentinel() const;
+
 		CDistributedAppLogReporter::CLogInfoKey m_LogInfoKey;
 		CDistributedAppLogReporter::CLogEntry m_Entry;
 	};
@@ -105,6 +107,12 @@ namespace NMib::NConcurrency
 		{
 			ELogChange_AddedOrUpdated
 			, ELogChange_Removed
+		};
+
+		enum ELogEntriesFlag : uint32
+		{
+			ELogEntriesFlag_None = 0
+			, ELogEntriesFlag_IncludeLastSeenSentinel = DMibBit(0)
 		};
 
 		using CLogChange = NStorage::TCStreamableVariant
@@ -131,6 +139,17 @@ namespace NMib::NConcurrency
 
 			NContainer::TCVector<CDistributedAppLogReader_LogEntryFilter> m_Filters;
 			uint32 m_BatchSize = 1024;
+			ELogEntriesFlag m_Flags = ELogEntriesFlag_None;
+		};
+
+		struct CSubscribeLogEntries
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> m_Filters;
+			TCActorFunctorWithID<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> m_fOnEntry;
+			ELogEntriesFlag m_Flags = ELogEntriesFlag_None;
 		};
 
 		template <typename tf_CStream, typename tf_CFilter>
@@ -141,13 +160,7 @@ namespace NMib::NConcurrency
 		virtual auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> &&_Filters, TCActorFunctorWithID<TCFuture<void> (CLogChange &&_Change)> &&_fOnChange)
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
-		virtual auto f_SubscribeLogEntries
-			(
-				NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> &&_Filters
-				, TCActorFunctorWithID<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> &&_fOnEntry
-			)
-			-> TCFuture<TCActorSubscriptionWithID<>> = 0
-		;
+		virtual auto f_SubscribeLogEntries(CSubscribeLogEntries &&_Params) -> TCFuture<TCActorSubscriptionWithID<>> = 0;
 	};
 }
 

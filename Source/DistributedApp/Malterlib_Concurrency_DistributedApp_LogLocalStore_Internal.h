@@ -92,6 +92,10 @@ namespace NMib::NConcurrency
 			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> m_fOnEntry;
 			TCVector<CDistributedAppLogReader_LogKeyAndEntry> m_QueuedEntries;
 			TCVector<CEntrySubscriptionFilter> m_Filters;
+
+			CDistributedAppLogReader::ELogEntriesFlag m_Flags = CDistributedAppLogReader::ELogEntriesFlag_None;
+			NTime::CTime m_LastSeenTimestamp;
+			NTime::CTime m_LastSeenTimestampLastSent;
 		};
 
 		CInternal
@@ -143,6 +147,9 @@ namespace NMib::NConcurrency
 		void f_Subscription_Entries(CLog const &_Log, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries, NDatabase::CDatabaseSubReadTransaction &_Transaction);
 		void f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction);
 
+		void f_ScheduleLastSeenFlush();
+		TCFuture<void> f_FlushLastSeen();
+
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const;
 
@@ -174,6 +181,7 @@ namespace NMib::NConcurrency
 		bool m_bStarting = false;
 		bool m_bOwnDatabase = false;
 		bool m_bScheduledFailedReportersRetry = false;
+		bool m_bScheduledLastSeenFlush = false;
 	};
 }
 

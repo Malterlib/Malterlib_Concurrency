@@ -2,6 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
+#include <Mib/Encoding/ToJson>
 
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore.h"
 #include "Malterlib_Concurrency_DistributedApp_SensorLocalStore_Database.h"
@@ -17,6 +18,20 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 	CSensorKey const &CSensorKey::f_SensorKey() const &
 	{
 		return *this;
+	}
+
+	NEncoding::CEJSON CSensorKey::f_ToJson() const
+	{
+		using namespace NEncoding;
+
+		CEJSON Return;
+		Return["DbPrefix"] = fg_ToJson(m_DbPrefix);
+		Return["Prefix"] = fg_ToJson(m_Prefix);
+		Return["HostID"] = fg_ToJson(m_HostID);
+		Return["ApplicationName"] = fg_ToJson(m_ApplicationName);
+		Return["Identifier"] = fg_ToJson(m_Identifier);
+		Return["IdentifierScope"] = fg_ToJson(m_IdentifierScope);
+		return Return;
 	}
 
 	CSensorReadingKey::CSensorReadingKey()

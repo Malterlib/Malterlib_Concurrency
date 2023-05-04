@@ -263,7 +263,7 @@ namespace NMib::NConcurrency
 
 			m_CleanupTimerSubscription = co_await fg_RegisterTimer
 				(
-					24.0 * 60.0 * 60.0
+					24_hours
 					, [this]() -> TCFuture<void>
 					{
 						auto Result = co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap();

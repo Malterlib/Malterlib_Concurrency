@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
-			NEncoding::CEJSON f_ToJSON() const;
+			NEncoding::CEJSON f_ToJson() const;
 
 			auto operator <=> (CLogData const &_Right) const = default;
 

@@ -680,7 +680,7 @@ namespace NMib::NConcurrency
 								, "Name"_= Name
 								, "Timestamp"_= Entry.m_Entry.m_Timestamp
 								, "UniqueSequence"_= Entry.m_Entry.m_UniqueSequence
-								, "Data"_= Data.f_ToJSON()
+								, "Data"_= Data.f_ToJson()
 							}
 						)
 					;

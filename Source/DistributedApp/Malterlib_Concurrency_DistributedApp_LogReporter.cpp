@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 		return "Unsupported";
 	}
 
-	NEncoding::CEJSON CDistributedAppLogReporter::CLogData::f_ToJSON() const
+	NEncoding::CEJSON CDistributedAppLogReporter::CLogData::f_ToJson() const
 	{
 		NEncoding::CEJSON Return;
 

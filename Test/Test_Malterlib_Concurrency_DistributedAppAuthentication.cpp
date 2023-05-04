@@ -62,7 +62,7 @@ namespace NTestAuthentication
 		CPermissionQueryLocal &operator = (CPermissionQueryLocal &&) = default;
 		CPermissionQueryLocal &operator = (CPermissionQueryLocal const &) = default;
 
-		CEJSON f_ToJSON() const
+		CEJSON f_ToJson() const
 		{
 			return
 				{
@@ -73,7 +73,7 @@ namespace NTestAuthentication
 			;
 		}
 
-		static CPermissionQueryLocal fs_FromJSON(CEJSON const &_JSON)
+		static CPermissionQueryLocal fs_FromJson(CEJSON const &_JSON)
 		{
 			CPermissionQueryLocal Return;
 			for (auto &Permission : _JSON["Permissions"].f_Array())
@@ -746,7 +746,7 @@ namespace NTestAuthentication
 
 						TCVector<CPermissionQueryLocal> Permissions;
 						for (auto &QueryJSON : _Params["Permissions"].f_Array())
-							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
+							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJSON));
 
 						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions);
 
@@ -772,7 +772,7 @@ namespace NTestAuthentication
 						{
 							auto &OutputPermissions = Permissions[Queries.f_Name()];
 							for (auto &QueryJSON : Queries.f_Value().f_Array())
-								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJSON(QueryJSON));
+								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJSON));
 						}
 
 						auto Results = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions);
@@ -1678,7 +1678,7 @@ public:
 
 				auto &Queries = JSON["Permissions"];
 				for (auto &Query : _Permissions)
-					Queries.f_Insert(Query.f_ToJSON());
+					Queries.f_Insert(Query.f_ToJson());
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(pRunLoop, g_Timeout);
 				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-2", JSON, pCommandLine).f_CallSync(pRunLoop, g_Timeout);
@@ -1696,7 +1696,7 @@ public:
 
 					auto &Queries = JSON["Permissions"][Tag];
 					for (auto &Query : Permissions)
-						Queries.f_Insert(Query.f_ToJSON());
+						Queries.f_Insert(Query.f_ToJson());
 				}
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(pRunLoop, g_Timeout);

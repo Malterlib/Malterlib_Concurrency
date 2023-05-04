@@ -395,7 +395,7 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
-		auto constexpr gc_fSensorDataToJSON = [](auto const &_Value) -> CEJSON
+		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJSON
 			{
 				using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
 				if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
@@ -487,7 +487,7 @@ namespace NMib::NConcurrency
 							(
 								CEJSON
 								{
-									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSON>(gc_fSensorDataToJSON)
+									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSON>(gc_fSensorDataToJson)
 									, "nDecimals"_= Divisor.m_nDecimals
 									, "UnitFormatter"_= Divisor.m_UnitFormatter
 								}
@@ -504,7 +504,7 @@ namespace NMib::NConcurrency
 
 							return
 								{
-									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJSON>(gc_fSensorDataToJSON)
+									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJSON>(gc_fSensorDataToJson)
 									, "Operator"_= Value.m_Operator
 								}
 							;
@@ -755,7 +755,7 @@ namespace NMib::NConcurrency
 
 				if (_Flags & ESensorOutputFlag_Json)
 				{
-					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSON>(gc_fSensorDataToJSON);
+					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSON>(gc_fSensorDataToJson);
 					JsonOutputArray.f_Insert
 						(
 							CEJSON

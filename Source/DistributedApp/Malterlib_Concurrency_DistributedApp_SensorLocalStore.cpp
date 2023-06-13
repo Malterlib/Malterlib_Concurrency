@@ -125,7 +125,7 @@ namespace NMib::NConcurrency
 
 		Internal.m_bStarting = true;
 
-		Internal.m_Database = fg_Construct(fg_Construct(), "");
+		Internal.m_Database = fg_Construct(fg_Construct(), "SensorStoreDatabase");
 		Internal.m_bOwnDatabase = true;
 		Internal.m_Prefix = "mib.lsensor"; // lsensor = local sensor
 		Internal.m_RetentionDays = _RetentionDays;

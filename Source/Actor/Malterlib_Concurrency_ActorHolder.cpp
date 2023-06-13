@@ -81,6 +81,9 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(fg_ConcurrencyThreadLocal().m_pCurrentlyProcessingActorHolder == this);
 		mp_bYield = true;
+
+		// Make sure that anything that has been scheduled at this point is before us in the queue
+		mp_ConcurrentRunQueue.f_TransferThreadSafeQueue(mp_ConcurrentRunQueueLocal);
 	}
 
 	void CActorHolder::fp_StartQueueProcessing()
@@ -227,8 +230,7 @@ namespace NMib::NConcurrency
 				mint OriginalWorking = mp_Working.f_FetchOr(gc_ProcessingMask);
 				if ((OriginalWorking & gc_ProcessingMask) == 0)
 				{
-					auto UnLock
-						= fg_OnScopeExit
+					auto UnLock = fg_OnScopeExit
 						(
 							[&]
 							{
@@ -254,15 +256,17 @@ namespace NMib::NConcurrency
 							return;
 						}
 
-						if (mp_bYield)
+						if (mp_bYield) [[unlikely]]
 						{
 							mp_bYield = false;
-							if (!mp_ConcurrentRunQueue.f_IsEmpty(mp_ConcurrentRunQueueLocal))
-							{
-								ThreadLocal.m_bForceNonLocal = true;
-								fp_QueueProcess([]{}, ThreadLocal);
-								ThreadLocal.m_bForceNonLocal = false;
-							}
+
+							UnLock.f_Clear();
+							mp_Working.f_FetchAnd(~gc_ProcessingMask);
+
+							ThreadLocal.m_bForceNonLocal = true;
+							fp_QueueProcess([]{}, ThreadLocal);
+							ThreadLocal.m_bForceNonLocal = false;
+
 							return;
 						}
 					}

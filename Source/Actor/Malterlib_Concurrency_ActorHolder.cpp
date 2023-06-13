@@ -722,6 +722,11 @@ namespace NMib::NConcurrency
 		DMibRequire(m_pThread.f_IsEmpty());
 	}
 
+	NStr::CStr const &CSeparateThreadActorHolder::f_GetThreadName()
+	{
+		return mp_ThreadName;
+	}
+
 	void CSeparateThreadActorHolder::fp_StartQueueProcessing()
 	{
 		m_pThread = NThread::CThreadObject::fs_StartThread

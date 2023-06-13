@@ -328,6 +328,8 @@ namespace NMib::NConcurrency
 		;
 		~CSeparateThreadActorHolder();
 
+		NStr::CStr const &f_GetThreadName();
+
 	protected:
 		void fp_StartQueueProcessing() override;
 		void fp_DestroyThreaded() override;

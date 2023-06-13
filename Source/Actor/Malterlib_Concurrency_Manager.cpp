@@ -509,7 +509,15 @@ namespace NMib::NConcurrency
 			{
 				mint iThisQueue = TCLimitsInt<mint>::mc_Max;
 				if (_ThreadLocal.m_pThisQueue)
+				{
 					iThisQueue = _ThreadLocal.m_pThisQueue->m_iQueue;
+					if (_ThreadLocal.m_bForceNonLocal) [[unlikely]]
+					{
+						iJobQueue = iThisQueue;
+						break;
+					}
+				}
+
 				if (_ThreadLocal.m_pCurrentActor)
 				{
 					mint iCurrentCore = _ThreadLocal.m_pCurrentActor->self.m_pThis->mp_iFixedCore;

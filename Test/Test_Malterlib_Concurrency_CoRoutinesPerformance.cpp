@@ -100,6 +100,55 @@ namespace NMib::NConcurrency::NTest
 
 				co_return {};
 			};
+			DMibTestSuite(CTestCategory("Tasks") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 10;
+
+				constexpr mint c_nTasks = 1'000'000;
+
+				CTestPerformanceMeasure MalterlibTime("Malterlib5");
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						MalterlibTime.f_Start();
+						TCVector<TCPromise<void>> Promises;
+						Promises.f_SetLen(c_nTasks);
+
+						TCActorResultVector<void> Results;
+						Results.f_SetLen(c_nTasks);
+
+						NAtomic::TCAtomic<bool> bAllScheduled{false};
+						NThread::CEvent Event;
+						for (auto &Promise : Promises)
+						{
+							g_ConcurrentDispatch / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
+								{
+									if (!bAllScheduled.f_Load())
+										Event.f_Wait();
+
+									co_await fg_Move(Future);
+									co_return {};
+								}
+								> Results.f_AddResult()
+							;
+						}
+
+						bAllScheduled.f_Exchange(true);
+						Event.f_SetSignaled();
+						for (auto &Promise : Promises)
+							Promise.f_SetResult();
+
+						co_await Results.f_GetResults();
+						MalterlibTime.f_Stop(c_nTasks);
+					}
+				}
+
+				CTestPerformance PerfTest(0.015);
+				PerfTest.f_Add(MalterlibTime);
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
 		}
 	};
 

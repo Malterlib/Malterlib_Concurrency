@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
 		(
 			 CStr const &_Command
-			 , CEJSON const &_Params
+			 , CEJSONSorted const &_Params
 			 , CCommandLineControl &&_CommandLine
 		)
 	{
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 
 					try
 					{
-						CEJSON const ClientConnectionData = CEJSON::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
+						CEJSONSorted const ClientConnectionData = CEJSONSorted::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
 
 						CStr CurrentAddress = ClientConnectionData["Address"].f_String();
 

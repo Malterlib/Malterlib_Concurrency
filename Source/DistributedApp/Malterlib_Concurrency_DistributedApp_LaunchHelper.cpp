@@ -35,9 +35,9 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<NEncoding::CEJSON> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<NEncoding::CEJSONSorted> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
 	{
-		TCPromise<NEncoding::CEJSON> Promise;
+		TCPromise<NEncoding::CEJSONSorted> Promise;
 		if (!m_InProcess)
 			return Promise <<= DMibErrorInstance("No in process actor");
 		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 		(
 			CCallingHostInfo const &_CallingHost
 			, NStr::CStr const &_Command
-			, NEncoding::CEJSON const &_Params
+			, NEncoding::CEJSONSorted const &_Params
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{

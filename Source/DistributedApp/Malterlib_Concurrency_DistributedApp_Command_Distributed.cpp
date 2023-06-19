@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 		auto PermissionUserAuthenticationFactorsOption = "AuthenticationFactors?"_=
 			{
 				"Names"_= {"--authentication-factors"}
-				, "Type"_= COneOfType{CEJSON({CEJSON({""})}), CEJSON({""}), CEJSON{""}}
+				, "Type"_= COneOfType{CEJSONSorted({CEJSONSorted({""})}), CEJSONSorted({""}), CEJSONSorted{""}}
 				, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
 					"\"Factor1\"                                        - must authenticate by Factor1\n"
 					"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2\n"
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 					, "Description"_= "Get the host ID for this application.\n"
 					, "Output"_= "The host ID of this application."
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetHostID, _pCommandLine);
 				}
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
+				, [this](CEJSONSorted const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
 				{
 					return f_CommandLine_RemoveAllTrust(_Parameters["Confirm"].f_Boolean());
 				}
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetConnetionStatus, _pCommandLine, _Params["TableType"].f_String());
 				}
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetDebugStats, _pCommandLine, _Params["TableType"].f_String());
 				}
@@ -179,7 +179,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -231,7 +231,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -274,7 +274,7 @@ namespace NMib::NConcurrency
 						, IncludeFriendlyNameOption
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -370,7 +370,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -423,7 +423,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -438,7 +438,7 @@ namespace NMib::NConcurrency
 								if (auto *pValue =_Params.f_GetMember("UserID"))
 									UserID = pValue->f_String();
 
-								CEJSON AuthenticationFactors;
+								CEJSONSorted AuthenticationFactors;
 								if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
 									AuthenticationFactors = pValue->f_Array();
 
@@ -471,7 +471,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_ListListen, _pCommandLine, _Params["TableType"].f_String());
 				}
@@ -512,7 +512,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -542,7 +542,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -573,7 +573,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -606,7 +606,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -644,7 +644,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -689,7 +689,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -729,7 +729,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -753,7 +753,7 @@ namespace NMib::NConcurrency
 					{
 						"Permission"_=
 						{
-							"Type"_= COneOfType(CEJSON{""}, "")
+							"Type"_= COneOfType(CEJSONSorted{""}, "")
 							, "Description"_= "The permission to add."
 						}
 					}
@@ -780,7 +780,7 @@ namespace NMib::NConcurrency
 						, PermissionUserAuthenticationFactorsOption
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -793,7 +793,7 @@ namespace NMib::NConcurrency
 								CStr UserID;
 								if (auto *pValue =_Params.f_GetMember("UserID"))
 									UserID = pValue->f_String();
-								CEJSON AuthenticationFactors;
+								CEJSONSorted AuthenticationFactors;
 								if (auto *pValue =_Params.f_GetMember("AuthenticationFactors"))
 									AuthenticationFactors = pValue->f_Array();
 
@@ -851,7 +851,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -906,7 +906,7 @@ namespace NMib::NConcurrency
 						}
 					}
 			}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AddUser, _pCommandLine, _Params);
 				}
@@ -928,7 +928,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_RemoveUser, _pCommandLine, _Params["UserID"].f_String());
 				}
@@ -946,7 +946,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_ListUsers, _pCommandLine, _Params["TableType"].f_String());
 				}
@@ -985,7 +985,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_SetUserInfo, _pCommandLine, _Params);
 				}
@@ -1016,7 +1016,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -1037,7 +1037,7 @@ namespace NMib::NConcurrency
 					, "Description"_= "Get the default user name.\n"
 					, "Output"_= "The default username."
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_GetDefaultUser, _pCommandLine);
 				}
@@ -1059,7 +1059,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_SetDefaultUser, _pCommandLine, _Params["UserID"].f_String());
 				}
@@ -1091,7 +1091,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					bool bIncludePrivate = false;
 					if (auto *pValue = _Params.f_GetMember("IncludePrivate"))
@@ -1119,7 +1119,7 @@ namespace NMib::NConcurrency
 						}
 					}
 			}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_ImportUser, _pCommandLine, _Params["UserData"].f_String());
 				}
@@ -1155,7 +1155,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -1193,7 +1193,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -1217,7 +1217,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors, _pCommandLine, _Params["TableType"].f_String());
 				}
@@ -1242,7 +1242,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self
 						(
@@ -1266,7 +1266,7 @@ namespace NMib::NConcurrency
 						"AuthenticationFactors"_=
 						{
 							"Names"_= {"--authentication-factors"}
-							, "Type"_= COneOfType{CEJSON({""}), CEJSON{""}}
+							, "Type"_= COneOfType{CEJSONSorted({""}), CEJSONSorted{""}}
 							, "Description"_= "The factor(s) used for authentication.\n"
 							"Authenticate these factors in advance.\n"
 						}
@@ -1287,7 +1287,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
 					return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern, _pCommandLine, _Params);
 				}

@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
 				, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
-				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> const &_AddMetadata
 			) override
 		;
 		TCFuture<NStr::CStr> f_ExportUser(NStr::CStr const &_UserID, bool _bIncludePrivate);

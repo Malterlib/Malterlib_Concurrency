@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		CPermissionRequirements fg_ParsePermissionRequirements(CEJSON const &_AuthenticationFactors);
+		CPermissionRequirements fg_ParsePermissionRequirements(CEJSONSorted const &_AuthenticationFactors);
 	}
 
 	static CExceptionPointer fg_ValidateConnectionConcurrency(int32 _Concurrency)
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 			, CStr const &_ForListen
 			, TCSet<CStr> const &_Permissions
 			, CStr const &_UserID
-			, CEJSON const &_AuthenticationFactors
+			, CEJSONSorted const &_AuthenticationFactors
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 		CAnsiEncoding AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 
-		auto fFormatAsJSON = [&](CEJSON const &_JSON)
+		auto fFormatAsJSON = [&](CEJSONSorted const &_JSON)
 			{
 				return _JSON.f_ToStringColored(AnsiEncoding.f_Flags()).f_Trim();
 			}

@@ -150,11 +150,11 @@ namespace NMib::NConcurrency
 			auto &AccessDenied = Data.m_MetaData["AccessDenied"].f_Array();
 			for (auto &PermissionSet : pAccessDenied->m_Permissions)
 			{
-				TCVector<CEJSON> Array;
+				TCVector<CEJSONSorted> Array;
 				for (auto &Permission : PermissionSet)
 					Array.f_Insert(Permission);
 
-				AccessDenied.f_Insert(CEJSON(fg_Move(Array)));
+				AccessDenied.f_Insert(CEJSONSorted(fg_Move(Array)));
 			}
 		}
 		else
@@ -523,7 +523,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSON _Params)
+	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSONSorted _Params)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -657,7 +657,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType)
+	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSONSorted const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType)
 	{
 		f_SetAppType(_AppType);
 
@@ -928,7 +928,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
+	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSONSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
 		TCActor<CDistiributedAppLogActor> LogActor;
 
@@ -1055,7 +1055,7 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyPreRunDirectCommand
 				(
-					[this](NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)
+					[this](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)
 					{
 						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
 						{
@@ -1076,7 +1076,7 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyStartApp
 				(
-					[&](NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
+					[&](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
 						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
@@ -1199,12 +1199,12 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<CEJSON> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<CEJSONSorted> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
 	{
 		return g_Future <<= self(&CDistributedAppActor::fp_Test_Command, _Command, _Params);
 	}
 
-	TCFuture<CEJSON> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<CEJSONSorted> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
 	{
 		co_return {};
 	}

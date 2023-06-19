@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 					{
 						try
 						{
-							NEncoding::CEJSON const Data = NEncoding::CEJSON::fs_FromString(CommandData);
+							NEncoding::CEJSONSorted const Data = NEncoding::CEJSONSorted::fs_FromString(CommandData);
 							if (mp_fOnLaunchError)
 								mp_fOnLaunchError(Data["Error"].f_String()) > fg_DiscardResult();
 						}

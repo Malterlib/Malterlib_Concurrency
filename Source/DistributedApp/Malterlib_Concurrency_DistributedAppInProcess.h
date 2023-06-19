@@ -42,12 +42,12 @@ namespace NMib::NConcurrency
 		;
 
 #if DMibConfig_Tests_Enable
-		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
 		TCFuture<uint32> f_RunCommandLine
 			(
 				CCallingHostInfo const &_CallingHost
 				, NStr::CStr const &_Command
-				, NEncoding::CEJSON const &_Params
+				, NEncoding::CEJSONSorted const &_Params
 				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;

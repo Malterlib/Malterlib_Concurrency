@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
-			NEncoding::CEJSON f_ToJson() const;
+			NEncoding::CEJSONSorted f_ToJson() const;
 
 			auto operator <=> (CLogData const &_Right) const = default;
 
@@ -125,7 +125,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NStr::CStr> m_Operations;
 			NStr::CStr m_Message;
 			NStorage::TCOptional<CSourceLocation> m_SourceLocation;
-			NEncoding::CEJSON m_MetaData;
+			NEncoding::CEJSONSorted m_MetaData;
 			ELogSeverity m_Severity = ELogSeverity_Info;
 			ELogEntryFlag m_Flags = ELogEntryFlag_None;
 		};

@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 			Tool.m_pRuntimeClass->f_Register(ThisActor, ToolsSection, o_CommandLine, Tool.m_ClassName);
 	}
 
-	TCFuture<void> CDistributedToolAppActor::fp_StartApp(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDistributedToolAppActor::fp_StartApp(NEncoding::CEJSONSorted const &_Params)
 	{
 		co_return {};
 	}

@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NContainer;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
 	{
 		auto UserName = _Params["UserName"].f_String();
 		auto UserID = NCryptography::fg_RandomID();
@@ -56,11 +56,11 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
 	{
 		CStr const &UserID = _Params["UserID"].f_String();
 		TCOptional<CStr> UserName;
-		TCMap<CStr, CEJSON> AddMetadata;
+		TCMap<CStr, CEJSONSorted> AddMetadata;
 		TCSet<CStr> RemoveMetadata;
 
 		if (auto pValue = _Params.f_GetMember("UserName"))
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_Key)
 	{
 		TCOptional<CStr> UserName;
-		TCMap<CStr, CEJSON> AddMetadata;
+		TCMap<CStr, CEJSONSorted> AddMetadata;
 		TCSet<CStr> RemoveMetadata{_Key};
 
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, UserName, AddMetadata, RemoveMetadata);
@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSON const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
 	{
 		if (!mp_AuthenticationHandlerImplementation)
 		{
@@ -205,7 +205,7 @@ namespace NMib::NConcurrency
 		bool bJSONOutput = _Params["JSONOutput"].f_Boolean();
 
 		TCSet<CStr> Factors;
-		CEJSON const &AuthenticationFactors = _Params["AuthenticationFactors"];
+		CEJSONSorted const &AuthenticationFactors = _Params["AuthenticationFactors"];
 		if (AuthenticationFactors.f_IsString())
 			Factors[AuthenticationFactors.f_String()];
 		else
@@ -264,7 +264,7 @@ namespace NMib::NConcurrency
 		aint ReturnValue = 0;
 		DMibCheck(AuthenticationActors.f_GetLen() == Authentications.f_GetLen());
 
-		CEJSON JSONOutput;
+		CEJSONSorted JSONOutput;
 
 		if (bJSONOutput)
 			JSONOutput["AuthenticationFailures"] = EJSONType_Array;

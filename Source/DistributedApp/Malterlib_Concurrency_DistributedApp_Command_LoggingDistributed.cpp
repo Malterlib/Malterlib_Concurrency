@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppLogReader_LogFilter const &_Filter
 					, ELogOutputFlag _Flags
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppLogReader_LogEntryFilter const &_Filter
 					, uint64 _MaxEntries
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppLogReader_LogFilter const &_Filter
 					, ELogOutputFlag _Flags
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppLogReader_LogEntryFilter const &_Filter
 					, uint64 _MaxEntries
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseLogFilter = [](CEJSON const &_Params) -> CDistributedAppLogReader_LogFilter
+		auto fParseLogFilter = [](CEJSONSorted const &_Params) -> CDistributedAppLogReader_LogFilter
 			{
 				CDistributedAppLogReader_LogFilter Filter;
 
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseFlags = [](CEJSON const &_Params, bool _bRaw)
+		auto fParseFlags = [](CEJSONSorted const &_Params, bool _bRaw)
 			{
 				ELogOutputFlag Flags = ELogOutputFlag_None;
 				if (_bRaw && _Params["Raw"].f_Boolean())
@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fLogList
 						(
@@ -323,7 +323,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fLogEntriesList = fg_Move(_fLogEntriesList), fParseLogFilter, fParseFlags]
-				(CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppLogReader_LogEntryFilter Filter;
 					Filter.m_LogFilter = fParseLogFilter(_Params);
@@ -426,7 +426,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 
-		CEJSON JsonOutput;
+		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		for (auto iLogs = co_await fg_Move(_Logs).f_GetIterator(); iLogs; co_await ++iLogs)
@@ -441,7 +441,7 @@ namespace NMib::NConcurrency
 				{
 					JsonOutputArray.f_Insert
 						(
-							CEJSON
+							CEJSONSorted
 							{
 								"HostID"_= LogInfo.m_HostID
 								, "HostName"_= LogInfo.m_HostName
@@ -625,7 +625,7 @@ namespace NMib::NConcurrency
 		CStr DebugColor = AnsiEncoding.f_ForegroundRGB(100, 100, 100);
 		CStr CategoryColor = AnsiEncoding.f_ForegroundRGB(51, 182, 255);
 
-		CEJSON JsonOutput;
+		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		CClock LastOutput{true};
@@ -670,7 +670,7 @@ namespace NMib::NConcurrency
 				{
 					JsonOutputArray.f_Insert
 						(
-							CEJSON
+							CEJSONSorted
 							{
 								"HostID"_= Entry.m_LogInfoKey.m_HostID
 								, "HostName"_= HostName

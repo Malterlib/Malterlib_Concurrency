@@ -66,13 +66,13 @@ namespace
 						(
 							{
 								"testMethod"
-								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSON> const &_Params) mutable -> TCFuture<NEncoding::CEJSON>
+								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSONSorted> const &_Params) mutable -> TCFuture<NEncoding::CEJSONSorted>
 								{
-									TCPromise<NEncoding::CEJSON> Promise;
+									TCPromise<NEncoding::CEJSONSorted> Promise;
 									if (_Params[0].f_GetMember("Invalid"))
 										return Promise <<= DMibErrorInstance("Invalid params");
 									auto &HostInfo = fg_GetCallingHostInfo();
-									return Promise <<= NEncoding::CEJSON
+									return Promise <<= NEncoding::CEJSONSorted
 										{
 											"Result"_= 5
 											, "HostID"_= HostInfo.f_GetRealHostID()
@@ -104,18 +104,18 @@ namespace
 			
 				DMibExpect(ConnectionInfo.m_UserID, ==, "");
 
-				CEJSON MethodParams = 
+				CEJSONSorted MethodParams = 
 					{
 						"Test"_= "Test"
 					}
 				;
-				CEJSON MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(g_Timeout / 3);
+				CEJSONSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(g_Timeout / 3);
 				
 				DMibExpect(MethodResult["HostID"].f_String(), == , ClientDatabase.m_BasicConfig.m_HostID);
 
 				auto fCallInvalidParams = [&]
 					{
-						CEJSON InvalidMethodParams = 
+						CEJSONSorted InvalidMethodParams = 
 							{
 								"Invalid"_= "Test"
 							}

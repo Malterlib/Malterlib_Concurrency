@@ -25,8 +25,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
-		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
+		void f_SetLazyStartApp(NFunction::TCFunction<FStopApp (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp);
+		void f_SetLazyPreRunDirectCommand(NFunction::TCFunction<void (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand);
 
 		CDistributedAppCommandLineClient
 			(
@@ -45,13 +45,13 @@ namespace NMib::NConcurrency
 
 		friend struct NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>;
 
-		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJSON const &_Params);
+		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJSONSorted const &_Params);
 
 		struct CInternal;
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
-		NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> mp_fLazyStartApp;
-		NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> mp_fLazyPreRunDirectCommand;
+		NFunction::TCFunction<FStopApp (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> mp_fLazyStartApp;
+		NFunction::TCFunction<void (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> mp_fLazyPreRunDirectCommand;
 	};
 }
 

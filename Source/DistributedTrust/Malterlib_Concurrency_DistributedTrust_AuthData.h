@@ -31,8 +31,8 @@ namespace NMib::NConcurrency
 
 		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PublicData;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PrivateData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PublicData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PrivateData;
 	};
 
 }

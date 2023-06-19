@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		NEncoding::CEJSON AppParams;
+		NEncoding::CEJSONSorted AppParams;
 		{
 			using namespace NStr;
 			CDistributedAppCommandLineClient CommandLineClient = co_await mp_DistributedApp(&CDistributedAppActor::f_GetCommandLineClient);
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency
 									"Names"_= {"--daemon-run-in-app"}
 									, "Description"_= "Run as in app daemon"
 								}
-								, [](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+								, [](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 								{
 									return 0;
 								}
@@ -194,9 +194,9 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<NEncoding::CEJSON> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params)
+	TCFuture<NEncoding::CEJSONSorted> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
 	{
-		TCPromise<NEncoding::CEJSON> Promise;
+		TCPromise<NEncoding::CEJSONSorted> Promise;
 		if (!mp_DistributedApp)
 			return Promise <<= DMibErrorInstance("No distributed app");
 
@@ -207,7 +207,7 @@ namespace NMib::NConcurrency
 		(
 			CCallingHostInfo const &_CallingHost
 			, NStr::CStr const &_Command
-			, NEncoding::CEJSON const &_Params
+			, NEncoding::CEJSONSorted const &_Params
 			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{

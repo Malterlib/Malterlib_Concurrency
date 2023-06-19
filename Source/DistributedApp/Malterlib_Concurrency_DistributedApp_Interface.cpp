@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 		(
 			CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo
 			, CDistributedAppInterfaceServer::CConfigFiles &o_ConfigFiles
-			, NEncoding::CEJSON const &_Params
+			, NEncoding::CEJSONSorted const &_Params
 		)
 	{
 		DMibCheck(!mp_State.m_ConfigDatabase.f_GetFileName().f_IsEmpty()); // Is currently guaranteed to be initialized in constructor, make sure this doesn't change
@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params)
+	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSONSorted _Params)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -377,7 +377,7 @@ namespace NMib::NConcurrency
 		co_return co_await Promise.f_MoveFuture();
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSON _Params)
+	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSONSorted _Params)
 	{
 		auto &Internal = *mp_pInternal;
 

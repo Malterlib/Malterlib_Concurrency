@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 				CStr BasicConfigFile = CFile::fs_AppendPath(_Root, "BasicConfig.json");
 				if (CFile::fs_FileExists(BasicConfigFile))
 				{
-					auto BasicConfig = CEJSON::fs_FromString(CFile::fs_ReadStringFromFile(BasicConfigFile), BasicConfigFile);
+					auto BasicConfig = CEJSONSorted::fs_FromString(CFile::fs_ReadStringFromFile(BasicConfigFile), BasicConfigFile);
 					BasicConfig.f_RemoveMember("CAPrivateKey");
 					BasicConfig.f_RemoveMember("CACertificate");
 					if (_bConfirm)

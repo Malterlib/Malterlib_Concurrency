@@ -50,7 +50,7 @@ namespace NMib::NConcurrency::NTest
 			fg_TestAddCleanupPath(mp_Settings.m_RootDirectory);
 		}
 
-		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) override
 		{
 			co_return {};
 		}
@@ -1353,7 +1353,7 @@ namespace NMib::NConcurrency::NTest
 			DMibTestSuite("Auditor")
 			{
 				auto AppActor = fg_ConstructActor<CTestDistributedApp>("TestDistAppAuditor");
-				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
+				AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSONSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
 
 				DMibExpect(AppActor(&CTestDistributedApp::f_Test).f_CallSync(), ==, 32);
 				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithAuditor).f_CallSync(), DMibErrorInstance("Test Exception"));

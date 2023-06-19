@@ -2179,7 +2179,7 @@ namespace NTestTrustManager
 				;
 				CCurrentlyProcessingActorScope CurrentActor{HelperActor};
 
-				using CMetadata = TCMap<CStr, NEncoding::CEJSON>;
+				using CMetadata = TCMap<CStr, NEncoding::CEJSONSorted>;
 				using CKeys = TCSet<CStr>;
 				TCSharedPointer<CCommandLineControl> pCommandLine;
 				CState State{pRunLoop, _fDatabaseFactory, _fCleanup};

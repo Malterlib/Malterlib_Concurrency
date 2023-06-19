@@ -20,11 +20,11 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		return *this;
 	}
 
-	NEncoding::CEJSON CSensorKey::f_ToJson() const
+	NEncoding::CEJSONSorted CSensorKey::f_ToJson() const
 	{
 		using namespace NEncoding;
 
-		CEJSON Return;
+		CEJSONSorted Return;
 		Return["DbPrefix"] = fg_ToJson(m_DbPrefix);
 		Return["Prefix"] = fg_ToJson(m_Prefix);
 		Return["HostID"] = fg_ToJson(m_HostID);

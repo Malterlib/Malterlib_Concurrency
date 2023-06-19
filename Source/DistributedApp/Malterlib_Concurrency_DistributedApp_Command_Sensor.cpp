@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorFilter const &_Filter
 					, ESensorOutputFlag _Flags
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 					, ESensorOutputFlag _Flags
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 					, uint64 _MaxEntries
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorFilter const &_Filter
 					, ESensorOutputFlag _Flags
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 					, ESensorOutputFlag _Flags
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSON const &_Params
+					CEJSONSorted const &_Params
 					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 					, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 					, uint64 _MaxEntries
@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseSensorFilter = [](CEJSON const &_Params) -> CDistributedAppSensorReader_SensorFilter
+		auto fParseSensorFilter = [](CEJSONSorted const &_Params) -> CDistributedAppSensorReader_SensorFilter
 			{
 				CDistributedAppSensorReader_SensorFilter Filter;
 
@@ -209,7 +209,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseFlags = [](CEJSON const &_Params)
+		auto fParseFlags = [](CEJSONSorted const &_Params)
 			{
 				ESensorOutputFlag Flags = ESensorOutputFlag_None;
 				if (_Params["Verbose"].f_Boolean())
@@ -239,7 +239,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fSensorList
 						(
@@ -275,7 +275,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags]
-				(CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorStatusFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorReadingsList = fg_Move(_fSensorReadingsList), fParseSensorFilter, fParseFlags]
-				(CEJSON const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorReadingFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -395,14 +395,14 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
-		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJSON
+		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJSONSorted
 			{
 				using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
 				if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
 					return nullptr;
 				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
 				{
-					return CEJSONUserType
+					return CEJSONUserTypeSorted
 						(
 							"Status"
 							,
@@ -415,7 +415,7 @@ namespace NMib::NConcurrency
 				}
 				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
 				{
-					return CEJSONUserType
+					return CEJSONUserTypeSorted
 						(
 							"Version"
 							,
@@ -466,7 +466,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 
-		CEJSON JsonOutput;
+		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
@@ -479,15 +479,15 @@ namespace NMib::NConcurrency
 
 				if (_Flags & ESensorOutputFlag_Json)
 				{
-					CEJSON UnitDivisors;
+					CEJSONSorted UnitDivisors;
 					auto &UnitDivisorsArray = UnitDivisors.f_Array();
 					for (auto &Divisor : SensorInfo.m_UnitDivisors)
 					{
 						UnitDivisorsArray.f_Insert
 							(
-								CEJSON
+								CEJSONSorted
 								{
-									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSON>(gc_fSensorDataToJson)
+									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson)
 									, "nDecimals"_= Divisor.m_nDecimals
 									, "UnitFormatter"_= Divisor.m_UnitFormatter
 								}
@@ -495,7 +495,7 @@ namespace NMib::NConcurrency
 						;
 					}
 
-					auto fComparisonValue = [](NStorage::TCOptional<CDistributedAppSensorReporter::CValueComparison> const &_Value) -> CEJSON
+					auto fComparisonValue = [](NStorage::TCOptional<CDistributedAppSensorReporter::CValueComparison> const &_Value) -> CEJSONSorted
 						{
 							if (!_Value)
 								return nullptr;
@@ -504,7 +504,7 @@ namespace NMib::NConcurrency
 
 							return
 								{
-									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJSON>(gc_fSensorDataToJson)
+									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson)
 									, "Operator"_= Value.m_Operator
 								}
 							;
@@ -513,7 +513,7 @@ namespace NMib::NConcurrency
 
 					JsonOutputArray.f_Insert
 						(
-							CEJSON
+							CEJSONSorted
 							{
 								"HostID"_= SensorInfo.m_HostID
 								, "HostName"_= SensorInfo.m_HostName
@@ -693,7 +693,7 @@ namespace NMib::NConcurrency
 		bool bHasOutdated = false;
 		uint64 nEntries = 0;
 
-		CEJSON JsonOutput;
+		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		CClock LastOutput{true};
@@ -755,10 +755,10 @@ namespace NMib::NConcurrency
 
 				if (_Flags & ESensorOutputFlag_Json)
 				{
-					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSON>(gc_fSensorDataToJson);
+					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson);
 					JsonOutputArray.f_Insert
 						(
-							CEJSON
+							CEJSONSorted
 							{
 								"HostID"_= Reading.m_SensorInfoKey.m_HostID
 								, "HostName"_= HostName

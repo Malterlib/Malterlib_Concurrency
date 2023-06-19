@@ -103,7 +103,7 @@ namespace NMib::NConcurrency
 			CStr const &_UserID
 			, TCOptional<CStr> const &_UserName
 			, TCSet<CStr> const &_RemoveMetadata
-			, TCMap<CStr, CEJSON> const &_AddMetadata
+			, TCMap<CStr, CEJSONSorted> const &_AddMetadata
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))

@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](NEncoding::CEJSON const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					mp_bRunAsApplication = true;
 					return 0;

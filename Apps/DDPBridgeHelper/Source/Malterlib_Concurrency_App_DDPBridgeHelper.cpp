@@ -20,7 +20,7 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 	}
 
-	TCFuture<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJSON const &_Params)
+	TCFuture<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJSONSorted const &_Params)
 	{
 		TCPromise<void> Promise;
 		Promise.f_SetResult();

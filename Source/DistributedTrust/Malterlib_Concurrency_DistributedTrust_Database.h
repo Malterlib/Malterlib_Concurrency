@@ -143,7 +143,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		void f_Consume(tf_CStream &_Stream);
 
 		NStr::CStr m_UserName;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_Metadata;
 	};
 
 	struct CDefaultUser
@@ -176,8 +176,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PublicData;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_PrivateData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PublicData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PrivateData;
 	};
 }
 

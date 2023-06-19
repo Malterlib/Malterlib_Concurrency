@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 			auto operator <=> (CUserInfo const &_Right) const = default;
 
 			NStr::CStr m_UserName;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_Metadata;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_Metadata;
 		};
 
 		struct CLocalCallingHostInfo : public CCallingHostInfo
@@ -290,7 +290,7 @@ namespace NMib::NConcurrency
 				NStr::CStr const &_UserID
 				, NStorage::TCOptional<NStr::CStr> const &_UserName
 				, NContainer::TCSet<NStr::CStr> const &_RemoveMetadata
-				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> const &_AddMetadata
+				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> const &_AddMetadata
 			) = 0
 		;
 

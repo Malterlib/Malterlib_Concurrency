@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 		{
 			CCommandLine(TCWeakActor<CDistributedAppActor> const &_Actor);
 
-			TCFuture<uint32> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, CCommandLineControl &&_CommandLine) override;
+			TCFuture<uint32> f_RunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params, CCommandLineControl &&_CommandLine) override;
 
 		private:
 			TCWeakActor<CDistributedAppActor> mp_Actor;
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor(CDistributedAppActor_Settings const &_Settings);
 		~CDistributedAppActor();
 
-		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJSON const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType);
+		TCFuture<NStr::CStr> f_StartApp(NEncoding::CEJSONSorted const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType);
 		TCFuture<void> f_StopApp();
 		TCFuture<CDistributedAppLogReporter::CLogReporter> f_OpenDefaultLogReporter();
 
@@ -125,7 +125,7 @@ namespace NMib::NConcurrency
 		TCFuture<uint32> f_RunCommandLine
 			(
 				NStr::CStr const &_Command
-				, NEncoding::CEJSON const &_Params
+				, NEncoding::CEJSONSorted const &_Params
 				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 			)
 		;
@@ -147,7 +147,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_ForListen
 				, NContainer::TCSet<NStr::CStr> const &_Permissions
 				, NStr::CStr const &_UserID
-				, NEncoding::CEJSON const &_AuthenticationFactors
+				, NEncoding::CEJSONSorted const &_AuthenticationFactors
 			)
 		;
 
@@ -205,7 +205,7 @@ namespace NMib::NConcurrency
 				, NStr::CStr const &_HostID
 				, NStr::CStr const &_UserID
 				, NContainer::TCVector<NStr::CStr> const &_Permissions
-				, NEncoding::CEJSON const &_AuthenticationFactors
+				, NEncoding::CEJSONSorted const &_AuthenticationFactors
 				, int64 _AuthenticationLifetime
 			)
 		;
@@ -219,9 +219,9 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<uint32> f_CommandLine_ListUsers(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
-		TCFuture<uint32> f_CommandLine_AddUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCFuture<uint32> f_CommandLine_AddUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSONSorted const &_Params);
 		TCFuture<uint32> f_CommandLine_RemoveUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID);
-		TCFuture<uint32> f_CommandLine_SetUserInfo(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCFuture<uint32> f_CommandLine_SetUserInfo(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSONSorted const &_Params);
 		TCFuture<uint32> f_CommandLine_RemoveMetadata(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, NStr::CStr const &_Key);
 		TCFuture<uint32> f_CommandLine_ExportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserID, bool _bIncludePrivate);
 		TCFuture<uint32> f_CommandLine_ImportUser(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_UserData);
@@ -251,7 +251,7 @@ namespace NMib::NConcurrency
 			)
 		;
 		TCFuture<uint32> f_CommandLine_EnumAuthenticationFactors(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NStr::CStr const &_TableType);
-		TCFuture<uint32> f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSON const &_Params);
+		TCFuture<uint32> f_CommandLine_AuthenticatePermissionPattern(NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine, NEncoding::CEJSONSorted const &_Params);
 		TCFuture<uint32> f_CommandLine_SensorList
 			(
 				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 
 #if DMibConfig_Tests_Enable
-		TCFuture<NEncoding::CEJSON> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
 #endif
 
 	protected:
@@ -364,7 +364,7 @@ namespace NMib::NConcurrency
 			CActorSubscription m_Subscription;
 		};
 
-		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) = 0;
+		virtual TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) = 0;
 		virtual TCFuture<void> fp_StopApp() = 0;
 
 		TCFuture<void> fp_WaitForAppStartup();
@@ -384,7 +384,7 @@ namespace NMib::NConcurrency
 				<
 					TCFuture<uint32>
 					(
-						NEncoding::CEJSON const &_Params
+						NEncoding::CEJSONSorted const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 						, CDistributedAppLogReader_LogFilter const &_Filter
 						, ELogOutputFlag _Flags
@@ -397,7 +397,7 @@ namespace NMib::NConcurrency
 				<
 					TCFuture<uint32>
 					(
-						NEncoding::CEJSON const &_Params
+						NEncoding::CEJSONSorted const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 						, CDistributedAppLogReader_LogEntryFilter const &_Filter
 						, uint64 _MaxEntries
@@ -430,7 +430,7 @@ namespace NMib::NConcurrency
 				<
 					TCFuture<uint32>
 					(
-						NEncoding::CEJSON const &_Params
+						NEncoding::CEJSONSorted const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 						, CDistributedAppSensorReader_SensorFilter const &_Filter
 						, ESensorOutputFlag _Flags
@@ -441,7 +441,7 @@ namespace NMib::NConcurrency
 				<
 					TCFuture<uint32>
 					(
-						NEncoding::CEJSON const &_Params
+						NEncoding::CEJSONSorted const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 						, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
 						, ESensorOutputFlag _Flags
@@ -453,7 +453,7 @@ namespace NMib::NConcurrency
 				<
 					TCFuture<uint32>
 					(
-						NEncoding::CEJSON const &_Params
+						NEncoding::CEJSONSorted const &_Params
 						, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
 						, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
 						, uint64 _MaxEntries
@@ -466,12 +466,12 @@ namespace NMib::NConcurrency
 		;
 		virtual void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine);
 
-		virtual TCFuture<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
+		virtual TCFuture<void> fp_PreRunCommandLine(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine);
 		virtual void fp_PopulateAppInterfaceInfo
 			(
 				CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo
 				, CDistributedAppInterfaceServer::CConfigFiles &o_ConfigFiles
-				, NEncoding::CEJSON const &_Params
+				, NEncoding::CEJSONSorted const &_Params
 			)
 		;
 
@@ -502,7 +502,7 @@ namespace NMib::NConcurrency
 		;
 
 #if DMibConfig_Tests_Enable
-		virtual TCFuture<NEncoding::CEJSON> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSON const &_Params);
+		virtual TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
 #endif
 
 		void fp_Construct() override;
@@ -551,15 +551,15 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> fp_WaitForDistributedTrustInitialization();
 		TCFuture<void> fp_InitializeDistributedTrust();
-		TCFuture<void> fp_Initialize(NEncoding::CEJSON _Params);
+		TCFuture<void> fp_Initialize(NEncoding::CEJSONSorted _Params);
 		void fp_CleanupEnclaveSockets();
 #ifdef DPlatformFamily_Windows
 		void fp_CleanupOldExecutables();
 #endif
 
 		TCFuture<void> fp_SetupListen();
-		TCFuture<void> fp_SetupAppServerInterface(NEncoding::CEJSON _Params);
-		TCFuture<void> fp_SubscribeAppServerInterface(NEncoding::CEJSON _Params);
+		TCFuture<void> fp_SetupAppServerInterface(NEncoding::CEJSONSorted _Params);
+		TCFuture<void> fp_SubscribeAppServerInterface(NEncoding::CEJSONSorted _Params);
 		TCFuture<CDistributedActorTrustManager::CTrustTicket> fp_GetTicketThroughStdIn(NStr::CStr _RequestMagic);
 
 		TCFuture<void> fp_CreateCommandLineTrust();
@@ -598,7 +598,7 @@ namespace NMib::NConcurrency
 		COnScopeExitShared m_CleanupLogging;
 	};
 
-	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSON const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp);
+	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSONSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp);
 
 	struct CRunDistributedAppHelper
 	{

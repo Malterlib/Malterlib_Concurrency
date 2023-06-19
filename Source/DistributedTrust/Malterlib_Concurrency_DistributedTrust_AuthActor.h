@@ -28,8 +28,8 @@ namespace NMib::NConcurrency
 		struct CVerifyAuthenticationReturn
 		{
 			bool m_bVerified = false;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_UpdatedPublicData;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSON> m_UpdatedPrivateData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_UpdatedPublicData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_UpdatedPrivateData;
 		};
 
 		ICDistributedActorTrustManagerAuthenticationActor();

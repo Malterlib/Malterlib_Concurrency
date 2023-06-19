@@ -62,7 +62,7 @@ namespace
 							}
 						}
 					}
-					, [](NEncoding::CEJSON const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						co_return _Params["Integer"].f_Integer();
 					}
@@ -70,7 +70,7 @@ namespace
 			;
 		}
 		
-		TCFuture<void> fp_StartApp(NEncoding::CEJSON const &_Params) override
+		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) override
 		{
 			co_return {};
 		}
@@ -107,7 +107,7 @@ namespace
 				}
 			}
 			auto AppActor = fg_ConstructActor<CTestDistributedApp>(_Name);
-			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSON{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
+			AppActor(&CDistributedAppActor::f_StartApp, NEncoding::CEJSONSorted{}, TCActor<CDistiributedAppLogActor>{}, EDistributedAppType_InProcess).f_CallSync();
 			CDistributedAppCommandLineClient CommandLineClient = AppActor(&CDistributedAppActor::f_GetCommandLineClient).f_CallSync();
 			
 			_fTests(CommandLineClient);
@@ -125,7 +125,7 @@ namespace
 						(
 							[](CDistributedAppCommandLineClient &_Client)
 							{
-								CEJSON RunParams;
+								CEJSONSorted RunParams;
 								
 								DMibTestPath("General");
 								aint Ret = _Client.f_RunCommandLine(fg_CreateVector<CStr>("App", "--test-actor", "--integer", "66"));

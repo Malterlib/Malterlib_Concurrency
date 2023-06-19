@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 					, "LogSeverities?"_=
 					{
 						"Names"_= {"--log-severities"}
-						, "Type"_= NEncoding::CEJSON{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
+						, "Type"_= NEncoding::CEJSONSorted{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
 						, "Description"_= "Which log severities to log to stderr"
 #if DMibEnableTrace > 0
 						" or with trace logger."

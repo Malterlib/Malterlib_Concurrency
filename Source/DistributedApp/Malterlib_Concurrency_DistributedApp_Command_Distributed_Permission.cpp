@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		CPermissionRequirements fg_ParsePermissionRequirements(CEJSON const &_AuthenticationFactors)
+		CPermissionRequirements fg_ParsePermissionRequirements(CEJSONSorted const &_AuthenticationFactors)
 		{
 			CPermissionRequirements Requirements;
 			if (!_AuthenticationFactors.f_IsValid())
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 			, CStr const &_HostID
 			, CStr const &_UserID
 			, TCVector<CStr> const &_Permissions
-			, CEJSON const &_AuthenticationFactors
+			, CEJSONSorted const &_AuthenticationFactors
 			, int64 _AuthenticationLifetime
 		)
 	{

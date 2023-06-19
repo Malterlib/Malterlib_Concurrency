@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
 		(
-			NFunction::TCFunction<FStopApp (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
+			NFunction::TCFunction<FStopApp (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
 		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand
 		(
-			NFunction::TCFunction<void (NEncoding::CEJSON const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand
+			NFunction::TCFunction<void (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand
 		)
 	{
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
@@ -200,7 +200,7 @@ namespace NMib::NConcurrency
 	uint32 CDistributedAppCommandLineClient::fp_RunCommand
 		(
 			void const *_pCommand
-			, NEncoding::CEJSON const &_Params
+			, NEncoding::CEJSONSorted const &_Params
 		)
 	{
 		CDistributedAppCommandLineSpecification::CInternal::CCommand const *pCommand = fg_AutoStaticCast(_pCommand);

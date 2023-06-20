@@ -107,62 +107,62 @@ namespace NMib::NConcurrency
 			, EDistributedAppCommandFlag _CommandFlags
 		)
 	{
-		auto Option_SensorHostID = "HostID?"_=
+		auto Option_SensorHostID = "HostID?"_o=
 			{
-				"Names"_= {"--host-id"}
-				, "Type"_= ""
-				, "Description"_= "Limit output to only sensors from specified host id."
+				"Names"_o= {"--host-id"}
+				, "Type"_o= ""
+				, "Description"_o= "Limit output to only sensors from specified host id."
 			}
 		;
 
-		auto Option_SensorApplication = "Application?"_=
+		auto Option_SensorApplication = "Application?"_o=
 			{
-				"Names"_= {"--application"}
-				, "Type"_= ""
-				, "Description"_= "Limit output to only sensors that come from the specified application.\n"
+				"Names"_o= {"--application"}
+				, "Type"_o= ""
+				, "Description"_o= "Limit output to only sensors that come from the specified application.\n"
 				"Set to an empty string to only include sensors that are in host scope"
 			}
 		;
 
-		auto Option_SensorIdentifier = "Identifier?"_=
+		auto Option_SensorIdentifier = "Identifier?"_o=
 			{
-				"Names"_= {"--identifier"}
-				, "Type"_= ""
-				, "Description"_= "Limit output to only sensors that match the identifier."
+				"Names"_o= {"--identifier"}
+				, "Type"_o= ""
+				, "Description"_o= "Limit output to only sensors that match the identifier."
 			}
 		;
 
-		auto Option_SensorIdentifierScope = "IdentifierScope?"_=
+		auto Option_SensorIdentifierScope = "IdentifierScope?"_o=
 			{
-				"Names"_= {"--identifier-scope"}
-				, "Type"_= ""
-				, "Description"_= "Limit output to only sensors that match the idendifier scope."
+				"Names"_o= {"--identifier-scope"}
+				, "Type"_o= ""
+				, "Description"_o= "Limit output to only sensors that match the idendifier scope."
 			}
 		;
 
-		auto Option_Verbose = "Verbose?"_=
+		auto Option_Verbose = "Verbose?"_o=
 			{
-				"Names"_= {"--verbose", "-v"}
-				, "Default"_= false
-				, "Description"_= "Output all properties."
+				"Names"_o= {"--verbose", "-v"}
+				, "Default"_o= false
+				, "Description"_o= "Output all properties."
 			}
 		;
 
-		auto Option_Json = "Json?"_=
+		auto Option_Json = "Json?"_o=
 			{
-				"Names"_= {"--json", "-j"}
-				, "Default"_= false
-				, "Description"_= "Output in json format."
+				"Names"_o= {"--json", "-j"}
+				, "Default"_o= false
+				, "Description"_o= "Output in json format."
 			}
 		;
 
 		auto fOption_OnlyProblems = [](bool _bDefault)
 			{
-				return "OnlyProblems?"_=
+				return "OnlyProblems?"_o=
 					{
-						"Names"_= {"--only-problems"}
-						, "Default"_= _bDefault
-						, "Description"_= "Only report problems."
+						"Names"_o= {"--only-problems"}
+						, "Default"_o= _bDefault
+						, "Description"_o= "Only report problems."
 					}
 				;
 			}
@@ -170,11 +170,11 @@ namespace NMib::NConcurrency
 
 		auto fOption_IgnoreRemoved = [](bool _bDefault)
 			{
-				return "IgnoreRemoved?"_=
+				return "IgnoreRemoved?"_o=
 					{
-						"Names"_= {"--ignore-removed"}
-						, "Default"_= _bDefault
-						, "Description"_= "Ignore sensors that were removed, or that were owned by a removed application or app manager."
+						"Names"_o= {"--ignore-removed"}
+						, "Default"_o= _bDefault
+						, "Description"_o= "Ignore sensors that were removed, or that were owned by a removed application or app manager."
 					}
 				;
 			}
@@ -224,10 +224,10 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--{}sensor-list"_f << _Prefix}
-					, "Description"_= "List the sensors that are in the local store.\n"
-					, "Output"_= "A table of sensors."
-					, "Options"_=
+					"Names"_o= {"--{}sensor-list"_f << _Prefix}
+					, "Description"_o= "List the sensors that are in the local store.\n"
+					, "Output"_o= "A table of sensors."
+					, "Options"_o=
 					{
 						Option_SensorHostID
 						, Option_SensorApplication
@@ -258,10 +258,10 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--{}sensor-status"_f << _Prefix}
-					, "Description"_= "List the current value for sensors that are in the local store.\n"
-					, "Output"_= "A table of sensors readings."
-					, "Options"_=
+					"Names"_o= {"--{}sensor-status"_f << _Prefix}
+					, "Description"_o= "List the current value for sensors that are in the local store.\n"
+					, "Output"_o= "A table of sensors readings."
+					, "Options"_o=
 					{
 						Option_SensorHostID
 						, Option_SensorApplication
@@ -300,10 +300,10 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--{}sensor-readings-list"_f << _Prefix}
-					, "Description"_= "List historic values for sensors that are in the local store.\n"
-					, "Output"_= "A table of sensors readings."
-					, "Options"_=
+					"Names"_o= {"--{}sensor-readings-list"_f << _Prefix}
+					, "Description"_o= "List historic values for sensors that are in the local store.\n"
+					, "Output"_o= "A table of sensors readings."
+					, "Options"_o=
 					{
 						Option_SensorHostID
 						, Option_SensorApplication
@@ -312,42 +312,42 @@ namespace NMib::NConcurrency
 						, fOption_IgnoreRemoved(false)
 						, Option_Verbose
 						, Option_Json
-						, "MinTimestamp?"_=
+						, "MinTimestamp?"_o=
 						{
-							"Names"_= {"--min-timestamp"}
-							, "Type"_= CTime()
-							, "Description"_= "Limit output to readings that are newer than specified."
+							"Names"_o= {"--min-timestamp"}
+							, "Type"_o= CTime()
+							, "Description"_o= "Limit output to readings that are newer than specified."
 						}
-						, "MinSequence?"_=
+						, "MinSequence?"_o=
 						{
-							"Names"_= {"--min-sequence"}
-							, "Type"_= 0
-							, "Description"_= "Limit output to sequences that are greater than specified for the timestamp."
+							"Names"_o= {"--min-sequence"}
+							, "Type"_o= 0
+							, "Description"_o= "Limit output to sequences that are greater than specified for the timestamp."
 						}
-						, "MaxTimestamp?"_=
+						, "MaxTimestamp?"_o=
 						{
-							"Names"_= {"--max-timestamp"}
-							, "Type"_= CTime()
-							, "Description"_= "Limit output to readings that are older than specified."
+							"Names"_o= {"--max-timestamp"}
+							, "Type"_o= CTime()
+							, "Description"_o= "Limit output to readings that are older than specified."
 						}
-						, "MaxSequence?"_=
+						, "MaxSequence?"_o=
 						{
-							"Names"_= {"--max-sequence"}
-							, "Type"_= 0
-							, "Description"_= "Limit output to sequences that are less than specified for the timestamp."
+							"Names"_o= {"--max-sequence"}
+							, "Type"_o= 0
+							, "Description"_o= "Limit output to sequences that are less than specified for the timestamp."
 						}
-						, "ReportNewestFirst?"_=
+						, "ReportNewestFirst?"_o=
 						{
-							"Names"_= {"--newest"}
-							, "Default"_= true
-							, "Description"_= "When applying entry limit, show newest entries first."
+							"Names"_o= {"--newest"}
+							, "Default"_o= true
+							, "Description"_o= "When applying entry limit, show newest entries first."
 						}
 						, fOption_OnlyProblems(false)
-						, "MaxEntries?"_=
+						, "MaxEntries?"_o=
 						{
-							"Names"_= {"--max-entries"}
-							, "Default"_= 100
-							, "Description"_= "Limit the number of output lines.\n"
+							"Names"_o= {"--max-entries"}
+							, "Default"_o= 100
+							, "Description"_o= "Limit the number of output lines.\n"
 							"Set to 0 for unlimited entries"
 						}
 						, CTableRenderHelper::fs_OutputTypeOption()

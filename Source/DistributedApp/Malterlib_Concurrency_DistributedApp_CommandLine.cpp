@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 	template <typename t_CCommandLineSpecification>
 	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
 				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
 		auto &Section = *pSection;
 		auto &Internal = *(this->mp_pInternal);
-		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
+		auto *pCommand = Internal.f_RegisterCommand(Section, fg_Move(_CommandDescription));
 		pCommand->m_pActorRunCommand = fg_Construct(g_ActorFunctor / fg_Move(_fRunCommand));
 		pCommand->m_Flags = _Flags;
 		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 	template <typename t_CCommandLineSpecification>
 	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterDirectCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 		typename t_CCommandLineSpecification::CInternal::CSection *pSection = fg_AutoStaticCast(this->mp_pSection);
 		auto &Section = *pSection;
 		auto &Internal = *(this->mp_pInternal);
-		auto *pCommand = Internal.f_RegisterCommand(Section, _CommandDescription);
+		auto *pCommand = Internal.f_RegisterCommand(Section, fg_Move(_CommandDescription));
 		pCommand->m_pDirectRunCommand = fg_Construct(fg_Move(_fRunCommand));
 		pCommand->m_Flags = _Flags;
 		return typename t_CCommandLineSpecification::CCommand(this->mp_pInternal, pCommand);
@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
 	f_RegisterCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
 				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 	CCommandLineSpecificationDistributedAppCustomization::TCSection<TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
 	f_RegisterDirectCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)

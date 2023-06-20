@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 
 				typename t_CCommandLineSpecification::CCommand f_RegisterCommand
 					(
-						NEncoding::CEJSONSorted const &_CommandDescription
+						NEncoding::CEJSONOrdered &&_CommandDescription
 						, NFunction::TCFunctionMovable
 						<
 							TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 				;
 				typename t_CCommandLineSpecification::CCommand f_RegisterDirectCommand
 					(
-						NEncoding::CEJSONSorted const &_CommandDescription
+						NEncoding::CEJSONOrdered &&_CommandDescription
 						, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
 					)
@@ -173,7 +173,7 @@ namespace NMib::NConcurrency
 	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
 	f_RegisterCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
 				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 	CCommandLineSpecificationDistributedAppCustomization::TCSection<NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>>::CSection::
 	f_RegisterDirectCommand
 		(
-			NEncoding::CEJSONSorted const &_CommandDescription
+			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)

@@ -19,27 +19,27 @@ namespace NMib::NConcurrency
 	{
 		auto Distributed = o_CommandLine.f_AddSection("Distributed Computing", "Use these commands to manage connectability and trust between different hosts.");
 
-		auto IncludeFriendlyNameOption = "IncludeFriendlyName?"_=
+		auto IncludeFriendlyNameOption = "IncludeFriendlyName?"_o=
 			{
-				"Names"_= {"--include-friendly-name"}
-				, "Default"_= true
-				, "Description"_= "Include friendly host name in output."
+				"Names"_o= {"--include-friendly-name"}
+				, "Default"_o= true
+				, "Description"_o= "Include friendly host name in output."
 			}
 		;
 
-		auto ConnectionConcurrencyOption = "ConnectionConcurrency?"_=
+		auto ConnectionConcurrencyOption = "ConnectionConcurrency?"_o=
 			{
-				"Names"_= {"--connection-concurrency"}
-				, "Default"_= -1
-				, "Description"_= "The number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default."
+				"Names"_o= {"--connection-concurrency"}
+				, "Default"_o= -1
+				, "Description"_o= "The number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default."
 			}
 		;
 
-		auto PermissionUserAuthenticationFactorsOption = "AuthenticationFactors?"_=
+		auto PermissionUserAuthenticationFactorsOption = "AuthenticationFactors?"_o=
 			{
-				"Names"_= {"--authentication-factors"}
-				, "Type"_= COneOfType{CEJSONSorted({CEJSONSorted({""})}), CEJSONSorted({""}), CEJSONSorted{""}}
-				, "Description"_= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
+				"Names"_o= {"--authentication-factors"}
+				, "Type"_o= COneOfType{CEJSONOrdered({CEJSONOrdered({""})}), CEJSONOrdered({""}), CEJSONOrdered{""}}
+				, "Description"_o= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
 					"\"Factor1\"                                        - must authenticate by Factor1\n"
 					"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2\n"
 					"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2\n"
@@ -50,9 +50,9 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-host-id"}
-					, "Description"_= "Get the host ID for this application.\n"
-					, "Output"_= "The host ID of this application."
+					"Names"_o= {"--trust-host-id"}
+					, "Description"_o= "Get the host ID for this application.\n"
+					, "Output"_o= "The host ID of this application."
 				}
 				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
@@ -63,15 +63,15 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--trust-remove-all-trust"}
-					, "Description"_= "Removes all certificates, clients, client connections and listen configs.\n"
-					, "Options"_=
+					"Names"_o= {"--trust-remove-all-trust"}
+					, "Description"_o= "Removes all certificates, clients, client connections and listen configs.\n"
+					, "Options"_o=
 					{
-						"Confirm?"_=
+						"Confirm?"_o=
 						{
-							"Names"_= {"--yes"}
-							, "Default"_= false
-							, "Description"_= "Confirm that you really want to remove all trust."
+							"Names"_o= {"--yes"}
+							, "Default"_o= false
+							, "Description"_o= "Confirm that you really want to remove all trust."
 						}
 					}
 				}
@@ -86,11 +86,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-list"}
-					, "Category"_= Category
-					, "Description"_= "List the outgoing addresses that the application tries to connect to.\n"
-					, "Output"_= "A new line separated list of outgoing connections."
-					, "Options"_=
+					"Names"_o= {"--trust-connection-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List the outgoing addresses that the application tries to connect to.\n"
+					, "Output"_o= "A new line separated list of outgoing connections."
+					, "Options"_o=
 					{
 						IncludeFriendlyNameOption
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -112,11 +112,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-status"}
-					, "Category"_= Category
-					, "Description"_= "List the status for all outgoing connections.\n"
-					, "Output"_= "A table with the status for outgoing connections."
-					, "Options"_=
+					"Names"_o= {"--trust-connection-status"}
+					, "Category"_o= Category
+					, "Description"_o= "List the status for all outgoing connections.\n"
+					, "Output"_o= "A table with the status for outgoing connections."
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -132,11 +132,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-debug-stats"}
-					, "Category"_= Category
-					, "Description"_= "Show debug info for connections.\n"
-					, "Output"_= "A table with debug info for connected hosts."
-					, "Options"_=
+					"Names"_o= {"--trust-connection-debug-stats"}
+					, "Category"_o= Category
+					, "Description"_o= "Show debug info for connections.\n"
+					, "Output"_o= "A table with debug info for connected hosts."
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -152,30 +152,30 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-add"}
-					, "Category"_= Category
-					, "Description"_= "Add a connection to a remote distributed actor host.\n"
+					"Names"_o= {"--trust-connection-add"}
+					, "Category"_o= Category
+					, "Description"_o= "Add a connection to a remote distributed actor host.\n"
 						"The ticket encodes the url of the remote host and can usually be generated by the remote host by running --generate-connection-ticket.\n"
 						"A ticket can only be used once and expires after a set time.\n"
-					, "Output"_= "The host information for the remote server."
-					, "Parameters"_=
+					, "Output"_o= "The host information for the remote server."
+					, "Parameters"_o=
 					{
-						"Ticket?"_=
+						"Ticket?"_o=
 						{
-							"Default"_= ""
-							, "Description"_= "Specify ticket to use for adding the connection, if this is empty, the ticket will be promted for."
+							"Default"_o= ""
+							, "Description"_o= "Specify ticket to use for adding the connection, if this is empty, the ticket will be promted for."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
 						ConnectionConcurrencyOption
 						, IncludeFriendlyNameOption
-						, "TrustedNamespaces?"_=
+						, "TrustedNamespaces?"_o=
 						{
-							"Names"_= {"--trusted-namespaces"}
-							, "Type"_= {""}
-							, "Default"_= _[_]
-							, "Description"_= "The namespaces that should be trusted for the host you are establishing trust with."
+							"Names"_o= {"--trusted-namespaces"}
+							, "Type"_o= {""}
+							, "Default"_o= _[_]
+							, "Description"_o= "The namespaces that should be trusted for the host you are establishing trust with."
 						}
 					}
 				}
@@ -210,24 +210,24 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-set-concurrency"}
-					, "Category"_= Category
-					, "Description"_= "Sets the number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-connection-set-concurrency"}
+					, "Category"_o= Category
+					, "Description"_o= "Sets the number of parallel connections to connect to address with. Useful for increasing network throughput. Set to -1 to use default.\n"
+					, "Parameters"_o=
 					{
-						"ConnectionConcurrency"_=
+						"ConnectionConcurrency"_o=
 						{
-							"Type"_= -1
-							, "Description"_= "Specify ticket to use for adding the connection."
+							"Type"_o= -1
+							, "Description"_o= "Specify ticket to use for adding the connection."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"Address"_=
+						"Address"_o=
 						{
-							"Names"_= {"--address"}
-							, "Type"_= ""
-							, "Description"_= "The client connection address to set connection concurrency for."
+							"Names"_o= {"--address"}
+							, "Type"_o= ""
+							, "Description"_o= "The client connection address to set connection concurrency for."
 						}
 					}
 				}
@@ -256,19 +256,19 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-add-additional"}
-					, "Category"_= Category
-					, "Description"_= "Add a connection to an already trusted host.\n"
-					, "Output"_= "The host information for the remote server."
-					, "Parameters"_=
+					"Names"_o= {"--trust-connection-add-additional"}
+					, "Category"_o= Category
+					, "Description"_o= "Add a connection to an already trusted host.\n"
+					, "Output"_o= "The host information for the remote server."
+					, "Parameters"_o=
 					{
-						"ConnectionURL"_=
+						"ConnectionURL"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The URL of the connection you want to add."
+							"Type"_o= ""
+							, "Description"_o= "The URL of the connection you want to add."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
 						ConnectionConcurrencyOption
 						, IncludeFriendlyNameOption
@@ -300,15 +300,15 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-connection-remove"}
-					, "Category"_= Category
-					, "Description"_= "Remove an outgoing connection.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-connection-remove"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove an outgoing connection.\n"
+					, "Parameters"_o=
 					{
-						"ConnectionURL"_=
+						"ConnectionURL"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The URL of the connection you want to remove."
+							"Type"_o= ""
+							, "Description"_o= "The URL of the connection you want to remove."
 						}
 					}
 				}
@@ -331,11 +331,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-trusted-list"}
-					, "Category"_= Category
-					, "Description"_= "List the incoming hosts that are trusted by this application.\n"
-					, "Output"_= "A line separated list of trusted connections."
-					, "Options"_=
+					"Names"_o= {"--trust-trusted-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List the incoming hosts that are trusted by this application.\n"
+					, "Output"_o= "A line separated list of trusted connections."
+					, "Options"_o=
 					{
 						IncludeFriendlyNameOption
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -358,15 +358,15 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-trusted-remove"}
-					, "Category"_= Category
-					, "Description"_= "Remove the incoming trust for a host id.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-trusted-remove"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove the incoming trust for a host id.\n"
+					, "Parameters"_o=
 					{
-						"HostID"_=
+						"HostID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The host ID of the host you want to remove trust for."
+							"Type"_o= ""
+							, "Description"_o= "The host ID of the host you want to remove trust for."
 						}
 					}
 				}
@@ -387,36 +387,36 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-generate-ticket"}
-					, "Category"_= Category
-					, "Description"_= "Generate a ticket that can be used to connect to this application from remote host.\n"
+					"Names"_o= {"--trust-generate-ticket"}
+					, "Category"_o= Category
+					, "Description"_o= "Generate a ticket that can be used to connect to this application from remote host.\n"
 						" The ticket encodes the url of this host."
 						" A ticket can only be used once and expires after a set time."
 						" Once used with --trust-add-connection on the remote host the remote host will be trusted by this application."
-					, "Output"_= "The trust ticket that can be used with --trust-add-connection on the remote application."
-					, "Options"_=
+					, "Output"_o= "The trust ticket that can be used with --trust-add-connection on the remote application."
+					, "Options"_o=
 					{
-						"Permissions?"_=
+						"Permissions?"_o=
 						{
-							"Names"_= {"--permissions"}
-							, "Type"_= {""}
-							, "Default"_= _[_]
-							, "Description"_= "The permissions that should be granted to the host/user that uses the returned ticket."
+							"Names"_o= {"--permissions"}
+							, "Type"_o= {""}
+							, "Default"_o= _[_]
+							, "Description"_o= "The permissions that should be granted to the host/user that uses the returned ticket."
 						}
-						, "UserID?"_=
+						, "UserID?"_o=
 						{
-							"Names"_= {"--user"}
-							, "Type"_= ""
-							, "Description"_= "If specified, the permissions are added for the specific user for the host that uses the ticket."
+							"Names"_o= {"--user"}
+							, "Type"_o= ""
+							, "Description"_o= "If specified, the permissions are added for the specific user for the host that uses the ticket."
 						}
 						, PermissionUserAuthenticationFactorsOption
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"ForListenURL?"_=
+						"ForListenURL?"_o=
 						{
-							"Default"_= ""
-							, "Description"_=  "Specify the URL you want to generate a ticket for.\n"
+							"Default"_o= ""
+							, "Description"_o=  "Specify the URL you want to generate a ticket for.\n"
 								"This is needed because the ticket includes the public certificate to connect to this server. Every host has a different certificate"
 								" so you need to specify the listen address to be able to know which certificate to send with the ticket.\n"
 								"If you do not specify the URL the primary listen URL will be used. The primary listen URL is the first listen URL specified in the config file."
@@ -462,11 +462,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-listen-list"}
-					, "Category"_= Category
-					, "Description"_= "List addresses that this application listens for incoming connections on.\n"
-					, "Output"_= "A new line separated list of listen addresses."
-					, "Options"_=
+					"Names"_o= {"--trust-listen-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List addresses that this application listens for incoming connections on.\n"
+					, "Output"_o= "A new line separated list of listen addresses."
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -483,30 +483,30 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-listen-add"}
-					, "Category"_= Category
-					, "Description"_= "Start listening for connections on address.\n"
+					"Names"_o= {"--trust-listen-add"}
+					, "Category"_o= Category
+					, "Description"_o= "Start listening for connections on address.\n"
 						+ OverwriteWarning
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"ListenURL"_=
+						"ListenURL"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The address you want to start listening on."
+							"Type"_o= ""
+							, "Description"_o= "The address you want to start listening on."
 						}
-						, "MakePrimary?"_=
+						, "MakePrimary?"_o=
 						{
-							"Default"_= false
-							, "Description"_= ""
+							"Default"_o= false
+							, "Description"_o= ""
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"Primary?"_=
+						"Primary?"_o=
 						{
-							"Names"_= {"--primary", "-p"}
-							, "Default"_= false
-							, "Description"_= "Make the new address the primary listen.\n"
+							"Names"_o= {"--primary", "-p"}
+							, "Default"_o= false
+							, "Description"_o= "Make the new address the primary listen.\n"
 							"If no listen currently exists the new address will always be made primary."
 						}
 						, CTableRenderHelper::fs_OutputTypeOption()
@@ -529,16 +529,16 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-listen-remove"}
-					, "Category"_= Category
-					, "Description"_= "Stop listening for connections on address.\n"
+					"Names"_o= {"--trust-listen-remove"}
+					, "Category"_o= Category
+					, "Description"_o= "Stop listening for connections on address.\n"
 						+ OverwriteWarning
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"ListenURL"_=
+						"ListenURL"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The address you want to stop listening on."
+							"Type"_o= ""
+							, "Description"_o= "The address you want to stop listening on."
 						}
 					}
 				}
@@ -559,17 +559,17 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-listen-set-primary"}
-					, "Category"_= Category
-					, "Description"_= "Set the primary listen URL.\n"
+					"Names"_o= {"--trust-listen-set-primary"}
+					, "Category"_o= Category
+					, "Description"_o= "Set the primary listen URL.\n"
 						"This URL is the URL that will be used by default when --trust-generate-ticket is called without specifying the URL.\n"
 						+ OverwriteWarning
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"ListenURL"_=
+						"ListenURL"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The address you want to use as the primary listen address."
+							"Type"_o= ""
+							, "Description"_o= "The address you want to use as the primary listen address."
 						}
 					}
 				}
@@ -591,17 +591,17 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-namespace-list"}
-					, "Category"_= Category
-					, "Description"_= "List actor publication namespaces that this application publishes as well as the hosts that are trusted for those namespaces.\n"
-					, "Output"_= "A new line separated list of namespaces and the hosts that are trusted and untrusted."
-					, "Options"_=
+					"Names"_o= {"--trust-namespace-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List actor publication namespaces that this application publishes as well as the hosts that are trusted for those namespaces.\n"
+					, "Output"_o= "A new line separated list of namespaces and the hosts that are trusted and untrusted."
+					, "Options"_o=
 					{
-						"IncludeTrustedHosts?"_=
+						"IncludeTrustedHosts?"_o=
 						{
-							"Names"_= {"--include-hosts"}
-							, "Default"_= true
-							, "Description"_= "Include trusted and untrusted hosts in output."
+							"Names"_o= {"--include-hosts"}
+							, "Default"_o= true
+							, "Description"_o= "Include trusted and untrusted hosts in output."
 						}
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -623,24 +623,24 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-namespace-add-trusted-host"}
-					, "Category"_= Category
-					, "Description"_= "Trust a host for the specified namespace.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-namespace-add-trusted-host"}
+					, "Category"_o= Category
+					, "Description"_o= "Trust a host for the specified namespace.\n"
+					, "Parameters"_o=
 					{
-						"TrustHost"_=
+						"TrustHost"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The host to trust."
+							"Type"_o= ""
+							, "Description"_o= "The host to trust."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"TrustNamespace"_=
+						"TrustNamespace"_o=
 						{
-							"Names"_= {"--namespace"}
-							, "Type"_= ""
-							, "Description"_= "The namespace to trust the host for."
+							"Names"_o= {"--namespace"}
+							, "Type"_o= ""
+							, "Description"_o= "The namespace to trust the host for."
 						}
 					}
 				}
@@ -668,24 +668,24 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-namespace-remove-trusted-host"}
-					, "Category"_= Category
-					, "Description"_= "Untrust a host for the specified namespace.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-namespace-remove-trusted-host"}
+					, "Category"_o= Category
+					, "Description"_o= "Untrust a host for the specified namespace.\n"
+					, "Parameters"_o=
 					{
-						"TrustHost"_=
+						"TrustHost"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The host to untrust."
+							"Type"_o= ""
+							, "Description"_o= "The host to untrust."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"TrustNamespace"_=
+						"TrustNamespace"_o=
 						{
-							"Names"_= {"--namespace"}
-							, "Type"_= ""
-							, "Description"_= "The namespace to untrust the host for."
+							"Names"_o= {"--namespace"}
+							, "Type"_o= ""
+							, "Description"_o= "The namespace to untrust the host for."
 						}
 					}
 				}
@@ -714,17 +714,17 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-permission-list"}
-					, "Category"_= Category
-					, "Description"_= "List host permissions.\n"
-					, "Output"_= "A new line separated list of permissions and the hosts that have those permissions."
-					, "Options"_=
+					"Names"_o= {"--trust-permission-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List host permissions.\n"
+					, "Output"_o= "A new line separated list of permissions and the hosts that have those permissions."
+					, "Options"_o=
 					{
-						"IncludeTargets?"_=
+						"IncludeTargets?"_o=
 						{
-							"Names"_= {"--include-targets"}
-							, "Default"_= true
-							, "Description"_= "Include the targets (hosts/users) that have the permissions in the output."
+							"Names"_o= {"--include-targets"}
+							, "Default"_o= true
+							, "Description"_o= "Include the targets (hosts/users) that have the permissions in the output."
 						}
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -746,36 +746,36 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-permission-add"}
-					, "Category"_= Category
-					, "Description"_= "Add a permission to a host, a user, or a host/user pair.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-permission-add"}
+					, "Category"_o= Category
+					, "Description"_o= "Add a permission to a host, a user, or a host/user pair.\n"
+					, "Parameters"_o=
 					{
-						"Permission"_=
+						"Permission"_o=
 						{
-							"Type"_= COneOfType(CEJSONSorted{""}, "")
-							, "Description"_= "The permission to add."
+							"Type"_o= COneOfType(CEJSONOrdered{""}, "")
+							, "Description"_o= "The permission to add."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"HostID?"_=
+						"HostID?"_o=
 						{
-							"Names"_= {"--host"}
-							, "Type"_= ""
-							, "Description"_= "The host to add a permission to."
+							"Names"_o= {"--host"}
+							, "Type"_o= ""
+							, "Description"_o= "The host to add a permission to."
 						}
-						, "UserID?"_=
+						, "UserID?"_o=
 						{
-							"Names"_= {"--user"}
-							, "Type"_= ""
-							, "Description"_= "The user to add the permission to."
+							"Names"_o= {"--user"}
+							, "Type"_o= ""
+							, "Description"_o= "The user to add the permission to."
 						}
-						, "MaxLifetime?"_=
+						, "MaxLifetime?"_o=
 						{
-							"Names"_= {"--max-lifetime"}
-							,"Default"_= CPermissionRequirements::mc_DefaultMaximumLifetime
-							, "Description"_= "The maximum number of minutes that a cached authentication can be used for this granted permission."
+							"Names"_o= {"--max-lifetime"}
+							,"Default"_o= CPermissionRequirements::mc_DefaultMaximumLifetime
+							, "Description"_o= "The maximum number of minutes that a cached authentication can be used for this granted permission."
 						}
 						, PermissionUserAuthenticationFactorsOption
 					}
@@ -824,30 +824,30 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-permission-remove"}
-					, "Category"_= Category
-					, "Description"_= "Remove a permission from a host, a user, or a host/user pair.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-permission-remove"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove a permission from a host, a user, or a host/user pair.\n"
+					, "Parameters"_o=
 					{
-						"Permission"_=
+						"Permission"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The permission to remove."
+							"Type"_o= ""
+							, "Description"_o= "The permission to remove."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
-						"HostID?"_=
+						"HostID?"_o=
 						{
-							"Names"_= {"--host"}
-							, "Type"_= ""
-							, "Description"_= "The host to remove the permission from."
+							"Names"_o= {"--host"}
+							, "Type"_o= ""
+							, "Description"_o= "The host to remove the permission from."
 						}
-						, "UserID?"_=
+						, "UserID?"_o=
 						{
-							"Names"_= {"--user"}
-							, "Type"_= ""
-							, "Description"_= "The user to remove the permission from."
+							"Names"_o= {"--user"}
+							, "Type"_o= ""
+							, "Description"_o= "The user to remove the permission from."
 						}
 					}
 				}
@@ -884,25 +884,25 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-add"}
-					, "Category"_= Category
-					, "Description"_= "Add a user to the database.\n"
-					, "Output"_= "None."
-					, "Options"_=
+					"Names"_o= {"--trust-user-add"}
+					, "Category"_o= Category
+					, "Description"_o= "Add a user to the database.\n"
+					, "Output"_o= "None."
+					, "Options"_o=
 					{
-						"Quiet?"_=
+						"Quiet?"_o=
 						{
-							"Names"_= {"--quiet"}
-							, "Default"_= false
-							, "Description"_= "Don't output user ID."
+							"Names"_o= {"--quiet"}
+							, "Default"_o= false
+							, "Description"_o= "Don't output user ID."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserName"_=
+						"UserName"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The name of the user being added to the database."
+							"Type"_o= ""
+							, "Description"_o= "The name of the user being added to the database."
 						}
 					}
 			}
@@ -915,16 +915,16 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-remove"}
-					, "Category"_= Category
-					, "Description"_= "Remove a user from the database.\n"
-					, "Output"_= "None."
-					, "Parameters"_=
+					"Names"_o= {"--trust-user-remove"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove a user from the database.\n"
+					, "Output"_o= "None."
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to remove from the database."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to remove from the database."
 						}
 					}
 				}
@@ -937,11 +937,11 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-list"}
-					, "Category"_= Category
-					, "Description"_= "List the users in the database.\n"
-					, "Output"_= "A newline separated list of the users."
-					, "Options"_=
+					"Names"_o= {"--trust-user-list"}
+					, "Category"_o= Category
+					, "Description"_o= "List the users in the database.\n"
+					, "Output"_o= "A newline separated list of the users."
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -955,32 +955,32 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-set-userinfo"}
-					, "Category"_= Category
-					, "Description"_= "Set or add metadata to a user.\n"
+					"Names"_o= {"--trust-user-set-userinfo"}
+					, "Category"_o= Category
+					, "Description"_o= "Set or add metadata to a user.\n"
 					"Change user name or add new key, value pairs to the user's metadata or replace a value if the key already exists."
-					, "Options"_=
+					, "Options"_o=
 					{
-						"Metadata?"_=
+						"Metadata?"_o=
 						{
-							"Names"_= {"--metadata"}
-							, "Type"_= EJSONType_Object
-							, "Description"_= "The metadata to set.\n"
+							"Names"_o= {"--metadata"}
+							, "Type"_o= EJSONType_Object
+							, "Description"_o= "The metadata to set.\n"
 							"The metadata is specified as a JSON object '{\"Key\" : \"Value\"}'"
 						}
-						, "UserName?"_=
+						, "UserName?"_o=
 						{
-							"Names"_= {"--username"}
-							, "Type"_= ""
-							, "Description"_= "The new username."
+							"Names"_o= {"--username"}
+							, "Type"_o= ""
+							, "Description"_o= "The new username."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to change the information for."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to change the information for."
 						}
 					}
 
@@ -994,25 +994,25 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-remove-metadata"}
-					, "Category"_= Category
-					, "Description"_= "Remove the metadata matching key from the user."
-					, "Options"_=
+					"Names"_o= {"--trust-user-remove-metadata"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove the metadata matching key from the user."
+					, "Options"_o=
 					{
 
-						"Key"_=
+						"Key"_o=
 						{
-							"Names"_= {"--key"}
-							, "Type"_= ""
-							, "Description"_= "Key of the metadata to remove."
+							"Names"_o= {"--key"}
+							, "Type"_o= ""
+							, "Description"_o= "Key of the metadata to remove."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to remove metadata from."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to remove metadata from."
 						}
 					}
 				}
@@ -1032,10 +1032,10 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-get-default-user"}
-					, "Category"_= Category
-					, "Description"_= "Get the default user name.\n"
-					, "Output"_= "The default username."
+					"Names"_o= {"--trust-user-get-default-user"}
+					, "Category"_o= Category
+					, "Description"_o= "Get the default user name.\n"
+					, "Output"_o= "The default username."
 				}
 				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine)
 				{
@@ -1046,16 +1046,16 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-set-default-user"}
-					, "Category"_= Category
-					, "Description"_= "Set the user name to use.\n"
-					, "Output"_= "None."
-					, "Parameters"_=
+					"Names"_o= {"--trust-user-set-default-user"}
+					, "Category"_o= Category
+					, "Description"_o= "Set the user name to use.\n"
+					, "Output"_o= "None."
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to use."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to use."
 						}
 					}
 				}
@@ -1068,26 +1068,26 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-export"}
-					, "Category"_= Category
-					, "Description"_= "Export a user from the database.\n"
-					, "Output"_= "An encoded text representation of the user data."
-					, "Options"_=
+					"Names"_o= {"--trust-user-export"}
+					, "Category"_o= Category
+					, "Description"_o= "Export a user from the database.\n"
+					, "Output"_o= "An encoded text representation of the user data."
+					, "Options"_o=
 					{
 
-						"IncludePrivate?"_=
+						"IncludePrivate?"_o=
 						{
-							"Names"_= {"--include-private-data"}
-							, "Default"_= false
-							, "Description"_= "In addition to data needed to verify a users identity, include private data needed to authenticate as that user."
+							"Names"_o= {"--include-private-data"}
+							, "Default"_o= false
+							, "Description"_o= "In addition to data needed to verify a users identity, include private data needed to authenticate as that user."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID of the user to export."
+							"Type"_o= ""
+							, "Description"_o= "The user ID of the user to export."
 						}
 					}
 				}
@@ -1106,16 +1106,16 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-import"}
-					, "Category"_= Category
-					, "Description"_= "Import a user into the database.\n"
-					, "Output"_= "None."
-					, "Parameters"_=
+					"Names"_o= {"--trust-user-import"}
+					, "Category"_o= Category
+					, "Description"_o= "Import a user into the database.\n"
+					, "Output"_o= "None."
+					, "Parameters"_o=
 					{
-						"UserData"_=
+						"UserData"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The encoded text representation of the user data."
+							"Type"_o= ""
+							, "Description"_o= "The encoded text representation of the user data."
 						}
 					}
 			}
@@ -1128,30 +1128,30 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-add-authentication-factor"}
-					, "Category"_= Category
-					, "Description"_= "Add an authentication factor to the user."
-					, "Options"_=
+					"Names"_o= {"--trust-user-add-authentication-factor"}
+					, "Category"_o= Category
+					, "Description"_o= "Add an authentication factor to the user."
+					, "Options"_o=
 					{
-						"Factor"_=
+						"Factor"_o=
 						{
-							"Names"_= {"--authentication-factor"}
-							, "Type"_= ""
-							, "Description"_= "The authentication factor to add."
+							"Names"_o= {"--authentication-factor"}
+							, "Type"_o= ""
+							, "Description"_o= "The authentication factor to add."
 						}
-						, "Quiet?"_=
+						, "Quiet?"_o=
 						{
-							"Names"_= {"--quiet"}
-							, "Default"_= false
-							, "Description"_= "Don't output factor ID."
+							"Names"_o= {"--quiet"}
+							, "Default"_o= false
+							, "Description"_o= "Don't output factor ID."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to add an authentication factor to."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to add an authentication factor to."
 						}
 					}
 				}
@@ -1172,24 +1172,24 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-remove-authentication-factor"}
-					, "Category"_= Category
-					, "Description"_= "Remove an authentication factor to the user."
-					, "Options"_=
+					"Names"_o= {"--trust-user-remove-authentication-factor"}
+					, "Category"_o= Category
+					, "Description"_o= "Remove an authentication factor to the user."
+					, "Options"_o=
 					{
-						"Factor"_=
+						"Factor"_o=
 						{
-							"Names"_= {"--authentication-factor"}
-							, "Type"_= ""
-							, "Description"_= "The authentication factor to remove."
+							"Names"_o= {"--authentication-factor"}
+							, "Type"_o= ""
+							, "Description"_o= "The authentication factor to remove."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "The user ID to remove an authentication factor from."
+							"Type"_o= ""
+							, "Description"_o= "The user ID to remove an authentication factor from."
 						}
 					}
 				}
@@ -1209,10 +1209,10 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-list-available-authentication-factor-types"}
-					, "Category"_= Category
-					, "Description"_= "List available authentication factors.\n"
-					, "Options"_=
+					"Names"_o= {"--trust-user-list-available-authentication-factor-types"}
+					, "Category"_o= Category
+					, "Description"_o= "List available authentication factors.\n"
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -1226,18 +1226,18 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-list-authentication-factors"}
-					, "Category"_= Category
-					, "Description"_= "List the authentication factors registered to a user.\n"
-					, "Parameters"_=
+					"Names"_o= {"--trust-user-list-authentication-factors"}
+					, "Category"_o= Category
+					, "Description"_o= "List the authentication factors registered to a user.\n"
+					, "Parameters"_o=
 					{
-						"UserID"_=
+						"UserID"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "List the authentication factors registered for the user."
+							"Type"_o= ""
+							, "Description"_o= "List the authentication factors registered for the user."
 						}
 					}
-					, "Options"_=
+					, "Options"_o=
 					{
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
@@ -1258,31 +1258,31 @@ namespace NMib::NConcurrency
 		Distributed.f_RegisterCommand
 			(
 				{
-					"Names"_= {"--trust-user-authenticate-pattern"}
-					, "Category"_= Category
-					, "Description"_= "Give advance authentication for all permissions that matches the pattern.\n"
-					, "Options"_=
+					"Names"_o= {"--trust-user-authenticate-pattern"}
+					, "Category"_o= Category
+					, "Description"_o= "Give advance authentication for all permissions that matches the pattern.\n"
+					, "Options"_o=
 					{
-						"AuthenticationFactors"_=
+						"AuthenticationFactors"_o=
 						{
-							"Names"_= {"--authentication-factors"}
-							, "Type"_= COneOfType{CEJSONSorted({""}), CEJSONSorted{""}}
-							, "Description"_= "The factor(s) used for authentication.\n"
+							"Names"_o= {"--authentication-factors"}
+							, "Type"_o= COneOfType{CEJSONOrdered({""}), CEJSONOrdered{""}}
+							, "Description"_o= "The factor(s) used for authentication.\n"
 							"Authenticate these factors in advance.\n"
 						}
-						, "JSONOutput?"_=
+						, "JSONOutput?"_o=
 						{
-							"Names"_= {"--json-output"}
-							, "Default"_= false
-							, "Description"_= "Return authentication failures/successes in EJSON format."
+							"Names"_o= {"--json-output"}
+							, "Default"_o= false
+							, "Description"_o= "Return authentication failures/successes in EJSON format."
 						}
 					}
-					, "Parameters"_=
+					, "Parameters"_o=
 					{
-						"Pattern"_=
+						"Pattern"_o=
 						{
-							"Type"_= ""
-							, "Description"_= "Pattern for matching permissions.\n"
+							"Type"_o= ""
+							, "Description"_o= "Pattern for matching permissions.\n"
 							"All permissions matching this pattern will preauthenticated with the listed factors\n"
 						}
 					}
@@ -1301,12 +1301,12 @@ namespace NMib::NConcurrency
 		o_CommandLine.f_RegisterGlobalOptions
 			(
 				{
-					"AuthenticationLifetime?"_=
+					"AuthenticationLifetime?"_o=
 					{
-						"Names"_= {"--authentication-lifetime"}
-						,"Default"_= CPermissionRequirements::mc_OverrideLifetimeNotSet
-						, "Description"_= "The number of minutes until the authentication expires when cached."
-						, "ValidForDirectCommand"_= false
+						"Names"_o= {"--authentication-lifetime"}
+						,"Default"_o= CPermissionRequirements::mc_OverrideLifetimeNotSet
+						, "Description"_o= "The number of minutes until the authentication expires when cached."
+						, "ValidForDirectCommand"_o= false
 					}
 				}
 			)
@@ -1314,12 +1314,12 @@ namespace NMib::NConcurrency
 		o_CommandLine.f_RegisterGlobalOptions
 			(
 				{
-					"AuthenticationUser?"_=
+					"AuthenticationUser?"_o=
 					{
-						"Names"_= {"--authentication-user"}
-						,"Type"_= ""
-						, "Description"_= "Override the default user ID used for authentication."
-						, "ValidForDirectCommand"_= false
+						"Names"_o= {"--authentication-user"}
+						,"Type"_o= ""
+						, "Description"_o= "Override the default user ID used for authentication."
+						, "ValidForDirectCommand"_o= false
 					}
 				}
 			)

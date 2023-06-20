@@ -19,23 +19,23 @@ namespace NMib::NConcurrency
 		o_CommandLine.f_RegisterGlobalOptions
 			(
 				{
-					"ConcurrentLogging?"_=
+					"ConcurrentLogging?"_o=
 					{
-						"Names"_= {"--log-on-thread"}
-						, "Default"_= true
-						, "Description"_= "Log on a separate thread to minimally affect application performance and behavior."
+						"Names"_o= {"--log-on-thread"}
+						, "Default"_o= true
+						, "Description"_o= "Log on a separate thread to minimally affect application performance and behavior."
 					}
-					, "StdErrLogger?"_=
+					, "StdErrLogger?"_o=
 					{
-						"Names"_= {"--log-to-stderr"}
-						, "Default"_= false
-						, "Description"_= "Log to stderr."
+						"Names"_o= {"--log-to-stderr"}
+						, "Default"_o= false
+						, "Description"_o= "Log to stderr."
 					}
-					, "LogSeverities?"_=
+					, "LogSeverities?"_o=
 					{
-						"Names"_= {"--log-severities"}
-						, "Type"_= NEncoding::CEJSONSorted{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
-						, "Description"_= "Which log severities to log to stderr"
+						"Names"_o= {"--log-severities"}
+						, "Type"_o= NEncoding::CEJSONOrdered{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
+						, "Description"_o= "Which log severities to log to stderr"
 #if DMibEnableTrace > 0
 						" or with trace logger."
 #else
@@ -50,11 +50,11 @@ namespace NMib::NConcurrency
 		o_CommandLine.f_RegisterGlobalOptions
 			(
 				{
-					"TraceLogger?"_=
+					"TraceLogger?"_o=
 					{
-						"Names"_= {"--log-to-trace"}
-						, "Default"_= bool(NSys::fg_System_BeingDebugged())
-						, "Description"_= "Log to trace."
+						"Names"_o= {"--log-to-trace"}
+						, "Default"_o= bool(NSys::fg_System_BeingDebugged())
+						, "Description"_o= "Log to trace."
 					}
 				}
 			)

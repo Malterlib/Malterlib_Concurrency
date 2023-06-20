@@ -60,19 +60,19 @@ namespace NMib::NConcurrency
 		auto RunCommand = DefaultSection.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--run-application"}
-					, "Description"_= "Runs the application.\n"
-					, "ErrorOnOptionAsParameter"_= false
-					, "ErrorOnOptionAsParameterWhenDefaultCommand"_= false
-					, "ErrorOnCommandAsParameter"_= false
-					, "GreedyDefaultCommandParameters"_= true
-					, "Parameters"_=
+					"Names"_o= {"--run-application"}
+					, "Description"_o= "Runs the application.\n"
+					, "ErrorOnOptionAsParameter"_o= false
+					, "ErrorOnOptionAsParameterWhenDefaultCommand"_o= false
+					, "ErrorOnCommandAsParameter"_o= false
+					, "GreedyDefaultCommandParameters"_o= true
+					, "Parameters"_o=
 					{
-						"AllParams...?"_=
+						"AllParams...?"_o=
 						{
-							"Type"_= {""}
-							, "Default"_= _[_]
-							, "Description"_= "Catch all parameters"
+							"Type"_o= {""}
+							, "Default"_o= _[_]
+							, "Description"_o= "Catch all parameters"
 						}
 					}
 				}

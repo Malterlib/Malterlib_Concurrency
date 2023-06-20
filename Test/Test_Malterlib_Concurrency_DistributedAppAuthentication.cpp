@@ -690,8 +690,8 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{
-						"Names"_= {"--test-actor"}
-						, "Description"_= "Test 3."
+						"Names"_o= {"--test-actor"}
+						, "Description"_o= "Test 3."
 
 					}
 					, [](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
@@ -703,12 +703,12 @@ namespace NTestAuthentication
 
 			auto fSharedParameters = [](auto _Type)
 				{
-					return "Parameters"_=
+					return "Parameters"_o=
 						{
-							"Permissions"_=
+							"Permissions"_o=
 							{
-								"Description"_= "."
-								, "Type"_= _Type
+								"Description"_o= "."
+								, "Type"_o= _Type
 							}
 						}
 					;
@@ -717,7 +717,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -736,7 +736,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -759,7 +759,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Object)}
+					{ "Names"_o= {"--perform-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Object)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -790,7 +790,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-many-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-many-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -809,7 +809,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-many-call-2"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-many-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -828,7 +828,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-many-call-3"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-many-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -847,7 +847,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-many-call-4"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-many-call-4"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -866,7 +866,7 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_= {"--perform-slow-call-1"}, "Description"_= ".", fSharedParameters(EJSONType_Array)}
+					{ "Names"_o= {"--perform-slow-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
 					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;

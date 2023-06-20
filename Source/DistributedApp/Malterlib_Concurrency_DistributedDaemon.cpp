@@ -247,31 +247,31 @@ namespace NMib::NConcurrency
 		Section.f_RegisterSectionOptions
 			(
 				{
-					"Daemon_Mode?"_=
+					"Daemon_Mode?"_o=
 					{
-						"Names"_= {"--mode"}
-						, "Type"_= NCommandLine::COneOf{"global", "user", "all-users"}
-						, "Default"_= DaemonSettings["Mode"].f_String()
-						, "Description"_= "Specify the mode of the daemon.\n"
+						"Names"_o= {"--mode"}
+						, "Type"_o= NCommandLine::COneOf{"global", "user", "all-users"}
+						, "Default"_o= DaemonSettings["Mode"].f_String()
+						, "Description"_o= "Specify the mode of the daemon.\n"
 						"@Indent=16\r"
 						"   global:      Install the daemon as a system daemon. This daemon will start when the computer starts.\r"
 						"   user:        Install the daemon as a user daemon. This daemon will start when the current user logs in.\r"
 						"   all-users:   Install the daemon as a user daemon for all users. This daemon will start when a user logs in.\r"
-						, "DefaultEnabled"_= false
+						, "DefaultEnabled"_o= false
 					}
-					, "Daemon_Verbose?"_=
+					, "Daemon_Verbose?"_o=
 					{
-						"Names"_= {"--verbose"}
-						, "Default"_= false
-						, "Description"_= "Output informational messages to command line.\n"
+						"Names"_o= {"--verbose"}
+						, "Default"_o= false
+						, "Description"_o= "Output informational messages to command line.\n"
 					}
 				}
 			)
 		;
-		auto DaemonNameParam = "Daemon_Name?"_=
+		auto DaemonNameParam = "Daemon_Name?"_o=
 			{
-				"Default"_= DaemonSettings["Name"].f_String()
-				, "Description"_= fg_Format
+				"Default"_o= DaemonSettings["Name"].f_String()
+				, "Description"_o= fg_Format
 				(
 					"The unique name of the daemon.\n"
 					"If you want to override the default name of the daemon you can specify the name here.\n"
@@ -281,57 +281,57 @@ namespace NMib::NConcurrency
 				)
 			}
 		;
-		auto DaemonWaitOption = "Daemon_Wait?"_=
+		auto DaemonWaitOption = "Daemon_Wait?"_o=
 			{
-				"Names"_= {"--wait"}
-				, "Default"_= true
-				, "Description"_= "Wait for daemon to stop."
+				"Names"_o= {"--wait"}
+				, "Default"_o= true
+				, "Description"_o= "Wait for daemon to stop."
 			}
 		;
 
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-add"}
-					, "Description"_= fg_Format
+					"Names"_o= {"--daemon-add"}
+					, "Description"_o= fg_Format
 					(
 						"Add a daemon for the application.\n"
 						"If the add was successful, the name of the daemon will be saved in '{}' unless you disable it with --no-daemon-save-settings.\n"
 						, NFile::CFile::fs_GetFile(SettingsFile)
 					)
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
-					, "Options"_=
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
+					, "Options"_o=
 					{
-						"Daemon_SaveSettings?"_=
+						"Daemon_SaveSettings?"_o=
 						{
-							"Names"_= {"--save-settings"}
-							, "Default"_= true
-							, "Description"_= "Enable or disable the saving of the mode and daemon name to file."
+							"Names"_o= {"--save-settings"}
+							, "Default"_o= true
+							, "Description"_o= "Enable or disable the saving of the mode and daemon name to file."
 						}
-						, "Daemon_RunAsUser?"_=
+						, "Daemon_RunAsUser?"_o=
 						{
-							"Names"_= {"--run-as-user", "-RunAsUser"}
-							, "Default"_= _Settings.m_RunAsUser
-							, "Description"_= "Specify the user that the daemon should run as when started."
+							"Names"_o= {"--run-as-user", "-RunAsUser"}
+							, "Default"_o= _Settings.m_RunAsUser
+							, "Description"_o= "Specify the user that the daemon should run as when started."
 						}
-						, "Daemon_RunAsGroup?"_=
+						, "Daemon_RunAsGroup?"_o=
 						{
-							"Names"_= {"--run-as-group", "-RunAsGroup"}
-							, "Default"_= _Settings.m_RunAsGroup
-							, "Description"_= "Specify the group that the daemon should run as when started."
+							"Names"_o= {"--run-as-group", "-RunAsGroup"}
+							, "Default"_o= _Settings.m_RunAsGroup
+							, "Description"_o= "Specify the group that the daemon should run as when started."
 						}
-						, "Daemon_FailIfAdded?"_=
+						, "Daemon_FailIfAdded?"_o=
 						{
-							"Names"_= {"--fail-if-added"}
-							, "Default"_= true
-							, "Description"_= "Fail if daemon is already installed."
+							"Names"_o= {"--fail-if-added"}
+							, "Default"_o= true
+							, "Description"_o= "Fail if daemon is already installed."
 						}
-						, "Daemon_Start?"_=
+						, "Daemon_Start?"_o=
 						{
-							"Names"_= {"--start"}
-							, "Default"_= true
-							, "Description"_= "Start the daemon after it's added."
+							"Names"_o= {"--start"}
+							, "Default"_o= true
+							, "Description"_o= "Start the daemon after it's added."
 						}
 					}
 				}
@@ -351,10 +351,10 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-remove"}
-					, "Description"_= "Remove the daemon for the application.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
+					"Names"_o= {"--daemon-remove"}
+					, "Description"_o= "Remove the daemon for the application.\n"
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -365,10 +365,10 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-start"}
-					, "Description"_= "Start the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
+					"Names"_o= {"--daemon-start"}
+					, "Description"_o= "Start the daemon.\n"
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -379,14 +379,14 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-restart"}
-					, "Description"_= "Restart the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Options"_=
+					"Names"_o= {"--daemon-restart"}
+					, "Description"_o= "Restart the daemon.\n"
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Options"_o=
 					{
 						DaemonWaitOption
 					}
-					, "Parameters"_= {DaemonNameParam}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -397,14 +397,14 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-stop"}
-					, "Description"_= "Stop the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Options"_=
+					"Names"_o= {"--daemon-stop"}
+					, "Description"_o= "Stop the daemon.\n"
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Options"_o=
 					{
 						DaemonWaitOption
 					}
-					, "Parameters"_= {DaemonNameParam}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -415,20 +415,20 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-run-debug"}
-					, "Description"_=
+					"Names"_o= {"--daemon-run-debug"}
+					, "Description"_o=
 						"Run the daemon as a program.\n"
 						"Mostly for debugging purposes. On supported operating systems a tray icon will be added that you can use to send commands to the daemon.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
-					, "Options"_=
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
+					, "Options"_o=
 					{
 #ifdef DPlatformFamily_Windows
-						"Daemon_DetachConsole?"_=
+						"Daemon_DetachConsole?"_o=
 						{
-							"Names"_= {"--detach-console"}
-							, "Default"_= false
-							, "Description"_= "Detach from console so no window is displayed."
+							"Names"_o= {"--detach-console"}
+							, "Default"_o= false
+							, "Description"_o= "Detach from console so no window is displayed."
 						}
 #endif
 					}
@@ -442,12 +442,12 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-run-standalone"}
-					, "Description"_=
+					"Names"_o= {"--daemon-run-standalone"}
+					, "Description"_o=
 						"Run the daemon as a program without debugging helpers.\n"
 						"Use this when you want to run the daemon manually without attempting to use system daemon facilities and without daemonizing.\n"
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -458,15 +458,15 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-exists"}
-					, "Description"_= "Check if the daemon exists and has been installed.\n"
-					, "Status"_=
+					"Names"_o= {"--daemon-exists"}
+					, "Description"_o= "Check if the daemon exists and has been installed.\n"
+					, "Status"_o=
 					{
-						"0"_= "The daemon exists"
-						, "1"_= "The daemon does not exist"
+						"0"_o= "The daemon exists"
+						, "1"_o= "The daemon does not exist"
 					}
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
 				}
 				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
@@ -477,40 +477,40 @@ namespace NMib::NConcurrency
 		Section.f_RegisterDirectCommand
 			(
 				{
-					"Names"_= {"--daemon-run", "-Service"}
-					, "Description"_= "Runs the daemon. [INTERNAL]\n"
-					, "Status"_=
+					"Names"_o= {"--daemon-run", "-Service"}
+					, "Description"_o= "Runs the daemon. [INTERNAL]\n"
+					, "Status"_o=
 					{
-						"0"_= "The daemon exists"
-						, "1"_= "The daemon does not exist"
+						"0"_o= "The daemon exists"
+						, "1"_o= "The daemon does not exist"
 					}
-					, "SectionOptions"_= {"Daemon_Mode", "Daemon_Verbose"}
-					, "Parameters"_= {DaemonNameParam}
-					, "Options"_=
+					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
+					, "Parameters"_o= {DaemonNameParam}
+					, "Options"_o=
 					{
-						"Daemon_Daemonize?"_=
+						"Daemon_Daemonize?"_o=
 						{
-							"Names"_= {"--daemonize", "-Daemonize"}
-							, "Type"_= true
-							, "Description"_= "Daemonizes the daemon on some platforms. [INTERNAL]"
+							"Names"_o= {"--daemonize", "-Daemonize"}
+							, "Type"_o= true
+							, "Description"_o= "Daemonizes the daemon on some platforms. [INTERNAL]"
 						}
-						, "Daemon_DoStart?"_=
+						, "Daemon_DoStart?"_o=
 						{
-							"Names"_= {"--do-start", "-DoStart"}
-							, "Type"_= true
-							, "Description"_= "Starts the daemon on some platform. [INTERNAL]"
+							"Names"_o= {"--do-start", "-DoStart"}
+							, "Type"_o= true
+							, "Description"_o= "Starts the daemon on some platform. [INTERNAL]"
 						}
-						, "Daemon_DoStop?"_=
+						, "Daemon_DoStop?"_o=
 						{
-							"Names"_= {"--do-stop", "-DoStop"}
-							, "Type"_= true
-							, "Description"_= "Stops the daemon on some platform. [INTERNAL]"
+							"Names"_o= {"--do-stop", "-DoStop"}
+							, "Type"_o= true
+							, "Description"_o= "Stops the daemon on some platform. [INTERNAL]"
 						}
-						, "Daemon_DoStatus?"_=
+						, "Daemon_DoStatus?"_o=
 						{
-							"Names"_= {"--do-status", "-DoStatus"}
-							, "Type"_= true
-							, "Description"_= "Checks daemon status on some platform. [INTERNAL]"
+							"Names"_o= {"--do-status", "-DoStatus"}
+							, "Type"_o= true
+							, "Description"_o= "Checks daemon status on some platform. [INTERNAL]"
 						}
 					}
 				}

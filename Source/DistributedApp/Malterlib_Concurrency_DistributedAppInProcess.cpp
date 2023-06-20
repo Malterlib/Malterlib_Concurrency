@@ -85,8 +85,8 @@ namespace NMib::NConcurrency
 						_Spec.f_GetDefaultSection().f_RegisterDirectCommand
 							(
 								{
-									"Names"_= {"--daemon-run-in-app"}
-									, "Description"_= "Run as in app daemon"
+									"Names"_o= {"--daemon-run-in-app"}
+									, "Description"_o= "Run as in app daemon"
 								}
 								, [](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 								{

@@ -296,7 +296,7 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 				, "Malterlib/Concurrency/Sensor"
-				, "Failed to {} sensor reporter"
+				, "Failed to handle '{}' for sensor reporter"
 			)
 		;
 

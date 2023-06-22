@@ -92,6 +92,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_InterfaceSettings m_InterfaceSettings;
 		EDefaultCommandLineFunctionality m_DefaultCommandLineFunctionality = EDefaultCommandLineFunctionality_All;
 		fp64 m_ReconnectDelay = 500_ms;
+		fp64 m_MaxShutdownTime = 3_minutes;
 
 		bool m_bSeparateDistributionManager = false;
 		bool m_bSupportUserAuthentication = true;

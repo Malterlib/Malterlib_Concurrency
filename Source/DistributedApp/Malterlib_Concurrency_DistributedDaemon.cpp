@@ -123,6 +123,8 @@ namespace NMib::NConcurrency
 				if (_Params.f_GetMember("Daemon_RunAsGroup"))
 					o_DaemonParams.f_SetRunAsGroup(_Params["Daemon_RunAsGroup"].f_String());
 			}
+			if (_Params.f_GetMember("Daemon_MaxShutdownTime"))
+				o_DaemonParams.f_SetMaxShutdownTime(_Params["Daemon_MaxShutdownTime"].f_Float());
 			if (_Params.f_GetMember("Daemon_FailIfAdded"))
 				o_DaemonParams.f_SetActionParam(!_Params["Daemon_FailIfAdded"].f_Boolean());
 			else if (_Params.f_GetMember("Daemon_Wait"))
@@ -320,6 +322,12 @@ namespace NMib::NConcurrency
 							"Names"_o= {"--run-as-group", "-RunAsGroup"}
 							, "Default"_o= _Settings.m_RunAsGroup
 							, "Description"_o= "Specify the group that the daemon should run as when started."
+						}
+						, "Daemon_MaxShutdownTime?"_o=
+						{
+							"Names"_o= {"--max-shutdown-time"}
+							, "Default"_o= _Settings.m_MaxShutdownTime
+							, "Description"_o= "Specify the max shutdown time after which the daemon is killed when stopping daemon."
 						}
 						, "Daemon_FailIfAdded?"_o=
 						{

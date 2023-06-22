@@ -38,6 +38,7 @@ namespace NMib::NConcurrency
 		CDistributedAppActor_Settings &&f_CommandLineBeforeAppStart(bool _bCommandLineBeforeAppStart) &&;
 		CDistributedAppActor_Settings &&f_TimeoutForUnixSockets(bool _bTimeoutForUnixSockets) &&;
 		CDistributedAppActor_Settings &&f_ReconnectDelay(fp64 _ReconnectDelay) &&;
+		CDistributedAppActor_Settings &&f_MaxShutdownTime(fp64 _MaxShutdownTime) &&;
 	private:
 		NStr::CStr fp_GetLocalSocketPath(NStr::CStr const &_Prefix, bool _bEnclaveSpecific, NStr::CStr const &_Enclave) const;
 	};

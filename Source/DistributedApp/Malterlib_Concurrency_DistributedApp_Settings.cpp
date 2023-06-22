@@ -218,6 +218,12 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_MaxShutdownTime(fp64 _MaxShutdownTime) &&
+	{
+		m_MaxShutdownTime = _MaxShutdownTime;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_DefaultCommandLineFunctionalies(EDefaultCommandLineFunctionality _DefaultCommandLineFunctionality) &&
 	{
 		m_DefaultCommandLineFunctionality = _DefaultCommandLineFunctionality;

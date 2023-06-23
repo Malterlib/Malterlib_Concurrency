@@ -218,6 +218,18 @@ namespace NMib::NConcurrency
 		return fg_Move(*this);
 	}
 
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_HostTimeoutOnShutdown(fp64 _HostTimeoutOnShutdown) &&
+	{
+		m_HostTimeoutOnShutdown = _HostTimeoutOnShutdown;
+		return fg_Move(*this);
+	}
+
+	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_KillHostsTimeoutOnShutdown(fp64 _KillHostsTimeoutOnShutdown) &&
+	{
+		m_KillHostsTimeoutOnShutdown = _KillHostsTimeoutOnShutdown;
+		return fg_Move(*this);
+	}
+
 	CDistributedAppActor_Settings &&CDistributedAppActor_Settings::f_MaxShutdownTime(fp64 _MaxShutdownTime) &&
 	{
 		m_MaxShutdownTime = _MaxShutdownTime;

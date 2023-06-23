@@ -148,7 +148,7 @@ namespace NMib::NConcurrency
 					if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
 						return;
 
-					if (_Sequence != _pConnection->m_ConnectionSequence)
+					if (_Sequence != _pConnection->m_ConnectionSequence || m_bPreShutdown)
 						return;
 
 					fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
@@ -658,6 +658,9 @@ namespace NMib::NConcurrency
 
 		auto &Internal = *mp_pInternal;
 
+		if (Internal.m_bPreShutdown)
+			return Promise <<= DMibErrorInstance("Distribution manager is shutting down");
+
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
 		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
 			return Promise.f_MoveFuture();
@@ -768,6 +771,9 @@ namespace NMib::NConcurrency
 
 		if (!pConnection)
 			return Promise <<= DMibErrorInstance("No such client connection");
+
+		if (Internal.m_bPreShutdown)
+			return Promise <<= DMibErrorInstance("Distribution manager is shutting down");
 
 		auto &Connection = **pConnection;
 

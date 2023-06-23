@@ -764,6 +764,9 @@ namespace NMib::NConcurrency
 
 		mp_State.m_bStoppingApp = true;
 
+		if (mp_State.m_DistributionManager)
+			co_await mp_State.m_DistributionManager(&CActorDistributionManager::f_PrepareShutdown, mp_Settings.m_HostTimeoutOnShutdown, mp_Settings.m_KillHostsTimeoutOnShutdown);
+
 		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
 
 		auto &Internal = *mp_pInternal;

@@ -434,9 +434,11 @@ namespace NMib::NConcurrency
 		fp64 m_HostDaemonTimeout;
 		fp64 m_ReconnectDelay;
 		bool m_bCleanupSetup = false;
+		bool m_bPreShutdown = false;
 
-		void fp_CleanupUpdateTimer();
+		void fp_CleanupUpdateTimer(bool _bForceUpdate);
 		void fp_CleanupPerform();
+		TCFuture<void> fp_PreShutdownCleanupPerform();
 		void fp_CleanupMarkActive(CHost &_Host);
 		void fp_CleanupMarkInactive(CHost &_Host);
 

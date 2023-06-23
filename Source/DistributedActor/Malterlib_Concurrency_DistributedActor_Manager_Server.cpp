@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 								co_return {};
 							}
 
-							if (m_pThis->f_IsDestroyed())
+							if (m_pThis->f_IsDestroyed() || m_bPreShutdown)
 							{
 								fReject("Shutting down");
 								co_return {};

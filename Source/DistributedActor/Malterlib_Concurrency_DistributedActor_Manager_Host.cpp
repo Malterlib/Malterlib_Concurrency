@@ -145,7 +145,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			if (Host.m_HostInfo.m_bAnonymous)
+			if (Host.m_HostInfo.m_bAnonymous || m_bPreShutdown)
 				fp_DestroyClientConnection(Connection, true, "Reset host state", false, nullptr);
 			else
 				fp_ScheduleReconnect(fg_Explicit(&Connection), true, Connection.m_ConnectionSequence, "Reset host state", true);

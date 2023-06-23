@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 			return;
 
 		_Host.m_InactiveHostsLink.f_Unlink();
-		fp_CleanupUpdateTimer();
+		fp_CleanupUpdateTimer(false);
 	}
 
 	void CActorDistributionManagerInternal::fp_CleanupMarkInactive(CHost &_Host)
@@ -26,10 +26,44 @@ namespace NMib::NConcurrency
 
 		_Host.m_InactiveClock.f_Start();
 		m_InactiveHosts.f_Insert(_Host);
-		fp_CleanupUpdateTimer();
+		fp_CleanupUpdateTimer(false);
 	}
 
-	void CActorDistributionManagerInternal::fp_CleanupUpdateTimer()
+	TCFuture<void> CActorDistributionManagerInternal::fp_PreShutdownCleanupPerform()
+	{
+		co_return {};
+	}
+
+	void CActorDistributionManager::f_PrepareShutdown(fp64 _HostTimeout, fp64 _KillHostsTimeout)
+	{
+		using namespace NStr;
+
+		auto &Internal = *mp_pInternal;
+		Internal.m_HostDaemonTimeout = _HostTimeout;
+		Internal.m_HostTimeout = _HostTimeout;
+		Internal.fp_CleanupUpdateTimer(true);
+
+		self / [this, _KillHostsTimeout]() -> TCFuture<void>
+			{
+				auto &Internal = *mp_pInternal;
+
+				co_await fg_Timeout(_KillHostsTimeout);
+
+				if (f_IsDestroyed())
+					co_return {};
+
+				Internal.m_bPreShutdown = true;
+
+				while (auto *pHost = Internal.m_Hosts.f_FindAny())
+					Internal.fp_DestroyHost(**pHost, nullptr, "Kill host after timeout in prepare shutdown ({} s)"_f << _KillHostsTimeout);
+
+				co_return {};
+			}
+			> fg_DiscardResult()
+		;
+	}
+
+	void CActorDistributionManagerInternal::fp_CleanupUpdateTimer(bool _bForceUpdate)
 	{
 		if (m_pThis->f_IsDestroyed())
 			return;
@@ -41,10 +75,10 @@ namespace NMib::NConcurrency
 			return;
 		}
 
-		if (m_CleanupTimerSubscription)
+		if (m_CleanupTimerSubscription && !_bForceUpdate)
 			return;
 
-		if (m_bCleanupSetup)
+		if (m_bCleanupSetup && !_bForceUpdate)
 			return;
 
 		m_bCleanupSetup = true;
@@ -61,7 +95,7 @@ namespace NMib::NConcurrency
 						}
 					)
 				;
-				fp_CleanupUpdateTimer();
+				fp_CleanupUpdateTimer(false);
 
 				co_return {};
 			}

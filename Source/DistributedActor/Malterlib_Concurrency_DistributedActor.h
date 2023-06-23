@@ -720,6 +720,8 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		void f_PrepareShutdown(fp64 _HostTimeout, fp64 _KillHostsTimeout);
+
 		static CCallingHostInfo const &fs_GetCallingHostInfo();
 		static NStr::CStr fs_GetCertificateHostID(NContainer::CByteVector const &_Certificate);
 		static NStr::CStr fs_GetCertificateRequestHostID(NContainer::CByteVector const &_Certificate);

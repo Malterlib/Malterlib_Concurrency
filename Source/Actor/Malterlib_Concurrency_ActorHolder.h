@@ -311,7 +311,7 @@ namespace NMib::NConcurrency
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
 		TCActorHolderSharedPointer<CActorHolder> mp_pDelegateTo;
-		COnTerminate *mp_pOnTerminateEntry = nullptr;
+		COnTerminate const *mp_pOnTerminateEntry = nullptr;
 	};
 
 	class CSeparateThreadActorHolder : public CDefaultActorHolder

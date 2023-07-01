@@ -579,11 +579,14 @@ namespace NMib::NConcurrency
 
 			auto &This = *m_pThis;
 
-			while (auto pOnTerminate = This.mp_OnTerminate.f_FindAny())
-			{
-				pOnTerminate->m_fOnTerminate();
-				This.mp_OnTerminate.f_Remove(pOnTerminate);
-			}
+			This.mp_OnTerminate.f_ExtractAll
+				(
+					[&](auto &&_Handle)
+					{
+						_Handle->m_fOnTerminate();
+					}
+				)
+			;
 
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 

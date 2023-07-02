@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		for (auto iHost = m_InactiveHosts.f_GetIter(); iHost;)
+		for (auto iHost = m_InactiveHosts.f_GetIterator(); iHost;)
 		{
 			auto &Host = *iHost;
 			++iHost;

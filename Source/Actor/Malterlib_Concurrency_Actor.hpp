@@ -840,6 +840,7 @@ namespace NMib::NConcurrency
 	{
 		mint iCurrentActor = mp_iCurrentActor;
 		mp_iCurrentActor = (mp_iCurrentActor + 1) % fg_Max(mp_Actors.f_GetLen(), 1u);
+		DMibFastCheck(mp_Actors[iCurrentActor]);
 		return mp_Actors[iCurrentActor];
 	}
 

@@ -31,8 +31,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_MultipleFilters = 0x104
 			, EProtocolVersion_IgnoreRemoved = 0x105
 			, EProtocolVersion_VersionData = 0x106
+			, EProtocolVersion_PauseReporting = 0x107
 
-			, EProtocolVersion_Current = 0x106
+			, EProtocolVersion_Current = 0x107
 		};
 
 		enum ESensorDataType
@@ -260,6 +261,7 @@ namespace NMib::NConcurrency
 			bool f_IsValueCritical(CSensorData const &_Value) const;
 			bool f_HasValueWarnings() const;
 			bool f_HasExpectedReportInterval() const;
+			bool f_IsPaused(NTime::CTime const &_Now, NTime::CTime const &_HostLastSeen, fp32 *o_pPausedForAnotherSeconds = nullptr) const;
 
 			NStr::CStr m_Identifier;
 			NStr::CStr m_IdentifierScope;
@@ -271,6 +273,7 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
+			fp32 m_PauseReportingFor = fp32::fs_QNan();
 			bool m_bRemoved = false;
 		};
 

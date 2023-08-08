@@ -14,6 +14,12 @@ namespace NMib::NConcurrency
 {
 	struct CDistributedAppSensorStoreLocal : public CActor
 	{
+		struct CSeenHost
+		{
+			NStorage::TCOptional<NTime::CTime> m_TimeSeen;
+			NStorage::TCOptional<fp32> m_PauseReportingFor;
+		};
+		
 		CDistributedAppSensorStoreLocal(TCActor<CActorDistributionManager> const &_DistributionManager, TCActor<CDistributedActorTrustManager> const &_TrustManager);
 		~CDistributedAppSensorStoreLocal();
 
@@ -58,7 +64,7 @@ namespace NMib::NConcurrency
 			-> TCFuture<CActorSubscription>
 		;
 
-		TCFuture<void> f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen);
+		TCFuture<void> f_SeenHosts(NContainer::TCMap<NStr::CStr, CSeenHost> &&_HostsSeen);
 		TCFuture<void> f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs);
 		TCFuture<uint32> f_RemoveSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys);
 

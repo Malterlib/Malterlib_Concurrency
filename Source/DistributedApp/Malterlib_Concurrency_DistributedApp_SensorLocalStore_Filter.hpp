@@ -108,6 +108,7 @@ namespace NMib::NConcurrency::NSensorStore
 		(
 			tf_CSensor const &_Sensor
 			, tf_CReading const &_Reading
+			, fp32 _PauseReportingFor
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, NTime::CTime const &_Now
 		)
@@ -123,9 +124,11 @@ namespace NMib::NConcurrency::NSensorStore
 		else if (_Sensor.m_Info.f_IsValueWarning(_Reading.m_Data))
 			return true;
 
-		if (_Sensor.m_Info.f_HasExpectedReportInterval())
+		if (_Sensor.m_Info.f_HasExpectedReportInterval() && _PauseReportingFor != fp32::fs_Inf())
 		{
 			fp64 OutdatedSeconds = (_Now - _Reading.m_Timestamp).f_GetSecondsFraction() - _Sensor.m_Info.m_ExpectedReportInterval;
+			if (!_PauseReportingFor.f_IsNan())
+				OutdatedSeconds -= _PauseReportingFor;
 
 			if (OutdatedSeconds > _Sensor.m_Info.m_ExpectedReportInterval)
 				return true;

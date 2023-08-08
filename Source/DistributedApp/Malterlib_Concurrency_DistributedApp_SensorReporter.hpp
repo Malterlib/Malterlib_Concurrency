@@ -145,6 +145,9 @@ namespace NMib::NConcurrency
 		}
 		else if constexpr (tf_CStream::mc_bConsume)
 			m_LastSeen = NTime::CTime();
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_PauseReporting)
+			_Stream % m_PauseReportingFor;
 	}
 
 	template <typename tf_CStream>
@@ -180,6 +183,7 @@ namespace NMib::NConcurrency
 				"    WarnValue: {}\n"
 				"    CriticalValue: {}\n"
 				"    LastSeen: {}\n"
+				"    PauseReportingFor: {}\n"
 				"    Removed: {}"
 			)
 			<< m_HostID
@@ -194,6 +198,7 @@ namespace NMib::NConcurrency
 			<< m_WarnValue
 			<< m_CriticalValue
 			<< m_LastSeen
+			<< m_PauseReportingFor
 			<< (m_bRemoved ? "true" : "false")
 		;
 	}

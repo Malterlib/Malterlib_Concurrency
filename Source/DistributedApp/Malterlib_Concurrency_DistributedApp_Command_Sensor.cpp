@@ -458,6 +458,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Warn Value", 1);
 		Columns.f_AddHeading("Critical Value", 1);
 		Columns.f_AddHeading("Removed", 1);
+		Columns.f_AddHeading("Paused", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -527,6 +528,7 @@ namespace NMib::NConcurrency
 								, "WarnValue"_= fComparisonValue(SensorInfo.m_WarnValue)
 								, "CriticalValue"_= fComparisonValue(SensorInfo.m_CriticalValue)
 								, "Removed"_= SensorInfo.m_bRemoved
+								, "PauseReportingFor"_= SensorInfo.m_PauseReportingFor
 							}
 						)
 					;
@@ -551,6 +553,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_WarnValue
 							, SensorInfo.m_CriticalValue
 							, SensorInfo.m_bRemoved ? "true" : "false"
+							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
 						)
 					;
 				}

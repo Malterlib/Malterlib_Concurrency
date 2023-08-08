@@ -54,6 +54,7 @@ namespace NMib::NConcurrency::NSensorStore
 		(
 			tf_CSensor const &_Sensor
 			, tf_CReading const &_Reading
+			, fp32 _PauseReportingFor
 			, CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag _Flags
 			, NTime::CTime const &_Now
 		)

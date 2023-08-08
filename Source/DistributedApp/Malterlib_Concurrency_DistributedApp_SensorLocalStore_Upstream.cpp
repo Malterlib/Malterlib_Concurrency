@@ -178,8 +178,6 @@ namespace NMib::NConcurrency
 
 					if (_bCompacting)
 						WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-					else
-						f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction);
 
 					if (DatabaseKey.m_HostID)
 					{
@@ -191,7 +189,12 @@ namespace NMib::NConcurrency
 						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, pSensor->m_Info.m_LastSeen);
 
 						WriteTransaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+
+						if (!_bCompacting)
+							f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction, &KnownHostValue);
 					}
+					else if (!_bCompacting)
+						f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction, nullptr);
 
 					CSensorValue DatabaseSensorInfo;
 					DatabaseSensorInfo.m_Info = pSensor->m_Info;

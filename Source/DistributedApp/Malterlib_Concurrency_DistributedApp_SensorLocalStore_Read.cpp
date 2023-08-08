@@ -46,6 +46,14 @@ namespace NMib::NConcurrency
 			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info))
 				continue;
 
+			if (Key.m_HostID)
+			{
+				CKnownHostKey KnowHostKey{.m_DbPrefix = Internal.m_Prefix, .m_HostID = Key.m_HostID};
+				CKnownHostValue KnowHostValue;
+				if (ReadTransaction.m_Transaction.f_Get(KnowHostKey, KnowHostValue))
+					Value.m_Info.m_PauseReportingFor = fg_MaxValidFloat(KnowHostValue.m_PauseReportingFor, Value.m_Info.m_PauseReportingFor);
+			}
+
 			Batch.f_Insert(fg_Move(Value.m_Info));
 
 			if (Batch.f_GetLen() >= _Params.m_BatchSize)
@@ -348,7 +356,16 @@ namespace NMib::NConcurrency
 					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter, FilterContext, &Value.m_Info))
 						continue;
 
-					if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, Filter.m_Flags, Now))
+					auto PauseReportingFor = Value.m_Info.m_PauseReportingFor;
+					if (Key.m_HostID)
+					{
+						NSensorStoreLocalDatabase::CKnownHostKey KnowHostKey{.m_DbPrefix = Internal.m_Prefix, .m_HostID = Key.m_HostID};
+						NSensorStoreLocalDatabase::CKnownHostValue KnowHostValue;
+						ReadTransaction.m_Transaction.f_Get(KnowHostKey, KnowHostValue);
+						PauseReportingFor = fg_MaxValidFloat(PauseReportingFor, KnowHostValue.m_PauseReportingFor);
+					}
+
+					if (!NSensorStore::fg_FilterSensorValueStatus(Value, ReadingValue, PauseReportingFor, Filter.m_Flags, Now))
 						continue;
 
 					bPassFilter = true;

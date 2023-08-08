@@ -294,7 +294,16 @@ namespace NMib::NConcurrency
 						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info))
 							continue;
 
-						if (!NSensorStore::fg_FilterSensorValueStatus(_Sensor, Reading, Filter.m_Flags, Now))
+						auto PauseReportingFor = _Sensor.m_Info.m_PauseReportingFor;
+						if (SensorDatabaseKey.m_HostID)
+						{
+							NSensorStoreLocalDatabase::CKnownHostKey KnowHostKey{.m_DbPrefix = m_Prefix, .m_HostID = SensorDatabaseKey.m_HostID};
+							NSensorStoreLocalDatabase::CKnownHostValue KnowHostValue;
+							_Transaction.f_Get(KnowHostKey, KnowHostValue);
+							PauseReportingFor = fg_MaxValidFloat(PauseReportingFor, KnowHostValue.m_PauseReportingFor);
+						}
+
+						if (!NSensorStore::fg_FilterSensorValueStatus(_Sensor, Reading, PauseReportingFor, Filter.m_Flags, Now))
 							continue;
 
 						bPassFilter = true;
@@ -348,11 +357,23 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged(CSensor const &_Sensor, NDatabase::CDatabaseSubReadTransaction &_Transaction)
+	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged
+		(
+			CSensor const &_Sensor
+			, NDatabase::CDatabaseSubReadTransaction &_Transaction
+			, CKnownHostValue const *_pKnownHostValue
+		)
 	{
+		if (m_SensorSubscriptions.f_IsEmpty())
+			return;
+
 		auto DatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 
 		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+
+		auto Info = _Sensor.m_Info;
+		if (_pKnownHostValue)
+			Info.m_PauseReportingFor = fg_MaxValidFloat(Info.m_PauseReportingFor, _pKnownHostValue->m_PauseReportingFor);
 
 		for (auto &Subscription : m_SensorSubscriptions)
 		{
@@ -360,9 +381,9 @@ namespace NMib::NConcurrency
 				continue;
 
 			if (Subscription.m_fOnChange)
-				Subscription.m_fOnChange(_Sensor.m_Info) > fg_LogError("SensorLocalStore", "Failed to send sensor change to subscription");
+				Subscription.m_fOnChange(Info) > fg_LogError("SensorLocalStore", "Failed to send sensor change to subscription");
 			else
-				Subscription.m_QueuedChanges[_Sensor.f_GetKey()] = _Sensor.m_Info;
+				Subscription.m_QueuedChanges[_Sensor.f_GetKey()] = Info;
 		}
 	}
 }

@@ -138,7 +138,13 @@ namespace NMib::NConcurrency
 		CStr f_GetSensorUpdateFailedMessage(CSensorReporter const &_Reporter);
 
 		void f_Subscription_Readings(CSensor const &_Sensor, TCVector<CDistributedAppSensorReporter::CSensorReading> const &_Readings, NDatabase::CDatabaseSubReadTransaction &_Transaction);
-		void f_Subscription_SensorInfoChanged(CSensor const &_Sensor, NDatabase::CDatabaseSubReadTransaction &_Transaction);
+		void f_Subscription_SensorInfoChanged
+			(
+				CSensor const &_Sensor
+				, NDatabase::CDatabaseSubReadTransaction &_Transaction
+				, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
+			)
+		;
 
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const;

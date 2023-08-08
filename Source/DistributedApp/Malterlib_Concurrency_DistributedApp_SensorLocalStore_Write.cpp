@@ -9,7 +9,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, CSeenHost> &&_HostsSeen)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -31,16 +31,36 @@ namespace NMib::NConcurrency
 					if (_bCompacting)
 						WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
 
-					for (auto &LastSeen : HostsSeen)
+					for (auto &SeenHost : HostsSeen)
 					{
-						auto &HostID = HostsSeen.fs_GetKey(LastSeen);
+						auto &HostID = HostsSeen.fs_GetKey(SeenHost);
 
 						CKnownHostKey Key{.m_DbPrefix = Internal.m_Prefix, .m_HostID = HostID};
 
 						CKnownHostValue Value;
 						_Transaction.m_Transaction.f_Get(Key, Value);
 
-						Value.m_LastSeen = fg_Max(Value.m_LastSeen, LastSeen);
+						if (SeenHost.m_TimeSeen)
+							Value.m_LastSeen = fg_Max(Value.m_LastSeen, *SeenHost.m_TimeSeen);
+
+						if (SeenHost.m_PauseReportingFor)
+						{
+							if (Value.m_PauseReportingFor != *SeenHost.m_PauseReportingFor)
+							{
+								Value.m_PauseReportingFor = *SeenHost.m_PauseReportingFor;
+
+								CDistributedAppSensorReporter::CSensorInfoKey SensorKey;
+								SensorKey.m_HostID = HostID;
+
+								for (auto &Sensor : Internal.m_Sensors.f_GetIterator_SmallestGreaterThanEqual(SensorKey))
+								{
+									if (Sensor.m_Info.m_HostID != HostID)
+										break;
+
+									Internal.f_Subscription_SensorInfoChanged(Sensor, _Transaction.m_Transaction, &Value);
+								}
+							}
+						}
 						Value.m_bRemoved = false;
 
 						WriteTransaction.m_Transaction.f_Upsert(Key, Value);
@@ -92,6 +112,7 @@ namespace NMib::NConcurrency
 							continue;
 
 						Value.m_bRemoved = true;
+						Value.m_PauseReportingFor = fp32::fs_QNan();
 						WriteTransaction.m_Transaction.f_Upsert(Key, Value);
 					}
 
@@ -403,7 +424,10 @@ namespace NMib::NConcurrency
 
 			// Reset removed state when a sensor has been opened again after being marked as removed. Last seen will only be updated when a sensor is opened in an non-upstream context.
 			if (!_SensorInfo.m_LastSeen.f_IsValid() || _SensorInfo.m_LastSeen == pSensor->m_Info.m_LastSeen)
+			{
 				_SensorInfo.m_bRemoved = pSensor->m_Info.m_bRemoved;
+				_SensorInfo.m_PauseReportingFor = pSensor->m_Info.m_PauseReportingFor;
+			}
 
 			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_Info;
 

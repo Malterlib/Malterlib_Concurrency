@@ -54,6 +54,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		void f_Stream(tf_CStream &_Stream);
 
 		NTime::CTime m_LastSeen;
+		fp32 m_PauseReportingFor = fp32::fs_QNan();
 		bool m_bRemoved = false;
 	};
 

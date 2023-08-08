@@ -51,6 +51,8 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		_Stream % Version;
 		DMibBinaryStreamVersion(_Stream, Version);
 		_Stream % m_LastSeen;
+		if (Version >= CDistributedAppSensorReporter::EProtocolVersion_PauseReporting)
+			_Stream % m_PauseReportingFor;
 		_Stream % m_bRemoved;
 	}
 

@@ -476,7 +476,7 @@ namespace NMib::NConcurrency
 		}
 
 		if (_Flags & ELogOutputFlag_Json)
-			*_pCommandLine += JsonOutput.f_ToString();
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
 		else
 		{
 			if (!bHasHostID)
@@ -788,7 +788,7 @@ namespace NMib::NConcurrency
 			if (_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst)
 				JsonOutputArray = JsonOutputArray.f_Reverse();
 
-			*_pCommandLine += JsonOutput.f_ToString();
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
 		}
 		else
 		{

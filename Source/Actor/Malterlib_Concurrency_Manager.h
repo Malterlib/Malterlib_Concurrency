@@ -155,6 +155,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
 
 		bool m_bDestroyed = false;
+		bool m_bStopped = false;
 
 		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
 		NThread::CMutual m_pConcurrentActorLock;

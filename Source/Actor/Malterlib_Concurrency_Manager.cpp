@@ -285,6 +285,7 @@ namespace NMib::NConcurrency
 	void CConcurrencyManager::f_Stop()
 	{
 		f_BlockOnDestroy();
+		m_bStopped = true;
 		// Signal thread quit
 		for (mint Prio = 0; Prio < EPriority_Max; ++Prio)
 		{
@@ -366,7 +367,9 @@ namespace NMib::NConcurrency
 
 	CConcurrencyManager::~CConcurrencyManager()
 	{
-		f_Stop();
+		if (!m_bStopped)
+			f_Stop();
+
 		for (mint i = 0; i < EPriority_Max; ++i)
 		{
 			for (auto &Queue : m_Queues[i])
@@ -627,6 +630,8 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::fp_AddedActor()
 	{
+		DMibFastCheck(!m_bDestroyed);
+
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue)
 		{
@@ -670,9 +675,11 @@ namespace NMib::NConcurrency
 	{
 		if (m_bDestroyed)
 			return;
-		m_bDestroyed = true;
 		fp_InitConcurrentActors(); // Make sure concurrent actors are created
 		auto &TimerActor = f_GetTimerActor();
+
+		m_bDestroyed = true;
+
 		NTime::CClock Clock{true};
 		NTime::CClock TimerClock{true};
 

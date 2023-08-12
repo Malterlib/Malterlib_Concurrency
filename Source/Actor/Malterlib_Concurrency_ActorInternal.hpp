@@ -83,16 +83,26 @@ namespace NMib::NConcurrency
 	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
 		requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
 	{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+		_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00000010000);
+#endif
+
 		bool bImmediateDelete = false;
 		if (CActorHolder::fsp_ScheduleActorHolderDestroy(_pObject, bImmediateDelete))
 			return;
 
 		if (bImmediateDelete)
 		{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+			_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00000100000);
+#endif
 			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 			_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
 			if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 			{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+				_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00001000000);
+#endif
 				if (CapturedDelete.m_Size)
 					CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 				else
@@ -101,15 +111,24 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+			_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00010000000);
+#endif
 			_pObject->f_ConcurrencyManager().f_DispatchOnCurrentThreadOrConcurrentFirst
 				(
 					_pObject->f_GetPriority()
 					, g_OnScopeExit / [_pObject]
 					{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+						_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00100000000);
+#endif
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 						_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
 						if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
 						{
+#if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
+							_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b01000000000);
+#endif
 							if (CapturedDelete.m_Size)
 								CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
 							else

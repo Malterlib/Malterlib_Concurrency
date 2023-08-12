@@ -2124,6 +2124,9 @@ namespace NMib::NConcurrency::NTest
 				// throwing from unhandled_exception is not supported
 				DMibTestCategory("NotCaught")
 				{
+					if (fg_MemoryManagerFeatures() & EMemoryManagerFeatureFlag_TraceLeaks)
+						return; // Clang doesn't call the correct destructors when throwing from unhandled_exception
+
 					TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
 					auto CleanupRunLoop = g_OnScopeExit / [&]
 						{

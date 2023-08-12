@@ -34,33 +34,39 @@ Import "Apps/*/*.MHeader"
 		{
 			%File "../../External/hidapi/hidapi/^*"
 		}
+
+		Compile.Disabled true
+
 		%Group "mac"
 		{
-			%File "../../External/hidapi/mac/^*.c"
+			%File "../../External/hidapi/mac/*.c"
+			%File "../../External/hidapi/mac/hid.c"
 			{
-				Compile.Disabled true
+				Compile.Disabled false
 				{
-					!PlatformFamily "macOS"
+					!!PlatformFamily "macOS"
 				}
 			}
 		}
 		%Group "windows"
 		{
-			%File "../../External/hidapi/windows/^*.c"
+			%File "../../External/hidapi/windows/*.c"
+			%File "../../External/hidapi/windows/hid.c"
 			{
-				Compile.Disabled true
+				Compile.Disabled false
 				{
-					!PlatformFamily "Windows"
+					!!PlatformFamily "Windows"
 				}
 			}
 		}
 		%Group "linux"
 		{
-			%File "../../External/hidapi/linux/^*.c"
+			%File "../../External/hidapi/linux/*.c"
+			%File "../../External/hidapi/linux/hid.c"
 			{
-				Compile.Disabled true
+				Compile.Disabled false
 				{
-					!PlatformFamily "Linux"
+					!!PlatformFamily "Linux"
 				}
 			}
 		}

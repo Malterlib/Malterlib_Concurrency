@@ -379,6 +379,27 @@ namespace NMib::NConcurrency
 				DMibCheck(Queue.m_JobQueue.f_IsEmpty(Queue.m_JobQueueLocal));
 			}
 		}
+#if DMibConfig_Concurrency_DebugFutures
+		{
+			DMibLock(m_FutureListLock);
+			DMibTrace("Futures alive:{\n}", 0);
+			for (auto &Future : this->m_Futures)
+			{
+				DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
+
+#if DMibConfig_RefCountDebugging
+				mint iCallstack = 0;
+				for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
+				{
+					DMibTrace2("        Reference callstack {}\n", iCallstack);
+					Callstack.f_Trace(12);
+					++iCallstack;
+				}
+#endif
+			}
+			DMibFastCheck(m_Futures.f_IsEmpty());
+		}
+#endif
 	}
 
 	CConcurrencyManager::CQueue::CQueue(CQueue &&_Other)

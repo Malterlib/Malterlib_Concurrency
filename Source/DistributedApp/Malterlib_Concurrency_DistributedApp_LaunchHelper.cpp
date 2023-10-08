@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 					return Promise <<= g_Void;
 				}
 				DMibLog(Info, "Launch subscription goes out of scope: {} {}", _LaunchID, pLaunch->m_HostID);
-				pLaunch->f_Destroy() > [=, Pending = m_PendingDestroys[_LaunchID], HostID = pLaunch->m_HostID](auto &&_Result)
+				pLaunch->f_Destroy() > [=, this, Pending = m_PendingDestroys[_LaunchID], HostID = pLaunch->m_HostID](auto &&_Result)
 					{
 						if (!_Result)
 							DMibLog(Info, "Launch subscription destroy failed: {} {}", _LaunchID, _Result.f_GetExceptionStr());

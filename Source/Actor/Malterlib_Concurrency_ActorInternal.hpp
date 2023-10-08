@@ -88,7 +88,7 @@ namespace NMib::NConcurrency
 #endif
 
 		bool bImmediateDelete = false;
-		if (CActorHolder::fsp_ScheduleActorHolderDestroy(_pObject, bImmediateDelete))
+		if (CActorHolder::fs_ScheduleActorHolderDestroy(_pObject, bImmediateDelete))
 			return;
 
 		if (bImmediateDelete)

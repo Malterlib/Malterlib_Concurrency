@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, HostsSeen = fg_Move(_HostsSeen)]
+				, g_ActorFunctorWeak / [=, this, HostsSeen = fg_Move(_HostsSeen)]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, RemovedHostIDs = fg_Move(_RemovedHostIDs)]
+				, g_ActorFunctorWeak / [=, this, RemovedHostIDs = fg_Move(_RemovedHostIDs)]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
@@ -157,7 +157,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, HostID = _LogInfoKey.m_HostID]
+				, g_ActorFunctorWeak / [=, this, HostID = _LogInfoKey.m_HostID]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;

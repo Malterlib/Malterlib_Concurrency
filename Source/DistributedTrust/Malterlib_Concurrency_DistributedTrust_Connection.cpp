@@ -275,7 +275,7 @@ namespace NMib::NConcurrency
 		for (int32 ToCreate = ConnectionConcurrency - _ConnectionState.m_ConnectionReferences.f_GetLen(); ToCreate > 0; --ToCreate)
 		{
 			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
-				> [=](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
+				> [=, this](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 				{
 					auto *pConnectionState = m_ClientConnections.f_FindEqual(Address);
 					if (!pConnectionState || pConnectionState->m_bRemoving)

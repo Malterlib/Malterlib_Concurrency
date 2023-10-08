@@ -155,7 +155,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey)]
+				, g_ActorFunctorWeak / [=, this, DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey)]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;

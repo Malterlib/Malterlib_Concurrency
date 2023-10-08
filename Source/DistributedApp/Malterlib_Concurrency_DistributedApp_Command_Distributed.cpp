@@ -184,7 +184,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Add trust connection"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								TCSet<CStr> TrustedNamespaces;
 								for (auto &NamespaceJSON : _Params["TrustedNamespaces"].f_Array())
@@ -236,7 +236,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Set connection concurrency"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self
 									(
@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Add additional trust connection"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self
 									(
@@ -317,7 +317,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Remove trust connection"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_RemoveConnection, _pCommandLine, _Params["ConnectionURL"].f_String());
 							}
@@ -375,7 +375,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Remove trusted host"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_RemoveTrustedHost, _pCommandLine, _Params["HostID"].f_String());
 							}
@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Generate trust ticket"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								TCSet<CStr> Permissions;
 								for (auto &PermissionJSON : _Params["Permissions"].f_Array())
@@ -517,7 +517,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Add trust listen address"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_AddListen, _pCommandLine, _Params["ListenURL"].f_String(), _Params["Primary"].f_Boolean());
 							}
@@ -547,7 +547,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Remove listen address"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_RemoveListen, _pCommandLine, _Params["ListenURL"].f_String());
 							}
@@ -578,7 +578,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Set primary listen address"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self(&CDistributedAppActor::f_CommandLine_SetPrimaryListen, _pCommandLine, _Params["ListenURL"].f_String());
 							}
@@ -649,7 +649,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Trusted host for namespace"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self
 									(
@@ -694,7 +694,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Untrust host for namespace"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								return g_Future <<= self
 									(
@@ -785,7 +785,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Add permissions"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								CStr HostID;
 								if (auto *pValue =_Params.f_GetMember("HostID"))
@@ -856,7 +856,7 @@ namespace NMib::NConcurrency
 					return fp_RunCommandLineAndLogError
 						(
 							"Remove permissions"
-							, [=]() -> TCFuture<uint32>
+							, [=, this]() -> TCFuture<uint32>
 							{
 								CStr HostID;
 								if (auto *pValue =_Params.f_GetMember("HostID"))

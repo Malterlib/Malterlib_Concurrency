@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 			co_await m_Database
 				(
 					&CDatabaseActor::f_WriteWithCompaction
-					, g_ActorFunctorWeak / [=]
+					, g_ActorFunctorWeak / [=, this]
 					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 					{
 						co_await ECoroutineFlag_CaptureMalterlibExceptions;

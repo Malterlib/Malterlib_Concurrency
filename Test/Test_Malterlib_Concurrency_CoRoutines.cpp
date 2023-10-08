@@ -465,14 +465,14 @@ namespace NMib::NConcurrency::NTest
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
 						auto Cleanup = g_OnScopeExit / [&]
 							{
 								DMibFastCheck(TestDestruction.m_Test == 20);
 							}
 						;
-						co_return co_await [=]() -> TCFuture<uint32>
+						co_return co_await [=, this]() -> TCFuture<uint32>
 							{
 								uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 								co_return Value + Value2;
@@ -490,7 +490,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
 						auto Cleanup = g_OnScopeExit / [&]
 							{
@@ -499,7 +499,7 @@ namespace NMib::NConcurrency::NTest
 						;
 						co_return co_await
 							(
-								self / [=]() -> TCFuture<uint32>
+								self / [=, this]() -> TCFuture<uint32>
 								{
 									auto Cleanup = g_OnScopeExit / [&]
 										{
@@ -520,7 +520,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReference()
 		{
-			uint32 Value = co_await [=, Value2 = 20]() -> TCFuture<uint32>
+			uint32 Value = co_await [=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -535,7 +535,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			uint32 Value = co_await
 				(
-					self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
 						auto Cleanup = g_OnScopeExit / [&]
 							{
@@ -555,7 +555,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			uint32 Value = co_await
 				(
-					g_Dispatch / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					g_Dispatch / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 					{
 						auto Cleanup = g_OnScopeExit / [&]
 							{
@@ -573,7 +573,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturn()
 		{
-			return [=, Value2 = 20]() -> TCFuture<uint32>
+			return [=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -584,7 +584,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
 					auto Cleanup = g_OnScopeExit / [&]
 						{
@@ -599,9 +599,9 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursive()
 		{
-			return g_Future <<= self / [=, Value2 = 20]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
-					return [=]() -> TCFuture<uint32>
+					return [=, this]() -> TCFuture<uint32>
 						{
 							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 							co_return Value + Value2;
@@ -614,14 +614,14 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
 		{
-			return g_Future <<= self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+			return g_Future <<= self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 			{
 					auto Cleanup = g_OnScopeExit / [&]
 						{
 							DMibFastCheck(TestDestruction.m_Test == 20);
 						}
 					;
-					return g_Future <<= self / [=]() -> TCFuture<uint32>
+					return g_Future <<= self / [=, this]() -> TCFuture<uint32>
 						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{
@@ -640,7 +640,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			TCPromise<uint32> Promise;
 
-			[=, Value2 = 20]() -> TCFuture<uint32>
+			[=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -655,7 +655,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			TCPromise<uint32> Promise;
 
-			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+			self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
 					auto Cleanup = g_OnScopeExit / [&]
 						{
@@ -675,7 +675,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			TCPromise<uint32> Promise;
 
-			[=, Value2 = 20]() -> TCFuture<uint32>
+			[=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -690,7 +690,7 @@ namespace NMib::NConcurrency::NTest
 		{
 			TCPromise<uint32> Promise;
 
-			self / [=, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+			self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
 				{
 					auto Cleanup = g_OnScopeExit / [&]
 						{
@@ -842,7 +842,7 @@ namespace NMib::NConcurrency::NTest
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
-					self / [=, Value = fg_Move(_Value), TestDestruction = CTestDestruction{}]() mutable -> TCFuture<void>
+					self / [=, this, Value = fg_Move(_Value), TestDestruction = CTestDestruction{}]() mutable -> TCFuture<void>
 						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{

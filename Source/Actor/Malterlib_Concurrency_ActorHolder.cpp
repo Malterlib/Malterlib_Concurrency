@@ -519,7 +519,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	inline_never bool CActorHolder::fsp_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete)
+	inline_never bool CActorHolder::fs_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (_pActorHolder == ThreadLocal.m_pCurrentlyDestructingActorHolder)

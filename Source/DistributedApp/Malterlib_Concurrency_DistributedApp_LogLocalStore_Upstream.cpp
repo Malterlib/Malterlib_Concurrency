@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey)]
+				, g_ActorFunctorWeak / [=, this, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey)]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
@@ -189,7 +189,7 @@ namespace NMib::NConcurrency
 
 					auto OnResume = co_await fg_OnResume
 						(
-							[&]() -> CExceptionPointer
+							[&, this]() -> CExceptionPointer
 							{
 								pLog = m_Logs.f_FindEqual(_LogInfoKey);
 								if (!pLog)

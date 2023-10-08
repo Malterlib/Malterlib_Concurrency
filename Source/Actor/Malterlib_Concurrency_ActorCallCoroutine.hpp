@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 			(
 				mp_ActorCall
 				, fg_CurrentActor()
-				, [=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
+				, [=, this, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
 				{
 #if DMibEnableSafeCheck > 0
 					if (!KeepAlive.f_HasValidCoroutine())
@@ -259,7 +259,7 @@ namespace NMib::NConcurrency
 
 		fp_ActorCall
 			(
-				[=, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
+				[=, this, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
 				{
 #if DMibEnableSafeCheck > 0
 					if (!KeepAlive.f_HasValidCoroutine())

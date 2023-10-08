@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 
 		co_await Internal.m_AppInteraceServerSubscription.f_OnActor
 			(
-				g_ActorFunctor / [=, RegisterInfo = fg_Move(RegisterInfo), ConfigFiles = fg_Move(ConfigFiles)]
+				g_ActorFunctor / [=, this, RegisterInfo = fg_Move(RegisterInfo), ConfigFiles = fg_Move(ConfigFiles)]
 				(TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
@@ -334,6 +334,7 @@ namespace NMib::NConcurrency
 				, g_ActorFunctor /
 				[
 					=
+					, this
 					, Buffer = CStrSecure{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]

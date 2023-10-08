@@ -103,11 +103,6 @@ namespace NMib::NConcurrency
 		template <typename t_CImplementation>
 		friend struct TCDistributedActorInstance;
 
-		template <typename tf_CToDelete>
-		friend void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
-			requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
-		;
-
 		struct CDestroyHandler;
 
 	protected:
@@ -128,7 +123,6 @@ namespace NMib::NConcurrency
 		void fp_DetachActor();
 		CActor *fp_GetActorRelaxed() const;
 
-		static bool fsp_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete);
 		static bool fsp_ScheduleActorDestroy(CActorHolder *_pActorHolder);
 
 	public:
@@ -156,6 +150,8 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<ICDistributedActorData> &f_GetDistributedActorData();
 		NStorage::TCSharedPointer<ICDistributedActorData> const &f_GetDistributedActorData() const;
 		CDistributedActorHostInfo f_GetHostInfo();
+		
+		static bool fs_ScheduleActorHolderDestroy(CActorHolder *_pActorHolder, bool &o_bImmediateDelete);
 
 #if DMibConfig_Tests_Enable
 		void f_TestDetach();

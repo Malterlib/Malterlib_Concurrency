@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 				, ICDistributedActorAuthenticationHandler::CSignedProperties{Permissions, Info.m_Challenges, State.m_ExpirationTime}
 				, State.m_UserFactors[*State.m_iCurrentFactor]
 			)
-			> [=](TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse> &&_Response)
+			> [=, this](TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse> &&_Response)
 			{
 				auto &State = *_pState;
 				auto CurrentFactor = *State.m_iCurrentFactor;
@@ -625,7 +625,7 @@ namespace NMib::NConcurrency
 			= mp_State.m_DistributionManager->f_ConstructActor<CDistributedAppAuthenticationHandler>(_pCommandLine, mp_State.m_TrustManager, _AuthenticationLifetime)
 		;
 
-		auto Subscription = g_ActorSubscription / [=]() -> TCFuture<void>
+		auto Subscription = g_ActorSubscription / [=, this]() -> TCFuture<void>
 			{
 				TCActorResultVector<void> Destroys;
 

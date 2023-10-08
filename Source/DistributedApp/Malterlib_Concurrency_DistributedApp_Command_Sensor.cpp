@@ -407,8 +407,8 @@ namespace NMib::NConcurrency
 							"Status"
 							,
 							{
-								"Severity"__= _Value.m_Severity
-								, "Description"__= _Value.m_Description
+								"Severity"_j= _Value.m_Severity
+								, "Description"_j= _Value.m_Description
 							}
 						)
 					;
@@ -420,10 +420,10 @@ namespace NMib::NConcurrency
 							"Version"
 							,
 							{
-								"Identifier"__= _Value.m_Identifier
-								, "Major"__= _Value.m_Major
-								, "Minor"__= _Value.m_Minor
-								, "Revision"__= _Value.m_Revision
+								"Identifier"_j= _Value.m_Identifier
+								, "Major"_j= _Value.m_Major
+								, "Minor"_j= _Value.m_Minor
+								, "Revision"_j= _Value.m_Revision
 							}
 						)
 					;

@@ -100,6 +100,14 @@ namespace NMib::NConcurrency
 		}
 	;
 
+	template <typename tf_CToCleanup>
+	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
+		requires requires
+		{
+			_pToDestroy->f_Destroy() > fg_DiscardResult();
+		}
+	;
+
 	template <typename tf_CActor>
 	auto fg_AsyncDestroy(TCActor<tf_CActor> &_ToDestroy);
 	

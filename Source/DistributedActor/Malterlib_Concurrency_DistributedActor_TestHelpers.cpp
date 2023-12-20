@@ -116,7 +116,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorTestHelperCombined::f_InitClient(CDistributedActorTestHelperCombined &_Server, bool _bReconnect)
 	{
 		CActorDistributionConnectionSettings ConnectionSettings;
-		ConnectionSettings.m_ServerURL = mp_ListenSettings.m_ListenAddresses[0];
+		ConnectionSettings.m_ServerURL = _Server.mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		if (!mp_pClient)
 		{
@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
 		
 		CActorDistributionConnectionSettings ConnectionSettings;
-		ConnectionSettings.m_ServerURL = mp_ListenSettings.m_ListenAddresses[0];
+		ConnectionSettings.m_ServerURL = _Server.mp_ListenSettings.m_ListenAddresses[0];
 		ConnectionSettings.m_PublicServerCertificate = _Server.mp_ListenSettings.m_CACertificate;
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;

@@ -448,7 +448,8 @@ namespace NMib::NConcurrency
 	
 	CTrustManagerTestHelper::~CTrustManagerTestHelper()
 	{
-		m_Database->f_BlockDestroy();
+		if (m_Database)
+			m_Database->f_BlockDestroy();
 	}
 	
 	CTrustedSubscriptionTestHelper::CTrustedSubscriptionTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, fp64 _Timeout)

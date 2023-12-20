@@ -722,7 +722,7 @@ namespace NMib::NConcurrency
 
 	CSeparateThreadActorHolder::~CSeparateThreadActorHolder()
 	{
-		DMibRequire(m_pThread.f_IsEmpty());
+		DMibRequire(mp_pThread.f_IsEmpty());
 	}
 
 	NStr::CStr const &CSeparateThreadActorHolder::f_GetThreadName()
@@ -732,10 +732,13 @@ namespace NMib::NConcurrency
 
 	void CSeparateThreadActorHolder::fp_StartQueueProcessing()
 	{
-		m_pThread = NThread::CThreadObject::fs_StartThread
+		mp_pThread = NThread::CThreadObject::fs_StartThread
 			(
 				[this](NThread::CThreadObject *_pThread) -> aint
 				{
+					mp_ThreadCanStartEvent.f_Wait();
+					mp_ThreadStartedEvent.f_SetSignaled();
+
 					while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 					{
 						NTime::CCyclesClock Clock;
@@ -754,12 +757,14 @@ namespace NMib::NConcurrency
 				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())
 			)
 		;
+		mp_ThreadCanStartEvent.f_SetSignaled();
+		mp_ThreadStartedEvent.f_Wait();
 	}
 
 	void CSeparateThreadActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
-			m_pThread->m_EventWantQuit.f_Signal();
+			mp_pThread->m_EventWantQuit.f_Signal();
 	}
 
 	void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
@@ -768,12 +773,12 @@ namespace NMib::NConcurrency
 		TCActorHolderSharedPointer<CSeparateThreadActorHolder> pThis = fg_Explicit(this);
 
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
-			m_pThread->m_EventWantQuit.f_Signal();
+			mp_pThread->m_EventWantQuit.f_Signal();
 	}
 
 	void CSeparateThreadActorHolder::fp_DestroyThreaded()
 	{
-		m_pThread.f_Clear();
+		mp_pThread.f_Clear();
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 

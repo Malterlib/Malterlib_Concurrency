@@ -37,6 +37,7 @@ namespace NMib::NConcurrency
 		void fp_QueueProcess();
 
 		NStorage::TCUniquePointer<NThread::CThreadObject> mp_pThread;
+		NThread::CEvent mp_ThreadCanStartEvent;
 		NThread::CEvent mp_ThreadStartedEvent;
 		NStr::CStr mp_ThreadName;
 #if defined(DPlatformFamily_macOS)

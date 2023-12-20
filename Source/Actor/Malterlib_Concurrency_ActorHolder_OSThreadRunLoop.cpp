@@ -47,6 +47,7 @@ namespace NMib::NConcurrency
 			(
 				[this](NThread::CThreadObject *_pThread) -> aint
 				{
+					mp_ThreadCanStartEvent.f_Wait();
 					(void)this;
 #if defined(DPlatformFamily_macOS)
 					CFRunLoopSourceContext RunLoopSourceContext
@@ -103,7 +104,7 @@ namespace NMib::NConcurrency
 				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())
 			)
 		;
-
+		mp_ThreadCanStartEvent.f_SetSignaled();
 		mp_ThreadStartedEvent.f_Wait();
 	}
 

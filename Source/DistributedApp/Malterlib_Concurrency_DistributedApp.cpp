@@ -168,44 +168,50 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+	void CDistributedAppActor::fs_LogAudit(CDistributedAppAuditParams const &_AuditParams, CStr const &_DefaultCategory)
+	{
+#if (DMibSysLogSeverities) != 0
+		CStr Category = _AuditParams.m_Category;
+		if (Category.f_IsEmpty())
+			Category = _DefaultCategory;
+		
+		NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
+		CStr UserID = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
+		CStr UserName = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
+		CStr Message = _AuditParams.m_Message;
+
+		if (auto *pAccessDenied = _AuditParams.m_ExtraData.f_TryGet<EDistributedAppAuditType_AccessDenied>(); pAccessDenied && !pAccessDenied->m_Permissions.f_IsEmpty())
+		{
+			TCVector<CStr> PermissionSets;
+			for (auto &Set : pAccessDenied->m_Permissions)
+				PermissionSets.f_Insert("({})"_f << CStr::fs_Join(Set, " or "));
+
+			if (PermissionSets.f_GetLen() == 1)
+				Message += " {}"_f << PermissionSets[0];
+			else
+				Message += " ({})"_f << CStr::fs_Join(PermissionSets, " and ");
+		}
+
+		auto &HostInfo = _AuditParams.m_CallingHostInfo.f_GetHostInfo();
+
+		if (UserName || UserID)
+			NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}, {} [{}]> {}", HostInfo, UserID, UserName, Message);
+		else if (!HostInfo.f_IsEmpty())
+			NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", HostInfo, Message);
+		else
+			NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "{}", Message);
+#endif
+	}
+
 	void CDistributedAppActor::f_Audit(CDistributedAppAuditParams &&_AuditParams)
 	{
 		auto &Internal = *mp_pInternal;
-		CStr Category = _AuditParams.m_Category;
-		if (Category.f_IsEmpty())
-			Category = mp_Settings.m_AuditCategory;
 
-#if (DMibSysLogSeverities) != 0
 		{
 			DMibLogOperation(DisableDistributedLogReporter); // We already report audit logs separately
-
-			NMib::NLog::CSysLogCatScope Scope(NMib::fg_GetSys()->f_GetLogger(), Category);
-			CStr UserID = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
-			CStr UserName = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
-			CStr Message = _AuditParams.m_Message;
-
-			if (auto *pAccessDenied = _AuditParams.m_ExtraData.f_TryGet<EDistributedAppAuditType_AccessDenied>(); pAccessDenied && !pAccessDenied->m_Permissions.f_IsEmpty())
-			{
-				TCVector<CStr> PermissionSets;
-				for (auto &Set : pAccessDenied->m_Permissions)
-					PermissionSets.f_Insert("({})"_f << CStr::fs_Join(Set, " or "));
-
-				if (PermissionSets.f_GetLen() == 1)
-					Message += " {}"_f << PermissionSets[0];
-				else
-					Message += " ({})"_f << CStr::fs_Join(PermissionSets, " and ");
-			}
-
-			auto &HostInfo = _AuditParams.m_CallingHostInfo.f_GetHostInfo();
-
-			if (UserName || UserID)
-				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}, {} [{}]> {}", HostInfo, UserID, UserName, Message);
-			else if (!HostInfo.f_IsEmpty())
-				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "<{}> {}", HostInfo, Message);
-			else
-				NMib::NLog::fg_SysLog(DLogLocTag, _AuditParams.m_Severity, "{}", Message);
+			CDistributedAppActor::fs_LogAudit(_AuditParams, mp_Settings.m_AuditCategory);
 		}
-#endif
+
 		switch (Internal.m_AppType)
 		{
 		case EDistributedAppType_InProcess:

@@ -349,6 +349,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
+		static void fs_LogAudit(CDistributedAppAuditParams const &_AuditParams, NStr::CStr const &_DefaultCategory);
 		void f_Audit(CDistributedAppAuditParams &&_AuditParams);
 
 		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;

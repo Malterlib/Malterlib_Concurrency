@@ -67,20 +67,23 @@ namespace NMib::NConcurrency
 
 	CStr CDistributedAppAuditor::f_Audit(NLog::ESeverity _Severity, NStr::CStr const &_Message, NStr::CStr const &_Category, CDistributedAppAuditExtraData &&_ExtraData) const
 	{
-		mp_AppActor
-			(
-				&CDistributedAppActor::f_Audit
-				, CDistributedAppAuditParams
-				{
-					.m_Severity = _Severity
-					, .m_Message = _Message
-					, .m_Category = _Category ? _Category : mp_Category
-					, .m_CallingHostInfo = mp_CallingHostInfo
-					, .m_ExtraData = fg_Move(_ExtraData)
-				}
-			)
-			> fg_DiscardResult()
+		CDistributedAppAuditParams AuditParams
+			{
+				.m_Severity = _Severity
+				, .m_Message = _Message
+				, .m_Category = _Category ? _Category : mp_Category
+				, .m_CallingHostInfo = mp_CallingHostInfo
+				, .m_ExtraData = fg_Move(_ExtraData)
+			}
 		;
+
+		if (!mp_AppActor)
+		{
+			CDistributedAppActor::fs_LogAudit(AuditParams, mp_Category);
+			return _Message;
+		}
+
+		mp_AppActor(&CDistributedAppActor::f_Audit, fg_Move(AuditParams)) > fg_DiscardResult();
 
 		return _Message;
 	}
@@ -102,20 +105,23 @@ namespace NMib::NConcurrency
 			fg_AddStrSep(FullMessage, Message, " ");
 		}
 
-		mp_AppActor
-			(
-				&CDistributedAppActor::f_Audit
-				, CDistributedAppAuditParams
-				{
-					.m_Severity = _Severity
-					, .m_Message = FullMessage
-					, .m_Category = _Category ? _Category : mp_Category
-					, .m_CallingHostInfo = mp_CallingHostInfo
-					, .m_ExtraData = fg_Move(_ExtraData)
-				}
-			)
-			> fg_DiscardResult()
+		CDistributedAppAuditParams AuditParams
+			{
+				.m_Severity = _Severity
+				, .m_Message = FullMessage
+				, .m_Category = _Category ? _Category : mp_Category
+				, .m_CallingHostInfo = mp_CallingHostInfo
+				, .m_ExtraData = fg_Move(_ExtraData)
+			}
 		;
+
+		if (!mp_AppActor)
+		{
+			CDistributedAppActor::fs_LogAudit(AuditParams, mp_Category);
+			return FirstMessage;
+		}
+
+		mp_AppActor(&CDistributedAppActor::f_Audit, fg_Move(AuditParams)) > fg_DiscardResult();
 
 		return FirstMessage;
 	}

@@ -34,6 +34,12 @@ namespace NMib::NConcurrency::NPrivate
 		return State.m_ActorProtocolVersion;
 	}
 
+	uint32 CDistributedActorStreamContext::f_GetAutomaticNotRequiredSubscriptionID()
+	{
+		auto &State = *m_pState;
+		return State.m_CurrentAutomaticNotRequiredSubscriptionID++;
+	}
+
 	uint32 fg_ActorProtocolVersion(void *_pStreamContext)
 	{
 		CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_pStreamContext;
@@ -88,7 +94,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 			if (m_bCallInitiator)
 			{
-				if (ActorFunctor.m_PendingSubscriptions.f_IsEmpty() && SequenceID != gc_SubscriptionNotRequired)
+				if (ActorFunctor.m_PendingSubscriptions.f_IsEmpty() && SequenceID < gc_SubscriptionNotRequired)
 				{
 					o_Error = "No matching subscription for actor functors or interfaces or interfaces";
 					return false; // We have registered functors/actors without a matching subscription

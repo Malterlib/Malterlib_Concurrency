@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		, EDistributedActorProtocolVersion_Current = 0x107
 	};
 
-	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(1);
+	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(65536);
 
 	template <uint32 t_SubscriptionID = 0>
 	struct TCActorSubscriptionWithID : public CActorSubscription

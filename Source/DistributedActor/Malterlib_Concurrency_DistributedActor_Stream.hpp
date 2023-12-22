@@ -162,14 +162,24 @@ namespace NMib::NConcurrency
 		_Stream % bHasGenerator;
 		if (bHasGenerator)
 		{
+			auto *pContext = (NPrivate::CDistributedActorStreamContext *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+
 			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
 			{
 				TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired> fGetNext;
+				fGetNext.f_SetID(pContext->f_GetAutomaticNotRequiredSubscriptionID());
+				
 				_Stream % fg_Move(fGetNext);
 				mp_pData = fg_Construct(fg_Move(fGetNext));
 			}
 			else
-				_Stream % TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired>(fg_Move(mp_pData->m_fGetNext));
+			{
+				TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired> fGetNext(fg_Move(mp_pData->m_fGetNext));
+				fGetNext.f_SetID(pContext->f_GetAutomaticNotRequiredSubscriptionID());
+
+				_Stream % fg_Move(fGetNext);
+			}
 		}
 	}
 }

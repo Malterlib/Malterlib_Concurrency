@@ -28,7 +28,8 @@ namespace NMib::NConcurrency::NPrivate
 
 		bool f_ValidateContext(NStr::CStr &o_Error);
 		uint32 f_ActorProtocolVersion() const;
-		
+		uint32 f_GetAutomaticNotRequiredSubscriptionID();
+
 #if DMibEnableSafeCheck > 0
 		bool f_CorrectMagic() const
 		{

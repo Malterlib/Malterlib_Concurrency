@@ -82,7 +82,8 @@ namespace NMib::NConcurrency::NPrivate
 		TCWeakActor<CActorDistributionManager> m_DistributionManager;
 		NStr::CStr m_LastExecutionID;
 		NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
-		
+
+		uint32 m_CurrentAutomaticNotRequiredSubscriptionID = gc_SubscriptionNotRequired + 128;
 		uint32 m_ActorProtocolVersion;
 		bool m_bCallInitiator;
 	};

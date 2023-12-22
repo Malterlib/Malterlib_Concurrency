@@ -872,9 +872,9 @@ namespace NMib::NConcurrency
 		}
 
 		if (mp_State.m_TrustManager)
-			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > LogError("Failed to destroy trust mangaer");
+			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager");
 		else if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
-			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > LogError("Failed to destroy distribution mangaer");
+			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > LogError("Failed to destroy distribution manager");
 
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, nullptr)->f_Future();

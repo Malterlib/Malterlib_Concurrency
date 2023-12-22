@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 				if (!_Value)
 					return Promise.f_SetException(fg_Move(_Value));
 
-				Iterator.mp_pData->m_LastValue = *_Value;
+				Iterator.mp_pData->m_LastValue = fg_Move(*_Value);
 
 				Promise.f_SetResult(fg_Move(Iterator));
 			}

@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 					CDistributedActorCommand_Identify Identify;
 					Stream >> Identify;
 
-					if (Identify.m_ProtocolVersion < 0x102)
+					if (Identify.m_ProtocolVersion < EDistributedActorProtocolVersion_Min)
 					{
 						DMibLog(DebugVerbose2, " ---- {} {} Invalid protocol", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
 						if (!_pConnection->m_IdentifyPromise.f_IsSet())
@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 							}
 						}
 					}
-					if (Identify.m_ProtocolVersion >= 0x103)
+					if (Identify.m_ProtocolVersion >= EDistributedActorProtocolVersion_InitialPublishFinishedSupported)
 					{
 						CDistributedActorCommand_InitialPublishFinished Identify;
 						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;

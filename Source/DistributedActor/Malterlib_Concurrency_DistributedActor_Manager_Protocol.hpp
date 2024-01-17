@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 	void CDistributedActorCommand_Identify::f_Consume(tf_CStream &_Stream)
 	{
 		_Stream >> m_ProtocolVersion;
-		if (m_ProtocolVersion < 0x102)
+		if (m_ProtocolVersion < EDistributedActorProtocolVersion_Min)
 			return;
 		_Stream >> m_ExecutionID;
 		_Stream >> m_LastSeenExecutionID;
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 		_Stream << uint8(EDistributedActorCommand_RemoteCallResult);
 		_Stream << m_PacketID;
 		_Stream << m_ReplyToPacketID;
-		if (_Stream.f_GetVersion() >= 0x104)
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported)
 			_Stream << m_SubscriptionData;
 	}
 
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 	{
 		_Stream >> m_PacketID;
 		_Stream >> m_ReplyToPacketID;
-		if (_Stream.f_GetVersion() >= 0x104)
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported)
 			_Stream >> m_SubscriptionData;
 	}
 

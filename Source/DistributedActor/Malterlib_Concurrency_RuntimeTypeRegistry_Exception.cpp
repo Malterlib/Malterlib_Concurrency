@@ -9,6 +9,8 @@
 #include "Malterlib_Concurrency_RuntimeTypeRegistry.h"
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_Exception.h"
 
+#include "Malterlib_Concurrency_DistributedActor.h"
+
 namespace NMib::NConcurrency::NPrivate
 {
 	void fg_StreamAsyncResultException
@@ -26,12 +28,12 @@ namespace NMib::NConcurrency::NPrivate
 		auto pEntry = TypeRegistry.m_EntryByHash_Exception.f_FindEqual(TypeHash);
 
 		DMibFastCheck(pEntry);
-		if (_ActorProtocolVersion < 0x106 && TypeHash == NException::CException::ms_TypeHash)
+		if (_ActorProtocolVersion < EDistributedActorProtocolVersion_GeneralExceptionsSupported && TypeHash == NException::CException::ms_TypeHash)
 			TypeHash = 0x2d572b80u;
 
 		_Stream << TypeHash;
 
-		if (_ActorProtocolVersion >= 0x106)
+		if (_ActorProtocolVersion >= EDistributedActorProtocolVersion_GeneralExceptionsSupported)
 		{
 			NStream::TCBinaryStreamNull<NStream::CBinaryStreamDefault> MeasureSizeStream;
 			pEntry->f_Feed(MeasureSizeStream, _Exception);

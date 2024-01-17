@@ -48,7 +48,7 @@ namespace NMib::NConcurrency::NPrivate
 			_Stream >> TypeHash;
 
 			uint64 ExceptionStreamSize = 0;
-			if (_ActorProtocolVersion >= 0x106)
+			if (_ActorProtocolVersion >= NConcurrency::EDistributedActorProtocolVersion_GeneralExceptionsSupported)
 				NStream::fg_ConsumeLenFromStream(_Stream, ExceptionStreamSize);
 			else if (TypeHash == 0x2d572b80u)
 				TypeHash = NException::CException::ms_TypeHash;

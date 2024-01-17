@@ -10,6 +10,18 @@ DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::CDistributedActorStrea
 
 namespace NMib::NConcurrency
 {
+	enum EDistributedActorProtocolVersion : uint32
+	{
+		EDistributedActorProtocolVersion_Min = 0x102
+
+		, EDistributedActorProtocolVersion_InitialPublishFinishedSupported = 0x103
+		, EDistributedActorProtocolVersion_ClaimedSubscriptionsSupported = 0x104
+		, EDistributedActorProtocolVersion_SubscriptionDestroyedSupported = 0x105
+		, EDistributedActorProtocolVersion_GeneralExceptionsSupported = 0x106
+
+		, EDistributedActorProtocolVersion_Current = 0x106
+	};
+
 	static constexpr const uint32 gc_SubscriptionNotRequired = TCLimitsInt<uint32>::mc_Max - uint32(1);
 
 	template <uint32 t_SubscriptionID = 0>

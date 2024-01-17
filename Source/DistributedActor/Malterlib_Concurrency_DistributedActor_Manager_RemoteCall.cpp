@@ -727,7 +727,7 @@ namespace NMib::NConcurrency
 
 			uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
 
-			if (HostActorProtocolVersion >= 0x105)
+			if (HostActorProtocolVersion >= EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 			{
 				auto pPendingDestroy = Host.m_PendingRemoteSubscriptionDestroys.f_FindEqual(_SubscriptionID);
 				if (pPendingDestroy)
@@ -750,7 +750,7 @@ namespace NMib::NConcurrency
 			Stream << Result;
 			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
 
-			if (HostActorProtocolVersion < 0x105)
+			if (HostActorProtocolVersion < EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 				co_return {};
 		}
 		
@@ -800,7 +800,7 @@ namespace NMib::NConcurrency
 		CDistributedActorCommand_DestroySubscription DestroySubscription;
 		_Stream >> DestroySubscription;
 		uint32 ActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
-		if (ActorProtocolVersion >= 0x105)
+		if (ActorProtocolVersion >= EDistributedActorProtocolVersion_SubscriptionDestroyedSupported)
 		{
 			auto *pSubscription = Host.m_ImplicitlyPublishedSubscriptions.f_FindEqual(DestroySubscription.m_SubscriptionID);
 			

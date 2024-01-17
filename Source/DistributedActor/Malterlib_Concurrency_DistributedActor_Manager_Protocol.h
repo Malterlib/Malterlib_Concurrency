@@ -23,17 +23,12 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorCommand_Identify
 	{
-		enum : uint32
-		{
-			EProtocolVersion_Current = 0x106
-		};
-
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;
 		template <typename tf_CStream>
 		void f_Consume(tf_CStream &_Stream);
 
-		uint32 m_ProtocolVersion = EProtocolVersion_Current;
+		uint32 m_ProtocolVersion = EDistributedActorProtocolVersion_Current;
 		NStr::CStr m_ExecutionID;
 		NStr::CStr m_LastSeenExecutionID;
 		NContainer::TCVector<uint64> m_MissingPacketIDs;

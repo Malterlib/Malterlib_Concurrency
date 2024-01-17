@@ -204,6 +204,9 @@ namespace NMib::NConcurrency
 
 		Host.m_Outgoing_CurrentPacketID = 0;
 
+		Host.m_LastNotifyConnectionLostSequenceReceived = 0;
+		Host.m_LastNotifyConnectionLostSequenceSent = 0;
+
 		using namespace NStr;
 
 		for (auto &Call : Host.m_OutstandingCalls)

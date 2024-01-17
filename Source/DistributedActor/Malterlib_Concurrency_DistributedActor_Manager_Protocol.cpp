@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 							OnHostInfoChanged.m_fOnHostInfoChanged(HostInfo) > fg_DiscardResult();
 					}
 
-					// Resend packets that remote think are missing
+					// Resend packets that remote thinks are missing
 					for (auto &MissingPacketID : Identify.m_MissingPacketIDs)
 					{
 						auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
@@ -251,6 +251,76 @@ namespace NMib::NConcurrency
 						iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
 				}
 				break;
+			case EDistributedActorCommand_NotifyConnectionLost:
+				{
+					auto &Host = *_pConnection->m_pHost;
+
+					if (Host.m_ActorProtocolVersion < EDistributedActorProtocolVersion_LostConnectionNotificationsSupported)
+						return false;
+
+					CDistributedActorCommand_NotifyConnectionLost Notification;
+					Stream >> Notification;
+
+					if (Notification.m_NotifyLostSequence <= Host.m_LastNotifyConnectionLostSequenceReceived)
+						break;
+
+					Host.m_LastNotifyConnectionLostSequenceReceived = Notification.m_NotifyLostSequence;
+
+					CDistributedActorCommand_RequestMissingPackets RequestPackets;
+
+					RequestPackets.m_HighestSeenPacketID = Host.m_Incoming_NextPacketID - 1;
+					uint64 NextExpectedPacketID = Host.m_Incoming_NextPacketID;
+					for (auto &ReceivedPacket : Host.m_Incoming_ReceivedPackets)
+					{
+						uint64 PacketID = ReceivedPacket.f_GetPacketID();
+						while (NextExpectedPacketID < PacketID)
+						{
+							RequestPackets.m_MissingPacketIDs.f_Insert(NextExpectedPacketID);
+							++NextExpectedPacketID;
+						}
+						RequestPackets.m_HighestSeenPacketID = fg_Max(RequestPackets.m_HighestSeenPacketID, PacketID);
+					}
+
+					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+					Stream << RequestPackets;
+
+					NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+
+					fp_SendPacket(_pConnection, fg_Move(pPacketData));
+				}
+				break;
+			case EDistributedActorCommand_RequestMissingPackets:
+				{
+					auto &Host = *_pConnection->m_pHost;
+
+					if (Host.m_ActorProtocolVersion < EDistributedActorProtocolVersion_LostConnectionNotificationsSupported)
+						return false;
+
+					CDistributedActorCommand_RequestMissingPackets RequestPackets;
+					Stream >> RequestPackets;
+
+					// Resend packets that remote thinks are missing
+					for (auto &MissingPacketID : RequestPackets.m_MissingPacketIDs)
+					{
+						auto pPacket = Host.m_Outgoing_SentPackets.f_FindEqual(MissingPacketID);
+						if (pPacket)
+							fp_SendPacket(_pConnection, fg_TempCopy(pPacket->m_pData));
+					}
+
+					{
+						decltype(Host.m_Outgoing_SentPackets)::CIteratorConst iSentPackets;
+						iSentPackets.f_InitForSearch(Host.m_Outgoing_SentPackets);
+						iSentPackets.f_FindSmallestGreaterThanEqualForward(RequestPackets.m_HighestSeenPacketID);
+
+						while (iSentPackets)
+						{
+							fp_SendPacket(_pConnection, fg_TempCopy(iSentPackets->m_pData));
+							++iSentPackets;
+						}
+					}
+					
+				}
+				break;
 			case EDistributedActorCommand_RemoteCall:
 			case EDistributedActorCommand_RemoteCallResult:
 			case EDistributedActorCommand_Publish:
@@ -356,5 +426,32 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 
 		fp_SendPacket(_pConnection, fg_Move(pPacketData));
+	}
+
+	void CActorDistributionManagerInternal::fp_NotifyDisconnect(CHost &_Host)
+	{
+		if (_Host.m_ActorProtocolVersion < EDistributedActorProtocolVersion_LostConnectionNotificationsSupported)
+			return;
+
+		if (_Host.m_ActiveConnections.f_IsEmpty())
+			return;
+
+		CDistributedActorCommand_NotifyConnectionLost Notification;
+		Notification.m_NotifyLostSequence = ++_Host.m_LastNotifyConnectionLostSequenceSent;
+
+		NContainer::CSecureByteVector PacketData;
+		{
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			Stream << Notification;
+			PacketData = Stream.f_MoveVector();
+		}
+
+		NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(PacketData);
+
+		for (auto &Connection : _Host.m_ActiveConnections)
+		{
+			DMibLog(DebugVerbose2, " ---- {} {} Sending notify disconnect packet {}", _Host.m_bIncoming, Connection.f_GetConnectionID(), Notification.m_NotifyLostSequence);
+			fp_SendPacket(&Connection, fg_TempCopy(pPacketData));
+		}
 	}
 }

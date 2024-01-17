@@ -19,6 +19,8 @@ namespace NMib::NConcurrency
 		, EDistributedActorCommand_DestroySubscription
 		, EDistributedActorCommand_InitialPublishFinished
 		, EDistributedActorCommand_SubscriptionDestroyed
+		, EDistributedActorCommand_NotifyConnectionLost
+		, EDistributedActorCommand_RequestMissingPackets
 	};
 
 	struct CDistributedActorCommand_Identify
@@ -141,6 +143,27 @@ namespace NMib::NConcurrency
 		uint64 m_PacketID;
 		NStr::CStr m_SubscriptionID;
 		TCAsyncResult<void> m_Result;
+	};
+
+	struct CDistributedActorCommand_NotifyConnectionLost
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint64 m_NotifyLostSequence = 0;
+	};
+
+	struct CDistributedActorCommand_RequestMissingPackets
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		NContainer::TCVector<uint64> m_MissingPacketIDs;
+		uint64 m_HighestSeenPacketID = 0;
 	};
 }
 

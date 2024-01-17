@@ -212,8 +212,15 @@ namespace NMib::NConcurrency
 		else if (_pPromise)
 			_pPromise->f_SetResult();
 
-		if (m_pHost && m_pHost->m_pLastSendConnection == this)
-			m_pHost->m_pLastSendConnection = nullptr;
+		if (m_pHost)
+		{
+			auto &Host = *m_pHost;
+			if (Host.m_pLastSendConnection == this)
+				Host.m_pLastSendConnection = nullptr;
+
+			_This.fp_NotifyDisconnect(Host);
+		}
+
 		if (_bResetHost)
 			m_pHost.f_Clear();
 	}

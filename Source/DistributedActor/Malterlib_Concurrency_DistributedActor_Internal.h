@@ -263,6 +263,9 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		uint64 m_nDiscardedPackets = 0;
 		uint64 m_nDiscardedBytes = 0;
 
+		uint64 m_LastNotifyConnectionLostSequenceSent = 0;
+		uint64 m_LastNotifyConnectionLostSequenceReceived = 0;
+
 		bool m_bAllowAllNamespaces = false;
 
 		bool m_bIncoming = false;
@@ -441,6 +444,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_PreShutdownCleanupPerform();
 		void fp_CleanupMarkActive(CHost &_Host);
 		void fp_CleanupMarkInactive(CHost &_Host);
+		
+		void fp_NotifyDisconnect(CHost &_Host);
 
 		void fp_ScheduleReconnect
 			(

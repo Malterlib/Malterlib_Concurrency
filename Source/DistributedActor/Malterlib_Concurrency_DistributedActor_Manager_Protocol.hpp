@@ -195,4 +195,32 @@ namespace NMib::NConcurrency
 		if (!NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, m_Result, _ActorProtocolVersion))
 			m_Result.f_SetResult();
 	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_NotifyConnectionLost::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_NotifyConnectionLost);
+		_Stream << m_NotifyLostSequence;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_NotifyConnectionLost::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_NotifyLostSequence;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RequestMissingPackets::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_RequestMissingPackets);
+		_Stream << m_MissingPacketIDs;
+		_Stream << m_HighestSeenPacketID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_RequestMissingPackets::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_MissingPacketIDs;
+		_Stream >> m_HighestSeenPacketID;
+	}
 }

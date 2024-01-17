@@ -1989,6 +1989,30 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 			Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_CallSync(g_Timeout);
 		}
 		{
+			DMibTestPath("Send remote recovery after client disconnect");
+
+			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorInvalidStateSendRemoteRecoveryDisconnect";
+
+			CDistributedActorTestHelperCombined TestState(SocketPath);
+			TestState.f_SeparateServerManager();
+			TestState.f_Init(true);
+			auto LocalActor = TestState.f_GetServer().f_GetManager()->f_ConstructActor<CDistributedActor>();
+			TestState.f_Publish<CDistributedActor, CDistributedActorBase>(LocalActor, "Test");
+			CStr SubscriptionID = TestState.f_Subscribe("Test");
+			auto Actor = TestState.f_GetRemoteActor<CDistributedActor>(SubscriptionID);
+
+			// Queue up packet that can't be received
+			TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_StopProcessingReceive);
+			auto Future0 = Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_Future();
+
+			// Force connection to reconnect and delay close so server still has the old connection when client reconnects
+			TestState.f_BreakClientConnection(fp64::fs_Inf(), ESocketDebugFlag_FailSends | ESocketDebugFlag_DelayClose);
+			auto Future1 = Actor.f_CallActor(&CDistributedActor::f_TestGeneral)().f_Future();
+
+			fg_Move(Future0).f_CallSync(g_Timeout);
+			fg_Move(Future1).f_CallSync(g_Timeout);
+		}
+		{
 			DMibTestPath("Message Size");
 			CStr SocketPath = NFile::CFile::fs_GetProgramDirectory() / "Sockets/DistributedActorMessageSize";
 

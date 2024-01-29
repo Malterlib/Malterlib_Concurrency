@@ -791,7 +791,7 @@ namespace NMib::NConcurrency
 			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
 			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
 
-			co_await Destroys.f_GetResults().f_Timeout(10.0, "Timed out waiting for destroy of app interface");
+			co_await Destroys.f_GetResults().f_Timeout(mp_Settings.m_KillHostsTimeoutOnShutdown + 10.0, "Timed out waiting for destroy of app interface");
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");

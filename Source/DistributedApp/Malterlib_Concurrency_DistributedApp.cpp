@@ -762,17 +762,19 @@ namespace NMib::NConcurrency
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App shutting down");
 
+		CLogError LogError("Mib/Concurrency/App");
+
 		mp_State.m_bStoppingApp = true;
 
 		if (mp_State.m_DistributionManager)
 			co_await mp_State.m_DistributionManager(&CActorDistributionManager::f_PrepareShutdown, mp_Settings.m_HostTimeoutOnShutdown, mp_Settings.m_KillHostsTimeoutOnShutdown);
 
-		co_await (self(&CDistributedAppActor::fp_StopApp) % "Failed to stop app");
+		co_await self(&CDistributedAppActor::fp_StopApp).f_Wrap() > LogError("Failed to stop app");
 
 		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_CommandLine)
-			co_await (fg_Move(Internal.m_CommandLine).f_Destroy() % "Failed to stop command line interface");
+			co_await Internal.m_CommandLine.f_Destroy().f_Wrap() > LogError("Failed to stop command line interface");
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
@@ -791,7 +793,9 @@ namespace NMib::NConcurrency
 			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
 			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
 
-			co_await Destroys.f_GetResults().f_Timeout(mp_Settings.m_KillHostsTimeoutOnShutdown + 10.0, "Timed out waiting for destroy of app interface");
+			co_await Destroys.f_GetResults().f_Timeout(mp_Settings.m_KillHostsTimeoutOnShutdown + 10.0, "Timed out waiting for destroy of app interface").f_Wrap()
+				> LogError("Failed to destroy app interface")
+			;
 		}
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "App interface destroyed");

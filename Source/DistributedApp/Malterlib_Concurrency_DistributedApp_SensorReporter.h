@@ -32,8 +32,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_IgnoreRemoved = 0x105
 			, EProtocolVersion_VersionData = 0x106
 			, EProtocolVersion_PauseReporting = 0x107
+			, EProtocolVersion_SnoozeSensor = 0x108
 
-			, EProtocolVersion_Current = 0x107
+			, EProtocolVersion_Current = 0x108
 		};
 
 		enum ESensorDataType
@@ -168,6 +169,7 @@ namespace NMib::NConcurrency
 			EStatusSeverity f_CriticalityStatus(CSensorInfo const &_SensorInfo) const;
 			EStatusSeverity f_OutdatedStatus(CSensorInfo const &_SensorInfo, NTime::CTime const &_Now, fp64 &o_OutdatedSeconds) const;
 			EStatusSeverity f_GetCombinedStatus(CSensorInfo const *_pSensorInfo, NTime::CTime const &_Now) const;
+			EStatusSeverity f_GetDataStatus(CSensorInfo const *_pSensorInfo) const;
 
 			NStr::CStr f_GetFormattedData(NCommandLine::CAnsiEncoding const &_AnsiEncoding, CSensorInfo const *_pSensorInfo) const;
 			NStr::CStr f_GetFormattedOutdatedStatus
@@ -273,6 +275,7 @@ namespace NMib::NConcurrency
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
+			NTime::CTime m_SnoozeUntil;
 			fp32 m_PauseReportingFor = fp32::fs_QNan();
 			bool m_bRemoved = false;
 		};

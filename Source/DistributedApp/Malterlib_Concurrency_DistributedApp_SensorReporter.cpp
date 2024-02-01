@@ -161,6 +161,16 @@ namespace NMib::NConcurrency
 		return EStatusSeverity_Ok;
 	}
 
+	auto CDistributedAppSensorReporter::CSensorReading::f_GetDataStatus(CSensorInfo const *_pSensorInfo) const -> EStatusSeverity
+	{
+		EStatusSeverity Status = f_Status();
+
+		if (_pSensorInfo)
+			Status = fs_CombineStatusSeverity(Status, f_CriticalityStatus(*_pSensorInfo));
+
+		return Status;
+	}
+
 	auto CDistributedAppSensorReporter::CSensorReading::f_GetCombinedStatus(CSensorInfo const *_pSensorInfo, NTime::CTime const &_Now) const -> EStatusSeverity
 	{
 		EStatusSeverity Status = f_Status();

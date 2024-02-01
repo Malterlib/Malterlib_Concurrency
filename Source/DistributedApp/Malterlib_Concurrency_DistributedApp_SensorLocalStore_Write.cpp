@@ -157,6 +157,42 @@ namespace NMib::NConcurrency
 		co_return nRemoved;
 	}
 
+	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_SnoozeSensors
+		(
+			NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys
+			, NTime::CTimeSpan const &_SnoozeDuration
+		)
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (!Internal.m_bStarted)
+			co_return DMibErrorInstance("Local store not yet started");
+
+		uint32 nChanged = 0;
+		NTime::CTime SnoozeUntil;
+		if (_SnoozeDuration.f_IsValid())
+			SnoozeUntil = NTime::CTime::fs_NowUTC() + _SnoozeDuration;
+
+		for (auto &SensorInfoKey : _SensorInfoKeys)
+		{
+			auto *pSensor = Internal.m_Sensors.f_FindEqual(SensorInfoKey);
+			if (!pSensor)
+				continue;
+
+			if (pSensor->m_Info.m_SnoozeUntil == SnoozeUntil)
+				continue;
+
+			if (pSensor->m_Info.m_SnoozeUntil.f_IsValid() != SnoozeUntil.f_IsValid())
+				++nChanged;
+
+			pSensor->m_Info.m_SnoozeUntil = SnoozeUntil;
+
+			co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, false);
+		}
+
+		co_return nChanged;
+	}
+
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_StoreSensorReadings
 		(
 			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
@@ -428,6 +464,8 @@ namespace NMib::NConcurrency
 				_SensorInfo.m_bRemoved = pSensor->m_Info.m_bRemoved;
 				_SensorInfo.m_PauseReportingFor = pSensor->m_Info.m_PauseReportingFor;
 			}
+
+			_SensorInfo.m_SnoozeUntil = pSensor->m_Info.m_SnoozeUntil;
 
 			bool bWasChanged = bWasCreated || _SensorInfo != pSensor->m_Info;
 

@@ -458,6 +458,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Warn Value", 1);
 		Columns.f_AddHeading("Critical Value", 1);
 		Columns.f_AddHeading("Removed", 1);
+		Columns.f_AddHeading("Snoozed Until", 1);
 		Columns.f_AddHeading("Paused", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
@@ -528,6 +529,7 @@ namespace NMib::NConcurrency
 								, "WarnValue"_= fComparisonValue(SensorInfo.m_WarnValue)
 								, "CriticalValue"_= fComparisonValue(SensorInfo.m_CriticalValue)
 								, "Removed"_= SensorInfo.m_bRemoved
+								, "SnoozeUntil"_= SensorInfo.m_SnoozeUntil
 								, "PauseReportingFor"_= SensorInfo.m_PauseReportingFor
 							}
 						)
@@ -553,6 +555,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_WarnValue
 							, SensorInfo.m_CriticalValue
 							, SensorInfo.m_bRemoved ? "true" : "false"
+							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil) : CStr()
 							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
 						)
 					;
@@ -665,6 +668,8 @@ namespace NMib::NConcurrency
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
+		CAnsiEncoding AnsiEncodingNoColor(AnsiEncoding.f_Flags() & ~(EAnsiEncodingFlag_Color | EAnsiEncodingFlag_Color24Bit | EAnsiEncodingFlag_ColorLightBackground));
+
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReporter::CSensorInfo> SensorInfos;
 		{
 			for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
@@ -685,6 +690,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Timestamp", 0);
 		Columns.f_AddHeading("Sequence", 1);
 		Columns.f_AddHeading("Value", 0);
+		Columns.f_AddHeading("Snoozed Until", 0);
 		Columns.f_AddHeading("Outdated", 0);
 
 		TableRenderer.f_AddHeadings(&Columns);
@@ -694,6 +700,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 		bool bHasOutdated = false;
+		bool bHasSnoozeUntil = false;
 		uint64 nEntries = 0;
 
 		CEJSONSorted JsonOutput;
@@ -724,13 +731,19 @@ namespace NMib::NConcurrency
 					Application = Reading.m_SensorInfoKey.m_Scope.f_GetAsType<CDistributedAppSensorReporter::CSensorScope_Application>().m_ApplicationName;
 
 				CStr HostName;
+				CTime SnoozeUntil;
 				auto *pSensorInfo = SensorInfos.f_FindEqual(Reading.m_SensorInfoKey);
 				if (pSensorInfo)
+				{
 					HostName = pSensorInfo->m_HostName;
+					SnoozeUntil = pSensorInfo->m_SnoozeUntil;
+				}
 
 				bHasHostID = bHasHostID || Reading.m_SensorInfoKey.m_HostID;
 				bHasHostName = bHasHostName || HostName;
 				bHasApplication = bHasApplication || Application;
+				bHasSnoozeUntil = bHasSnoozeUntil || SnoozeUntil.f_IsValid();
+				bool bIsSnoozed = SnoozeUntil.f_IsValid() && Now <= SnoozeUntil;
 
 				CStr Name;
 				if (pSensorInfo)
@@ -772,6 +785,7 @@ namespace NMib::NConcurrency
 								, "Timestamp"_= Reading.m_Reading.m_Timestamp
 								, "UniqueSequence"_= Reading.m_Reading.m_UniqueSequence
 								, "Value"_= fg_Move(Value)
+								, "SnoozeUntil"_= SnoozeUntil
 								, "OutdatedStatus"_= CDistributedAppSensorReporter::fs_StatusSeverityToString(OutdatedStatus)
 								, "OutdatedSeconds"_= OutdatedSeconds
 							}
@@ -780,14 +794,20 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
-					auto Value = Reading.m_Reading.f_GetFormattedData(AnsiEncoding, pSensorInfo);
+					auto DataStatus = Reading.m_Reading.f_GetDataStatus(pSensorInfo);
+					auto Value = Reading.m_Reading.f_GetFormattedData
+						(
+							bIsSnoozed && DataStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning ? AnsiEncodingNoColor : AnsiEncoding
+							, pSensorInfo
+						)
+					;
 
 					CStr OutdatedString;
 					if (_Flags & ESensorOutputFlag_Status)
 					{
 						OutdatedString = Reading.m_Reading.f_GetFormattedOutdatedStatus
 							(
-								AnsiEncoding
+								bIsSnoozed && OutdatedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning ? AnsiEncodingNoColor : AnsiEncoding
 								, pSensorInfo
 								, Now
 								, CDistributedAppSensorReporter::EOutdatedStatusOutputFlag_IncludeStatus
@@ -796,6 +816,12 @@ namespace NMib::NConcurrency
 					}
 					else if (pSensorInfo && pSensorInfo->f_HasExpectedReportInterval())
 						OutdatedString = "{fe0} s"_f << OutdatedSeconds;
+
+					CStr SnoozeUntilStr;
+					if (bIsSnoozed)
+						SnoozeUntilStr = CStr("{}{tc6}{}"_f << AnsiEncoding.f_StatusNormal() << SnoozeUntil.f_ToLocal() << AnsiEncoding.f_Default());
+					else if (SnoozeUntil.f_IsValid())
+						SnoozeUntilStr = CStr("{tc6}"_f << SnoozeUntil);
 
 					TableRenderer.f_AddRow
 						(
@@ -808,6 +834,7 @@ namespace NMib::NConcurrency
 							, CStr((_Flags & ESensorOutputFlag_Verbose) ? "{tf}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal() : "{}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal())
 							, Reading.m_Reading.m_UniqueSequence
 							, Value
+							, SnoozeUntilStr
 							, OutdatedString
 						)
 					;
@@ -843,6 +870,8 @@ namespace NMib::NConcurrency
 				Columns.f_SetVerbose("Application");
 			if (!bHasOutdated)
 				Columns.f_SetVerbose("Outdated");
+			if (!bHasSnoozeUntil)
+				Columns.f_SetVerbose("Snoozed Until");
 
 			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
 				TableRenderer.f_ReverseRows();

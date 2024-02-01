@@ -148,6 +148,9 @@ namespace NMib::NConcurrency
 
 		if (_Stream.f_GetVersion() >= EProtocolVersion_PauseReporting)
 			_Stream % m_PauseReportingFor;
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SnoozeSensor)
+			_Stream % m_SnoozeUntil;
 	}
 
 	template <typename tf_CStream>

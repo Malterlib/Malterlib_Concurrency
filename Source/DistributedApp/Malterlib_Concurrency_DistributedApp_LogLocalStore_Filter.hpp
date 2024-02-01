@@ -33,18 +33,24 @@ namespace NMib::NConcurrency::NLogStore
 			case CDistributedAppLogReporter::ELogScope_Application:
 				{
 					auto &Application = _Filter.m_Scope->f_Get<CDistributedAppLogReporter::ELogScope_Application>();
-					if (_Key.m_ApplicationName != Application.m_ApplicationName)
+					if (NStr::fg_StrMatchWildcard(_Key.m_ApplicationName.f_GetStr(), Application.m_ApplicationName.f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 						return false;
 				}
 				break;
 			}
 		}
 
-		if (_Filter.m_Identifier && _Key.m_Identifier != *_Filter.m_Identifier)
+		if (_Filter.m_Identifier && NStr::fg_StrMatchWildcard(_Key.m_Identifier.f_GetStr(), _Filter.m_Identifier->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted)
 			return false;
 
-		if (_Filter.m_IdentifierScope && _Key.m_IdentifierScope != *_Filter.m_IdentifierScope)
+		if 
+			(
+				_Filter.m_IdentifierScope
+				&& NStr::fg_StrMatchWildcard(_Key.m_IdentifierScope.f_GetStr(), _Filter.m_IdentifierScope->f_GetStr()) != EMatchWildcardResult_WholeStringMatchedAndPatternExhausted
+			)
+		{
 			return false;
+		}
 
 		if (_Filter.m_Flags & CDistributedAppLogReader_LogFilter::ELogFlag_IgnoreRemoved)
 		{

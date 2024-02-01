@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 
 			auto operator <=> (CSensorScope_Application const &_Right) const = default;
 
-			NStr::CStr m_ApplicationName;
+			NStr::CStr m_ApplicationName; // Supports wildcards
 		};
 
 		using CSensorScope = NStorage::TCStreamableVariant

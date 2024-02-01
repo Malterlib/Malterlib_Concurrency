@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--application"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only logs that come from the specified application.\n"
+				, "Description"_o= "Limit output to only logs that come from the specified application. Supports wildcards.\n"
 				"Set to an empty string to only include logs that are in host scope"
 			}
 		;
@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--identifier"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only logs that match the identifier."
+				, "Description"_o= "Limit output to only logs that match the identifier. Supports wildcards."
 			}
 		;
 
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--identifier-scope"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only logs that match the idendifier scope."
+				, "Description"_o= "Limit output to only logs that match the idendifier scope. Supports wildcards."
 			}
 		;
 

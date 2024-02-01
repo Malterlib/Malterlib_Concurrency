@@ -119,8 +119,8 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--application"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only sensors that come from the specified application.\n"
-				"Set to an empty string to only include sensors that are in host scope"
+				, "Description"_o= "Limit output to only sensors that come from the specified application. Supports wildcards.\n"
+				"Set to an empty string to only include sensors that are in host scope."
 			}
 		;
 
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--identifier"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only sensors that match the identifier."
+				, "Description"_o= "Limit output to only sensors that match the identifier. Supports wildcards."
 			}
 		;
 
@@ -136,7 +136,7 @@ namespace NMib::NConcurrency
 			{
 				"Names"_o= {"--identifier-scope"}
 				, "Type"_o= ""
-				, "Description"_o= "Limit output to only sensors that match the idendifier scope."
+				, "Description"_o= "Limit output to only sensors that match the idendifier scope. Supports wildcards."
 			}
 		;
 

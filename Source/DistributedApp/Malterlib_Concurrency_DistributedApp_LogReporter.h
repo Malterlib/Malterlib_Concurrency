@@ -100,7 +100,7 @@ namespace NMib::NConcurrency
 
 			auto operator <=> (CLogScope_Application const &_Right) const = default;
 
-			NStr::CStr m_ApplicationName;
+			NStr::CStr m_ApplicationName; // Supports wildcards
 		};
 
 		using CLogScope = NStorage::TCStreamableVariant

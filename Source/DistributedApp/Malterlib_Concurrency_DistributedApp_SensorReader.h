@@ -23,8 +23,8 @@ namespace NMib::NConcurrency
 
 		NStorage::TCOptional<NStr::CStr> m_HostID;
 		NStorage::TCOptional<CDistributedAppSensorReporter::CSensorScope> m_Scope;
-		NStorage::TCOptional<NStr::CStr> m_Identifier;
-		NStorage::TCOptional<NStr::CStr> m_IdentifierScope;
+		NStorage::TCOptional<NStr::CStr> m_Identifier; // Supports wildcards
+		NStorage::TCOptional<NStr::CStr> m_IdentifierScope; // Supports wildcards
 		ESensorFlag m_Flags = ESensorFlag_None;
 	};
 

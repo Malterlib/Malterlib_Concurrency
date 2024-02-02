@@ -261,7 +261,7 @@ namespace NMib::NConcurrency
 			bool f_IsValueCritical(CSensorData const &_Value) const;
 			bool f_HasValueWarnings() const;
 			bool f_HasExpectedReportInterval() const;
-			bool f_IsPaused(NTime::CTime const &_Now, NTime::CTime const &_HostLastSeen, fp32 *o_pPausedForAnotherSeconds = nullptr) const;
+			bool f_IsPaused(NTime::CTime const &_Now, NTime::CTime const &_HostLastSeen, fp32 *o_pSecondsOfPauseRemaining = nullptr) const;
 
 			NStr::CStr m_Identifier;
 			NStr::CStr m_IdentifierScope;

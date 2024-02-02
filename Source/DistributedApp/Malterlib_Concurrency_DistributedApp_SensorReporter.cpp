@@ -98,22 +98,22 @@ namespace NMib::NConcurrency
 		return m_ExpectedReportInterval != fp32::fs_Inf();
 	}
 
-	bool CDistributedAppSensorReporter::CSensorInfo::f_IsPaused(NTime::CTime const &_Now, NTime::CTime const &_HostLastSeen, fp32 *o_pPausedForAnotherSeconds) const
+	bool CDistributedAppSensorReporter::CSensorInfo::f_IsPaused(NTime::CTime const &_Now, NTime::CTime const &_HostLastSeen, fp32 *o_pSecondsOfPauseRemaining) const
 	{
 		auto LastSeen = fg_Max(m_LastSeen, _HostLastSeen);
 
 		if (m_PauseReportingFor == fp32::fs_Inf())
 		{
-			if (o_pPausedForAnotherSeconds)
-				*o_pPausedForAnotherSeconds = fp32::fs_Inf();
+			if (o_pSecondsOfPauseRemaining)
+				*o_pSecondsOfPauseRemaining = fp32::fs_Inf();
 
 			return true;
 		}
 		else if (!m_PauseReportingFor.f_IsNan() && LastSeen.f_IsValid())
 		{
 			auto PausedForSeconds = (_Now - LastSeen).f_GetSecondsFraction();
-			if (o_pPausedForAnotherSeconds)
-				*o_pPausedForAnotherSeconds = m_PauseReportingFor - PausedForSeconds;
+			if (o_pSecondsOfPauseRemaining)
+				*o_pSecondsOfPauseRemaining = m_PauseReportingFor - PausedForSeconds;
 			return PausedForSeconds < m_PauseReportingFor;
 		}
 
@@ -302,7 +302,7 @@ namespace NMib::NConcurrency
 				OutdatedString += _AnsiEncoding.f_Default();
 			}
 
-			fp32 PausedForSeconds = {};
+			fp32 SecondsOfPauseRemaining = {};
 			if (OutdatedStatus >= CDistributedAppSensorReporter::EStatusSeverity_Warning)
 			{
 				auto MissedUpdates = (OutdatedSeconds / _pSensorInfo->m_ExpectedReportInterval).f_ToInt();
@@ -311,12 +311,12 @@ namespace NMib::NConcurrency
 				else
 					OutdatedString += "Sensor missed {} updates"_f << MissedUpdates;
 			}
-			else if (_pSensorInfo->f_IsPaused(_Now, {}, &PausedForSeconds))
+			else if (_pSensorInfo->f_IsPaused(_Now, {}, &SecondsOfPauseRemaining))
 			{
 				if (_pSensorInfo->m_PauseReportingFor == fp32::fs_Inf())
 					OutdatedString += "Paused";
 				else
-					OutdatedString += "Paused for another {}"_f << NTime::fg_SecondsDurationToHumanReadable(PausedForSeconds);
+					OutdatedString += "Paused for another {}"_f << NTime::fg_SecondsDurationToHumanReadable(SecondsOfPauseRemaining);
 			}
 			else
 				OutdatedString += "Will warn in {}"_f << NTime::fg_SecondsDurationToHumanReadable(_pSensorInfo->m_ExpectedReportInterval - OutdatedSeconds);

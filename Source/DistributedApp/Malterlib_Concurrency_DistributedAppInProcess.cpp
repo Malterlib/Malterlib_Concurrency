@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 							(
 								{
 									"Names"_o= {"--daemon-run-in-app"}
-									, "Description"_o= "Run as in app daemon"
+									, "Description"_o= "Run as in app daemon."
 								}
 								, [](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 								{

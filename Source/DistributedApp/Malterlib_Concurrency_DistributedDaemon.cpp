@@ -470,8 +470,8 @@ namespace NMib::NConcurrency
 					, "Description"_o= "Check if the daemon exists and has been installed.\n"
 					, "Status"_o=
 					{
-						"0"_o= "The daemon exists"
-						, "1"_o= "The daemon does not exist"
+						"0"_o= "The daemon exists."
+						, "1"_o= "The daemon does not exist."
 					}
 					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_o= {DaemonNameParam}
@@ -489,8 +489,8 @@ namespace NMib::NConcurrency
 					, "Description"_o= "Runs the daemon. [INTERNAL]\n"
 					, "Status"_o=
 					{
-						"0"_o= "The daemon exists"
-						, "1"_o= "The daemon does not exist"
+						"0"_o= "The daemon exists."
+						, "1"_o= "The daemon does not exist."
 					}
 					, "SectionOptions"_o= {"Daemon_Mode", "Daemon_Verbose"}
 					, "Parameters"_o= {DaemonNameParam}

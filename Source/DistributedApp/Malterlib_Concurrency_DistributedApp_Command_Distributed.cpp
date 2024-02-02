@@ -40,9 +40,9 @@ namespace NMib::NConcurrency
 				"Names"_o= {"--authentication-factors"}
 				, "Type"_o= COneOfType{CEJSONOrdered({CEJSONOrdered({""})}), CEJSONOrdered({""}), CEJSONOrdered{""}}
 				, "Description"_o= "The authentication factor(s) used for the permission. Factors must be specified as a string or a JSON array (of arrays):\n"
-					"\"Factor1\"                                        - must authenticate by Factor1\n"
-					"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2\n"
-					"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2\n"
+					"\"Factor1\"                                        - must authenticate by Factor1.\n"
+					"[\"Factor1\", \"Factor2\"]                           - must authenticate by Factor1 or Factor2.\n"
+					"[[\"Factor1\", \"Factor2\"]]                         - must authenticate by Factor1 and Factor2.\n"
 					"[[\"Factor1\", \"Factor2\"], [\"Factor1\", \"Factor3\"]] - must authenticate by Factor1 and either Factor2 or Factor3.\n"
 			}
 		;
@@ -1283,7 +1283,7 @@ namespace NMib::NConcurrency
 						{
 							"Type"_o= ""
 							, "Description"_o= "Pattern for matching permissions.\n"
-							"All permissions matching this pattern will preauthenticated with the listed factors\n"
+							"All permissions matching this pattern will preauthenticated with the listed factors.\n"
 						}
 					}
 				}

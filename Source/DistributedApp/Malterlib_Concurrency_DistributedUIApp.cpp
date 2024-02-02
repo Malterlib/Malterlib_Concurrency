@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 						{
 							"Type"_o= {""}
 							, "Default"_o= _[_]
-							, "Description"_o= "Catch all parameters"
+							, "Description"_o= "Catch all parameters."
 						}
 					}
 				}

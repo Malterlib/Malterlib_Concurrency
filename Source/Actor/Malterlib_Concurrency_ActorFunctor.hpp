@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 								TCPromise<CStripedReturn> Promise;
 								try
 								{
-									Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+									Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
 								}
 								catch (...)
 								{
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 									TCPromise<CStripedReturn> Promise;
 									try
 									{
-										Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+										Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
 									}
 									catch (...)
 									{
@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 												TCPromise<CStripedReturn> Promise;
 												try
 												{
-													Promise.f_SetResult(fg_CallSafe(*pFunctor, fg_Move(_Params)...));
+													Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
 												}
 												catch (...)
 												{

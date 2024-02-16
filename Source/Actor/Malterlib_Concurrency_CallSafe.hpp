@@ -234,8 +234,8 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename tf_CFunction, typename ...tfp_CStorageParams, typename ...tfp_CParams>
-	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
+	template <typename tf_CFunction, typename tf_CFunctor, typename ...tfp_CStorageParams, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafeGenericImpl(NMeta::TCTypeList<tfp_CStorageParams...> _TypeList, tf_CFunctor &&_fFunction, tfp_CParams &&...p_Params)
 		requires NTraits::cIsCallableWith
 		<
 			TCSafeCallParamsToFunctionPointer<NMeta::TCTypeList<tfp_CStorageParams...>>
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency
 		using CReturn = NTraits::TCCallableReturnTypeFor<CFunctionType, void (tfp_CParams...)>;
 		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
-				fg_Forward<tf_CFunction>(_fFunction)
+				fg_Forward<tf_CFunctor>(_fFunction)
 				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
@@ -262,7 +262,7 @@ namespace NMib::NConcurrency
 		>
 	{
 		using CFunctionType = typename NTraits::TCRemoveReference<tf_CFunction>::CType;
-		return fg_CallSafeGenericImpl
+		return fg_CallSafeGenericImpl<tf_CFunction>
 			(
 				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
 				, fg_Forward<tf_CFunction>(_fFunction)
@@ -271,6 +271,24 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	template <typename tf_CFunction, typename ...tfp_CParams>
+	mark_artificial inline_always auto fg_CallSafe(NStorage::TCSharedPointer<tf_CFunction> const &_fFunction, tfp_CParams &&...p_Params)
+		requires NTraits::cIsCallableWith
+		<
+			TCSafeCallParamsToFunctionPointer<typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReference<tf_CFunction>::CType::operator ())>::CParams>
+			, void (tfp_CParams...)
+		>
+	{
+		using CFunctionType = typename NTraits::TCRemoveReference<tf_CFunction>::CType;
+		return fg_CallSafeGenericImpl<tf_CFunction>
+			(
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
+				, _fFunction
+				, fg_Forward<tfp_CParams>(p_Params)...
+			)
+		;
+	}
+	
 	template <typename tf_CFunction, typename ...tfp_CParams>
 	auto fg_CallSafeDispatchedOn(TCActor<CActor> &&_Actor, tf_CFunction &&_fFunction, tfp_CParams &&...p_Params)
 	{

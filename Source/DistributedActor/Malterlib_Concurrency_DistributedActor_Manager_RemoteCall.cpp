@@ -266,9 +266,9 @@ namespace NMib::NConcurrency
 	{
 		CDistributedActorCommand_RemoteCallResult RemoteCallResult;
 		auto &Host = *_pConnection->m_pHost;
-		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
-		DMibFastCheck(ProtocolVersion != 0);
-		DMibBinaryStreamVersion(_Stream, ProtocolVersion);
+
+		auto VersionScope = Host.f_StreamVersion(_Stream);
+
 		_Stream >> RemoteCallResult;
 		
 		auto pCall = Host.m_OutstandingCalls.f_FindEqual(RemoteCallResult.m_ReplyToPacketID);
@@ -339,9 +339,9 @@ namespace NMib::NConcurrency
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
 		
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-		uint32 ProtocolVersion = Host.m_ActorProtocolVersion.f_Load();
-		DMibFastCheck(ProtocolVersion != 0);
-		DMibBinaryStreamVersion(Stream, ProtocolVersion);
+
+		auto VersionScope = Host.f_StreamVersion(Stream);
+
 		Stream << Result;
 		mint DataLen = _Data.f_GetLen();
 		if (DataLen != 0)

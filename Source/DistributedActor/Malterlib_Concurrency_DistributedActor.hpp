@@ -69,6 +69,14 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<uint32> mp_InterfaceHashes;
 			CDistributedActorProtocolVersions mp_ProtocolVersions;
 		};
+
+		template <typename tf_CStream>
+		NStream::CScopeBinaryStreamVersion ICHost::f_StreamVersion(tf_CStream &_Stream)
+		{
+			uint32 ProtocolVersion = m_ActorProtocolVersion.f_Load();
+			DMibFastCheck(ProtocolVersion != 0);
+			return NMib::NStream::CScopeBinaryStreamVersion(_Stream, ProtocolVersion);
+		}
 	}
 
 	template <typename t_CActor>

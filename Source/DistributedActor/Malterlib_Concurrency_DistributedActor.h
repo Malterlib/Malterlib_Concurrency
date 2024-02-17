@@ -72,6 +72,9 @@ namespace NMib::NConcurrency
 			ICHost(CDistributedActorHostInfo &&_Info);
 			virtual ~ICHost();
 
+			template <typename tf_CStream>
+			NStream::CScopeBinaryStreamVersion f_StreamVersion(tf_CStream &_Stream);
+
 			NStorage::CIntrusiveRefCountWithWeak m_RefCount;
 			CDistributedActorHostInfo const m_HostInfo;
 			NAtomic::TCAtomic<uint32> m_ActorProtocolVersion = 0;

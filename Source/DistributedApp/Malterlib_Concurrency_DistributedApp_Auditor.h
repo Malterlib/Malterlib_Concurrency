@@ -64,6 +64,8 @@ namespace NMib::NConcurrency
 		NStr::CStr f_Error(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
 		NException::CException f_Exception(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
 		NException::CException f_Exception(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
+		NException::CException f_CriticalException(NStr::CStr const &_Message, NStr::CStr const &_Category = {}) const;
+		NException::CException f_CriticalException(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category = {}) const;
 		NException::CException f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category = {}) const;
 		NException::CException f_AccessDenied(NContainer::TCVector<NStr::CStr> const &_Message, NContainer::TCVector<NStr::CStr> const &_Permissions, NStr::CStr const &_Category = {}) const;
 		NException::CException f_AccessDenied(NStr::CStr const &_Message, NContainer::TCVector<CPermissionQuery> const &_Permissions, NStr::CStr const &_Category = {}) const;

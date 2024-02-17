@@ -156,6 +156,16 @@ namespace NMib::NConcurrency
 		return DMibErrorInstance(f_Audit(NLog::ESeverity_Error, _Message, _Category));
 	}
 	
+	NException::CException CDistributedAppAuditor::f_CriticalException(NStr::CStr const &_Message, NStr::CStr const &_Category) const
+	{
+		return DMibErrorInstance(f_Audit(NLog::ESeverity_Critical, _Message, _Category));
+	}
+	
+	NException::CException CDistributedAppAuditor::f_CriticalException(NContainer::TCVector<NStr::CStr> const &_Message, NStr::CStr const &_Category) const
+	{
+		return DMibErrorInstance(f_Audit(NLog::ESeverity_Critical, _Message, _Category));
+	}
+	
 	CStr CDistributedAppAuditor::f_Warning(NStr::CStr const &_Message, NStr::CStr const &_Category) const
 	{
 		return f_Audit(NLog::ESeverity_Warning, _Message, _Category);

@@ -23,8 +23,9 @@ namespace NMib::NConcurrency
 		m_pRunLoop.f_Clear();
 	}
 	
-	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory)
-		: mp_ListenSettings({(NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock")).f_GetStr()})
+	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+		: mp_pRunLoop(_pRunLoop)
+		, mp_ListenSettings({(NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock")).f_GetStr()})
 		, mp_ServerCryptography(NCryptography::fg_RandomID())
 		, mp_ClientCryptography(NCryptography::fg_RandomID())
 		, mp_ListenSocketPath(NStr::CStr::CFormat("UNIX(666):{}") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock"))
@@ -63,12 +64,12 @@ namespace NMib::NConcurrency
 
 	void CDistributedActorTestHelperCombined::f_BreakClientConnection(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags)
 	{
-		mp_ClientConnectionReference.f_Debug_Break(_Timeout, _Flags).f_CallSync(60.0);
+		mp_ClientConnectionReference.f_Debug_Break(_Timeout, _Flags).f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelperCombined::f_BreakServerConnections(fp64 _Timeout, NNetwork::ESocketDebugFlag _Flags)
 	{
-		mp_ListenReference.f_Debug_BreakAllConnections(_Timeout, _Flags).f_CallSync(60.0);
+		mp_ListenReference.f_Debug_BreakAllConnections(_Timeout, _Flags).f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelperCombined::f_SeparateServerManager()
@@ -81,6 +82,7 @@ namespace NMib::NConcurrency
 			(
 				mp_ServerCryptography.m_HostID
 				, fg_ConstructActor<CActorDistributionManager>(Settings)
+				, mp_pRunLoop
 			)
 		;
 	}
@@ -100,7 +102,7 @@ namespace NMib::NConcurrency
 			Settings.m_FriendlyName = "TestHelperServer";
 
 			mp_ServerCryptography.m_HostID = fg_InitDistributionManager(Settings).m_HostID;
-			mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_GetDistributionManager());
+			mp_pServer = fg_Construct(mp_ServerCryptography.m_HostID, fg_GetDistributionManager(), mp_pRunLoop);
 		}
 		
 		TCActor<CActorDistributionManager> const &ServerManager = mp_pServer->f_GetManager();
@@ -110,12 +112,12 @@ namespace NMib::NConcurrency
 		mp_ListenSettings.f_SetCryptography(mp_ServerCryptography);
 		mp_ListenSettings.m_bRetryOnListenFailure = false;
 		mp_ListenSettings.m_ListenFlags = NNetwork::ENetFlag_None;
-		mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(60.0);
+		mp_ListenReference = ServerManager(&CActorDistributionManager::f_Listen, mp_ListenSettings).f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelperCombined::f_DisconnectClient(bool _bNewExecutionID)
 	{
-		mp_ClientConnectionReference.f_Disconnect().f_CallSync(60.0);
+		mp_ClientConnectionReference.f_Disconnect().f_CallSync(mp_pRunLoop, 60.0);
 		if (_bNewExecutionID)
 		{
 			if (mp_pClient)
@@ -141,6 +143,7 @@ namespace NMib::NConcurrency
 				(
 					mp_ClientCryptography.m_HostID
 					, fg_ConstructActor<CActorDistributionManager>(Settings)
+					, mp_pRunLoop
 				)
 			;
 		}
@@ -156,7 +159,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFailure = _bReconnect;
 
 		TCActor<CActorDistributionManager> const &ClientManager = mp_pClient->f_GetManager(); 
-		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference;
+		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(mp_pRunLoop, 60.0).m_ConnectionReference;
 	}
 	
 	void CDistributedActorTestHelperCombined::f_InitAnonymousClient(CDistributedActorTestHelperCombined &_Server)
@@ -170,6 +173,7 @@ namespace NMib::NConcurrency
 				(
 					mp_ClientCryptography.m_HostID
 					, fg_ConstructActor<CActorDistributionManager>(Settings)
+					, mp_pRunLoop
 				)
 			;
 		}
@@ -182,7 +186,7 @@ namespace NMib::NConcurrency
 		ConnectionSettings.m_bRetryConnectOnFirstFailure = false;
 		ConnectionSettings.m_bRetryConnectOnFailure = false;
 
-		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(60.0).m_ConnectionReference;
+		mp_ClientConnectionReference = ClientManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 60.0).f_CallSync(mp_pRunLoop, 60.0).m_ConnectionReference;
 	}
 	
 	NStr::CStr CDistributedActorTestHelperCombined::f_Subscribe(NStr::CStr const &_Namespace)
@@ -205,21 +209,33 @@ namespace NMib::NConcurrency
 		return mp_Manager;			
 	}
 
-	CDistributedActorTestHelper::CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager)
-		: mp_HostID(_HostID)
+	CDistributedActorTestHelper::CDistributedActorTestHelper
+		(
+			NStr::CStr const &_HostID
+			, TCActor<CActorDistributionManager> const &_Manager
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+		)
+		: mp_pRunLoop(_pRunLoop)
+		, mp_HostID(_HostID)
 		, mp_Manager(_Manager)
 		, mp_pRemoteLock(fg_Construct())
 	{
 	}
 	
-	CDistributedActorTestHelper::CDistributedActorTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, bool _bAllowUnconnected)
-		: mp_HostID(_TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(60.0))
-		, mp_Manager(_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(60.0))
+	CDistributedActorTestHelper::CDistributedActorTestHelper
+		(
+			TCActor<CDistributedActorTrustManager> const &_TrustManager
+			, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+			, bool _bAllowUnconnected
+		)
+		: mp_HostID(_TrustManager(&CDistributedActorTrustManager::f_GetHostID).f_CallSync(mp_pRunLoop, 60.0))
+		, mp_Manager(_TrustManager(&CDistributedActorTrustManager::f_GetDistributionManager).f_CallSync(mp_pRunLoop, 60.0))
 		, mp_pRemoteLock(fg_Construct())
+		, mp_pRunLoop(_pRunLoop)
 	{
 		if (!_bAllowUnconnected)
 		{
-			auto State = _TrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(60.0);
+			auto State = _TrustManager(&CDistributedActorTrustManager::f_GetConnectionState).f_CallSync(mp_pRunLoop, 60.0);
 			for (auto &Host : State.m_Hosts)
 			{
 				for (auto &ConnectionStates : Host.m_Addresses)
@@ -312,7 +328,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-			).f_CallSync(60.0)
+			).f_CallSync(mp_pRunLoop, 60.0)
 		;
 		
 		fp64 WaitTime = 60.0;
@@ -360,7 +376,7 @@ namespace NMib::NConcurrency
 		if (pSubscription)
 		{
 			if (pSubscription->m_Subscription)
-				fg_Exchange(pSubscription->m_Subscription, nullptr)->f_Destroy().f_CallSync(60.0);
+				fg_Exchange(pSubscription->m_Subscription, nullptr)->f_Destroy().f_CallSync(mp_pRunLoop, 60.0);
 		}
 	}
 
@@ -376,18 +392,18 @@ namespace NMib::NConcurrency
 		for (auto &Publication : mp_Publications)
 			Publication.m_Publication.f_Destroy() > Results.f_AddResult();
 
-		Results.f_GetResults().f_CallSync(60.0);
+		Results.f_GetResults().f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelper::f_Unpublish(NStr::CStr const &_Publication)
 	{
 		auto *pPublication = mp_Publications.f_FindEqual(_Publication);
-		pPublication->m_Publication.f_Destroy().f_CallSync(60.0);
+		pPublication->m_Publication.f_Destroy().f_CallSync(mp_pRunLoop, 60.0);
 	}
 	
 	void CDistributedActorTestHelper::f_SetSecurity(CDistributedActorSecurity const &_Security)
 	{
-		mp_Manager(&CActorDistributionManager::f_SetSecurity, _Security).f_CallSync(60.0);
+		mp_Manager(&CActorDistributionManager::f_SetSecurity, _Security).f_CallSync(mp_pRunLoop, 60.0);
 	}
 	
 	NStr::CStr const &CDistributedActorTestHelper::f_GetHostID() const

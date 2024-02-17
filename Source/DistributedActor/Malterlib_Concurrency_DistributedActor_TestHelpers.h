@@ -15,8 +15,14 @@ namespace NMib::NConcurrency
 		
 	struct CDistributedActorTestHelper
 	{
-		CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager);
-		CDistributedActorTestHelper(TCActor<CDistributedActorTrustManager> const &_TrustManager, bool _bAllowUnconnected = false);
+		CDistributedActorTestHelper(NStr::CStr const &_HostID, TCActor<CActorDistributionManager> const &_Manager, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
+		CDistributedActorTestHelper
+			(
+				TCActor<CDistributedActorTrustManager> const &_TrustManager
+				, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop
+				, bool _bAllowUnconnected = false
+			)
+		;
 		~CDistributedActorTestHelper();
 		
 		template <typename ...tfp_CDistributedActors, typename tf_CActor>
@@ -56,6 +62,7 @@ namespace NMib::NConcurrency
 		NStr::CStr fp_Subscribe(NStr::CStr const &_Namespace, bool _bExpectFailure, mint _nExpected);
 		
 		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> mp_pDeleted = fg_Construct(false);
+		NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
 		NStr::CStr mp_HostID;
 		TCActor<CActorDistributionManager> mp_Manager;
 		NStorage::TCSharedPointer<NThread::CMutual> mp_pRemoteLock;
@@ -64,12 +71,13 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, CSubscription> mp_Subscriptions;
 		NContainer::TCMap<NStr::CStr, CPublication> mp_Publications;
 
+
 		TCActor<CActor> mp_ProcessingActor = fg_ConcurrentActor();
 	};
 	
 	struct CDistributedActorTestHelperCombined
 	{
-		CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory);
+		CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop);
 		~CDistributedActorTestHelperCombined();
 		void f_SeparateServerManager();
 		void f_Init(bool _bReconnect = false);
@@ -100,6 +108,8 @@ namespace NMib::NConcurrency
 		CDistributedActorTestHelper &f_GetClient();
 		
 	private:
+		NStorage::TCSharedPointer<CRunLoop> mp_pRunLoop;
+
 		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pServer;
 		NStorage::TCUniquePointer<CDistributedActorTestHelper> mp_pClient;
 		

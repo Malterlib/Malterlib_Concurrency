@@ -2127,20 +2127,7 @@ namespace NMib::NConcurrency::NTest
 					if (fg_MemoryManagerFeatures() & EMemoryManagerFeatureFlag_TraceLeaks)
 						return; // Clang doesn't call the correct destructors when throwing from unhandled_exception
 
-					TCSharedPointer<CDefaultRunLoop> pRunLoop = fg_Construct();
-					auto CleanupRunLoop = g_OnScopeExit / [&]
-						{
-							while (pRunLoop->m_RefCount.f_Get() > 0)
-								pRunLoop->f_WaitOnceTimeout(0.1);
-						}
-					;
-					TCActor<CDispatchingActor> HelperActor(fg_Construct(), pRunLoop->f_Dispatcher());
-					auto CleanupHelperActor = g_OnScopeExit / [&]
-						{
-							HelperActor->f_BlockDestroy(pRunLoop->f_ActorDestroyLoop());
-						}
-					;
-					CCurrentlyProcessingActorScope CurrentActor{HelperActor};
+					CActorRunLoopTestHelper RunLoopHelper;
 
 					auto fTest = [&]() -> TCFuture<void>
 						{
@@ -2149,7 +2136,7 @@ namespace NMib::NConcurrency::NTest
 							co_return {};
 						}
 					;
-					DMibExpectException(fTest().f_CallSync(pRunLoop), DMibErrorInstance("Test Custom"));
+					DMibExpectException(fTest().f_CallSync(RunLoopHelper.m_pRunLoop), DMibErrorInstance("Test Custom"));
 				};
 #endif
 			};

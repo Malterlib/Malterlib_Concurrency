@@ -9,6 +9,7 @@
 #include <Mib/Web/DDPClient>
 #include <Mib/Network/Sockets/SSL>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
+#include <Mib/Concurrency/DistributedActorTestHelpers>
 
 using namespace NMib;
 using namespace NMib::NConcurrency;
@@ -32,6 +33,8 @@ namespace
 		{
 			DMibTestSuite("DDP")
 			{
+				CActorRunLoopTestHelper RunLoopHelper;
+
 				CStr ProgramDirectory = NFile::CFile::fs_GetProgramDirectory();
 				CStr RootDirectory = ProgramDirectory + "/DistributedDDPBridgeTests";
 
@@ -45,17 +48,19 @@ namespace
 				
 				CDistributedActorTrustManager_Address ServerAddress;
 				ServerAddress.m_URL = "wss://[UNIX(666):{}]/"_f << fg_GetSafeUnixSocketPath("{}/server.sock"_f << RootDirectory);
-				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(g_Timeout);
+				ServerTrustManager(&CDistributedActorTrustManager::f_AddListen, ServerAddress).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
-					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr).f_CallSync(g_Timeout);
-					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(g_Timeout);
+					auto TrustTicket = ServerTrustManager(&CDistributedActorTrustManager::f_GenerateConnectionTicket, ServerAddress, nullptr, nullptr)
+						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+					;
+					ClientTrustManager(&CDistributedActorTrustManager::f_AddClientConnection, TrustTicket.m_Ticket, 30.0, -1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				}
 
 				TCActor<CDistributedTrustDDPBridge> DdpBridge;
 				DdpBridge = fg_ConstructActor<CDistributedTrustDDPBridge>(ServerTrustManager);
 				
-				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(g_Timeout / 3);
+				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 
 				auto HandlerActor = fg_ConcurrentActor();
 				
@@ -109,7 +114,7 @@ namespace
 						"Test"_= "Test"
 					}
 				;
-				CEJSONSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(g_Timeout / 3);
+				CEJSONSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 				
 				DMibExpect(MethodResult["HostID"].f_String(), == , ClientDatabase.m_BasicConfig.m_HostID);
 
@@ -120,16 +125,16 @@ namespace
 								"Invalid"_= "Test"
 							}
 						;
-						Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(g_Timeout / 3);
+						Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(InvalidMethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 					}
 				;
 				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("exception: Invalid params"));
 				
-				fg_Exchange(HandlerSubscription, nullptr)->f_Destroy().f_CallSync(g_Timeout);
+				fg_Exchange(HandlerSubscription, nullptr)->f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				DMibExpectException(fCallInvalidParams(), DMibErrorInstance("method-not-found: Method not found"));
 				
-				ServerTrustManager->f_BlockDestroy();
-				ClientTrustManager->f_BlockDestroy();
+				ServerTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
+				ClientTrustManager->f_BlockDestroy(RunLoopHelper.m_pRunLoop->f_ActorDestroyLoop());
 			};
 		}
 	};

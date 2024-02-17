@@ -394,6 +394,9 @@ namespace NMib::NConcurrency
 	TCFuture<void> CActorCommon::f_Destroy() &
 	{
 		TCPromise<void> Promise;
+		if (!(static_cast<TCActor<> &>(*this)).m_pInternalActor)
+			return Promise <<= g_Void;
+
 		(static_cast<TCActor<> &>(*this))(&CActor::fp_DestroyInternal) > NPrivate::fg_DirectResultActor()
 			/ CActorHolder::fsp_DestroyHandler((static_cast<TCActor<> &>(*this)).m_pInternalActor, Promise)
 		;
@@ -403,7 +406,11 @@ namespace NMib::NConcurrency
 	TCFuture<void> CActorCommon::f_Destroy() &&
 	{
 		TCPromise<void> Promise;
+
 		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
+		if (!pActorInternal)
+			return Promise <<= g_Void;
+
 		(static_cast<TCActor<> &&>(*this))(&CActor::fp_DestroyInternal) > NPrivate::fg_DirectResultActor() / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise);
 		return Promise.f_MoveFuture();
 	}

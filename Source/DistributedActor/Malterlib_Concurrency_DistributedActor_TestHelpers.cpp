@@ -10,6 +10,19 @@
 
 namespace NMib::NConcurrency
 {
+	CActorRunLoopTestHelper::~CActorRunLoopTestHelper()
+	{
+		m_CurrentActor.f_Clear();
+
+		m_HelperActor->f_BlockDestroy(m_pRunLoop->f_ActorDestroyLoop());
+		m_HelperActor.f_Clear();
+
+		while (m_pRunLoop->m_RefCount.f_Get() > 0)
+			m_pRunLoop->f_WaitOnceTimeout(0.1);
+
+		m_pRunLoop.f_Clear();
+	}
+	
 	CDistributedActorTestHelperCombined::CDistributedActorTestHelperCombined(NStr::CStr const &_ListenDirectory)
 		: mp_ListenSettings({(NStr::CStr::CFormat("wss://[UNIX(666):{}]/") << NNetwork::fg_GetSafeUnixSocketPath(_ListenDirectory / "tests.sock")).f_GetStr()})
 		, mp_ServerCryptography(NCryptography::fg_RandomID())

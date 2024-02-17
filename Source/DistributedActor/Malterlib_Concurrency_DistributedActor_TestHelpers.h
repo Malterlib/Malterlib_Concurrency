@@ -111,6 +111,15 @@ namespace NMib::NConcurrency
 		CDistributedActorConnectionReference mp_ClientConnectionReference;
 		NStr::CStr mp_ListenSocketPath;
 	};
+
+	struct CActorRunLoopTestHelper
+	{
+		~CActorRunLoopTestHelper();
+
+		NStorage::TCSharedPointer<CDefaultRunLoop> m_pRunLoop = fg_Construct();
+		TCActor<CDispatchingActor> m_HelperActor{fg_Construct(), m_pRunLoop->f_Dispatcher()};
+		NStorage::TCOptional<CCurrentlyProcessingActorScope> m_CurrentActor{fg_Construct(m_HelperActor)};
+	};
 }
 
 #include "Malterlib_Concurrency_DistributedActor_TestHelpers.hpp"

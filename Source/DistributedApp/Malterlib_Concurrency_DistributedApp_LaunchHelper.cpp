@@ -180,7 +180,7 @@ namespace NMib::NConcurrency
 		: m_Dependencies(_Dependencies)
 		, m_bLogToStderr(_bLogToStderr)
 	{
-		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this, CDistributedAppInterfaceServer::mc_pDefaultNamespace)
+		m_AppInterfaceServer.f_Publish<CDistributedAppInterfaceServer>(m_Dependencies.m_DistributionManager, this)
 			> [](TCAsyncResult<void> &&_Result)
 			{
 				if (!_Result)

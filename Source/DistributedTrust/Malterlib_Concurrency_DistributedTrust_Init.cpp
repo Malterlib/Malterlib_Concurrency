@@ -651,7 +651,6 @@ namespace NMib::NConcurrency
 								(
 									m_ActorDistributionManager
 									, m_pThis
-									, ICDistributedActorAuthentication::mc_pDefaultNamespace
 								)
 								> PublishPromise
 							;

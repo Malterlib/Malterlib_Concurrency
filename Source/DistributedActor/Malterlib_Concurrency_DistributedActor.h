@@ -86,6 +86,7 @@ namespace NMib::NConcurrency
 				TCDistributedActor<CActor> &&_Actor
 				, CDistributedActorInterfaceInfo &&_InterfaceInfo
 				, NStr::CStr const &_Namespace
+				, fp32 _WaitForPublicationsTimeout
 			)
 		;
 	}
@@ -354,7 +355,7 @@ namespace NMib::NConcurrency
 		CDistributedActorPublication &operator = (CDistributedActorPublication &&);
 
 		bool f_IsValid() const;
-		TCFuture<void> f_Destroy();
+		TCFuture<void> f_Destroy(fp32 _WaitForPublicationsTimeout = 10.0);
 		void f_Republish(NStr::CStr const &_HostID) const;
 
 	private:
@@ -373,7 +374,14 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy();
 
 		template <typename tf_CFirstInterface, typename ...tfp_CInterfaces, typename tf_CThis>
-		TCFuture<void> f_Publish(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis, NStr::CStr const &_Namespace = tf_CFirstInterface::mc_pDefaultNamespace);
+		TCFuture<void> f_Publish
+			(
+				TCActor<CActorDistributionManager> const &_DistributionManager
+				, tf_CThis *_pThis
+				, fp32 _WaitForPublicationsTimeout = 10.0
+				, NStr::CStr const &_Namespace = tf_CFirstInterface::mc_pDefaultNamespace
+			)
+		;
 		template <typename tf_CThis>
 		void f_Construct(TCActor<CActorDistributionManager> const &_DistributionManager, tf_CThis *_pThis);
 
@@ -707,8 +715,8 @@ namespace NMib::NConcurrency
 			(
 				NStr::CStr const &_NameSpace /// Leave empty to subscribe to all actors
 				, TCActor<CActor> const &_Actor
-				, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-				, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+				, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+				, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 			)
 		;
 
@@ -753,6 +761,7 @@ namespace NMib::NConcurrency
 				TCDistributedActor<CActor> &&_Actor
 				, NStr::CStr const &_Namespace
 				, NPrivate::CDistributedActorInterfaceInfo const &_InterfaceInfo
+				, fp32 _WaitForPublicationsTimeout
 			)
 		;
 
@@ -778,7 +787,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost);
 		TCFuture<void> fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags);
 		TCFuture<void> fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings);
-		void fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID);
+		TCFuture<void> fp_RemoveActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, fp32 _WaitForPublicationsTimeout);
 		void fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID);
 		TCFuture<CDistributedActorConnectionStatus> fp_GetConnectionStatus(NStr::CStr const &_ConnectionID);
 		TCFuture<void> fp_Reconnect(NStr::CStr const &_ConnectionID);
@@ -795,6 +804,7 @@ namespace NMib::NConcurrency
 				TCDistributedActor<CActor> &&_Actor
 				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
 				, NStr::CStr const &_Namespace
+				, fp32 _WaitForPublicationsTimeout
 			)
 		;
 		friend struct CDistributedActorPublication;

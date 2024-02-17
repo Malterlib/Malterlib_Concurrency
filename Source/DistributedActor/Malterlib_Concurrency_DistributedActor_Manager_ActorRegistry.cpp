@@ -9,6 +9,15 @@
 
 namespace NMib::NConcurrency
 {
+	namespace
+	{
+		struct CPendingWait
+		{
+			NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> m_pHost;
+			uint32 m_WaitID;
+		};
+	}
+
 	CDistributedActorPublication::CDistributedActorPublication(CDistributedActorPublication &&) = default;
 	CDistributedActorPublication &CDistributedActorPublication::operator = (CDistributedActorPublication &&) = default;
 
@@ -32,7 +41,7 @@ namespace NMib::NConcurrency
 		return !mp_DistributionManager.f_IsEmpty();
 	}
 
-	TCFuture<void> CDistributedActorPublication::f_Destroy()
+	TCFuture<void> CDistributedActorPublication::f_Destroy(fp32 _WaitForPublicationsTimeout)
 	{
 		TCPromise<void> Promise;
 
@@ -40,7 +49,7 @@ namespace NMib::NConcurrency
 			return Promise <<= g_Void;
 
 		if (auto DistributionManager = mp_DistributionManager.f_Lock())
-			DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID) > Promise;
+			DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID, _WaitForPublicationsTimeout) > Promise;
 		else
 			Promise.f_SetResult();
 
@@ -70,6 +79,7 @@ namespace NMib::NConcurrency
 			TCDistributedActor<CActor> &&_Actor
 			, NStr::CStr const &_Namespace
 			, NPrivate::CDistributedActorInterfaceInfo const &_ClassesToPublish
+			, fp32 _WaitForPublicationsTimeout
 		)
 	{
 		TCPromise<CDistributedActorPublication> Promise;
@@ -104,9 +114,8 @@ namespace NMib::NConcurrency
 		Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
 		Publish.m_ProtocolVersions = _ClassesToPublish.f_GetProtocolVersions();
 
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-		Stream << Publish;
-		auto Data = Stream.f_MoveVector();
+		TCActorResultVector<void> WaitResults;
+		NContainer::TCVector<CPendingWait> PendingWaits;
 
 		for (auto &pHost : Internal.m_Hosts)
 		{
@@ -120,10 +129,56 @@ namespace NMib::NConcurrency
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 
-			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			auto VersionScope = Host.f_StreamVersion(Stream);
+
+			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			{
+				auto WaitID = Publish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
+
+				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults.f_AddResult();
+
+				PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
+			}
+			else
+				Publish.m_WaitPublicationID = 0;
+
+			Stream << Publish;
+
+			Internal.fp_QueuePacket(pHost, Stream.f_MoveVector());
 		}
 
-		return Promise <<= CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
+		if (WaitResults.f_IsEmpty())
+			return Promise <<= CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
+
+		WaitResults.f_GetResults().f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for publication results")
+			>
+			[
+				Promise
+				, PendingWaits = fg_Move(PendingWaits)
+				, Publication = CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID)
+			]
+			(auto &&_Results) mutable
+			{
+				if (!_Results)
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publications: {}", _Results.f_GetExceptionStr());
+				else
+				{
+					for (auto &Result : *_Results)
+					{
+						if (!Result)
+							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publication: {}", Result.f_GetExceptionStr());
+					}
+				}
+
+				for (auto &Wait : PendingWaits)
+					Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
+
+				Promise.f_SetResult(fg_Move(Publication));
+			}
+		;
+
+		return Promise.f_Future();
 	}
 
 	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID)
@@ -174,6 +229,8 @@ namespace NMib::NConcurrency
 			NContainer::CSecureByteVector PublishData;
 			{
 				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				auto VersionScope = Host.f_StreamVersion(Stream);
+
 				Stream << Publish;
 				PublishData = Stream.f_MoveVector();
 			}
@@ -183,8 +240,10 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr const &_Namespace, NStr::CStr const &_ActorID)
+	TCFuture<void> CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr const &_Namespace, NStr::CStr const &_ActorID, fp32 _WaitForPublicationsTimeout)
 	{
+		TCPromise<void> Promise;
+
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_Namespace);
 		DMibRequire(pLocalNamespace);
@@ -201,9 +260,9 @@ namespace NMib::NConcurrency
 		CDistributedActorCommand_Unpublish Unpublish;
 		Unpublish.m_ActorID = _ActorID;
 		Unpublish.m_Namespace = _Namespace;
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
-		Stream << Unpublish;
-		auto Data = Stream.f_MoveVector();
+
+		TCActorResultVector<void> WaitResults;
+		NContainer::TCVector<CPendingWait> PendingWaits;
 
 		for (auto &pHost : Internal.m_Hosts)
 		{
@@ -217,8 +276,51 @@ namespace NMib::NConcurrency
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
 				continue;
 
-			Internal.fp_QueuePacket(pHost, fg_TempCopy(Data));
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			auto VersionScope = Host.f_StreamVersion(Stream);
+
+			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			{
+				auto WaitID = Unpublish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
+
+				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults.f_AddResult();
+
+				PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
+			}
+			else
+				Unpublish.m_WaitPublicationID = 0;
+
+			Stream << Unpublish;
+			auto Data = Stream.f_MoveVector();
+
+			Internal.fp_QueuePacket(pHost, fg_Move(Data));
 		}
+
+		if (WaitResults.f_IsEmpty())
+			return Promise <<= g_Void;
+
+		WaitResults.f_GetResults().f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for unpublication results")
+			> [Promise, PendingWaits = fg_Move(PendingWaits)](auto &&_Results)
+			{
+				if (!_Results)
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublications: {}", _Results.f_GetExceptionStr());
+				else
+				{
+					for (auto &Result : *_Results)
+					{
+						if (!Result)
+							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublication: {}", Result.f_GetExceptionStr());
+					}
+				}
+
+				for (auto &Wait : PendingWaits)
+					Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
+
+				Promise.f_SetResult();
+			}
+		;
+
+		return Promise.f_Future();
 	}
 
 	CAbstractDistributedActor::CAbstractDistributedActor() = default;
@@ -303,9 +405,11 @@ namespace NMib::NConcurrency
 						fg_Dispatch
 							(
 								Instance.m_DispatchActor
-								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable
+								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable -> TCFuture<void>
 								{
-									(*pOnNewActor)(fg_Move(RemoteActor));
+									co_await fg_CallSafe(pOnNewActor, fg_Move(RemoteActor));
+
+									co_return {};
 								}
 							)
 							> _pResults->f_AddResult()
@@ -321,7 +425,7 @@ namespace NMib::NConcurrency
 								Instance.m_DispatchActor
 								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable
 								{
-									(*pOnNewActor)(fg_Move(RemoteActor));
+									fg_CallSafe(pOnNewActor, fg_Move(RemoteActor)) > fg_DiscardResult();
 								}
 							)
 							> fg_DiscardResult()
@@ -339,24 +443,45 @@ namespace NMib::NConcurrency
 			fSendNotifications(*pSpecific);
 	}
 
-	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor)
+	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCActorResultVector<void> *_pResults)
 	{
 		auto Identifier = CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()};
 
 		auto fSendNotifications = [&](CActorPublicationSubscription &_Subscription)
 			{
-				for (auto &Instance : _Subscription.m_Instances)
+				if (_pResults)
 				{
-					fg_Dispatch
-						(
-							Instance.m_DispatchActor
-							, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable
-							{
-								(*pOnRemovedActor)(fg_Move(Identifier));
-							}
-						)
-						> fg_DiscardResult()
-					;
+					for (auto &Instance : _Subscription.m_Instances)
+					{
+						fg_Dispatch
+							(
+								Instance.m_DispatchActor
+								, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable -> TCFuture<void>
+								{
+									co_await fg_CallSafe(pOnRemovedActor, fg_Move(Identifier));
+
+									co_return {};
+								}
+							)
+							> _pResults->f_AddResult()
+						;
+					}
+				}
+				else
+				{
+					for (auto &Instance : _Subscription.m_Instances)
+					{
+						fg_Dispatch
+							(
+								Instance.m_DispatchActor
+								, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable
+								{
+									fg_CallSafe(pOnRemovedActor, fg_Move(Identifier)) > fg_DiscardResult();
+								}
+							)
+							> fg_DiscardResult()
+						;
+					}
 				}
 			}
 		;
@@ -370,25 +495,103 @@ namespace NMib::NConcurrency
 			fSendNotifications(*pSpecific);
 	}
 
+	bool CActorDistributionManagerInternal::fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	{
+		auto &pHost = _pConnection->m_pHost;
+		auto &Host = *pHost;
+
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+			return true;
+
+		CDistributedActorCommand_UnpublishFinished UnpublishFinished;
+
+		auto VersionScope = Host.f_StreamVersion(_Stream);
+
+		_Stream >> UnpublishFinished;
+
+		auto *pWaiting = Host.m_WaitingPublications.f_FindEqual(UnpublishFinished.m_WaitPublicationID);
+		if (pWaiting)
+		{
+			pWaiting->m_Promise.f_SetResult();
+			Host.m_WaitingPublications.f_Remove(pWaiting);
+		}
+
+		return true;
+	}
+
+	bool CActorDistributionManagerInternal::fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
+	{
+		auto &pHost = _pConnection->m_pHost;
+		auto &Host = *pHost;
+
+		if (Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+			return true;
+
+		CDistributedActorCommand_PublishFinished PublishFinished;
+
+		auto VersionScope = Host.f_StreamVersion(_Stream);
+
+		_Stream >> PublishFinished;
+
+		auto *pWaiting = Host.m_WaitingPublications.f_FindEqual(PublishFinished.m_WaitPublicationID);
+		if (pWaiting)
+		{
+			pWaiting->m_Promise.f_SetResult();
+			Host.m_WaitingPublications.f_Remove(pWaiting);
+		}
+
+		return true;
+	}
+
 	bool CActorDistributionManagerInternal::fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
+		auto &Host = *pHost;
 
-		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		if (!Host.f_CanReceivePublish() || Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
 
 		CDistributedActorCommand_Publish Publish;
+
+		auto VersionScope = Host.f_StreamVersion(_Stream);
+
 		_Stream >> Publish;
 
 		bool bAllowAllNamespaces = false;
 		auto &AllowedNamespaces = fp_GetAllowedNamespacesForHost(pHost, bAllowAllNamespaces);
 
+		auto fReportResults = [this, pHost, WaitPublicationID = Publish.m_WaitPublicationID]() mutable
+			{
+				if (!WaitPublicationID)
+					return;
+
+				auto &Host = *pHost;
+
+				if (Host.m_bDeleted.f_Load() || Host.m_ActorProtocolVersion.f_Load() < EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+					return;
+
+				CDistributedActorCommand_PublishFinished PublishFinished;
+				PublishFinished.m_WaitPublicationID = WaitPublicationID;
+
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				auto VersionScope = Host.f_StreamVersion(Stream);
+
+				Stream << PublishFinished;
+				auto Data = Stream.f_MoveVector();
+
+				fp_QueuePacket(pHost, fg_Move(Data));
+			}
+		;
+
 		if (!bAllowAllNamespaces && !AllowedNamespaces.f_FindEqual(Publish.m_Namespace))
+		{
+			fReportResults();
 			return true;
+		}
 
-		auto Mapped = pHost->m_RemoteActors(Publish.m_ActorID);
+		auto Mapped = Host.m_RemoteActors(Publish.m_ActorID);
 
-		bool bNeedResults = !_pConnection->m_bPulishFinished;
+		bool bNeedResults = !_pConnection->m_bPulishFinished || Publish.m_WaitPublicationID;
 		TCActorResultVector<void> Results;
 
 		if (Mapped.f_WasCreated())
@@ -405,7 +608,21 @@ namespace NMib::NConcurrency
 		}
 
 		if (bNeedResults && !Results.f_IsEmpty())
-			Results.f_GetResults() > _pConnection->m_PublishFinished.f_Insert().f_ReceiveAny();
+		{
+			TCPromise<void> ConnectionPublishFinishedPromise{CPromiseConstructEmpty()};
+			if (!_pConnection->m_bPulishFinished)
+				ConnectionPublishFinishedPromise = _pConnection->m_PublishFinished.f_Insert();
+
+			Results.f_GetResults() > [ConnectionPublishFinishedPromise, fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
+				{
+					if (ConnectionPublishFinishedPromise.f_IsValid() && !ConnectionPublishFinishedPromise.f_IsSet())
+						ConnectionPublishFinishedPromise.f_SetResult();
+					fReportResults();
+				}
+			;
+		}
+		else if (Publish.m_WaitPublicationID)
+			fReportResults();
 
 		return true;
 	}
@@ -413,24 +630,65 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
 	{
 		auto &pHost = _pConnection->m_pHost;
+		auto &Host = *pHost;
+
 		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
 			return true;
+
+		auto VersionScope = Host.f_StreamVersion(_Stream);
 
 		CDistributedActorCommand_Unpublish Unpublish;
 		_Stream >> Unpublish;
 
-		auto pRemoteActor = pHost->m_RemoteActors.f_FindEqual(Unpublish.m_ActorID);
+		bool bNeedResults = !!Unpublish.m_WaitPublicationID;
+		TCActorResultVector<void> Results;
+
+		auto pRemoteActor = Host.m_RemoteActors.f_FindEqual(Unpublish.m_ActorID);
 		if (pRemoteActor)
 		{
-			fp_NotifyRemovedActor(*pRemoteActor);
+			fp_NotifyRemovedActor(*pRemoteActor, bNeedResults ? &Results : nullptr);
 			auto pRemoteNamespace = m_RemoteNamespaces.f_FindEqual(pRemoteActor->m_Namespace);
 			DMibCheck(pRemoteNamespace);
 			pRemoteNamespace->m_RemoteActors.f_Remove(pRemoteActor);
 			if (pRemoteNamespace->m_RemoteActors.f_IsEmpty())
 				m_RemoteNamespaces.f_Remove(pRemoteNamespace);
 
-			pHost->m_RemoteActors.f_Remove(pRemoteActor);
+			Host.m_RemoteActors.f_Remove(pRemoteActor);
 		}
+
+		auto fReportResults = [this, pHost, WaitPublicationID = Unpublish.m_WaitPublicationID]() mutable
+			{
+				if (!WaitPublicationID)
+					return;
+
+				auto &Host = *pHost;
+
+				if (Host.m_bDeleted || Host.m_ActorProtocolVersion.f_Load() < EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+					return;
+
+				CDistributedActorCommand_UnpublishFinished UnpublishFinished;
+				UnpublishFinished.m_WaitPublicationID = WaitPublicationID;
+
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				auto VersionScope = Host.f_StreamVersion(Stream);
+
+				Stream << UnpublishFinished;
+				auto Data = Stream.f_MoveVector();
+
+				fp_QueuePacket(pHost, fg_Move(Data));
+			}
+		;
+
+		if (bNeedResults && !Results.f_IsEmpty())
+		{
+			Results.f_GetResults() > [fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
+				{
+					fReportResults();
+				}
+			;
+		}
+		else if (Unpublish.m_WaitPublicationID)
+			fReportResults();
 
 		return true;
 	}
@@ -468,13 +726,13 @@ namespace NMib::NConcurrency
 		(
 			NStr::CStr const &_Namespace
 			, TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-			, NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+			, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
+			, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
 		)
 	{
 		auto &Internal = *mp_pInternal;
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
 
 		mint SubscriptionID = Internal.m_SubscribedActorsNextInstanceID++;
 
@@ -493,9 +751,10 @@ namespace NMib::NConcurrency
 				fg_Dispatch
 					(
 						_Actor
-						, [pOnNewActor = pOnNewActor, RemoteActor = fg_Move(_RemoteActor)]() mutable
+						, [pOnNewActor = pOnNewActor, RemoteActor = fg_Move(_RemoteActor)]() mutable -> TCFuture<void>
 						{
-							(*pOnNewActor)(fg_Move(RemoteActor));
+							co_await fg_CallSafe(pOnNewActor, fg_Move(RemoteActor));
+							co_return {};
 						}
 					)
 					> ReportResults.f_AddResult();

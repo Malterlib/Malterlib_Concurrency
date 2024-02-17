@@ -21,6 +21,9 @@ namespace NMib::NConcurrency
 		, EDistributedActorCommand_SubscriptionDestroyed
 		, EDistributedActorCommand_NotifyConnectionLost
 		, EDistributedActorCommand_RequestMissingPackets
+		, EDistributedActorCommand_InitialPublishFinishedProcessing
+		, EDistributedActorCommand_PublishFinished
+		, EDistributedActorCommand_UnpublishFinished
 	};
 
 	struct CDistributedActorCommand_Identify
@@ -100,6 +103,18 @@ namespace NMib::NConcurrency
 		NStr::CStr m_Namespace;
 		NContainer::TCVector<uint32> m_Hierarchy;
 		CDistributedActorProtocolVersions m_ProtocolVersions;
+		uint32 m_WaitPublicationID = 0;
+	};
+
+	struct CDistributedActorCommand_PublishFinished
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint64 m_PacketID;
+		uint32 m_WaitPublicationID = 0;
 	};
 
 	struct CDistributedActorCommand_Unpublish
@@ -112,8 +127,20 @@ namespace NMib::NConcurrency
 		uint64 m_PacketID;
 		NStr::CStr m_ActorID;
 		NStr::CStr m_Namespace;
+		uint32 m_WaitPublicationID = 0;
 	};
 
+	struct CDistributedActorCommand_UnpublishFinished
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+
+		uint64 m_PacketID;
+		uint32 m_WaitPublicationID = 0;
+	};
+	
 	struct CDistributedActorCommand_DestroySubscription
 	{
 		template <typename tf_CStream>
@@ -126,6 +153,14 @@ namespace NMib::NConcurrency
 	};
 
 	struct CDistributedActorCommand_InitialPublishFinished
+	{
+		template <typename tf_CStream>
+		void f_Feed(tf_CStream &_Stream) const;
+		template <typename tf_CStream>
+		void f_Consume(tf_CStream &_Stream);
+	};
+
+	struct CDistributedActorCommand_InitialPublishFinishedProcessing
 	{
 		template <typename tf_CStream>
 		void f_Feed(tf_CStream &_Stream) const;

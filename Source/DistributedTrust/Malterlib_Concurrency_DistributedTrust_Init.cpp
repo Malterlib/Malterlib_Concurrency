@@ -658,7 +658,7 @@ namespace NMib::NConcurrency
 						else
 							PublishPromise.f_SetResult();
 
-						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket")
+						m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket", 0.0)
 							+ PublishPromise.f_MoveFuture()
 							> [this, _Promise]
 							(TCAsyncResult<CDistributedActorPublication> &&_Result, TCAsyncResult<void> &&_Published)

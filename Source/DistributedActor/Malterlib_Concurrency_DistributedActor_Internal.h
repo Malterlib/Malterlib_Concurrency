@@ -186,6 +186,11 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
+	struct CWaitingForPublication
+	{
+		TCPromise<void> m_Promise;
+	};
+
 	struct CHost : public NPrivate::ICHost
 	{
 		CHost(CActorDistributionManager &_DistributionManager, CDistributedActorHostInfo &&_Info);
@@ -207,6 +212,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CHostInfo f_GetHostInfo() const;
 
 		void f_DestroyImplicitFunction(NStr::CStr const &_FunctionID);
+		uint32 f_GetUniqueWaitPublicationID();
 
 		DMibListLinkDS_List(CClientConnection, m_HostLink) m_ClientConnections;
 		DMibListLinkDS_List(CServerConnection, m_HostLink) m_ServerConnections;
@@ -236,6 +242,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NContainer::TCMap<NStr::CStr, CSubscriptionReferences> m_LocalSubscriptionReferences;
 
 		NContainer::TCMap<NStr::CStr, TCPromise<void>> m_PendingRemoteSubscriptionDestroys;
+		NContainer::TCMap<uint32, CWaitingForPublication> m_WaitingPublications;
 
 		NStr::CStr m_LastExecutionID;
 		NStr::CStr m_FriendlyName;
@@ -265,6 +272,8 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 		uint64 m_LastNotifyConnectionLostSequenceSent = 0;
 		uint64 m_LastNotifyConnectionLostSequenceReceived = 0;
+
+		uint32 m_NextWaitPublicationID = 1;
 
 		bool m_bAllowAllNamespaces = false;
 
@@ -313,8 +322,8 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		}
 		
 		TCActor<CActor> m_DispatchActor;
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<void (CDistributedActorIdentifier const &_RemovedActor)>> m_pOnRemovedActor;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)>> m_pOnRemovedActor;
 	};
 
 	struct CActorPublicationSubscription
@@ -510,7 +519,7 @@ namespace NMib::NConcurrency
 				, TCActorResultVector<void> *_pResults
 			)
 		;
-		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor);
+		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCActorResultVector<void> *_pResults);
 
 		void fp_ReplyToRemoteCallWithException
 			(
@@ -546,7 +555,9 @@ namespace NMib::NConcurrency
 		bool fp_ApplyRemoteCall(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandlePublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+		bool fp_HandlePublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleUnpublishPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
+		bool fp_HandleUnpublishFinishedPacket(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;

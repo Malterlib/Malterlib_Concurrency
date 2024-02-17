@@ -208,11 +208,29 @@ namespace NMib::NConcurrency
 						}
 					}
 					break;
+				case EDistributedActorCommand_PublishFinished:
+					{
+						if (!fp_HandlePublishFinishedPacket(_pConnection, Stream))
+						{
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid publish finished").f_ExceptionPointer());
+							return;
+						}
+					}
+					break;
 				case EDistributedActorCommand_Unpublish:
 					{
 						if (!fp_HandleUnpublishPacket(_pConnection, Stream))
 						{
 							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid unpublish").f_ExceptionPointer());
+							return;
+						}
+					}
+					break;
+				case EDistributedActorCommand_UnpublishFinished:
+					{
+						if (!fp_HandleUnpublishFinishedPacket(_pConnection, Stream))
+						{
+							fp_OnInvalidConnection(_pConnection, DMibErrorInstance("Invalid unpublish finished").f_ExceptionPointer());
 							return;
 						}
 					}

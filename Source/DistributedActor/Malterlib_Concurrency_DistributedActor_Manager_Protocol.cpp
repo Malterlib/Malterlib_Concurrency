@@ -174,6 +174,8 @@ namespace NMib::NConcurrency
 								Publish.m_ProtocolVersions = Actor.m_ProtocolVersions;
 
 								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+								auto VersionScope = Host.f_StreamVersion(Stream);
+
 								Stream << Publish;
 								auto Data = Stream.f_MoveVector();
 
@@ -219,12 +221,41 @@ namespace NMib::NConcurrency
 					for (auto &PublishFinished : _pConnection->m_PublishFinished)
 						PublishFinished.f_Future() > PublishResults.f_AddResult();
 
-					PublishResults.f_GetResults().f_Timeout(30.0, "") > [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection))](auto &&)
+					PublishResults.f_GetResults().f_Timeout(30.0, "")
+						> [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this](auto &&)
 						{
-							if (!pConnection->m_IdentifyPromise.f_IsSet())
-								pConnection->m_IdentifyPromise.f_SetResult(pConnection->m_bFirstConnection);
+							if (!pConnection->m_pHost)
+								return;
+
+							auto &Host = *pConnection->m_pHost;
+							if (Host.m_ActorProtocolVersion >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+							{
+								CDistributedActorCommand_InitialPublishFinishedProcessing Packet;
+								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+								Stream << Packet;
+								NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+								fp_SendPacket(pConnection.f_Get(), fg_Move(pPacketData));
+							}
+							else
+							{
+								if (!pConnection->m_IdentifyPromise.f_IsSet())
+									pConnection->m_IdentifyPromise.f_SetResult(pConnection->m_bFirstConnection);
+							}
 						}
 					;
+				}
+				break;
+			case EDistributedActorCommand_InitialPublishFinishedProcessing:
+				{
+					auto &Host = *_pConnection->m_pHost;
+					if (Host.m_ActorProtocolVersion < EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+						return false;
+
+					CDistributedActorCommand_InitialPublishFinishedProcessing InitialPublishFinishedProcessing;
+					Stream >> InitialPublishFinishedProcessing;
+
+					if (!_pConnection->m_IdentifyPromise.f_IsSet())
+						_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
 				}
 				break;
 			case EDistributedActorCommand_Acknowledge:
@@ -324,7 +355,9 @@ namespace NMib::NConcurrency
 			case EDistributedActorCommand_RemoteCall:
 			case EDistributedActorCommand_RemoteCallResult:
 			case EDistributedActorCommand_Publish:
+			case EDistributedActorCommand_PublishFinished:
 			case EDistributedActorCommand_Unpublish:
+			case EDistributedActorCommand_UnpublishFinished:
 			case EDistributedActorCommand_DestroySubscription:
 			case EDistributedActorCommand_SubscriptionDestroyed:
 				{

@@ -255,15 +255,18 @@ namespace NMib::NConcurrency
 					, pSubscription = &Subscription
 					, pDeleted = Subscription.m_pDeleted
 				]
-				(CAbstractDistributedActor &&_NewActor)
+				(CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
-						return;
+						co_return {};
 					if (pDeleted->f_Load())
-						return;
+						co_return {};
+
 					pSubscription->m_RemoteActors.f_Insert(fg_Move(_NewActor));
 					mp_RemoteEvent.f_Signal();
+
+					co_return {};
 				}
 				, 
 				[
@@ -273,13 +276,13 @@ namespace NMib::NConcurrency
 					, pSubscription = &Subscription
 					, pDeleted = Subscription.m_pDeleted
 				]
-				(CDistributedActorIdentifier const &_RemovedActor)
+				(CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
-						return;
+						co_return {};
 					if (pDeleted->f_Load())
-						return;
+						co_return {};
 					mint nActors = pSubscription->m_RemoteActors.f_GetLen();
 					for (mint iActor = 0; iActor < nActors; )
 					{
@@ -293,13 +296,15 @@ namespace NMib::NConcurrency
 						++iActor;
 					}
 					mp_RemoteEvent.f_Signal();
+
+					co_return {};
 				}
 			).f_CallSync(60.0)
 		;
 		
 		fp64 WaitTime = 60.0;
 		if (_bExpectFailure)
-			WaitTime = 2.0;
+			WaitTime = 0.5;
 		
 		bool bTimedOutWatingForActor = false;
 		while (!bTimedOutWatingForActor)

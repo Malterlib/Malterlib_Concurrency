@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, mp_Namespace
 				, fg_CurrentActor()
-				, [this](CAbstractDistributedActor &&_NewActor)
+				, [this](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
 				{
 					mp_DistributedActor = {};
 					auto Actor = _NewActor.f_GetActor<t_CActor>();
@@ -24,15 +24,19 @@ namespace NMib::NConcurrency
 					{
 						mp_DistributedActor.f_SetException(DMibErrorInstance("Command line actor has wrong type"));
 						fp_ResultAvailable();
-						return;
+						co_return {};
 					}
 					mp_DistributedActor.f_SetResult(fg_Move(Actor));
 					fp_ResultAvailable();
+
+					co_return {};
 				}
-				, [this](const CDistributedActorIdentifier &_RemovedActor)
+				, [this](const CDistributedActorIdentifier &_RemovedActor) -> TCFuture<void>
 				{
 					if (mp_DistributedActor && *mp_DistributedActor == _RemovedActor)
 						mp_DistributedActor = {};
+
+					co_return {};
 				}
 			)
 			> [this](TCAsyncResult<CActorSubscription> &&_Subscription)

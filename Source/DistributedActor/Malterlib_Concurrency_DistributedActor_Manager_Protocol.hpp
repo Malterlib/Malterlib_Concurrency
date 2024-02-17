@@ -119,6 +119,8 @@ namespace NMib::NConcurrency
 		_Stream << m_Hierarchy;
 		_Stream << m_ProtocolVersions.m_MinSupported;
 		_Stream << m_ProtocolVersions.m_MaxSupported;
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			_Stream << m_WaitPublicationID;
 	}
 
 	template <typename tf_CStream>
@@ -130,6 +132,38 @@ namespace NMib::NConcurrency
 		_Stream >> m_Hierarchy;
 		_Stream >> m_ProtocolVersions.m_MinSupported;
 		_Stream >> m_ProtocolVersions.m_MaxSupported;
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			_Stream >> m_WaitPublicationID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_PublishFinished::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_PublishFinished);
+		_Stream << m_PacketID;
+		_Stream << m_WaitPublicationID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_PublishFinished::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_PacketID;
+		_Stream >> m_WaitPublicationID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_UnpublishFinished::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_UnpublishFinished);
+		_Stream << m_PacketID;
+		_Stream << m_WaitPublicationID;
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_UnpublishFinished::f_Consume(tf_CStream &_Stream)
+	{
+		_Stream >> m_PacketID;
+		_Stream >> m_WaitPublicationID;
 	}
 
 	template <typename tf_CStream>
@@ -139,6 +173,8 @@ namespace NMib::NConcurrency
 		_Stream << m_PacketID;
 		_Stream << m_ActorID;
 		_Stream << m_Namespace;
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			_Stream << m_WaitPublicationID;
 	}
 
 	template <typename tf_CStream>
@@ -147,6 +183,8 @@ namespace NMib::NConcurrency
 		_Stream >> m_PacketID;
 		_Stream >> m_ActorID;
 		_Stream >> m_Namespace;
+		if (_Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
+			_Stream >> m_WaitPublicationID;
 	}
 
 	template <typename tf_CStream>
@@ -172,6 +210,17 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CStream>
 	void CDistributedActorCommand_InitialPublishFinished::f_Consume(tf_CStream &_Stream)
+	{
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_InitialPublishFinishedProcessing::f_Feed(tf_CStream &_Stream) const
+	{
+		_Stream << uint8(EDistributedActorCommand_InitialPublishFinishedProcessing);
+	}
+
+	template <typename tf_CStream>
+	void CDistributedActorCommand_InitialPublishFinishedProcessing::f_Consume(tf_CStream &_Stream)
 	{
 	}
 

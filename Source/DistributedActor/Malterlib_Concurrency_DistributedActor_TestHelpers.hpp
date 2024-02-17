@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 	template <typename ...tfp_CDistributedActors, typename tf_CActor>
 	NStr::CStr CDistributedActorTestHelper::f_Publish(TCDistributedActor<tf_CActor> const &_Actor, NStr::CStr const &_Namespace)
 	{
-		auto PublicationRef = _Actor->template f_Publish<tfp_CDistributedActors...>(_Namespace).f_CallSync(60.0);
+		auto PublicationRef = _Actor->template f_Publish<tfp_CDistributedActors...>(_Namespace, 30.0).f_CallSync(60.0);
 		
 		NStr::CStr PublicationID = NCryptography::fg_RandomID(mp_Publications);
 

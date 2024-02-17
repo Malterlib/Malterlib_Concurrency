@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename ...tfp_CInterface>
-	auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace)
+	auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace, fp32 _WaitForPublicationsTimeout)
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
 		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
@@ -91,6 +91,7 @@ namespace NMib::NConcurrency
 				this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
 				, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>()
 				, _Namespace
+				, _WaitForPublicationsTimeout
 			)
 		;
 	}
@@ -117,7 +118,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	template <typename ...tfp_CInterface>
-	auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions)
+	auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions, fp32 _WaitForPublicationsTimeout)
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
 		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
@@ -127,6 +128,7 @@ namespace NMib::NConcurrency
 				this->template fp_GetAsActor<TCDistributedActorWrapper<CActor>>()
 				, NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions)
 				, _Namespace
+				, _WaitForPublicationsTimeout
 			)
 		;
 	}
@@ -253,6 +255,7 @@ namespace NMib::NConcurrency
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, tf_CThis *_pThis
+			, fp32 _WaitForPublicationsTimeout
 			, NStr::CStr const &_Namespace
 		)
 	{
@@ -261,7 +264,7 @@ namespace NMib::NConcurrency
 		if (!m_Actor)
 			f_Construct(_DistributionManager, _pThis);
 
-		m_Publication = co_await m_Actor->template f_Publish<tf_CFirstInterface, tfp_CInterfaces...>(_Namespace);
+		m_Publication = co_await m_Actor->template f_Publish<tf_CFirstInterface, tfp_CInterfaces...>(_Namespace, _WaitForPublicationsTimeout);
 
 		co_return {};
 	}

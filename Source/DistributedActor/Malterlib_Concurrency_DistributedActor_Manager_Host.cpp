@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 		{
 			if (RemoteActor.m_Link.f_IsInList())
 			{
-				fp_NotifyRemovedActor(RemoteActor);
+				fp_NotifyRemovedActor(RemoteActor, nullptr);
 
 				auto pRemoteNamespace = m_RemoteNamespaces.f_FindEqual(RemoteActor.m_Namespace);
 				DMibFastCheck(pRemoteNamespace);
@@ -190,6 +190,12 @@ namespace NMib::NConcurrency
 					m_RemoteNamespaces.f_Remove(pRemoteNamespace);
 			}
 		}
+
+		for (auto &Waiting : Host.m_WaitingPublications)
+			Waiting.m_Promise.f_SetResult();
+
+		Host.m_WaitingPublications.f_Clear();
+
 		Host.m_RemoteActors.f_Clear();
 
 		Host.m_pLastSendConnection = nullptr;

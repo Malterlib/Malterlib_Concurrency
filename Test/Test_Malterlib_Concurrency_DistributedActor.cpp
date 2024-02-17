@@ -1728,7 +1728,7 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 
 		TCDistributedActor<CDistributedActor> PublishedActor = ServerManager->f_ConstructActor<CDistributedActor>();
 
-		auto ActorPublication = PublishedActor->f_Publish<CDistributedActorBase>("Test").f_CallSync(g_Timeout);
+		auto ActorPublication = PublishedActor->f_Publish<CDistributedActorBase>("Test", g_Timeout / 2.0).f_CallSync(g_Timeout);
 
 		CActorDistributionConnectionSettings ConnectionSettings;
 		ConnectionSettings.m_ServerURL = ConnectAddress;
@@ -1759,14 +1759,16 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 				&CActorDistributionManager::f_SubscribeActors
 				, "Test"
 				, ConcurrentActor
-				, [&](CAbstractDistributedActor &&_NewActor)
+				, [&](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
 				{
 					DMibLock(RemoteLock);
 					RemoteActor = _NewActor.f_GetActor<CDistributedActorBase>();
 					RemoteEvent.f_Signal();
 					++RemoteEvents;
+
+					co_return {};
 				}
-				, [&](CDistributedActorIdentifier const &_RemovedActor)
+				, [&](CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
 				{
 					DMibLock(RemoteLock);
 					if (_RemovedActor == RemoteActor)
@@ -1776,6 +1778,8 @@ class CDistributedActor_Tests : public NMib::NTest::CTest
 					}
 					RemoteEvent.f_Signal();
 					++RemoteEvents;
+
+					co_return {};
 				}
 			)
 			> ConcurrentActor / [&](TCAsyncResult<CActorSubscription> &&_Result)

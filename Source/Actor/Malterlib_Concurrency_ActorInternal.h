@@ -123,10 +123,10 @@ namespace NMib::NConcurrency
 		inline_always EPriority f_GetPriority() const;
 
 		template <typename ...tfp_CInterface>
-		auto f_Publish(NStr::CStr const &_Namespace);
+		auto f_Publish(NStr::CStr const &_Namespace, fp32 _WaitForPublicationsTimeout);
 
 		template <typename ...tfp_CInterface>
-		auto f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions);
+		auto f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions, fp32 _WaitForPublicationsTimeout);
 
 		template <typename ...tfp_CInterface>
 		auto f_ShareInterface();

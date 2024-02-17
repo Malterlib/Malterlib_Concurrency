@@ -175,7 +175,7 @@ namespace NMib::NConcurrency
 		Internal.m_CommandLine = mp_State.m_DistributionManager->f_ConstructActor<CCommandLine>(fg_ThisActor(this));
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Publishing command line actor");
 
-		Internal.m_CommandLinePublication = co_await Internal.m_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline");
+		Internal.m_CommandLinePublication = co_await Internal.m_CommandLine->f_Publish<ICCommandLine>("com.malterlib/Concurrency/Commandline", 0.0);
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Command line published");
 
 		co_return {};

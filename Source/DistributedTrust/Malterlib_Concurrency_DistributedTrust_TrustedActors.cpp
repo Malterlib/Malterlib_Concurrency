@@ -374,19 +374,19 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, NamespaceName
 				, fg_ThisActor(this)
-				, [this, NamespaceName, SubscriptionSequence](CAbstractDistributedActor &&_NewActor)
+				, [this, NamespaceName, SubscriptionSequence](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 					auto pNamespace = Internal.m_Namespaces.f_FindEqual(NamespaceName);
 					if (!pNamespace)
-						return;
+						co_return {};
 					auto &Namespace = *pNamespace;
 
 					if (Namespace.m_SubscriptionSequence != SubscriptionSequence)
-						return;
+						co_return {};
 
 					if (!Namespace.m_Subscription && !Namespace.m_bSubscribing)
-						return;
+						co_return {};
 
 					NStr::CStr const &HostID = _NewActor.f_GetRealHostID();
 
@@ -408,6 +408,8 @@ namespace NMib::NConcurrency
 					CTrustedActorInfo TrustInfo;
 					TrustInfo.m_HostInfo = _NewActor.f_GetHostInfo();
 					TrustInfo.m_UniqueHostID = _NewActor.f_GetUniqueHostID();
+
+					TCActorResultVector<void> AddActorResults;
 
 					for (auto TypeHash : _NewActor.f_GetTypeHashes())
 					{
@@ -466,20 +468,26 @@ namespace NMib::NConcurrency
 							TrustedActor.m_TrustInfo = TrustInfo;
 							pSubscription->m_ProtocolVersions.f_HighestSupportedVersion(TypeActor.m_AbstractActor.f_GetProtocolVersions(), TrustedActor.m_ProtocolVersion);
 							TrustedActor.m_Actor = fg_Move(NewActor);
-							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(fg_Move(AddedActors))) > fg_DiscardResult();
+							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_AddDistributedActors(fg_Move(AddedActors))) > AddActorResults.f_AddResult();
 						}
 					}
+
+					co_await AddActorResults.f_GetResults();
+
+					co_return {};
 				}
-				, [this, NamespaceName](CDistributedActorIdentifier const &_RemovedActor)
+				, [this, NamespaceName](CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 					auto pNamespace = Internal.m_Namespaces.f_FindEqual(NamespaceName);
 					if (!pNamespace)
-						return;
+						co_return {};
 					auto &Namespace = *pNamespace;
 
 					if (!Namespace.m_Subscription && !Namespace.m_bSubscribing)
-						return;
+						co_return {};
+
+					TCActorResultVector<void> RemoveActorResults;
 
 					NContainer::TCVector<uint32> TypesToRemove;
 					for (auto &Type : Namespace.m_Types)
@@ -512,10 +520,15 @@ namespace NMib::NConcurrency
 						NContainer::TCSet<CDistributedActorIdentifier> Removed;
 						Removed[_RemovedActor];
 						for (auto &pSubscription : Type.m_Subscriptions)
-							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(fg_Move(Removed))) > fg_DiscardResult();
+							fg_Dispatch(pSubscription->m_DispatchActor, pSubscription->f_RemoveDistributedActors(fg_Move(Removed))) > RemoveActorResults.f_AddResult();
 					}
+
 					for (auto &TypeToRemove : TypesToRemove)
 						pNamespace->m_Types.f_Remove(TypeToRemove);
+
+					co_await RemoveActorResults.f_GetResults();
+
+					co_return {};
 				}
 			)
 			> [this, NamespaceName](TCAsyncResult<CActorSubscription> &&_Subscription)

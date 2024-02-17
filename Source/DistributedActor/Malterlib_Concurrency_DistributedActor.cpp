@@ -96,6 +96,7 @@ namespace NMib::NConcurrency
 				TCDistributedActor<CActor> &&_Actor
 				, NPrivate::CDistributedActorInterfaceInfo &&_InterfaceInfo
 				, NStr::CStr const &_Namespace
+				, fp32 _WaitForPublicationsTimeout
 			)
 		{
 			TCPromise<CDistributedActorPublication> Promise;
@@ -119,6 +120,7 @@ namespace NMib::NConcurrency
 					, fg_Move(_Actor)
 					, _Namespace
 					, fg_Move(_InterfaceInfo)
+					, _WaitForPublicationsTimeout
 				)
 			;
 		}

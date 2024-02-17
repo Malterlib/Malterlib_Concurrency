@@ -360,15 +360,19 @@ namespace NMib::NConcurrency
 					&CActorDistributionManager::f_SubscribeActors
 					, "Anonymous/com.malterlib/Concurrency/TrustManagerTicket"
 					, fg_ThisActor(this)
-					, [NewInterfacePromise, UniqueHostID](CAbstractDistributedActor &&_NewActor)
+					, [NewInterfacePromise, UniqueHostID](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
 					{
 						if (_NewActor.f_GetUniqueHostID() != UniqueHostID)
-							return;
+							co_return {};
 
 						NewInterfacePromise.f_SetResult(fg_Move(_NewActor));
+
+						co_return {};
 					}
-					, [](CDistributedActorIdentifier const &_RemovedActor)
+					, [](CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
 					{
+
+						co_return {};
 					}
 				)
 				.f_Timeout(_Timeout, "Timed out waiting for remote trust manager")

@@ -81,6 +81,15 @@ namespace NMib::NConcurrency
 		}
 	}
 	
+	uint32 NActorDistributionManagerInternal::CHost::f_GetUniqueWaitPublicationID()
+	{
+		auto WaitID = ++m_NextWaitPublicationID;
+		while (WaitID == 0 || m_WaitingPublications.f_FindEqual(WaitID))
+			WaitID = ++m_NextWaitPublicationID;
+
+		return WaitID;
+	}
+
 	void NActorDistributionManagerInternal::CHost::f_DestroyImplicitFunction(NStr::CStr const &_FunctionID)
 	{
 		auto *pFunction = m_ImplicitlyPublishedFunctions.f_FindEqual(_FunctionID);

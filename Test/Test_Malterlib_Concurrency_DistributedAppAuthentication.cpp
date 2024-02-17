@@ -138,7 +138,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
@@ -319,7 +319,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CManyServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());
@@ -542,7 +542,7 @@ namespace NTestAuthentication
 			CServer(CDistributedAppState &_AppState)
 				: mp_AppState(_AppState)
 			{
-				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this) > [](TCAsyncResult<void> &&_Result)
+				mp_ProtocolInterface.f_Publish<CSlowServerInterface>(mp_AppState.m_DistributionManager, this, g_Timeout / 2.0) > [](TCAsyncResult<void> &&_Result)
 					{
 						if (!_Result)
 							DMibConErrOut("Failed to publish server interface: {}\n", _Result.f_GetExceptionStr());

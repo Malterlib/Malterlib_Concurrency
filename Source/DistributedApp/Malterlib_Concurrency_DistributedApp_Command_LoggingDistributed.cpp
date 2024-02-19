@@ -398,6 +398,16 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	static CEJSONSorted fg_MetaDataToJson(TCMap<CStr, CEJSONSorted> const &_MetaData)
+	{
+		CEJSONSorted Return = EJSONType_Object;
+
+		for (auto &Entry : _MetaData.f_Entries())
+			Return[Entry.f_Key()] = Entry.f_Value();
+
+		return Return;
+	}
+
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogListOutput
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
@@ -419,6 +429,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Identifier Scope", 0);
 		Columns.f_AddHeading("Name", 0);
 		Columns.f_AddHeading("Removed", 1);
+		Columns.f_AddHeading("Metadata", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -451,6 +462,7 @@ namespace NMib::NConcurrency
 								, "IdentifierScope"_= LogInfo.m_IdentifierScope
 								, "Name"_= LogInfo.m_Name
 								, "Removed"_= LogInfo.m_bRemoved
+								, "LogMetaData"_= fg_MetaDataToJson(LogInfo.m_MetaData)
 							}
 						)
 					;
@@ -470,6 +482,7 @@ namespace NMib::NConcurrency
 							, LogInfo.m_IdentifierScope
 							, LogInfo.m_Name
 							, LogInfo.m_bRemoved ? "true" : "false"
+							, LogInfo.m_MetaData
 						)
 					;
 				}
@@ -612,6 +625,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Flags", 1);
 		Columns.f_AddHeading("Message", 0);
 		Columns.f_AddHeading("Metadata", 2);
+		Columns.f_AddHeading("Log Metadata", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -650,13 +664,16 @@ namespace NMib::NConcurrency
 					Application = Entry.m_LogInfoKey.m_Scope.f_GetAsType<CDistributedAppLogReporter::CLogScope_Application>().m_ApplicationName;
 
 				CStr HostName;
+				CStr Name;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> *pLogMetaData = nullptr;
+
 				auto *pLogInfo = LogInfos.f_FindEqual(Entry.m_LogInfoKey);
 				if (pLogInfo)
+				{
 					HostName = pLogInfo->m_HostName;
-
-				CStr Name;
-				if (pLogInfo)
 					Name = pLogInfo->m_Name;
+					pLogMetaData = &pLogInfo->m_MetaData;
+				}
 
 				bHasHostID = bHasHostID || Entry.m_LogInfoKey.m_HostID;
 				bHasHostName = bHasHostName || HostName;
@@ -678,6 +695,7 @@ namespace NMib::NConcurrency
 								, "Application"_= Application
 								, "Identifier"_= Entry.m_LogInfoKey.m_Identifier
 								, "IdentifierScope"_= Entry.m_LogInfoKey.m_IdentifierScope
+								, "LogMetaData"_= pLogMetaData ? fg_MetaDataToJson(*pLogMetaData) : CEJSONSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Entry.m_Entry.m_Timestamp
 								, "UniqueSequence"_= Entry.m_Entry.m_UniqueSequence
@@ -767,6 +785,7 @@ namespace NMib::NConcurrency
 							, Flags
 							, Entry.m_Entry.m_Data.m_Message
 							, MetaData
+							, pLogMetaData ? CStr("{}"_f << *pLogMetaData) : CStr()
 						)
 					;
 				}

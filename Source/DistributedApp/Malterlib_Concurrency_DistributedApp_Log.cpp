@@ -157,6 +157,16 @@ namespace NMib::NConcurrency
 	{
 		auto Store = co_await fp_OpenLogStoreLocal();
 
+		for (auto &MetaData : mp_LogMetaData.f_Entries())
+		{
+			auto &Key = MetaData.f_Key();
+
+			if (_LogInfo.m_MetaData.f_FindEqual(Key))
+				continue;
+
+			_LogInfo.m_MetaData[Key] = MetaData.f_Value();
+		}
+
 		co_return co_await Store(&CDistributedAppLogStoreLocal::f_OpenLogReporter, fg_Move(_LogInfo));
 	}
 }

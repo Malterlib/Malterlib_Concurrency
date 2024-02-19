@@ -27,8 +27,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_MultipleFilters = 0x104
 			, EProtocolVersion_IgnoreRemoved = 0x105
 			, EProtocolVersion_LastSeenEntrySentinel = 0x106
+			, EProtocolVersion_InfoMetaData = 0x107
 
-			, EProtocolVersion_Current = 0x106
+			, EProtocolVersion_Current = 0x107
 		};
 
 		enum ELogSeverity : uint32
@@ -186,6 +187,9 @@ namespace NMib::NConcurrency
 			NStr::CStr m_Name;
 
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
+
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_MetaData;
+
 			bool m_bRemoved = false;
 		};
 

@@ -78,6 +78,9 @@ namespace NMib::NConcurrency
 		}
 		else if constexpr (tf_CStream::mc_bConsume)
 			m_LastSeen = NTime::CTime();
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetaData)
+			_Stream % m_MetaData;
 	}
 
 	template <typename tf_CStream>

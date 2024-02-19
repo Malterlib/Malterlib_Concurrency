@@ -132,6 +132,7 @@ namespace NMib::NConcurrency
 
 		NStr::CStr f_GetDesc() const;
 		NStr::CStr f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const;
+		static NStr::CStr fs_FormatFriendlyNameForTable(NStr::CStr const &_FriendlyName, NCommandLine::CAnsiEncoding const &_AnsiEncoding);
 
 		bool f_IsEmpty() const;
 

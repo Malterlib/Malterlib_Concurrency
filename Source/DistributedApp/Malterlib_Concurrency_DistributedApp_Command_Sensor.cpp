@@ -443,11 +443,12 @@ namespace NMib::NConcurrency
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
 		Columns.f_AddHeading("Host ID", 0);
-		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 0);
 		Columns.f_AddHeading("Identifier Scope", 0);
@@ -544,7 +545,7 @@ namespace NMib::NConcurrency
 					TableRenderer.f_AddRow
 						(
 							SensorInfo.m_HostID
-							, SensorInfo.m_HostName
+							, CHostInfo::fs_FormatFriendlyNameForTable(SensorInfo.m_HostName, AnsiEncoding)
 							, Application
 							, SensorInfo.m_Identifier
 							, SensorInfo.m_IdentifierScope
@@ -570,7 +571,7 @@ namespace NMib::NConcurrency
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)
-				Columns.f_SetVerbose("Host Name");
+				Columns.f_SetVerbose("Host Description");
 			if (!bHasApplication)
 				Columns.f_SetVerbose("Application");
 
@@ -682,7 +683,7 @@ namespace NMib::NConcurrency
 		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
 		Columns.f_AddHeading("Host ID", 1);
-		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 1);
 		Columns.f_AddHeading("Identifier Scope", 1);
@@ -826,7 +827,7 @@ namespace NMib::NConcurrency
 					TableRenderer.f_AddRow
 						(
 							Reading.m_SensorInfoKey.m_HostID
-							, HostName
+							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Reading.m_SensorInfoKey.m_Identifier
 							, Reading.m_SensorInfoKey.m_IdentifierScope
@@ -865,7 +866,7 @@ namespace NMib::NConcurrency
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)
-				Columns.f_SetVerbose("Host Name");
+				Columns.f_SetVerbose("Host Description");
 			if (!bHasApplication)
 				Columns.f_SetVerbose("Application");
 			if (!bHasOutdated)

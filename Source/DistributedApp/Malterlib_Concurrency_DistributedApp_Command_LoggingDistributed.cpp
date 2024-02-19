@@ -408,11 +408,12 @@ namespace NMib::NConcurrency
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
+		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
 		Columns.f_AddHeading("Host ID", 0);
-		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 0);
 		Columns.f_AddHeading("Identifier Scope", 0);
@@ -463,7 +464,7 @@ namespace NMib::NConcurrency
 					TableRenderer.f_AddRow
 						(
 							LogInfo.m_HostID
-							, LogInfo.m_HostName
+							, CHostInfo::fs_FormatFriendlyNameForTable(LogInfo.m_HostName, AnsiEncoding)
 							, Application
 							, LogInfo.m_Identifier
 							, LogInfo.m_IdentifierScope
@@ -482,7 +483,7 @@ namespace NMib::NConcurrency
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)
-				Columns.f_SetVerbose("Host Name");
+				Columns.f_SetVerbose("Host Description");
 			if (!bHasApplication)
 				Columns.f_SetVerbose("Application");
 
@@ -597,7 +598,7 @@ namespace NMib::NConcurrency
 		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
 		Columns.f_AddHeading("Host ID", 5);
-		Columns.f_AddHeading("Host Name", 0);
+		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 4);
 		Columns.f_AddHeading("Identifier Scope", 5);
@@ -752,7 +753,7 @@ namespace NMib::NConcurrency
 					TableRenderer.f_AddRow
 						(
 							Entry.m_LogInfoKey.m_HostID
-							, HostName
+							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Entry.m_LogInfoKey.m_Identifier
 							, Entry.m_LogInfoKey.m_IdentifierScope
@@ -797,7 +798,7 @@ namespace NMib::NConcurrency
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID", 7);
 			if (!bHasHostName)
-				Columns.f_SetVerbose("Host Name", 7);
+				Columns.f_SetVerbose("Host Description", 7);
 			if (!bHasApplication)
 				Columns.f_SetVerbose("Application", 7);
 

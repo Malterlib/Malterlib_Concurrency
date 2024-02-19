@@ -557,6 +557,35 @@ namespace NMib::NConcurrency
 		return fg_Format("{} [{}]", m_HostID, m_FriendlyName);
 	}
 
+	NStr::CStr CHostInfo::fs_FormatFriendlyNameForTable(NStr::CStr const &_FriendlyName, NCommandLine::CAnsiEncoding const &_AnsiEncoding)
+	{
+		using namespace NStr;
+		
+		CStr UserName;
+		CStr HostName;
+		CStr Application;
+		aint nParsed;
+		(CStr::CParse("{}@{}/{}") >> UserName >> HostName >> Application).f_Parse(_FriendlyName, nParsed);
+
+		CStr Return;
+		if (nParsed == 3)
+		{
+			return "{}{}{} {}{}{} ({}{}{})"_f
+				<< _AnsiEncoding.f_Foreground256(75)
+				<< HostName
+				<< _AnsiEncoding.f_Default()
+				<< _AnsiEncoding.f_Foreground256(246)
+				<< Application
+				<< _AnsiEncoding.f_Default()
+				<< _AnsiEncoding.f_Foreground256(75)
+				<< UserName
+				<< _AnsiEncoding.f_Default()
+			;
+		}
+		else
+			return _FriendlyName;
+	}
+
 	NStr::CStr CHostInfo::f_GetDescColored(NCommandLine::EAnsiEncodingFlag _AnsiFlags) const
 	{
 		using namespace NStr;

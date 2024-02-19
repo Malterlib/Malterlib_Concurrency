@@ -7,6 +7,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Storage/Variant>
+#include <Mib/Encoding/EJSON>
 
 namespace NMib::NCommandLine
 {
@@ -33,8 +34,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_VersionData = 0x106
 			, EProtocolVersion_PauseReporting = 0x107
 			, EProtocolVersion_SnoozeSensor = 0x108
+			, EProtocolVersion_InfoMetaData = 0x109
 
-			, EProtocolVersion_Current = 0x108
+			, EProtocolVersion_Current = 0x109
 		};
 
 		enum ESensorDataType
@@ -269,14 +271,15 @@ namespace NMib::NConcurrency
 			NStr::CStr m_IdentifierScope;
 
 			NStr::CStr m_Name;
-			ESensorDataType m_Type = ESensorDataType_Integer;
 			NContainer::TCMap<CSensorData, CUnit> m_UnitDivisors;
-			fp32 m_ExpectedReportInterval = fp32::fs_Inf();
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_MetaData;
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
 			NTime::CTime m_SnoozeUntil;
+			fp32 m_ExpectedReportInterval = fp32::fs_Inf();
 			fp32 m_PauseReportingFor = fp32::fs_QNan();
+			ESensorDataType m_Type = ESensorDataType_Integer;
 			bool m_bRemoved = false;
 		};
 

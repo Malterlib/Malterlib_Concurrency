@@ -138,6 +138,7 @@ namespace NMib::NConcurrency
 		_Stream % m_ExpectedReportInterval;
 		_Stream % m_WarnValue;
 		_Stream % m_CriticalValue;
+
 		if (_Stream.f_GetVersion() >= EProtocolVersion_IgnoreRemoved)
 		{
 			_Stream % m_LastSeen;
@@ -151,6 +152,9 @@ namespace NMib::NConcurrency
 
 		if (_Stream.f_GetVersion() >= EProtocolVersion_SnoozeSensor)
 			_Stream % m_SnoozeUntil;
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetaData)
+			_Stream % m_MetaData;
 	}
 
 	template <typename tf_CStream>

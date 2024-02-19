@@ -434,6 +434,16 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	static CEJSONSorted fg_MetaDataToJson(TCMap<CStr, CEJSONSorted> const &_MetaData)
+	{
+		CEJSONSorted Return = EJSONType_Object;
+
+		for (auto &Entry : _MetaData.f_Entries())
+			Return[Entry.f_Key()] = Entry.f_Value();
+
+		return Return;
+	}
+
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorListOutput
 		(
 			TCSharedPointer<CCommandLineControl> const &_pCommandLine
@@ -461,6 +471,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Removed", 1);
 		Columns.f_AddHeading("Snoozed Until", 1);
 		Columns.f_AddHeading("Paused", 1);
+		Columns.f_AddHeading("Metadata", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -532,6 +543,7 @@ namespace NMib::NConcurrency
 								, "Removed"_= SensorInfo.m_bRemoved
 								, "SnoozeUntil"_= SensorInfo.m_SnoozeUntil
 								, "PauseReportingFor"_= SensorInfo.m_PauseReportingFor
+								, "SensorMetaData"_= fg_MetaDataToJson(SensorInfo.m_MetaData)
 							}
 						)
 					;
@@ -558,6 +570,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_bRemoved ? "true" : "false"
 							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil) : CStr()
 							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
+							, SensorInfo.m_MetaData
 						)
 					;
 				}
@@ -693,6 +706,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Value", 0);
 		Columns.f_AddHeading("Snoozed Until", 0);
 		Columns.f_AddHeading("Outdated", 0);
+		Columns.f_AddHeading("Sensor Metadata", 1);
 
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
@@ -733,11 +747,14 @@ namespace NMib::NConcurrency
 
 				CStr HostName;
 				CTime SnoozeUntil;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> *pSensorMetaData = nullptr;
+
 				auto *pSensorInfo = SensorInfos.f_FindEqual(Reading.m_SensorInfoKey);
 				if (pSensorInfo)
 				{
 					HostName = pSensorInfo->m_HostName;
 					SnoozeUntil = pSensorInfo->m_SnoozeUntil;
+					pSensorMetaData = &pSensorInfo->m_MetaData;
 				}
 
 				bHasHostID = bHasHostID || Reading.m_SensorInfoKey.m_HostID;
@@ -782,6 +799,7 @@ namespace NMib::NConcurrency
 								, "Application"_= Application
 								, "Identifier"_= Reading.m_SensorInfoKey.m_Identifier
 								, "IdentifierScope"_= Reading.m_SensorInfoKey.m_IdentifierScope
+								, "SensorMetaData"_= pSensorMetaData ? fg_MetaDataToJson(*pSensorMetaData) : CEJSONSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Reading.m_Reading.m_Timestamp
 								, "UniqueSequence"_= Reading.m_Reading.m_UniqueSequence
@@ -837,6 +855,7 @@ namespace NMib::NConcurrency
 							, Value
 							, SnoozeUntilStr
 							, OutdatedString
+							, pSensorMetaData ? CStr("{}"_f << *pSensorMetaData) : CStr()
 						)
 					;
 				}

@@ -422,6 +422,7 @@ namespace NMib::NConcurrency
 
 		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
+		Columns.f_AddHeading("Environment", 0);
 		Columns.f_AddHeading("Host ID", 0);
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
@@ -431,9 +432,12 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Removed", 1);
 		Columns.f_AddHeading("Metadata", 1);
 
+		Columns.f_SetSortByColumns({"Environment", "Host Description", "Host ID", "Application", "Identifier", "Identifier Scope"});
+		
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
+		bool bHasEnvironment = false;
 		bool bHasHostID = false;
 		bool bHasHostName = false;
 		bool bHasApplication = false;
@@ -469,13 +473,19 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
+					CStr Environment;
+					if (auto *pEnvironment = LogInfo.m_MetaData.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+						Environment = pEnvironment->f_String();
+					
+					bHasEnvironment = bHasEnvironment || Environment;
 					bHasHostID = bHasHostID || LogInfo.m_HostID;
 					bHasHostName = bHasHostName || LogInfo.m_HostName;
 					bHasApplication = bHasApplication || Application;
 
 					TableRenderer.f_AddRow
 						(
-							LogInfo.m_HostID
+							Environment
+							, LogInfo.m_HostID
 							, CHostInfo::fs_FormatFriendlyNameForTable(LogInfo.m_HostName, AnsiEncoding)
 							, Application
 							, LogInfo.m_Identifier
@@ -493,6 +503,8 @@ namespace NMib::NConcurrency
 			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
 		else
 		{
+			if (!bHasEnvironment)
+				Columns.f_SetVerbose("Environment");
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)
@@ -610,6 +622,7 @@ namespace NMib::NConcurrency
 
 		CTableRenderHelper::CColumnHelper Columns(_Verbosity);
 
+		Columns.f_AddHeading("Environment", 0);
 		Columns.f_AddHeading("Host ID", 5);
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
@@ -630,6 +643,7 @@ namespace NMib::NConcurrency
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
+		bool bHasEnvironment = false;
 		bool bHasHostID = false;
 		bool bHasHostName = false;
 		bool bHasApplication = false;
@@ -706,6 +720,15 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
+					CStr Environment;
+					if (pLogMetaData)
+					{
+						if (auto *pEnvironment = pLogMetaData->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+							Environment = pEnvironment->f_String();
+					}
+
+					bHasEnvironment = bHasEnvironment || Environment;
+
 					CStr SeverityColor;
 					if (pLogInfo)
 					{
@@ -770,7 +793,8 @@ namespace NMib::NConcurrency
 
 					TableRenderer.f_AddRow
 						(
-							Entry.m_LogInfoKey.m_HostID
+							Environment
+							, Entry.m_LogInfoKey.m_HostID
 							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Entry.m_LogInfoKey.m_Identifier
@@ -812,6 +836,8 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
+			if (!bHasEnvironment)
+				Columns.f_SetVerbose("Environment", 7);
 			if (!bHasName)
 				Columns.f_SetVerbose("Name", 7);
 			if (!bHasHostID)

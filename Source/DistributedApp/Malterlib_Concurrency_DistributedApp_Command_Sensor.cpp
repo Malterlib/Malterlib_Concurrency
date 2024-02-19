@@ -457,6 +457,7 @@ namespace NMib::NConcurrency
 
 		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
+		Columns.f_AddHeading("Environment", 0);
 		Columns.f_AddHeading("Host ID", 0);
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
@@ -473,9 +474,12 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Paused", 1);
 		Columns.f_AddHeading("Metadata", 1);
 
+		Columns.f_SetSortByColumns({"Environment", "Host Description", "Host ID", "Application", "Identifier", "Identifier Scope"});
+
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
+		bool bHasEnvironment = false;
 		bool bHasHostID = false;
 		bool bHasHostName = false;
 		bool bHasApplication = false;
@@ -550,13 +554,19 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
+					CStr Environment;
+					if (auto *pEnvironment = SensorInfo.m_MetaData.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+						Environment = pEnvironment->f_String();
+
+					bHasEnvironment = bHasEnvironment || Environment;
 					bHasHostID = bHasHostID || SensorInfo.m_HostID;
 					bHasHostName = bHasHostName || SensorInfo.m_HostName;
 					bHasApplication = bHasApplication || Application;
 
 					TableRenderer.f_AddRow
 						(
-							SensorInfo.m_HostID
+							Environment
+							, SensorInfo.m_HostID
 							, CHostInfo::fs_FormatFriendlyNameForTable(SensorInfo.m_HostName, AnsiEncoding)
 							, Application
 							, SensorInfo.m_Identifier
@@ -581,6 +591,8 @@ namespace NMib::NConcurrency
 			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
 		else
 		{
+			if (!bHasEnvironment)
+				Columns.f_SetVerbose("Environment");
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)
@@ -695,6 +707,7 @@ namespace NMib::NConcurrency
 
 		CTableRenderHelper::CColumnHelper Columns((_Flags & ESensorOutputFlag_Verbose) ? 1 : 0);
 
+		Columns.f_AddHeading("Environment", 0);
 		Columns.f_AddHeading("Host ID", 1);
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
@@ -708,9 +721,13 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Outdated", 0);
 		Columns.f_AddHeading("Sensor Metadata", 1);
 
+		if (_Flags & ESensorOutputFlag_Status)
+			Columns.f_SetSortByColumns({"Environment", "Host Description", "Host ID", "Application", "Identifier", "Identifier Scope"});
+
 		TableRenderer.f_AddHeadings(&Columns);
 		TableRenderer.f_SetOptions(CTableRenderHelper::EOption_Rounded | CTableRenderHelper::EOption_AvoidRowSeparators);
 
+		bool bHasEnvironment = false;
 		bool bHasHostID = false;
 		bool bHasHostName = false;
 		bool bHasApplication = false;
@@ -813,6 +830,15 @@ namespace NMib::NConcurrency
 				}
 				else
 				{
+					CStr Environment;
+					if (pSensorMetaData)
+					{
+						if (auto *pEnvironment = pSensorMetaData->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+							Environment = pEnvironment->f_String();
+					}
+
+					bHasEnvironment = bHasEnvironment || Environment;
+
 					auto DataStatus = Reading.m_Reading.f_GetDataStatus(pSensorInfo);
 					auto Value = Reading.m_Reading.f_GetFormattedData
 						(
@@ -844,7 +870,8 @@ namespace NMib::NConcurrency
 
 					TableRenderer.f_AddRow
 						(
-							Reading.m_SensorInfoKey.m_HostID
+							Environment
+							, Reading.m_SensorInfoKey.m_HostID
 							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Reading.m_SensorInfoKey.m_Identifier
@@ -882,6 +909,8 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
+			if (!bHasEnvironment)
+				Columns.f_SetVerbose("Environment");
 			if (!bHasHostID)
 				Columns.f_SetVerbose("Host ID");
 			if (!bHasHostName)

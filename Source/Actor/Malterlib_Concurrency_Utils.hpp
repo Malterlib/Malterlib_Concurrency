@@ -744,18 +744,18 @@ namespace NMib::NConcurrency
 		template <bool tf_bDirect, typename tf_CActor, typename tf_FToDispatch, typename ...tfp_CFunctionParams, typename ...tfp_CParams>
 		inline_always auto fg_DispatchGenericImpl(NMeta::TCTypeList<tfp_CFunctionParams...> _TypeList, tf_CActor &&_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 		{
-			using CActorDereferenced = typename NTraits::TCRemoveReference<tf_CActor>::CType;
+			using CActorDereferenced = NTraits::TCRemoveReferenceType<tf_CActor>;
 			using CCallActor = typename NTraits::TCCopyQualifiersAndReference
 				<
 					tf_CActor &&
-					, typename TCChooseType<CActorDereferenced::mc_bIsAlwaysAlive || CActorDereferenced::mc_bIsWeak, typename NTraits::TCRemoveReference<tf_CActor>::CType, TCActor<>>::CType
+					, typename TCChooseType<CActorDereferenced::mc_bIsAlwaysAlive || CActorDereferenced::mc_bIsWeak, NTraits::TCRemoveReferenceType<tf_CActor>, TCActor<>>::CType
 				>::CType
 			;
 
 			using CIsCallableWith = NTraits::TCIsCallableWith
 				<
-					typename NTraits::TCRemoveReference<tf_FToDispatch>::CType
-					, void (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType...)
+					NTraits::TCRemoveReferenceType<tf_FToDispatch>
+					, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams>...)
 				>
 			;
 			static_assert(CIsCallableWith::mc_Value);
@@ -815,7 +815,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCActor<tf_CActor> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+		using CFunctionType = NTraits::TCRemoveReferenceType<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(
@@ -830,7 +830,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor, typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCActor<tf_CActor> &&_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+		using CFunctionType = NTraits::TCRemoveReferenceType<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(
@@ -845,7 +845,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_DirectDispatch(tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+		using CFunctionType = NTraits::TCRemoveReferenceType<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<true>
 			(
@@ -860,7 +860,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_UnsafeDirectDispatch(tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+		using CFunctionType = NTraits::TCRemoveReferenceType<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<true>
 			(
@@ -913,7 +913,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FFunction, typename... tfp_CCallParams>
 		inline_always auto CThisActor::f_Invoke(tf_FFunction &&_fFunction, tfp_CCallParams && ...p_CallParams) const
 		{
-			using CFunctionType = typename NTraits::TCRemoveReference<tf_FFunction>::CType;
+			using CFunctionType = NTraits::TCRemoveReferenceType<tf_FFunction>;
 
 			return NPrivate::fg_DispatchGenericImpl<true>
 				(

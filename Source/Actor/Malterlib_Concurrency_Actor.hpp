@@ -373,9 +373,9 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_FResult>
 	auto TCActor<t_CActor>::operator / (tf_FResult &&_fResult) const
-		-> TCActorResultCall<TCActor, typename NTraits::TCRemoveReference<tf_FResult>::CType>
+		-> TCActorResultCall<TCActor, NTraits::TCRemoveReferenceType<tf_FResult>>
 	{
-		return TCActorResultCall<TCActor, typename NTraits::TCRemoveReference<tf_FResult>::CType>
+		return TCActorResultCall<TCActor, NTraits::TCRemoveReferenceType<tf_FResult>>
 			(
 				*this
 				, fg_Forward<tf_FResult>(_fResult)
@@ -389,7 +389,7 @@ namespace NMib::NConcurrency
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<tf_CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -400,8 +400,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<tf_CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
@@ -419,7 +419,7 @@ namespace NMib::NConcurrency
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>;
+		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<tf_CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -430,8 +430,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<tf_CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
@@ -450,7 +450,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -461,8 +461,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>
@@ -481,7 +481,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -492,8 +492,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>
@@ -512,7 +512,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -523,8 +523,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
@@ -543,7 +543,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -554,8 +554,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
@@ -579,7 +579,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!_Actor.f_IsEmpty());
@@ -596,8 +596,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor<tf_CActor>
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(fg_Construct(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, false
 			>
@@ -642,7 +642,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -653,8 +653,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>
@@ -673,7 +673,7 @@ namespace NMib::NConcurrency
 	{
 		using CMemberFunction = decltype(tf_pMemberFunction);
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<CMemberFunction>::CType>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -690,8 +690,8 @@ namespace NMib::NConcurrency
 		return TCActorCall
 			<
 				TCActor
-				, typename NTraits::TCRemoveReference<CMemberFunction>::CType
-				, typename NTraits::TCRemoveReference<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>::CType
+				, NTraits::TCRemoveReferenceType<CMemberFunction>
+				, NTraits::TCRemoveReferenceType<decltype(NStorage::fg_Tuple(fg_Forward<tfp_CCallParams>(p_CallParams)...))>
 				, NMeta::TCTypeList<tfp_CCallParams...>
 				, true
 			>

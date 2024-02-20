@@ -55,7 +55,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CFunctor>
 	auto fg_ActorFunctor(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor, CActorSubscription &&_Subscription = nullptr)
 	{
-		using CFunction = typename NTraits::NPrivate::TCFunctionObjectType_Helper<typename NTraits::TCRemoveReference<tf_CFunctor>::CType>::CType;
+		using CFunction = typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType::operator ())>::CFunctionType;
 		return TCActorFunctor<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)}; 
 	}
 	

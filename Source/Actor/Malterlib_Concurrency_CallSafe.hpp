@@ -243,7 +243,7 @@ namespace NMib::NConcurrency
 		>
 	{
 		using CFunctionType = typename NTraits::TCRemoveReference<tf_CFunction>::CType;
-		using CReturn = typename NTraits::TCIsCallableWith<CFunctionType, void (tfp_CParams...)>::CReturnType;
+		using CReturn = NTraits::TCCallableReturnTypeFor<CFunctionType, void (tfp_CParams...)>;
 		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
 				fg_Forward<tf_CFunction>(_fFunction)

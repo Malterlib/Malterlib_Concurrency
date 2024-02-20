@@ -1162,7 +1162,7 @@ namespace NMib::NConcurrency
 		using CReturnType = typename NPrivate::TCGetReturnType<t_CRet>::CType;
 		using CResultType = NConcurrency::TCAsyncResult<CReturnType>;
 		using CAsyncType = typename NPrivate::TCGetAsyncType<t_CRet>::CType;
-		using CResultFunctorReturnType = typename NTraits::TCIsCallableWith<t_CResultFunctor, void (CResultType &&)>::CReturnType;
+		using CResultFunctorReturnType = NTraits::TCCallableReturnTypeFor<t_CResultFunctor, void (CResultType &&)>;
 		using CResultFunctor = NFunction::TCFunctionMovable<void (CResultType &&_Result)>;
 
 		struct CState final : public CReportLocalState

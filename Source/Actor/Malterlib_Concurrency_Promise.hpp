@@ -415,12 +415,9 @@ namespace NMib::NConcurrency
 			{
 				mc_Value = TCAllAsyncResultsAreVoidHelper
 				<
-					typename NTraits::TCFunctionTraits
+					typename NTraits::TCMemberFunctionPointerTraits
 					<
-						typename NTraits::NPrivate::TCFunctionObjectType_Helper
-						<
-							typename NTraits::TCRemoveReference<t_FFunctor>::CType
-						>::CType
+						decltype(&t_FFunctor::operator ())
 					>::CParams
 				>::mc_Value
 			};

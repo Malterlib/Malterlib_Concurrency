@@ -86,9 +86,12 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
+}
 
-	struct CDistributedActorIdentifier;
+DMibDefineSharedPointerType(NMib::NConcurrency::NPrivate::CDistributedActorData, true, true);
 
+namespace NMib::NConcurrency
+{
 	struct CDistributedActorIdentifier
 	{
 		CDistributedActorIdentifier();

@@ -759,7 +759,12 @@ namespace NMib::NConcurrency
 				>
 			;
 			static_assert(CIsCallableWith::mc_Value);
-			using CReturnType = typename CIsCallableWith::CReturnType;
+			using CReturnType = NTraits::TCCallableReturnTypeFor
+				<
+					NTraits::TCRemoveReferenceType<tf_FToDispatch>
+					, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams>...)
+				>
+			;
 
 			if constexpr (NPrivate::TCIsFuture<CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturnType>::mc_Value)
 			{

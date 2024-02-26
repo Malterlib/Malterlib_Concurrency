@@ -182,7 +182,11 @@ namespace NMib::NConcurrency
 		mp_ConcurrentRunQueue.f_AddToQueue(fg_Move(_Functor));
 
 		mint Value = mp_Working.f_FetchAdd(1);
-		return Value == 0;
+		return Value == 0
+#if DMibConfig_Tests_Enable && !DTests_PerfTests
+			|| _ThreadLocal.m_bForceWakeUp
+#endif
+		;
 	}
 
 	bool CActorHolder::fp_DequeueProcess(CConcurrencyThreadLocal &_ThreadLocal)
@@ -347,9 +351,11 @@ namespace NMib::NConcurrency
 		smint Expected = 0;
 		if (mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
 		{
-			fp_DestroyActorHolder(nullptr, fg_Explicit(this), fg_ConcurrencyThreadLocal());
+			TCActorHolderSharedPointer<CActorHolder> pReferenceHolder = fg_Explicit(this); // Reference needs to be alive during actor queueing
+			fp_DestroyActorHolder(nullptr, fg_TempCopy(pReferenceHolder), fg_ConcurrencyThreadLocal());
 			return true;
 		}
+
 		return false;
 	}
 
@@ -367,6 +373,7 @@ namespace NMib::NConcurrency
 						pActor->fp_CheckDestroy();
 #endif
 
+					auto pReferenceHolder = pActorInternal; // Reference needs to be alive during actor queueing
 					ActorInternal.fp_DestroyActorHolder
 						(
 #if defined(DCompiler_MSVC) || DMibConfig_RefCountDebugging
@@ -508,6 +515,8 @@ namespace NMib::NConcurrency
 			if (Destroyed != 1)
 				DMibPDebugBreak;
 		}
+
+		auto pReferenceHolder = pSelfReference; // Reference needs to be alive during actor queueing
 
 		_pActorHolder->f_Call<CActor, TCFuture<void> (CActor::*)()>
 			(
@@ -776,9 +785,6 @@ namespace NMib::NConcurrency
 
 	void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
-		TCActorHolderSharedPointer<CSeparateThreadActorHolder> pThis = fg_Explicit(this);
-
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 			mp_pThread->m_EventWantQuit.f_Signal();
 	}
@@ -823,12 +829,11 @@ namespace NMib::NConcurrency
 
 	void CDispatchingActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		TCActorHolderSharedPointer<CDispatchingActorHolder> pThis = fg_Explicit(this);
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 		{
 			m_Dispatcher
 				(
-					[pThis = fg_Move(pThis)]() mutable
+					[pThis = TCActorHolderSharedPointer<CDispatchingActorHolder>(fg_Explicit(this))]() mutable
 					{
 						pThis->fp_RunProcess();
 					}
@@ -905,6 +910,7 @@ namespace NMib::NConcurrency
 
 	void CDelegatedActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		auto pReferenceHolder = mp_pDelegateTo; // Reference needs to be alive during actor queueing
 		mp_pDelegateTo->f_QueueProcessDestroy
 			(
 				[this, Functor = fg_Move(_Functor)]() mutable
@@ -1166,6 +1172,14 @@ namespace NMib::NConcurrency
 	{
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 		{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			if (ThreadLocal.m_nWaits)
+			{
+				--ThreadLocal.m_nWaits;
+				NSys::fg_Thread_Sleep(0.1f);
+			}
+#endif
 			TCActorHolderSharedPointer<CDefaultActorHolder> pThis = fg_Explicit(this);
 			mp_pConcurrencyManager->fp_QueueJob
 				(

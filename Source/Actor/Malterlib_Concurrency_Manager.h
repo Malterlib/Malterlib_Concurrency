@@ -228,6 +228,10 @@ namespace NMib::NConcurrency
 		CActorHolder *m_pCurrentlyOverridenProcessingActorHolder = nullptr;
 		mint m_AllowWrongThreadDestroySequence = 0;
 #endif
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+		mint m_nWaits = 0;
+		bool m_bForceWakeUp = false;
+#endif
 	};
 
 	struct CAllowWrongThreadDestroy

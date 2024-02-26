@@ -18,6 +18,8 @@ namespace
 
 	fp64 g_Timeout = 60.0 * NMib::NTest::gc_TimeoutMultiplier;
 
+	constinit static NAtomic::TCAtomic<mint> g_nDestroyedActors{0};
+
 	class CTestActor : public CActor
 	{
 	public:
@@ -93,10 +95,48 @@ namespace
 		typedef CDispatchingActorHolder CActorHolder;
 	};
 
+	struct CTestActorWithDestroy : public CActor
+	{
+		~CTestActorWithDestroy()
+		{
+			++g_nDestroyedActors;
+		}
+
+		TCFuture<void> f_Test()
+		{
+			co_return {};
+		}
+
+		TCFuture<void> fp_Destroy() override
+		{
+			co_return {};
+		}
+	};
+
 	class CConcurrency_Tests : public NMib::NTest::CTest
 	{
 	public:
 
+		void fp_SyncOnAllThreads()
+		{
+			TCActorResultVector<void> Results;
+
+			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+			for (mint i = 0; i < nThreads; ++i)
+			{
+				fg_ConcurrentDispatch
+					(
+						[]
+						{
+						}
+					)
+					> Results.f_AddResult()
+				;
+			}
+
+			Results.f_GetResults().f_CallSync(g_Timeout);
+		}
+		
 		void f_TestAsyncResult()
 		{
 			DMibTestSuite("Async")
@@ -172,6 +212,55 @@ namespace
 				NSys::fg_Thread_Sleep(1.0);
 				pState->m_Event2.f_SetSignaled();
 				NSys::fg_Thread_Sleep(1.0);
+			};
+			DMibTestSuite("Use after free in destruction")
+			{
+				using namespace NMib::NThread;
+				using namespace NMib::NConcurrency;
+				using namespace NMib::NStorage;
+
+				mint nDestroyedStart = g_nDestroyedActors.f_Load();
+
+				TCActorResultVector<void> Results;
+
+				mint nDestructions = 10;
+
+				for (mint i = 0; i < nDestructions; ++i)
+				{
+					TCActor<CTestActorWithDestroy> Actor(fg_Construct());
+					g_ConcurrentDispatch / [WeakActor = Actor.f_Weak()]() mutable -> TCFuture<void>
+						{
+							NSys::fg_Thread_Sleep(0.05f);
+							auto ActorLocked = WeakActor.f_Lock();
+							if (ActorLocked)
+							{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+								fg_ConcurrencyThreadLocal().m_bForceWakeUp = true;
+#endif
+								ActorLocked(&CTestActorWithDestroy::f_Test) > fg_DiscardResult();
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+								fg_ConcurrencyThreadLocal().m_bForceWakeUp = false;
+#endif
+							}
+							co_return {};
+						}
+						> Results.f_AddResult()
+					;
+
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					fg_ConcurrencyThreadLocal().m_nWaits = 1;
+#endif
+					Actor.f_Clear();
+				}
+
+
+				Results.f_GetResults().f_CallSync(g_Timeout);
+
+				fp_SyncOnAllThreads();
+
+				mint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
+
+				DMibExpect(nDestroyed, ==, nDestructions);
 			};
 		}
 		

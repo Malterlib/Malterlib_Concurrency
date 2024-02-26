@@ -110,7 +110,6 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 
 			using CSensorDataVariant::CSensorDataVariant;
-			using CSensorDataVariant::operator =;
 		};
 
 		struct CSensorScope_Unsupported

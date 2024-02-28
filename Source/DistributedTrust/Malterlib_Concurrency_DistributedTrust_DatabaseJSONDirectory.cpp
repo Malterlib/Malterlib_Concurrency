@@ -493,6 +493,22 @@ namespace NMib::NConcurrency
 		;
 	}
 
+	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientLastFriendlyName(NStr::CStr const &_HostID)
+	{
+		return TCFuture<CStr>::fs_RunProtected<NException::CException>() / [&]() -> CStr
+			{
+				auto &Internal = *mp_pInternal;
+				Internal.f_CheckState();
+
+				CClient Client;
+				if (!Internal.f_Read(Client, "Clients", _HostID))
+					return {};
+
+				return Client.m_LastFriendlyName;
+			}
+		;
+	}
+
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr const &_HostID, CClient const &_Client)
 	{
 		return TCFuture<void>::fs_RunProtected<NException::CException>() /

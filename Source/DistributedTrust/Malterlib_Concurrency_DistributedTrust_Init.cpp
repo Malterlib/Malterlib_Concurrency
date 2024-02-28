@@ -486,6 +486,7 @@ namespace NMib::NConcurrency
 					
 					auto &Host = m_Hosts[HostID];
 					Host.m_ClientConnections.f_Insert(ClientConnection);
+					Host.m_FriendlyName = iClientConnection->m_LastFriendlyName;
 					ClientConnection.m_pHost = &Host;
 				}
 

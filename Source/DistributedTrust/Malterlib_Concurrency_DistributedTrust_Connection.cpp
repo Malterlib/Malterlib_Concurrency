@@ -984,4 +984,24 @@ namespace NMib::NConcurrency
 
 		co_return fg_Move(DebugStats);
 	}
+
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostFriendlyName(NStr::CStr const &_HostID)
+	{
+		auto &Internal = *mp_pInternal;
+
+		co_await Internal.f_WaitForInit();
+
+		if (_HostID == Internal.m_BasicConfig.m_HostID)
+			co_return Internal.m_FriendlyName;
+
+		auto FrientlyName = co_await Internal.m_ActorDistributionManager(&CActorDistributionManager::f_GetHostFriendlyName, _HostID);
+
+		if (FrientlyName)
+			co_return FrientlyName;
+
+		if (auto *pHost = Internal.m_Hosts.f_FindEqual(_HostID))
+			co_return pHost->m_FriendlyName;
+		
+		co_return co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClientLastFriendlyName, _HostID);
+	}
 }

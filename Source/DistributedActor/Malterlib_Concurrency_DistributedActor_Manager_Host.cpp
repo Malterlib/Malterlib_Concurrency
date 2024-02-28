@@ -272,4 +272,14 @@ namespace NMib::NConcurrency
 
 		m_Hosts.f_Remove(_Host.m_HostInfo.m_UniqueHostID);
 	}
+
+	TCFuture<NStr::CStr> CActorDistributionManager::f_GetHostFriendlyName(NStr::CStr const &_HostID)
+	{
+		auto &Internal = *mp_pInternal;
+
+		if (auto *pHost = Internal.m_Hosts.f_FindEqual(_HostID))
+			co_return (*pHost)->m_FriendlyName;
+
+		co_return {};
+	}
 }

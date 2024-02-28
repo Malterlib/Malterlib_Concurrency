@@ -252,6 +252,8 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) = 0;
 		virtual TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) = 0;
 		virtual TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
+
+		virtual TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr const &_HostID) = 0;
 	};
 }
 

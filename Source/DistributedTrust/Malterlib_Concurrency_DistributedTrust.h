@@ -449,6 +449,7 @@ namespace NMib::NConcurrency
 		;
 
 		TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> f_GetConnectionsDebugStats();
+		TCFuture<NStr::CStr> f_GetHostFriendlyName(NStr::CStr const &_HostID);
 
 	private:
 		template <typename t_CActor>

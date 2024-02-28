@@ -57,6 +57,7 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) override;
 		TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) override;
 		TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorName) override;
+		TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr const &_HostID) override;
 
 		CBasicConfig m_BasicConfig;
 		int32 m_CertificateSerial = 0;

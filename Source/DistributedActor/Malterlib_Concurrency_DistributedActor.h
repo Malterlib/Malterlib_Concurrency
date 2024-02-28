@@ -746,6 +746,7 @@ namespace NMib::NConcurrency
 		static bool fs_IsValidUserID(NStr::CStr const &_String);
 
 		TCFuture<CConnectionsDebugStats> f_GetConnectionsDebugStats();
+		TCFuture<NStr::CStr> f_GetHostFriendlyName(NStr::CStr const &_HostID);
 
 		static constexpr mint mc_RemoteCallOverhead = 38;
 		static constexpr mint mc_RemoteCallReturnOverhead = 19;

@@ -150,6 +150,14 @@ namespace NMib::NConcurrency
 		co_return fg_Construct(*pClient);
 	}
 
+	TCFuture<NStr::CStr> CTrustManagerDatabaseTestHelper::f_GetClientLastFriendlyName(NStr::CStr const &_HostID)
+	{
+		auto pClient = m_Clients.f_FindEqual(_HostID);
+		if (!pClient)
+			co_return {};
+		co_return pClient->m_LastFriendlyName;
+	}
+
 	TCFuture<bool> CTrustManagerDatabaseTestHelper::f_HasClient(CStr const &_HostID)
 	{
 		co_return m_Clients.f_FindEqual(_HostID) != nullptr;

@@ -9,6 +9,21 @@ namespace NMib::NConcurrency
 {
 	CRunLoop::~CRunLoop() = default;
 
+	void CRunLoop::f_Sleep(fp64 _Time)
+	{
+		NTime::CClock Clock{true};
+		while (true)
+		{
+			auto WaitTime = _Time - Clock.f_GetTime();
+			if (WaitTime <= 0)
+				break;
+
+			f_WaitOnceTimeout(WaitTime);
+		}
+
+		f_Process();
+	}
+
 	void CDefaultRunLoop::f_Process()
 	{
 #if DMibEnableSafeCheck > 0

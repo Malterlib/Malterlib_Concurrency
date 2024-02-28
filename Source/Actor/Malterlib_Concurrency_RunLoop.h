@@ -14,6 +14,7 @@ namespace NMib::NConcurrency
 		virtual void f_Wake() = 0;
 		virtual CActorDestroyEventLoop f_ActorDestroyLoop() = 0;
 		virtual NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> f_Dispatcher() = 0;
+		void f_Sleep(fp64 _Time);
 		
 		NStorage::CIntrusiveRefCount m_RefCount;
 	};

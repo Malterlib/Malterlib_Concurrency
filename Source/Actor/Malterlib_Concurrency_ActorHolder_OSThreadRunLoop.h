@@ -34,10 +34,10 @@ namespace NMib::NConcurrency
 		void fp_DestroyThreaded() override;
 		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
-		void fp_QueueProcess();
 
+		NThread::CLowLevelLock mp_ThreadLock;
+		NThread::CLowLevelLock mp_RunLoopDestroyLock;
 		NStorage::TCUniquePointer<NThread::CThreadObject> mp_pThread;
-		NThread::CEvent mp_ThreadCanStartEvent;
 		NThread::CEvent mp_ThreadStartedEvent;
 		NStr::CStr mp_ThreadName;
 #if defined(DPlatformFamily_macOS)

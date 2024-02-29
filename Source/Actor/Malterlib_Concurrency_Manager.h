@@ -231,6 +231,7 @@ namespace NMib::NConcurrency
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
 		mint m_nWaits = 0;
 		bool m_bForceWakeUp = false;
+		bool m_bForceBusyWait = false;
 #endif
 	};
 

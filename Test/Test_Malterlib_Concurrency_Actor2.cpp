@@ -113,6 +113,16 @@ namespace
 		}
 	};
 
+	struct CTestActorWithDestroySeparateThread : public CActor
+	{
+		using CActorHolder = CSeparateThreadActorHolder;
+
+		~CTestActorWithDestroySeparateThread()
+		{
+			++g_nDestroyedActors;
+		}
+	};
+
 	class CConcurrency_Tests : public NMib::NTest::CTest
 	{
 	public:
@@ -258,6 +268,61 @@ namespace
 
 				fp_SyncOnAllThreads();
 
+				CClock Clock{true};
+				while (g_nDestroyedActors.f_Load() - nDestroyedStart < nDestructions)
+				{
+					if (Clock.f_GetTime() >= g_Timeout)
+						break;
+					NSys::fg_Thread_Sleep(0.001f);
+				}
+				mint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
+
+				DMibExpect(nDestroyed, ==, nDestructions);
+			};
+			DMibTestSuite("Use after free in destruction separate thread actor holder")
+			{
+				using namespace NMib::NThread;
+				using namespace NMib::NConcurrency;
+				using namespace NMib::NStorage;
+
+				mint nDestroyedStart = g_nDestroyedActors.f_Load();
+
+				TCActorResultVector<void> Results;
+
+				mint nDestructions = 10;
+
+				for (mint i = 0; i < nDestructions; ++i)
+				{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+					ConcurrencyThreadLocal.m_bForceBusyWait = true;
+#endif
+					TCActor<CTestActorWithDestroySeparateThread> Actor(fg_Construct(), "Use after free in destruction separate thread actor holder");
+
+					(g_Dispatch(Actor) / []{}).f_CallSync(g_Timeout);
+
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					ConcurrencyThreadLocal.m_bForceBusyWait = false;
+					ConcurrencyThreadLocal.m_bForceWakeUp = true;
+					ConcurrencyThreadLocal.m_nWaits = 1;
+#endif
+					Actor.f_Clear();
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					ConcurrencyThreadLocal.m_bForceWakeUp = false;
+#endif
+				}
+
+				Results.f_GetResults().f_CallSync(g_Timeout);
+
+				fp_SyncOnAllThreads();
+
+				CClock Clock{true};
+				while (g_nDestroyedActors.f_Load() - nDestroyedStart < nDestructions)
+				{
+					if (Clock.f_GetTime() >= g_Timeout)
+						break;
+					NSys::fg_Thread_Sleep(0.001f);
+				}
 				mint nDestroyed = g_nDestroyedActors.f_Load() - nDestroyedStart;
 
 				DMibExpect(nDestroyed, ==, nDestructions);

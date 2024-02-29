@@ -277,10 +277,12 @@ namespace NMib::NConcurrency
 		;
 
 	protected:
+		void fp_DestroyThreaded() override;
 		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
-		NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> m_Dispatcher;
+		NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> mp_Dispatcher;
+		NThread::CLowLevelLock mp_DestroyLock;
 	};
 
 	class CDelegatedActorHolder : public CDefaultActorHolder
@@ -332,9 +334,8 @@ namespace NMib::NConcurrency
 		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override;
 
+		NThread::CLowLevelLock mp_ThreadLock;
 		NStorage::TCUniquePointer<NThread::CThreadObject> mp_pThread;
-		NThread::CEvent mp_ThreadCanStartEvent;
-		NThread::CEvent mp_ThreadStartedEvent;
 		NStr::CStr mp_ThreadName;
 	};
 

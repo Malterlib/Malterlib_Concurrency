@@ -36,39 +36,51 @@ namespace NMib::NConcurrency
 	{
 	}
 
-	void COSMainRunLoopActorHolder::fp_QueueProcess()
-	{
-#if defined(DPlatformFamily_macOS)
-		auto pThis = this;
-		dispatch_async
-			(
-				dispatch_get_main_queue()
-				, ^()
-				{
-					pThis->fp_RunProcess();
-				}
-			)
-		;
-#endif
-	}
-
 	void COSMainRunLoopActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		TCActorHolderWeakPointer<COSMainRunLoopActorHolder> pThisReference = fg_Explicit(this); // Keep memory alive
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
-			fp_QueueProcess();
+		{
+#if defined(DPlatformFamily_macOS)
+			auto *pThis = this;
+			dispatch_async
+				(
+					dispatch_get_main_queue()
+					, ^()
+					{
+						(void)pThisReference;
+						if (pThis->mp_bDestroyed.f_Load() >= 4)
+							return;
+						pThis->fp_RunProcess();
+					}
+				)
+			;
+#endif
+		}
 	}
 
 	void COSMainRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		// Reference this so it doesn't go out of scope if queue is processed before thread has been notified
-		TCActorHolderSharedPointer<COSMainRunLoopActorHolder> pThis = fg_Explicit(this);
-
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
-			fp_QueueProcess();
+		{
+#if defined(DPlatformFamily_macOS)
+			TCActorHolderSharedPointer<COSMainRunLoopActorHolder> pThis = fg_Explicit(this);
+			dispatch_async
+				(
+					dispatch_get_main_queue()
+					, ^()
+					{
+						pThis->fp_RunProcess();
+					}
+				)
+			;
+#endif
+		}
 	}
 
 	void COSMainRunLoopActorHolder::fp_DestroyThreaded()
 	{
+		mp_bDestroyed.f_Exchange(4);
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 }

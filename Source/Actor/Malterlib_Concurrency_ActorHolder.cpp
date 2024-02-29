@@ -748,23 +748,38 @@ namespace NMib::NConcurrency
 
 	void CSeparateThreadActorHolder::fp_StartQueueProcessing()
 	{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+		fp64 BusyWaitTime = 0.0;
+		if (fg_ConcurrencyThreadLocal().m_bForceBusyWait)
+			BusyWaitTime = 0.1;
+#endif
+		DMibLock(mp_ThreadLock);
 		mp_pThread = NThread::CThreadObject::fs_StartThread
 			(
-				[this](NThread::CThreadObject *_pThread) -> aint
+				[
+					this
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+					, BusyWaitTime
+#endif
+				](NThread::CThreadObject *_pThread) -> aint
 				{
-					mp_ThreadCanStartEvent.f_Wait();
-					mp_ThreadStartedEvent.f_SetSignaled();
-
+					{
+						DMibLock(mp_ThreadLock);
+					}
 					while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 					{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
 						NTime::CCyclesClock Clock;
 						Clock.f_Start();
 						while (true)
 						{
 							fp_RunProcess();
-							if (Clock.f_GetTime() > 0.000035) // Run for at least 35 µs
+							if (BusyWaitTime == 0.0 || Clock.f_GetTime() > BusyWaitTime)
 								break;
 						}
+#else
+						fp_RunProcess();
+#endif
 						_pThread->m_EventWantQuit.f_Wait();
 					}
 					return 0;
@@ -773,25 +788,47 @@ namespace NMib::NConcurrency
 				, f_ConcurrencyManager().f_GetExecutionPriority(f_GetPriority())
 			)
 		;
-		mp_ThreadCanStartEvent.f_SetSignaled();
-		mp_ThreadStartedEvent.f_Wait();
 	}
 
 	void CSeparateThreadActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		DMibLock(mp_ThreadLock);
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			if (ThreadLocal.m_nWaits)
+			{
+				--ThreadLocal.m_nWaits;
+				NSys::fg_Thread_Sleep(0.1f);
+			}
+#endif
 			mp_pThread->m_EventWantQuit.f_Signal();
+		}
 	}
 
 	void CSeparateThreadActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
+		{
+#if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
+			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+			if (ThreadLocal.m_nWaits)
+			{
+				--ThreadLocal.m_nWaits;
+				NSys::fg_Thread_Sleep(0.1f);
+			}
+#endif
 			mp_pThread->m_EventWantQuit.f_Signal();
+		}
 	}
 
 	void CSeparateThreadActorHolder::fp_DestroyThreaded()
 	{
-		mp_pThread.f_Clear();
+		{
+			DMibLock(mp_ThreadLock);
+			mp_pThread.f_Clear();
+		}
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 
@@ -808,18 +845,34 @@ namespace NMib::NConcurrency
 			, NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> &&_Dispatcher
 		)
 		: CDefaultActorHolder(_pConcurrencyManager, _bImmediateDelete, _Priority, fg_Move(_pDistributedActorData))
-		, m_Dispatcher(fg_Move(_Dispatcher))
+		, mp_Dispatcher(fg_Move(_Dispatcher))
 	{
+	}
+
+	void CDispatchingActorHolder::fp_DestroyThreaded()
+	{
+		{
+			DMibLock(mp_DestroyLock);
+			mp_bDestroyed.f_Exchange(4);
+		}
+		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 
 	void CDispatchingActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		DMibLock(mp_DestroyLock);
+		// Make sure the memory isn't deallocated
+		TCActorHolderWeakPointer<CDefaultActorHolder> pStayAlive = fg_Explicit(this);
+
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 		{
-			m_Dispatcher
+			mp_Dispatcher
 				(
-					[this]() mutable
+					[this, pStayAlive = fg_Move(pStayAlive)]() mutable
 					{
+						if (this->mp_bDestroyed.f_Load() >= 4)
+							return;
+
 						fp_RunProcess();
 					}
 				)
@@ -831,7 +884,7 @@ namespace NMib::NConcurrency
 	{
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 		{
-			m_Dispatcher
+			mp_Dispatcher
 				(
 					[pThis = TCActorHolderSharedPointer<CDispatchingActorHolder>(fg_Explicit(this))]() mutable
 					{
@@ -1153,13 +1206,19 @@ namespace NMib::NConcurrency
 
 	void CDefaultActorHolder::fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		// Make sure the memory isn't deallocated
+		TCActorHolderWeakPointer<CDefaultActorHolder> pStayAlive = fg_Explicit(this);
+
 		if (fp_AddToQueue(fg_Move(_Functor), _ThreadLocal))
 		{
 			mp_pConcurrencyManager->fp_DispatchOnCurrentThreadOrConcurrent
 				(
 					this->f_GetPriority()
-					, [this]() // This referenced in _Fuctor
+					, [this, pStayAlive = fg_Move(pStayAlive)]()
 					{
+						if (this->mp_bDestroyed.f_Load() >= 3)
+							return;
+
 						this->fp_RunProcess();
 					}
 					, _ThreadLocal
@@ -1180,12 +1239,11 @@ namespace NMib::NConcurrency
 				NSys::fg_Thread_Sleep(0.1f);
 			}
 #endif
-			TCActorHolderSharedPointer<CDefaultActorHolder> pThis = fg_Explicit(this);
 			mp_pConcurrencyManager->fp_QueueJob
 				(
 					this->f_GetPriority()
 					, this->mp_iFixedCore
-					, [pThis = fg_Move(pThis)]()
+					, [pThis = TCActorHolderSharedPointer<CDefaultActorHolder>(fg_Explicit(this))]()
 					{
 						pThis->fp_RunProcess();
 					}

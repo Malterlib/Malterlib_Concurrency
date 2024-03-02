@@ -889,6 +889,12 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override
+		{
+			DMibNeverGetHere;
+			co_return {};
+		}
+
 		TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
 		{
 			DMibNeverGetHere;

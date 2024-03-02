@@ -47,6 +47,7 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	template <typename ...tfp_CParams>
 	auto TCActorFunctorWeak<t_CFunction>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -118,6 +119,7 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	template <typename ...tfp_CParams>
 	auto TCActorFunctorWeak<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 
@@ -186,6 +188,7 @@ namespace NMib::NConcurrency
 	template <typename t_CFunction>
 	template <typename tf_FDispatcher, typename ...tfp_CParams>
 	auto TCActorFunctorWeak<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 	{
 		auto Actor = mp_Actor.f_Lock();
 

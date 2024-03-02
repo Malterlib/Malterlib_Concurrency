@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "Malterlib_Concurrency_ActorFunctorShared.hpp"
+
 namespace NMib::NConcurrency
 {
 	template <typename t_CFunction>
@@ -23,13 +25,19 @@ namespace NMib::NConcurrency
 		TCActorFunctorWeak(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor);
 		
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
+		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		;
 
 		template <typename ...tfp_CParams>
-		auto f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>;
+		auto f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		;
 
 		template <typename tf_FDispatcher, typename ...tfp_CParams>
-		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>;
+		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		;
 
 		TCWeakActor<CActor> const &f_GetActor() const;
 		NFunction::TCFunctionMovable<t_CFunction> const &f_GetFunctor() const;

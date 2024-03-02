@@ -74,8 +74,16 @@ namespace NMib::NConcurrency
 			NStr::CStr m_Prompt;
 		};
 
-		ICCommandLineControl();
-		~ICCommandLineControl();
+		struct CScreenChange
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+
+			uint32 m_Width = 0;
+			uint32 m_Height = 0;
+			uint32 m_GlyphWidth = 0;
+			uint32 m_GlyphHeight = 0;
+		};
 
 		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrIO _Input)>;
 		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID
@@ -84,10 +92,15 @@ namespace NMib::NConcurrency
 			>
 		;
 		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
+		using FOnScreenChange = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (CScreenChange const &_ScreenChange)>;
+
+		ICCommandLineControl();
+		~ICCommandLineControl();
 
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) = 0;
+		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) = 0;
 
 		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() = 0;
 		virtual NConcurrency::TCFuture<NStr::CStrIO> f_ReadLine() = 0;
@@ -135,6 +148,7 @@ namespace NMib::NConcurrency
 			f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const
 		;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(ICCommandLineControl::FOnCancel &&_fOnCancel) const;
+		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForScreenChange(ICCommandLineControl::FOnScreenChange &&_fOnScreenChange) const;
 
 		NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() const;
 		NConcurrency::TCFuture<NStr::CStrIO> f_ReadLine() const;
@@ -149,6 +163,8 @@ namespace NMib::NConcurrency
 		TCDistributedActorInterfaceWithID<ICCommandLineControl, gc_SubscriptionNotRequired> m_ControlActor;
 		uint32 m_CommandLineWidth = 0;
 		uint32 m_CommandLineHeight = 0;
+		uint32 m_CommandLineGlyphWidth = 0;
+		uint32 m_CommandLineGlyphHeight = 0;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
 	private:
 		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, umint _DataLen);
@@ -159,7 +175,10 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x103
-			, EProtocolVersion_Current = 0x103
+
+			, EProtocolVersion_SupportGlyphSize = 0x104
+
+			, EProtocolVersion_Current = 0x104
 		};
 
 		ICCommandLine();

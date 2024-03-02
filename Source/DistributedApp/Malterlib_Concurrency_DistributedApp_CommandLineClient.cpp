@@ -11,6 +11,7 @@
 #include <Mib/Process/StdInActor>
 #include <Mib/Process/Platform>
 #include <Mib/CommandLine/CommandLineImplementation>
+#include <Mib/CommandLine/Platform>
 #include <Mib/File/File>
 #include <Mib/File/ChangeNotificationActor>
 
@@ -88,6 +89,29 @@ namespace NMib::NConcurrency
 							co_await fg_Move(pSubscription->m_fOnCancel).f_Destroy();
 
 						mp_CancellationSubscriptions.f_Remove(SubscriptionID);
+
+						co_return {};
+					}
+				;
+			}
+
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForScreenChange(FOnScreenChange _fOnScreenChange) override
+			{
+				if (auto Destroyed = fp_CheckDestroyed())
+					co_return Destroyed;
+
+				auto SubscriptionID = NCryptography::fg_RandomID(mp_ScreenChangeSubscriptions);
+
+				auto &Subscription = mp_ScreenChangeSubscriptions[SubscriptionID];
+
+				Subscription.m_fOnScreenChange = fg_Move(_fOnScreenChange);
+
+				co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
+					{
+						if (auto pSubscription = mp_ScreenChangeSubscriptions.f_FindEqual(SubscriptionID))
+							co_await fg_Move(pSubscription->m_fOnScreenChange).f_Destroy();
+
+						mp_ScreenChangeSubscriptions.f_Remove(SubscriptionID);
 
 						co_return {};
 					}
@@ -223,14 +247,32 @@ namespace NMib::NConcurrency
 				co_return {.m_AppDigest = Result.m_AppDigest, .m_Signature = fg_Move(Result.m_Signature)};
 			}
 
+			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange)
+			{
+				TCActorResultVector<void> Results;
+
+				for (auto &Subscription : mp_ScreenChangeSubscriptions)
+					Subscription.m_fOnScreenChange(_ScreenChange) > Results.f_AddResult();
+
+				co_await Results.f_GetUnwrappedResults();
+
+				co_return {};
+			}
+
 		private:
 			struct CCancellationSubscription
 			{
 				FOnCancel m_fOnCancel;
 			};
 
+			struct CScreenChangeSubscription
+			{
+				FOnScreenChange m_fOnScreenChange;
+			};
+
 			TCActor<NProcess::CStdInActor> mp_InputActor;
 			NContainer::TCMap<NStr::CStr, CCancellationSubscription> mp_CancellationSubscriptions;
+			NContainer::TCMap<NStr::CStr, CScreenChangeSubscription> mp_ScreenChangeSubscriptions;
 			bool mp_bCancelled = false;
 
 			TCFuture<void> fp_Destroy() override
@@ -240,6 +282,9 @@ namespace NMib::NConcurrency
 
 				for (auto &Subscription : mp_CancellationSubscriptions)
 					co_await fg_Move(Subscription.m_fOnCancel).f_Destroy();
+
+				for (auto &Subscription : mp_ScreenChangeSubscriptions)
+					co_await fg_Move(Subscription.m_fOnScreenChange).f_Destroy();
 
 				co_return {};
 			}
@@ -368,6 +413,8 @@ namespace NMib::NConcurrency
 
 			CommandLineControl.m_CommandLineWidth = mp_CommandLineWidth;
 			CommandLineControl.m_CommandLineHeight = mp_CommandLineHeight;
+			CommandLineControl.m_CommandLineGlyphWidth = mp_CommandLineGlyphWidth;
+			CommandLineControl.m_CommandLineGlyphHeight = mp_CommandLineGlyphHeight;
 			CommandLineControl.m_AnsiFlags = mp_AnsiFlags;
 
 			struct CState
@@ -399,7 +446,7 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			auto Subscription = NProcess::NPlatform::fg_Process_WaitForTermination
+			auto TerminationSubscription = NProcess::NPlatform::fg_Process_WaitForTermination
 				(
 					[pState, pCommandLineControl]
 					{
@@ -414,6 +461,28 @@ namespace NMib::NConcurrency
 									pState->m_bAborted = true;
 									pState->m_pRunLoop->f_Wake();
 								}
+							}
+						;
+					}
+				)
+			;
+			auto ScreenChangeSubscription = NCommandLine::NPlatform::fg_Process_WaitForScreenChange
+				(
+					[pState, pCommandLineControl](NSys::CConsoleProperties const &_ConsoleProperties)
+					{
+						ICCommandLineControl::CScreenChange ScreenChange
+							{
+								.m_Width = _ConsoleProperties.m_Width
+								, .m_Height = _ConsoleProperties.m_Height
+								, .m_GlyphWidth = _ConsoleProperties.m_GlyphWidth
+								, .m_GlyphHeight = _ConsoleProperties.m_GlyphHeight
+							}
+						;
+
+						pCommandLineControl(&CCommandLineControlActor::f_ScreenChange, ScreenChange) > fg_DirectCallActor() / [pState](TCAsyncResult<void> &&_Result)
+							{
+								if (!_Result)
+									DMibConErrOut("Failed to notify screen change: {}\n", _Result.f_GetExceptionStr());
 							}
 						;
 					}

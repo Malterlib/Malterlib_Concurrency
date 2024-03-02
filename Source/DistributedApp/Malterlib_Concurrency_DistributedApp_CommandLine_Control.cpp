@@ -23,6 +23,7 @@ namespace NMib::NConcurrency
 		DMibPublishActorFunction(ICCommandLineControl::f_RegisterForStdIn);
 		DMibPublishActorFunction(ICCommandLineControl::f_RegisterForStdInBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_RegisterForCancellation);
+		DMibPublishActorFunction(ICCommandLineControl::f_RegisterForScreenChange);
 		DMibPublishActorFunction(ICCommandLineControl::f_ReadBinary);
 		DMibPublishActorFunction(ICCommandLineControl::f_ReadLine);
 		DMibPublishActorFunction(ICCommandLineControl::f_ReadPrompt);
@@ -155,6 +156,14 @@ namespace NMib::NConcurrency
 		if (!m_ControlActor)
 			return Promise <<= DMibErrorInstance("No control actor");
 		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForCancellation)(fg_Move(_fOnCancel));
+	}
+
+	auto CCommandLineControl::f_RegisterForScreenChange(ICCommandLineControl::FOnScreenChange &&_fOnScreenChange) const -> TCFuture<TCActorSubscriptionWithID<>>
+	{
+		TCPromise<TCActorSubscriptionWithID<>> Promise;
+		if (!m_ControlActor)
+			return Promise <<= DMibErrorInstance("No control actor");
+		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForScreenChange)(fg_Move(_fOnScreenChange));
 	}
 
 	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, EStdInReaderFlag _Flags) const

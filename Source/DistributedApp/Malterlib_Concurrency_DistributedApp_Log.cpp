@@ -169,4 +169,14 @@ namespace NMib::NConcurrency
 
 		co_return co_await Store(&CDistributedAppLogStoreLocal::f_OpenLogReporter, fg_Move(_LogInfo));
 	}
+
+	auto CDistributedAppActor::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>
+	{
+		co_return co_await self(&CDistributedAppActor::fp_OpenLogReporter, fg_Move(_LogInfo));
+	}
+
+	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::f_OpenLogStoreLocal()
+	{
+		co_return co_await self(&CDistributedAppActor::fp_OpenLogStoreLocal);
+	}
 }

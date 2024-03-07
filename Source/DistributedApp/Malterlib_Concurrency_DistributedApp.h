@@ -354,6 +354,12 @@ namespace NMib::NConcurrency
 
 		CDistributedAppAuditor f_Auditor(NStr::CStr const &_Category = {}, CCallingHostInfo const &_CallingHostInfo = fg_GetCallingHostInfo()) const;
 
+		auto f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>;
+		TCFuture<TCActor<CDistributedAppSensorStoreLocal>> f_OpenSensorStoreLocal();
+
+		auto f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;
+		TCFuture<TCActor<CDistributedAppLogStoreLocal>> f_OpenLogStoreLocal();
+		
 #if DMibConfig_Tests_Enable
 		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
 #endif

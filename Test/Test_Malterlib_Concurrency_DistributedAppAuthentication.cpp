@@ -37,8 +37,6 @@ using namespace NMib::NStr;
 using namespace NMib::NContainer;
 using namespace NMib::NTest;
 
-#define DTestDistributredAppAuthenticationEnableLogging 0
-
 static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
 
 namespace NTestAuthentication
@@ -1230,11 +1228,6 @@ public:
 			)
 		;
 #endif
-
-#if DTestDistributredAppAuthenticationEnableLogging
-		fg_GetSys()->f_AddStdErrLogger();
-#endif
-
 		CActorRunLoopTestHelper RunLoopHelper;
 
 		CStr ProgramDirectory = CFile::fs_GetProgramDirectory();
@@ -1288,7 +1281,7 @@ public:
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CSlowServerInterface::mc_pDefaultNamespace);
 		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, DTestDistributredAppAuthenticationEnableLogging);
+		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, !!(fg_TestReportFlags() & ETestReportFlag_EnableLogs));
 		g_CallCount = fg_ConstructActor<CCallCount>();
 
 		auto Cleanup = g_OnScopeExit / [&]
@@ -2229,10 +2222,6 @@ public:
 			)
 		;
 #endif
-
-#if DTestDistributredAppAuthenticationEnableLogging
-		fg_GetSys()->f_AddStdErrLogger();
-#endif
 		CActorRunLoopTestHelper RunLoopHelper;
 
 		CStr ProgramDirectory = CFile::fs_GetProgramDirectory();
@@ -2284,7 +2273,7 @@ public:
 		Security.m_AllowedIncomingConnectionNamespaces.f_Insert(CServerInterface::mc_pDefaultNamespace);
 		Dependencies.m_DistributionManager(&CActorDistributionManager::f_SetSecurity, Security).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, DTestDistributredAppAuthenticationEnableLogging);
+		TCActor<CDistributedApp_LaunchHelper> LaunchHelper = fg_ConstructActor<CDistributedApp_LaunchHelper>(Dependencies, !!(fg_TestReportFlags() & ETestReportFlag_EnableLogs));
 		g_CallCount = fg_ConstructActor<CCallCount>();
 
 		auto Cleanup = g_OnScopeExit / [&]

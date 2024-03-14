@@ -71,7 +71,7 @@ namespace NMib::NConcurrency
 		TCActor<CThisConcurrentActorLowPrio> const &f_GetThisConcurrentActorLowPrio();
 		TCActor<COtherConcurrentActor> const &f_GetOtherConcurrentActor();
 		TCActor<COtherConcurrentActorLowPrio> const &f_GetOtherConcurrentActorLowPrio();
-		TCActor<NPrivate::CDirectResultActor> const &f_GetDirectResultActor();
+		TCActor<CDirectResultActor> const &f_GetDirectResultActor();
 		TCActor<CDynamicConcurrentActor> const &f_GetDynamicConcurrentActor();
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
 
@@ -176,7 +176,7 @@ namespace NMib::NConcurrency
 		TCActor<COtherConcurrentActorLowPrioImpl> m_OtherConcurrentActorLowPrio;
 		TCActor<CDynamicConcurrentActorImpl> m_DynamicConcurrentActor;
 		TCActor<CDynamicConcurrentActorLowPrioImpl> m_DynamicConcurrentActorLowPrio;
-		TCActor<NPrivate::CDirectResultActorImpl> m_DirectResultActor;
+		TCActor<CDirectResultActorImpl> m_DirectResultActor;
 
 		TCActor<CDirectCallActor> m_DirectCallActorRef;
 		TCActor<CThisConcurrentActor> m_ThisConcurrentActorRef;
@@ -185,7 +185,7 @@ namespace NMib::NConcurrency
 		TCActor<COtherConcurrentActorLowPrio> m_OtherConcurrentActorLowPrioRef;
 		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
 		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
-		TCActor<NPrivate::CDirectResultActor> m_DirectResultActorRef;
+		TCActor<CDirectResultActor> m_DirectResultActorRef;
 
 		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
 		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};

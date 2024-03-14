@@ -1169,7 +1169,7 @@ namespace
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
-										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > NConcurrency::NPrivate::fg_DirectResultActor() / [](TCAsyncResult<void> &&)
+										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > NConcurrency::fg_DirectResultActor() / [](TCAsyncResult<void> &&)
 											{
 											}
 										;

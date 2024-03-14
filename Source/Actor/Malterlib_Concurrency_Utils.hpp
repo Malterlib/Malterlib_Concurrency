@@ -1334,13 +1334,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCActorResultCall<TCActor<NPrivate::CDirectResultActor>, typename TCActorResultVector<t_CType>::CResultReceived> TCActorResultVector<t_CType>::f_AddResult()
+	TCActorResultCall<TCActor<CDirectResultActor>, typename TCActorResultVector<t_CType>::CResultReceived> TCActorResultVector<t_CType>::f_AddResult()
 	{
 		auto &Internal = *mp_pInternal;
 		DMibRequire(!(Internal.mp_nFinished.f_Load() & NPrivate::gc_ActorResultResultsGottenMask));
 		mint iResult = Internal.mp_nAdded.f_FetchAdd(1);
 		DMibRequire(!Internal.mp_bDefinedSize || iResult < Internal.mp_Results.f_GetLen());
-		return NPrivate::fg_DirectResultActor() / CResultReceived(iResult, mp_pInternal);
+		return fg_DirectResultActor() / CResultReceived(iResult, mp_pInternal);
 	}
 
 	template <typename t_CType>

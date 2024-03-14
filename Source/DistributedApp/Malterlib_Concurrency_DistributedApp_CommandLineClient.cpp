@@ -249,7 +249,7 @@ namespace NMib::NConcurrency
 					 , _Params
 					 , fg_Move(CommandLineControl)
 				)
-				> NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<uint32> &&_Result)
+				> fg_DirectResultActor() / [pState](TCAsyncResult<uint32> &&_Result)
 				{
 					DMibLock(pState->m_ResultLock);
 					pState->m_Result = fg_Move(_Result);

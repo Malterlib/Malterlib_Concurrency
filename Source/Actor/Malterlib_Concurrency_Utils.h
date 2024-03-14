@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 		TCActorResultVector(mint _DefinedSize);
 		TCActorResultVector();
 		~TCActorResultVector();
-		TCActorResultCall<TCActor<NPrivate::CDirectResultActor>, CResultReceived> f_AddResult();
+		TCActorResultCall<TCActor<CDirectResultActor>, CResultReceived> f_AddResult();
 		auto f_GetResults();
 		TCUnsafeFuture<NContainer::TCVector<t_CType>> f_GetUnwrappedResults()
 			requires(!NTraits::TCIsVoid<t_CType>::mc_Value)

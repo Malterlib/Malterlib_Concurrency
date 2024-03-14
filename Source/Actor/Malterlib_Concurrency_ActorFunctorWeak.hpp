@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 			DispatchFuture = TCPromise<void>() <<= g_Void;
 		}
 
-		fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise](TCAsyncResult<void> &&) mutable
+		fg_Move(DispatchFuture) > fg_DirectResultActor() / [Promise](TCAsyncResult<void> &&) mutable
 			{
 				Promise.f_SetResult();
 			}

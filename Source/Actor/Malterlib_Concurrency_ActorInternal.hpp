@@ -156,7 +156,7 @@ namespace NMib::NConcurrency
 			, tf_CResultFunctor &&_fResultFunctor
 		)
 	{
-		static_assert(!NTraits::TCIsSame<tf_CActor, NPrivate::CDirectResultActor>::mc_Value, "Cannot be called");
+		static_assert(!NTraits::TCIsSame<tf_CActor, CDirectResultActor>::mc_Value, "Cannot be called");
 		typedef TCReportLocal
 			<
 				tf_CActor

@@ -35,26 +35,23 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
-	namespace NPrivate
+	struct CDirectResultActor : public CActor
 	{
-		struct CDirectResultActor : public CActor
-		{
-			using CActorHolder = CShamActorHolder;
+		using CActorHolder = CShamActorHolder;
 
-			static constexpr bool mc_bImmediateDelete = true;
-			static constexpr bool mc_bIsAlwaysAlive = true;
-			static constexpr bool mc_bIsAlwaysAliveImpl = true;
-		};
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
 
-		struct CDirectResultActorImpl final : public CDirectResultActor
-		{
-			~CDirectResultActorImpl();
+	struct CDirectResultActorImpl final : public CDirectResultActor
+	{
+		~CDirectResultActorImpl();
 
-			static constexpr bool mc_bIsAlwaysAliveImpl = false;
-		};
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
 
-		TCActor<CDirectResultActor> const &fg_DirectResultActor();
-	}
+	TCActor<CDirectResultActor> const &fg_DirectResultActor();
 
 	struct CThisConcurrentActor : public CConcurrentActor
 	{

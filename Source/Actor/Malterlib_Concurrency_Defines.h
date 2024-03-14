@@ -329,10 +329,7 @@ namespace NMib::NConcurrency
 	struct CThisConcurrentActorLowPrio;
 	struct COtherConcurrentActor;
 	struct COtherConcurrentActorLowPrio;
-	namespace NPrivate
-	{
-		struct CDirectResultActor;
-	}
+	struct CDirectResultActor;
 
 	template <typename t_CType, typename t_CLock>
 	struct TCLockActor;

@@ -727,7 +727,7 @@ namespace NMib::NConcurrency
 					;
 					(void)Dummy;
 
-					Results.f_GetResults() > NPrivate::fg_DirectResultActor() / [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+					Results.f_GetResults() > fg_DirectResultActor() / [Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
 						{
 							if (!fg_CombineResults(Promise, fg_Move(_Results)))
 								return;

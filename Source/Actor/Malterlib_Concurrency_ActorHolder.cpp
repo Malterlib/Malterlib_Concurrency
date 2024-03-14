@@ -404,7 +404,7 @@ namespace NMib::NConcurrency
 		if (!(static_cast<TCActor<> &>(*this)).m_pInternalActor)
 			return Promise <<= g_Void;
 
-		(static_cast<TCActor<> &>(*this))(&CActor::fp_DestroyInternal) > NPrivate::fg_DirectResultActor()
+		(static_cast<TCActor<> &>(*this))(&CActor::fp_DestroyInternal) > fg_DirectResultActor()
 			/ CActorHolder::fsp_DestroyHandler((static_cast<TCActor<> &>(*this)).m_pInternalActor, Promise)
 		;
 		return Promise.f_MoveFuture();
@@ -418,7 +418,7 @@ namespace NMib::NConcurrency
 		if (!pActorInternal)
 			return Promise <<= g_Void;
 
-		(static_cast<TCActor<> &&>(*this))(&CActor::fp_DestroyInternal) > NPrivate::fg_DirectResultActor() / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise);
+		(static_cast<TCActor<> &&>(*this))(&CActor::fp_DestroyInternal) > fg_DirectResultActor() / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise);
 		return Promise.f_MoveFuture();
 	}
 
@@ -435,7 +435,7 @@ namespace NMib::NConcurrency
 			{
 				align_cacheline NAtomic::TCAtomic<smint> Finished;
 
-				fg_Move(pActor).f_Destroy() > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<void> &&_Result)
+				fg_Move(pActor).f_Destroy() > fg_DirectResultActor() / [&](TCAsyncResult<void> &&_Result)
 					{
 						DMibLock(ResultLock);
 						Result = fg_Move(_Result);
@@ -452,7 +452,7 @@ namespace NMib::NConcurrency
 				align_cacheline NAtomic::TCAtomic<smint> Finished;
 				NThread::CEventAutoReset Event;
 
-				fg_Move(pActor).f_Destroy() > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<void> &&_Result)
+				fg_Move(pActor).f_Destroy() > fg_DirectResultActor() / [&](TCAsyncResult<void> &&_Result)
 					{
 						DMibLock(ResultLock);
 						Result = fg_Move(_Result);
@@ -525,7 +525,7 @@ namespace NMib::NConcurrency
 					&CActor::fp_DestroyInternal
 					, NStorage::TCTuple<>()
 				)
-				, fg_TempCopy(NPrivate::fg_DirectResultActor())
+				, fg_TempCopy(fg_DirectResultActor())
 				, [pSelfReference = fg_Move(pSelfReference)](TCAsyncResult<void> &&) mutable
 				{
 				}

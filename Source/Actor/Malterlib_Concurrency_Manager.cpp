@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetDirectCallActor();
 	}
 
-	TCActor<NPrivate::CDirectResultActor> const &NPrivate::fg_DirectResultActor()
+	TCActor<CDirectResultActor> const &fg_DirectResultActor()
 	{
 		return fg_ConcurrencyManager().f_GetDirectResultActor();
 	}
@@ -238,7 +238,7 @@ namespace NMib::NConcurrency
 		m_OtherConcurrentActorLowPrio = f_ConstructActor(fg_Construct<COtherConcurrentActorLowPrioImpl>());
 		m_DynamicConcurrentActor = f_ConstructActor(fg_Construct<CDynamicConcurrentActorImpl>());
 		m_DynamicConcurrentActorLowPrio = f_ConstructActor(fg_Construct<CDynamicConcurrentActorLowPrioImpl>());
-		m_DirectResultActor = f_ConstructActor(fg_Construct<NPrivate::CDirectResultActorImpl>());
+		m_DirectResultActor = f_ConstructActor(fg_Construct<CDirectResultActorImpl>());
 
 		m_DirectCallActorRef = m_DirectCallActor;
 		m_ThisConcurrentActorRef = m_ThisConcurrentActor;
@@ -751,7 +751,7 @@ namespace NMib::NConcurrency
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::COtherConcurrentActorLowPrioImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrioImpl") >= 0
-									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::NPrivate::CDirectResultActorImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectResultActorImpl") >= 0
 								)
 							{
 								continue;
@@ -1108,7 +1108,7 @@ namespace NMib::NConcurrency
 		return m_OtherConcurrentActorLowPrioRef;
 	}
 
-	TCActor<NPrivate::CDirectResultActor> const &CConcurrencyManager::f_GetDirectResultActor()
+	TCActor<CDirectResultActor> const &CConcurrencyManager::f_GetDirectResultActor()
 	{
 		return m_DirectResultActorRef;
 	}

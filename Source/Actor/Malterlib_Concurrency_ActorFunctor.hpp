@@ -265,7 +265,7 @@ namespace NMib::NConcurrency
 		else
 			DestroySubscriptionFuture = TCPromise<void>() <<= g_Void;
 
-		fg_Move(DestroySubscriptionFuture) > NPrivate::fg_DirectResultActor() / [Promise, Actor = fg_Move(mp_Actor), pFunctor = fg_Move(mp_pFunctor)](TCAsyncResult<void> &&_Result) mutable
+		fg_Move(DestroySubscriptionFuture) > fg_DirectResultActor() / [Promise, Actor = fg_Move(mp_Actor), pFunctor = fg_Move(mp_pFunctor)](TCAsyncResult<void> &&_Result) mutable
 			{
 				TCFuture<void> DispatchFuture;
 
@@ -287,7 +287,7 @@ namespace NMib::NConcurrency
 					DispatchFuture = TCPromise<void>() <<= g_Void;
 				}
 
-				fg_Move(DispatchFuture) > NPrivate::fg_DirectResultActor() / [Promise = fg_Move(Promise), Result = fg_Move(_Result)](TCAsyncResult<void> &&) mutable
+				fg_Move(DispatchFuture) > fg_DirectResultActor() / [Promise = fg_Move(Promise), Result = fg_Move(_Result)](TCAsyncResult<void> &&) mutable
 					{
 						Promise.f_SetResult(fg_Move(Result));
 					}

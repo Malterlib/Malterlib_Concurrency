@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 		DMibRequire(mp_pData && !!mp_pData->m_LastValue); // Already at end
 
 		TCPromise<void> Promise;
-		mp_pData->m_fGetNext.f_CallDirect() > NPrivate::fg_DirectResultActor() / [pData = mp_pData, Promise](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result)
+		mp_pData->m_fGetNext.f_CallDirect() > fg_DirectResultActor() / [pData = mp_pData, Promise](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result)
 			{
 				if (!_Result)
 					return Promise.f_SetException(fg_Move(_Result));
@@ -78,7 +78,7 @@ namespace NMib::NConcurrency
 		if (!pData->m_fGetNext)
 			return Promise <<= DMibErrorInstance("Invalid async generator missing get next functor");
 
-		pData->m_fGetNext.f_CallDirect() > NPrivate::fg_DirectResultActor() / [Promise, Iterator = fg_Move(Iterator)](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Value) mutable
+		pData->m_fGetNext.f_CallDirect() > fg_DirectResultActor() / [Promise, Iterator = fg_Move(Iterator)](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Value) mutable
 			{
 				if (!_Value)
 					return Promise.f_SetException(fg_Move(_Value));

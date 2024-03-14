@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 					Data.m_SourceLocation = {Message.m_Location.m_pFile, Message.m_Location.m_Line};
 			}
 
-			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)) > NPrivate::fg_DirectResultActor()
+			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)) > fg_DirectResultActor()
 				/ [pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
 				{
 					if (!_Result)

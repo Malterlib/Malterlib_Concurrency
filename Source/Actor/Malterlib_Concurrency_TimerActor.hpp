@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 	{
 		TCPromise<CReturnType> Promise;
 		NStorage::TCSharedPointer<NAtomic::CAtomicFlag> pReplied = fg_Construct();
-		fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pReplied, Promise](TCAsyncResult<CReturnType> &&_Result)
+		fg_Move(*this) > fg_DirectResultActor() / [pReplied, Promise](TCAsyncResult<CReturnType> &&_Result)
 			{
 				if (!pReplied->f_TestAndSet())
 					Promise.f_SetResult(fg_Move(_Result));

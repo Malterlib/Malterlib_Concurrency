@@ -249,7 +249,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
-	NPrivate::CDirectResultActorImpl::~CDirectResultActorImpl()
+	CDirectResultActorImpl::~CDirectResultActorImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}

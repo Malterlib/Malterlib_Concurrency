@@ -319,7 +319,7 @@ namespace NMib::NConcurrency
 			{
 				TCPromise<void> Promise;
 				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-				Promise.f_MoveFuture() > NConcurrency::NPrivate::fg_DirectResultActor()
+				Promise.f_MoveFuture() > NConcurrency::fg_DirectResultActor()
 					/ [fDeliverExceptionResult = fg_Move(fDeliverExceptionResult), pException = fg_Move(_pException)](TCAsyncResult<void> &&_DestroyResults) mutable
 					{
 						if (!_DestroyResults)

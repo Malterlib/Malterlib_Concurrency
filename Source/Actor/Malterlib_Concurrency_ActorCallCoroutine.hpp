@@ -168,7 +168,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultActor), fg_Forward<tf_CResultFunctor>(_ResultFunctor));
 
-		auto &DirectActor = NPrivate::fg_DirectResultActor();
+		auto &DirectActor = fg_DirectResultActor();
 		TCInitializerList<bool> Dummy =
 			{
 				NPrivate::fg_CallActorInternal
@@ -395,7 +395,7 @@ namespace NMib::NConcurrency
 	TCFuture<t_CReturnType> TCActorCallWithError<t_CActorCall, t_CReturnType>::f_Dispatch() &&
 	{
 		TCPromise<t_CReturnType> Promise;
-		fg_Move(*mp_pActorCall) > NPrivate::fg_DirectResultActor() / [Promise, fTransformer = fp_GetTransformer()](TCAsyncResult<t_CReturnType> &&_Result)
+		fg_Move(*mp_pActorCall) > fg_DirectResultActor() / [Promise, fTransformer = fp_GetTransformer()](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				if (!_Result)
 					return Promise.f_SetException(fTransformer(fg_Move(_Result).f_GetException()));

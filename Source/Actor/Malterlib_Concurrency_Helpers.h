@@ -82,10 +82,10 @@ namespace NMib::NConcurrency
 #endif
 	};
 
+	struct CDirectResultActor;
+
 	namespace NPrivate
 	{
-		struct CDirectResultActor;
-
 		struct CDiscardResultFunctor
 		{
 			template <typename tf_CResult>

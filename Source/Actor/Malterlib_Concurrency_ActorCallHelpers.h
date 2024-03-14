@@ -542,7 +542,7 @@ namespace NMib::NConcurrency
 		{
 			using CReturnType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CCalls::CReturnType>::CType...>;
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType, tf_CRunLoop>> pResult = fg_Construct(fg_Forward<tfp_CParams>(p_Params)...);
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](auto &&...p_Results)
+			fg_Move(*this) > fg_DirectResultActor() / [pResult](auto &&...p_Results)
 				{
 					pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(p_Results)>::CType(), fg_Forward<decltype(p_Results)>(p_Results)...);
 				}
@@ -592,7 +592,7 @@ namespace NMib::NConcurrency
 		{
 			typename tf_CActor::CNonWeak Actor;
 
-			static constexpr bool c_bIsDirect = NTraits::TCIsSame<tf_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
+			static constexpr bool c_bIsDirect = NTraits::TCIsSame<tf_CResultActor, CDirectResultActor>::mc_Value;
 
 			if constexpr (tf_CActor::mc_bIsWeak)
 			{
@@ -817,7 +817,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CResult>
 		void operator > (TCPromise<tf_CResult> const &_Promise) &&
 		{
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [_Promise](TCAsyncResult<tf_CResult> &&_Result)
+			fg_Move(*this) > fg_DirectResultActor() / [_Promise](TCAsyncResult<tf_CResult> &&_Result)
 				{
 					_Promise.f_SetResult(fg_Move(_Result));
 				}
@@ -827,7 +827,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CResult>
 		void operator > (TCPromiseWithError<tf_CResult> const &_PromiseWithError) &&
 		{
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() /
+			fg_Move(*this) > fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise](tf_CResult &&_Result)
 					{
@@ -839,7 +839,7 @@ namespace NMib::NConcurrency
 
 		void operator > (TCPromiseWithError<void> const &_PromiseWithError) &&
 		{
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() /
+			fg_Move(*this) > fg_DirectResultActor() /
 				(
 					_PromiseWithError / [Promise = _PromiseWithError.m_Promise]()
 					{
@@ -860,7 +860,7 @@ namespace NMib::NConcurrency
 		{
 			TCAsyncResult<CReturnType> Result;
 			NThread::CEvent WaitEvent;
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [&](TCAsyncResult<CReturnType> &&_Result)
+			fg_Move(*this) > fg_DirectResultActor() / [&](TCAsyncResult<CReturnType> &&_Result)
 				{
 					Result = fg_Move(_Result);
 					WaitEvent.f_SetSignaled();
@@ -875,7 +875,7 @@ namespace NMib::NConcurrency
 		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&
 		{
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType, NPrivate::CRunLoopState>> pResult = fg_Construct(_pRunLoop);
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+			fg_Move(*this) > fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
 					pResult->f_SetResult(fg_Move(_Result));
 				}
@@ -902,7 +902,7 @@ namespace NMib::NConcurrency
 		auto f_CallSync(fp64 _Timeout) &&
 		{
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType>> pResult = fg_Construct();
-			fg_Move(*this) > NPrivate::fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
+			fg_Move(*this) > fg_DirectResultActor() / [pResult](TCAsyncResult<CReturnType> &&_Result)
 				{
 					pResult->f_SetResult(fg_Move(_Result));
 				}
@@ -1003,7 +1003,7 @@ namespace NMib::NConcurrency
 
 			void f_ReportResult()
 			{
-				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<NPrivate::CDirectResultActor>>::mc_Value);
+				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<CDirectResultActor>>::mc_Value);
 				NStorage::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 				m_Actor.f_GetRealActor()->f_QueueProcess
 					(
@@ -1040,7 +1040,7 @@ namespace NMib::NConcurrency
 				, typename... tp_CResultTypes
 				, mint... tp_ResultIndices
 			>
-		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, TCActor<NPrivate::CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
+		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, TCActor<CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
 		{
 			enum
 			{
@@ -1049,10 +1049,10 @@ namespace NMib::NConcurrency
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
-			TCActor<NPrivate::CDirectResultActor> m_Actor;
+			TCActor<CDirectResultActor> m_Actor;
 			t_CHandler m_Handler;
 
-			TCCallMutipleActorStorage(TCActor<NPrivate::CDirectResultActor> const &_Actor, t_CHandler &&_Handler)
+			TCCallMutipleActorStorage(TCActor<CDirectResultActor> const &_Actor, t_CHandler &&_Handler)
 				: m_Handler(fg_Move(_Handler))
 				, m_Actor(_Actor)
 			{
@@ -1117,7 +1117,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
 
-		auto &Actor = NPrivate::fg_DirectResultActor();
+		auto &Actor = fg_DirectResultActor();
 		TCInitializerList<bool> Dummy =
 			{
 				NPrivate::fg_CallActorInternal
@@ -1241,7 +1241,7 @@ namespace NMib::NConcurrency
 				m_pActorInternal = nullptr;
 			else
 			{
-				static_assert(!NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value);
+				static_assert(!NTraits::TCIsSame<t_CResultActor, CDirectResultActor>::mc_Value);
 				auto Actor = State.m_ResultActor; // We need to keep the actor alive here while queuing
 				auto pActor = Actor.f_GetRealActor();
 				m_pActorInternal = nullptr;
@@ -1543,7 +1543,7 @@ namespace NMib::NConcurrency
 		;
 #endif
 
-		constexpr static const bool mc_ShouldCallResultDirect = NTraits::TCIsSame<t_CResultActor, NPrivate::CDirectResultActor>::mc_Value;
+		constexpr static const bool mc_ShouldCallResultDirect = NTraits::TCIsSame<t_CResultActor, CDirectResultActor>::mc_Value;
 		constexpr static const bool mc_ShouldDiscardResults = NTraits::TCIsSame<t_CResultFunctor, NPrivate::CDiscardResultFunctor>::mc_Value;
 		constexpr static const bool mc_bIsFuture = NPrivate::TCIsFuture<typename t_CFunctor::CReturnType>::mc_Value;
 
@@ -1588,7 +1588,7 @@ namespace NMib::NConcurrency
 				{
 					[&]
 					{
-						fg_Move(p_Futures) > NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
+						fg_Move(p_Futures) > fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
 							{
 
 								if (!pState->m_bReplied.f_TestAndSet())
@@ -1633,7 +1633,7 @@ namespace NMib::NConcurrency
 				{
 					[&]
 					{
-						fg_Move(p_Futures) > NPrivate::fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
+						fg_Move(p_Futures) > fg_DirectResultActor() / [pState](TCAsyncResult<tfp_CParams> &&_Result)
 							{
 								auto &State = *pState;
 								if (!_Result)

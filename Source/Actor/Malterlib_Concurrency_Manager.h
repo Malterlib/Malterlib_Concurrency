@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 		mint f_GetQueue() const;
 
 #if DMibConfig_Concurrency_DebugFutures
-		NThread::CMutual m_FutureListLock;
+		NThread::CLowLevelLock m_FutureListLock;
 		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_Link) m_Futures;
 		DMibListLinkDS_List(NPrivate::CPromiseDataBase, m_LinkCoro) m_Coroutines;
 #endif
@@ -156,7 +156,7 @@ namespace NMib::NConcurrency
 		mint m_ActorsOtherMask;
 
 #if DMibConfig_Concurrency_DebugBlockDestroy
-		NThread::CMutual m_ActorListLock;
+		NThread::CLowLevelLock m_ActorListLock;
 		DMibListLinkDS_List(CActorHolder, m_ActorLink) m_Actors;
 #endif
 
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 		bool m_bStopped = false;
 
 		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
-		NThread::CMutual m_pConcurrentActorLock;
+		NThread::CLowLevelLock m_pConcurrentActorLock;
 
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
 		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
@@ -178,10 +178,10 @@ namespace NMib::NConcurrency
 		mint m_nBlockingActors = 0;
 
 		NAtomic::TCAtomic<bool> m_bTimerActorInit;
-		NThread::CMutual m_TimerActorLock;
+		NThread::CLowLevelLock m_TimerActorLock;
 		TCActor<CTimerActor> m_pTimerActor;
 
-		NThread::CMutual m_ThreadCreateLock;
+		NThread::CLowLevelLock m_ThreadCreateLock;
 
 		TCActor<CDirectCallActorImpl> m_DirectCallActor;
 		TCActor<CThisConcurrentActorImpl> m_ThisConcurrentActor;

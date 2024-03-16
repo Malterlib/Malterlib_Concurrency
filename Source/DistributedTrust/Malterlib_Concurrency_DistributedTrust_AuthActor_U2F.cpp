@@ -4,6 +4,7 @@
 #include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActor>
+#include <Mib/Concurrency/ActorSequencerActor>
 #include <Mib/Container/Vector>
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Cryptography/RandomData>
@@ -1083,10 +1084,8 @@ namespace NMib::NConcurrency
 		;
 
 	private:
-		void fp_CreateProcessActor();
-
 		TCWeakActor<CDistributedActorTrustManager> const mp_TrustManager;
-		TCActor<CSeparateThreadActor> mp_ProcessActor;
+		CSequencer mp_ProcessingSequencer{"U2F sequencer"};
 	};
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::CDistributedActorTrustManagerAuthenticationActorU2F(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager)
@@ -1096,11 +1095,6 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::~CDistributedActorTrustManagerAuthenticationActorU2F() = default;
 
-	void CDistributedActorTrustManagerAuthenticationActorU2F::fp_CreateProcessActor()
-	{
-		if (!mp_ProcessActor)
-			mp_ProcessActor = fg_Construct(fg_Construct(), "U2F");
-	}
 
 	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
 		(
@@ -1108,11 +1102,12 @@ namespace NMib::NConcurrency
 			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
 		)
 	{
-		fp_CreateProcessActor();
+		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
 
 		co_return co_await
 			(
-				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<CAuthenticationData>
+				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CAuthenticationData>
 				{
 					NPrivate::CU2FContext U2FContext;
 					auto Result = co_await U2FContext.f_Register
@@ -1149,11 +1144,12 @@ namespace NMib::NConcurrency
 			, TCMap<CStr, CAuthenticationData> const &_Factors
 		)
 	{
-		fp_CreateProcessActor();
+		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
 
 		co_return co_await
 			(
-				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<ICDistributedActorAuthenticationHandler::CResponse>
+				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<ICDistributedActorAuthenticationHandler::CResponse>
 				{
 					TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
@@ -1207,11 +1203,12 @@ namespace NMib::NConcurrency
 		)
 		-> TCFuture<CVerifyAuthenticationReturn>
 	{
-		fp_CreateProcessActor();
+		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
 
 		co_return co_await
 			(
-				g_Dispatch(mp_ProcessActor) / [=]() -> TCFuture<CVerifyAuthenticationReturn>
+				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<CVerifyAuthenticationReturn>
 				{
 					auto *pValue = _AuthenticationData.m_PublicData.f_FindEqual("PublicKey");
 					if (!pValue || !pValue->f_IsBinary())

@@ -30,8 +30,6 @@ namespace NMib::NConcurrency
 		~CInternal();
 
 		TCActor<ICDistributedActorTrustManagerDatabase> m_TrustManagerDatabase;
-		TCActor<CSeparateThreadActor> m_FileOperationsActor;
-		TCActor<CSeparateThreadActor> m_CleanupFilesActor;
 		TCDistributedActor<CCommandLine> m_CommandLine;
 		CDistributedActorPublication m_CommandLinePublication;
 		NStorage::TCSharedPointer<CDistributedAppCommandLineSpecification> m_pCommandLineSpec;

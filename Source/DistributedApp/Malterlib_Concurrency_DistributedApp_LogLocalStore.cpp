@@ -123,7 +123,7 @@ namespace NMib::NConcurrency
 
 		Internal.m_bStarting = true;
 
-		Internal.m_Database = fg_Construct(fg_Construct(), "LogStoreDatabase");
+		Internal.m_Database = fg_Construct();
 		Internal.m_bOwnDatabase = true;
 		Internal.m_Prefix = "mib.llog"; // llog = local log
 		Internal.m_RetentionDays = _RetentionDays;

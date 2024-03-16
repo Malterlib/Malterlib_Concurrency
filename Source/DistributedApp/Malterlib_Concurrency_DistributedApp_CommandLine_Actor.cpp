@@ -41,51 +41,53 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppActor::fp_CreateCommandLineTrust()
 	{
-		auto &Internal = *mp_pInternal;
-
 		CStr CommandLineTrustPath = fg_Format("{}/CommandLineTrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName);
 
 		auto ExpectedAddress = fp_GetLocalAddress();
 
-		bool bAlreadySetup = co_await
-			(
-				g_Dispatch(Internal.m_FileOperationsActor) / [CommandLineTrustPath, ExpectedAddress]()
-				{
-					if (!CFile::fs_FileExists(CommandLineTrustPath))
-						return false;
-
-					auto ClientConnections = CFile::fs_FindFiles(CommandLineTrustPath + "/ClientConnections/*.json");
-					if (ClientConnections.f_IsEmpty())
-						return false;
-
-					if (ClientConnections.f_GetLen() > 1)
+		bool bAlreadySetup = false;
+		{
+			auto BlockingActorCheckout = fg_BlockingActor();
+			bAlreadySetup = co_await
+				(
+					g_Dispatch(BlockingActorCheckout) / [CommandLineTrustPath, ExpectedAddress]()
 					{
-						for (auto &File : ClientConnections)
-							CFile::fs_DeleteFile(File);
+						if (!CFile::fs_FileExists(CommandLineTrustPath))
+							return false;
+
+						auto ClientConnections = CFile::fs_FindFiles(CommandLineTrustPath + "/ClientConnections/*.json");
+						if (ClientConnections.f_IsEmpty())
+							return false;
+
+						if (ClientConnections.f_GetLen() > 1)
+						{
+							for (auto &File : ClientConnections)
+								CFile::fs_DeleteFile(File);
+							return false;
+						}
+
+						CStr ClientConnectionPath = ClientConnections.f_GetFirst();
+
+						try
+						{
+							CEJSONSorted const ClientConnectionData = CEJSONSorted::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
+
+							CStr CurrentAddress = ClientConnectionData["Address"].f_String();
+
+							if (CurrentAddress == ExpectedAddress.f_Encode())
+								return true;
+						}
+						catch (NException::CException const &)
+						{
+						}
+
+						CFile::fs_DeleteFile(ClientConnectionPath);
+
 						return false;
 					}
-
-					CStr ClientConnectionPath = ClientConnections.f_GetFirst();
-
-					try
-					{
-						CEJSONSorted const ClientConnectionData = CEJSONSorted::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
-
-						CStr CurrentAddress = ClientConnectionData["Address"].f_String();
-
-						if (CurrentAddress == ExpectedAddress.f_Encode())
-							return true;
-					}
-					catch (NException::CException const &)
-					{
-					}
-
-					CFile::fs_DeleteFile(ClientConnectionPath);
-
-					return false;
-				}
-			)
-		;
+				)
+			;
+		}
 
 		if (bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 			co_return {};
@@ -93,7 +95,7 @@ namespace NMib::NConcurrency
 		TCSharedPointer<TCAtomic<bool>> pSuccessful = fg_Construct(false);
 
 		// Remove trust database if anything went wrong during setup
-		auto CleanupTrustDatabase = g_ActorSubscription(Internal.m_FileOperationsActor) / [CommandLineTrustPath, pSuccessful]
+		auto CleanupTrustDatabase = g_BlockingActorSubscription / [CommandLineTrustPath, pSuccessful]
 			{
 				if (pSuccessful->f_Load())
 					return;

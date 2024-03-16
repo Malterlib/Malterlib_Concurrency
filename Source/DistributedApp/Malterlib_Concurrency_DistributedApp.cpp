@@ -363,15 +363,13 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppActor::fp_CleanupEnclaveSockets()
 	{
-		auto &Internal = *mp_pInternal;
-
 		if (mp_Settings.m_Enclave.f_IsEmpty())
 			return;
 
-		if (!Internal.m_CleanupFilesActor)
-			Internal.m_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
+		auto BlockingActorCheckout = fg_BlockingActor();
+		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
-		g_Dispatch(Internal.m_CleanupFilesActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+		g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
 			{
 				try
 				{
@@ -405,7 +403,7 @@ namespace NMib::NConcurrency
 					DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave sockets: {}", Exception);
 				}
 			}
-			> fg_DiscardResult()
+			> BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up enclave sockets")
 		;
 	}
 
@@ -414,10 +412,10 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 
-		if (!Internal.m_CleanupFilesActor)
-			Internal.m_CleanupFilesActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Cleanup files"));
+		auto BlockingActorCheckout = fg_BlockingActor();
+		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
-		g_Dispatch(Internal.m_CleanupFilesActor) / []
+		g_Dispatch(BlockingActor) / []
 			{
 				try
 				{
@@ -436,7 +434,7 @@ namespace NMib::NConcurrency
 				{
 				}
 			}
-			> fg_DiscardResult()
+			> BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up old executables")
 		;
 	}
 #endif
@@ -679,10 +677,9 @@ namespace NMib::NConcurrency
 
 		if (!Internal.m_pInitOnce)
 		{
-			Internal.m_FileOperationsActor = fg_ConstructActor<CSeparateThreadActor>(fg_Construct("Distributed app file access"));
 			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
 				(
-					mp_Settings.m_RootDirectory + fg_Format("/TrustDatabase.{}", mp_Settings.m_AppName)
+					fg_Format("{}/TrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName)
 				)
 			;
 
@@ -919,17 +916,6 @@ namespace NMib::NConcurrency
 				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys.f_AddResult();
 
 			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy for local log and sensor store");
-		}
-
-		{
-			TCActorResultVector<void> Destroys;
-
-			if (Internal.m_FileOperationsActor)
-				Internal.m_FileOperationsActor.f_Destroy() > Destroys.f_AddResult();
-			if (Internal.m_CleanupFilesActor)
-				Internal.m_CleanupFilesActor.f_Destroy() > Destroys.f_AddResult();
-
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy files actors");
 		}
 
 		if (Internal.m_TrustManagerDatabase)

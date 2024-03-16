@@ -6,6 +6,7 @@
 #include <Mib/Encoding/EJSON>
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/Hashes/SHA>
+#include <Mib/Concurrency/ActorSequencerActor>
 #include <Mib/Web/HTTP/URL>
 
 namespace NMib::NConcurrency
@@ -16,8 +17,6 @@ namespace NMib::NConcurrency
 
 	struct CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal : public CActorInternal
 	{
-		using CActorHolder = CSeparateThreadActorHolder;
-
 		struct CPrimaryListen
 		{
 			CDistributedActorTrustManager_Address m_Address;
@@ -43,6 +42,7 @@ namespace NMib::NConcurrency
 		CInternal(CStr const &_BaseDirectory);
 
 		CStr m_BaseDirectory;
+		CSequencer m_Sequencer{"JSON Directory"};
 
 		bool m_bGotBasicConfig = false;
 
@@ -174,420 +174,547 @@ namespace NMib::NConcurrency
 
 	TCFuture<CBasicConfig> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetBasicConfig()
 	{
-		return TCFuture<CBasicConfig>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				CBasicConfig BasicConfig;
-				if (Internal.f_Exists("BasicConfig"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					BasicConfig.m_Version = 0;
-					Internal.f_Read(BasicConfig, "BasicConfig");
-				}
+					auto &Internal = *mp_pInternal;
+					CBasicConfig BasicConfig;
+					if (Internal.f_Exists("BasicConfig"))
+					{
+						BasicConfig.m_Version = 0;
+						Internal.f_Read(BasicConfig, "BasicConfig");
+					}
 
-				if (BasicConfig.m_Version > CBasicConfig::EConversionVersion)
-					DMibError("Invalid conversion version 0x{nfh} > 0x{nfh}"_f << BasicConfig.m_Version << CBasicConfig::EConversionVersion);
-				else if (BasicConfig.m_Version < CBasicConfig::EConversionVersion)
-				{
-					Internal.f_DoConversion(BasicConfig.m_Version);
-					BasicConfig.m_Version = CBasicConfig::EConversionVersion;
-					Internal.f_Write(BasicConfig, "BasicConfig");
+					if (BasicConfig.m_Version > CBasicConfig::EConversionVersion)
+						DMibError("Invalid conversion version 0x{nfh} > 0x{nfh}"_f << BasicConfig.m_Version << CBasicConfig::EConversionVersion);
+					else if (BasicConfig.m_Version < CBasicConfig::EConversionVersion)
+					{
+						Internal.f_DoConversion(BasicConfig.m_Version);
+						BasicConfig.m_Version = CBasicConfig::EConversionVersion;
+						Internal.f_Write(BasicConfig, "BasicConfig");
+					}
+					Internal.m_bGotBasicConfig = true;
+					return BasicConfig;
 				}
-				Internal.m_bGotBasicConfig = true;
-				return BasicConfig;
-			}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig const &_BasicConfig)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				Internal.f_Write(_BasicConfig, "BasicConfig");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					Internal.f_Write(_BasicConfig, "BasicConfig");
+				}
+			)
 		;
 	}
 
 	TCFuture<int32> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNewCertificateSerial()
 	{
-		return TCFuture<int32>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CInternal::CSerial Serial;
-				Internal.f_Read(Serial, "CertificateSerial");
-				int32 ReturnSerial = Serial.m_Serial++;
-				Internal.f_Write(Serial, "CertificateSerial");
-				return ReturnSerial;
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CInternal::CSerial Serial;
+					Internal.f_Read(Serial, "CertificateSerial");
+					int32 ReturnSerial = Serial.m_Serial++;
+					Internal.f_Write(Serial, "CertificateSerial");
+					return ReturnSerial;
+				}
+			)
 		;
 	}
 
 	TCFuture<CDefaultUser> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetDefaultUser()
 	{
-		return TCFuture<CDefaultUser>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CDefaultUser DefaultUser;
-				Internal.f_Read(DefaultUser, "DefaultUser");
-				return DefaultUser;
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CDefaultUser DefaultUser;
+					Internal.f_Read(DefaultUser, "DefaultUser");
+					return DefaultUser;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				Internal.f_Write(_DefaultUser, "DefaultUser");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					Internal.f_Write(_DefaultUser, "DefaultUser");
+				}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCMap<CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
 	{
-		return TCFuture<NContainer::TCMap<CStr, CServerCertificate>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-
-				NContainer::TCMap<CStr, CServerCertificate> ReturnCertificates;
-				for (auto &FileName : Internal.f_Find("ServerCertificates"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CInternal::CInternalServerCertificate InternalServerCertificate;
-					Internal.f_Read(InternalServerCertificate, "ServerCertificates", FileName);
-					ReturnCertificates[InternalServerCertificate.m_HostName] = fg_Move(InternalServerCertificate.m_ServerCertificate);
-				}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				return ReturnCertificates;
-			}
+					NContainer::TCMap<CStr, CServerCertificate> ReturnCertificates;
+					for (auto &FileName : Internal.f_Find("ServerCertificates"))
+					{
+						CInternal::CInternalServerCertificate InternalServerCertificate;
+						Internal.f_Read(InternalServerCertificate, "ServerCertificates", FileName);
+						ReturnCertificates[InternalServerCertificate.m_HostName] = fg_Move(InternalServerCertificate.m_ServerCertificate);
+					}
+
+					return ReturnCertificates;
+				}
+			)
 		;
 	}
 
 	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr const &_HostName)
 	{
-		return TCFuture<CServerCertificate>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CServerCertificate ServerCertificate;
-				CStr FileName = Internal.f_GetNameHash(_HostName);
-				if (!Internal.f_Read(ServerCertificate, "ServerCertificates", FileName))
-					DMibError("No server certificate for host");
-				return ServerCertificate;
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CServerCertificate ServerCertificate;
+					CStr FileName = Internal.f_GetNameHash(_HostName);
+					if (!Internal.f_Read(ServerCertificate, "ServerCertificates", FileName))
+						DMibError("No server certificate for host");
+					return ServerCertificate;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CStr FileName = Internal.f_GetNameHash(_HostName);
-				if (Internal.f_Exists("ServerCertificates", FileName))
-					DMibError("Server certificate already exists");
-				CInternal::CInternalServerCertificate Certificate;
-				Certificate.m_HostName = _HostName;
-				Certificate.m_ServerCertificate = _Certificate;
-				Internal.f_Write(Certificate, "ServerCertificates", FileName);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CStr FileName = Internal.f_GetNameHash(_HostName);
+					if (Internal.f_Exists("ServerCertificates", FileName))
+						DMibError("Server certificate already exists");
+					CInternal::CInternalServerCertificate Certificate;
+					Certificate.m_HostName = _HostName;
+					Certificate.m_ServerCertificate = _Certificate;
+					Internal.f_Write(Certificate, "ServerCertificates", FileName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CStr FileName = Internal.f_GetNameHash(_HostName);
-				if (!Internal.f_Exists("ServerCertificates", FileName))
-					DMibError("No server certificate for host");
-				CInternal::CInternalServerCertificate Certificate;
-				Certificate.m_HostName = _HostName;
-				Certificate.m_ServerCertificate = _Certificate;
-				Internal.f_Write(Certificate, "ServerCertificates", FileName);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CStr FileName = Internal.f_GetNameHash(_HostName);
+					if (!Internal.f_Exists("ServerCertificates", FileName))
+						DMibError("No server certificate for host");
+					CInternal::CInternalServerCertificate Certificate;
+					Certificate.m_HostName = _HostName;
+					Certificate.m_ServerCertificate = _Certificate;
+					Internal.f_Write(Certificate, "ServerCertificates", FileName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr const &_HostName)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CStr FileName = Internal.f_GetNameHash(_HostName);
-				if (!Internal.f_Delete("ServerCertificates", FileName))
-					DMibError("No server certificate for host");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CStr FileName = Internal.f_GetNameHash(_HostName);
+					if (!Internal.f_Delete("ServerCertificates", FileName))
+						DMibError("No server certificate for host");
+				}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumListenConfigs()
 	{
-		return TCFuture<NContainer::TCSet<CListenConfig>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				auto FileNames = Internal.f_Find("ListenConfigs");
-
-				NContainer::TCSet<CListenConfig> ListenConfigs;
-				for (auto const &FileName : FileNames)
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CListenConfig ListenConfig;
-					if (!Internal.f_Read(ListenConfig, "ListenConfigs", FileName))
-						DMibError("Internal error reading listen config");
-					ListenConfigs[ListenConfig];
-				}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto FileNames = Internal.f_Find("ListenConfigs");
 
-				return ListenConfigs;
-			}
+					NContainer::TCSet<CListenConfig> ListenConfigs;
+					for (auto const &FileName : FileNames)
+					{
+						CListenConfig ListenConfig;
+						if (!Internal.f_Read(ListenConfig, "ListenConfigs", FileName))
+							DMibError("Internal error reading listen config");
+						ListenConfigs[ListenConfig];
+					}
+
+					return ListenConfigs;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig const &_Config)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
-				if (Internal.f_Exists("ListenConfigs", NameHash))
-					DMibError("Listen config already exists");
-				Internal.f_Write(_Config, "ListenConfigs", NameHash);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
+					if (Internal.f_Exists("ListenConfigs", NameHash))
+						DMibError("Listen config already exists");
+					Internal.f_Write(_Config, "ListenConfigs", NameHash);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig const &_Config)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
-				if (!Internal.f_Delete("ListenConfigs", NameHash))
-					DMibError("No such listen config");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto NameHash = Internal.f_GetNameHash(_Config.m_Address);
+					if (!Internal.f_Delete("ListenConfigs", NameHash))
+						DMibError("No such listen config");
+				}
+			)
 		;
 	}
 
 	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPrimaryListen()
 	{
-		return TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				NStorage::TCOptional<CDistributedActorTrustManager_Address> Return;
-				CInternal::CPrimaryListen PrimaryListen;
-				if (Internal.f_Read(PrimaryListen, "PrimaryListen"))
-					Return = PrimaryListen.m_Address;
+					NStorage::TCOptional<CDistributedActorTrustManager_Address> Return;
+					CInternal::CPrimaryListen PrimaryListen;
+					if (Internal.f_Read(PrimaryListen, "PrimaryListen"))
+						Return = PrimaryListen.m_Address;
 
-				return Return;
-			}
+					return Return;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-
-				if (_Address)
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CInternal::CPrimaryListen Listen;
-					Listen.m_Address = *_Address;
-					Internal.f_Write(Listen, "PrimaryListen");
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+
+					if (_Address)
+					{
+						CInternal::CPrimaryListen Listen;
+						Listen.m_Address = *_Address;
+						Internal.f_Write(Listen, "PrimaryListen");
+					}
+					else
+						Internal.f_Delete("PrimaryListen");
 				}
-				else
-					Internal.f_Delete("PrimaryListen");
-			}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCMap<CStr, CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients(bool _bIncludeFullInfo)
 	{
-		return TCFuture<NContainer::TCMap<CStr, CClient>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				NContainer::TCMap<CStr, CClient> Clients;
-				for (auto &HostID : Internal.f_Find("Clients"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					auto &Client = Clients[HostID];
-					if (_bIncludeFullInfo)
-						Internal.f_Read(Client, "Clients", HostID);
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					NContainer::TCMap<CStr, CClient> Clients;
+					for (auto &HostID : Internal.f_Find("Clients"))
+					{
+						auto &Client = Clients[HostID];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(Client, "Clients", HostID);
 
+					}
+					return Clients;
 				}
-				return Clients;
-			}
+			)
 		;
 	}
 
 	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr const &_HostID)
 	{
-		return TCFuture<CClient>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				CClient Client;
-				if (!Internal.f_Read(Client, "Clients", _HostID))
-					DMibError("No client for host ID");
-				return Client;
-			}
+					CClient Client;
+					if (!Internal.f_Read(Client, "Clients", _HostID))
+						DMibError("No client for host ID");
+					return Client;
+				}
+			)
 		;
 	}
 
 	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr const &_HostID)
 	{
-		return TCFuture<NStorage::TCUniquePointer<CClient>>::fs_RunProtected<NException::CException>() /
-			[&]() -> NStorage::TCUniquePointer<CClient>
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]() -> NStorage::TCUniquePointer<CClient>
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				CClient Client;
-				if (!Internal.f_Read(Client, "Clients", _HostID))
-					return nullptr;
-				return fg_Construct(fg_Move(Client));
-			}
+					CClient Client;
+					if (!Internal.f_Read(Client, "Clients", _HostID))
+						return nullptr;
+					return fg_Construct(fg_Move(Client));
+				}
+			)
 		;
 	}
 
 	TCFuture<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr const &_HostID)
 	{
-		return TCFuture<bool>::fs_RunProtected<NException::CException>() / [&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				return Internal.f_Exists("Clients", _HostID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					return Internal.f_Exists("Clients", _HostID);
+				}
+			)
 		;
 	}
 
 	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientLastFriendlyName(NStr::CStr const &_HostID)
 	{
-		return TCFuture<CStr>::fs_RunProtected<NException::CException>() / [&]() -> CStr
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]() -> CStr
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				CClient Client;
-				if (!Internal.f_Read(Client, "Clients", _HostID))
-					return {};
+					CClient Client;
+					if (!Internal.f_Read(Client, "Clients", _HostID))
+						return {};
 
-				return Client.m_LastFriendlyName;
-			}
+					return Client.m_LastFriendlyName;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr const &_HostID, CClient const &_Client)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (Internal.f_Exists("Clients", _HostID))
-					DMibError("Client already exists");
-				Internal.f_Write(_Client, "Clients", _HostID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (Internal.f_Exists("Clients", _HostID))
+						DMibError("Client already exists");
+					Internal.f_Write(_Client, "Clients", _HostID);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr const &_HostID, CClient const &_Client)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Clients", _HostID))
-					DMibError("No client for host ID");
-				Internal.f_Write(_Client, "Clients", _HostID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Clients", _HostID))
+						DMibError("No client for host ID");
+					Internal.f_Write(_Client, "Clients", _HostID);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr const &_HostID)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("Clients", _HostID))
-					DMibError("No client for host ID");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("Clients", _HostID))
+						DMibError("No client for host ID");
+				}
+			)
 		;
 	}
 
 	auto CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClientConnections(bool _bIncludeFullInfo)
 		-> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>
 	{
-		return TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				auto FileNames = Internal.f_Find("ClientConnections");
-
-				NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> ClientConnections;
-				for (auto const &FileName : FileNames)
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CInternal::CInternalClientConnection ClientConnection;
-					Internal.f_Read(ClientConnection, "ClientConnections", FileName);
-					if (_bIncludeFullInfo)
-						ClientConnections[ClientConnection.m_Address] = ClientConnection.m_ClientConnection;
-					else
-						ClientConnections[ClientConnection.m_Address];
-				}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					auto FileNames = Internal.f_Find("ClientConnections");
 
-				return ClientConnections;
-			}
+					NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> ClientConnections;
+					for (auto const &FileName : FileNames)
+					{
+						CInternal::CInternalClientConnection ClientConnection;
+						Internal.f_Read(ClientConnection, "ClientConnections", FileName);
+						if (_bIncludeFullInfo)
+							ClientConnections[ClientConnection.m_Address] = ClientConnection.m_ClientConnection;
+						else
+							ClientConnections[ClientConnection.m_Address];
+					}
+
+					return ClientConnections;
+				}
+			)
 		;
 	}
 
 	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		return TCFuture<CClientConnection>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CClientConnection ClientConnection;
-				if (!Internal.f_Read(ClientConnection, "ClientConnections", Internal.f_GetNameHash(_Address)))
-					DMibError("No client connection for address");
-				return ClientConnection;
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CClientConnection ClientConnection;
+					if (!Internal.f_Read(ClientConnection, "ClientConnections", Internal.f_GetNameHash(_Address)))
+						DMibError("No client connection for address");
+					return ClientConnection;
+				}
+			)
 		;
 	}
 
@@ -597,19 +724,24 @@ namespace NMib::NConcurrency
 			, CClientConnection const &_ClientConnection
 		)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CStr NameHash = Internal.f_GetNameHash(_Address);
-				if (Internal.f_Exists("ClientConnections", NameHash))
-					DMibError("Client connection already exists");
-				CInternal::CInternalClientConnection ClientConnection;
-				ClientConnection.m_Address = _Address;
-				ClientConnection.m_ClientConnection = _ClientConnection;
-				Internal.f_Write(ClientConnection, "ClientConnections", NameHash);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CStr NameHash = Internal.f_GetNameHash(_Address);
+					if (Internal.f_Exists("ClientConnections", NameHash))
+						DMibError("Client connection already exists");
+					CInternal::CInternalClientConnection ClientConnection;
+					ClientConnection.m_Address = _Address;
+					ClientConnection.m_ClientConnection = _ClientConnection;
+					Internal.f_Write(ClientConnection, "ClientConnections", NameHash);
+				}
+			)
 		;
 	}
 
@@ -619,284 +751,369 @@ namespace NMib::NConcurrency
 			, CClientConnection const &_ClientConnection
 		)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CEJSONSorted JSON;
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CEJSONSorted JSON;
 
-				CStr NameHash = Internal.f_GetNameHash(_Address);
-				if (!Internal.f_Exists("ClientConnections", NameHash))
-					DMibError("No client connection for address");
-				CInternal::CInternalClientConnection ClientConnection;
-				ClientConnection.m_Address = _Address;
-				ClientConnection.m_ClientConnection = _ClientConnection;
-				Internal.f_Write(ClientConnection, "ClientConnections", NameHash);
-			}
+					CStr NameHash = Internal.f_GetNameHash(_Address);
+					if (!Internal.f_Exists("ClientConnections", NameHash))
+						DMibError("No client connection for address");
+					CInternal::CInternalClientConnection ClientConnection;
+					ClientConnection.m_Address = _Address;
+					ClientConnection.m_ClientConnection = _ClientConnection;
+					Internal.f_Write(ClientConnection, "ClientConnections", NameHash);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("ClientConnections", Internal.f_GetNameHash(_Address)))
-					DMibError("No client connection for address");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("ClientConnections", Internal.f_GetNameHash(_Address)))
+						DMibError("No client connection for address");
+				}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCMap<CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
 	{
-		return TCFuture<NContainer::TCMap<CStr, CNamespace>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				NContainer::TCMap<CStr, CNamespace> Namespaces;
-				for (auto &NamespaceName : Internal.f_Find("Namespaces"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CStr DecodedNamespaceName = NamespaceName.f_ReplaceChar('_', '/');
-					auto &Namespace = Namespaces[DecodedNamespaceName];
-					if (_bIncludeFullInfo)
-						Internal.f_Read(Namespace, "Namespaces", NamespaceName);
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					NContainer::TCMap<CStr, CNamespace> Namespaces;
+					for (auto &NamespaceName : Internal.f_Find("Namespaces"))
+					{
+						CStr DecodedNamespaceName = NamespaceName.f_ReplaceChar('_', '/');
+						auto &Namespace = Namespaces[DecodedNamespaceName];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(Namespace, "Namespaces", NamespaceName);
 
+					}
+					return Namespaces;
 				}
-				return Namespaces;
-			}
+			)
 		;
 	}
 
 	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr const &_NamespaceName)
 	{
-		return TCFuture<CNamespace>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
-					DMibError("Invalid namespace name");
-				CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
 
-				CNamespace Namespace;
-				if (!Internal.f_Read(Namespace, "Namespaces", NamespaceName))
-					DMibError("No namespace with that name");
-				return Namespace;
-			}
+					CNamespace Namespace;
+					if (!Internal.f_Read(Namespace, "Namespaces", NamespaceName))
+						DMibError("No namespace with that name");
+					return Namespace;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
-					DMibError("Invalid namespace name");
-				CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
 
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (Internal.f_Exists("Namespaces", NamespaceName))
-					DMibError("Namespace already exists");
-				Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
-			}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (Internal.f_Exists("Namespaces", NamespaceName))
+						DMibError("Namespace already exists");
+					Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
-					DMibError("Invalid namespace name");
-				CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
 
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Namespaces", NamespaceName))
-					DMibError("No namespace with that name");
-				Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
-			}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Namespaces", NamespaceName))
+						DMibError("No namespace with that name");
+					Internal.f_Write(_Namespace, "Namespaces", NamespaceName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr const &_NamespaceName)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
-					DMibError("Invalid namespace name");
-				CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
+						DMibError("Invalid namespace name");
+					CStr NamespaceName = _NamespaceName.f_ReplaceChar('/', '_');
 
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("Namespaces", NamespaceName))
-					DMibError("No namespace with that name");
-			}
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("Namespaces", NamespaceName))
+						DMibError("No namespace with that name");
+				}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumPermissions(bool _bIncludeFullInfo)
 	{
-		return TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				NContainer::TCMap<CPermissionIdentifiers, CPermissions> Permissions;
-				for (auto &FileName : Internal.f_Find("Permissions"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CPermissionIdentifiers Key = CPermissionIdentifiers::fs_GetKeyFromFileName(FileName);
-					auto &Permission = Permissions[Key];
-					if (_bIncludeFullInfo)
-						Internal.f_Read(Permission, "Permissions", FileName);
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					NContainer::TCMap<CPermissionIdentifiers, CPermissions> Permissions;
+					for (auto &FileName : Internal.f_Find("Permissions"))
+					{
+						CPermissionIdentifiers Key = CPermissionIdentifiers::fs_GetKeyFromFileName(FileName);
+						auto &Permission = Permissions[Key];
+						if (_bIncludeFullInfo)
+							Internal.f_Read(Permission, "Permissions", FileName);
+					}
+					return Permissions;
 				}
-				return Permissions;
-			}
+			)
 		;
 	}
 
 	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers const &_Identity)
 	{
-		return TCFuture<CPermissions>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				CStr FileName = _Identity.f_GetStr();
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					CStr FileName = _Identity.f_GetStr();
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
 
-				CPermissions Permissions;
-				if (!Internal.f_Read(Permissions, "Permissions", FileName))
-					DMibError("No host permissions for that identity");
-				return Permissions;
-			}
+					CPermissions Permissions;
+					if (!Internal.f_Read(Permissions, "Permissions", FileName))
+						DMibError("No host permissions for that identity");
+					return Permissions;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				CStr FileName = _Identity.f_GetStr();
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (Internal.f_Exists("Permissions", FileName))
-					DMibError("Host permissions already exists for that identity");
-				Internal.f_Write(_Permissions, "Permissions", FileName);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					CStr FileName = _Identity.f_GetStr();
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (Internal.f_Exists("Permissions", FileName))
+						DMibError("Host permissions already exists for that identity");
+					Internal.f_Write(_Permissions, "Permissions", FileName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				CStr FileName = _Identity.f_GetStr();
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Permissions", FileName))
-					DMibError("No host permissions for that identity");
-				Internal.f_Write(_Permissions, "Permissions", FileName);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					CStr FileName = _Identity.f_GetStr();
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Permissions", FileName))
+						DMibError("No host permissions for that identity");
+					Internal.f_Write(_Permissions, "Permissions", FileName);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				CStr FileName = _Identity.f_GetStr();
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("Permissions", FileName))
-					DMibError("No host permissions for that identity");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					CStr FileName = _Identity.f_GetStr();
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("Permissions", FileName))
+						DMibError("No host permissions for that identity");
+				}
+			)
 		;
 	}
 
 	TCFuture<NContainer::TCMap<CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumUsers(bool _bIncludeFullInfo)
 	{
-		return TCFuture<NContainer::TCMap<CStr, CUserInfo>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				NContainer::TCMap<CStr, CUserInfo> AllUsers;
-				for (auto &UserID : Internal.f_Find("Users"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CUserInfo UserInfo;
-					Internal.f_Read(UserInfo, "Users", UserID);
-					AllUsers[UserID] = UserInfo;
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					NContainer::TCMap<CStr, CUserInfo> AllUsers;
+					for (auto &UserID : Internal.f_Find("Users"))
+					{
+						CUserInfo UserInfo;
+						Internal.f_Read(UserInfo, "Users", UserID);
+						AllUsers[UserID] = UserInfo;
+					}
+					return AllUsers;
 				}
-				return AllUsers;
-			}
+			)
 		;
 	}
 
 	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr const &_UserID)
 	{
-		return TCFuture<CUserInfo>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				CUserInfo UserInfo;
-				if (!Internal.f_Read(UserInfo, "Users", _UserID))
-					DMibError("No information found for that user ID");
-				return UserInfo;
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					CUserInfo UserInfo;
+					if (!Internal.f_Read(UserInfo, "Users", _UserID))
+						DMibError("No information found for that user ID");
+					return UserInfo;
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (Internal.f_Exists("Users", _UserID))
-					DMibError("User info already exists for that user ID");
-				Internal.f_Write(_UserInfo, "Users", _UserID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (Internal.f_Exists("Users", _UserID))
+						DMibError("User info already exists for that user ID");
+					Internal.f_Write(_UserInfo, "Users", _UserID);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Users", _UserID))
-					DMibError("User '{}' does not exists"_f << _UserID);
-				Internal.f_Write(_UserInfo, "Users", _UserID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					Internal.f_Write(_UserInfo, "Users", _UserID);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr const &_UserID)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("Users", _UserID))
-					DMibError("No user info for that user ID");
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("Users", _UserID))
+						DMibError("No user info for that user ID");
+				}
+			)
 		;
 	}
 
@@ -906,22 +1123,27 @@ namespace NMib::NConcurrency
 		)
 		-> TCFuture<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>
 	{
-		return TCFuture<NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>>>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>> AllFactors;
-				for (auto &FactorIDFactor : Internal.f_FindRecursive("AuthenticationFactors"))
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
 				{
-					CUserAuthenticationFactor Factor;
-					Internal.f_Read(Factor, "AuthenticationFactors", FactorIDFactor);
-					if (!_bIncludeFullInfo)
-						Factor.m_PrivateData.f_Clear();
-					AllFactors[NFile::CFile::fs_GetPath(FactorIDFactor)][NFile::CFile::fs_GetFile(FactorIDFactor)] = Factor;
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					NContainer::TCMap<CStr, NContainer::TCMap<CStr, CUserAuthenticationFactor>> AllFactors;
+					for (auto &FactorIDFactor : Internal.f_FindRecursive("AuthenticationFactors"))
+					{
+						CUserAuthenticationFactor Factor;
+						Internal.f_Read(Factor, "AuthenticationFactors", FactorIDFactor);
+						if (!_bIncludeFullInfo)
+							Factor.m_PrivateData.f_Clear();
+						AllFactors[NFile::CFile::fs_GetPath(FactorIDFactor)][NFile::CFile::fs_GetFile(FactorIDFactor)] = Factor;
+					}
+					return AllFactors;
 				}
-				return AllFactors;
-			}
+			)
 		;
 	}
 
@@ -932,17 +1154,22 @@ namespace NMib::NConcurrency
 			, CUserAuthenticationFactor const &_Factor
 		)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Users", _UserID))
-					DMibError("User '{}' does not exists"_f << _UserID);
-				if (Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
-					DMibError("User '{}' already has authentication factor ID '{}' registered"_f << _UserID << _FactorID);
-				Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					if (Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("User '{}' already has authentication factor ID '{}' registered"_f << _UserID << _FactorID);
+					Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
+				}
+			)
 		;
 	}
 
@@ -953,30 +1180,40 @@ namespace NMib::NConcurrency
 			, CUserAuthenticationFactor const &_Factor
 		)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Exists("Users", _UserID))
-					DMibError("User '{}' does not exists"_f << _UserID);
-				if (!Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
-					DMibError("User '{}' Does not have authentication factor ID '{}' registered"_f << _UserID << _FactorID);
-				Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Exists("Users", _UserID))
+						DMibError("User '{}' does not exists"_f << _UserID);
+					if (!Internal.f_Exists("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("User '{}' Does not have authentication factor ID '{}' registered"_f << _UserID << _FactorID);
+					Internal.f_Write(_Factor, "AuthenticationFactors", _UserID, _FactorID);
+				}
+			)
 		;
 	}
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
 	{
-		return TCFuture<void>::fs_RunProtected<NException::CException>() /
-			[&]
-			{
-				auto &Internal = *mp_pInternal;
-				Internal.f_CheckState();
-				if (!Internal.f_Delete("AuthenticationFactors", _UserID, _FactorID))
-					DMibError("No authentication factor '{}' registered for user ID '{}'"_f << _FactorID << _UserID);
-			}
+		auto &Internal = *mp_pInternal;
+		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_return co_await
+			(
+				g_Dispatch(BlockingActorCheckout) / [&]
+				{
+					auto &Internal = *mp_pInternal;
+					Internal.f_CheckState();
+					if (!Internal.f_Delete("AuthenticationFactors", _UserID, _FactorID))
+						DMibError("No authentication factor '{}' registered for user ID '{}'"_f << _FactorID << _UserID);
+				}
+			)
 		;
 	}
 

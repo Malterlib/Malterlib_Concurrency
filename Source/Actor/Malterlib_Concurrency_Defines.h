@@ -351,19 +351,45 @@ namespace NMib::NConcurrency
 
 	typedef NStorage::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;
 
+	struct CBlockingActorStorage;
+	struct CBlockingActor;
+
+	struct CBlockingActorCheckout
+	{
+		CBlockingActorCheckout(CConcurrencyManager *_pConcurrencyManager, CBlockingActorStorage *_pBlockingActorStorage);
+		CBlockingActorCheckout(CBlockingActorCheckout const &) = delete;
+		CBlockingActorCheckout(CBlockingActorCheckout &&_Other);
+		~CBlockingActorCheckout();
+
+		CBlockingActorCheckout &operator = (CBlockingActorCheckout &&_Other);
+		
+		void f_Clear();
+		bool f_IsValid() const;
+
+		TCActor<CBlockingActor> const &f_Actor() const;
+		inline auto f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error);
+
+	private:
+		static void fsp_LogError(NStr::CStr const &_Category, NStr::CStr const &_Error, CAsyncResult const &_Result);
+
+		CConcurrencyManager *mp_pConcurrencyManager;
+		CBlockingActorStorage *mp_pBlockingActorStorage;
+	};
+
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);
 	CConcurrencyManager &fg_CurrentConcurrencyManager();
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 	CConcurrencyManager &fg_ConcurrencyManager();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
+	CBlockingActorCheckout fg_BlockingActor();
 	TCActor<CActor> fg_CurrentActor();
 	TCWeakActor<CActor> fg_CurrentActorWeak();
 
 	TCActor<CTimerActor> fg_TimerActor();
 }
 
-DMibDefineActorType(NMib::NConcurrency::NPrivate::CDirectResultActor, true);
+DMibDefineActorType(NMib::NConcurrency::CDirectResultActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
 DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActor, true);

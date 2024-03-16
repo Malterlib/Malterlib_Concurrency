@@ -997,4 +997,5 @@ namespace NMib::NConcurrency
 	};
 
 	CCoroutineTransferOwnership fg_ContinueRunningOnActor(TCActor<> const &_Actor);
+	CCoroutineTransferOwnership fg_ContinueRunningOnActor(CBlockingActorCheckout const &_Checkout);
 }

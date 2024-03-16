@@ -735,6 +735,16 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
+
+	inline auto CBlockingActorCheckout::f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error)
+	{
+		return fg_DirectResultActor() / [ThisReference = fg_Move(*this), _Category, _Error](auto &&_Result)
+			{
+				if (!_Result)
+					CBlockingActorCheckout::fsp_LogError(_Category, _Error, _Result);
+			}
+		;
+	}
 }
 
 namespace NMib::NConcurrency::NPrivate

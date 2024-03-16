@@ -84,8 +84,15 @@ namespace NMib::NConcurrency
 		
 		inline CActorSubscriptionHelperWithActor operator ()(TCActor<> const &_Actor) const;
 	};
+
+	struct CBlockingActorSubscriptionHelper
+	{
+		template <typename tf_FCleanup>
+		inline CActorSubscription operator / (tf_FCleanup &&_fCleanup) const;
+	};
 	
 	extern CActorSubscriptionHelper const &g_ActorSubscription;
+	extern CBlockingActorSubscriptionHelper const &g_BlockingActorSubscription;
 }
 
 #include "Malterlib_Concurrency_ActorSubscription.hpp"

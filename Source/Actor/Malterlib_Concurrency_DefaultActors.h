@@ -35,6 +35,10 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
+	struct CBlockingActor : public CSeparateThreadActor
+	{
+	};
+
 	struct CDirectResultActor : public CActor
 	{
 		using CActorHolder = CShamActorHolder;

@@ -90,4 +90,17 @@ namespace NMib::NConcurrency
 		DMibFastCheck(CurrentActor);
 		return fg_ActorSubscription(CurrentActor, fg_Forward<tf_FCleanup>(_fCleanup)); 
 	}
+
+	template <typename tf_FCleanup>
+	inline CActorSubscription CBlockingActorSubscriptionHelper::operator / (tf_FCleanup &&_fCleanup) const
+	{
+		return g_ActorSubscription(fg_ThisConcurrentActor()) / [fOnExitScope = fg_Forward<tf_FCleanup>(_fCleanup)]() mutable -> TCFuture<void>
+			{
+				auto BlockingActorCheckout = fg_BlockingActor();
+				co_await (g_Dispatch(BlockingActorCheckout) / fg_Move(fOnExitScope));
+
+				co_return {};
+			}
+		;
+	}
 }

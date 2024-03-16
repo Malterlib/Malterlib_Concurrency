@@ -206,6 +206,11 @@ namespace NMib::NConcurrency
 		return CCoroutineTransferOwnership(fg_TempCopy(_Actor));
 	}
 
+	CCoroutineTransferOwnership fg_ContinueRunningOnActor(CBlockingActorCheckout const &_Checkout)
+	{
+		return CCoroutineTransferOwnership(fg_TempCopy(_Checkout.f_Actor()));
+	}
+
 	CReportLocalState::CReportLocalState() = default;
 	CReportLocalState::~CReportLocalState() = default;
 

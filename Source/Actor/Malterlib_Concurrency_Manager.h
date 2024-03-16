@@ -26,6 +26,12 @@ namespace NMib::NConcurrency
 	struct CConcurrencyThreadLocal;
 	struct CFutureCoroutineContext;
 
+	struct CBlockingActorStorage
+	{
+		TCActor<CBlockingActor> m_Actor;
+		DMibListLinkDS_Link(CBlockingActorStorage, m_Link);
+	};
+	
 	/// \brief Manages scheduling of running actors in a thread pool
 	class CConcurrencyManager
 	{
@@ -65,6 +71,7 @@ namespace NMib::NConcurrency
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForOtherThread(EPriority _Priority);
+		CBlockingActorCheckout f_GetBlockingActor();
 		TCActor<CTimerActor> const &f_GetTimerActor();
 		TCActor<CDirectCallActor> const &f_GetDirectCallActor();
 		TCActor<CThisConcurrentActor> const &f_GetThisConcurrentActor();
@@ -104,6 +111,8 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugFutures
 		friend struct NPrivate::CPromiseDataBase;
 #endif
+		friend struct CBlockingActorCheckout;
+		
 		struct CQueue
 		{
 			align_cacheline CConcurrentRunQueue m_JobQueue;
@@ -162,6 +171,11 @@ namespace NMib::NConcurrency
 
 		NContainer::TCVector<TCActor<CConcurrentActorImpl>> m_ConcurrentActors[EPriority_Max];
 		NContainer::TCVector<TCActor<CConcurrentActor>> m_ConcurrentActorsRef[EPriority_Max];
+
+		NThread::CLowLevelLock m_BlockingActorsLock;		
+		NContainer::TCVector<NStorage::TCSharedPointer<CBlockingActorStorage>> m_BlockingActors;
+		DMibListLinkDS_List(CBlockingActorStorage, m_Link) m_FreeBlockingActors;
+		mint m_nBlockingActors = 0;
 
 		NAtomic::TCAtomic<bool> m_bTimerActorInit;
 		NThread::CMutual m_TimerActorLock;

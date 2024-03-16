@@ -1029,6 +1029,11 @@ namespace NMib::NConcurrency
 		{
 			return CDispatchHelperWithWeakActor(_Actor);
 		}
+
+		inline CDispatchHelperWithActor operator () (CBlockingActorCheckout const &_Checkout) const
+		{
+			return CDispatchHelperWithActor(_Checkout.f_Actor());
+		}
 	};
 
 	extern CDispatchHelper const &g_Dispatch;

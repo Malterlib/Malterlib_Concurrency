@@ -8,7 +8,10 @@ namespace NMib::NConcurrency
 {
 	constexpr CActorSubscriptionHelper g_ActorSubscriptionInit{};
 	CActorSubscriptionHelper const &g_ActorSubscription = g_ActorSubscriptionInit;
-	
+
+	constexpr CBlockingActorSubscriptionHelper g_BlockingActorSubscriptionInit;
+	CBlockingActorSubscriptionHelper const &g_BlockingActorSubscription = g_BlockingActorSubscriptionInit;
+
 	template <typename t_CReturnValue>
 	struct TCActorSubscriptionCleanupFunctor : public CActorSubscriptionReference
 	{

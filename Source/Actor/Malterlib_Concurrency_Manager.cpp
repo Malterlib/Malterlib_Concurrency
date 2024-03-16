@@ -3,6 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -115,6 +116,11 @@ namespace NMib::NConcurrency
 	NConcurrency::TCActor<NConcurrency::CConcurrentActor> const &fg_ConcurrentActorLowPrio()
 	{
 		return fg_ConcurrencyManager().f_GetConcurrentActorLowPrio();
+	}
+
+	CBlockingActorCheckout fg_BlockingActor()
+	{
+		return fg_ConcurrencyManager().f_GetBlockingActor();
 	}
 
 	TCActor<CDirectCallActor> const &fg_DirectCallActor()
@@ -711,13 +717,20 @@ namespace NMib::NConcurrency
 #endif
 		{
 			// Disregard concurrent actors, timer actor and direct delete actors from destroy
-			mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1 + nDirectDeleteActors;
+			auto fHasUserActors = [&]
+				{
+					DMibLock(m_BlockingActorsLock);
+					mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + 1 + nDirectDeleteActors + m_nBlockingActors;
+
+					return fp_NumActors() > nExpectedActors;
+				}
+			;
 #if DMibConfig_Concurrency_DebugBlockDestroy
 			volatile static bool s_AbortLoop = false;
 #endif
 			TimerActor(&CTimerActor::f_FireAtExit).f_CallSync();
 
-			while (fp_NumActors() > nExpectedActors)
+			while (fHasUserActors())
 			{
 				if (TimerClock.f_GetTime() > 0.010)
 				{
@@ -752,6 +765,7 @@ namespace NMib::NConcurrency
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDynamicConcurrentActorLowPrioImpl") >= 0
 									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CDirectResultActorImpl") >= 0
+									|| Actor.m_ActorTypeName.f_Find("NMib::NConcurrency::CBlockingActor") >= 0
 								)
 							{
 								continue;
@@ -819,6 +833,26 @@ namespace NMib::NConcurrency
 			return;
 #endif
 
+		auto fDestroyFreeBlockingActors = [&]()
+			{
+				DMibLock(m_BlockingActorsLock);
+				NContainer::TCVector<mint> ToRemove;
+				for (auto &pActor : m_BlockingActors)
+				{
+					if (pActor->m_Link.f_IsInList())
+						ToRemove.f_Insert(&pActor - m_BlockingActors.f_GetArray());
+				}
+
+				for (auto &iRemove : ToRemove.f_Reverse())
+				{
+					m_BlockingActors.f_Remove(iRemove);
+					--m_nBlockingActors;
+				}
+			}
+		;
+
+		fDestroyFreeBlockingActors();
+
 		auto fWaitForAllDone = [&]()
 			{
 				for (bool bAllDone = false; !bAllDone;)
@@ -877,7 +911,10 @@ namespace NMib::NConcurrency
 			}
 			mint nExpectedActors = m_ConcurrentActors[EPriority_Normal].f_GetLen() + m_ConcurrentActors[EPriority_Low].f_GetLen() + nDirectDeleteActors;
 			while (fp_NumActors() > nExpectedActors)
+			{
+				fDestroyFreeBlockingActors();
 				NSys::fg_Thread_SmallestSleep();
+			}
 		}
 
 		// Sync up to make sure nothing is still waiting to process on actors
@@ -1081,6 +1118,84 @@ namespace NMib::NConcurrency
 		auto &ToReturn = m_ConcurrentActorsRef[EPriority_Low].f_GetArray()[ThreadLocal.m_iConcurrentActor[EPriority_Low]];
 		++ThreadLocal.m_iConcurrentActor[EPriority_Low];
 		return ToReturn;
+	}
+
+	CBlockingActorCheckout::CBlockingActorCheckout(CConcurrencyManager *_pConcurrencyManager, CBlockingActorStorage *_pBlockingActorStorage)
+		: mp_pConcurrencyManager(_pConcurrencyManager)
+		, mp_pBlockingActorStorage(_pBlockingActorStorage)
+	{
+	}
+
+	CBlockingActorCheckout::CBlockingActorCheckout(CBlockingActorCheckout &&_Other)
+		: mp_pConcurrencyManager(fg_Exchange(_Other.mp_pConcurrencyManager, nullptr))
+		, mp_pBlockingActorStorage(fg_Exchange(_Other.mp_pBlockingActorStorage, nullptr))
+	{
+	}
+
+	CBlockingActorCheckout &CBlockingActorCheckout::operator = (CBlockingActorCheckout &&_Other)
+	{
+		mp_pConcurrencyManager = fg_Exchange(_Other.mp_pConcurrencyManager, nullptr);
+		mp_pBlockingActorStorage = fg_Exchange(_Other.mp_pBlockingActorStorage, nullptr);
+
+		return *this;
+	}
+
+	void CBlockingActorCheckout::fsp_LogError(NStr::CStr const &_Category, NStr::CStr const &_Error, CAsyncResult const &_Result)
+	{
+		_Result > fg_LogError(_Category, _Error ? _Error : NStr::gc_Str<"Error in blocking actor operation">.m_Str);
+	}
+
+	TCActor<CBlockingActor> const &CBlockingActorCheckout::f_Actor() const
+	{
+		DMibFastCheck(mp_pBlockingActorStorage);
+		return mp_pBlockingActorStorage->m_Actor;
+	}
+
+	CBlockingActorCheckout::~CBlockingActorCheckout()
+	{
+		if (!mp_pConcurrencyManager || !mp_pBlockingActorStorage)
+			return;
+
+		DMibLock(mp_pConcurrencyManager->m_BlockingActorsLock);
+		mp_pConcurrencyManager->m_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
+	}
+
+	void CBlockingActorCheckout::f_Clear()
+	{
+		if (!mp_pConcurrencyManager || !mp_pBlockingActorStorage)
+			return;
+
+		DMibLock(mp_pConcurrencyManager->m_BlockingActorsLock);
+		mp_pConcurrencyManager->m_FreeBlockingActors.f_Insert(*mp_pBlockingActorStorage);
+		mp_pConcurrencyManager = nullptr;
+		mp_pBlockingActorStorage = nullptr;
+	}
+
+	bool CBlockingActorCheckout::f_IsValid() const
+	{
+		return !!mp_pBlockingActorStorage;
+	}
+
+	CBlockingActorCheckout CConcurrencyManager::f_GetBlockingActor()
+	{
+		using namespace NStr;
+
+		DMibLock(m_BlockingActorsLock);
+
+		auto *pBlockingActor = m_FreeBlockingActors.f_Pop();
+		if (pBlockingActor)
+			return CBlockingActorCheckout(this, pBlockingActor);
+
+		auto &pNewActor = m_BlockingActors.f_Insert();
+		pNewActor = fg_Construct();
+		auto pNewActorRawPtr = pNewActor.f_Get();
+		auto iBlockingActor = m_nBlockingActors++;
+		{
+			DMibUnlock(m_BlockingActorsLock);
+			pNewActorRawPtr->m_Actor = fg_Construct(fg_Construct(), "Blocking Actor {}"_f << iBlockingActor);
+		}
+
+		return CBlockingActorCheckout(this, pNewActorRawPtr);
 	}
 
 	TCActor<CDirectCallActor> const &CConcurrencyManager::f_GetDirectCallActor()

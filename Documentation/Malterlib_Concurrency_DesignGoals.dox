@@ -828,18 +828,18 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
  The overhead for an actor call is usually on the order of 500 to 1000 cycles with a saturated queue. All actor creation, deletion and calls only perform lockless
  synchronization.
 
- To limit the number threads needed, no blocking is allowed from actor code. Blocking in actor code can lead deadlocks. Currently no runtime checks are performed
- to make sure no blocking is happening, so be careful. Performing file IO is usually a blocking operation, so make sure to do this on an actor
- which uses the `CSeparateThreadActorHolder` holder, or simply create a `CSeparateThreadActor` and dispatch to this actor:
+ To limit the number threads needed, no blocking is allowed from actor code. Blocking in actor code can lead to deadlocks. Currently no runtime checks are performed
+ to make sure no blocking is happening, so be careful. Performing file IO (including the memory mapped database) is usually a blocking operation, so make sure to
+ do this on an actor that is designed for blocking operations:
 
 ~~~
 // In actor class:
-TCActor<CSeparateThreadActor> mp_FileActor = fg_Construct(fg_Construct(), "File actor");
+auto BlockingActorCheckout = fg_BlockingActor();
 
 // Dispatch to actor
 CStr FileContents = co_await
 	(
-		g_Dispatch(mp_FileActor) / [FilePath]() mutable
+		g_Dispatch(BlockingActorCheckout) / [FilePath]() mutable
 		{
 			// You have to be careful what you capture in this lambda, the
 			// code will run concurrently with your actor, so don't capture 'this' and make

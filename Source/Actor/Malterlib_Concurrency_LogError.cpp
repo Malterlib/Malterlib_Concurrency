@@ -106,4 +106,10 @@ namespace NMib::NConcurrency
 			}
 		;
 	}
+
+	void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError)
+	{
+		if (!_Result)
+			_LogError.f_LogException(_Result.f_GetException());
+	}
 }

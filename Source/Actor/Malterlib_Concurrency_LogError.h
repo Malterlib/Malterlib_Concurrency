@@ -11,8 +11,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CResult>
 		void operator() (TCAsyncResult<tf_CResult> &&_Result) const;
 
-		template <typename tf_CResult>
-		friend void operator > (TCAsyncResult<tf_CResult> const &_Result, CLogErrorResultFunctor const &_LogError);
+		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError);
 
 		template <typename tf_CResult>
 		friend void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError);

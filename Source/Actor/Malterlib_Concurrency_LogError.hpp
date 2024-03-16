@@ -13,13 +13,6 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CResult>
-	void operator > (TCAsyncResult<tf_CResult> const &_Result, CLogErrorResultFunctor const &_LogError)
-	{
-		if (!_Result)
-			_LogError.f_LogException(_Result.f_GetException());
-	}
-
-	template <typename tf_CResult>
 	void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError)
 	{
 		for (auto &Result : _Result)

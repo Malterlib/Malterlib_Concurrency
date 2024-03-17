@@ -894,7 +894,7 @@ namespace NMib::NConcurrency
 					() mutable
 					{
 						DMibFastCheck(KeepAlive.f_HasValidCoroutine());
-						DMibFastCheck(ProcessingActor == fg_CurrentActor());
+						DMibFastCheck(ProcessingActor->f_IsProcessedOnActorHolder(fg_CurrentActor().f_Get()));
 
 						pCleanup->f_Clear();
 
@@ -953,7 +953,7 @@ namespace NMib::NConcurrency
 					() mutable
 					{
 						DMibFastCheck(KeepAlive.f_HasValidCoroutine());
-						DMibFastCheck(ProcessingActor == fg_CurrentActor());
+						DMibFastCheck(ProcessingActor->f_IsProcessedOnActorHolder(fg_CurrentActor().f_Get()));
 
 						pCleanup->f_Clear();
 

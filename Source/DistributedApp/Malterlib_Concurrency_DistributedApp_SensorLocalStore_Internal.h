@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings)>
 		;
 
-		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
+		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 		TCFuture<void> f_PerformLocalCleanup();
 
 		void f_ScheduleFailedRetry();
@@ -141,10 +141,12 @@ namespace NMib::NConcurrency
 		void f_Subscription_SensorInfoChanged
 			(
 				CSensor const &_Sensor
-				, NDatabase::CDatabaseSubReadTransaction &_Transaction
 				, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 			)
 		;
+
+		template <typename tf_CKey, typename tf_CInfoOrKey>
+		static tf_CKey fs_GetDatabaseKey(CStr const &_Prefix, tf_CInfoOrKey const &_SensorInfo);
 
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const;
@@ -159,6 +161,7 @@ namespace NMib::NConcurrency
 		TCActor<CDatabaseActor> m_Database;
 
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CSensor> m_Sensors;
+		TCMap<CStr, NSensorStoreLocalDatabase::CKnownHostValue> m_KnownHosts;
 
 		TCSharedPointer<CCanDestroyTracker> m_pCanDestroyStoringLocal = fg_Construct();
 

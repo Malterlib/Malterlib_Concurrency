@@ -10,6 +10,7 @@ namespace NMib::NConcurrency::NLogStore
 			, CDistributedAppLogReader_LogFilter const &_Filter
 			, CFilterLogKeyContext &_Context
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
+			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
 	{
 		if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
@@ -54,7 +55,12 @@ namespace NMib::NConcurrency::NLogStore
 
 		if (_Filter.m_Flags & CDistributedAppLogReader_LogFilter::ELogFlag_IgnoreRemoved)
 		{
-			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
+			if (_pKnownHostValue)
+			{
+				if (_pKnownHostValue->m_bRemoved)
+					return false;
+			}
+			else if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
 			{
 				NLogStoreLocalDatabase::CKnownHostKey Key{.m_DbPrefix = _Context.m_Prefix, .m_HostID = _Key.m_HostID};
 				NLogStoreLocalDatabase::CKnownHostValue Value;
@@ -82,13 +88,14 @@ namespace NMib::NConcurrency::NLogStore
 			, TCVector<CDistributedAppLogReader_LogFilter> const &_Filters
 			, CFilterLogKeyContext &_Context
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
+			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
 	{
 		bool bPassFilter = _Filters.f_IsEmpty();
 
 		for (auto &Filter : _Filters)
 		{
-			if (!fg_FilterLogKey(_Key, Filter, _Context, _pLogInfo))
+			if (!fg_FilterLogKey(_Key, Filter, _Context, _pLogInfo, _pKnownHostValue))
 				continue;
 
 			bPassFilter = true;

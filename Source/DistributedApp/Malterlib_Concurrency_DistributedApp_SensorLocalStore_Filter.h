@@ -34,6 +34,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReader_SensorFilter const &_Filter
 			, CFilterSensorKeyContext &_Context
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
 	;
 	template <typename tf_CKey>
@@ -43,6 +44,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
 			, CFilterSensorKeyContext &_Context
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
 	;
 

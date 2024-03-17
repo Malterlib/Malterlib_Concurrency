@@ -277,6 +277,7 @@ namespace NMib::NConcurrency
 	{
 		auto SensorDatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 		auto SensorKey = _Sensor.f_GetKey();
+		auto *pKnownHost = m_KnownHosts.f_FindEqual(_Sensor.m_Info.m_HostID);
 
 		NTime::CTime Now = NTime::CTime::fs_NowUTC();
 
@@ -291,7 +292,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info))
+						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info, pKnownHost))
 							continue;
 
 						auto PauseReportingFor = _Sensor.m_Info.m_PauseReportingFor;
@@ -331,7 +332,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info))
+						if (!NSensorStore::fg_FilterSensorKey(SensorDatabaseKey, Filter.m_SensorFilter, FilterContext, &_Sensor.m_Info, pKnownHost))
 							continue;
 
 						if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(_Sensor, Reading, Filter.m_Flags))
@@ -360,7 +361,6 @@ namespace NMib::NConcurrency
 	void CDistributedAppSensorStoreLocal::CInternal::f_Subscription_SensorInfoChanged
 		(
 			CSensor const &_Sensor
-			, NDatabase::CDatabaseSubReadTransaction &_Transaction
 			, CKnownHostValue const *_pKnownHostValue
 		)
 	{
@@ -369,15 +369,17 @@ namespace NMib::NConcurrency
 
 		auto DatabaseKey = f_GetDatabaseKey<CSensorKey>(_Sensor.m_Info);
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		auto Info = _Sensor.m_Info;
 		if (_pKnownHostValue)
 			Info.m_PauseReportingFor = fg_MaxValidFloat(Info.m_PauseReportingFor, _pKnownHostValue->m_PauseReportingFor);
 
+		auto *pKnownHost = m_KnownHosts.f_FindEqual(_Sensor.m_Info.m_HostID);
+		
 		for (auto &Subscription : m_SensorSubscriptions)
 		{
-			if (!NSensorStore::fg_FilterSensorKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Sensor.m_Info))
+			if (!NSensorStore::fg_FilterSensorKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Sensor.m_Info, pKnownHost))
 				continue;
 
 			if (Subscription.m_fOnChange)

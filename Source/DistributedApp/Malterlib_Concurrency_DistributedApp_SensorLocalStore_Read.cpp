@@ -22,6 +22,13 @@ namespace NMib::NConcurrency
 
 		auto ReadTransactionWapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
+		auto Prefix = Internal.m_Prefix;
+		auto ThisHostID = Internal.m_ThisHostID;
+
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
+		// From here on you can't access Internal
+
 		auto CaptureScope = co_await
 			(
 				g_CaptureExceptions %
@@ -36,19 +43,19 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReporter::CSensorInfo> Batch;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
-		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
 			auto Key = iSensor.f_Key<CSensorKey>();
 			auto Value = iSensor.f_Value<CSensorValue>();
 
-			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info))
+			if (!NSensorStore::fg_FilterSensorKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info, nullptr))
 				continue;
 
 			if (Key.m_HostID)
 			{
-				CKnownHostKey KnowHostKey{.m_DbPrefix = Internal.m_Prefix, .m_HostID = Key.m_HostID};
+				CKnownHostKey KnowHostKey{.m_DbPrefix = Prefix, .m_HostID = Key.m_HostID};
 				CKnownHostValue KnowHostValue;
 				if (ReadTransaction.m_Transaction.f_Get(KnowHostKey, KnowHostValue))
 					Value.m_Info.m_PauseReportingFor = fg_MaxValidFloat(KnowHostValue.m_PauseReportingFor, Value.m_Info.m_PauseReportingFor);
@@ -115,9 +122,10 @@ namespace NMib::NConcurrency
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;
+		auto ThisHostID = Internal.m_ThisHostID;
 
-		co_await fg_ContinueRunningOnActor(fg_ConcurrentActor());
-
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
 		// From here on you can't access Internal
 
 		auto CaptureScope = co_await
@@ -190,7 +198,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
 		for (; iReadingByTime; bReportNewestFirst ? --iReadingByTime : ++iReadingByTime)
 		{
@@ -256,26 +264,16 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			auto *pSensor = Internal.m_Sensors.f_FindEqual(Key.f_SensorInfoKey());
-
 			{
 				bool bPassFilter = _Params.m_Filters.f_IsEmpty();
 
 				for (auto &Filter : _Params.m_Filters)
 				{
-					if (!NSensorStore::fg_FilterSensorKey(KeyByTime, Filter.m_SensorFilter, FilterContext, pSensor ? &pSensor->m_Info : nullptr))
+					if (!NSensorStore::fg_FilterSensorKey(KeyByTime, Filter.m_SensorFilter, FilterContext, nullptr, nullptr))
 						continue;
 
-					if (pSensor)
-					{
-						if (!NSensorStore::fg_FilterSensorReadingValueWithSensor(*pSensor, Value, Filter.m_Flags))
-							continue;
-					}
-					else
-					{
-						if (!NSensorStore::fg_FilterSensorReadingValue(Value, Filter.m_Flags, Key, FilterContext))
-							continue;
-					}
+					if (!NSensorStore::fg_FilterSensorReadingValue(Value, Filter.m_Flags, Key, FilterContext))
+						continue;
 
 					bPassFilter = true;
 					break;
@@ -317,6 +315,13 @@ namespace NMib::NConcurrency
 
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
+		auto Prefix = Internal.m_Prefix;
+		auto ThisHostID = Internal.m_ThisHostID;
+
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
+		// From here on you can't access Internal
+		
 		auto CaptureScope = co_await
 			(
 				g_CaptureExceptions %
@@ -331,9 +336,9 @@ namespace NMib::NConcurrency
 
 		TCVector<CDistributedAppSensorReader_SensorKeyAndReading> Batch;
 
-		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NSensorStore::CFilterSensorKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
-		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
+		for (auto iSensor = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CSensorKey::mc_Prefix); iSensor; ++iSensor)
 		{
 			auto Key = iSensor.f_Key<CSensorKey>();
 			auto Value = iSensor.f_Value<CSensorValue>();
@@ -353,13 +358,13 @@ namespace NMib::NConcurrency
 
 				for (auto &Filter : _Params.m_Filters)
 				{
-					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter, FilterContext, &Value.m_Info))
+					if (!NSensorStore::fg_FilterSensorKey(Key, Filter.m_SensorFilter, FilterContext, &Value.m_Info, nullptr))
 						continue;
 
 					auto PauseReportingFor = Value.m_Info.m_PauseReportingFor;
 					if (Key.m_HostID)
 					{
-						NSensorStoreLocalDatabase::CKnownHostKey KnowHostKey{.m_DbPrefix = Internal.m_Prefix, .m_HostID = Key.m_HostID};
+						NSensorStoreLocalDatabase::CKnownHostKey KnowHostKey{.m_DbPrefix = Prefix, .m_HostID = Key.m_HostID};
 						NSensorStoreLocalDatabase::CKnownHostValue KnowHostValue;
 						ReadTransaction.m_Transaction.f_Get(KnowHostKey, KnowHostValue);
 						PauseReportingFor = fg_MaxValidFloat(PauseReportingFor, KnowHostValue.m_PauseReportingFor);

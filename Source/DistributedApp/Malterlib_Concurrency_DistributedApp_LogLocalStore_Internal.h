@@ -136,7 +136,7 @@ namespace NMib::NConcurrency
 			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
 		;
 
-		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
+		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 		TCFuture<void> f_PerformLocalCleanup();
 
 		void f_ScheduleFailedRetry();
@@ -145,10 +145,13 @@ namespace NMib::NConcurrency
 		CStr f_GetLogUpdateFailedMessage(CLogReporter const &_Reporter);
 
 		void f_Subscription_Entries(CLog const &_Log, TCVector<CDistributedAppLogReporter::CLogEntry> const &_Entries, NDatabase::CDatabaseSubReadTransaction &_Transaction);
-		void f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction);
+		void f_Subscription_LogInfoChanged(CLog const &_Log);
 
 		void f_ScheduleLastSeenFlush();
 		TCFuture<void> f_FlushLastSeen();
+
+		template <typename tf_CKey, typename tf_CInfoOrKey>
+		static tf_CKey fs_GetDatabaseKey(CStr const &_Prefix, tf_CInfoOrKey const &_LogInfo);
 
 		template <typename tf_CKey, typename tf_CInfoOrKey>
 		tf_CKey f_GetDatabaseKey(tf_CInfoOrKey const &_LogInfo) const;
@@ -163,6 +166,7 @@ namespace NMib::NConcurrency
 		TCActor<CDatabaseActor> m_Database;
 
 		TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog> m_Logs;
+		TCMap<CStr, NLogStoreLocalDatabase::CKnownHostValue> m_KnownHosts;
 
 		TCSharedPointer<CCanDestroyTracker> m_pCanDestroyStoringLocal = fg_Construct();
 

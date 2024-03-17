@@ -32,6 +32,7 @@ namespace NMib::NConcurrency::NLogStore
 			, CDistributedAppLogReader_LogFilter const &_Filter
 			, CFilterLogKeyContext &_Context
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
+ 			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
 	;
 	template <typename tf_CKey>
@@ -41,6 +42,7 @@ namespace NMib::NConcurrency::NLogStore
 			, TCVector<CDistributedAppLogReader_LogFilter> const &_Filters
 			, CFilterLogKeyContext &_Context
 			, CDistributedAppLogReporter::CLogInfo const *_pLogInfo
+ 			, NLogStoreLocalDatabase::CKnownHostValue const *_pKnownHostValue
 		)
 	;
 	bool fg_MatchMultipleValuesWildcards(NContainer::TCVector<NStr::CStr> const &_Values, NContainer::TCSet<NStr::CStr> const &_Wildcards);

@@ -219,6 +219,7 @@ namespace NMib::NConcurrency
 
 		auto LogDatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
 		auto LogKey = _Log.f_GetKey();
+		auto pKnownHost = m_KnownHosts.f_FindEqual(_Log.m_Info.m_HostID);
 
 		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
@@ -240,7 +241,7 @@ namespace NMib::NConcurrency
 
 					for (auto &Filter : Subscription.m_Filters)
 					{
-						if (!NLogStore::fg_FilterLogKey(LogDatabaseKey, Filter.m_Filter.m_LogFilter, FilterContext, &_Log.m_Info))
+						if (!NLogStore::fg_FilterLogKey(LogDatabaseKey, Filter.m_Filter.m_LogFilter, FilterContext, &_Log.m_Info, pKnownHost))
 							continue;
 
 						if (Filter.m_bIsDataFiltered && !NLogStore::fg_FilterLogValue(Entry.m_Data, Filter.m_Filter.m_LogDataFilter))
@@ -269,15 +270,16 @@ namespace NMib::NConcurrency
 			f_ScheduleLastSeenFlush();
 	}
 
-	void CDistributedAppLogStoreLocal::CInternal::f_Subscription_LogInfoChanged(CLog const &_Log, NDatabase::CDatabaseSubReadTransaction &_Transaction)
+	void CDistributedAppLogStoreLocal::CInternal::f_Subscription_LogInfoChanged(CLog const &_Log)
 	{
 		auto DatabaseKey = f_GetDatabaseKey<CLogKey>(_Log.m_Info);
-
-		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &_Transaction, .m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
+		auto pKnownHost = m_KnownHosts.f_FindEqual(_Log.m_Info.m_HostID);
+		
+		NLogStore::CFilterLogKeyContext FilterContext{.m_ThisHostID = m_ThisHostID, .m_Prefix = m_Prefix};
 
 		for (auto &Subscription : m_LogSubscriptions)
 		{
-			if (!NLogStore::fg_FilterLogKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Log.m_Info))
+			if (!NLogStore::fg_FilterLogKey(DatabaseKey, Subscription.m_Filters, FilterContext, &_Log.m_Info, pKnownHost))
 				continue;
 
 			if (Subscription.m_fOnChange)

@@ -84,6 +84,7 @@ namespace NMib::NConcurrency
 		struct CInternal;
 
 		TCFuture<void> fp_Destroy() override;
+		TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
 
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};

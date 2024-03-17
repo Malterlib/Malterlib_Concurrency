@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [this](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					co_return co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(_Transaction));
+					co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, this, fg_Move(_Transaction));
 				}
 			)
 		;
@@ -177,28 +177,43 @@ namespace NMib::NConcurrency
 		CLogGlobalStateKey GlobalStateKey{.m_Prefix = m_Prefix};
 		CLogGlobalStateValue GlobalStateValue;
 		{
-			auto CaptureScope = co_await (g_CaptureExceptions % "Error reading log data from database (f_Start)");
-
 			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
 
-			ReadTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
+			auto [StateValue, Logs] = co_await fg_Move(ReadTransaction).f_BlockingDispatch
+				(
+					[GlobalStateKey, Prefix = m_Prefix](CDatabaseActor::CTransactionRead &&_ReadTransaction)
+					{
+						TCMap<CDistributedAppLogReporter::CLogInfoKey, CLog> Logs;
 
-			for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
-			{
-				auto Key = iLog.f_Key<CLogKey>();
-				auto Value = iLog.f_Value<CLogValue>();
+						CLogGlobalStateValue GlobalStateValue;
 
-				auto &Log = *m_Logs(Key.f_LogInfoKey(), CLog{fg_Move(Value.m_Info)});
+						_ReadTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
 
-				Log.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
+						for (auto iLog = _ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
+						{
+							auto Key = iLog.f_Key<CLogKey>();
+							auto Value = iLog.f_Value<CLogValue>();
 
-				{
-					auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(Log.m_Info);
-					auto ReadCursor = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
-					if (ReadCursor.f_Last())
-						Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
-				}
-			}
+							auto &Log = *Logs(Key.f_LogInfoKey(), CLog{fg_Move(Value.m_Info)});
+
+							Log.m_LastSeenUniqueSequence = Value.m_UniqueSequenceAtLastCleanup;
+
+							{
+								auto DatabaseKey = fs_GetDatabaseKey<CLogEntryKey>(Prefix, Log.m_Info);
+								auto ReadCursor = _ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
+								if (ReadCursor.f_Last())
+									Log.m_LastSeenUniqueSequence = fg_Max(ReadCursor.f_Key<CLogEntryKey>().m_UniqueSequence, Log.m_LastSeenUniqueSequence);
+							}
+						}
+
+						return fg_Tuple(fg_Move(GlobalStateValue), fg_Move(Logs));
+					}
+					, "Error reading log data from database (f_Start)"
+				)
+			;
+
+			GlobalStateValue = fg_Move(StateValue);
+			m_Logs = fg_Move(Logs);
 		}
 
 		if (!GlobalStateValue.m_bConvertedKnownHosts)
@@ -206,14 +221,16 @@ namespace NMib::NConcurrency
 			co_await m_Database
 				(
 					&CDatabaseActor::f_WriteWithCompaction
-					, g_ActorFunctorWeak / [=, this]
+					, g_ActorFunctorWeak / [=, ThisActor = fg_ThisActor(m_pThis), Prefix = m_Prefix]
 					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 					{
 						co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
 						auto WriteTransaction = fg_Move(_Transaction);
 						if (_bCompacting)
-							WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+							WriteTransaction = co_await ThisActor(&CDistributedAppLogStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
+
+						co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 
 						CLogGlobalStateValue GlobalStateValue;
 						WriteTransaction.m_Transaction.f_Get(GlobalStateKey, GlobalStateValue);
@@ -221,7 +238,7 @@ namespace NMib::NConcurrency
 						if (GlobalStateValue.m_bConvertedKnownHosts)
 							co_return fg_Move(WriteTransaction);
 
-						for (auto iLog = WriteTransaction.m_Transaction.f_ReadCursor(m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
+						for (auto iLog = WriteTransaction.m_Transaction.f_ReadCursor(Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 						{
 							auto Key = iLog.f_Key<CLogKey>();
 							auto Value = iLog.f_Value<CLogValue>();
@@ -239,7 +256,7 @@ namespace NMib::NConcurrency
 							if (!Key.m_HostID)
 								continue;
 
-							CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = Key.m_HostID};
+							CKnownHostKey KnownHostKey{.m_DbPrefix = Prefix, .m_HostID = Key.m_HostID};
 
 							CKnownHostValue KnownHostValue;
 							_Transaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
@@ -253,6 +270,25 @@ namespace NMib::NConcurrency
 
 						co_return fg_Move(WriteTransaction);
 					}
+				)
+			;
+		}
+
+		{
+			auto ReadTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionRead);
+
+			m_KnownHosts = co_await fg_Move(ReadTransaction).f_BlockingDispatch
+				(
+					[Prefix = m_Prefix](CDatabaseActor::CTransactionRead &&_ReadTransaction)
+					{
+						TCMap<CStr, NLogStoreLocalDatabase::CKnownHostValue> KnownHosts;
+
+						for (auto iKnownHost = _ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CKnownHostKey::mc_Prefix); iKnownHost; ++iKnownHost)
+							KnownHosts(fg_Move(iKnownHost.f_Key<CKnownHostKey>()).m_HostID, iKnownHost.f_Value<CKnownHostValue>());
+
+						return KnownHosts;
+					}
+					, "Error reading known hosts data from database (f_Start)"
 				)
 			;
 		}

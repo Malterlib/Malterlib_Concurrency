@@ -48,97 +48,112 @@ namespace NMib::NConcurrency
 
 	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
 	{
+		struct CLogPair
+		{
+			CLogKey m_Key;
+			CLogValue m_Value;
+		};
+
+		TCVector<CLogPair> ToUpsert;
+
 		auto &Internal = *mp_pInternal;
 		for (auto &Log : Internal.m_Logs)
 		{
-			auto DatabaseKey = Internal.f_GetDatabaseKey<CLogKey>(Log.m_Info);
-
 			CLogValue DatabaseLogInfo;
 			DatabaseLogInfo.m_Info = Log.m_Info;
 			DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = Log.m_LastSeenUniqueSequence;
 
-			_WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseLogInfo);
+			ToUpsert.f_Insert(CLogPair{.m_Key = Internal.f_GetDatabaseKey<CLogKey>(Log.m_Info), .m_Value = fg_Move(DatabaseLogInfo)});
 		}
+
+		co_await fg_ContinueRunningOnActor(_WriteTransaction.f_Checkout());
+
+		for (auto &Entry : ToUpsert)
+			_WriteTransaction.m_Transaction.f_Upsert(Entry.m_Key, Entry.m_Value);
 
 		co_return fg_Move(_WriteTransaction);
 	}
 
-	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::CInternal::f_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	auto CDistributedAppLogStoreLocal::CInternal::fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+		-> TCFuture<NDatabase::CDatabaseActor::CTransactionWrite>
 	{
-		if (m_fCleanup)
-			co_return co_await m_fCleanup(fg_Move(_WriteTransaction));
+		if (_pThis->m_fCleanup)
+			co_return co_await _pThis->m_fCleanup(fg_Move(_WriteTransaction));
 
-		auto WriteTransaction = co_await m_pThis->self(&CDistributedAppLogStoreLocal::f_PrepareForCleanup, fg_Move(_WriteTransaction));
+		auto WriteTransaction = co_await _pThis->m_pThis->self(&CDistributedAppLogStoreLocal::f_PrepareForCleanup, fg_Move(_WriteTransaction));
 
+		auto Prefix = _pThis->m_Prefix;
+		auto RetentionDays = _pThis->m_RetentionDays;
+
+		co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
+
+		auto CaptureScope = co_await g_CaptureExceptions;
+		auto OriginalStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+
+		auto TargetSize = OriginalStats.m_MapSize - fg_Min(fg_Max(OriginalStats.m_MapSize / 5, 32 * OriginalStats.m_PageSize), OriginalStats.m_MapSize / 2);
+
+		CCleanupHelper Helper;
+		NTime::CTime StartTime;
+		if (!Helper.f_Init(WriteTransaction, Prefix, StartTime))
+			co_return fg_Move(WriteTransaction);
+
+		bool bDoRetention = RetentionDays > 0;
+		NTime::CTime OldestAllowedEntry = NTime::CTime::fs_NowUTC() - NTime::CTimeSpanConvert::fs_CreateDaySpan(RetentionDays);
+
+		if (OriginalStats.m_UsedBytes < TargetSize)
 		{
-			auto CaptureScope = co_await g_CaptureExceptions;
-			auto OriginalStats = WriteTransaction.m_Transaction.f_SizeStatistics();
-
-			auto TargetSize = OriginalStats.m_MapSize - fg_Min(fg_Max(OriginalStats.m_MapSize / 5, 32 * OriginalStats.m_PageSize), OriginalStats.m_MapSize / 2);
-
-			CCleanupHelper Helper;
-			NTime::CTime StartTime;
-			if (!Helper.f_Init(WriteTransaction, m_Prefix, StartTime))
+			if (!bDoRetention)
 				co_return fg_Move(WriteTransaction);
 
-			bool bDoRetention = m_RetentionDays > 0;
-			NTime::CTime OldestAllowedEntry = NTime::CTime::fs_NowUTC() - NTime::CTimeSpanConvert::fs_CreateDaySpan(m_RetentionDays);
+			if (StartTime.f_IsValid() && StartTime > OldestAllowedEntry)
+				co_return fg_Move(WriteTransaction);
+		}
 
-			if (OriginalStats.m_UsedBytes < TargetSize)
+		auto CurrentStats = OriginalStats;
+
+		[[maybe_unused]] mint nEntriesDeleted = 1;
+		NTime::CTime EndTime;
+
+		while (Helper.f_DeleteOne(WriteTransaction, EndTime))
+		{
+			CurrentStats = WriteTransaction.m_Transaction.f_SizeStatistics();
+			if (CurrentStats.m_UsedBytes < TargetSize)
 			{
 				if (!bDoRetention)
-					co_return fg_Move(WriteTransaction);
+					break;
 
-				if (StartTime.f_IsValid() && StartTime > OldestAllowedEntry)
-					co_return fg_Move(WriteTransaction);
+				if (EndTime.f_IsValid() && EndTime > OldestAllowedEntry)
+					break;
 			}
 
-			auto CurrentStats = OriginalStats;
-
-			[[maybe_unused]] mint nEntriesDeleted = 1;
-			NTime::CTime EndTime;
-
-			while (Helper.f_DeleteOne(WriteTransaction, EndTime))
-			{
-				CurrentStats = WriteTransaction.m_Transaction.f_SizeStatistics();
-				if (CurrentStats.m_UsedBytes < TargetSize)
-				{
-					if (!bDoRetention)
-						break;
-
-					if (EndTime.f_IsValid() && EndTime > OldestAllowedEntry)
-						break;
-				}
-
-				++nEntriesDeleted;
-			}
-
-			NTime::CTimeSpan UtcOffset;
-			NTime::CSystem_Time::fs_TimeGetUTCOffset(&UtcOffset);
-
-			[[maybe_unused]] auto UtcHourOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetHours();
-			[[maybe_unused]] auto UtcMinuteOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetMinuteOfHour();
-			[[maybe_unused]] ch8 const *pUtcSign = UtcHourOffset < 0 ? "-" : "+";
-			UtcHourOffset = fg_Abs(UtcHourOffset);
-
-			DMibLogWithCategory
-				(
-					LogLocalStore
-					, Info
-					, "Freed up {ns } bytes by deleting {} log entries spanning from {tc5} UTC{}{sj2,sf0}:{sj2,sf0} to {tc5} UTC{}{sj2,sf0}:{sj2,sf0}"
-					, OriginalStats.m_UsedBytes - CurrentStats.m_UsedBytes
-					, nEntriesDeleted
-					, StartTime.f_ToLocal()
-					, pUtcSign
-					, UtcHourOffset
-					, UtcMinuteOffset
-					, EndTime.f_ToLocal()
-					, pUtcSign
-					, UtcHourOffset
-					, UtcMinuteOffset
-				)
-			;
+			++nEntriesDeleted;
 		}
+
+		NTime::CTimeSpan UtcOffset;
+		NTime::CSystem_Time::fs_TimeGetUTCOffset(&UtcOffset);
+
+		[[maybe_unused]] auto UtcHourOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetHours();
+		[[maybe_unused]] auto UtcMinuteOffset = NTime::CTimeSpanConvert(UtcOffset).f_GetMinuteOfHour();
+		[[maybe_unused]] ch8 const *pUtcSign = UtcHourOffset < 0 ? "-" : "+";
+		UtcHourOffset = fg_Abs(UtcHourOffset);
+
+		DMibLogWithCategory
+			(
+				LogLocalStore
+				, Info
+				, "Freed up {ns } bytes by deleting {} log entries spanning from {tc5} UTC{}{sj2,sf0}:{sj2,sf0} to {tc5} UTC{}{sj2,sf0}:{sj2,sf0}"
+				, OriginalStats.m_UsedBytes - CurrentStats.m_UsedBytes
+				, nEntriesDeleted
+				, StartTime.f_ToLocal()
+				, pUtcSign
+				, UtcHourOffset
+				, UtcMinuteOffset
+				, EndTime.f_ToLocal()
+				, pUtcSign
+				, UtcHourOffset
+				, UtcMinuteOffset
+			)
+		;
 
 		co_return fg_Move(WriteTransaction);
 	}

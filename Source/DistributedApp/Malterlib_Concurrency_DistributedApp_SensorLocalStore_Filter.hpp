@@ -10,6 +10,7 @@ namespace NMib::NConcurrency::NSensorStore
 			, CDistributedAppSensorReader_SensorFilter const &_Filter
 			, CFilterSensorKeyContext &_Context
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
 	{
 		if (_Filter.m_HostID && _Key.m_HostID != *_Filter.m_HostID)
@@ -54,7 +55,12 @@ namespace NMib::NConcurrency::NSensorStore
 
 		if (_Filter.m_Flags & CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved)
 		{
-			if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
+			if (_pKnownHost)
+			{
+				if (_pKnownHost->m_bRemoved)
+					return false;
+			}
+			else if (!_Key.m_HostID.f_IsEmpty() && _Key.m_HostID != _Context.m_ThisHostID && _Context.m_pTransaction)
 			{
 				NSensorStoreLocalDatabase::CKnownHostKey Key{.m_DbPrefix = _Context.m_Prefix, .m_HostID = _Key.m_HostID};
 				NSensorStoreLocalDatabase::CKnownHostValue Value;
@@ -82,12 +88,13 @@ namespace NMib::NConcurrency::NSensorStore
 			, NContainer::TCVector<CDistributedAppSensorReader_SensorFilter> const &_Filters
 			, CFilterSensorKeyContext &_Context
 			, CDistributedAppSensorReporter::CSensorInfo const *_pSensorInfo
+			, NSensorStoreLocalDatabase::CKnownHostValue const *_pKnownHost
 		)
 	{
 		bool bPassFilter = _Filters.f_IsEmpty();
 		for (auto &Filter : _Filters)
 		{
-			if (fg_FilterSensorKey(_Key, Filter, _Context, _pSensorInfo))
+			if (fg_FilterSensorKey(_Key, Filter, _Context, _pSensorInfo, _pKnownHost))
 			{
 				bPassFilter = true;
 				break;

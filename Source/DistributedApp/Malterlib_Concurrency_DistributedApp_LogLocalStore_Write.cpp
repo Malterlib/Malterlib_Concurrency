@@ -19,23 +19,32 @@ namespace NMib::NConcurrency
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this, HostsSeen = fg_Move(_HostsSeen)]
+				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), HostsSeen = fg_Move(_HostsSeen), Prefix = Internal.m_Prefix]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
-					auto &Internal = *mp_pInternal;
-
 					auto WriteTransaction = fg_Move(_Transaction);
 
 					if (_bCompacting)
-						WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+						WriteTransaction = co_await ThisActor(&CDistributedAppLogStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
+
+					for (auto &LastSeen : HostsSeen)
+					{
+						auto &HostID = HostsSeen.fs_GetKey(LastSeen);
+						auto &Value = pThis->m_KnownHosts[HostID];
+
+						Value.m_LastSeen = fg_Max(Value.m_LastSeen, LastSeen);
+						Value.m_bRemoved = false;
+					}
+
+					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 
 					for (auto &LastSeen : HostsSeen)
 					{
 						auto &HostID = HostsSeen.fs_GetKey(LastSeen);
 
-						CKnownHostKey Key{.m_DbPrefix = Internal.m_Prefix, .m_HostID = HostID};
+						CKnownHostKey Key{.m_DbPrefix = Prefix, .m_HostID = HostID};
 
 						CKnownHostValue Value;
 						_Transaction.m_Transaction.f_Get(Key, Value);
@@ -71,21 +80,27 @@ namespace NMib::NConcurrency
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this, RemovedHostIDs = fg_Move(_RemovedHostIDs)]
+				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), RemovedHostIDs = fg_Move(_RemovedHostIDs), Prefix = Internal.m_Prefix]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
-					auto &Internal = *mp_pInternal;
-
 					auto WriteTransaction = fg_Move(_Transaction);
 
 					if (_bCompacting)
-						WriteTransaction = co_await fg_CallSafe(Internal, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+						WriteTransaction = co_await ThisActor(&CDistributedAppLogStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
 
 					for (auto &HostID : RemovedHostIDs)
 					{
-						CKnownHostKey Key{.m_DbPrefix = Internal.m_Prefix, .m_HostID = HostID};
+						if (auto *pValue = pThis->m_KnownHosts.f_FindEqual(HostID))
+							pValue->m_bRemoved = true;
+					}
+
+					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
+
+					for (auto &HostID : RemovedHostIDs)
+					{
+						CKnownHostKey Key{.m_DbPrefix = Prefix, .m_HostID = HostID};
 
 						CKnownHostValue Value;
 						if (!_Transaction.m_Transaction.f_Get(Key, Value))
@@ -136,6 +151,12 @@ namespace NMib::NConcurrency
 		co_return nRemoved;
 	}
 
+	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	{
+		auto &Internal = *mp_pInternal;
+		co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, &Internal, fg_Move(_WriteTransaction));
+	}
+
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_StoreLogEntries
 		(
 			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
@@ -157,26 +178,35 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this, HostID = _LogInfoKey.m_HostID]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				, g_ActorFunctorWeak
+				/
+				[
+					=
+					, pThis = this
+					, ThisActor = fg_ThisActor(m_pThis)
+					, HostID = _LogInfoKey.m_HostID
+					, DatabaseKey = _DatabaseKey
+					, Database = m_Database
+					, KnownHostKey = CKnownHostKey {.m_DbPrefix = m_Prefix, .m_HostID = _LogInfoKey.m_HostID}
+				]
+				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) mutable -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
-					auto DatabaseKey = _DatabaseKey;
 					auto WriteTransaction = fg_Move(_Transaction);
 
 					if (!_bCompacting)
 					{
-						if (auto *pLog = m_Logs.f_FindEqual(_LogInfoKey))
-							f_Subscription_Entries(*pLog, *_pEntries, WriteTransaction.m_Transaction);
+						if (auto *pLog = pThis->m_Logs.f_FindEqual(_LogInfoKey))
+							pThis->f_Subscription_Entries(*pLog, *_pEntries, WriteTransaction.m_Transaction);
 					}
+
+					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 
 					auto SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 					smint BatchLimit = fg_Min(SizeStats.m_MapSize / (20 * 3), 4 * 1024 * 1024);
 					auto SizeLimit = smint(SizeStats.m_MapSize) - fg_Min(fg_Max(smint(SizeStats.m_MapSize) / 20, BatchLimit * 3, 32 * smint(SizeStats.m_PageSize)), smint(SizeStats.m_MapSize) / 3);
 					smint nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
-
-					CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = HostID};
 
 					CKnownHostValue KnownHostValue;
 					if (HostID)
@@ -188,19 +218,20 @@ namespace NMib::NConcurrency
 						bool bFreeUpSpace = nBytesInserted >= nBytesLimit || _bCompacting;
 
 						if (bFreeUpSpace)
-							WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+							WriteTransaction = co_await ThisActor(&CDistributedAppLogStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
 
 						if (nBytesInserted > BatchLimit || bFreeUpSpace)
 						{
 							if (_bCompacting)
-								co_await m_Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
+								co_await Database(&CDatabaseActor::f_Compact, fg_Move(WriteTransaction), 0);
 							else
 							{
-								co_await m_Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
+								co_await Database(&CDatabaseActor::f_CommitWriteTransaction, fg_Move(WriteTransaction));
 								if (bFreeUpSpace)
-									co_await m_Database(&CDatabaseActor::f_WaitForAllReaders);
+									co_await Database(&CDatabaseActor::f_WaitForAllReaders);
 							}
-							WriteTransaction = co_await m_Database(&CDatabaseActor::f_OpenTransactionWrite);
+							WriteTransaction = co_await Database(&CDatabaseActor::f_OpenTransactionWrite);
+							co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 							SizeStats = WriteTransaction.m_Transaction.f_SizeStatistics();
 							nBytesLimit = smint(SizeLimit) - smint(SizeStats.m_UsedBytes);
 						}
@@ -233,6 +264,11 @@ namespace NMib::NConcurrency
 
 					if (HostID)
 						_Transaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
+
+					co_await fg_ContinueRunningOnActor(ThisActor);
+
+					if (HostID)
+						pThis->m_KnownHosts[HostID] = KnownHostValue;
 
 					co_return fg_Move(WriteTransaction);
 				}

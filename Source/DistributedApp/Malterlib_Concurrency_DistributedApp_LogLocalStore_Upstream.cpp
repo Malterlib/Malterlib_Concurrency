@@ -93,58 +93,81 @@ namespace NMib::NConcurrency
 			auto DatabaseKey = f_GetDatabaseKey<CLogEntryKey>(pLog->m_Info);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
-			auto iLogEntry = ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
-			iLogEntry.f_FindLowerBound(DatabaseKey);
+			auto [iLogEntry, ReadTransactionMove] = co_await fg_Move(ReadTransaction).f_BlockingDispatch
+				(
+					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead &&_ReadTransaction)
+					{
+						auto iLogEntry = _ReadTransaction.m_Transaction.f_ReadCursor((CLogKey const &)DatabaseKey);
+						iLogEntry.f_FindLowerBound(DatabaseKey);
 
-			if (iLogEntry)
-			{
-				auto Key = iLogEntry.f_Key<CLogEntryKey>();
-				if (Key.m_UniqueSequence == Reporter.m_LastSeenUniqueSequence)
-					++iLogEntry;
-			}
+						if (iLogEntry)
+						{
+							auto Key = iLogEntry.f_Key<CLogEntryKey>();
+							if (Key.m_UniqueSequence == LastSeenUniqueSequence)
+								++iLogEntry;
+						}
 
-			NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> Batch;
+						return fg_Tuple(fg_Move(iLogEntry), fg_Move(_ReadTransaction));
+					}
+				)
+			;
+			ReadTransaction = fg_Move(ReadTransactionMove);
 
 			static constexpr mint c_BatchSize = 32768;
 			static constexpr mint c_MaxMessageSize = CActorDistributionManager::mc_MaxMessageSize - (CActorDistributionManager::mc_RemoteCallOverhead + 4 + 128);
-			mint nBytesInBatch = 0;
 
-			for (; iLogEntry; ++iLogEntry)
-			{
-				auto Key = iLogEntry.f_Key<CLogEntryKey>();
-				auto Value = iLogEntry.f_Value<CLogEntryValue>();
-
-				auto NewEntry = fg_Move(Value).f_Entry(Key);
-
-				mint ThisTime = NStream::fg_GetBinaryStreamSize(NewEntry);
-
-				if (ThisTime > c_MaxMessageSize)
+			auto fGetBatch = [iLogEntry = fg_Move(iLogEntry), nBytesInBatch = mint(0)]() mutable -> TCFuture<TCOptional<NContainer::TCVector<CDistributedAppLogReporter::CLogEntry>>>
 				{
-					// This should never happen now. For old databases do this in case the database has stored entries that are too big
-					NewEntry.m_Data.m_Message = NewEntry.m_Data.m_Message.f_Left(c_MaxMessageSize);
-				}
+					if (!iLogEntry)
+						co_return {};
 
-				if (nBytesInBatch + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize)
-				{
-					if (!Batch.f_IsEmpty())
+					auto BlockingActorCheckout = fg_BlockingActor();
+					co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
+
+					NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> Batch;
+
+					for (; iLogEntry; ++iLogEntry)
 					{
-						co_await Reporter.m_fReportEntries(fg_Move(Batch));
-						nBytesInBatch = 0;
+						auto Key = iLogEntry.f_Key<CLogEntryKey>();
+						auto Value = iLogEntry.f_Value<CLogEntryValue>();
+
+						auto NewEntry = fg_Move(Value).f_Entry(Key);
+
+						mint ThisTime = NStream::fg_GetBinaryStreamSize(NewEntry);
+
+						if (ThisTime > c_MaxMessageSize)
+						{
+							// This should never happen now. For old databases do this in case the database has stored entries that are too big
+							NewEntry.m_Data.m_Message = NewEntry.m_Data.m_Message.f_Left(c_MaxMessageSize);
+						}
+
+						if (nBytesInBatch + ThisTime > CActorDistributionManager::mc_HalfMaxMessageSize)
+						{
+							if (!Batch.f_IsEmpty())
+							{
+								nBytesInBatch = 0;
+								break;
+							}
+						}
+
+						Batch.f_Insert(fg_Move(NewEntry));
+						nBytesInBatch += ThisTime;
+
+						if (Batch.f_GetLen() >= c_BatchSize)
+						{
+							nBytesInBatch = 0;
+							break;
+						}
 					}
+
+					co_return fg_Move(Batch);
 				}
+			;
 
-				Batch.f_Insert(fg_Move(NewEntry));
-				nBytesInBatch += ThisTime;
+			auto pGetBatch = fg_ToSharedPointer(fg_Move(fGetBatch));
 
-				if (Batch.f_GetLen() >= c_BatchSize)
-				{
-					co_await Reporter.m_fReportEntries(fg_Move(Batch));
-					nBytesInBatch = 0;
-				}
-			}
-
-			if (!Batch.f_IsEmpty())
-				co_await Reporter.m_fReportEntries(fg_Move(Batch));
+			while (auto BatchEntry = co_await fg_CallSafe(pGetBatch))
+				co_await Reporter.m_fReportEntries(fg_Move(*BatchEntry));
 		}
 		else if (Reporter.m_LastSeenUniqueSequence > pLog->m_LastSeenUniqueSequence)
 		{
@@ -180,47 +203,52 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey)]
+				, g_ActorFunctorWeak / [=, ThisActor = fg_ThisActor(m_pThis), pThis = this, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey), Prefix = m_Prefix]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
-					CLog *pLog;
-
-					auto OnResume = co_await fg_OnResume
-						(
-							[&, this]() -> CExceptionPointer
-							{
-								pLog = m_Logs.f_FindEqual(_LogInfoKey);
-								if (!pLog)
-									return DMibErrorInstance("Log was removed");
-
-								return {};
-							}
-						)
-					;
-
 					auto WriteTransaction = fg_Move(_Transaction);
 					if (_bCompacting)
-						WriteTransaction = co_await fg_CallSafe(*this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
-					else
-						f_Subscription_LogInfoChanged(*pLog, _Transaction.m_Transaction);
+						WriteTransaction = co_await ThisActor(&CDistributedAppLogStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
+
+					CDistributedAppLogReporter::CLogInfo LogInfo;
+					uint64 LastSeenUniqueSequence = 0;
+					{
+						CLog *pLog;
+						if (pLog = pThis->m_Logs.f_FindEqual(_LogInfoKey); !pLog)
+							co_return DMibErrorInstance("Log was removed");
+
+						LogInfo = pLog->m_Info;
+						LastSeenUniqueSequence = pLog->m_LastSeenUniqueSequence;
+
+						if (!_bCompacting)
+							pThis->f_Subscription_LogInfoChanged(*pLog);
+					}
 
 					if (DatabaseKey.m_HostID)
 					{
-						CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = DatabaseKey.m_HostID};
+						auto &KnownHostValue = pThis->m_KnownHosts[DatabaseKey.m_HostID];
+						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, LogInfo.m_LastSeen);
+					}
+					
+					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
+
+					if (DatabaseKey.m_HostID)
+					{
+						CKnownHostKey KnownHostKey{.m_DbPrefix = Prefix, .m_HostID = DatabaseKey.m_HostID};
 
 						CKnownHostValue KnownHostValue;
 						WriteTransaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
 
-						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, pLog->m_Info.m_LastSeen);
+						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, LogInfo.m_LastSeen);
 
 						WriteTransaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
 					}
 
 					CLogValue DatabaseLogInfo;
-					DatabaseLogInfo.m_Info = pLog->m_Info;
-					DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = pLog->m_LastSeenUniqueSequence;
+					DatabaseLogInfo.m_Info = fg_Move(LogInfo);
+					DatabaseLogInfo.m_UniqueSequenceAtLastCleanup = LastSeenUniqueSequence;
 
 					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseLogInfo);
 

@@ -6,10 +6,10 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CKey, typename tf_CInfoOrKey>
-	tf_CKey CDistributedAppSensorStoreLocal::CInternal::f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const
+	tf_CKey CDistributedAppSensorStoreLocal::CInternal::fs_GetDatabaseKey(CStr const &_Prefix, tf_CInfoOrKey const &_SensorInfo)
 	{
 		tf_CKey Key;
-		Key.m_DbPrefix = m_Prefix;
+		Key.m_DbPrefix = _Prefix;
 		Key.m_Prefix = tf_CKey::mc_Prefix;
 		Key.m_HostID = _SensorInfo.m_HostID;
 		if (_SensorInfo.m_Scope.template f_IsOfType<CDistributedAppSensorReporter::CSensorScope_Application>())
@@ -18,5 +18,11 @@ namespace NMib::NConcurrency
 		Key.m_IdentifierScope = _SensorInfo.m_IdentifierScope;
 
 		return Key;
+	}
+	
+	template <typename tf_CKey, typename tf_CInfoOrKey>
+	tf_CKey CDistributedAppSensorStoreLocal::CInternal::f_GetDatabaseKey(tf_CInfoOrKey const &_SensorInfo) const
+	{
+		return fs_GetDatabaseKey<tf_CKey>(m_Prefix, _SensorInfo);
 	}
 }

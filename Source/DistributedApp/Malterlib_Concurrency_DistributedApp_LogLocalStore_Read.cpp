@@ -32,16 +32,23 @@ namespace NMib::NConcurrency
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 		auto &ReadTransaction = *ReadTransactionWrapped; // To force exception to be thrown here
 
+		auto Prefix = Internal.m_Prefix;
+		auto ThisHostID = Internal.m_ThisHostID;
+
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
+		// From here on you can't access Internal
+
 		TCVector<CDistributedAppLogReporter::CLogInfo> Batch;
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
-		for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(Internal.m_Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
+		for (auto iLog = ReadTransaction.m_Transaction.f_ReadCursor(Prefix, CLogKey::mc_Prefix); iLog; ++iLog)
 		{
 			auto Key = iLog.f_Key<CLogKey>();
 			auto Value = iLog.f_Value<CLogValue>();
 
-			if (!NLogStore::fg_FilterLogKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info))
+			if (!NLogStore::fg_FilterLogKey(Key, _Params.m_Filters, FilterContext, &Value.m_Info, nullptr))
 				continue;
 
 			Batch.f_Insert(fg_Move(Value.m_Info));
@@ -66,9 +73,10 @@ namespace NMib::NConcurrency
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;
+		auto ThisHostID = Internal.m_ThisHostID;
 
-		co_await fg_ContinueRunningOnActor(fg_ConcurrentActor());
-
+		auto BlockingActorCheckout = fg_BlockingActor();
+		co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
 		// From here on you can't access Internal
 
 		auto CaptureScope = co_await
@@ -188,7 +196,7 @@ namespace NMib::NConcurrency
 
 		mint nBytesInBatch = 0;
 
-		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = Internal.m_ThisHostID, .m_Prefix = Internal.m_Prefix};
+		NLogStore::CFilterLogKeyContext FilterContext{.m_pTransaction = &ReadTransaction.m_Transaction, .m_ThisHostID = ThisHostID, .m_Prefix = Prefix};
 
 		NTime::CTime MaxSeenTimestamp;
 
@@ -246,8 +254,6 @@ namespace NMib::NConcurrency
 
 			auto Key = KeyByTime.f_Key();
 
-			auto *pLog = Internal.m_Logs.f_FindEqual(Key.f_LogInfoKey());
-
 			CLogEntryValue Value;
 			if (!ReadTransaction.m_Transaction.f_Get(Key, Value))
 			{
@@ -260,7 +266,7 @@ namespace NMib::NConcurrency
 
 				for (auto &Filter : Filters)
 				{
-					if (!NLogStore::fg_FilterLogKey(KeyByTime, Filter.m_Filter.m_LogFilter, FilterContext, pLog ? &pLog->m_Info : nullptr))
+					if (!NLogStore::fg_FilterLogKey(KeyByTime, Filter.m_Filter.m_LogFilter, FilterContext, nullptr, nullptr))
 						continue;
 
 					if (Filter.m_bIsDataFiltered && !NLogStore::fg_FilterLogValue(Value.m_Data, Filter.m_Filter.m_LogDataFilter))

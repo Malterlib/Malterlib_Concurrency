@@ -93,33 +93,57 @@ namespace NMib::NConcurrency
 			auto DatabaseKey = f_GetDatabaseKey<CSensorReadingKey>(pSensor->m_Info);
 			DatabaseKey.m_UniqueSequence = Reporter.m_LastSeenUniqueSequence;
 
-			auto iSensorReading = ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
-			iSensorReading.f_FindLowerBound(DatabaseKey);
+			auto [iSensorReading, ReadTransactionMove] = co_await fg_Move(ReadTransaction).f_BlockingDispatch
+				(
+					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead &&_ReadTransaction)
+					{
+						auto iSensorReading = _ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
+						iSensorReading.f_FindLowerBound(DatabaseKey);
 
-			if (iSensorReading)
-			{
-				auto Key = iSensorReading.f_Key<CSensorReadingKey>();
-				if (Key.m_UniqueSequence == Reporter.m_LastSeenUniqueSequence)
-					++iSensorReading;
-			}
+						if (iSensorReading)
+						{
+							auto Key = iSensorReading.f_Key<CSensorReadingKey>();
+							if (Key.m_UniqueSequence == LastSeenUniqueSequence)
+								++iSensorReading;
+						}
 
-			NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> Batch;
+						return fg_Tuple(fg_Move(iSensorReading), fg_Move(_ReadTransaction));
+					}
+				)
+			;
+			ReadTransaction = fg_Move(ReadTransactionMove);
 
 			static constexpr mint c_BatchSize = 32768;
 
-			for (; iSensorReading; ++iSensorReading)
-			{
-				auto Key = iSensorReading.f_Key<CSensorReadingKey>();
-				auto Value = iSensorReading.f_Value<CSensorReadingValue>();
+			auto fGetBatch = [iSensorReading = fg_Move(iSensorReading)]() mutable -> TCFuture<TCOptional<TCVector<CDistributedAppSensorReporter::CSensorReading>>>
+				{
+					if (!iSensorReading)
+						co_return {};
 
-				Batch.f_Insert(fg_Move(Value).f_Reading(Key));
+					auto BlockingActorCheckout = fg_BlockingActor();
+					co_await fg_ContinueRunningOnActor(BlockingActorCheckout);
 
-				if (Batch.f_GetLen() >= c_BatchSize)
-					co_await Reporter.m_fReportReadings(fg_Move(Batch));
-			}
+					TCVector<CDistributedAppSensorReporter::CSensorReading> Batch;
 
-			if (!Batch.f_IsEmpty())
-				co_await Reporter.m_fReportReadings(fg_Move(Batch));
+					for (; iSensorReading; ++iSensorReading)
+					{
+						auto Key = iSensorReading.f_Key<CSensorReadingKey>();
+						auto Value = iSensorReading.f_Value<CSensorReadingValue>();
+
+						Batch.f_Insert(fg_Move(Value).f_Reading(Key));
+
+						if (Batch.f_GetLen() >= c_BatchSize)
+							break;
+					}
+
+					co_return fg_Move(Batch);
+				}
+			;
+
+			auto pGetBatch = fg_ToSharedPointer(fg_Move(fGetBatch));
+
+			while (auto Batch = co_await fg_CallSafe(pGetBatch))
+				co_await Reporter.m_fReportReadings(fg_Move(*Batch));
 		}
 		else if (Reporter.m_LastSeenUniqueSequence > pSensor->m_LastSeenUniqueSequence)
 		{
@@ -155,50 +179,54 @@ namespace NMib::NConcurrency
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this, DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey)]
+				, g_ActorFunctorWeak / [=, pThis = this, ThisActor = fg_ThisActor(m_pThis), DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey), Prefix = m_Prefix]
 				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 					auto WriteTransaction = fg_Move(_Transaction);
 
-					CSensor *pSensor;
-
-					auto OnResume = co_await fg_OnResume
-						(
-							[&]() -> CExceptionPointer
-							{
-								pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
-								if (!pSensor)
-									return DMibErrorInstance("Sensor was removed");
-
-								return {};
-							}
-						)
-					;
-
 					if (_bCompacting)
-						WriteTransaction = co_await fg_CallSafe(this, &CInternal::f_Cleanup, fg_Move(WriteTransaction));
+						WriteTransaction = co_await ThisActor(&CDistributedAppSensorStoreLocal::fp_Cleanup, fg_Move(WriteTransaction));
+
+					CDistributedAppSensorReporter::CSensorInfo SensorInfo;
+					uint64 LastSeenUniqueSequence = 0;
+					{
+						CSensor *pSensor = pThis->m_Sensors.f_FindEqual(_SensorInfoKey);
+						if (!pSensor)
+							co_return DMibErrorInstance("Sensor was removed");
+
+						SensorInfo = pSensor->m_Info;
+						LastSeenUniqueSequence = pSensor->m_LastSeenUniqueSequence;
+
+						if (DatabaseKey.m_HostID)
+						{
+							auto &KnownHostValue = pThis->m_KnownHosts[DatabaseKey.m_HostID];
+							KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, SensorInfo.m_LastSeen);
+							if (!_bCompacting)
+								pThis->f_Subscription_SensorInfoChanged(*pSensor, &KnownHostValue);
+						}
+						else if (!_bCompacting)
+							pThis->f_Subscription_SensorInfoChanged(*pSensor, nullptr);
+
+					}
+
+					co_await fg_ContinueRunningOnActor(WriteTransaction.f_Checkout());
 
 					if (DatabaseKey.m_HostID)
 					{
-						CKnownHostKey KnownHostKey{.m_DbPrefix = m_Prefix, .m_HostID = DatabaseKey.m_HostID};
+						CKnownHostKey KnownHostKey{.m_DbPrefix = Prefix, .m_HostID = DatabaseKey.m_HostID};
 
 						CKnownHostValue KnownHostValue;
 						WriteTransaction.m_Transaction.f_Get(KnownHostKey, KnownHostValue);
 
-						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, pSensor->m_Info.m_LastSeen);
+						KnownHostValue.m_LastSeen = fg_Max(KnownHostValue.m_LastSeen, SensorInfo.m_LastSeen);
 
 						WriteTransaction.m_Transaction.f_Upsert(KnownHostKey, KnownHostValue);
-
-						if (!_bCompacting)
-							f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction, &KnownHostValue);
 					}
-					else if (!_bCompacting)
-						f_Subscription_SensorInfoChanged(*pSensor, _Transaction.m_Transaction, nullptr);
 
 					CSensorValue DatabaseSensorInfo;
-					DatabaseSensorInfo.m_Info = pSensor->m_Info;
-					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = pSensor->m_LastSeenUniqueSequence;
+					DatabaseSensorInfo.m_Info = SensorInfo;
+					DatabaseSensorInfo.m_UniqueSequenceAtLastCleanup = LastSeenUniqueSequence;
 
 					WriteTransaction.m_Transaction.f_Upsert(DatabaseKey, DatabaseSensorInfo);
 

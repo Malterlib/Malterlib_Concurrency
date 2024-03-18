@@ -1343,10 +1343,7 @@ namespace NMib::NConcurrency
 		NFile::EFileAttrib Attributes = NFile::EFileAttrib_UnixAttributesValid | NFile::EFileAttrib_UserRead | NFile::EFileAttrib_UserWrite;
 		CStr TempFile = Path + ".tmp";
 		NFile::CFile::fs_WriteStringToFile(TempFile, f_ToJson(_Object).f_ToString(), true, Attributes);
-		if (NFile::CFile::fs_FileExists(Path))
-			NFile::CFile::fs_AtomicReplaceFile(TempFile, Path);
-		else
-			NFile::CFile::fs_RenameFile(TempFile, Path);
+		NFile::CFile::fs_AtomicReplaceFile(TempFile, Path);
 	}
 
 	CDistributedActorTrustManager_Address CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_DecodeAddress(CEJSONSorted const &_JSON, CStr const &_Name) const

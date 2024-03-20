@@ -5,6 +5,7 @@
 #include <Mib/Concurrency/DistributedApp>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/ActorSequencerActor>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Container/Vector>
 #include <Mib/Cryptography/EncryptedStream>
 #include <Mib/Cryptography/RandomData>
@@ -1084,6 +1085,8 @@ namespace NMib::NConcurrency
 		;
 
 	private:
+		TCFuture<void> fp_Destroy() override;
+
 		TCWeakActor<CDistributedActorTrustManager> const mp_TrustManager;
 		CSequencer mp_ProcessingSequencer{"U2F sequencer"};
 	};
@@ -1095,6 +1098,12 @@ namespace NMib::NConcurrency
 
 	CDistributedActorTrustManagerAuthenticationActorU2F::~CDistributedActorTrustManagerAuthenticationActorU2F() = default;
 
+	TCFuture<void> CDistributedActorTrustManagerAuthenticationActorU2F::fp_Destroy()
+	{
+		co_await fg_Move(mp_ProcessingSequencer).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/U2F", "Failed to destroy sequencer");
+
+		co_return {};
+	}
 
 	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
 		(

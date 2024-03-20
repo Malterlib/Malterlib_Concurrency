@@ -7,6 +7,7 @@
 #include <Mib/Encoding/JSONShortcuts>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Concurrency/ActorSequencerActor>
+#include <Mib/Concurrency/LogError>
 #include <Mib/Web/HTTP/URL>
 
 namespace NMib::NConcurrency
@@ -110,6 +111,15 @@ namespace NMib::NConcurrency
 	CDistributedActorTrustManagerDatabase_JSONDirectory::~CDistributedActorTrustManagerDatabase_JSONDirectory()
 	{
 		mp_pInternal.f_Clear();
+	}
+
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::fp_Destroy()
+	{
+		auto &Internal = *mp_pInternal;
+
+		co_await fg_Move(Internal.m_Sequencer).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/JSONDirectory", "Failed to destroy sequencer");
+
+		co_return {};
 	}
 
 	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_CheckState()

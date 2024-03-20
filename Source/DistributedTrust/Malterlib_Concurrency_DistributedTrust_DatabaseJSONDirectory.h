@@ -72,6 +72,8 @@ namespace NMib::NConcurrency
 		TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr const &_HostID) override;
 
 	private:
+		TCFuture<void> fp_Destroy() override;
+
 		struct CInternal;
 		NStorage::TCUniquePointer<CInternal> mp_pInternal;
 	};

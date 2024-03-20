@@ -918,6 +918,15 @@ namespace NMib::NConcurrency
 			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy for local log and sensor store");
 		}
 
+		{
+			TCActorResultVector<void> Destroys;
+
+			fg_Move(mp_State.m_ConfigDatabase).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(mp_State.m_StateDatabase).f_Destroy() > Destroys.f_AddResult();
+
+			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy JSON databases");
+		}
+
 		if (Internal.m_TrustManagerDatabase)
 			co_await Internal.m_TrustManagerDatabase.f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager database");
 

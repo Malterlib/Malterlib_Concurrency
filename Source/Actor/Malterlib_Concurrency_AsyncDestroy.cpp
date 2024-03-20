@@ -3,6 +3,8 @@
 
 #include "Malterlib_Concurrency_AsyncDestroy.h"
 
+#include <Mib/Concurrency/LogError>
+
 namespace NMib::NConcurrency
 {
 	constinit CAsyncDestroyHelper g_AsyncDestroy;
@@ -62,5 +64,13 @@ namespace NMib::NConcurrency
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(FUnitVoidFutureFunction &&_fDestroy)
 	{
 		return fg_Move(_fDestroy);
+	}
+
+	namespace NPrivate
+	{
+		void fg_AsyncDestroyLogErrorHelper(CAsyncResult const &_Result)
+		{
+			_Result > fg_LogError("Mib/Concurrency", "Failed to async destroy");
+		}
 	}
 }

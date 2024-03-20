@@ -156,6 +156,11 @@ namespace NMib::NConcurrency
 		return {fg_Move(mp_fDestroy), fg_Exchange(mp_pCoroutineContext, nullptr)};
 	}
 
+	namespace NPrivate
+	{
+		void fg_AsyncDestroyLogErrorHelper(CAsyncResult const &_Result);
+	}
+
 	template <typename tf_FDestroy>
 	auto fg_AsyncDestroyByValue(tf_FDestroy &&_fDestroy)
 		requires requires
@@ -176,6 +181,25 @@ namespace NMib::NConcurrency
 	{
 		using FDestroy = typename NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>::CType;
 		return TCAsyncDestroyAwaiter<FDestroy &, FDestroy>(fg_Forward<tf_FDestroy>(_fDestroy));
+	}
+
+	template <typename tf_FDestroy>
+	auto fg_AsyncDestroyLogError(tf_FDestroy &&_fDestroy)
+		requires requires
+		{
+			_fDestroy() > fg_DiscardResult();
+		}
+	{
+		return fg_AsyncDestroyByValue
+			(
+				[fDestroy = fg_Forward<tf_FDestroy>(_fDestroy)]() mutable -> TCFuture<void>
+				{
+					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await fg_CallSafe(fg_Move(fDestroy)).f_Wrap());
+
+					co_return {};
+				}
+			)
+		;
 	}
 
 	template <typename tf_CToCleanup>
@@ -210,6 +234,45 @@ namespace NMib::NConcurrency
 				[pToDestroy = _pToDestroy]() -> TCFuture<void>
 				{
 					co_await pToDestroy->f_Destroy();
+
+					co_return {};
+				}
+			)
+		;
+	}
+
+	template <typename tf_CToCleanup>
+	auto fg_AsyncDestroyLogError(tf_CToCleanup &_ToDestroy)
+		requires requires
+		{
+			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+		}
+	{
+		return fg_AsyncDestroyByValue
+			(
+				[pToDestroy = &_ToDestroy]() -> TCFuture<void>
+				{
+					auto ToDestroy = fg_Move(*pToDestroy);
+					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await fg_Move(ToDestroy).f_Destroy().f_Wrap());
+
+					co_return {};
+				}
+			)
+		;
+	}
+
+	template <typename tf_CToCleanup>
+	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
+		requires requires
+		{
+			_pToDestroy->f_Destroy() > fg_DiscardResult();
+		}
+	{
+		return fg_AsyncDestroyByValue
+			(
+				[pToDestroy = _pToDestroy]() -> TCFuture<void>
+				{
+					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await pToDestroy->f_Destroy().f_Wrap());
 
 					co_return {};
 				}

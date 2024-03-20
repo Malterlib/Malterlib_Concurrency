@@ -92,6 +92,14 @@ namespace NMib::NConcurrency
 		}
 	;
 
+	template <typename tf_FDestroy>
+	auto fg_AsyncDestroyLogError(tf_FDestroy &&_fDestroy)
+		requires requires
+		{
+			_fDestroy() > fg_DiscardResult();
+		}
+	;
+
 	template <typename tf_CToCleanup>
 	auto fg_AsyncDestroy(tf_CToCleanup &_ToDestroy)
 		requires requires
@@ -102,6 +110,22 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CToCleanup>
 	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
+		requires requires
+		{
+			_pToDestroy->f_Destroy() > fg_DiscardResult();
+		}
+	;
+
+	template <typename tf_CToCleanup>
+	auto fg_AsyncDestroyLogError(tf_CToCleanup &_ToDestroy)
+		requires requires
+		{
+			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+		}
+	;
+
+	template <typename tf_CToCleanup>
+	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
 			_pToDestroy->f_Destroy() > fg_DiscardResult();

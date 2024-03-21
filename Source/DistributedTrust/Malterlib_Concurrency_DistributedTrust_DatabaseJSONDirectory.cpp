@@ -42,6 +42,7 @@ namespace NMib::NConcurrency
 
 		CInternal(CStr const &_BaseDirectory);
 
+		NStorage::TCSharedPointer<CCanDestroyTracker> m_pCanDestroyTracker = fg_Construct();
 		CStr m_BaseDirectory;
 		CSequencer m_Sequencer{"JSON Directory"};
 
@@ -119,6 +120,11 @@ namespace NMib::NConcurrency
 
 		co_await fg_Move(Internal.m_Sequencer).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/JSONDirectory", "Failed to destroy sequencer");
 
+		auto pCanDestroy = fg_Move(Internal.m_pCanDestroyTracker);
+		auto CanDetroyFuture = pCanDestroy->f_Future();
+		pCanDestroy.f_Clear();
+		co_await fg_Move(CanDetroyFuture);
+
 		co_return {};
 	}
 
@@ -189,7 +195,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					CBasicConfig BasicConfig;
@@ -221,7 +227,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _BasicConfig]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -238,7 +244,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -259,7 +265,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -278,7 +284,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _DefaultUser]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -295,7 +301,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -321,7 +327,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostName]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -342,7 +348,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostName, _Certificate]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -365,7 +371,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostName, _Certificate]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -388,7 +394,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostName]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -407,7 +413,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -435,7 +441,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Config]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -455,7 +461,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Config]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -474,7 +480,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -497,7 +503,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -522,7 +528,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _bIncludeFullInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -547,7 +553,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -568,7 +574,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]() -> NStorage::TCUniquePointer<CClient>
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID]() -> NStorage::TCUniquePointer<CClient>
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -589,7 +595,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -606,7 +612,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]() -> CStr
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID]() -> CStr
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -628,7 +634,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID, _Client]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -647,7 +653,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID, _Client]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -666,7 +672,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _HostID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -685,7 +691,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _bIncludeFullInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -715,7 +721,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -739,7 +745,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address, _ClientConnection]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -766,7 +772,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address, _ClientConnection]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -791,7 +797,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Address]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -809,7 +815,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _bIncludeFullInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -835,7 +841,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _NamespaceName]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -860,7 +866,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _NamespaceName, _Namespace]
 				{
 					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
 						DMibError("Invalid namespace name");
@@ -883,7 +889,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _NamespaceName, _Namespace]
 				{
 					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
 						DMibError("Invalid namespace name");
@@ -906,7 +912,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _NamespaceName]
 				{
 					if (!CActorDistributionManager::fs_IsValidNamespaceName(_NamespaceName))
 						DMibError("Invalid namespace name");
@@ -928,7 +934,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _bIncludeFullInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -953,7 +959,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Identity]
 				{
 					CStr FileName = _Identity.f_GetStr();
 					auto &Internal = *mp_pInternal;
@@ -975,7 +981,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Identity, _Permissions]
 				{
 					CStr FileName = _Identity.f_GetStr();
 					auto &Internal = *mp_pInternal;
@@ -995,7 +1001,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Identity, _Permissions]
 				{
 					CStr FileName = _Identity.f_GetStr();
 					auto &Internal = *mp_pInternal;
@@ -1015,7 +1021,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _Identity]
 				{
 					CStr FileName = _Identity.f_GetStr();
 					auto &Internal = *mp_pInternal;
@@ -1034,7 +1040,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1058,7 +1064,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1078,7 +1084,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID, _UserInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1097,7 +1103,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID, _UserInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1116,7 +1122,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1138,7 +1144,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _bIncludeFullInfo]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1169,7 +1175,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID, _FactorID, _Factor]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1195,7 +1201,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID, _FactorID, _Factor]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
@@ -1216,7 +1222,7 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		co_return co_await
 			(
-				g_Dispatch(BlockingActorCheckout) / [&]
+				g_Dispatch(BlockingActorCheckout) / [this, pCanDestroy = Internal.m_pCanDestroyTracker, _UserID, _FactorID]
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();

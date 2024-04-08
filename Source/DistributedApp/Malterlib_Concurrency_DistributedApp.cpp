@@ -1065,13 +1065,14 @@ namespace NMib::NConcurrency
 				(
 					[this](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)
 					{
+						m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
+
+						if (m_ApplyLoggingResults.m_LogActor)
+							m_bInstalledLogDispatcher = true;
+
 						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
 						{
 							EDistributedAppType AppType = EDistributedAppType_ForceLocal;
-
-							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
-							if (m_ApplyLoggingResults.m_LogActor)
-								m_bInstalledLogDispatcher = true;
 
 							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
 							m_bStartedApp = true;

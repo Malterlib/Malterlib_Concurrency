@@ -24,8 +24,6 @@ namespace NMib::NConcurrency
 			, m_Actor(_Actor)
 		{
 			m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
-			if (m_ApplyLoggingResults.m_LogActor)
-				m_bInstalledLogDispatcher = true;
 
 			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon)
 				> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
@@ -63,13 +61,14 @@ namespace NMib::NConcurrency
 				m_Actor = nullptr;
 			}
 
-#if (DMibSysLogSeverities) != 0
-			if (m_bInstalledLogDispatcher)
+			try
 			{
-				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 				m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
 			}
-#endif
+			catch (NException::CException const &_Exception)
+			{
+				DMibConErrOut("Error destroying logging: {}{\n}", _Exception.f_GetErrorStr());
+			}
 
 			m_ApplyLoggingResults = {};
 		}
@@ -77,7 +76,6 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedAppActor> m_Actor;
 		CApplyLoggingResults m_ApplyLoggingResults;
 		NStorage::TCSharedPointer<CRunLoop> m_pRunLoop;
-		bool m_bInstalledLogDispatcher = false;
 	};
 
 	CDistributedDaemon::CDistributedDaemon
@@ -445,6 +443,7 @@ namespace NMib::NConcurrency
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_RunAsProgram);
 				}
+				, EDistributedAppCommandFlag_DontApplyLogging
 			)
 		;
 		Section.f_RegisterDirectCommand
@@ -461,6 +460,7 @@ namespace NMib::NConcurrency
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_RunAsProgramNoDebug);
 				}
+				, EDistributedAppCommandFlag_DontApplyLogging
 			)
 		;
 		Section.f_RegisterDirectCommand
@@ -526,6 +526,7 @@ namespace NMib::NConcurrency
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Run);
 				}
+				, EDistributedAppCommandFlag_DontApplyLogging
 			)
 		;
 	}

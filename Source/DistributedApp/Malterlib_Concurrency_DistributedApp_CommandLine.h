@@ -115,6 +115,7 @@ namespace NMib::NConcurrency
 		EDistributedAppCommandFlag_None = 0
 		, EDistributedAppCommandFlag_RunLocalApp = DMibBit(0)
 		, EDistributedAppCommandFlag_WaitForRemotes = DMibBit(1)
+		, EDistributedAppCommandFlag_DontApplyLogging = DMibBit(2)
 	};
 
 	struct CCommandLineSpecificationDistributedAppCustomization

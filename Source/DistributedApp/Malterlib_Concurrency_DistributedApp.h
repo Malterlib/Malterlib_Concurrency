@@ -626,7 +626,6 @@ namespace NMib::NConcurrency
 		TCActor<CDistributedAppActor> m_AppActor;
 		CApplyLoggingResults m_ApplyLoggingResults;
 		bool m_bStartedApp = false;
-		bool m_bInstalledLogDispatcher = false;
 	};
 
 	aint fg_RunApp

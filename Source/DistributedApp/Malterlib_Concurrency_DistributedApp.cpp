@@ -936,10 +936,15 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
+#if DMibEnableSafeCheck > 0
+	static constinit NAtomic::TCAtomic<bool> g_bAppliedLogging{false};
+#endif
+
 	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSONSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
-		TCActor<CDistiributedAppLogActor> LogActor;
+		DMibFastCheck(!g_bAppliedLogging.f_Exchange(true));
 
+		TCActor<CDistiributedAppLogActor> LogActor;
 		CApplyLoggingResults Results;
 
 #if (DMibEnableTrace > 0) || ((DMibSysLogSeverities) != 0)
@@ -972,11 +977,13 @@ namespace NMib::NConcurrency
 				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(NLog::CLogToStdErrAnsi(NCommandLine::CCommandLineDefaults::fs_ParseAnsiEncodingParams(_Params), LogSeverities, false));
 		}
 
+		bool bInstalledLogDispatcher = false;
 		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
 		{
 			if (pParam->f_Boolean())
 			{
 				LogActor = fg_Construct(fg_Construct(), "Log Dispatcher");
+				bInstalledLogDispatcher = true;
 				fg_GetSys()->f_GetLogger().f_SetDispatcher
 					(
 						[LogActor](NFunction::TCFunctionMovable<void ()> &&_fToDispatch)
@@ -1001,14 +1008,24 @@ namespace NMib::NConcurrency
 
 			auto DestinationID = fg_GetSys()->f_GetLogger().f_PushGlobalDestination(CDistributedAppLogDestination(_DistributedLoggingApp, LogActor), false);
 
-			Results.m_CleanupLogging = g_OnScopeExitShared / [DestinationID]() mutable
+			Results.m_CleanupLogging = g_OnScopeExitShared / [DestinationID, bInstalledLogDispatcher]() mutable
 				{
+					if (bInstalledLogDispatcher)
+						fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
 					fg_GetSys()->f_GetLogger().f_RemoveGlobalDestination(DestinationID);
 				}
 			;
 		}
-#endif
 
+		if (bInstalledLogDispatcher && !Results.m_CleanupLogging)
+		{
+			Results.m_CleanupLogging = g_OnScopeExitShared / []() mutable
+				{
+					fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
+				}
+			;
+		}
+#endif
 		Results.m_LogActor = fg_Move(LogActor);
 
 		return Results;
@@ -1018,11 +1035,17 @@ namespace NMib::NConcurrency
 	{
 		if (m_CleanupLogging)
 		{
-			[[maybe_unused]] bool bDeleted = m_CleanupLogging.f_Clear();
+			bool bDeleted = m_CleanupLogging.f_Clear();
 			DMibFastCheck(bDeleted);
+			if (bDeleted)
+			{
+#if DMibEnableSafeCheck > 0
+				g_bAppliedLogging.f_Exchange(false);
+#endif
+				if (m_LogActor)
+					m_LogActor->f_BlockDestroy(_DestroyLoop);
+			}
 		}
-		if (m_LogActor)
-			m_LogActor->f_BlockDestroy(_DestroyLoop);
 	}
 
 	aint CRunDistributedAppHelper::f_RunCommandLine
@@ -1065,10 +1088,8 @@ namespace NMib::NConcurrency
 				(
 					[this](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)
 					{
-						m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
-
-						if (m_ApplyLoggingResults.m_LogActor)
-							m_bInstalledLogDispatcher = true;
+						if (!(_Flags & EDistributedAppCommandFlag_DontApplyLogging))
+							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
 
 						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
 						{
@@ -1095,9 +1116,9 @@ namespace NMib::NConcurrency
 						else
 							AppType = EDistributedAppType_CommandLine;
 
-						m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
-						if (m_ApplyLoggingResults.m_LogActor)
-							m_bInstalledLogDispatcher = true;
+						if (!(_Flags & EDistributedAppCommandFlag_DontApplyLogging))
+							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
+
 						if (_bStartApp || (_Flags & EDistributedAppCommandFlag_RunLocalApp))
 						{
 							m_AppActor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, AppType).f_CallSync(m_pRunLoop);
@@ -1161,13 +1182,7 @@ namespace NMib::NConcurrency
 
 		try
 		{
-#if (DMibSysLogSeverities) != 0
-			if (m_bInstalledLogDispatcher)
-			{
-				fg_GetSys()->f_GetLogger().f_SetDispatcher(nullptr);
-				m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
-			}
-#endif
+			m_ApplyLoggingResults.f_Destroy(m_pRunLoop->f_ActorDestroyLoop());
 		}
 		catch (NException::CException const &_Exception)
 		{

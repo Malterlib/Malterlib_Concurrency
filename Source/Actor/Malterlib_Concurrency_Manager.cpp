@@ -388,20 +388,23 @@ namespace NMib::NConcurrency
 #if DMibConfig_Concurrency_DebugFutures
 		{
 			DMibLock(m_FutureListLock);
-			DMibTrace("Futures alive:{\n}", 0);
-			for (auto &Future : this->m_Futures)
+			if (!this->m_Futures.f_IsEmpty())
 			{
-				DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
-
-#if DMibConfig_RefCountDebugging
-				mint iCallstack = 0;
-				for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
+				DMibTrace("Futures alive:{\n}", 0);
+				for (auto &Future : this->m_Futures)
 				{
-					DMibTrace2("        Reference callstack {}\n", iCallstack);
-					Callstack.f_Trace(12);
-					++iCallstack;
+					DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
+
+	#if DMibConfig_RefCountDebugging
+					mint iCallstack = 0;
+					for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
+					{
+						DMibTrace2("        Reference callstack {}\n", iCallstack);
+						Callstack.f_Trace(12);
+						++iCallstack;
+					}
+	#endif
 				}
-#endif
 			}
 			DMibFastCheck(m_Futures.f_IsEmpty());
 		}
@@ -799,21 +802,24 @@ namespace NMib::NConcurrency
 
 #if DMibConfig_Concurrency_DebugFutures
 					{
-						DMibTrace("Futures alive:{\n}", 0);
 						DMibLock(m_FutureListLock);
-						for (auto &Future : this->m_Futures)
+						if (!this->m_Futures.f_IsEmpty())
 						{
-							DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
-
-	#if DMibConfig_RefCountDebugging
-							mint iCallstack = 0;
-							for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
+							DMibTrace("Futures alive:{\n}", 0);
+							for (auto &Future : this->m_Futures)
 							{
-								DMibTrace2("        Reference callstack {}\n", iCallstack);
-								Callstack.f_Trace(12);
-								++iCallstack;
+								DMibTrace("    TCFuture<{}>   RefCount {}{\n}", Future.m_FutureTypeName << Future.m_RefCount.f_Get());
+
+		#if DMibConfig_RefCountDebugging
+								mint iCallstack = 0;
+								for (auto &Callstack : Future.m_RefCount.m_Debug->m_Callstacks)
+								{
+									DMibTrace2("        Reference callstack {}\n", iCallstack);
+									Callstack.f_Trace(12);
+									++iCallstack;
+								}
+		#endif
 							}
-	#endif
 						}
 					}
 #endif

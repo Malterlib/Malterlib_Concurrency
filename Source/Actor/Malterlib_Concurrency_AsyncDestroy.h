@@ -138,6 +138,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	auto fg_AsyncDestroyByValue(TCActor<tf_CActor> &_ToDestroy);
 
+	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_pToDestroy);
+
 	using CAsyncDestroy = TCAsyncDestroy<FUnitVoidFutureFunction>;
 	using CAsyncDestroyAwaiter = TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction>;
 

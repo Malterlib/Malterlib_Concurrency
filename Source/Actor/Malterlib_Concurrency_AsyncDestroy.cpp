@@ -66,6 +66,23 @@ namespace NMib::NConcurrency
 		return fg_Move(_fDestroy);
 	}
 
+	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_pToDestroy)
+	{
+		return fg_AsyncDestroyByValue
+			(
+				FUnitVoidFutureFunction
+				(
+					[pToDestroy = fg_Move(_pToDestroy)]() mutable -> TCFuture<void>
+					{
+						co_await fg_Exchange(pToDestroy, nullptr)->f_Destroy();
+
+						co_return {};
+					}
+				)
+			)
+		;
+	}
+
 	namespace NPrivate
 	{
 		void fg_AsyncDestroyLogErrorHelper(CAsyncResult const &_Result)

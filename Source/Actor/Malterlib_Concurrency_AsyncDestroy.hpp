@@ -231,7 +231,7 @@ namespace NMib::NConcurrency
 	{
 		return fg_AsyncDestroyByValue
 			(
-				[pToDestroy = _pToDestroy]() -> TCFuture<void>
+				[pToDestroy = fg_Forward<tf_CToCleanup>(_pToDestroy)]() -> TCFuture<void>
 				{
 					co_await pToDestroy->f_Destroy();
 

@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 		
 		TCFuture<CActorDistributionListenSettings> f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const;
 		
-		TCActor<ICActorDistributionManagerAccessHandler> f_GetAccessHandler() const;
+		TCFuture<TCActor<ICActorDistributionManagerAccessHandler>> f_GetAccessHandler() const;
 		TCActor<ICDistributedActorAuthenticationHandler> f_GetAuthenticationHandler() const;
 		static ICDistributedActorAuthenticationHandler::CChallenge fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID);
 		TCFuture<NContainer::TCVector<bool>> f_VerifyAuthenticationResponses

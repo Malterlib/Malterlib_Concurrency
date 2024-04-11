@@ -9,6 +9,8 @@ namespace NMib::NConcurrency
 	auto CDistributedActorTrustManager::f_EnumPermissions(bool _bIncludeHostInfo) -> TCFuture<CDistributedActorTrustManagerInterface::CEnumPermissionsResult>
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+		
 		CDistributedActorTrustManagerInterface::CEnumPermissionsResult Return;
 		NContainer::TCSet<NStr::CStr> HostIDs;
 		NContainer::TCSet<NStr::CStr> UserIDs;
@@ -100,6 +102,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user id");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto &Permissions = Internal.m_Permissions[_Identity];
 
 		for (auto const &Requirements : _Permissions)
@@ -192,6 +196,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user id");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto *pPermissions = Internal.m_Permissions.f_FindEqual(_Identity);
 		if (!pPermissions)
 			co_return {};
@@ -260,6 +266,8 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedActorTrustManager::f_RegisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions)
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+		
 		Internal.m_RegisteredPermissions += _Permissions;
 		co_return {};
 	}
@@ -267,6 +275,8 @@ namespace NMib::NConcurrency
 	TCFuture<void> CDistributedActorTrustManager::f_UnregisterPermissions(NContainer::TCSet<NStr::CStr> const &_Permissions)
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		Internal.m_RegisteredPermissions -= _Permissions;
 		co_return {};
 	}
@@ -386,6 +396,7 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(_Identity.f_GetHostID() && _Identity.f_GetUserID());
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!_ExpirationTime.f_IsValid())
 			co_return {};
@@ -414,7 +425,10 @@ namespace NMib::NConcurrency
 	{
 		if (!_Actor)
 			co_return DMibErrorInstance("Invalid destination actor");
-		
+
+		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		NStorage::TCSharedPointer<NPrivate::CTrustedPermissionSubscriptionState> pState = fg_Construct();
 		auto &State = *pState;
 		State.m_DispatchActor = _Actor;

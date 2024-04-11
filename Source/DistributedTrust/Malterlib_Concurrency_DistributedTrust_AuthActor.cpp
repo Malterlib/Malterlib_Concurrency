@@ -47,6 +47,8 @@ namespace NMib::NConcurrency
 	TCFuture<TCMap<CStr, CAuthenticationActorInfo>> CDistributedActorTrustManager::f_EnumAuthenticationActors() const
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+		
 		co_return Internal.m_AuthenticationActors;
 	}
 }

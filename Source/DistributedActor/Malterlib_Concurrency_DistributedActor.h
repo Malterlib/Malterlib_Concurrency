@@ -680,7 +680,7 @@ namespace NMib::NConcurrency
 
 		void f_SetSecurity(CDistributedActorSecurity const &_Security);
 		void f_SetAccessHandler(TCActor<ICActorDistributionManagerAccessHandler> const &_AccessHandler);
-		void f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames);
+		void f_SetHostnameTranslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames);
 
 		TCFuture<void> f_SetAuthenticationHandler
 			(

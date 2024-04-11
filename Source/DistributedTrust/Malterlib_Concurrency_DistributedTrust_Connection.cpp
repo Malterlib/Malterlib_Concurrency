@@ -174,73 +174,56 @@ namespace NMib::NConcurrency
 			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
 		)
 	{
-		TCPromise<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> Promise;
-
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address, fOnUseTicket = fg_Move(_fOnUseTicket), fOnCertificateSigned = fg_Move(_fOnCertificateSigned)]() mutable
+		co_await Internal.f_WaitForInit();
+
+		CListenConfig ListenConfig;
+		ListenConfig.m_Address = _Address;
+		auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+		if (!pListen)
+			co_return DMibErrorInstance("Could not find listen with this address");
+
+		auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
+		if (!pServerCertificate)
+			co_return DMibErrorInstance("Could not find and server certificate for this address");
+
+		CDistributedActorTrustManager::CTrustTicket TrustTicket;
+
+		TrustTicket.m_Token = NCryptography::fg_RandomID();
+		TrustTicket.m_ServerAddress = _Address;
+		TrustTicket.m_ServerPublicCert = Internal.m_BasicConfig.m_CACertificate;
+
+		auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];
+		TicketState.m_CreationTime = Internal.m_TicketTimer.f_Elapsed();
+		TicketState.m_fOnUseTicket = fg_Move(_fOnUseTicket);
+		TicketState.m_fOnCertificateSigned = fg_Move(_fOnCertificateSigned);
+
+		CTrustGenerateConnectionTicketResult Result;
+		Result.m_Ticket = fg_Move(TrustTicket);
+		if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
+		{
+			Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 
-					CListenConfig ListenConfig;
-					ListenConfig.m_Address = _Address;
-					auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
-					if (!pListen)
-					{
-						Promise.f_SetException(DMibErrorInstance("Could not find listen with this address"));
-						return;
-					}
+					auto *pTicket = Internal.m_Tickets.f_FindEqual(Token);
+					if (!pTicket)
+						co_return {};
 
-					auto *pServerCertificate = Internal.m_ServerCertificates.f_FindEqual(_Address.m_URL.f_GetHost());
-					if (!pServerCertificate)
-					{
-						Promise.f_SetException(DMibErrorInstance("Could not find and server certificate for this address"));
-						return;
-					}
+					TCActorResultVector<void> Destroys;
+					fg_Move(pTicket->m_fOnUseTicket).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(pTicket->m_fOnCertificateSigned).f_Destroy() > Destroys.f_AddResult();
 
-					CDistributedActorTrustManager::CTrustTicket TrustTicket;
+					Internal.m_Tickets.f_Remove(Token);
 
-					TrustTicket.m_Token = NCryptography::fg_RandomID();
-					TrustTicket.m_ServerAddress = _Address;
-					TrustTicket.m_ServerPublicCert = Internal.m_BasicConfig.m_CACertificate;
+					co_await Destroys.f_GetResults();
 
-					auto &TicketState = Internal.m_Tickets[TrustTicket.m_Token];
-					TicketState.m_CreationTime = Internal.m_TicketTimer.f_Elapsed();
-					TicketState.m_fOnUseTicket = fg_Move(fOnUseTicket);
-					TicketState.m_fOnCertificateSigned = fg_Move(fOnCertificateSigned);
-
-					CTrustGenerateConnectionTicketResult Result;
-					Result.m_Ticket = fg_Move(TrustTicket);
-					if (TicketState.m_fOnUseTicket || TicketState.m_fOnCertificateSigned)
-					{
-						Result.m_NotificationsSubscription = g_ActorSubscription / [this, Token = TrustTicket.m_Token]() -> TCFuture<void>
-							{
-								auto &Internal = *mp_pInternal;
-
-								auto *pTicket = Internal.m_Tickets.f_FindEqual(Token);
-								if (!pTicket)
-									co_return {};
-
-								TCActorResultVector<void> Destroys;
-								fg_Move(pTicket->m_fOnUseTicket).f_Destroy() > Destroys.f_AddResult();
-								fg_Move(pTicket->m_fOnCertificateSigned).f_Destroy() > Destroys.f_AddResult();
-
-								Internal.m_Tickets.f_Remove(Token);
-
-								co_await Destroys.f_GetResults();
-
-								co_return {};
-							}
-						;
-					}
-
-					Promise.f_SetResult(fg_Move(Result));
+					co_return {};
 				}
-			)
-		;
-		return Promise.f_MoveFuture();
+			;
+		}
+
+		co_return fg_Move(Result);
 	}
 
 	void CDistributedActorTrustManager::CInternal::f_RemoveClientConnection(CConnectionState *_pClientConnection)
@@ -325,7 +308,6 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		auto &Internal = *mp_pInternal;
-
 		co_await Internal.f_WaitForInit();
 
 		NStr::CStr ServerHostID;
@@ -525,59 +507,36 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
+		co_await Internal.f_WaitForInit();
+
+		auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnectionState)
+			co_return DMibErrorInstance("No such client connection");
+
+		if (_ConnectionConcurrency == pClientConnectionState->m_ClientConnection.m_ConnectionConcurrency)
+			co_return {};
+
+		auto NewClientConnection = pClientConnectionState->m_ClientConnection;
+		NewClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
+
+		co_await
 			(
-				Promise
-				, [this, Promise, _Address, _ConnectionConcurrency]
-				{
-					auto &Internal = *mp_pInternal;
-
-					auto *pClientConnectionState = Internal.m_ClientConnections.f_FindEqual(_Address);
-					if (!pClientConnectionState)
-					{
-						Promise.f_SetException(DMibErrorInstance("No such client connection"));
-						return;
-					}
-
-					if (_ConnectionConcurrency == pClientConnectionState->m_ClientConnection.m_ConnectionConcurrency)
-					{
-						Promise.f_SetResult();
-						return;
-					}
-
-					auto NewClientConnection = pClientConnectionState->m_ClientConnection;
-					NewClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
-
-					Internal.m_Database
-						(
-							&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
-							, _Address
-							, NewClientConnection
-						)
-						> Promise % "Failed to save client connection to database"
-						/
-						[
-							this
-							, Promise
-							, _Address
-							, _ConnectionConcurrency
-						]
-						() mutable
-						{
-							auto &Internal = *mp_pInternal;
-
-							auto &LocalClientConnection = Internal.m_ClientConnections[_Address];
-							LocalClientConnection.m_ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
-							Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
-							Promise.f_SetResult();
-						}
-					;
-				}
+				Internal.m_Database
+				(
+					&ICDistributedActorTrustManagerDatabase::f_SetClientConnection
+					, _Address
+					, NewClientConnection
+				)
+				% "Failed to save client connection to database"
 			)
 		;
-		return Promise.f_MoveFuture();
+
+		auto &LocalClientConnection = Internal.m_ClientConnections[_Address];
+		LocalClientConnection.m_ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
+		Internal.f_ApplyConnectionConcurrency(LocalClientConnection);
+
+		co_return {};
 	}
 
 	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
@@ -589,7 +548,6 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		auto &Internal = *mp_pInternal;
-
 		co_await Internal.f_WaitForInit();
 
 		auto *pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
@@ -762,220 +720,154 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address, _bPreserveHost]
-				{
-					auto &Internal = *mp_pInternal;
-					Internal.m_ClientConnectionsInDatabase.f_Remove(_Address);
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address)
-						> Promise % "Failed to remove client connection from database" / [this, Promise, _Address, _bPreserveHost]
-						{
-							auto &Internal = *mp_pInternal;
-							auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
-							if (!pClientConnection)
-								return Promise.f_SetResult();
+		co_await Internal.f_WaitForInit();
 
-							pClientConnection->m_bRemoving = true;
+		Internal.m_ClientConnectionsInDatabase.f_Remove(_Address);
+		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClientConnection, _Address) % "Failed to remove client connection from database");
 
-							TCActorResultVector<void> DisconnectResults;
-							for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
-								ConnectionReference.f_Disconnect(_bPreserveHost) > DisconnectResults.f_AddResult();
+		auto pClientConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (!pClientConnection)
+			co_return {};
 
-							DisconnectResults.f_GetResults() > Promise % "Failed to disconnect client connection"
-								/ [this, _Address, Promise](NContainer::TCVector<TCAsyncResult<void>> &&_Results)
-								{
-									for (auto &Result : _Results)
-									{
-										if (!Result)
-										{
-											DMibLogWithCategory
-												(
-													Mib/Concurrency/Trust
-													, Error
-													, "Failed disconnect connection when removing client connection: {}"
-													, Result.f_GetExceptionStr()
-												)
-											;
-										}
-									}
-									auto &Internal = *mp_pInternal;
-									auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
-									if (pConnection)
-										Internal.f_RemoveClientConnection(pConnection);
-									Promise.f_SetResult();
-								}
-							;
-						}
-					;
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		pClientConnection->m_bRemoving = true;
+
+		TCActorResultVector<void> DisconnectResults;
+		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
+			ConnectionReference.f_Disconnect(_bPreserveHost) > DisconnectResults.f_AddResult();
+
+		(co_await DisconnectResults.f_GetUnwrappedResults().f_Wrap()) > fg_LogError("Mib/Concurrency/Trust", "Failed disconnect connections when removing client connection");
+
+		auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
+		if (pConnection)
+			Internal.f_RemoveClientConnection(pConnection);
+
+		co_return {};
 	}
 
 	auto CDistributedActorTrustManager::f_EnumClientConnections() -> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>>
 	{
-		TCPromise<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo>> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
+		co_await Internal.f_WaitForInit();
+
+		NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo> Addresses;
+		bool bMissingHost = false;
+		for (auto iClientConnection = Internal.m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
+		{
+			auto &ClientConnection = *iClientConnection;
+			auto &Address = Addresses[iClientConnection.f_GetKey()];
+			if (ClientConnection.m_pHost)
+			{
+				Address.m_HostInfo.m_HostID = ClientConnection.m_pHost->f_GetHostID();
+				Address.m_HostInfo.m_FriendlyName = ClientConnection.m_pHost->m_FriendlyName;
+				Address.m_ConnectionConcurrency = ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+			}
+			else
+				bMissingHost = true;
+		}
+
+		if (!bMissingHost)
+			co_return fg_Move(Addresses);
+
+		auto ClientConnections = co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true) % "Failed to enum client connections in database");
+
+		for (auto &ClientConnectionEntry : ClientConnections.f_Entries())
+		{
+			auto &ClientConnection = ClientConnectionEntry.f_Value();
+
+			auto &Client = Addresses[ClientConnectionEntry.f_Key()];
+
+			if (Client.m_HostInfo.m_HostID.f_IsEmpty())
+			{
+				try
 				{
-					auto &Internal = *mp_pInternal;
-					NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnectionInfo> Addresses;
-					bool bMissingHost = false;
-					for (auto iClientConnection = Internal.m_ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
-					{
-						auto &ClientConnection = *iClientConnection;
-						auto &Address = Addresses[iClientConnection.f_GetKey()];
-						if (ClientConnection.m_pHost)
-						{
-							Address.m_HostInfo.m_HostID = ClientConnection.m_pHost->f_GetHostID();
-							Address.m_HostInfo.m_FriendlyName = ClientConnection.m_pHost->m_FriendlyName;
-							Address.m_ConnectionConcurrency = ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
-						}
-						else
-							bMissingHost = true;
-					}
-
-					if (!bMissingHost)
-					{
-						Promise.f_SetResult(fg_Move(Addresses));
-						return;
-					}
-
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClientConnections, true)
-						> (Promise % "Failed to enum client connections in database")
-						/ [Promise, Addresses = fg_Move(Addresses)](NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> &&_ClientConnections) mutable
-						{
-							for (auto iClientConnection = _ClientConnections.f_GetIterator(); iClientConnection; ++iClientConnection)
-							{
-								auto &Client = Addresses[iClientConnection.f_GetKey()];
-								if (Client.m_HostInfo.m_HostID.f_IsEmpty())
-								{
-									try
-									{
-										Client.m_HostInfo.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(iClientConnection->m_PublicServerCertificate);
-									}
-									catch (NException::CException const &)
-									{
-									}
-									Client.m_HostInfo.m_FriendlyName = iClientConnection->m_LastFriendlyName;
-									Client.m_ConnectionConcurrency = iClientConnection->m_ConnectionConcurrency;
-								}
-							}
-							Promise.f_SetResult(fg_Move(Addresses));
-						}
-					;
+					Client.m_HostInfo.m_HostID = CActorDistributionManager::fs_GetCertificateHostID(ClientConnection.m_PublicServerCertificate);
 				}
-			)
-		;
-		return Promise.f_MoveFuture();
+				catch (NException::CException const &)
+				{
+				}
+				Client.m_HostInfo.m_FriendlyName = ClientConnection.m_LastFriendlyName;
+				Client.m_ConnectionConcurrency = ClientConnection.m_ConnectionConcurrency;
+			}
+		}
+
+		co_return fg_Move(Addresses);
 	}
 
 	TCFuture<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
 	{
-		TCPromise<bool> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address]
-				{
-					auto &Internal = *mp_pInternal;
-					Promise.f_SetResult(Internal.m_ClientConnections.f_FindEqual(_Address) != nullptr);
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		co_return Internal.m_ClientConnections.f_FindEqual(_Address) != nullptr;
 	}
 
 	TCFuture<CDistributedActorTrustManager::CConnectionState> CDistributedActorTrustManager::f_GetConnectionState()
 	{
-		TCPromise<CDistributedActorTrustManager::CConnectionState> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
+		co_await Internal.f_WaitForInit();
+
+		TCActorResultMap<CDistributedActorTrustManager_Address, NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>> ConnectionResults;
+		NContainer::TCMap<CDistributedActorTrustManager_Address, NStr::CStr> FriendlyNames;
+		for (auto iConnection = Internal.m_ClientConnections.f_GetIterator(); iConnection; ++iConnection)
+		{
+			TCActorResultVector<CDistributedActorConnectionStatus> StatusResults;
+			for (auto &ConnectionReference : iConnection->m_ConnectionReferences)
+				ConnectionReference.f_GetStatus() > StatusResults.f_AddResult();
+
+			StatusResults.f_GetResults() > ConnectionResults.f_AddResult(iConnection->f_GetAddress());
+
+			FriendlyNames[iConnection->f_GetAddress()] = iConnection->m_ClientConnection.m_LastFriendlyName;
+		}
+
+		auto Results = co_await ConnectionResults.f_GetResults();
+		CDistributedActorTrustManager::CConnectionState ConnectionState;
+		for (auto &StatusesEntry : Results.f_Entries())
+		{
+			auto &Address = StatusesEntry.f_Key();
+			auto &StatusResults = StatusesEntry.f_Value();
+
+			if (!StatusResults)
+				continue;
+
+			for (auto &StatusResult : *StatusResults)
+			{
+				if (!StatusResult)
 				{
-					auto &Internal = *mp_pInternal;
-					TCActorResultMap<CDistributedActorTrustManager_Address, NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>> ConnectionResults;
-					NContainer::TCMap<CDistributedActorTrustManager_Address, NStr::CStr> FriendlyNames;
-					for (auto iConnection = Internal.m_ClientConnections.f_GetIterator(); iConnection; ++iConnection)
+					auto &OutAddressState = ConnectionState.m_Hosts["Unknown"].m_Addresses[Address];
+					auto &OutStatus = OutAddressState.m_States.f_Insert();
+					OutStatus.m_bConnected = false;
+					OutStatus.m_Error = StatusResult.f_GetExceptionStr();
+					OutStatus.m_ErrorTime = NTime::CTime::fs_NowUTC();
+
+					if (auto *pFriendly = FriendlyNames.f_FindEqual(Address))
 					{
-						TCActorResultVector<CDistributedActorConnectionStatus> StatusResults;
-						for (auto &ConnectionReference : iConnection->m_ConnectionReferences)
-							ConnectionReference.f_GetStatus() > StatusResults.f_AddResult();
-
-						StatusResults.f_GetResults() > ConnectionResults.f_AddResult(iConnection->f_GetAddress());
-
-						FriendlyNames[iConnection->f_GetAddress()] = iConnection->m_ClientConnection.m_LastFriendlyName;
+						OutAddressState.m_HostInfo.m_HostID = "Unknown";
+						OutAddressState.m_HostInfo.m_FriendlyName = *pFriendly;
 					}
-
-					ConnectionResults.f_GetResults()
-						> Promise / [Promise, FriendlyNames = fg_Move(FriendlyNames)]
-						(NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>>> &&_Results)
-						{
-							CDistributedActorTrustManager::CConnectionState ConnectionState;
-							for (auto iStatuses = _Results.f_GetIterator(); iStatuses; ++iStatuses)
-							{
-								auto &Address = iStatuses.f_GetKey();
-								auto &StatusResults = *iStatuses;
-
-								if (!StatusResults)
-								{
-									continue;
-								}
-								for (auto &StatusResult : *StatusResults)
-								{
-									if (!StatusResult)
-									{
-										auto &OutAddressState = ConnectionState.m_Hosts["Unknown"].m_Addresses[Address];
-										auto &OutStatus = OutAddressState.m_States.f_Insert();
-										OutStatus.m_bConnected = false;
-										OutStatus.m_Error = StatusResult.f_GetExceptionStr();
-										OutStatus.m_ErrorTime = NTime::CTime::fs_NowUTC();
-
-										if (auto *pFriendly = FriendlyNames.f_FindEqual(Address))
-										{
-											OutAddressState.m_HostInfo.m_HostID = "Unknown";
-											OutAddressState.m_HostInfo.m_FriendlyName = *pFriendly;
-										}
-										continue;
-									}
-									auto &Status = *StatusResult;
-									auto &OutAddressState = ConnectionState.m_Hosts[Status.m_HostInfo.m_HostID].m_Addresses[Address];
-									OutAddressState.m_HostInfo = Status.m_HostInfo;
-									if (OutAddressState.m_HostInfo.m_FriendlyName.f_IsEmpty())
-									{
-										if (auto *pFriendly = FriendlyNames.f_FindEqual(Address))
-											OutAddressState.m_HostInfo.m_FriendlyName = *pFriendly;
-									}
-									auto &OutStatus = OutAddressState.m_States.f_Insert();
-									OutStatus.m_bConnected = Status.m_bConnected;
-									OutStatus.m_Error = Status.m_Error;
-									OutStatus.m_ErrorTime = Status.m_ErrorTime;
-								}
-							}
-							Promise.f_SetResult(ConnectionState);
-						}
-					;
+					continue;
 				}
-			)
-		;
-		return Promise.f_MoveFuture();
+				auto &Status = *StatusResult;
+				auto &OutAddressState = ConnectionState.m_Hosts[Status.m_HostInfo.m_HostID].m_Addresses[Address];
+				OutAddressState.m_HostInfo = Status.m_HostInfo;
+				if (OutAddressState.m_HostInfo.m_FriendlyName.f_IsEmpty())
+				{
+					if (auto *pFriendly = FriendlyNames.f_FindEqual(Address))
+						OutAddressState.m_HostInfo.m_FriendlyName = *pFriendly;
+				}
+				auto &OutStatus = OutAddressState.m_States.f_Insert();
+				OutStatus.m_bConnected = Status.m_bConnected;
+				OutStatus.m_Error = Status.m_Error;
+				OutStatus.m_ErrorTime = Status.m_ErrorTime;
+			}
+		}
+
+		co_return fg_Move(ConnectionState);
 	}
 
 	TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> CDistributedActorTrustManager::f_GetConnectionsDebugStats()
 	{
 		auto &Internal = *mp_pInternal;
-
 		co_await Internal.f_WaitForInit();
 
 		CDistributedActorTrustManagerInterface::CConnectionsDebugStats DebugStats;
@@ -988,7 +880,6 @@ namespace NMib::NConcurrency
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostFriendlyName(NStr::CStr const &_HostID)
 	{
 		auto &Internal = *mp_pInternal;
-
 		co_await Internal.f_WaitForInit();
 
 		if (_HostID == Internal.m_BasicConfig.m_HostID)

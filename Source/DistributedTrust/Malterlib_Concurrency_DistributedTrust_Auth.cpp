@@ -110,6 +110,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
 

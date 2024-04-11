@@ -10,6 +10,7 @@
 #include <Mib/Concurrency/ActorCallOnce>
 #include <Mib/Concurrency/DistributedActorAuthentication>
 #include <Mib/Concurrency/DistributedActorAuthenticationHandler>
+#include <Mib/Concurrency/ActorSequencerActor>
 
 namespace NMib::NConcurrency
 {
@@ -117,7 +118,7 @@ namespace NMib::NConcurrency
 			mint m_SubscriptionSequence = 0;
 			bool m_bExistsInDatabase = false;
 			bool m_bSubscribing = false;
-			NContainer::TCVector<NFunction::TCFunctionMovable<bool (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
+			NContainer::TCVector<NFunction::TCFunctionMovable<void (TCAsyncResult<void> const &_Result, CNamespaceState &_NamespaceState)>> m_OnSubscribe;
 
 			inline NStr::CStr const &f_GetNamespaceName() const;
 		};
@@ -203,25 +204,8 @@ namespace NMib::NConcurrency
 		;
 		~CInternal();
 
-		TCFuture<NStr::CStr> f_InitAttempt();
-		void f_Init
-			(
-				TCPromise<NStr::CStr> &_Promise
-				, CBasicConfig const &_Basic
-				, CDefaultUser const &_DefaultUser
-				, NContainer::TCSet<CListenConfig> const &_Listen
-				, NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_PrimaryListen
-				, NContainer::TCMap<NStr::CStr, CServerCertificate> const &_ServerCertificates
-				, NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection> const &_ClientConnections
-				, NContainer::TCMap<NStr::CStr, CNamespace> const &_Namespaces
-				, NContainer::TCMap<CPermissionIdentifiers, CPermissions> const &_Permissions
-				, NContainer::TCMap<NStr::CStr, NDistributedActorTrustManagerDatabase::CUserInfo> const &_Users
-				, NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>> &_AuthenticationFactors
-			)
-		;
+		TCFuture<void> f_Init();
 
-		template <typename tf_CReturn>
-		void f_RunAfterInit(TCPromise<tf_CReturn> const &_Promise, NFunction::TCFunctionMovable<void ()> &&_fToRun);
 		TCFuture<void> f_WaitForInit();
 
 		void f_RemoveClientConnection(CConnectionState *_pClientConnection);
@@ -233,7 +217,7 @@ namespace NMib::NConcurrency
 				, CCallingHostInfo _HostInfo
 			)
 		;
-		TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain);
+		TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain);
 
 		NMib::NConcurrency::CActorDistributionConnectionSettings f_GetConnectionSettings(CConnectionState const &_State);
 
@@ -261,7 +245,7 @@ namespace NMib::NConcurrency
 
 		TCDistributedActorInstance<CDistributedActorAuthenticationImplementation> m_AuthenticationInterface;
 
-		NStorage::TCUniquePointer<TCActorCallOnce<NStr::CStr>> m_pInitOnce;
+		CSequencer m_InitSequencer{"Init"};
 
 		CActorSubscription m_HostInfoChangedSubscription;
 
@@ -303,7 +287,7 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<NStr::CStr, NStr::CStr> m_TranslateHostnames;
 
 		EInitialize m_Initialize = EInitialize_None;
-		NStr::CStr m_InitializeError;
+		NException::CExceptionPointer m_pInitializeException;
 
 		NContainer::TCVector<TCPromise<void>> m_AwaitingConnection;
 

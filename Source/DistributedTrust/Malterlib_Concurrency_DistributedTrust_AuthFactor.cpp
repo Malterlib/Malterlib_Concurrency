@@ -18,6 +18,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!Internal.m_Users.f_FindEqual(_UserID))
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
@@ -37,6 +38,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!Internal.m_Users.f_FindEqual(_UserID))
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
@@ -58,6 +60,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!Internal.m_Users.f_FindEqual(_UserID))
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
@@ -85,6 +88,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!Internal.m_Users.f_FindEqual(_UserID))
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
@@ -117,6 +121,7 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (!Internal.m_Users.f_FindEqual(_UserID))
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);

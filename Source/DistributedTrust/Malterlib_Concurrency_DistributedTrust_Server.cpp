@@ -11,465 +11,255 @@ namespace NMib::NConcurrency
 {
 	TCFuture<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const
 	{
-		TCPromise<CActorDistributionListenSettings> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
+		co_await Internal.f_WaitForInit();
+
+		auto fDoReturn = [&](CServerCertificate const *_pServerCert)
+			{
+				auto &Internal = *mp_pInternal;
+
+				CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(_Address.m_URL));
+				ListenSettings.m_PrivateKey = _pServerCert->m_PrivateKey;
+				ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
+				ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;
+				ListenSettings.m_bRetryOnListenFailure = false;
+				ListenSettings.m_ListenFlags = Internal.m_ListenFlags;
+
+				return ListenSettings;
+			}
+		;
+
+		auto Host = _Address.m_URL.f_GetHost();
+
+		auto *pServerCert = Internal.m_ServerCertificates.f_FindEqual(Host);
+		if (pServerCert)
+			co_return fDoReturn(pServerCert);
+
+		auto Serial = co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) % "Failed to get new certificate serial");
+
+		// Because of performance of generating a new key, run on separate actor
+		auto ServerCert = co_await
 			(
-				Promise
-				, [this, Promise, _Address]()
-				{
-					auto &Internal = *mp_pInternal;
-
-					auto fDoReturn = [this, Promise, _Address](CServerCertificate const *_pServerCert)
-						{
-							auto &Internal = *mp_pInternal;
-
-							CActorDistributionListenSettings ListenSettings(NContainer::fg_CreateVector<NWeb::NHTTP::CURL>(_Address.m_URL));
-							ListenSettings.m_PrivateKey = _pServerCert->m_PrivateKey;
-							ListenSettings.m_CACertificate = Internal.m_BasicConfig.m_CACertificate;
-							ListenSettings.m_PublicCertificate = _pServerCert->m_PublicCertificate;
-							ListenSettings.m_bRetryOnListenFailure = false;
-							ListenSettings.m_ListenFlags = Internal.m_ListenFlags;
-
-							Promise.f_SetResult(fg_Move(ListenSettings));
-						}
-					;
-
-					auto Host = _Address.m_URL.f_GetHost();
-
-					auto *pServerCert = Internal.m_ServerCertificates.f_FindEqual(Host);
-					if (pServerCert)
+				fg_ConcurrentDispatch
+				(
+					[
+						CaCertificate = Internal.m_BasicConfig.m_CACertificate
+						, CaPrivateKey = Internal.m_BasicConfig.m_CAPrivateKey
+						, KeySetting = Internal.m_KeySetting
+						, Host
+						, HostID = Internal.m_BasicConfig.m_HostID
+						, Serial
+					]
+					() -> TCFuture<ICDistributedActorTrustManagerDatabase::CServerCertificate>
 					{
-						fDoReturn(pServerCert);
-						return;
-					}
+						NCryptography::CCertificateOptions Options;
+						Options.m_KeySetting = KeySetting;
+						Options.m_CommonName = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
+						Options.m_Hostnames.f_Insert(Host);
+						auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
+						Extension.m_bCritical = false;
+						Extension.m_Value = HostID;
 
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetNewCertificateSerial) > [this, Promise, Host, fDoReturn](TCAsyncResult<int32> &&_Serial)
+						NContainer::CByteVector CertificateRequest;
+						ICDistributedActorTrustManagerDatabase::CServerCertificate ServerCert;
+						try
 						{
-							auto &Internal = *mp_pInternal;
-
-							if (!_Serial)
-							{
-								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to get new certificate serial: {}", _Serial.f_GetExceptionStr())));
-								return;
-							}
-
-							// Because of performance of generating a new key, run on separate actor
-							fg_ConcurrentDispatch
+							NCryptography::CCertificate::fs_GenerateClientCertificateRequest
 								(
-									[
-										CaCertificate = Internal.m_BasicConfig.m_CACertificate
-										, CaPrivateKey = Internal.m_BasicConfig.m_CAPrivateKey
-										, KeySetting = Internal.m_KeySetting
-										, Host
-										, HostID = Internal.m_BasicConfig.m_HostID
-										, Serial = *_Serial
-									]
-									{
-										NCryptography::CCertificateOptions Options;
-										Options.m_KeySetting = KeySetting;
-										Options.m_CommonName = fg_Format("Malterlib Distributed Actors Listen - {}", Host).f_Left(64);
-										Options.m_Hostnames.f_Insert(Host);
-										auto &Extension = Options.m_Extensions["MalterlibHostID"].f_Insert();
-										Extension.m_bCritical = false;
-										Extension.m_Value = HostID;
-
-										NContainer::CByteVector CertificateRequest;
-										ICDistributedActorTrustManagerDatabase::CServerCertificate ServerCert;
-										try
-										{
-											NCryptography::CCertificate::fs_GenerateClientCertificateRequest
-												(
-													Options
-													, CertificateRequest
-													, ServerCert.m_PrivateKey
-												)
-											;
-										}
-										catch (NException::CException const &_Exception)
-										{
-											DMibError(fg_Format("Failed to generate listen certificate request: {}", _Exception.f_GetErrorStr()));
-										}
-
-										try
-										{
-											NCryptography::CCertificateSignOptions SignOptions;
-											SignOptions.m_Serial = Serial;
-											SignOptions.m_Days = 10*365;
-
-											NCryptography::CCertificate::fs_SignClientCertificate
-												(
-													CaCertificate
-													, CaPrivateKey
-													, CertificateRequest
-													, ServerCert.m_PublicCertificate
-													, SignOptions
-												)
-											;
-										}
-										catch (NException::CException const &_Exception)
-										{
-											DMibError(fg_Format("Failed to generate sign certificate request: {}", _Exception.f_GetErrorStr()));
-										}
-
-										return ServerCert;
-									}
+									Options
+									, CertificateRequest
+									, ServerCert.m_PrivateKey
 								)
-								> [this, Promise, Host, fDoReturn](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CServerCertificate> &&_ServerCert)
-								{
-									auto &Internal = *mp_pInternal;
-
-									if (!_ServerCert)
-									{
-										Promise.f_SetException(fg_Move(_ServerCert));
-										return;
-									}
-
-									auto &ServerCert = *_ServerCert;
-									Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddServerCertificate, Host, ServerCert)
-										> [this, Promise, ServerCert, Host, fDoReturn](TCAsyncResult<void> &&_Result)
-										{
-											if (!_Result)
-											{
-												Promise.f_SetException
-													(
-														DMibErrorInstance
-														(
-															fg_Format("Failed to save new server certificate to database: {}", _Result.f_GetExceptionStr())
-														)
-													)
-												;
-												return;
-											}
-
-											auto &Internal = *mp_pInternal;
-
-											Internal.m_ServerCertificates[Host] = ServerCert;
-
-											fDoReturn(&ServerCert);
-										}
-									;
-								}
 							;
 						}
-					;
-				}
+						catch (NException::CException const &_Exception)
+						{
+							co_return DMibErrorInstance(fg_Format("Failed to generate listen certificate request: {}", _Exception.f_GetErrorStr()));
+						}
+
+						try
+						{
+							NCryptography::CCertificateSignOptions SignOptions;
+							SignOptions.m_Serial = Serial;
+							SignOptions.m_Days = 10*365;
+
+							NCryptography::CCertificate::fs_SignClientCertificate
+								(
+									CaCertificate
+									, CaPrivateKey
+									, CertificateRequest
+									, ServerCert.m_PublicCertificate
+									, SignOptions
+								)
+							;
+						}
+						catch (NException::CException const &_Exception)
+						{
+							co_return DMibErrorInstance(fg_Format("Failed to generate sign certificate request: {}", _Exception.f_GetErrorStr()));
+						}
+
+						co_return fg_Move(ServerCert);
+					}
+				)
 			)
 		;
-		return Promise.f_MoveFuture();
+
+		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddServerCertificate, Host, ServerCert) % "Failed to save new server certificate to database");
+
+		auto &CertOutput = Internal.m_ServerCertificates[Host] = fg_Move(ServerCert);
+
+		co_return fDoReturn(&CertOutput);
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
+		co_await Internal.f_WaitForInit();
+
+		CListenConfig ListenConfig;
+		ListenConfig.m_Address = _Address;
+
+		auto pOld = Internal.m_Listen.f_FindEqual(ListenConfig);
+		if (pOld)
+			co_return DMibErrorInstance("Already listening to address");
+
+		auto ListenSettings = co_await self(&CDistributedActorTrustManager::f_GetCertificateData, _Address);
+
+		auto ListenReference = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(ListenSettings)) % "Failed to listen");
+
+		auto &ListenState = Internal.m_Listen[ListenConfig];
+		ListenState.m_ListenReference = fg_Move(ListenReference);
+
+		auto ConfigAddResult = co_await 
 			(
-				Promise
-				, [this, Promise, _Address]()
-				{
-					auto &Internal = *mp_pInternal;
-
-					CListenConfig ListenConfig;
-					ListenConfig.m_Address = _Address;
-
-					auto pOld = Internal.m_Listen.f_FindEqual(ListenConfig);
-					if (pOld)
-					{
-						Promise.f_SetException(DMibErrorInstance("Already listening to address"));
-						return;
-					}
-
-					f_GetCertificateData(_Address) > Promise / [this, Promise, _Address, ListenConfig](CActorDistributionListenSettings &&_ListenSettings)
-						{
-							auto &Internal = *mp_pInternal;
-
-							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(_ListenSettings))
-								> [this, Promise, ListenConfig](TCAsyncResult<CDistributedActorListenReference> &&_ListenRef)
-								{
-									auto &Internal = *mp_pInternal;
-
-									if (!_ListenRef)
-									{
-										Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to listen: {}", _ListenRef.f_GetExceptionStr())));
-										return;
-									}
-									auto &ListenState = Internal.m_Listen[ListenConfig];
-									ListenState.m_ListenReference = fg_Move(*_ListenRef);
-
-									Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, ListenConfig)
-										> [this, Promise, ListenConfig](TCAsyncResult<void> &&_Result)
-										{
-											auto &Internal = *mp_pInternal;
-
-											if (!_Result)
-											{
-												Internal.m_Listen.f_Remove(ListenConfig);
-
-												Promise.f_SetException
-													(
-														DMibErrorInstance
-														(
-															fg_Format("Failed to save new listen config to database: {}", _Result.f_GetExceptionStr())
-														)
-													)
-												;
-												return;
-											}
-
-											Promise.f_SetResult();
-										}
-									;
-								}
-							;
-						}
-					;
-				}
-			)
+				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, ListenConfig) 
+				% "Failed to save new listen config to database"
+			).f_Wrap()
 		;
-		return Promise.f_MoveFuture();
+
+		if (!ConfigAddResult)
+		{
+			Internal.m_Listen.f_Remove(ListenConfig);
+			co_return ConfigAddResult.f_GetException();
+		}
+
+		co_return {};
 	}
 
 	TCFuture<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		TCPromise<bool> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address]()
-				{
-					auto &Internal = *mp_pInternal;
-					ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-					ListenConfig.m_Address = _Address;
-					auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
-					Promise.f_SetResult(pListenConfig != nullptr);
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
+		ListenConfig.m_Address = _Address;
+
+		auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
+
+		co_return pListenConfig != nullptr;
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address]
-				{
-					auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
-					if (_Address)
-					{
-						ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-						ListenConfig.m_Address = *_Address;
+		if (_Address)
+		{
+			ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
+			ListenConfig.m_Address = *_Address;
 
-						auto pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
-						if (!pListen)
-						{
-							Promise.f_SetException(DMibErrorInstance("Listen address not found"));
-							return;
-						}
+			auto pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+			if (!pListen)
+				co_return DMibErrorInstance("Listen address not found");
 
-						Internal.m_pPrimaryListen = pListen;
-					}
-					else
-						Internal.m_pPrimaryListen = nullptr;
+			Internal.m_pPrimaryListen = pListen;
+		}
+		else
+			Internal.m_pPrimaryListen = nullptr;
 
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetPrimaryListen, _Address) > [Promise](TCAsyncResult<void> &&_Result)
-						{
-							if (!_Result)
-							{
-								Promise.f_SetException(DMibErrorInstance(fg_Format("Failed to set primary listen in database: {}", _Result.f_GetExceptionStr())));
-								return;
-							}
+		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_SetPrimaryListen, _Address) % "Failed to set primary listen in database");
 
-							Promise.f_SetResult();
-						}
-					;
-
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_return {};
 	}
 
 	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_GetPrimaryListen()
 	{
-		TCPromise<NStorage::TCOptional<CDistributedActorTrustManager_Address>> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
-				{
-					auto &Internal = *mp_pInternal;
-					if (Internal.m_pPrimaryListen)
-					{
-						Promise.f_SetResult(Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen).m_Address);
-						return;
-					}
-					Promise.f_SetResult(NStorage::TCOptional<CDistributedActorTrustManager_Address>());
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		if (Internal.m_pPrimaryListen)
+			co_return Internal.m_Listen.fs_GetKey(*Internal.m_pPrimaryListen).m_Address;
+
+		co_return {};
 	}
 
 	TCFuture<NContainer::TCSet<CDistributedActorTrustManager_Address>> CDistributedActorTrustManager::f_EnumListens()
 	{
-		TCPromise<NContainer::TCSet<CDistributedActorTrustManager_Address>> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
-				{
-					auto &Internal = *mp_pInternal;
-					NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
-					for (auto iClientConnection = Internal.m_Listen.f_GetIterator(); iClientConnection; ++iClientConnection)
-						Addresses[iClientConnection.f_GetKey().m_Address];
-					Promise.f_SetResult(fg_Move(Addresses));
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		NContainer::TCSet<CDistributedActorTrustManager_Address> Addresses;
+		for (auto iClientConnection = Internal.m_Listen.f_GetIterator(); iClientConnection; ++iClientConnection)
+			Addresses[iClientConnection.f_GetKey().m_Address];
+
+		co_return fg_Move(Addresses);
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _Address]()
-				{
-					auto &Internal = *mp_pInternal;
-					ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
-					ListenConfig.m_Address = _Address;
+		co_await Internal.f_WaitForInit();
 
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, ListenConfig)
-						> [this, Promise, ListenConfig](TCAsyncResult<void> &&_Result)
-						{
-							auto &Internal = *mp_pInternal;
+		ICDistributedActorTrustManagerDatabase::CListenConfig ListenConfig;
+		ListenConfig.m_Address = _Address;
 
-							if (!_Result)
-							{
-								Promise.f_SetException
-									(
-										DMibErrorInstance
-										(
-											fg_Format("Failed to remove listen config from database: {}", _Result.f_GetExceptionStr())
-										)
-									)
-								;
-								return;
-							}
+		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveListenConfig, ListenConfig) % "Failed to remove listen config from database");
 
-							auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
-							if (pListenConfig)
-							{
-								pListenConfig->m_ListenReference.f_Stop() > [this, ListenConfig, Promise](TCAsyncResult<void> &&_Result)
-									{
-										if (!_Result)
-										{
-											Promise.f_SetException
-												(
-													DMibErrorInstance
-													(
-														fg_Format("Failed to stop listen: {}", _Result.f_GetExceptionStr())
-													)
-												)
-											;
-											return;
-										}
-										auto &Internal = *mp_pInternal;
-										auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
-										if (!pListen)
-										{
-											Promise.f_SetResult();
-											return;
-										}
+		auto *pListenConfig = Internal.m_Listen.f_FindEqual(ListenConfig);
+		if (!pListenConfig)
+			co_return {};
 
-										bool bResetPrimaryListen = false;
-										if (pListen == Internal.m_pPrimaryListen)
-										{
-											Internal.m_pPrimaryListen = nullptr;
-											bResetPrimaryListen = true;
-										}
+		co_await (pListenConfig->m_ListenReference.f_Stop() % "Failed to stop listen");
 
-										Internal.m_Listen.f_Remove(pListen);
+		auto *pListen = Internal.m_Listen.f_FindEqual(ListenConfig);
+		if (!pListen)
+			co_return {};
 
-										if (!bResetPrimaryListen)
-										{
-											Promise.f_SetResult();
-											return;
-										}
+		bool bResetPrimaryListen = false;
+		if (pListen == Internal.m_pPrimaryListen)
+		{
+			Internal.m_pPrimaryListen = nullptr;
+			bResetPrimaryListen = true;
+		}
 
-										self(&CDistributedActorTrustManager::f_SetPrimaryListen, NStorage::TCOptional<CDistributedActorTrustManager_Address>())
-											> [Promise](TCAsyncResult<void> &&_Result)
-											{
-												if (!_Result)
-												{
-													Promise.f_SetException
-														(
-															DMibErrorInstance
-															(
-																fg_Format("Failed to reset primary listen when removing listen: {}", _Result.f_GetExceptionStr())
-															)
-														)
-													;
-													return;
-												}
-												Promise.f_SetResult();
-											}
-										;
-									}
-								;
-							}
-							else
-								Promise.f_SetResult();
-						}
-					;
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		Internal.m_Listen.f_Remove(pListen);
+
+		if (!bResetPrimaryListen)
+			co_return {};
+
+		co_await (self(&CDistributedActorTrustManager::f_SetPrimaryListen, fg_Default()) % "Failed to reset primary listen when removing listen");
+
+		co_return {};
 	}
 
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::f_ValidateClientAccess
 		(
-			NStr::CStr const &_HostID
-			, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain
+			NStr::CStr _HostID
+			, NContainer::TCVector<NContainer::CByteVector> _CertificateChain
 		)
 	{
-		TCPromise<NStr::CStr> Promise;
-
 		if (_CertificateChain.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Empty certificate chain");
+			co_return DMibErrorInstance("Empty certificate chain");
 
-		m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) > [Promise, _HostID, _CertificateChain](TCAsyncResult<CClient> &&_Client)
-			{
-				if (!_Client)
-				{
-					Promise.f_SetResult(fg_Format("Could not find client host: {}", _Client.f_GetExceptionStr()));
-					return;
-				}
+		co_await f_WaitForInit();
 
-				if (_CertificateChain.f_GetFirst() != _Client->m_PublicCertificate)
-				{
-					Promise.f_SetResult("Access denied");
-					return;
-				}
+		auto Client = co_await (m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID) % "Could not find client host");
 
-				Promise.f_SetResult("");
-			}
-		;
+		if (_CertificateChain.f_GetFirst() != Client.m_PublicCertificate)
+			co_return NStr::gc_Str<"Access denied">.m_Str;
 
-		return Promise.f_MoveFuture();
+		co_return {};
 	}
 }
 

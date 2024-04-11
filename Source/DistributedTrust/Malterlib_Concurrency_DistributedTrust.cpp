@@ -92,128 +92,64 @@ namespace NMib::NConcurrency
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
 			co_await Internal.m_ActorDistributionManager.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
 
-		if (Internal.m_pInitOnce)
-			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy init once");
-		Internal.m_pInitOnce.f_Clear();
+		co_await fg_Move(Internal.m_InitSequencer).f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy init sequencer");
 
 		co_return {};
 	}
 	
 	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
 	{
-		TCPromise<void> Promise;
-
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _HostID]
-				{
-					auto &Internal = *mp_pInternal;
-					Internal.m_Database
-						(
-							&ICDistributedActorTrustManagerDatabase::f_RemoveClient
-							, _HostID
-						)
-						> Promise % "Failed to remove client from trust database" / [this, Promise, _HostID]()
-						{
-							auto &Internal = *mp_pInternal;
-							Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) > Promise % "Failed to kick host from distribution manager";
-						}
-					;
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClient, _HostID) % "Failed to remove client from trust database");
+		co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) % "Failed to kick host from distribution manager");
+
+		co_return {};
 	}
 
 	auto CDistributedActorTrustManager::f_EnumClients() -> TCFuture<NContainer::TCMap<NStr::CStr, CHostInfo>>
 	{
-		TCPromise<NContainer::TCMap<NStr::CStr, CHostInfo>> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
-				{
-					auto &Internal = *mp_pInternal;
-					Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients, true) 
-						> (Promise % "Failed to enum clients in database") / [Promise](NContainer::TCMap<NStr::CStr, CClient> &&_Info)
-						{
-							NContainer::TCMap<NStr::CStr, CHostInfo> Clients;
-							for (auto iClient = _Info.f_GetIterator(); iClient; ++iClient)
-							{
-								auto &Client = Clients[iClient.f_GetKey()];
-								Client.m_HostID = iClient.f_GetKey();
-								Client.m_FriendlyName = iClient->m_LastFriendlyName;
-							}
-							Promise.f_SetResult(fg_Move(Clients));
-						}
-					;
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		auto DatabaseClients = co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumClients, true) % "Failed to enum clients in database");
+
+		NContainer::TCMap<NStr::CStr, CHostInfo> Clients;
+		for (auto &ClientEntry : DatabaseClients.f_Entries())
+		{
+			auto &Client = Clients[ClientEntry.f_Key()];
+			Client.m_HostID = ClientEntry.f_Key();
+			Client.m_FriendlyName = ClientEntry.f_Value().m_LastFriendlyName;
+		}
+
+		co_return fg_Move(Clients);
 	}
 	
 	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
 	{
-		TCPromise<bool> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise, _HostID]
-				{
-					auto &Internal = *mp_pInternal;
-					Internal.m_Database
-						(
-							&ICDistributedActorTrustManagerDatabase::f_HasClient
-							, _HostID
-						)
-						> Promise % "Failed to check for client existence" / [Promise, _HostID](bool _bExists)
-						{
-							Promise.f_SetResult(_bExists);
-						}
-					;
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		bool bExists = co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_HasClient, _HostID) % "Failed to check for client existence");
+
+		co_return bExists;
 	}
 	
 	TCFuture<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> CDistributedActorTrustManager::f_GetDistributionManager() const
 	{
-		TCPromise<NConcurrency::TCActor<NConcurrency::CActorDistributionManager>> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
-				{
-					auto &Internal = *mp_pInternal;
-					Promise.f_SetResult(Internal.m_ActorDistributionManager);
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		co_return Internal.m_ActorDistributionManager;
 	}
 	
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostID() const
 	{
-		TCPromise<NStr::CStr> Promise;
 		auto &Internal = *mp_pInternal;
-		Internal.f_RunAfterInit
-			(
-				Promise
-				, [this, Promise]
-				{
-					auto &Internal = *mp_pInternal;
-					Promise.f_SetResult(Internal.m_BasicConfig.m_HostID);
-				}
-			)
-		;
-		return Promise.f_MoveFuture();
+		co_await Internal.f_WaitForInit();
+
+		co_return Internal.m_BasicConfig.m_HostID;
 	}
 	
 	CHostInfo NDistributedActorTrustManagerDatabase::CClientConnection::f_GetHostInfo() const
@@ -271,11 +207,12 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 	
-	TCActor<ICActorDistributionManagerAccessHandler> CDistributedActorTrustManager::f_GetAccessHandler() const
+	TCFuture<TCActor<ICActorDistributionManagerAccessHandler>> CDistributedActorTrustManager::f_GetAccessHandler() const
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 		
-		return Internal.m_AccessHandler;
+		co_return Internal.m_AccessHandler;
 	}
 
 	CDistributedActorTrustManagerHolder::CDistributedActorTrustManagerHolder

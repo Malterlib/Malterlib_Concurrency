@@ -18,6 +18,8 @@ namespace NMib::NConcurrency
 	TCFuture<NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_EnumUsers(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		NContainer::TCMap<NStr::CStr, CDistributedActorTrustManagerInterface::CUserInfo> Return;
 		for (auto const &Source : Internal.m_Users)
 		{
@@ -31,6 +33,7 @@ namespace NMib::NConcurrency
 	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_TryGetUser(CStr const &_UserID)
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
 
 		if (auto *pUser = Internal.m_Users.f_FindEqual(_UserID))
 			co_return CDistributedActorTrustManagerInterface::CUserInfo{pUser->m_UserInfo.m_UserName, pUser->m_UserInfo.m_Metadata};
@@ -44,6 +47,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto &Users = Internal.m_Users;
 
 		if (Users.f_FindEqual(_UserID))
@@ -68,6 +73,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto *pUser = Internal.m_Users.f_FindEqual(_UserID);
 		if (!pUser)
 			co_return DMibErrorInstance("No user with ID '{}'"_f << _UserID);
@@ -110,6 +117,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto *pUser = Internal.m_Users.f_FindEqual(_UserID);
 		if (!pUser)
 			co_return DMibErrorInstance("User '{}' does not exist"_f << _UserID);
@@ -161,6 +170,8 @@ namespace NMib::NConcurrency
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetDefaultUser()
 	{
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		co_return Internal.m_DefaultUser.m_UserID;
 	}
 
@@ -170,6 +181,8 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Invalid user ID");
 
 		auto &Internal = *mp_pInternal;
+		co_await Internal.f_WaitForInit();
+
 		auto *pUser = Internal.m_Users.f_FindEqual(_UserID);
 		if (!pUser)
 			co_return DMibErrorInstance("No user with ID '{}'"_f << _UserID);

@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		Internal.m_AccessHandler = _AccessHandler;
 	}
 
-	void CActorDistributionManager::f_SetHostnameTraslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames)
+	void CActorDistributionManager::f_SetHostnameTranslate(NContainer::TCMap<NStr::CStr, NStr::CStr> const &_TranslateHostnames)
 	{
 		auto &Internal = *mp_pInternal;
 		Internal.m_TranslateHostnames = _TranslateHostnames;

@@ -1321,7 +1321,7 @@ public:
 			).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
-		auto Server = Subscriptions.f_Subscribe<CServerInterface>();
+		auto Server = Subscriptions.f_Subscribe<CServerInterface>(RunLoopHelper);
 
 		CStr ManyServerName = "ManyServer";
 		CStr ManyServerDirectory = RootDirectory + "/" + ManyServerName;
@@ -1351,7 +1351,7 @@ public:
 			).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
-		auto ManyServer = Subscriptions.f_Subscribe<CManyServerInterface>();
+		auto ManyServer = Subscriptions.f_Subscribe<CManyServerInterface>(RunLoopHelper);
 
 		CStr SlowServerName = "SlowServer";
 		CStr SlowServerDirectory = RootDirectory + "/" + SlowServerName;
@@ -1381,7 +1381,7 @@ public:
 			).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
-		auto SlowServer = Subscriptions.f_Subscribe<CSlowServerInterface>();
+		auto SlowServer = Subscriptions.f_Subscribe<CSlowServerInterface>(RunLoopHelper);
 
 		auto DefaultUserID = fg_RandomID();
 
@@ -2313,7 +2313,7 @@ public:
 			).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
-		auto Server = Subscriptions.f_Subscribe<CServerInterface>();
+		auto Server = Subscriptions.f_Subscribe<CServerInterface>(RunLoopHelper);
 
 		auto DefaultUserID = fg_RandomID();
 

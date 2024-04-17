@@ -12,16 +12,16 @@
 namespace NMib::NConcurrency
 {
 	template <typename tf_CActor>
-	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_SubscribeFromHost(NStr::CStr const &_HostID, NStr::CStr const &_Namespace)
+	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_SubscribeFromHost(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_HostID, NStr::CStr const &_Namespace)
 	{
-		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(mp_Timeout);
+		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(_RunLoopHelper.m_pRunLoop, mp_Timeout);
 		return Subscriptions[0];
 	}
 
 	template <typename tf_CActor>
-	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_Subscribe(NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+	TCDistributedActor<tf_CActor> CTrustedSubscriptionTestHelper::f_Subscribe(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 	{
-		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(mp_Timeout);
+		auto Subscriptions = mp_Internal(&CInternal::f_Subscribe<tf_CActor>, 1, _Namespace, _HostID).f_CallSync(_RunLoopHelper.m_pRunLoop, mp_Timeout);
 		return Subscriptions[0];
 	}
 
@@ -34,9 +34,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+	NContainer::TCVector<TCDistributedActor<tf_CActor>> CTrustedSubscriptionTestHelper::f_SubscribeMultiple
+		(
+			CActorRunLoopTestHelper &_RunLoopHelper
+			, mint _nActors
+			, NStr::CStr const &_Namespace
+			, NStr::CStr const &_HostID
+		)
 	{
-		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_CallSync(mp_Timeout);
+		return mp_Internal(&CInternal::f_Subscribe<tf_CActor>, _nActors, _Namespace, _HostID).f_CallSync(_RunLoopHelper.m_pRunLoop, mp_Timeout);
 	}
 
 	template <typename tf_CActor>
@@ -53,6 +59,7 @@ namespace NMib::NConcurrency
 	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
+		DTestHelpersDebug("{} - {}: SUBSCRIBE\n", _HostID, _Namespace);
 		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this), 0, TCLimitsInt<uint32>::mc_Max)
 			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
@@ -81,20 +88,20 @@ namespace NMib::NConcurrency
 								if (!mp_SeenActors.f_Exists(fg_GetRemoteActorID(_NewActor)))
 								{
 									Actors.f_Insert(_NewActor);
-									DTestHelpersDebug("INSERT {}\n", _NewActor);
+									DTestHelpersDebug("{} - {}: INSERT {}\n", _HostID, _Namespace, _NewActor);
 								}
 								else
-									DTestHelpersDebug("SEEN {}\n", _NewActor);
+									DTestHelpersDebug("{} - {}: SEEN {}\n", _HostID, _Namespace, _NewActor);
 							}
 							else
-								DTestHelpersDebug("IGNORE {} {} != {}\n", _NewActor, _ActorInfo.m_HostInfo.m_HostID, _HostID);
+								DTestHelpersDebug("{} - {}: IGNORE {} {} != {}\n", _HostID, _Namespace, _NewActor, _ActorInfo.m_HostInfo.m_HostID, _HostID);
 
 							if (Actors.f_GetLen() == _nActors)
 							{
 								for (auto &Actor : Actors)
 									mp_SeenActors[fg_GetRemoteActorID(Actor)];
 
-								DTestHelpersDebug("RESULT {vs}\n", Actors);
+								DTestHelpersDebug("{} - {}: RESULT {vs}\n", _HostID, _Namespace, Actors);
 								Promise.f_SetResult(fg_Move(Actors));
 							}
 

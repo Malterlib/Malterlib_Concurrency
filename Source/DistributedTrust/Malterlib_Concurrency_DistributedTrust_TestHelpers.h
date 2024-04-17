@@ -5,6 +5,8 @@
 
 #include <Mib/Concurrency/DistributedActorTrustManager>
 
+#include <Mib/Concurrency/DistributedActorTestHelpers>
+
 namespace NMib::NConcurrency
 {
 	struct CTrustManagerDatabaseTestHelper : public ICDistributedActorTrustManagerDatabase
@@ -90,15 +92,16 @@ namespace NMib::NConcurrency
 		~CTrustedSubscriptionTestHelper();
 		
 		template <typename tf_CActor>
-		TCDistributedActor<tf_CActor> f_SubscribeFromHost(NStr::CStr const &_HostID, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
+		TCDistributedActor<tf_CActor> f_SubscribeFromHost(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_HostID, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace);
 		template <typename tf_CActor>
-		TCDistributedActor<tf_CActor> f_Subscribe(NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr const &_HostID = {});
+		TCDistributedActor<tf_CActor> f_Subscribe(CActorRunLoopTestHelper &_RunLoopHelper, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr const &_HostID = {});
 		template <typename tf_CActor>
 		TCFuture<TCDistributedActor<tf_CActor>> f_SubscribeAsync(NStr::CStr _Namespace = tf_CActor::mc_pDefaultNamespace, NStr::CStr _HostID = {});
 		template <typename tf_CActor>
 		NContainer::TCVector<TCDistributedActor<tf_CActor>> f_SubscribeMultiple
 			(
-				mint _nActors
+				CActorRunLoopTestHelper &_RunLoopHelper
+				, mint _nActors
 				, NStr::CStr const &_Namespace = tf_CActor::mc_pDefaultNamespace
 				, NStr::CStr const &_HostID = {}
 			)

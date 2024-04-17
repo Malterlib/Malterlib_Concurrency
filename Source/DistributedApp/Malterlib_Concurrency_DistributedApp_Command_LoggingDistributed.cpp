@@ -653,6 +653,9 @@ namespace NMib::NConcurrency
 		CStr TimeColor = AnsiEncoding.f_ForegroundRGB(160, 160, 160);
 		CStr DebugColor = AnsiEncoding.f_ForegroundRGB(100, 100, 100);
 		CStr CategoryColor = AnsiEncoding.f_ForegroundRGB(51, 182, 255);
+		CStr StdErrColor = AnsiEncoding.f_ForegroundRGB(0xffb680);
+		CStr StdOutColor = AnsiEncoding.f_ForegroundRGB(0xdbd3ff);
+		CStr CriticalColor = AnsiEncoding.f_Bold() + AnsiEncoding.f_ForegroundRGB(0xff3f1c);
 
 		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
@@ -730,19 +733,35 @@ namespace NMib::NConcurrency
 					bHasEnvironment = bHasEnvironment || Environment;
 
 					CStr SeverityColor;
+					CStr Severity = CDistributedAppLogReporter::fs_LogSeverityToStr(Data.m_Severity);
+
 					if (pLogInfo)
 					{
 						switch (Data.m_Severity)
 						{
 						case CDistributedAppLogReporter::ELogSeverity_Critical:
+							SeverityColor = CriticalColor;
+							break;
 						case CDistributedAppLogReporter::ELogSeverity_Error:
-							SeverityColor = AnsiEncoding.f_StatusError();
+							if (Data.m_Operations.f_Contains(gc_Str<"StdErr">.m_Str) >= 0)
+							{
+								Severity = gc_Str<"StdErr">.m_Str;
+								SeverityColor = StdErrColor;
+							}
+							else
+								SeverityColor = AnsiEncoding.f_StatusError();
 							break;
 						case CDistributedAppLogReporter::ELogSeverity_Warning:
 							SeverityColor = AnsiEncoding.f_StatusWarning();
 							break;
 						case CDistributedAppLogReporter::ELogSeverity_Info:
-							SeverityColor = AnsiEncoding.f_StatusNormal();
+							if (Data.m_Operations.f_Contains(gc_Str<"StdOut">.m_Str) >= 0)
+							{
+								Severity = gc_Str<"StdOut">.m_Str;
+								SeverityColor = StdOutColor;
+							}
+							else
+								SeverityColor = AnsiEncoding.f_StatusNormal();
 							break;
 						case CDistributedAppLogReporter::ELogSeverity_Unsupported:
 						case CDistributedAppLogReporter::ELogSeverity_Debug:
@@ -754,7 +773,6 @@ namespace NMib::NConcurrency
 						}
 					}
 
-					CStr Severity = CDistributedAppLogReporter::fs_LogSeverityToStr(Data.m_Severity);
 
 					if (SeverityColor)
 						Severity = ("{}{}{}"_f << SeverityColor << Severity << AnsiEncoding.f_Default()).f_GetStr();

@@ -325,10 +325,16 @@ namespace NMib::NConcurrency
 	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
-		return f_LaunchWithParams(_Description, _Executable, {});
+		return f_LaunchWithParams(_Description, _Executable, {}, {});
 	}
 
-	auto CDistributedApp_LaunchHelper::f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams)
+	auto CDistributedApp_LaunchHelper::f_LaunchWithParams
+		(
+			NStr::CStr const &_Description
+			, NStr::CStr const &_Executable
+			, NContainer::TCVector<NStr::CStr> &&_ExtraParams
+			, CSystemEnvironment &&_Environment
+		)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		NContainer::TCVector<NStr::CStr> Params;
@@ -360,6 +366,7 @@ namespace NMib::NConcurrency
 			Launch.m_ToLog = NProcess::CProcessLaunchActor::ELogFlag_All | NProcess::CProcessLaunchActor::ELogFlag_AdditionallyOutputToStdErr;
 
 		Launch.m_Params.m_bCreateNewProcessGroup = true;
+		Launch.m_Params.m_Environment = fg_Move(_Environment);
 
 		return f_LaunchWithLaunch(_Description, fg_Move(Launch), nullptr);
 	}

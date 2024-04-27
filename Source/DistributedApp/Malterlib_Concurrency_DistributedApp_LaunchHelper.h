@@ -111,7 +111,14 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr const &_Description, NProcess::CProcessLaunchActor::CLaunch &&_Launch, TCActor<CActor> &&_NotificationActor);
 
-		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams(NStr::CStr const &_Description, NStr::CStr const &_Executable, NContainer::TCVector<NStr::CStr> &&_ExtraParams);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams
+			(
+				NStr::CStr const &_Description
+				, NStr::CStr const &_Executable
+				, NContainer::TCVector<NStr::CStr> &&_ExtraParams
+				, CSystemEnvironment &&_Environment
+			)
+		;
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess
 			(
 				NStr::CStr const &_Description

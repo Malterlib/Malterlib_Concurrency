@@ -3,8 +3,8 @@
 
 #pragma once
 
-#if 0
-#define DTestHelpersDebug DMibConErrOut2
+#if 1
+#define DTestHelpersDebug(...) DMibLogWithCategory(TestHelper, Debug, __VA_ARGS__)
 #else
 #define DTestHelpersDebug(...)
 #endif
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
-		DTestHelpersDebug("{} - {}: SUBSCRIBE\n", _HostID, _Namespace);
+		DTestHelpersDebug("{} - {}: SUBSCRIBE", _HostID, _Namespace);
 		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this), 0, TCLimitsInt<uint32>::mc_Max)
 			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
@@ -88,20 +88,20 @@ namespace NMib::NConcurrency
 								if (!mp_SeenActors.f_Exists(fg_GetRemoteActorID(_NewActor)))
 								{
 									Actors.f_Insert(_NewActor);
-									DTestHelpersDebug("{} - {}: INSERT {}\n", _HostID, _Namespace, _NewActor);
+									DTestHelpersDebug("{} - {}: INSERT {}", _HostID, _Namespace, _NewActor);
 								}
 								else
-									DTestHelpersDebug("{} - {}: SEEN {}\n", _HostID, _Namespace, _NewActor);
+									DTestHelpersDebug("{} - {}: SEEN {}", _HostID, _Namespace, _NewActor);
 							}
 							else
-								DTestHelpersDebug("{} - {}: IGNORE {} {} != {}\n", _HostID, _Namespace, _NewActor, _ActorInfo.m_HostInfo.m_HostID, _HostID);
+								DTestHelpersDebug("{} - {}: IGNORE {} {} != {}", _HostID, _Namespace, _NewActor, _ActorInfo.m_HostInfo.m_HostID, _HostID);
 
 							if (Actors.f_GetLen() == _nActors)
 							{
 								for (auto &Actor : Actors)
 									mp_SeenActors[fg_GetRemoteActorID(Actor)];
 
-								DTestHelpersDebug("{} - {}: RESULT {vs}\n", _HostID, _Namespace, Actors);
+								DTestHelpersDebug("{} - {}: RESULT {vs}", _HostID, _Namespace, Actors);
 								Promise.f_SetResult(fg_Move(Actors));
 							}
 

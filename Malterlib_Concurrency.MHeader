@@ -207,7 +207,11 @@ Property
 	MalterlibTestFiles_Malterlib_Concurrency: [type(CEntity)] = []
 }
 
-Property.Malterlib_Concurrency_App_Targets: [type(CEntity)] = []
+Property
+{
+	Malterlib_Concurrency_App_Targets: [type(CEntity)] = []
+	Malterlib_All_App_Targets =+ Malterlib_Concurrency_App_Targets
+}
 
 %Workspace "Apps_Malterlib_Concurrency"
 {

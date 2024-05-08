@@ -140,9 +140,17 @@ Target
 		{
 			%File "Source/DistributedApp/Malterlib_Concurrency_DistributedUIApp_MacOS.mm"
 			{
-				Compile.Disabled true
+				Compile
 				{
-					!PlatformFamily "macOS"
+					Disabled true
+					{
+						!PlatformFamily "macOS"
+					}
+					
+					CxxLanguage "C++23"
+					{
+						!!Compiler "Clang"
+					}
 				}
 			}
 		}

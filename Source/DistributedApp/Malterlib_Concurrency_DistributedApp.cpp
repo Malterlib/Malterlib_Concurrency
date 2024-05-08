@@ -410,8 +410,6 @@ namespace NMib::NConcurrency
 #ifdef DPlatformFamily_Windows
 	void CDistributedAppActor::fp_CleanupOldExecutables()
 	{
-		auto &Internal = *mp_pInternal;
-
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 

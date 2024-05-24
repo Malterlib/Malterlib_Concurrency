@@ -276,7 +276,15 @@ namespace NMib::NConcurrency
 
 							auto fReject = [pNewServerConnection](NStr::CStr const &_Error)
 								{
-									DMibLogWithCategory(Mib/Concurrency/Actors, Error, "Rejected connection: {} - {}", pNewServerConnection->m_Info.m_PeerAddress.f_GetString(), _Error);
+									DMibLogWithCategory
+										(
+											Mib/Concurrency/Actors
+											, Error
+											, "Rejected connection: {} - {}"
+											, pNewServerConnection->m_Info.m_PeerAddress.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
+											, _Error
+										)
+									;
 									pNewServerConnection->f_Reject(_Error);
 								}
 							;
@@ -439,7 +447,7 @@ namespace NMib::NConcurrency
 													"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
 													, pConnection->f_GetHostInfo()
 													, bLast ? "last" : "additional"
-													, Address.f_GetString()
+													, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 													, pConnection->f_GetConnectionID()
 													, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
 													, _Reason
@@ -537,7 +545,7 @@ namespace NMib::NConcurrency
 																		Mib/Concurrency/Actors
 																		, Error
 																		, "Error identifying connection from '{}' {{{}}: {}"
-																		, Address.f_GetString()
+																		, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 																		, pConnection->f_GetConnectionID()
 																		, _Result.f_GetExceptionStr()
 																	)
@@ -551,7 +559,7 @@ namespace NMib::NConcurrency
 																(
 																	"<{}> Accepted '{}' {{{}}"
 																	, pConnection->f_GetHostInfo()
-																	, Address.f_GetString()
+																	, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 																	, pConnection->f_GetConnectionID()
 																)
 															;
@@ -574,7 +582,7 @@ namespace NMib::NConcurrency
 															Mib/Concurrency/Actors
 															, Error
 															, "Error accepting connection from '{}': {}"
-															, Address.f_GetString()
+															, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 															, _Subscription.f_GetExceptionStr()
 														)
 													;
@@ -620,7 +628,7 @@ namespace NMib::NConcurrency
 									Mib/Concurrency/Actors
 									, Error
 									, "Websocket rejected connection: {} - {} {}"
-									, _ConnectionInfo.m_PeerAddress.f_GetString()
+									, _ConnectionInfo.m_PeerAddress.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
 									, _ConnectionInfo.m_ErrorStatus
 									, _ConnectionInfo.m_Error
 								)

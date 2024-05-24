@@ -218,7 +218,7 @@ namespace NMib::NConcurrency
 				NewConnection.m_HostInfo.m_FriendlyName = *pValue;
 		}
 		
-		NewConnection.m_AddressDesc = NewServerConnection.m_Info.m_PeerAddress.f_GetString();
+		NewConnection.m_AddressDesc = NewServerConnection.m_Info.m_PeerAddress.f_GetString(ENetAddressStringFlag_IncludePort);
 
 		NewConnection.m_DDPConnection = fg_ConstructActor<CDDPServerConnection>(fg_Move(NewServerConnection), CDDPServerConnection::EConnectionType_WebSocket);
 		NewConnection.m_DDPConnection

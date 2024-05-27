@@ -28,4 +28,12 @@
 	%Dependency "Lib_Malterlib"
 }
 
-Property.Malterlib_Concurrency_App_Targets =+ "Malterlib_Concurrency_DDPBridgeHelper"
+Property
+{
+	Malterlib_App_Enable_DDPBridgeHelper: bool = true
+
+	Malterlib_Concurrency_App_Targets =+ "Malterlib_Concurrency_DDPBridgeHelper"
+	{
+		!!Malterlib_App_Enable_DDPBridgeHelper true
+	}
+}

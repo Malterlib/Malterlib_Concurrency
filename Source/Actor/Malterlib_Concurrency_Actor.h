@@ -101,6 +101,7 @@ namespace NMib::NConcurrency
 
 		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
+		TCFuture<void> fp_AbortSuspendedCoroutinesWithAsyncDestroy(bool &o_bNeedWait);
 		void fp_AbortSuspendedCoroutines();
 
 		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);

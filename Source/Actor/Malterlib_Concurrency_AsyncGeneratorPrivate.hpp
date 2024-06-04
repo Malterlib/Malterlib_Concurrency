@@ -202,10 +202,9 @@ namespace NMib::NConcurrency::NPrivate
 						]
 						() mutable
 						{
-		 #if DMibEnableSafeCheck > 0
 							if (!KeepAlivePromise.f_HasValidCoroutine())
-								return; // Can happen when f_Suspend throws
-
+								return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
+		 #if DMibEnableSafeCheck > 0
 							auto CurrentActor = fg_CurrentActor();
 							DMibFastCheck(CurrentActor);
 							DMibFastCheck(CurrentActor->f_CurrentlyProcessing());

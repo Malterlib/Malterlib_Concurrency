@@ -59,10 +59,9 @@ namespace NMib::NConcurrency
 				, fg_CurrentActor()
 				, [=, this, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](TCAsyncResult<t_CReturnType> &&_Result) mutable
 				{
-#if DMibEnableSafeCheck > 0
 					if (!KeepAlive.f_HasValidCoroutine())
-						return; // Can happen when f_Suspend throws
-
+						return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
+#if DMibEnableSafeCheck > 0
 					auto CurrentActor = fg_CurrentActor();
 					DMibFastCheck(CurrentActor);
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
@@ -261,10 +260,9 @@ namespace NMib::NConcurrency
 			(
 				[=, this, KeepAlive = CoroutineContext.f_KeepAliveImplicit()](CWrappedType &&_Results) mutable
 				{
-#if DMibEnableSafeCheck > 0
 					if (!KeepAlive.f_HasValidCoroutine())
-						return; // Can happen when f_Suspend throws
-
+						return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
+#if DMibEnableSafeCheck > 0
 					auto CurrentActor = fg_CurrentActor();
 					DMibFastCheck(CurrentActor);
 					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());

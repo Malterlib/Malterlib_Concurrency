@@ -113,11 +113,27 @@ namespace NMib::NConcurrency
 	TCFuture<void> CActor::fp_DestroyInternal()
 	{
 		if (f_IsDestroyed())
-			return TCPromise<void>() <<= DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
+			co_return DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed");
 
 		self.m_pThis.f_SetBits(1);
 
-		return fp_Destroy();
+		co_await fp_Destroy();
+
+		if (mp_SuspendedCoroutines.f_IsEmpty())
+			co_return {};
+
+		// Give co-routines a chance to finish after fp_Destroy has been called
+		co_await g_Yield;
+
+		if (mp_SuspendedCoroutines.f_IsEmpty())
+			co_return {};
+
+		bool bNeedAwait = false;
+		auto Future = fp_AbortSuspendedCoroutinesWithAsyncDestroy(bNeedAwait);
+		if (bNeedAwait)
+			co_await fg_Move(Future);
+
+		co_return {};
 	}
 
 	TCFuture<void> CActor::fp_Destroy()

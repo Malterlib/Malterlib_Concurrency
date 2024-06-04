@@ -1501,6 +1501,35 @@ namespace NMib::NConcurrency::NTest
 				co_return {};
 			}
 
+			TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+			{
+				TCActor<CAsyncDestroyActor> Variable = fg_Construct(m_pTestState);
+
+				auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+				co_await fg_Move(_ToWaitFor);
+
+				co_return {};
+			}
+
+			TCFuture<void> f_TestDestroyOrder(TCFuture<void> &&_ToWaitFor0, TCFuture<void> &&_ToWaitFor1, TCPromise<void> &&_DestroyStartedPromise)
+			{
+				auto AsyncDestroy = co_await fg_AsyncDestroy
+					(
+						[ToWaitFor1 = fg_Move(_ToWaitFor1), DestroyStartedPromise = fg_Move(_DestroyStartedPromise)]() mutable -> TCFuture<void>
+						{
+							DestroyStartedPromise.f_SetResult();
+							co_await fg_Move(ToWaitFor1);
+							co_return {};
+						}
+					)
+				;
+
+				co_await fg_Move(_ToWaitFor0);
+
+				co_return {};
+			}
+
 			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
 		};
 
@@ -1577,6 +1606,69 @@ namespace NMib::NConcurrency::NTest
 					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
 					co_return {};
 				};
+
+				DMibTestCategory("Actor Abort Suspended") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCFuture<void> DestroyFuture;
+					{
+						TCPromise<void> DestroyPromise;
+						{
+							TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+
+							DestroyFuture = g_Future <<= TestDestroyActor(&CAsyncDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
+							TestDestroyActor.f_Destroy().f_CallSync();
+
+							DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 2);
+							DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 2);
+						}
+						DestroyPromise.f_SetResult();
+					}
+
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+
+					co_return {};
+				};
+
+				DMibTestCategory("Actor Abort Suspended Order") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCFuture<void> DestroyFuture;
+					{
+						TCPromise<void> DestroyPromise0;
+						TCPromise<void> DestroyPromise1;
+						TCPromise<void> DestroyStartedPromise;
+						{
+							TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+
+							DestroyFuture = g_Future <<= TestDestroyActor
+								(
+									&CAsyncDestroyActor::f_TestDestroyOrder
+									, DestroyPromise0.f_Future()
+									, DestroyPromise1.f_Future()
+									, DestroyStartedPromise
+								)
+							;
+
+							auto DestroyActorFuture = TestDestroyActor.f_Destroy();
+							co_await DestroyStartedPromise.f_Future();
+							DestroyPromise0.f_SetResult();
+							DestroyPromise1.f_SetResult();
+
+							fg_Move(DestroyActorFuture).f_CallSync();
+
+							DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+							DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+						}
+					}
+
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+
+					co_return {};
+				};
+
 				DMibTestCategory("Object") -> TCFuture<void>
 				{
 					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();

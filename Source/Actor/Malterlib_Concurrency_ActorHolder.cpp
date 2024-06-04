@@ -477,12 +477,12 @@ namespace NMib::NConcurrency
 		DMibFastCheck(!_pActorHolder->f_IsAlwaysAlive());
 		DMibFastCheck(!_pActorHolder->f_ImmediateDelete());
 
-		if (!_pActorHolder->mp_bHasOverriddenDestroy)
-			return false;
-
 		auto pActor = _pActorHolder->fp_GetActorRelaxed();
 
 		if (!pActor)
+			return false;
+
+		if (!_pActorHolder->mp_bHasOverriddenDestroy && pActor->mp_SuspendedCoroutines.f_IsEmpty())
 			return false;
 
 		if (pActor->f_IsDestroyed())

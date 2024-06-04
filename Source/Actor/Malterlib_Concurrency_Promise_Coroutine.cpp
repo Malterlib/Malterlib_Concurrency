@@ -86,6 +86,51 @@ namespace NMib::NConcurrency
 	}
 #endif
 
+	TCFuture<void> CActor::fp_AbortSuspendedCoroutinesWithAsyncDestroy(bool &o_bNeedWait)
+	{
+		TCPromise<void> Promise;
+
+		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+
+		DMibFastCheck(ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty());
+		DMibFastCheck(!ConcurrencyThreadLocal.m_bCaptureAsyncDestructors);
+		ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
+		{
+			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(ConcurrencyThreadLocal.m_bCaptureAsyncDestructors, true)]
+				{
+					ConcurrencyThreadLocal.m_bCaptureAsyncDestructors = bOld;
+				}
+			;
+
+			auto SuspendedCoroutines = fg_Move(mp_SuspendedCoroutines);
+
+			while (!SuspendedCoroutines.f_IsEmpty())
+			{
+				auto *pRoutine = SuspendedCoroutines.f_GetFirst();
+				SuspendedCoroutines.f_Remove(pRoutine);
+				pRoutine->f_Abort();
+			}
+		}
+
+		if (!ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		{
+			TCActorResultVector<void> DestroyResults;
+
+			for (auto &fAsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+
+			ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
+
+			if (!DestroyResults.f_IsEmpty())
+			{
+				o_bNeedWait = true;
+				DestroyResults.f_GetUnwrappedResults() > Promise;
+			}
+		}
+
+		return Promise.f_MoveFuture();
+	}
+
 	void CActor::fp_AbortSuspendedCoroutines()
 	{
 		while (!mp_SuspendedCoroutines.f_IsEmpty())

@@ -405,10 +405,9 @@ namespace NMib::NConcurrency
 								(
 									[this, Actor, pRealActor, _Handle, KeepAlive = fg_Move(KeepAlive), Result = fg_Move(_Result)]() mutable
 									{
-#if DMibEnableSafeCheck > 0
 										if (!KeepAlive.f_HasValidCoroutine())
-											return; // Can happen when f_Suspend throws
-#endif
+											return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
+
 										auto &CoroutineContext = _Handle.promise();
 										if constexpr (t_bUnwrap)
 										{

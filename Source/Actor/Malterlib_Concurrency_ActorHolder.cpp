@@ -1073,7 +1073,7 @@ namespace NMib::NConcurrency
 	CConcurrentRunQueue::CLocalQueueData::~CLocalQueueData()
 	{
 		while (CQueueEntry *pEntry = m_LocalQueue.f_Pop())
-			delete pEntry;
+			fg_DeleteObject(NMemory::CDefaultAllocator(), pEntry);
 	}
 
 	CConcurrentRunQueue::~CConcurrentRunQueue()
@@ -1086,7 +1086,7 @@ namespace NMib::NConcurrency
 		{
 			auto *pNextEntry = pEntry->m_pNextQueued.f_Load(NAtomic::EMemoryOrder_Relaxed);
 			pEntry->m_Link.f_Construct();
-			delete pEntry;
+			fg_DeleteObject(NMemory::CDefaultAllocator(), pEntry);
 			pEntry = pNextEntry;
 		}
 	}
@@ -1130,7 +1130,7 @@ namespace NMib::NConcurrency
 		{
 			if (pEntry->m_Link.f_IsAloneInList())
 				break;
-			delete pEntry;
+			fg_DeleteObject(NMemory::CDefaultAllocator(), pEntry);
 		}
 	}
 
@@ -1139,7 +1139,7 @@ namespace NMib::NConcurrency
 		f_TransferThreadSafeQueue(_LocalQueue);
 
 		while (CQueueEntry *pEntry = _LocalQueue.m_LocalQueue.f_Pop())
-			delete pEntry;
+			fg_DeleteObject(NMemory::CDefaultAllocator(), pEntry);
 	}
 
 	FActorQueueDispatch *CConcurrentRunQueue::f_FirstQueueEntry(CLocalQueueData &_LocalQueue)

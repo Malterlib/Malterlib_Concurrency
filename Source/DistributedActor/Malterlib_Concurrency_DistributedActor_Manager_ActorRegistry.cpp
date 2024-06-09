@@ -158,7 +158,7 @@ namespace NMib::NConcurrency
 				, PendingWaits = fg_Move(PendingWaits)
 				, Publication = CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID)
 			]
-			(auto &&_Results) mutable
+			(TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results) mutable
 			{
 				if (!_Results)
 					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publications: {}", _Results.f_GetExceptionStr());
@@ -300,7 +300,7 @@ namespace NMib::NConcurrency
 			return Promise <<= g_Void;
 
 		WaitResults.f_GetResults().f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for unpublication results")
-			> [Promise, PendingWaits = fg_Move(PendingWaits)](auto &&_Results)
+			> [Promise, PendingWaits = fg_Move(PendingWaits)](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
 			{
 				if (!_Results)
 					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublications: {}", _Results.f_GetExceptionStr());

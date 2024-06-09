@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 				{
 					auto Cleanup = g_OnScopeExit / [&]
 						{
-							delete pFactory;
+							fg_DeleteObject(NMemory::CDefaultAllocator(), pFactory);
 						}
 					;
 					Result[Name] = (*pFactory)(_TrustManager);

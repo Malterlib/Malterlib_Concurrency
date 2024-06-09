@@ -325,11 +325,29 @@ namespace NMib::NConcurrency::NPrivate
 		NStorage::TCUniquePointer<CState> pState;
 		try
 		{
-			pState = NStorage::TCUniquePointer<CState>
+#if defined(DMibSanitizerEnabled_Address) && defined(DPlatformFammily_Windows)
+			pState = fg_Construct
 				(
-					new CState{*pContext, fg_DecodeParams(_ParamsStream, _Indices, _TypeList), _ParamsStream.f_GetVersion()}
+					CState
+					{
+						.m_Context = *pContext
+						, .m_ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList)
+						, .m_Version = _ParamsStream.f_GetVersion()
+					}
 				)
 			;
+#else
+			pState = NStorage::TCUniquePointer<CState>
+				(
+					new CState
+					{
+						.m_Context = *pContext
+						, .m_ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList)
+						, .m_Version = _ParamsStream.f_GetVersion()
+					}
+				)
+			;
+#endif
 		}
 		catch (NException::CException const &_Exception)
 		{

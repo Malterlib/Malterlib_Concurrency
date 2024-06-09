@@ -44,13 +44,13 @@ namespace NMib::NConcurrency
 			(
 				[&]
 				{
-					NMemory::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.m_ActorMemory.m_Aligned);
+					NMemory::TCAllocator_Placement<sizeof(tf_CType)> Allocator(InternalActor.m_ActorMemory);
 					NStorage::TCUniquePointer<tf_CType, NMemory::TCAllocator_Placement<sizeof(tf_CType)>> pActorPlacement{fg_Move(_ConstructParams), Allocator};
 
 					// Construction was successful
 					pActorPlacement.f_Detach();
 				}
-				, InternalActor.m_ActorMemory.m_Aligned
+				, InternalActor.m_ActorMemory
 			)
 		;
 

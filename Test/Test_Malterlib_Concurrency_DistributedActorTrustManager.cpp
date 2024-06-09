@@ -3461,7 +3461,7 @@ namespace NTestTrustManager
 
 		void f_DoTests()
 		{
-			DMibTestCategory("Interface Conversion") -> TCFuture<void>
+			DMibTestSuite("Interface Conversion") -> TCFuture<void>
 			{
 				TCDistributedActor<CAuthenticationActorTestSucceed> TestEmpty;
 

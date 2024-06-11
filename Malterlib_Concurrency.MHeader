@@ -146,11 +146,6 @@ Target
 					{
 						!PlatformFamily "macOS"
 					}
-					
-					CxxLanguage "C++23"
-					{
-						!!Compiler "Clang"
-					}
 				}
 			}
 		}

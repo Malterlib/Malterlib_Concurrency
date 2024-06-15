@@ -596,26 +596,44 @@ namespace NMib::NConcurrency
 		CStr ProgramPath = CFile::fs_GetProgramPath();
 
 		NProcess::CVersionInfo VersionInfo;
-		NProcess::NPlatform::fg_Process_GetVersionInfo(ProgramPath, VersionInfo);
+		try
+		{
+			NProcess::NPlatform::fg_Process_GetVersionInfo(CFile::fs_GetProgramPathForExecutabelContents(), VersionInfo);
 
-		DMibLogWithCategory
-			(
-				Mib/Concurrency/App
-				, Info
-				, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
-				, mp_Settings.m_AppName
-				, fg_GetAppTypeName(mp_pInternal->m_AppType)
-				, CFile::fs_GetFileNoExt(ProgramPath)
-				, VersionInfo.m_Major
-				, VersionInfo.m_Minor
-				, VersionInfo.m_Revision
-				, VersionInfo.m_MinorRevision
-				, NProcess::NPlatform::fg_Process_GetCurrentUID()
-				, VersionInfo.m_GitCommit
-				, VersionInfo.m_GitBranch
-				, VersionInfo.m_BuildTime.f_ToLocal()
-			)
-		;
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/App
+					, Info
+					, "{} running {} in {} {}.{}.{}.{} with pid {} built from {} [{}] at {tc5}"
+					, mp_Settings.m_AppName
+					, fg_GetAppTypeName(mp_pInternal->m_AppType)
+					, CFile::fs_GetFileNoExt(ProgramPath)
+					, VersionInfo.m_Major
+					, VersionInfo.m_Minor
+					, VersionInfo.m_Revision
+					, VersionInfo.m_MinorRevision
+					, NProcess::NPlatform::fg_Process_GetCurrentUID()
+					, VersionInfo.m_GitCommit
+					, VersionInfo.m_GitBranch
+					, VersionInfo.m_BuildTime.f_ToLocal()
+				)
+			;
+		}
+		catch (NException::CException const &_Exception)
+		{
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/App
+					, Error
+					, "{} running {} in {} with pid {}. Failed to get version info: {}"
+					, mp_Settings.m_AppName
+					, fg_GetAppTypeName(mp_pInternal->m_AppType)
+					, CFile::fs_GetFileNoExt(ProgramPath)
+					, NProcess::NPlatform::fg_Process_GetCurrentUID()
+					, _Exception
+				)
+			;
+		}
 	}
 
 	void CDistributedAppActor::f_SetAppType(EDistributedAppType _AppType)

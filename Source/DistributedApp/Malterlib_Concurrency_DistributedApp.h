@@ -529,7 +529,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		auto fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>;
+		auto fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>;
 		TCFuture<TCActor<CDistributedAppSensorStoreLocal>> fp_OpenSensorStoreLocal();
 
 		auto fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>;

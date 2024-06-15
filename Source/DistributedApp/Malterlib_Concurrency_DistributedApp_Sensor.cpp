@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 		co_return Internal.m_AppSensorStoreLocal;
 	}
 
-	auto CDistributedAppActor::fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo)
+	auto CDistributedAppActor::fp_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
 		-> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
 		auto Store = co_await fp_OpenSensorStoreLocal();
@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppActor::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
-		co_return co_await self(&CDistributedAppActor::fp_OpenSensorReporter, fg_Move(_SensorInfo));
+		co_return co_await fp_OpenSensorReporter(fg_Move(_SensorInfo));
 	}
 
 	TCFuture<TCActor<CDistributedAppSensorStoreLocal>> CDistributedAppActor::f_OpenSensorStoreLocal()

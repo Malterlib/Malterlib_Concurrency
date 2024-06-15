@@ -88,10 +88,11 @@ namespace NMib::NConcurrency
 	{
 		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
 
-		auto [BasicConfig, DefaultUser, ServerCertificates, ListenConfigs, PrimaryListen, ClientConnections, Namespaces, Permissions, Users, AuthenticationFactors] = co_await
+		auto BasicConfig = co_await m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig);
+
+		auto [DefaultUser, ServerCertificates, ListenConfigs, PrimaryListen, ClientConnections, Namespaces, Permissions, Users, AuthenticationFactors] = co_await
 			(
-				m_Database(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig)
-				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
+				m_Database(&ICDistributedActorTrustManagerDatabase::f_GetDefaultUser)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumServerCertificates, true)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_EnumListenConfigs)
 				+ m_Database(&ICDistributedActorTrustManagerDatabase::f_GetPrimaryListen)

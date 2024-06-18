@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 		};
 	}
 
-	NStorage::TCAggregate<CDefaultSettingsDefault> g_DefaultSettingsDefault = {DAggregateInit};
+	constinit NStorage::TCAggregate<CDefaultSettingsDefault> g_DefaultSettingsDefault = {DAggregateInit};
 
 	CDistributedAppActor_SettingsProperties &CDistributedAppActor_Settings::fs_GetGlobalDefaultSettings()
 	{

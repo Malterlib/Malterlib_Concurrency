@@ -9,6 +9,19 @@
 
 namespace NMib::NConcurrency
 {
+	namespace
+	{
+		[[maybe_unused]] NContainer::TCVector<uint64> fg_GetSentPacketIDs(NActorDistributionManagerInternal::CHost &_Host)
+		{
+			NContainer::TCVector<uint64> Packets;
+
+			for (auto &Packet : _Host.m_Outgoing_SentPackets)
+				Packets.f_Insert(Packet.f_GetPacketID());
+
+			return Packets;
+		}
+	}
+
 	bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming
 		(
 			CConnection *_pConnection
@@ -58,8 +71,24 @@ namespace NMib::NConcurrency
 					auto &Host = *pHost;
 
 					// Remove packets that remote already knows about
-					for (auto iPacket = Host.m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Identify.m_AckedPacketID; ++iPacket)
-						iPacket.f_Delete(Host.m_Outgoing_SentPackets);
+					while (auto *pPacket = Host.m_Outgoing_SentPackets.f_FindSmallest())
+					{
+						if (pPacket->f_GetPacketID() > Identify.m_AckedPacketID)
+							break;
+
+						Host.m_Outgoing_SentPackets.f_Remove(pPacket);
+					}
+
+					DMibLog
+						(
+							DebugVerbose2
+							, " ---- {} {} Acked until (Identify) {} Left {vs}"
+							, _pConnection->m_pHost->m_bIncoming
+							, _pConnection->f_GetConnectionID()
+							, Identify.m_AckedPacketID
+							, fg_GetSentPacketIDs(*pHost)
+						)
+					;
 
 					bool bShouldReset = false;
 
@@ -278,8 +307,24 @@ namespace NMib::NConcurrency
 					auto &pHost = _pConnection->m_pHost;
 
 					// Remove packets that remote already knows about
-					for (auto iPacket = pHost->m_Outgoing_SentPackets.f_GetIterator(); iPacket && iPacket->f_GetPacketID() <= Acknowledge.m_LastInOrderPacketID; ++iPacket)
-						iPacket.f_Delete(pHost->m_Outgoing_SentPackets);
+					while (auto *pPacket = pHost->m_Outgoing_SentPackets.f_FindSmallest())
+					{
+						if (pPacket->f_GetPacketID() > Acknowledge.m_LastInOrderPacketID)
+							break;
+
+						pHost->m_Outgoing_SentPackets.f_Remove(pPacket);
+					}
+
+					DMibLog
+						(
+							DebugVerbose2
+							, " ---- {} {} Acked until {} Left {vs}"
+							, _pConnection->m_pHost->m_bIncoming
+							, _pConnection->f_GetConnectionID()
+							, Acknowledge.m_LastInOrderPacketID
+							, fg_GetSentPacketIDs(*pHost)
+						)
+					;
 				}
 				break;
 			case EDistributedActorCommand_NotifyConnectionLost:

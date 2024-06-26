@@ -712,8 +712,8 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 1);
-		Columns.f_AddHeading("Identifier Scope", 1);
 		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Identifier Scope", 0);
 		Columns.f_AddHeading("Timestamp", 0);
 		Columns.f_AddHeading("Sequence", 1);
 		Columns.f_AddHeading("Value", 0);
@@ -733,6 +733,7 @@ namespace NMib::NConcurrency
 		bool bHasApplication = false;
 		bool bHasOutdated = false;
 		bool bHasSnoozeUntil = false;
+		bool bHasIdentifierScope = false;
 		uint64 nEntries = 0;
 
 		CEJSONSorted JsonOutput;
@@ -774,6 +775,7 @@ namespace NMib::NConcurrency
 					pSensorMetaData = &pSensorInfo->m_MetaData;
 				}
 
+				bHasIdentifierScope = bHasIdentifierScope || Reading.m_SensorInfoKey.m_IdentifierScope;
 				bHasHostID = bHasHostID || Reading.m_SensorInfoKey.m_HostID;
 				bHasHostName = bHasHostName || HostName;
 				bHasApplication = bHasApplication || Application;
@@ -875,8 +877,8 @@ namespace NMib::NConcurrency
 							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Reading.m_SensorInfoKey.m_Identifier
-							, Reading.m_SensorInfoKey.m_IdentifierScope
 							, Name
+							, Reading.m_SensorInfoKey.m_IdentifierScope
 							, CStr((_Flags & ESensorOutputFlag_Verbose) ? "{tf}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal() : "{}"_f << Reading.m_Reading.m_Timestamp.f_ToLocal())
 							, Reading.m_Reading.m_UniqueSequence
 							, Value
@@ -921,6 +923,8 @@ namespace NMib::NConcurrency
 				Columns.f_SetVerbose("Outdated");
 			if (!bHasSnoozeUntil)
 				Columns.f_SetVerbose("Snoozed Until");
+			if (!bHasIdentifierScope)
+				Columns.f_SetVerbose("Identifier Scope");
 
 			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
 				TableRenderer.f_ReverseRows();

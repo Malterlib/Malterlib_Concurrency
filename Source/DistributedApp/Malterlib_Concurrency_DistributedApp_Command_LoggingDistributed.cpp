@@ -627,8 +627,8 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Host Description", 0);
 		Columns.f_AddHeading("Application", 0);
 		Columns.f_AddHeading("Identifier", 4);
-		Columns.f_AddHeading("Identifier Scope", 5);
 		Columns.f_AddHeading("Name", 0);
+		Columns.f_AddHeading("Identifier Scope", 0);
 		Columns.f_AddHeading("Timestamp", 0);
 		Columns.f_AddHeading("Sequence", 4);
 		Columns.f_AddHeading("Source Location", 6);
@@ -648,6 +648,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 		bool bHasName = false;
+		bool bHasIdentifierScope = false;
 		uint64 nEntries = 0;
 
 		CStr TimeColor = AnsiEncoding.f_ForegroundRGB(160, 160, 160);
@@ -692,10 +693,13 @@ namespace NMib::NConcurrency
 					pLogMetaData = &pLogInfo->m_MetaData;
 				}
 
+				bool bIsDefaultDistributedLog = Entry.m_LogInfoKey.m_Identifier == "org.malterlib.log.distributedapp";
+
 				bHasHostID = bHasHostID || Entry.m_LogInfoKey.m_HostID;
 				bHasHostName = bHasHostName || HostName;
 				bHasApplication = bHasApplication || Application;
-				bHasName = bHasName || (Name && Name != "Malterlib Distributed App");
+				bHasName = bHasName || (!bIsDefaultDistributedLog && Name);
+				bHasIdentifierScope = bHasIdentifierScope || (!bIsDefaultDistributedLog && Entry.m_LogInfoKey.m_IdentifierScope);
 
 				auto &Data = Entry.m_Entry.m_Data;
 
@@ -816,8 +820,8 @@ namespace NMib::NConcurrency
 							, CHostInfo::fs_FormatFriendlyNameForTable(HostName, AnsiEncoding)
 							, Application
 							, Entry.m_LogInfoKey.m_Identifier
-							, Entry.m_LogInfoKey.m_IdentifierScope
 							, Name
+							, Entry.m_LogInfoKey.m_IdentifierScope
 							, TimeStamp
 							, Entry.m_Entry.m_UniqueSequence
 							, SourceLocation
@@ -864,6 +868,8 @@ namespace NMib::NConcurrency
 				Columns.f_SetVerbose("Host Description", 7);
 			if (!bHasApplication)
 				Columns.f_SetVerbose("Application", 7);
+			if (!bHasIdentifierScope)
+				Columns.f_SetVerbose("Identifier Scope", 7);
 
 			if (_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst)
 				TableRenderer.f_ReverseRows();

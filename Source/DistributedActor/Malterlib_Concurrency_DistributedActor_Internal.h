@@ -103,7 +103,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		NStr::CStr m_ListenID;
 	};
 
-	struct CPacket
+	struct CPacket final
 	{
 		CPacket(NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pData)
 			: m_pData(_pData)

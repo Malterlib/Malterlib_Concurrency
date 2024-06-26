@@ -77,6 +77,7 @@ namespace NMib::NConcurrency
 							break;
 
 						Host.m_Outgoing_SentPackets.f_Remove(pPacket);
+						fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pPacket);
 					}
 
 					DMibLog
@@ -313,6 +314,7 @@ namespace NMib::NConcurrency
 							break;
 
 						pHost->m_Outgoing_SentPackets.f_Remove(pPacket);
+						fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pPacket);
 					}
 
 					DMibLog

@@ -47,7 +47,6 @@ namespace NMib::NConcurrency
 
 	CDistributedUIApp::~CDistributedUIApp() = default;
 
-
 	NStorage::TCSharedPointer<CRunLoop> CDistributedUIApp::f_GetRunLoop() const
 	{
 		return mp_pInternal->m_pRunLoop;

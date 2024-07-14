@@ -562,7 +562,7 @@ namespace NMib::NConcurrency
 	struct CCallingHostInfoScope final : public CCrossActorCallStateScope
 	{
 		CCallingHostInfoScope(CCallingHostInfo &&_NewInfo, bool _bAddToCoroutine = true);
-		CCallingHostInfoScope(CCallingHostInfoScope &&_Other) = default;
+		CCallingHostInfoScope(CCallingHostInfoScope &&_Other) = delete;
 		~CCallingHostInfoScope();
 		void f_Suspend() noexcept override;
 		void f_ResumeNoExcept() noexcept override;

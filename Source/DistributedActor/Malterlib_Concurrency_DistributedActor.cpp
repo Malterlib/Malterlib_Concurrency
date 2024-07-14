@@ -162,7 +162,7 @@ namespace NMib::NConcurrency
 		ThreadLocal.m_CallingHostInfo = fg_Move(_NewInfo);
 		ThreadLocal.m_pCurrentCallingHostInfoScope = this;
 	}
-	
+
 	CCallingHostInfoScope::~CCallingHostInfoScope()
 	{
 		auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
@@ -204,8 +204,15 @@ namespace NMib::NConcurrency
 				: m_NewInfo(_CallingHostInfo)
 			{
 			}
-			CState(CState &&) = default;
+
+			CState(CState &&_Other)
+				: m_NewInfo(fg_Move(_Other.m_NewInfo))
+			{
+				DMibFastCheck(!_Other.m_Scope);
+			}
+
 			CState(CState const &) = delete;
+
 			~CState()
 			{
 				if (!m_Scope)

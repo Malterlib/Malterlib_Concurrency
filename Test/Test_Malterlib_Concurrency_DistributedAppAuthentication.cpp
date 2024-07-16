@@ -1478,6 +1478,7 @@ public:
 				, "Color"_= false
 				, "Color24Bit"_= false
 				, "ColorLight"_= false
+				, "ColorSgrUsesSemiColon"_= true
 				, "BoxDrawing"_= false
 				, "TerminalWidth"_= -1
 				, "TerminalHeight"_= -1
@@ -1603,6 +1604,7 @@ public:
 						, "Color"_= false
 						, "Color24Bit"_= false
 						, "ColorLight"_= false
+						, "ColorSgrUsesSemiColon"_= true
 						, "BoxDrawing"_= false
 						, "TerminalWidth"_= -1
 						, "TerminalHeight"_= -1
@@ -2388,6 +2390,7 @@ public:
 				, "Color"_= false
 				, "Color24Bit"_= false
 				, "ColorLight"_= false
+				, "ColorSgrUsesSemiColon"_= true
 				, "BoxDrawing"_= false
 				, "TerminalWidth"_= -1
 				, "TerminalHeight"_= -1
@@ -2462,6 +2465,7 @@ public:
 						, "Color"_= false
 						, "Color24Bit"_= false
 						, "ColorLight"_= false
+						, "ColorSgrUsesSemiColon"_= true
 						, "BoxDrawing"_= false
 						, "TerminalWidth"_= -1
 						, "TerminalHeight"_= -1

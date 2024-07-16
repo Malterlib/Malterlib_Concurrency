@@ -2212,8 +2212,10 @@ namespace NMib::NConcurrency::NTest
 					DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestCaptureLogErrorUserMessageLeakedAfterSupendOuter).f_CallSync(), CaptureInsideTryCatchError);
 #endif
 				};
-#ifndef DCompiler_MSVC_Workaround
-				// throwing from unhandled_exception is not supported
+#if 0
+				// Throwing from unhandled_exception is not supported on MSVC
+				// Clang doesn't call the correct destructors when throwing from unhandled_exception
+
 				DMibTestCategory("NotCaught")
 				{
 					if (fg_MemoryManagerFeatures() & EMemoryManagerFeatureFlag_TraceLeaks)

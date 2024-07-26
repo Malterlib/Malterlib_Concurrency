@@ -20,13 +20,20 @@ namespace NMib::NConcurrency
 		enum : uint32
 		{
 			EProtocolVersion_Min = 0x101
-			, EProtocolVersion_Current = 0x101
+			, EProtocolVersion_SupportManifestConfigFlagsAndMaxDigestSize = 0x102
+			, EProtocolVersion_Current = 0x102
 		};
 
 		CDistributedAppInterfaceBackup();
 		~CDistributedAppInterfaceBackup();
 
-		virtual TCFuture<void> f_AppendManifest(NFile::CDirectoryManifestConfig const &_Config) = 0;
+		struct CManifestConfig : public NFile::CDirectoryManifestConfig
+		{
+			template <typename tf_CStream>
+			void f_Stream(tf_CStream &_Stream);
+		};
+
+		virtual TCFuture<void> f_AppendManifest(CManifestConfig const &_Config) = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeInitialFinished(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnInitialFinished) = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeBackupStopped(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnStopped) = 0;
 	};

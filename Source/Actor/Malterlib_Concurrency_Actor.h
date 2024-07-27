@@ -47,6 +47,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		CActorInternal();
 		~CActorInternal();
+	private:
 		CActor *mp_pThis = nullptr;
 #endif
 	};

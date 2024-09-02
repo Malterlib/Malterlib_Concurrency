@@ -619,7 +619,7 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		catch (NException::CException const &_Exception)
+		catch ([[maybe_unused]] NException::CException const &_Exception)
 		{
 			DMibLogWithCategory
 				(

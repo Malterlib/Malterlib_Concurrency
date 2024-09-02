@@ -167,6 +167,10 @@ namespace NMib::NConcurrency
 
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddListen, LocalListenAddress);
 
+		auto CurrentPrimary = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
+		if (!CurrentPrimary)
+			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetPrimaryListen, LocalListenAddress);
+
 		co_return {};
 	}
 

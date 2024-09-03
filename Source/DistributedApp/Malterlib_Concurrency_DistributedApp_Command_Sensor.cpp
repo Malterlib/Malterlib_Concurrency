@@ -180,6 +180,19 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		auto fOption_IgnoreSnoozed = [](bool _bDefault)
+			{
+				return "IgnoreSnoozed?"_o=
+					{
+						"Names"_o= {"--ignore-snoozed"}
+						, "Default"_o= _bDefault
+						, "Description"_o= "Ignore problematic sensor values for sensors that have been snoozed.\n"
+						"This option has no effect if you specify --no-only-problems (Ignored snoozed values are non-problematic)."
+					}
+				;
+			}
+		;
+
 		auto fParseSensorFilter = [](CEJSONSorted const &_Params) -> CDistributedAppSensorReader_SensorFilter
 			{
 				CDistributedAppSensorReader_SensorFilter Filter;
@@ -202,10 +215,27 @@ namespace NMib::NConcurrency
 				if (auto pValue = _Params.f_GetMember("IdentifierScope"))
 					Filter.m_IdentifierScope = pValue->f_String();
 					
-				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue->f_Boolean())
+				if (auto pValue = _Params.f_GetMember("IgnoreRemoved"); pValue && pValue->f_Boolean())
 					Filter.m_Flags |= CDistributedAppSensorReader_SensorFilter::ESensorFlag_IgnoreRemoved;
 
 				return Filter;
+			}
+		;
+
+		auto fParseSensorReadingFlags = [](CEJSONSorted const &_Params) -> CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag
+			{
+				CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
+
+				if (auto pValue = _Params.f_GetMember("ReportNewestFirst"); pValue && pValue->f_Boolean())
+					Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
+
+				if (auto pValue = _Params.f_GetMember("OnlyProblems"); pValue && pValue->f_Boolean())
+					Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems;
+
+				if (auto pValue = _Params.f_GetMember("IgnoreSnoozed"); pValue && pValue->f_Boolean())
+					Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_IgnoreSnoozed;
+
+				return Flags;
 			}
 		;
 
@@ -268,20 +298,19 @@ namespace NMib::NConcurrency
 						, Option_SensorIdentifier
 						, Option_SensorIdentifierScope
 						, fOption_IgnoreRemoved(true)
+						, fOption_IgnoreSnoozed(true)
 						, Option_Verbose
 						, Option_Json
 						, fOption_OnlyProblems(true)
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags]
+				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
 				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorStatusFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
-
-					if (_Params["OnlyProblems"].f_Boolean())
-						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems;
+					Filter.m_Flags = fParseSensorReadingFlags(_Params);
 
 					co_return co_await fSensorStatus
 						(
@@ -353,11 +382,12 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fSensorReadingsList = fg_Move(_fSensorReadingsList), fParseSensorFilter, fParseFlags]
+				, [fSensorReadingsList = fg_Move(_fSensorReadingsList), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
 				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorReadingFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
+					Filter.m_Flags = fParseSensorReadingFlags(_Params);
 
 					if (auto pValue = _Params.f_GetMember("MinSequence"))
 						Filter.m_MinSequence = pValue->f_Integer();
@@ -370,12 +400,6 @@ namespace NMib::NConcurrency
 
 					if (auto pValue = _Params.f_GetMember("MaxTimestamp"))
 						Filter.m_MaxTimestamp = pValue->f_Date().f_ToUTC();
-
-					Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
-					if (_Params["ReportNewestFirst"].f_Boolean())
-						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst;
-					if (_Params["OnlyProblems"].f_Boolean())
-						Filter.m_Flags |= CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems;
 
 					co_return co_await fSensorReadingsList
 						(

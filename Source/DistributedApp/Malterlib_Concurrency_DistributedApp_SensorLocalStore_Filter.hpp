@@ -129,13 +129,25 @@ namespace NMib::NConcurrency::NSensorStore
 		if (!(_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_OnlyProblems))
 			return true;
 
+		auto fCheckSnoozed = [&]()
+			{
+				if (_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_IgnoreSnoozed)
+				{
+					if (_Sensor.m_Info.m_SnoozeUntil.f_IsValid() && _Now < _Sensor.m_Info.m_SnoozeUntil)
+						return false;
+				}
+
+				return true;
+			}
+		;
+
 		if (fg_FilterSensorValueStatusIsProblem(_Reading))
-			return true;
+			return fCheckSnoozed();
 
 		if (_Sensor.m_Info.f_IsValueCritical(_Reading.m_Data))
-			return true;
+			return fCheckSnoozed();
 		else if (_Sensor.m_Info.f_IsValueWarning(_Reading.m_Data))
-			return true;
+			return fCheckSnoozed();
 
 		if (_Sensor.m_Info.f_HasExpectedReportInterval() && _PauseReportingFor != fp32::fs_Inf())
 		{
@@ -144,7 +156,7 @@ namespace NMib::NConcurrency::NSensorStore
 				OutdatedSeconds -= _PauseReportingFor;
 
 			if (OutdatedSeconds > _Sensor.m_Info.m_ExpectedReportInterval)
-				return true;
+				return fCheckSnoozed();
 		}
 
 		return false;

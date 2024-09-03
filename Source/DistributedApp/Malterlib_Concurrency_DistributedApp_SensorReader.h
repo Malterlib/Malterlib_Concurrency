@@ -35,6 +35,7 @@ namespace NMib::NConcurrency
 			ESensorReadingsFlag_None = 0
 			, ESensorReadingsFlag_ReportNewestFirst = DMibBit(0) ///< Not supported for subscriptions
 			, ESensorReadingsFlag_OnlyProblems = DMibBit(1)
+			, ESensorReadingsFlag_IgnoreSnoozed = DMibBit(2) ///< Only valid for querying status. Ignored for readings.
 		};
 
 		template <typename tf_CStream>

@@ -602,7 +602,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_WarnValue
 							, SensorInfo.m_CriticalValue
 							, SensorInfo.m_bRemoved ? "true" : "false"
-							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil) : CStr()
+							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil.f_ToLocal()) : CStr()
 							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
 							, SensorInfo.m_MetaData
 						)
@@ -892,7 +892,7 @@ namespace NMib::NConcurrency
 					if (bIsSnoozed)
 						SnoozeUntilStr = CStr("{}{tc6}{}"_f << AnsiEncoding.f_StatusNormal() << SnoozeUntil.f_ToLocal() << AnsiEncoding.f_Default());
 					else if (SnoozeUntil.f_IsValid())
-						SnoozeUntilStr = CStr("{tc6}"_f << SnoozeUntil);
+						SnoozeUntilStr = CStr("{tc6}"_f << SnoozeUntil.f_ToLocal());
 
 					TableRenderer.f_AddRow
 						(

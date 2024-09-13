@@ -194,9 +194,12 @@ namespace NMib::NConcurrency
 			co_return DMibErrorInstance("Local store not yet started");
 
 		uint32 nChanged = 0;
+
+		auto Now = NTime::CTime::fs_NowUTC();
+
 		NTime::CTime SnoozeUntil;
 		if (_SnoozeDuration.f_IsValid())
-			SnoozeUntil = NTime::CTime::fs_NowUTC() + _SnoozeDuration;
+			SnoozeUntil = Now + _SnoozeDuration;
 
 		for (auto &SensorInfoKey : _SensorInfoKeys)
 		{
@@ -208,6 +211,8 @@ namespace NMib::NConcurrency
 				continue;
 
 			if (pSensor->m_Info.m_SnoozeUntil.f_IsValid() != SnoozeUntil.f_IsValid())
+				++nChanged;
+			else if (SnoozeUntil.f_IsValid() && pSensor->m_Info.m_SnoozeUntil < Now)
 				++nChanged;
 
 			pSensor->m_Info.m_SnoozeUntil = SnoozeUntil;

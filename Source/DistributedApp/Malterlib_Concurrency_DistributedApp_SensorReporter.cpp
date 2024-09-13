@@ -394,7 +394,7 @@ namespace NMib::NConcurrency
 		return UnitDivisors;
 	}
 
-	auto CDistributedAppSensorReporter::fs_DiskSpaceDivisors() -> NContainer::TCMap<CSensorData, CUnit>
+	auto CDistributedAppSensorReporter::fs_BytesDivisors() -> NContainer::TCMap<CSensorData, CUnit>
 	{
 		NContainer::TCMap<CSensorData, CUnit> Return;
 

@@ -298,7 +298,7 @@ namespace NMib::NConcurrency
 		static ch8 const *fs_StatusSeverityToString(EStatusSeverity _Severity);
 
 		static NStr::CStr fs_FormatSensorDivisors(NContainer::TCMap<CSensorData, CUnit> const &_Divisors, ch8 const *_pSeparator = "\n");
-		static NContainer::TCMap<CSensorData, CUnit> fs_DiskSpaceDivisors();
+		static NContainer::TCMap<CSensorData, CUnit> fs_BytesDivisors();
 
 		virtual TCFuture<CSensorReporter> f_OpenSensorReporter(CSensorInfo &&_SensorInfo) = 0;
 	};

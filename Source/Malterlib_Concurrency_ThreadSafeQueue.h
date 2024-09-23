@@ -347,7 +347,7 @@ namespace NMib::NContainer
 		TCThreadSafeQueue(TCThreadSafeQueue const &_Other)
 		{
 			DMibLock(_Other.m_Lock);
-			auto Iter = _Other.f_GetIterator();
+			auto Iter = _Other.m_Queue.f_GetIterator();
 			while (Iter)
 			{
 				m_Queue.f_InsertLast(fg_ConstructObject<CListEntry>(t_CAllocator(), Iter->m_Data));

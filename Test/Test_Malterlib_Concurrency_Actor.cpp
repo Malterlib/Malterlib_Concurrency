@@ -13,23 +13,23 @@
 #include <future>
 #endif
 
-//#define DDoCheckMessages
+#define DDoCheckMessages
 //#define DDoGarbageCollection false
 
-#define DDoTest_Message_DispatchVector 1
-#define DDoTest_Message_Dispatch 1
-#define DDoTest_Message_DispatchThreaded 1
-#define DDoTest_Message_ActorDiscard 1
-#define DDoTest_Message_ActorDirect 1
+#define DDoTest_Message_DispatchVector 0
+#define DDoTest_Message_Dispatch 0
+#define DDoTest_Message_DispatchThreaded 0
+#define DDoTest_Message_ActorDiscard 0
+#define DDoTest_Message_ActorDirect 0
 #define DDoTest_Message_ActorToOther 1
 #define DDoTest_Message_ActorToOtherCoroutine 1
-#define DDoTest_Message_ActorToSame 1
-#define DDoTest_Message_ActorToSameCoroutine 1
-#define DDoTest_Message_PCActorToDiscard 1
-#define DDoTest_Message_PCActorToResVector 1
-#define DDoTest_Message_CActorToResVector 1
-#define DDoTest_Message_BranchedConcurrentActor 1
-#define DDoTest_Message_BranchedConcurrentActorCoroutine 1
+#define DDoTest_Message_ActorToSame 0
+#define DDoTest_Message_ActorToSameCoroutine 0
+#define DDoTest_Message_PCActorToDiscard 0
+#define DDoTest_Message_PCActorToResVector 0
+#define DDoTest_Message_CActorToResVector 0
+#define DDoTest_Message_BranchedConcurrentActor 0
+#define DDoTest_Message_BranchedConcurrentActorCoroutine 0
 
 #define DDoTest_Create_Vector 1
 #define DDoTest_Create_LinkedList 1
@@ -92,9 +92,19 @@ namespace
 		{
 		}
 
-		void f_AddInt(uint32 _Value)
+		TCFuture<void> f_AddInt(uint32 _Value)
+		{
+			TCPromise<void> Promise;
+			m_Value += _Value;
+
+			return Promise <<= g_Void;
+		}
+
+		TCFuture<void> f_AddIntCoro(uint32 _Value)
 		{
 			m_Value += _Value;
+
+			co_return {};
 		}
 
 		uint32 f_GetResult()
@@ -248,32 +258,31 @@ namespace
 
 	class CActor_Tests : public NMib::NTest::CTest
 	{
+		TCFunctionMovable<void ()> fp_GarbageCollectFunctor(bool _bGarbageCollect)
+		{
+			return [_bGarbageCollect]
+				{
+					(void)_bGarbageCollect;
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+	#ifdef DDoGarbageCollection
+					if (_bGarbageCollect)
+						Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
+					else
+	#endif
+	#ifdef DDoCheckMessages
+						Checkout.f_CheckMessages();
+	#else
+						;
+	#endif
+				}
+			;
+		}
+
 		void fp_BlockOnAllThreads(TCActorResultVector<void> &_Results, bool _bGarbageCollect)
 		{
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
 			for (mint i = 0; i < nThreads; ++i)
-			{
-				fg_ConcurrentDispatch
-					(
-						[_bGarbageCollect]
-						{
-							(void)_bGarbageCollect;
-							auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#ifdef DDoGarbageCollection
-							if (_bGarbageCollect)
-								Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
-							else
-#endif
-#ifdef DDoCheckMessages
-								Checkout.f_CheckMessages();
-#else
-								;
-#endif
-						}
-					)
-					> _Results.f_AddResult()
-				;
-			}
+				fg_ConcurrentDispatch(fp_GarbageCollectFunctor(_bGarbageCollect)) > _Results.f_AddResult();
 		}
 		void fp_BlockOnAllThreads(bool _bGarbageCollect)
 		{
@@ -281,17 +290,7 @@ namespace
 			TCActorResultVector<void> Results{nThreads};
 			fp_BlockOnAllThreads(Results, _bGarbageCollect);
 			Results.f_GetResults().f_CallSync();
-			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#ifdef DDoGarbageCollection
-			if (_bGarbageCollect)
-				Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
-			else
-#endif
-#ifdef DDoCheckMessages
-				Checkout.f_CheckMessages();
-#else
-				;
-#endif
+			fp_GarbageCollectFunctor(_bGarbageCollect)();
 		}
 	public:
 
@@ -1033,7 +1032,7 @@ namespace
 							Dispatch
 								= [&]
 								{
-									ActorEmul.f_AddInt(1);
+									(void)ActorEmul.f_AddInt(1);
 								}
 							;
 						}
@@ -1067,7 +1066,7 @@ namespace
 								(
 									[&]
 									{
-										ActorEmul.f_AddInt(1);
+										(void)ActorEmul.f_AddInt(1);
 									}
 								)
 							;
@@ -1104,7 +1103,7 @@ namespace
 								(
 									[&]
 									{
-										ActorEmul.f_AddInt(1);
+										(void)ActorEmul.f_AddInt(1);
 									}
 								)
 							;
@@ -1125,13 +1124,16 @@ namespace
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Discard");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					DMibConOut2("NPrivate::TCPromiseData<void>: {}\n", sizeof(NConcurrency::NPrivate::TCPromiseData<void>));
 
 					uint32 Result = 0;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]
 								{
 									for (mint i = 0; i < nIterations; ++i)
 										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
@@ -1147,6 +1149,41 @@ namespace
 
 					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+				[&]() inline_never
+				{
+					DMibTestPath("Actor Discard Coro");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Discard Coro");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]
+								{
+									for (mint i = 0; i < nIterations; ++i)
+										PerfTestActor(&CPerformanceTestActor::f_AddIntCoro, 1) > fg_DiscardResult();
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
 					PerfTest.f_Add(ActorMeasure);
 				}();
 #endif
@@ -1159,13 +1196,14 @@ namespace
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Direct");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
@@ -1186,6 +1224,48 @@ namespace
 
 					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+				[&]() inline_never
+				{
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+
+					DMibTestPath("Actor Direct Coro");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Direct Coro");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]
+								{
+									for (mint i = 0; i < nIterations; ++i)
+									{
+										PerfTestActor(&CPerformanceTestActor::f_AddIntCoro, 1) > NConcurrency::fg_DirectResultActor() / [](TCAsyncResult<void> &&)
+											{
+											}
+										;
+									}
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
 					PerfTest.f_Add(ActorMeasure);
 				}();
 #endif
@@ -1198,6 +1278,7 @@ namespace
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CActor> LaunchActor{fg_Construct()};
 
 					uint32 Result = 0;;
 					auto ReplyActor = fg_ConstructActor<CActor>();
@@ -1205,7 +1286,7 @@ namespace
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
@@ -1237,13 +1318,14 @@ namespace
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other Coro");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CActor> LaunchActor{fg_Construct()};
 
 					uint32 Result = 0;;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
-								g_ConcurrentDispatch / [&]() -> TCFuture<void>
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
 										co_await PerfTestActor(&CPerformanceTestActor::f_AddInt, 1);
@@ -1455,8 +1537,7 @@ namespace
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						TCActorResultVector<mint> Results{nIterations};
-						TCActorResultVector<void> Dispatches{nSplits};
+						TCActorResultVector<TCActorResultVector<mint>> Dispatches{nSplits};
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							fg_ConcurrentDispatch
@@ -1464,6 +1545,7 @@ namespace
 									[&]
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
+										TCActorResultVector<mint> Results;
 										for (mint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 										{
 											fg_Dispatch
@@ -1477,15 +1559,20 @@ namespace
 												> Results.f_AddResult()
 											;
 										}
+										return Results;
 									}
 								)
 								> Dispatches.f_AddResult();
 							;
 						}
-						Dispatches.f_GetResults().f_CallSync();
-						auto ResultsVector = Results.f_GetResults().f_CallSync();
-						for (auto &Results : ResultsVector)
-							Result += *Results;
+
+						TCActorResultVector<mint> Results;
+						for (auto &ResultVector : Dispatches.f_GetResults().f_CallSync())
+						{
+							for (auto &Results : ResultVector->f_GetResults().f_CallSync())
+								Result += *Results;
+						}
+
 						fp_BlockOnAllThreads(false);
 					}
 

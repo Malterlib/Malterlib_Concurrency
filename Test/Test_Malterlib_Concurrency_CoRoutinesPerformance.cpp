@@ -23,7 +23,7 @@ namespace NMib::NConcurrency::NTest
 
 	class CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
-		constexpr static mint mc_nLoops = 16384 * 128;
+		constexpr static mint mc_nLoops = 16384 * 128 * 10;
 
 		static inline_never uint32 fs_TestRecursive(uint32 _Value)
 		{
@@ -107,6 +107,7 @@ namespace NMib::NConcurrency::NTest
 				constexpr mint c_nTasks = 1'000'000;
 
 				CTestPerformanceMeasure MalterlibTime("Malterlib5");
+				TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 				{
 					for(mint j = 0; j < nTests; ++j)
 					{
@@ -121,7 +122,7 @@ namespace NMib::NConcurrency::NTest
 						NThread::CEvent Event;
 						for (auto &Promise : Promises)
 						{
-							g_ConcurrentDispatch / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
 								{
 									if (!bAllScheduled.f_Load())
 										Event.f_Wait();

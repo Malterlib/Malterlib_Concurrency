@@ -1256,7 +1256,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		void operator ()()
+		inline_never void operator ()()
 		{
 			DMibFastCheck(m_pActorInternal);
 

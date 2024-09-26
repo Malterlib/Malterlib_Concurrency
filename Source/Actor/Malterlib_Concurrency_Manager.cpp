@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 
 	CConcurrencyThreadLocal::~CConcurrencyThreadLocal() = default;
 
-	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
+	inline_always_lto CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
 	{
 		return *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
 	}

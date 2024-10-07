@@ -723,4 +723,43 @@ namespace NMib::NConcurrency
 			)
 		;
 	}
+
+	TCFuture<CTimeoutAbortable> fg_TimeoutAbortable(fp64 _Period)
+	{
+		TCPromise<void> Promise;
+		CTimeoutAbortable Return;
+
+		Return.m_Future = Promise.f_Future();
+
+		struct CPromiseHolder
+		{
+			CPromiseHolder(TCPromise<void> &&_Promise)
+				: m_Promise(fg_Move(_Promise))
+			{
+			}
+			CPromiseHolder(CPromiseHolder &&) = default;
+			CPromiseHolder(CPromiseHolder const &) = delete;
+
+			~CPromiseHolder()
+			{
+				if (m_Promise.f_IsValid())
+					m_Promise.f_SetException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Timer aborted", false));
+			}
+
+			TCPromise<void> m_Promise;
+		};
+
+		Return.m_Subscription = co_await fg_OneshotTimerAbortable
+			(
+				_Period
+				, [PromiseHolder = CPromiseHolder(fg_Move(Promise))]() mutable
+				{
+					PromiseHolder.m_Promise.f_SetResult();
+					PromiseHolder.m_Promise = CPromiseConstructEmpty();
+				}
+			)
+		;
+
+		co_return fg_Move(Return);
+	}
 }

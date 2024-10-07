@@ -50,6 +50,15 @@ namespace NMib::NConcurrency
 	};
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit = true);
+
+	struct CTimeoutAbortable
+	{
+		CActorSubscription m_Subscription;
+		TCFuture<void> m_Future;
+	};
+
+	TCFuture<CTimeoutAbortable> fg_TimeoutAbortable(fp64 _Period);
+
 	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_Actor = nullptr, bool _bFireAtExit = true);
 	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_Actor = nullptr);
 	TCFuture<CActorSubscription> fg_RegisterTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_Actor = nullptr);

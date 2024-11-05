@@ -64,21 +64,21 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddListen(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Add))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddListen, _Address);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveListen(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Remove))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveListen, _Address);
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Write))
 			co_return fp_AccessDenied();
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);
 	}
 
-	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasListen(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!fp_CheckPermissions(EPermission_Listen_Read))
 			co_return fp_AccessDenied();
@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumClients);
 	}
 	
-	auto CDistributedActorTrustManagerProxy::f_GenerateConnectionTicket(CGenerateConnectionTicket &&_Command)
+	auto CDistributedActorTrustManagerProxy::f_GenerateConnectionTicket(CGenerateConnectionTicket _Command)
 		-> TCFuture<CTrustGenerateConnectionTicketResult>
 	{
 		if (!fp_CheckPermissions(EPermission_Client_Add))
@@ -117,27 +117,27 @@ namespace NMib::NConcurrency
 				&CDistributedActorTrustManager::f_GenerateConnectionTicket
 				, _Command.m_Address
 				, _Command.m_fOnUseTicket
-				? TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)>
+				? TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)>
 				{
 					g_ActorFunctor
 					(fg_Move(_Command.m_fOnUseTicket.f_GetSubscription()))
 					(fg_Move(_Command.m_fOnUseTicket.f_GetActor()))
 					/ [fOnUseTicket = fg_Move(_Command.m_fOnUseTicket.f_GetFunctor())]
-					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) mutable -> TCFuture<void>
+					(NStr::CStr &&_HostID, CCallingHostInfo &&_HostInfo, NContainer::CByteVector &&_CertificateRequest) mutable -> TCFuture<void>
 					{
-						return fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
+						return fOnUseTicket(fg_Move(_HostID), fg_Move(_HostInfo), fg_Move(_CertificateRequest));
 					}
 				}
 				: nullptr
-				, _Command.m_fOnCertificateSigned ? TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)>
+				, _Command.m_fOnCertificateSigned ? TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo)>
 				{
 					g_ActorFunctor
 					(fg_Move(_Command.m_fOnCertificateSigned.f_GetSubscription()))
 					(fg_Move(_Command.m_fOnCertificateSigned.f_GetActor()))
 					/ [fOnCertificateSigned = fg_Move(_Command.m_fOnCertificateSigned.f_GetFunctor())]
-					(NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo) mutable -> TCFuture<void>
+					(NStr::CStr &&_HostID, CCallingHostInfo &&_HostInfo) mutable -> TCFuture<void>
 					{
-						return fOnCertificateSigned(_HostID, _HostInfo);
+						return fOnCertificateSigned(fg_Move(_HostID), fg_Move(_HostInfo));
 					}
 				}
 				: nullptr
@@ -145,14 +145,14 @@ namespace NMib::NConcurrency
 		;
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClient(CStr const &_HostID)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClient(CStr _HostID)
 	{
 		if (!fp_CheckPermissions(EPermission_Client_Remove))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID);
 	}
 	
-	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasClient(CStr const &_HostID)
+	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasClient(CStr _HostID)
 	{
 		if (!fp_CheckPermissions(EPermission_Client_Read))
 			co_return fp_AccessDenied();
@@ -166,35 +166,35 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
 	}
 	
-	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddClientConnection, _TrustTicket, _Timeout, _ConnectionConcurrency);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetClientConnectionConcurrency, _Address, _ConnectionConcurrency);
 	}
 	
-	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManagerProxy::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddAdditionalClientConnection, _Address, _ConnectionConcurrency);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CRemoveClientConnection const &_Command)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveClientConnection(CRemoveClientConnection _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Remove))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_RemoveClientConnection, _Command.m_Address, _Command.m_bPreserveHost);
 	}
 	
-	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManagerProxy::f_HasClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!fp_CheckPermissions(EPermission_ClientConnection_Read))
 			co_return fp_AccessDenied();
@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumNamespacePermissions, _bIncludeHostInfo);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AllowHostsForNamespace(CChangeNamespaceHosts const &_Command)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AllowHostsForNamespace(CChangeNamespaceHosts _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_NamespacePermissions_Add))
 			co_return fp_AccessDenied();
@@ -226,7 +226,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, _Command.m_Namespace, _Command.m_Hosts, _Command.m_OrderingFlags);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_DisallowHostsForNamespace(CChangeNamespaceHosts const &_Command)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_DisallowHostsForNamespace(CChangeNamespaceHosts _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_NamespacePermissions_Remove))
 			co_return fp_AccessDenied();
@@ -244,7 +244,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumPermissions, _bIncludeHostInfo);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddPermissions(CAddPermissions const &_Command)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddPermissions(CAddPermissions _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_Permissions_Add))
 			co_return fp_AccessDenied();
@@ -258,7 +258,7 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddPermissions, _Command.m_Identity, _Command.m_Permissions, _Command.m_OrderingFlags);
 	}
 	
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemovePermissions(CRemovePermissions const &_Command)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemovePermissions(CRemovePermissions _Command)
 	{
 		if (!fp_CheckPermissions(EPermission_Permissions_Remove))
 			co_return fp_AccessDenied();
@@ -279,21 +279,21 @@ namespace NMib::NConcurrency
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, _bIncludeFullInfo);
 	}
 
-	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManagerProxy::f_TryGetUser(CStr const &_UserID)
+	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManagerProxy::f_TryGetUser(CStr _UserID)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Read))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_TryGetUser, _UserID);
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddUser(CStr const &_UserID, CStr const &_UserName)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddUser(CStr _UserID, CStr _UserName)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddUser, _UserID, _UserName);
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveUser(CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveUser(CStr _UserID)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Remove))
 			co_return fp_AccessDenied();
@@ -302,10 +302,10 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetUserInfo
 		(
-			CStr const &_UserID
-			, TCOptional<CStr> const &_UserName
-			, TCSet<CStr> const &_RemoveMetadata
-			, TCMap<CStr, CEJSONSorted> const &_AddMetadata
+			CStr _UserID
+			, TCOptional<CStr> _UserName
+			, TCSet<CStr> _RemoveMetadata
+			, TCMap<CStr, CEJSONSorted> _AddMetadata
 		)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
@@ -327,7 +327,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(OutFactors);
 	}
 
-	auto CDistributedActorTrustManagerProxy::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const -> TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>>
+	auto CDistributedActorTrustManagerProxy::f_EnumUserAuthenticationFactors(NStr::CStr _UserID) const -> TCFuture<NContainer::TCMap<NStr::CStr, CLocalAuthenticationData>>
 	{
 		if (!fp_CheckPermissions(EPermission_User_Read))
 			co_return fp_AccessDenied();
@@ -342,21 +342,21 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Factors);
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_AddUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID, CLocalAuthenticationData _Data)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_AddUserAuthenticationFactor, _UserID, _FactorID, fg_Move(_Data));
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CLocalAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_SetUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID, CLocalAuthenticationData _Data)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
 			co_return fp_AccessDenied();
 		co_return co_await mp_TrustManager(&CDistributedActorTrustManager::f_SetUserAuthenticationFactor, _UserID, _FactorID, fg_Move(_Data));
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID)
+	TCFuture<void> CDistributedActorTrustManagerProxy::f_RemoveUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))
 			co_return fp_AccessDenied();

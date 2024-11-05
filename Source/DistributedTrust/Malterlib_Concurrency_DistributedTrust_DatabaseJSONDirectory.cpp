@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig const &_BasicConfig)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig _BasicConfig)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser _DefaultUser)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -320,7 +320,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr const &_HostName)
+	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr _HostName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -364,7 +364,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -387,7 +387,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr const &_HostName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr _HostName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -434,7 +434,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -496,7 +496,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -546,7 +546,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr const &_HostID)
+	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -567,7 +567,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr const &_HostID)
+	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -588,7 +588,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr const &_HostID)
+	TCFuture<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -605,7 +605,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientLastFriendlyName(NStr::CStr const &_HostID)
+	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientLastFriendlyName(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -627,7 +627,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr _HostID, CClient _Client)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -646,7 +646,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr _HostID, CClient _Client)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -665,7 +665,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr const &_HostID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -714,7 +714,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -736,8 +736,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClientConnection
 		(
-			CDistributedActorTrustManager_Address const &_Address
-			, CClientConnection const &_ClientConnection
+			CDistributedActorTrustManager_Address _Address
+			, CClientConnection _ClientConnection
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -763,8 +763,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClientConnection
 		(
-			CDistributedActorTrustManager_Address const &_Address
-			, CClientConnection const &_ClientConnection
+			CDistributedActorTrustManager_Address _Address
+			, CClientConnection _ClientConnection
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -790,7 +790,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -834,7 +834,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr const &_NamespaceName)
+	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr _NamespaceName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -859,7 +859,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -882,7 +882,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -905,7 +905,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr const &_NamespaceName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr _NamespaceName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -952,7 +952,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers _Identity)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -974,7 +974,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -994,7 +994,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1014,7 +1014,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers _Identity)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1057,7 +1057,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr const &_UserID)
+	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr _UserID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1077,7 +1077,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr _UserID, CUserInfo _UserInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1096,7 +1096,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr _UserID, CUserInfo _UserInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1115,7 +1115,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr _UserID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1165,9 +1165,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUserAuthenticationFactor
 		(
-			CStr const &_UserID
-			, CStr const &_FactorID
-			, CUserAuthenticationFactor const &_Factor
+			CStr _UserID
+			, CStr _FactorID
+			, CUserAuthenticationFactor _Factor
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -1191,9 +1191,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserAuthenticationFactor
 		(
-			CStr const &_UserID
-			, CStr const &_FactorID
-			, CUserAuthenticationFactor const &_Factor
+			CStr _UserID
+			, CStr _FactorID
+			, CUserAuthenticationFactor _Factor
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -1215,7 +1215,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr _UserID, CStr _FactorID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();

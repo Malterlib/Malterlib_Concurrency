@@ -40,7 +40,7 @@ namespace NTestTrustManager
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -53,10 +53,10 @@ namespace NTestTrustManager
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
@@ -73,9 +73,9 @@ namespace NTestTrustManager
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		{
 			co_return CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))};
@@ -85,23 +85,23 @@ namespace NTestTrustManager
 		CStr m_Name;
 	};
 
-	TCFuture<void> DMibWorkaroundUBSanSectionErrors fg_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
+	TCFuture<void> DMibWorkaroundUBSanSectionErrors fg_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> _Value)
 	{
 		co_return {};
 	}
 
 	struct CTestInterfaceConversion : public CActor
 	{
-		TCFuture<void> f_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> &&_Value)
+		TCFuture<void> f_TestIt(TCDistributedActorInterface<CAuthenticationActorTestSucceed> _Value)
 		{
 			co_return {};
 		}
 
-		TCFuture<void> f_TestIt2(TCDistributedActor<CAuthenticationActorTestSucceed> &&_Value)
+		TCFuture<void> f_TestIt2(TCDistributedActor<CAuthenticationActorTestSucceed> _Value)
 		{
-			co_await self(&CTestInterfaceConversion::f_TestIt, fg_TempCopy(_Value));
+			co_await f_TestIt(fg_TempCopy(_Value));
 
-			co_await fg_CallSafe(this, &CTestInterfaceConversion::f_TestIt, fg_TempCopy(_Value));
+			co_await f_TestIt(fg_TempCopy(_Value));
 
 			co_return {};
 		}
@@ -116,7 +116,7 @@ namespace NTestTrustManager
 		}
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -129,10 +129,10 @@ namespace NTestTrustManager
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
@@ -149,9 +149,9 @@ namespace NTestTrustManager
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		{
 			co_return CVerifyAuthenticationReturn{false};
@@ -803,7 +803,7 @@ namespace NTestTrustManager
 							}
 						}
 					)
-					> fg_DiscardResult();
+					.f_DiscardResult();
 				;
 
 				{
@@ -920,7 +920,7 @@ namespace NTestTrustManager
 							}
 						}
 					)
-					> fg_DiscardResult();
+					.f_DiscardResult()
 				;
 
 				bool bTimedOut = false;
@@ -1039,7 +1039,7 @@ namespace NTestTrustManager
 								}
 							}
 						)
-						> fg_DiscardResult();
+						.f_DiscardResult()
 					;
 
 					mint ExpectedCalls = nCalls.f_Load() + 2;
@@ -1256,14 +1256,14 @@ namespace NTestTrustManager
 					ClientActors.f_Insert(ClientHelper.f_GetRemoteActor<CTestActor>(Subscription));
 				}
 
-				TCActorResultVector<uint32> Results;
+				TCFutureVector<uint32> Results;
 
-				Actor.f_CallActor(&CTestActor::f_Test)() > Results.f_AddResult();
+				Actor.f_CallActor(&CTestActor::f_Test)() > Results;
 
 				for (auto &ClientActor : ClientActors)
-					ClientActor.f_CallActor(&CTestActor::f_Test)() > Results.f_AddResult();
+					ClientActor.f_CallActor(&CTestActor::f_Test)() > Results;
 
-				auto ResultsVector = Results.f_GetResults().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 6);
+				auto ResultsVector = fg_AllDoneWrapped(Results).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 6);
 				for (auto &Result : ResultsVector)
 					DMibExpect(*Result, ==, 5)(ETestFlag_Aggregated);
 
@@ -1773,7 +1773,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("Subscribe stress");
-					TCActorResultVector<void> Dispatches;
+					TCFutureVector<void> Dispatches;
 #if DMibConfig_RefCountDebugging
 					constexpr mint c_nLoops = 100;
 #else
@@ -1785,22 +1785,21 @@ namespace NTestTrustManager
 							(
 								[&]
 								{
-									ClientTrustManager
+									ClientTrustManager.f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>>
 										(
-											&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>
-											, "com.malterlib/Test"
+											"com.malterlib/Test"
 											, RunLoopHelper.m_HelperActor
 											, 0
 											, TCLimitsInt<uint32>::mc_Max
 										)
-										> fg_DiscardResult()
+										.f_DiscardResult()
 									;
 								}
 							)
-							> Dispatches.f_AddResult();
+							> Dispatches;
 						;
 					}
-					Dispatches.f_GetResults().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					fg_AllDoneWrapped(Dispatches).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					fg_Dispatch(RunLoopHelper.m_HelperActor, []{}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 					ClientTrustManager(&CDistributedActorTrustManager::f_AllowHostsForNamespace, "com.malterlib/Test", ServerHosts, c_WaitForSubscriptions)
 						.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -1851,13 +1850,13 @@ namespace NTestTrustManager
 
 								co_await TrustedSubscription0.f_OnActor
 									(
-										g_ActorFunctor / [&](TCDistributedActor<CTestActor> const &_Actor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+										g_ActorFunctor / [&](TCDistributedActor<CTestActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 										{
 											++nActors;
 
 											co_return {};
 										}
-										, g_ActorFunctor / [&](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
+										, g_ActorFunctor / [&](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 										{
 											--nActors;
 
@@ -2505,12 +2504,19 @@ namespace NTestTrustManager
 					DMibExpect(Factors3.f_GetLen(), ==, 4);
 
 					// Cleanup on the client side
+					DMibTestMark;
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID1).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID2).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID3).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID4).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 					TestState.m_ClientTrustManager(&CDistributedActorTrustManager::f_RemoveUser, ID5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 					TestState.m_ServerTrustManager(&CDistributedActorTrustManager::f_SetUserInfo, ID5, UnsetUserName, NoRemove, Metadata5).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+					DMibTestMark;
 				}
 				{
 					DMibTestPath("Basic testing of the trust proxy");
@@ -3445,7 +3451,7 @@ namespace NTestTrustManager
 				DMibAssert(PermissionFiles.f_GetLen(), ==, 1);
 				DMibExpect(NFile::CFile::fs_GetFile(PermissionFiles[0]), ==, "H_8MJEEHW9rbRfQKcf8.json");
 
-				DatabaseActor.f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				fg_Move(DatabaseActor).f_Destroy().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 				{
 					DMibTestPath("After reload");
@@ -3465,7 +3471,7 @@ namespace NTestTrustManager
 			{
 				TCDistributedActor<CAuthenticationActorTestSucceed> TestEmpty;
 
-				co_await fg_CallSafe(&fg_TestIt, fg_TempCopy(TestEmpty)).f_Timeout(g_Timeout, "Timeout");
+				co_await fg_TestIt(fg_TempCopy(TestEmpty)).f_Timeout(g_Timeout, "Timeout");
 
 				TCActor<CTestInterfaceConversion> Actor = fg_Construct();
 				co_await Actor(&CTestInterfaceConversion::f_TestIt, fg_TempCopy(TestEmpty)).f_Timeout(g_Timeout, "Timeout");
@@ -3497,7 +3503,7 @@ namespace NTestTrustManager
 				}
 				{
 					DMibTestPath("JSON Directory Database");
-					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager";
+					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/JSONDirectoryDatabase";
 					fp_DoBasicTests
 						(
 							[BaseDirectory](CStr const &_Name)

@@ -198,62 +198,62 @@ namespace NMib::NConcurrency
 		using CUserAuthenticationFactor = NDistributedActorTrustManagerDatabase::CUserAuthenticationFactor;
 
 		virtual TCFuture<CBasicConfig> f_GetBasicConfig() = 0;
-		virtual TCFuture<void> f_SetBasicConfig(CBasicConfig const &_BasicConfig) = 0;
+		virtual TCFuture<void> f_SetBasicConfig(CBasicConfig _BasicConfig) = 0;
 		virtual TCFuture<int32> f_GetNewCertificateSerial() = 0;
 		virtual TCFuture<CDefaultUser> f_GetDefaultUser() = 0;
-		virtual TCFuture<void> f_SetDefaultUser(CDefaultUser const &_DefaultUser) = 0;
+		virtual TCFuture<void> f_SetDefaultUser(CDefaultUser _DefaultUser) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CServerCertificate>> f_EnumServerCertificates(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CServerCertificate> f_GetServerCertificate(NStr::CStr const &_HostName) = 0;
-		virtual TCFuture<void> f_AddServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) = 0;
-		virtual TCFuture<void> f_SetServerCertificate(NStr::CStr const &_HostName, CServerCertificate const &_Certificate) = 0;
-		virtual TCFuture<void> f_RemoveServerCertificate(NStr::CStr const &_HostName) = 0;
+		virtual TCFuture<CServerCertificate> f_GetServerCertificate(NStr::CStr _HostName) = 0;
+		virtual TCFuture<void> f_AddServerCertificate(NStr::CStr _HostName, CServerCertificate _Certificate) = 0;
+		virtual TCFuture<void> f_SetServerCertificate(NStr::CStr _HostName, CServerCertificate _Certificate) = 0;
+		virtual TCFuture<void> f_RemoveServerCertificate(NStr::CStr _HostName) = 0;
 
 		virtual TCFuture<NContainer::TCSet<CListenConfig>> f_EnumListenConfigs() = 0;
-		virtual TCFuture<void> f_AddListenConfig(CListenConfig const &_Config) = 0;
-		virtual TCFuture<void> f_RemoveListenConfig(CListenConfig const &_Config) = 0;
+		virtual TCFuture<void> f_AddListenConfig(CListenConfig _Config) = 0;
+		virtual TCFuture<void> f_RemoveListenConfig(CListenConfig _Config) = 0;
 
 		virtual TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> f_GetPrimaryListen() = 0;
-		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address) = 0;
+		virtual TCFuture<void> f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CClient>> f_EnumClients(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CClient> f_GetClient(NStr::CStr const &_HostID) = 0;
-		virtual TCFuture<NStorage::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr const &_HostID) = 0;
-		virtual TCFuture<bool> f_HasClient(NStr::CStr const &_HostID) = 0;
-		virtual TCFuture<void> f_AddClient(NStr::CStr const &_HostID, CClient const &_Client) = 0;
-		virtual TCFuture<void> f_SetClient(NStr::CStr const &_HostID, CClient const &_Client) = 0;
-		virtual TCFuture<void> f_RemoveClient(NStr::CStr const &_HostID) = 0;
+		virtual TCFuture<CClient> f_GetClient(NStr::CStr _HostID) = 0;
+		virtual TCFuture<NStorage::TCUniquePointer<CClient>> f_TryGetClient(NStr::CStr _HostID) = 0;
+		virtual TCFuture<bool> f_HasClient(NStr::CStr _HostID) = 0;
+		virtual TCFuture<void> f_AddClient(NStr::CStr _HostID, CClient _Client) = 0;
+		virtual TCFuture<void> f_SetClient(NStr::CStr _HostID, CClient _Client) = 0;
+		virtual TCFuture<void> f_RemoveClient(NStr::CStr _HostID) = 0;
 
 		virtual TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>> f_EnumClientConnections(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
-		virtual TCFuture<void> f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
-		virtual TCFuture<void> f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection) = 0;
-		virtual TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address) = 0;
+		virtual TCFuture<CClientConnection> f_GetClientConnection(CDistributedActorTrustManager_Address _Address) = 0;
+		virtual TCFuture<void> f_AddClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection) = 0;
+		virtual TCFuture<void> f_SetClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection) = 0;
+		virtual TCFuture<void> f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CNamespace>> f_EnumNamespaces(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CNamespace> f_GetNamespace(NStr::CStr const &_NamespaceName) = 0;
-		virtual TCFuture<void> f_AddNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
-		virtual TCFuture<void> f_SetNamespace(NStr::CStr const &_NamespaceName, CNamespace const &_Namespace) = 0;
-		virtual TCFuture<void> f_RemoveNamespace(NStr::CStr const &_NamespaceName) = 0;
+		virtual TCFuture<CNamespace> f_GetNamespace(NStr::CStr _NamespaceName) = 0;
+		virtual TCFuture<void> f_AddNamespace(NStr::CStr _NamespaceName, CNamespace _Namespace) = 0;
+		virtual TCFuture<void> f_SetNamespace(NStr::CStr _NamespaceName, CNamespace _Namespace) = 0;
+		virtual TCFuture<void> f_RemoveNamespace(NStr::CStr _NamespaceName) = 0;
 
 		virtual TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> f_EnumPermissions(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CPermissions> f_GetPermissions(CPermissionIdentifiers const &_Identity) = 0;
-		virtual TCFuture<void> f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions) = 0;
-		virtual TCFuture<void> f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions) = 0;
-		virtual TCFuture<void> f_RemovePermissions(CPermissionIdentifiers const &_Identity) = 0;
+		virtual TCFuture<CPermissions> f_GetPermissions(CPermissionIdentifiers _Identity) = 0;
+		virtual TCFuture<void> f_AddPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions) = 0;
+		virtual TCFuture<void> f_SetPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions) = 0;
+		virtual TCFuture<void> f_RemovePermissions(CPermissionIdentifiers _Identity) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, CUserInfo>> f_EnumUsers(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<CUserInfo> f_GetUserInfo(NStr::CStr const &_User) = 0;
-		virtual TCFuture<void> f_AddUser(NStr::CStr const &_User, CUserInfo const &_UserInfo) = 0;
-		virtual TCFuture<void> f_SetUserInfo(NStr::CStr const &_User, CUserInfo const &_UserInfo) = 0;
-		virtual TCFuture<void> f_RemoveUser(NStr::CStr const &_User) = 0;
+		virtual TCFuture<CUserInfo> f_GetUserInfo(NStr::CStr _User) = 0;
+		virtual TCFuture<void> f_AddUser(NStr::CStr _User, CUserInfo _UserInfo) = 0;
+		virtual TCFuture<void> f_SetUserInfo(NStr::CStr _User, CUserInfo _UserInfo) = 0;
+		virtual TCFuture<void> f_RemoveUser(NStr::CStr _User) = 0;
 
 		virtual TCFuture<NContainer::TCMap<NStr::CStr, NContainer::TCMap<NStr::CStr, CUserAuthenticationFactor>>> f_EnumAuthenticationFactor(bool _bIncludeFullInfo) = 0;
-		virtual TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) = 0;
-		virtual TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID, CUserAuthenticationFactor const &_Factor) = 0;
-		virtual TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID) = 0;
+		virtual TCFuture<void> f_AddUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID, CUserAuthenticationFactor _Factor) = 0;
+		virtual TCFuture<void> f_SetUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID, CUserAuthenticationFactor _Factor) = 0;
+		virtual TCFuture<void> f_RemoveUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID) = 0;
 
-		virtual TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr const &_HostID) = 0;
+		virtual TCFuture<NStr::CStr> f_GetClientLastFriendlyName(NStr::CStr _HostID) = 0;
 	};
 }
 

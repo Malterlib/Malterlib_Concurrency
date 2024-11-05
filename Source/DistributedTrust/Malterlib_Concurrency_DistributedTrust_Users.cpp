@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Return);
 	}
 
-	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_TryGetUser(CStr const &_UserID)
+	TCFuture<TCOptional<CDistributedActorTrustManagerInterface::CUserInfo>> CDistributedActorTrustManager::f_TryGetUser(CStr _UserID)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 			co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_AddUser(CStr const &_UserID, CStr const &_UserName)
+	TCFuture<void> CDistributedActorTrustManager::f_AddUser(CStr _UserID, CStr _UserName)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveUser(NStr::CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveUser(NStr::CStr _UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 
 		bool bExistsInDatabase = pUser->m_bExistsInDatabase;
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		if (auto *pFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_UserID))
 		{
 			TCSet<CStr> Factors;
@@ -91,26 +91,26 @@ namespace NMib::NConcurrency
 					Factors[pFactors->fs_GetKey(Factor)];
 			}
 			for (auto &Factor : Factors)
-				self(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, Factor) > Results.f_AddResult();
+				f_RemoveUserAuthenticationFactor(_UserID, Factor) > Results;
 
 			Internal.m_UserAuthenticationFactors.f_Remove(_UserID);
 		}
 
 		if (bExistsInDatabase)
-			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUser, _UserID) > Results.f_AddResult();
+			Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUser, _UserID) > Results;
 		Internal.m_Users.f_Remove(_UserID);
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_SetUserInfo
 		(
-			CStr const &_UserID
-			, TCOptional<CStr> const &_UserName
-			, TCSet<CStr> const &_RemoveMetadata
-			, TCMap<CStr, CEJSONSorted> const &_AddMetadata
+			CStr _UserID
+			, TCOptional<CStr> _UserName
+			, TCSet<CStr> _RemoveMetadata
+			, TCMap<CStr, CEJSONSorted> _AddMetadata
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
@@ -175,7 +175,7 @@ namespace NMib::NConcurrency
 		co_return Internal.m_DefaultUser.m_UserID;
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_SetDefaultUser(NStr::CStr const &_UserID)
+	TCFuture<void> CDistributedActorTrustManager::f_SetDefaultUser(NStr::CStr _UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -304,7 +304,7 @@ namespace NMib::NConcurrency
 		co_await _TrustManager.template f_CallActor(&t_CType::f_SetUserInfo)(Result.m_UserID, Result.m_UserInfo.m_UserName, NContainer::TCSet<CStr>{}, Result.m_UserInfo.m_Metadata);
 		auto Factors = co_await _TrustManager.template f_CallActor(&t_CType::f_EnumUserAuthenticationFactors)(Result.m_UserID);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto const &Data : Result.m_AuthenticationData)
 		{
@@ -314,18 +314,14 @@ namespace NMib::NConcurrency
 			if (pFactor)
 			{
 				if (pFactor->m_PrivateData.f_IsEmpty() || !Data.m_PrivateData.f_IsEmpty())
-					_TrustManager.template f_CallActor(&t_CType::f_SetUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results.f_AddResult();
+					_TrustManager.template f_CallActor(&t_CType::f_SetUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
 			}
 			else
-				_TrustManager.template f_CallActor(&t_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results.f_AddResult();
+				_TrustManager.template f_CallActor(&t_CType::f_AddUserAuthenticationFactor)(Result.m_UserID, FactorID, fg_TempCopy(Data)) > Results;
 		}
 
-#ifdef DCompiler_MSVC_Workaround
-		auto Temp = co_await Results.f_GetResults();
-		co_await (fg_Move(Temp) | g_Unwrap);
-#else
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
-#endif
+		co_await fg_AllDone(Results);
+
 		co_return Result.m_UserID;
 	}
 

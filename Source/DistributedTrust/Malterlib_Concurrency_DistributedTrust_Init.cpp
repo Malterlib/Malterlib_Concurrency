@@ -53,8 +53,6 @@ namespace NMib::NConcurrency
 
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_Initialize()
 	{
-		TCPromise<NStr::CStr> Promise;
-
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
@@ -122,7 +120,7 @@ namespace NMib::NConcurrency
 		m_BasicConfig = fg_Move(BasicConfig);
 		m_DefaultUser = fg_Move(DefaultUser);
 
-		TCActorResultVector<void> WriteDatabaseResults;
+		TCFutureVector<void> WriteDatabaseResults;
 
 		if (m_BasicConfig.m_HostID.f_IsEmpty() || m_BasicConfig.m_CAPrivateKey.f_IsEmpty())
 		{
@@ -157,7 +155,7 @@ namespace NMib::NConcurrency
 				co_return DMibErrorInstance(fg_Format("Failed to generate root CA: {}", _Exception.f_GetErrorStr()));
 			}
 				
-			m_Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, m_BasicConfig) > WriteDatabaseResults.f_AddResult();
+			m_Database(&ICDistributedActorTrustManagerDatabase::f_SetBasicConfig, m_BasicConfig) > WriteDatabaseResults;
 		}
 		
 		if (m_BasicConfig.m_CACertificate.f_IsEmpty() || m_BasicConfig.m_CAPrivateKey.f_IsEmpty())
@@ -194,7 +192,7 @@ namespace NMib::NConcurrency
 				+ m_ActorDistributionManager
 				(
 					&CActorDistributionManager::f_SubscribeHostInfoChanged
-					, g_ActorFunctorWeak / [this](CHostInfo const &_HostInfo) -> TCFuture<void>
+					, g_ActorFunctorWeak / [this](CHostInfo _HostInfo) -> TCFuture<void>
 					{
 						auto *pHost = m_Hosts.f_FindEqual(_HostInfo.m_HostID);
 						if (pHost)
@@ -285,7 +283,7 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 				) % "Failed to subscribe to info changes"
-				+ WriteDatabaseResults.f_GetUnwrappedResults()
+				+ fg_AllDone(WriteDatabaseResults)
 			)
 		;
 		m_HostInfoChangedSubscription = fg_Move(HostInfoChangedSubscription);
@@ -365,7 +363,7 @@ namespace NMib::NConcurrency
 			ClientConnection.m_pHost = &Host;
 		}
 
-		TCActorResultMap<CListenConfig, CDistributedActorListenReference> ListenResults;
+		TCFutureMap<CListenConfig, CDistributedActorListenReference> ListenResults;
 
 		for (auto &Listen : m_Listen.f_Keys())
 		{
@@ -381,15 +379,15 @@ namespace NMib::NConcurrency
 			ListenSettings.m_bRetryOnListenFailure = m_bRetryOnListenFailureDuringInit;
 			ListenSettings.m_ListenFlags = m_ListenFlags;
 
-			m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults.f_AddResult(Listen);
+			m_ActorDistributionManager(&CActorDistributionManager::f_Listen, ListenSettings) > ListenResults[Listen];
 		}
 
-		TCActorResultMap<CDistributedActorTrustManager_Address, void> ConnectResults;
+		TCFutureMap<CDistributedActorTrustManager_Address, void> ConnectResults;
 
 		for (auto &ClientConnectionEntry : m_ClientConnections.f_Entries())
 		{
 			auto &Address = ClientConnectionEntry.f_Key();
-			TCPromise<void> ConnectPromise;
+			TCPromise<void> ConnectPromise{CPromiseConstructNoConsume()};
 
 			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, f_GetConnectionSettings(ClientConnectionEntry.f_Value()), m_InitialConnectionTimeout)
 				> [this, Address, ConnectPromise](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
@@ -420,17 +418,17 @@ namespace NMib::NConcurrency
 				}
 			;
 
-			ConnectPromise.f_MoveFuture() > ConnectResults.f_AddResult(Address);
+			ConnectPromise.f_MoveFuture() > ConnectResults[Address];
 		}
 
-		TCPromise<void> WaitForConnectionsPromise;
+		TCPromise<void> WaitForConnectionsPromise{CPromiseConstructNoConsume()};
 
 		if (m_bWaitForConnectionsDuringInit)
 			m_AwaitingConnection.f_Insert(WaitForConnectionsPromise);
 		else
 			WaitForConnectionsPromise.f_SetResult();
 
-		ConnectResults.f_GetResults() > [this, pCleanup]
+		fg_AllDoneWrapped(ConnectResults) > [this, pCleanup]
 			(
 				TCAsyncResult<NContainer::TCMap<CDistributedActorTrustManager_Address, TCAsyncResult<void>>> &&_ConnectionResult
 			)
@@ -471,7 +469,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto [ListenResultsUnwrapped, ConnectionResults] = co_await (ListenResults.f_GetUnwrappedResults() + WaitForConnectionsPromise.f_MoveFuture());
+		auto [ListenResultsUnwrapped, ConnectionResults] = co_await (fg_AllDone(ListenResults) + WaitForConnectionsPromise.f_MoveFuture());
 
 		for (auto &ListenResult : ListenResultsUnwrapped.f_Entries())
 		{
@@ -487,24 +485,23 @@ namespace NMib::NConcurrency
 		m_AuthenticationActors = ICDistributedActorTrustManagerAuthenticationActor::fs_GetRegisteredAuthenticationFactors(fg_ThisActor(m_pThis));
 		m_TicketInterface = m_ActorDistributionManager->f_ConstructActor<CInternal::CTicketInterface>(this, fg_ThisActor(m_pThis));
 
-		TCPromise<void> PublishPromise;
+		TCFuture<void> PublishFuture;
 		if (m_bSupportAuthentication)
 		{
-			m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
+			PublishFuture = m_AuthenticationInterface.f_Publish<ICDistributedActorAuthentication>
 				(
 					m_ActorDistributionManager
 					, m_pThis
 				)
-				> PublishPromise
 			;
 		}
 		else
-			PublishPromise.f_SetResult();
+			PublishFuture = g_Void;
 
 		auto [TicketPublishResult, AuthenticationPublishResult] = co_await
 			(
 				m_TicketInterface->f_Publish<CTicketInterface>("Anonymous/com.malterlib/Concurrency/TrustManagerTicket", 0.0)
-				+ PublishPromise.f_MoveFuture()
+				+ fg_Move(PublishFuture)
 			).f_Wrap()
 		;
 

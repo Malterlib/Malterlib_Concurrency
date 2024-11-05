@@ -33,11 +33,11 @@ namespace NMib::NConcurrency
 		CHumanInterfaceDeviceActor(hid_device *_Device);
 		~CHumanInterfaceDeviceActor();
 
-		TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+		TCFuture<aint> f_Write(uint8 _ReportID, NContainer::CSecureByteVector _Buffer);
 		TCFuture<NContainer::CSecureByteVector> f_Read(size_t _Length);
 		TCFuture<NContainer::CSecureByteVector> f_ReadTimeout(size_t _Length, int _TimeoutMilliseconds);
 
-		TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer);
+		TCFuture<void> f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector _Buffer);
 		TCFuture<NContainer::CSecureByteVector> f_GetFeatureReport(uint8 _ReportID);
 
 		TCFuture<NStr::CStr> f_GetManufacturerString() const;
@@ -78,12 +78,11 @@ namespace NMib::NConcurrency
 		~CHumanInterfaceDevicesActor();
 
 		TCFuture<NContainer::TCVector<CDeviceInfo>> f_Enumerate(uint16 _VendorID, uint16 _ProductID);
-		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber = "");
-		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_OpenPath(NStr::CStr const &_Path);
+		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr _SerialNumber = "");
+		TCFuture<TCActor<CHumanInterfaceDeviceActor>> f_OpenPath(NStr::CStr _Path);
 
 	private:
-		template <typename tf_CReturn>
-		bool fp_CheckInit(TCPromise<tf_CReturn> &_Promise);
+		NException::CExceptionPointer fp_CheckInit();
 
 		NStr::CStr mp_InitError;
 	};

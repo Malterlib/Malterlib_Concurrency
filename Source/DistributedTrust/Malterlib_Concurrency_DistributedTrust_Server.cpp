@@ -9,7 +9,7 @@
 
 namespace NMib::NConcurrency
 {
-	TCFuture<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address const &_Address) const
+	TCFuture<CActorDistributionListenSettings> CDistributedActorTrustManager::f_GetCertificateData(CDistributedActorTrustManager_Address _Address) const
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -111,8 +111,10 @@ namespace NMib::NConcurrency
 		co_return fDoReturn(&CertOutput);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_AddListen(CDistributedActorTrustManager_Address _Address)
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+		
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
@@ -123,7 +125,7 @@ namespace NMib::NConcurrency
 		if (pOld)
 			co_return DMibErrorInstance("Already listening to address");
 
-		auto ListenSettings = co_await self(&CDistributedActorTrustManager::f_GetCertificateData, _Address);
+		auto ListenSettings = co_await f_GetCertificateData(_Address);
 
 		auto ListenReference = co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_Listen, fg_Move(ListenSettings)) % "Failed to listen");
 
@@ -132,7 +134,7 @@ namespace NMib::NConcurrency
 
 		auto ConfigAddResult = co_await 
 			(
-				Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddListenConfig, ListenConfig) 
+				Internal.m_Database.f_Bind<&ICDistributedActorTrustManagerDatabase::f_AddListenConfig>(ListenConfig) 
 				% "Failed to save new listen config to database"
 			).f_Wrap()
 		;
@@ -146,7 +148,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasListen(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -159,7 +161,7 @@ namespace NMib::NConcurrency
 		co_return pListenConfig != nullptr;
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -206,7 +208,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Addresses);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveListen(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -238,7 +240,7 @@ namespace NMib::NConcurrency
 		if (!bResetPrimaryListen)
 			co_return {};
 
-		co_await (self(&CDistributedActorTrustManager::f_SetPrimaryListen, fg_Default()) % "Failed to reset primary listen when removing listen");
+		co_await (f_SetPrimaryListen({}) % "Failed to reset primary listen when removing listen");
 
 		co_return {};
 	}

@@ -26,20 +26,20 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationActorPassword(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorPassword();
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
+		TCFuture<CAuthenticationData> f_RegisterFactor(CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) override;
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		;
 
@@ -55,8 +55,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorPassword::f_RegisterFactor
 		(
-			CStr const &_UserID
-			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			CStr _UserID
+			, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -120,10 +120,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorPassword::f_SignAuthenticationRequest
 		(
-			NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_Description
-			, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-			, TCMap<CStr, CAuthenticationData> const &_Factors
+			NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _Description
+			, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+			, TCMap<CStr, CAuthenticationData> _Factors
 		)
 	{
 		auto AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 
 		CStrSecure Password = co_await _pCommandLine->f_ReadPrompt(PasswordPrompt);
 
-		TCActorResultMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
+		TCFutureMap<CStr, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
 
 		for (auto const &Factor : _Factors)
 		{
@@ -192,11 +192,11 @@ namespace NMib::NConcurrency
 						throw;
 					}
 				}
-				> AuthenticationResults.f_AddResult(_Factors.fs_GetKey(Factor));
+				> AuthenticationResults[_Factors.fs_GetKey(Factor)];
 			;
 		}
 
-		auto Results = co_await AuthenticationResults.f_GetResults();
+		auto Results = co_await fg_AllDoneWrapped(AuthenticationResults);
 
 		for (auto const &Response : Results)
 		{
@@ -221,9 +221,9 @@ namespace NMib::NConcurrency
 
 	auto CDistributedActorTrustManagerAuthenticationActorPassword::f_VerifyAuthenticationResponse
 		(
-			ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			, CAuthenticationData const &_AuthenticationData
+			ICDistributedActorAuthenticationHandler::CResponse _Response
+			, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+			, CAuthenticationData _AuthenticationData
 		)
 		-> TCFuture<CVerifyAuthenticationReturn>
 	{

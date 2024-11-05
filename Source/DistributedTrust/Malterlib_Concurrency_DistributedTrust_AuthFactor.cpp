@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NCryptography;
 
-	TCFuture<TCMap<CStr, CAuthenticationData>> CDistributedActorTrustManager::f_EnumUserAuthenticationFactors(NStr::CStr const &_UserID) const
+	TCFuture<TCMap<CStr, CAuthenticationData>> CDistributedActorTrustManager::f_EnumUserAuthenticationFactors(NStr::CStr _UserID) const
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -32,7 +32,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Result);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_AddUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManager::f_AddUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CAuthenticationData _Data)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 		co_return co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_AddUserAuthenticationFactor, _UserID, _FactorID, AuthenticationFactorState.m_AuthenticationFactor);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_SetUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CAuthenticationData &&_Data)
+	TCFuture<void> CDistributedActorTrustManager::f_SetUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CAuthenticationData _Data)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor(NStr::CStr const &_UserID, NStr::CStr const &_FactorID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor(NStr::CStr _UserID, NStr::CStr _FactorID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -100,21 +100,23 @@ namespace NMib::NConcurrency
 		}
 
 		auto &AuthenticationFactorState = Internal.m_UserAuthenticationFactors[_UserID][_FactorID];
-		if (AuthenticationFactorState.m_bExistsInDatabase)
-			co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUserAuthenticationFactor, _UserID, _FactorID);
+		auto bExistsInDatabase = AuthenticationFactorState.m_bExistsInDatabase;
 
 		Internal.m_UserAuthenticationFactors[_UserID].f_Remove(_FactorID);
 		if (Internal.m_UserAuthenticationFactors[_UserID].f_IsEmpty())
 			Internal.m_UserAuthenticationFactors.f_Remove(_UserID);
 
+		if (bExistsInDatabase)
+			co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveUserAuthenticationFactor, _UserID, _FactorID);
+		
 		co_return {};
 	}
 
 	TCFuture<CStr> CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_UserID
-			, CStr const &_Factor
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _UserID
+			, CStr _Factor
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
@@ -132,7 +134,7 @@ namespace NMib::NConcurrency
 
 		CAuthenticationData Result = co_await pActorInfo->m_Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_RegisterFactor, _UserID, _pCommandLine);
 		CStr ID = fg_RandomID();
-		co_await self(&CDistributedActorTrustManager::f_AddUserAuthenticationFactor, _UserID, ID, fg_Move(Result));
+		co_await f_AddUserAuthenticationFactor(_UserID, ID, fg_Move(Result));
 
 		co_return fg_Move(ID);
 	}

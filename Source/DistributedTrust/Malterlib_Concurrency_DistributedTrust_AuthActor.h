@@ -35,24 +35,24 @@ namespace NMib::NConcurrency
 		ICDistributedActorTrustManagerAuthenticationActor();
 		virtual ~ICDistributedActorTrustManagerAuthenticationActor();
 
-		virtual TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) = 0;
+		virtual TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) = 0;
 		virtual TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, NStr::CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, NContainer::TCMap<NStr::CStr, CAuthenticationData> const &_Factors
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, NStr::CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, NContainer::TCMap<NStr::CStr, CAuthenticationData> _Factors
 			) = 0
 		;
 		virtual TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) = 0
 		;
 
-		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> const &_TrustManager);
+		static NContainer::TCMap<NStr::CStr, CAuthenticationActorInfo> fs_GetRegisteredAuthenticationFactors(TCActor<CDistributedActorTrustManager> _TrustManager);
 	};
 
 	struct ICDistributedActorTrustManagerAuthenticationActorFactory

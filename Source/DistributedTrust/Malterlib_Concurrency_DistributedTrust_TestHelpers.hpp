@@ -56,19 +56,19 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename tf_CActor>
-	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr const &_Namespace, NStr::CStr const &_HostID)
+	auto CTrustedSubscriptionTestHelper::CInternal::f_Subscribe(mint _nActors, NStr::CStr _Namespace, NStr::CStr _HostID)
 		-> TCFuture<NContainer::TCVector<TCDistributedActor<tf_CActor>>>
 	{
+		TCPromiseFuturePair<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		DTestHelpersDebug("{} - {}: SUBSCRIBE", _HostID, _Namespace);
-		TCPromise<NContainer::TCVector<TCDistributedActor<tf_CActor>>> Promise;
 		mp_TrustManager(&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, _Namespace, fg_ThisActor(this), 0, TCLimitsInt<uint32>::mc_Max)
-			> Promise / [this, Promise, _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription)
+			> fg_Move(Promise.m_Promise) / [this, Promise = fg_Move(Promise.m_Promise), _nActors, _HostID, _Namespace](TCTrustedActorSubscription<tf_CActor> &&_Subscription) mutable
 			{
 				struct CSubscriptionImpl : CSubscription
 				{
 					~CSubscriptionImpl()
 					{
-						m_Subscription.f_Destroy() > fg_DiscardResult();
+						m_Subscription.f_Destroy().f_DiscardResult();
 					}
 
 					TCTrustedActorSubscription<tf_CActor> m_Subscription;
@@ -77,8 +77,8 @@ namespace NMib::NConcurrency
 				pSubscription->m_Subscription = fg_Move(_Subscription);
 				pSubscription->m_Subscription.f_OnActor
 					(
-						g_ActorFunctor / [this, Promise, _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
-						(TCDistributedActor<tf_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo) mutable -> TCFuture<void>
+						g_ActorFunctor / [this, Promise = fg_Move(Promise), _nActors, Actors = NContainer::TCVector<TCDistributedActor<tf_CActor>>(), _HostID, _Namespace]
+						(TCDistributedActor<tf_CActor> _NewActor, CTrustedActorInfo _ActorInfo) mutable -> TCFuture<void>
 						{
 							if (Promise.f_IsSet())
 								co_return {};
@@ -109,11 +109,11 @@ namespace NMib::NConcurrency
 						}
 						, nullptr
 					)
-					> fg_DiscardResult()
+					.f_DiscardResult()
 				;
 				mp_Subscriptions.f_Insert(fg_Move(pSubscription));
 			}
 		;
-		return Promise.f_MoveFuture();
+		co_return co_await fg_Move(Promise.m_Future);
 	}
 }

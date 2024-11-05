@@ -67,15 +67,12 @@ namespace NMib::NConcurrency
 		return g_MalterlibSubSystem_Concurrency_U2FHID->m_Actor;
 	}
 
-	template <typename tf_CReturn>
-	bool CHumanInterfaceDevicesActor::fp_CheckInit(TCPromise<tf_CReturn> &_Promise)
+	NException::CExceptionPointer CHumanInterfaceDevicesActor::fp_CheckInit()
 	{
 		if (mp_InitError)
-		{
-			_Promise.f_SetException(DMibErrorInstanceHID(mp_InitError));
-			return false;
-		}
-		return true;
+			return DMibErrorInstanceHID(mp_InitError);
+
+		return nullptr;
 	}
 
 	CHumanInterfaceDevicesActor::CHumanInterfaceDevicesActor()
@@ -86,7 +83,7 @@ namespace NMib::NConcurrency
 				if (hid_init())
 					mp_InitError = "HID initalization failed (hid_init)";
 			}
-			> fg_DiscardResult();
+			> g_DiscardResult
 		;
 	}
 
@@ -97,9 +94,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> CHumanInterfaceDevicesActor::f_Enumerate(uint16 _VendorID, uint16 _ProductID)
 	{
-		TCPromise<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> Promise;
-		if (!fp_CheckInit(Promise))
-			return Promise.f_MoveFuture();
+		if (auto pError = fp_CheckInit())
+			return fg_Move(pError);
 
 		TCVector<CDeviceInfo> Result;
 		auto *pStartofEnumeration = hid_enumerate(_VendorID, _ProductID);
@@ -127,36 +123,34 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		return Promise <<= fg_Move(Result);
+		return fg_Move(Result);
 	}
 
-	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr const &_SerialNumber) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
+	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr _SerialNumber) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
-		TCPromise<TCActor<CHumanInterfaceDeviceActor>> Promise;
-		if (!fp_CheckInit(Promise))
-			return Promise.f_MoveFuture();
+		if (auto pError = fp_CheckInit())
+			return fg_Move(pError);
 
 		auto SerialNumber = fg_ToHidAPIStr(_SerialNumber);
 		auto pDevice = hid_open(_VendorID, _ProductID, (wchar_t const *)(SerialNumber ? SerialNumber.f_GetStr() : nullptr));
 		if (!pDevice)
-			return Promise <<= DMibErrorInstanceHID("hid_open error");
+			return DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return Promise <<= fg_Move(DeviceActor);
+		return fg_Move(DeviceActor);
 	}
 
-	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr const &_Path) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
+	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr _Path) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
-		TCPromise<TCActor<CHumanInterfaceDeviceActor>> Promise;
-		if (!fp_CheckInit(Promise))
-			return Promise.f_MoveFuture();
+		if (auto pError = fp_CheckInit())
+			return fg_Move(pError);
 
 		auto pDevice = hid_open_path(_Path.f_GetStr());
 		if (!pDevice)
-			return Promise <<= DMibErrorInstanceHID("hid_open error");
+			return DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return Promise <<= fg_Move(DeviceActor);
+		return fg_Move(DeviceActor);
 	}
 
 	CHumanInterfaceDeviceActor::CHumanInterfaceDeviceActor(hid_device *_Device)
@@ -172,7 +166,7 @@ namespace NMib::NConcurrency
 		m_pDevice = nullptr;
 	}
 
-	TCFuture<aint> CHumanInterfaceDeviceActor::f_Write(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
+	TCFuture<aint> CHumanInterfaceDeviceActor::f_Write(uint8 _ReportID, NContainer::CSecureByteVector _Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_write(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());
@@ -203,7 +197,7 @@ namespace NMib::NConcurrency
 		co_return Buffer;
 	}
 
-	TCFuture<void> CHumanInterfaceDeviceActor::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector &&_Buffer)
+	TCFuture<void> CHumanInterfaceDeviceActor::f_SendFeatureReport(uint8 _ReportID, NContainer::CSecureByteVector _Buffer)
 	{
 		_Buffer.f_InsertFirst(_ReportID);
 		int nBytes = hid_send_feature_report(m_pDevice, _Buffer.f_GetArray(), _Buffer.f_GetLen());

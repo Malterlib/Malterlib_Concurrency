@@ -20,12 +20,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_RegisterAuthenticationHandler
 		(
-			TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler
-			, NStr::CStr const &_UserID
+			TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler
+			, NStr::CStr _UserID
 		)
 	{
 		if (!_Handler)
 			co_return DMibErrorInstance("Invalid authentication handler");
+
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 		auto &Internal = *m_pThis->mp_pInternal;
 		auto CallingHostInfo = fg_GetCallingHostInfo();
@@ -63,6 +65,8 @@ namespace NMib::NConcurrency
 				if (!pHost)
 					co_return {};
 
+				auto CheckDestroy = co_await pThis->f_CheckDestroyedOnResume();
+
 				auto &Internal = *pThis->mp_pInternal;
 				co_return co_await Internal.m_ActorDistributionManager
 					(
@@ -77,13 +81,13 @@ namespace NMib::NConcurrency
 
 	TCFuture<bool> CDistributedActorTrustManager::CInternal::CDistributedActorAuthenticationImplementation::f_AuthenticatePermissionPattern
 		(
-			NStr::CStr const &_Pattern
-			, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-			, NStr::CStr const &_RequestID
+			NStr::CStr _Pattern
+			, NContainer::TCSet<NStr::CStr> _AuthenticationFactors
+			, NStr::CStr _RequestID
 		)
 	{
 		auto &Internal = *m_pThis->mp_pInternal;
-		return fg_CallSafe(Internal, &CDistributedActorTrustManager::CInternal::f_AuthenticatePermissionPattern, _Pattern, _AuthenticationFactors, fg_GetCallingHostInfo(), _RequestID);
+		return Internal.f_AuthenticatePermissionPattern(_Pattern, _AuthenticationFactors, fg_GetCallingHostInfo(), _RequestID);
 	}
 
 	ICDistributedActorAuthenticationHandler::CChallenge CDistributedActorTrustManager::fs_GenerateAuthenticationChallenge(NStr::CStr const &_UserID)
@@ -96,9 +100,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<NContainer::TCVector<bool>> CDistributedActorTrustManager::f_VerifyAuthenticationResponses
 		(
-			ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			, ICDistributedActorAuthenticationHandler::CRequest const &_Request
-			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> const &_Responses
+			ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+			, ICDistributedActorAuthenticationHandler::CRequest _Request
+			, NContainer::TCVector<ICDistributedActorAuthenticationHandler::CResponse> _Responses
 		)
 	{
 		using namespace NStr;
@@ -114,15 +118,16 @@ namespace NMib::NConcurrency
 
 		auto *pRegisteredFactors = Internal.m_UserAuthenticationFactors.f_FindEqual(_Challenge.m_UserID);
 
-		TCActorResultVector<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> VerificationResults;
+		TCFutureVector<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> VerificationResults;
 
 		NContainer::TCVector<NStr::CStr> FactorIDs;
 
 		auto fAddFalseResult = [&]
 			{
 				FactorIDs.f_Insert();
-				TCPromise<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn> Result;
-				(Result <<= ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{}) > VerificationResults.f_AddResult();
+				TCFuture<ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn>(ICDistributedActorTrustManagerAuthenticationActor::CVerifyAuthenticationReturn{})
+					> VerificationResults
+				;
 			}
 		;
 
@@ -174,12 +179,10 @@ namespace NMib::NConcurrency
 
 			CAuthenticationData Data;
 			Data = pRegisteredFactor->m_AuthenticationFactor;
-			pAuthenticationActor->m_Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_VerifyAuthenticationResponse, Response, _Challenge, Data)
-				> VerificationResults.f_AddResult()
-			;
+			pAuthenticationActor->m_Actor(&ICDistributedActorTrustManagerAuthenticationActor::f_VerifyAuthenticationResponse, Response, _Challenge, Data) > VerificationResults;
 		}
 
-		auto UnwrappedResults = co_await VerificationResults.f_GetResults();
+		auto UnwrappedResults = co_await fg_AllDoneWrapped(VerificationResults);
 
 		NContainer::TCVector<bool> Results;
 		auto iFactorID = FactorIDs.f_GetIterator();
@@ -212,7 +215,7 @@ namespace NMib::NConcurrency
 			for (auto &Value : AuthenticationResult->m_UpdatedPublicData)
 				NewData.m_PublicData[AuthenticationResult->m_UpdatedPublicData.fs_GetKey(Value)] = fg_Move(Value);
 
-			self(&CDistributedActorTrustManager::f_SetUserAuthenticationFactor, _Challenge.m_UserID, FactorID, fg_Move(NewData))
+			f_SetUserAuthenticationFactor(_Challenge.m_UserID, FactorID, fg_Move(NewData))
 				> fg_LogError("Mib/Concurrency/Trust", "Failed to update authentication factor after verifying responses for user '{}'"_f << _Challenge.m_UserID)
 			;
 		}

@@ -63,10 +63,8 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CActor>
-	TCFuture<void> TCTrustedActorSubscription<t_CActor>::f_Destroy()
+	TCUnsafeFuture<void> TCTrustedActorSubscription<t_CActor>::f_Destroy()
 	{
-		co_await ECoroutineFlag_AllowReferences;
-
 		auto pState = fg_Move(mp_pState);
 
 		if (!pState)
@@ -150,21 +148,22 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	auto CDistributedActorTrustManagerHolder::f_SubscribeTrustedActors(uint32 _MinSupportedVersion, uint32 _MaxSupportedVersion, TCActor<CActor> &&_Actor)
 	{
-		return this->template fp_GetAsActor<CDistributedActorTrustManager>().f_CallByValue<&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>>
+		return this->template fp_GetAsActor<CDistributedActorTrustManager>().f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<tf_CActor>, EVirtualCall::mc_NotVirtual>
 			(
 				tf_CActor::mc_pDefaultNamespace
 				, fg_Move(_Actor)
 				, _MinSupportedVersion
 				, _MaxSupportedVersion
 			)
+			.f_Call()
 		;
 	}
 
 	template <typename tf_CActor>
 	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActors
 		(
-			NStr::CStr const &_Namespace
-			, TCActor<CActor> const &_Actor
+			NStr::CStr _Namespace
+			, TCActor<CActor> _Actor
 			, uint32 _MinSupportedVersion
 			, uint32 _MaxSupportedVersion
 		)
@@ -175,18 +174,16 @@ namespace NMib::NConcurrency
 	template <typename tf_CActor>
 	TCFuture<TCTrustedActorSubscription<tf_CActor>> CDistributedActorTrustManager::f_SubscribeTrustedActorsWithVersion
 		(
-			NStr::CStr const &_Namespace
-			, TCActor<CActor> const &_Actor
-			, CDistributedActorProtocolVersions const &_Versions
+			NStr::CStr _Namespace
+			, TCActor<CActor> _Actor
+			, CDistributedActorProtocolVersions _Versions
 		)
 	{
-		TCPromise<TCTrustedActorSubscription<tf_CActor>> Promise;
-
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return Promise <<= DMibErrorInstance("Invalid namespace name");
+			co_return DMibErrorInstance("Invalid namespace name");
 
 		if (!_Actor)
-			return Promise <<= DMibErrorInstance("Invalid destination actor");
+			co_return DMibErrorInstance("Invalid destination actor");
 
 		NStorage::TCSharedPointer<typename TCTrustedActorSubscription<tf_CActor>::CState> pState = fg_Construct();
 		auto &State = *pState;
@@ -195,35 +192,31 @@ namespace NMib::NConcurrency
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
 
-		self(&CDistributedActorTrustManager::fp_SubscribeTrustedActors, pState)
-			> Promise / [pState, Promise](CTrustedActorSubscription &&_Subscription)
-			{
-				TCTrustedActorSubscription<tf_CActor> Result;
-				pState->m_Subscription = fg_Move(_Subscription.m_Subscription);
-				Result.mp_pState = pState;
-				for (auto &Actor : _Subscription.m_InitialActors)
-				{
-					auto &TrustedActor = Result.m_Actors[Actor.f_GetIdentifier()];
-					TrustedActor.m_TrustInfo = Actor.m_TrustInfo;
-					TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
-					TrustedActor.m_Actor = fg_StaticCast<TCDistributedActorWrapper<tf_CActor>>(Actor.m_Actor);
-				}
-				Promise.f_SetResult(fg_Move(Result));
-			}
-		;
-		return Promise.f_MoveFuture();
+		auto Subscription = co_await fp_SubscribeTrustedActors(pState);
+
+		TCTrustedActorSubscription<tf_CActor> Result;
+		pState->m_Subscription = fg_Move(Subscription.m_Subscription);
+		Result.mp_pState = pState;
+		for (auto &Actor : Subscription.m_InitialActors)
+		{
+			auto &TrustedActor = Result.m_Actors[Actor.f_GetIdentifier()];
+			TrustedActor.m_TrustInfo = Actor.m_TrustInfo;
+			TrustedActor.m_ProtocolVersion = Actor.m_ProtocolVersion;
+			TrustedActor.m_Actor = fg_StaticCast<TCDistributedActorWrapper<tf_CActor>>(Actor.m_Actor);
+		}
+
+		co_return fg_Move(Result);
 	}
 
 	template <typename t_CActor>
-	TCFuture<void> TCTrustedActorSubscription<t_CActor>::f_OnActor
+	TCUnsafeFuture<void> TCTrustedActorSubscription<t_CActor>::f_OnActor
 		(
-			TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> const &_NewActor, CTrustedActorInfo const &_ActorInfo)> &&_fOnNewActor
-			, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo)> &&_fOnRemovedActor
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<t_CActor> _NewActor, CTrustedActorInfo _ActorInfo)> &&_fOnNewActor
+			, TCActorFunctor<TCFuture<void> (TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo)> &&_fOnRemovedActor
 			, NStr::CStr const &_ErrorCategory
 			, NStr::CStr const &_ErrorPrefix
 		)
 	{
-		co_await ECoroutineFlag_AllowReferences;
 		auto pState = mp_pState;
 
 		auto &State = *pState;
@@ -233,16 +226,16 @@ namespace NMib::NConcurrency
 		State.m_ErrorCategory = _ErrorCategory;
 		State.m_ErrorPrefix = _ErrorPrefix;
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto &Actor : m_Actors)
 		{
-			TCPromise<void> OnNewActorFinishedPromise;
-			Actor.mp_OnNewActorFinished = OnNewActorFinishedPromise.f_Future();
+			TCPromiseFuturePair<void> OnNewActorFinishedPromise;
+			Actor.mp_OnNewActorFinished = fg_Move(OnNewActorFinishedPromise.m_Future);
 
 			fg_CallSafe
 				(
-					[pState, Actor = Actor.m_Actor, TrustInfo = Actor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise)]() mutable -> TCFuture<void>
+					[pState, Actor = Actor.m_Actor, TrustInfo = Actor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)]() mutable -> TCFuture<void>
 					{
 						if (pState->m_fOnNewActor)
 							co_await pState->m_fOnNewActor(Actor, TrustInfo);
@@ -250,11 +243,11 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 				)
-				> Results.f_AddResult()
+				> Results
 			;
 		}
 
-		for (auto &Result : co_await Results.f_GetResults())
+		for (auto &Result : co_await fg_AllDoneWrapped(Results))
 		{
 			if (!Result)
 			{
@@ -313,7 +306,7 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 
 				for (auto &Actor : Actors)
 				{
@@ -327,12 +320,18 @@ namespace NMib::NConcurrency
 
 					auto &NewActor = *MapResult;
 
-					TCPromise<void> OnNewActorFinishedPromise;
-					NewActor.mp_OnNewActorFinished = OnNewActorFinishedPromise.f_Future();
+					TCPromiseFuturePair<void> OnNewActorFinishedPromise;
+					NewActor.mp_OnNewActorFinished = fg_Move(OnNewActorFinishedPromise.m_Future);
 
 					fg_CallSafe
 						(
-							[pThis, Actor = NewActor.m_Actor, TrustInfo = NewActor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise)]() mutable -> TCFuture<void>
+							[
+								pThis
+								, Actor = NewActor.m_Actor
+								, TrustInfo = NewActor.m_TrustInfo
+								, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)
+							]
+							() mutable -> TCFuture<void>
 							{
 								if (pThis->m_fOnNewActor)
 									co_await pThis->m_fOnNewActor(Actor, TrustInfo);
@@ -341,11 +340,11 @@ namespace NMib::NConcurrency
 								co_return {};
 							}
 						)
-						> Results.f_AddResult()
+						> Results
 					;
 				}
 
-				for (auto &Result : co_await Results.f_GetResults())
+				for (auto &Result : co_await fg_AllDoneWrapped(Results))
 				{
 					if (!Result)
 					{
@@ -370,7 +369,7 @@ namespace NMib::NConcurrency
 					co_return {};
 				}
 
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 
 				for (auto &Actor : Actors)
 				{
@@ -403,12 +402,12 @@ namespace NMib::NConcurrency
 									co_return {};
 								}
 							)
-							> Results.f_AddResult()
+							> Results
 						;
 					}
 				}
 
-				for (auto &Result : co_await Results.f_GetResults())
+				for (auto &Result : co_await fg_AllDoneWrapped(Results))
 				{
 					if (!Result)
 					{

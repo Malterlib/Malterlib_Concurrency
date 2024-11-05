@@ -48,8 +48,8 @@ namespace NMib::NConcurrency
 		struct CTicketState
 		{
 			NTime::CTimer m_CreationTime;
-			TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> m_fOnUseTicket;
-			TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> m_fOnCertificateSigned;
+			TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)> m_fOnUseTicket;
+			TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo)> m_fOnCertificateSigned;
 		};
 
 		struct CHostState
@@ -159,8 +159,10 @@ namespace NMib::NConcurrency
 				, EProtocolVersion_Current = 0x101
 			};
 
-			TCFuture<NContainer::CByteVector> f_SignCertificate(NStr::CStr const &_Token, NContainer::CByteVector const &_CertificateRequest);
 			CTicketInterface(CDistributedActorTrustManager::CInternal *_pInternal, TCWeakActor<CDistributedActorTrustManager> const &_ThisActor);
+
+			TCFuture<NContainer::CByteVector> f_SignCertificate(NStr::CStr _Token, NContainer::CByteVector _CertificateRequest);
+			
 		private:
 			CDistributedActorTrustManager::CInternal *mp_pInternal;
 			TCWeakActor<CDistributedActorTrustManager> mp_ThisActor;
@@ -170,14 +172,14 @@ namespace NMib::NConcurrency
 		{
 			CDistributedActorAuthenticationImplementation();
 
-			auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler, NStr::CStr const &_UserID)
+			auto f_RegisterAuthenticationHandler(TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler, NStr::CStr _UserID)
 				-> TCFuture<TCActorSubscriptionWithID<>> override
 			;
 			TCFuture<bool> f_AuthenticatePermissionPattern
 				(
-					NStr::CStr const &_Pattern
-					, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-					, NStr::CStr const &_RequestID
+					NStr::CStr _Pattern
+					, NContainer::TCSet<NStr::CStr> _AuthenticationFactors
+					, NStr::CStr _RequestID
 				) override
 			;
 
@@ -188,7 +190,7 @@ namespace NMib::NConcurrency
 		{
 			using CActorHolder = CDelegatedActorHolder;
 
-			TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr const &_HostID, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain) override;
+			TCFuture<NStr::CStr> f_ValidateClientAccess(NStr::CStr _HostID, NContainer::TCVector<NContainer::CByteVector> _CertificateChain) override;
 
 			CActorDistributionManagerAccessHandler(CDistributedActorTrustManager::CInternal *_pInternal);
 
@@ -225,10 +227,10 @@ namespace NMib::NConcurrency
 
 		TCFuture<bool> f_AuthenticatePermissionPattern
 			(
-				NStr::CStr const &_Pattern
-				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactor
-				, CCallingHostInfo const &_CallingHostInfo
-				, NStr::CStr const &_RequestID
+				NStr::CStr _Pattern
+				, NContainer::TCSet<NStr::CStr> _AuthenticationFactor
+				, CCallingHostInfo _CallingHostInfo
+				, NStr::CStr _RequestID
 			)
 		;
 

@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 		co_return m_BasicConfig;
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetBasicConfig(CBasicConfig const &_BasicConfig)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetBasicConfig(CBasicConfig _BasicConfig)
 	{
 		m_BasicConfig = _BasicConfig;
 		co_return {};
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		co_return m_DefaultUser;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetDefaultUser(CDefaultUser const &_DefaultUser)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetDefaultUser(CDefaultUser _DefaultUser)
 	{
 		m_DefaultUser = _DefaultUser;
 		co_return {};
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 	
-	TCFuture<CServerCertificate> CTrustManagerDatabaseTestHelper::f_GetServerCertificate(CStr const &_HostName)
+	TCFuture<CServerCertificate> CTrustManagerDatabaseTestHelper::f_GetServerCertificate(CStr _HostName)
 	{
 		auto pServerCertificate = m_ServerCertificates.f_FindEqual(_HostName);
 		if (!pServerCertificate)
@@ -57,14 +57,14 @@ namespace NMib::NConcurrency
 		co_return *pServerCertificate;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		if (!m_ServerCertificates(_HostName, _Certificate).f_WasCreated())
 			co_return DMibErrorInstance("Server certificate already exists");
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetServerCertificate(CStr const &_HostName, CServerCertificate const &_Certificate)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto pServerCertificate = m_ServerCertificates.f_FindEqual(_HostName);
 		if (!pServerCertificate)
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveServerCertificate(CStr const &_HostName)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveServerCertificate(CStr _HostName)
 	{
 		if (!m_ServerCertificates.f_Remove(_HostName))
 			co_return DMibErrorInstance("No server certificate for host");
@@ -88,14 +88,14 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddListenConfig(CListenConfig _Config)
 	{
 		if (!m_ListenConfigs(_Config).f_WasCreated())
 			co_return DMibErrorInstance("Listen config already exists");
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig const &_Config)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		if (!m_ListenConfigs.f_Remove(_Config))
 			co_return DMibErrorInstance("Listen config does not exist");
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 		co_return m_PrimaryListen;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> const &_Address)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		m_PrimaryListen = _Address;
 
@@ -127,14 +127,14 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddClient(CStr _HostID, CClient _Client)
 	{
 		if (!m_Clients(_HostID, _Client).f_WasCreated())
 			co_return DMibErrorInstance("Client already exists");
 		co_return {};
 	}
 	
-	TCFuture<CClient> CTrustManagerDatabaseTestHelper::f_GetClient(CStr const &_HostID)
+	TCFuture<CClient> CTrustManagerDatabaseTestHelper::f_GetClient(CStr _HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
 		if (!pClient)
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 		co_return *pClient;
 	}
 	
-	TCFuture<NStorage::TCUniquePointer<CClient>> CTrustManagerDatabaseTestHelper::f_TryGetClient(CStr const &_HostID)
+	TCFuture<NStorage::TCUniquePointer<CClient>> CTrustManagerDatabaseTestHelper::f_TryGetClient(CStr _HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
 		if (!pClient)
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 		co_return fg_Construct(*pClient);
 	}
 
-	TCFuture<NStr::CStr> CTrustManagerDatabaseTestHelper::f_GetClientLastFriendlyName(NStr::CStr const &_HostID)
+	TCFuture<NStr::CStr> CTrustManagerDatabaseTestHelper::f_GetClientLastFriendlyName(NStr::CStr _HostID)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
 		if (!pClient)
@@ -158,12 +158,12 @@ namespace NMib::NConcurrency
 		co_return pClient->m_LastFriendlyName;
 	}
 
-	TCFuture<bool> CTrustManagerDatabaseTestHelper::f_HasClient(CStr const &_HostID)
+	TCFuture<bool> CTrustManagerDatabaseTestHelper::f_HasClient(CStr _HostID)
 	{
 		co_return m_Clients.f_FindEqual(_HostID) != nullptr;
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClient(CStr const &_HostID, CClient const &_Client)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClient(CStr _HostID, CClient _Client)
 	{
 		auto pClient = m_Clients.f_FindEqual(_HostID);
 		if (!pClient)
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClient(CStr const &_HostID)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClient(CStr _HostID)
 	{
 		if (!m_Clients.f_Remove(_HostID))
 			co_return DMibErrorInstance("No client for host ID");
@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 	
-	TCFuture<CClientConnection> CTrustManagerDatabaseTestHelper::f_GetClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<CClientConnection> CTrustManagerDatabaseTestHelper::f_GetClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto pClientConnection = m_ClientConnections.f_FindEqual(_Address);
 		if (!pClientConnection)
@@ -199,14 +199,14 @@ namespace NMib::NConcurrency
 		co_return *pClientConnection;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection)
 	{
 		if (!m_ClientConnections(_Address, _ClientConnection).f_WasCreated())
 			co_return DMibErrorInstance("Client connection already exists");
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClientConnection(CDistributedActorTrustManager_Address const &_Address, CClientConnection const &_ClientConnection)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetClientConnection(CDistributedActorTrustManager_Address _Address, CClientConnection _ClientConnection)
 	{
 		auto pClientConnection = m_ClientConnections.f_FindEqual(_Address);
 		if (!pClientConnection)
@@ -215,7 +215,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		if (!m_ClientConnections.f_Remove(_Address))
 			co_return DMibErrorInstance("No client connection for address");
@@ -234,7 +234,7 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 	
-	TCFuture<CNamespace> CTrustManagerDatabaseTestHelper::f_GetNamespace(CStr const &_NamespaceName)
+	TCFuture<CNamespace> CTrustManagerDatabaseTestHelper::f_GetNamespace(CStr _NamespaceName)
 	{
 		auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
 		if (!pNamespace)
@@ -242,14 +242,14 @@ namespace NMib::NConcurrency
 		co_return *pNamespace;
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		if (!m_Namespaces(_NamespaceName, _Namespace).f_WasCreated())
 			co_return DMibErrorInstance("Namespace already exists");
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetNamespace(CStr const &_NamespaceName, CNamespace const &_Namespace)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto pNamespace = m_Namespaces.f_FindEqual(_NamespaceName);
 		if (!pNamespace)
@@ -258,7 +258,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 	
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveNamespace(CStr const &_NamespaceName)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveNamespace(CStr _NamespaceName)
 	{
 		if (!m_Namespaces.f_Remove(_NamespaceName))
 			co_return DMibErrorInstance("No namespace for name");
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 
-	TCFuture<CPermissions> CTrustManagerDatabaseTestHelper::f_GetPermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<CPermissions> CTrustManagerDatabaseTestHelper::f_GetPermissions(CPermissionIdentifiers _Identity)
 	{
 		auto pPermissions = m_Permissions.f_FindEqual(_Identity);
 		if (!pPermissions)
@@ -285,14 +285,14 @@ namespace NMib::NConcurrency
 		co_return *pPermissions;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		if (!m_Permissions(_Identity, _Permissions).f_WasCreated())
 			co_return DMibErrorInstance("Host permissions already exists for host ID");
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetPermissions(CPermissionIdentifiers const &_Identity, CPermissions const &_Permissions)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		auto pPermissions = m_Permissions.f_FindEqual(_Identity);
 		if (!pPermissions)
@@ -301,7 +301,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemovePermissions(CPermissionIdentifiers const &_Identity)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemovePermissions(CPermissionIdentifiers _Identity)
 	{
 		if (!m_Permissions.f_Remove(_Identity))
 			co_return DMibErrorInstance("No host permissions for host ID");
@@ -320,7 +320,7 @@ namespace NMib::NConcurrency
 		co_return Return;
 	}
 
-	TCFuture<CUserInfo> CTrustManagerDatabaseTestHelper::f_GetUserInfo(CStr const &_UserID)
+	TCFuture<CUserInfo> CTrustManagerDatabaseTestHelper::f_GetUserInfo(CStr _UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -331,7 +331,7 @@ namespace NMib::NConcurrency
 		co_return *pUsers;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddUser(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddUser(CStr _UserID, CUserInfo _UserInfo)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetUserInfo(CStr const &_UserID, CUserInfo const &_UserInfo)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetUserInfo(CStr _UserID, CUserInfo _UserInfo)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -353,7 +353,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveUser(CStr const &_UserID)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveUser(CStr _UserID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -381,7 +381,7 @@ namespace NMib::NConcurrency
 		co_return FactorsWithoutPrivate;
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CUserAuthenticationFactor const &_Factor)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_AddUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CUserAuthenticationFactor _Factor)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -395,7 +395,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID, CUserAuthenticationFactor const &_Factor)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_SetUserAuthenticationFactor(CStr _UserID, CStr _FactorID, CUserAuthenticationFactor _Factor)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");
@@ -409,7 +409,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveUserAuthenticationFactor(CStr const &_UserID, CStr const &_FactorID)
+	TCFuture<void> CTrustManagerDatabaseTestHelper::f_RemoveUserAuthenticationFactor(CStr _UserID, CStr _FactorID)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))
 			co_return DMibErrorInstance("Invalid user ID");

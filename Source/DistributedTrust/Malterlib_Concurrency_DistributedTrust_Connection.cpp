@@ -134,12 +134,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<NContainer::CByteVector> CDistributedActorTrustManager::CInternal::CTicketInterface::f_SignCertificate
 		(
-			NStr::CStr const &_Token
-			, NContainer::CByteVector const &_CertificateRequest
+			NStr::CStr _Token
+			, NContainer::CByteVector _CertificateRequest
 		)
 	{
-		TCPromise<NContainer::CByteVector> Promise;
-		return Promise <<= fg_Dispatch
+		co_return co_await fg_Dispatch
 			(
 				mp_ThisActor
 				, [pInternal = mp_pInternal, _Token, _CertificateRequest, CallingHostInfo = fg_GetCallingHostInfo()]
@@ -160,8 +159,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<NStr::CStr> CDistributedActorTrustManager::CInternal::CActorDistributionManagerAccessHandler::f_ValidateClientAccess
 		(
-			NStr::CStr const &_HostID
-			, NContainer::TCVector<NContainer::CByteVector> const &_CertificateChain
+			NStr::CStr _HostID
+			, NContainer::TCVector<NContainer::CByteVector> _CertificateChain
 		)
 	{
 		return m_pThis->f_ValidateClientAccess(_HostID, _CertificateChain);
@@ -169,9 +168,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult> CDistributedActorTrustManager::f_GenerateConnectionTicket
 		(
-			CDistributedActorTrustManager_Address const &_Address
-			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest)> &&_fOnUseTicket
-			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo)> &&_fOnCertificateSigned
+			CDistributedActorTrustManager_Address _Address
+			, TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest)> _fOnUseTicket
+			, TCActorFunctor<TCFuture<void> (NStr::CStr _HostID, CCallingHostInfo _HostInfo)> _fOnCertificateSigned
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -210,13 +209,13 @@ namespace NMib::NConcurrency
 					if (!pTicket)
 						co_return {};
 
-					TCActorResultVector<void> Destroys;
-					fg_Move(pTicket->m_fOnUseTicket).f_Destroy() > Destroys.f_AddResult();
-					fg_Move(pTicket->m_fOnCertificateSigned).f_Destroy() > Destroys.f_AddResult();
+					TCFutureVector<void> Destroys;
+					fg_Move(pTicket->m_fOnUseTicket).f_Destroy() > Destroys;
+					fg_Move(pTicket->m_fOnCertificateSigned).f_Destroy() > Destroys;
 
 					Internal.m_Tickets.f_Remove(Token);
 
-					co_await Destroys.f_GetResults();
+					co_await fg_AllDoneWrapped(Destroys);
 
 					co_return {};
 				}
@@ -248,7 +247,7 @@ namespace NMib::NConcurrency
 		if (ConnectionConcurrency <= _ConnectionState.m_ConnectionReferences.f_GetLen())
 		{
 			_ConnectionState.m_ConnectionReferences.f_SetLen(ConnectionConcurrency);
-			_ConnectionState.m_ConnectionReferences[0].f_Reconnect() > fg_DiscardResult();
+			_ConnectionState.m_ConnectionReferences[0].f_Reconnect().f_DiscardResult();
 			return;
 		}
 
@@ -257,6 +256,9 @@ namespace NMib::NConcurrency
 
 		for (int32 ToCreate = ConnectionConcurrency - _ConnectionState.m_ConnectionReferences.f_GetLen(); ToCreate > 0; --ToCreate)
 		{
+			if (!m_ActorDistributionManager)
+				continue;
+
 			m_ActorDistributionManager(&CActorDistributionManager::f_Connect, ConnectionSettings, 3600.0)
 				> [=, this](TCAsyncResult<CActorDistributionManager::CConnectionResult> &&_ConnectionResult)
 				{
@@ -297,13 +299,15 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket const &_TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddClientConnection(CTrustTicket _TrustTicket, fp64 _Timeout, int32 _ConnectionConcurrency)
 	{
 		// Connect to remote host with anonymous connection
 		// Subscribe to internal interface (time out if no publication arrives)
 		// Generate certificate request and send to remote host
 		// Save client connection to database
 		// Connect again to remote host with signed client certificate (if failure, remove from database again)
+
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 		using namespace NStr;
 
@@ -333,7 +337,7 @@ namespace NMib::NConcurrency
 
 		NStr::CStr UniqueHostID = ConnectionResult.m_UniqueHostID;
 
-		TCPromise<CAbstractDistributedActor> NewInterfacePromise;
+		TCPromiseFuturePair<CAbstractDistributedActor> NewInterfacePromise;
 
 		auto Subscription = co_await
 			(
@@ -342,7 +346,7 @@ namespace NMib::NConcurrency
 					&CActorDistributionManager::f_SubscribeActors
 					, "Anonymous/com.malterlib/Concurrency/TrustManagerTicket"
 					, fg_ThisActor(this)
-					, [NewInterfacePromise, UniqueHostID](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
+					, [NewInterfacePromise = fg_Move(NewInterfacePromise.m_Promise), UniqueHostID](CAbstractDistributedActor _NewActor) -> TCFuture<void>
 					{
 						if (_NewActor.f_GetUniqueHostID() != UniqueHostID)
 							co_return {};
@@ -351,7 +355,7 @@ namespace NMib::NConcurrency
 
 						co_return {};
 					}
-					, [](CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
+					, [](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 					{
 
 						co_return {};
@@ -363,7 +367,7 @@ namespace NMib::NConcurrency
 
 		;
 
-		auto NewActor = co_await NewInterfacePromise.f_MoveFuture();
+		auto NewActor = co_await fg_Move(NewInterfacePromise.m_Future);
 
 		auto TicketInterface = NewActor.f_GetActor<CInternal::CTicketInterface>();
 
@@ -418,7 +422,7 @@ namespace NMib::NConcurrency
 		ClientConnection.m_PublicClientCertificate = PublicCertificate;
 		ClientConnection.m_ConnectionConcurrency = _ConnectionConcurrency;
 
-		TCActorResultVector<void> DatabaseUpdates;
+		TCFutureVector<void> DatabaseUpdates;
 
 		for (auto &Connection : Internal.m_ClientConnections)
 		{
@@ -434,7 +438,7 @@ namespace NMib::NConcurrency
 							, Connection.f_GetAddress()
 							, Connection.m_ClientConnection
 						)
-						> DatabaseUpdates.f_AddResult()
+						> DatabaseUpdates
 					;
 				}
 
@@ -442,7 +446,7 @@ namespace NMib::NConcurrency
 				for (auto &ConnectionReference : Connection.m_ConnectionReferences)
 				{
 					if (ConnectionReference.f_IsValid())
-						ConnectionReference.f_UpdateConnectionSettings(ConnectionSettings) > DatabaseUpdates.f_AddResult();
+						ConnectionReference.f_UpdateConnectionSettings(ConnectionSettings) > DatabaseUpdates;
 				}
 			}
 		}
@@ -465,7 +469,7 @@ namespace NMib::NConcurrency
 					)
 					% "Failed to save new client connection to database"
 				)
-				+ (DatabaseUpdates.f_GetResults() % "Failed update client certificate for other client connections")
+				+ (fg_AllDoneWrapped(DatabaseUpdates) % "Failed update client certificate for other client connections")
 			)
 		;
 
@@ -505,7 +509,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(FinalConnection.m_HostInfo);
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<void> CDistributedActorTrustManager::f_SetClientConnectionConcurrency(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -539,7 +543,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address const &_Address, int32 _ConnectionConcurrency)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::f_AddAdditionalClientConnection(CDistributedActorTrustManager_Address _Address, int32 _ConnectionConcurrency)
 	{
 		// Connect with insecure connection to server to get server certificate
 		// Connect with server certificate to verify that trust is correct
@@ -657,7 +661,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address const &_Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakClientConnection(CDistributedActorTrustManager_Address _Address, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		using namespace NMib::NStr;
 
@@ -668,18 +672,18 @@ namespace NMib::NConcurrency
 		if (!pClientConnection)
 			co_return DMibErrorInstance("Could not find client connection for '{}'"_f << _Address);
 
-		TCActorResultVector<void> BreakResults;
+		TCFutureVector<void> BreakResults;
 		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
-			ConnectionReference.f_Debug_Break(_Timeout, _DebugFlags) > BreakResults.f_AddResult();
+			ConnectionReference.f_Debug_Break(_Timeout, _DebugFlags) > BreakResults;
 
-		co_await (co_await (BreakResults.f_GetResults() % "Failed to break client connections") | g_Unwrap);
+		co_await (fg_AllDone(BreakResults) % "Failed to break client connections");
 
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedActorTrustManager::f_Debug_BreakListenConnections
 		(
-			CDistributedActorTrustManager_Address const &_Address
+			CDistributedActorTrustManager_Address _Address
 			, fp64 _Timeout
 			, NNetwork::ESocketDebugFlag _DebugFlags
 		)
@@ -700,7 +704,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address const &_Address, bool _bBroken)
+	TCFuture<void> CDistributedActorTrustManager::f_Debug_SetListenServerBroken(CDistributedActorTrustManager_Address _Address, bool _bBroken)
 	{
 		using namespace NMib::NStr;
 
@@ -718,7 +722,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address const &_Address, bool _bPreserveHost)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address, bool _bPreserveHost)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -732,11 +736,11 @@ namespace NMib::NConcurrency
 
 		pClientConnection->m_bRemoving = true;
 
-		TCActorResultVector<void> DisconnectResults;
+		TCFutureVector<void> DisconnectResults;
 		for (auto &ConnectionReference : pClientConnection->m_ConnectionReferences)
-			ConnectionReference.f_Disconnect(_bPreserveHost) > DisconnectResults.f_AddResult();
+			ConnectionReference.f_Disconnect(_bPreserveHost) > DisconnectResults;
 
-		(co_await DisconnectResults.f_GetUnwrappedResults().f_Wrap()) > fg_LogError("Mib/Concurrency/Trust", "Failed disconnect connections when removing client connection");
+		(co_await fg_AllDone(DisconnectResults).f_Wrap()) > fg_LogError("Mib/Concurrency/Trust", "Failed disconnect connections when removing client connection");
 
 		auto pConnection = Internal.m_ClientConnections.f_FindEqual(_Address);
 		if (pConnection)
@@ -794,7 +798,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Addresses);
 	}
 
-	TCFuture<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address const &_Address)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -807,20 +811,20 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
-		TCActorResultMap<CDistributedActorTrustManager_Address, NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>> ConnectionResults;
+		TCFutureMap<CDistributedActorTrustManager_Address, NContainer::TCVector<TCAsyncResult<CDistributedActorConnectionStatus>>> ConnectionResults;
 		NContainer::TCMap<CDistributedActorTrustManager_Address, NStr::CStr> FriendlyNames;
 		for (auto iConnection = Internal.m_ClientConnections.f_GetIterator(); iConnection; ++iConnection)
 		{
-			TCActorResultVector<CDistributedActorConnectionStatus> StatusResults;
+			TCFutureVector<CDistributedActorConnectionStatus> StatusResults;
 			for (auto &ConnectionReference : iConnection->m_ConnectionReferences)
-				ConnectionReference.f_GetStatus() > StatusResults.f_AddResult();
+				ConnectionReference.f_GetStatus() > StatusResults;
 
-			StatusResults.f_GetResults() > ConnectionResults.f_AddResult(iConnection->f_GetAddress());
+			fg_AllDoneWrapped(StatusResults) > ConnectionResults[iConnection->f_GetAddress()];
 
 			FriendlyNames[iConnection->f_GetAddress()] = iConnection->m_ClientConnection.m_LastFriendlyName;
 		}
 
-		auto Results = co_await ConnectionResults.f_GetResults();
+		auto Results = co_await fg_AllDoneWrapped(ConnectionResults);
 		CDistributedActorTrustManager::CConnectionState ConnectionState;
 		for (auto &StatusesEntry : Results.f_Entries())
 		{
@@ -867,6 +871,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorTrustManagerInterface::CConnectionsDebugStats> CDistributedActorTrustManager::f_GetConnectionsDebugStats()
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
@@ -877,8 +883,10 @@ namespace NMib::NConcurrency
 		co_return fg_Move(DebugStats);
 	}
 
-	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostFriendlyName(NStr::CStr const &_HostID)
+	TCFuture<NStr::CStr> CDistributedActorTrustManager::f_GetHostFriendlyName(NStr::CStr _HostID)
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+		
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 

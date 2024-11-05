@@ -522,7 +522,7 @@ namespace NMib::NConcurrency::NPrivate
 		}
 
 		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
-			-> TCFuture<CUsageResult>
+			-> TCUnsafeFuture<CUsageResult>
 		{
 			CUsageResult Result;
 			int DescriptorSize;
@@ -544,7 +544,7 @@ namespace NMib::NConcurrency::NPrivate
 		}
 #else
 		static auto DMibWorkaroundUBSanSectionErrorsDisable fs_GetUsages(TCSharedPointer<CU2FDevices> const &_pDevices, CHumanInterfaceDevicesActor::CDeviceInfo const &_DeviceInfo)
-			-> TCFuture<CUsageResult>
+			-> TCUnsafeFuture<CUsageResult>
 		{
 			co_return CUsageResult{_DeviceInfo.m_UsagePage, _DeviceInfo.m_Usage};
 		}
@@ -556,14 +556,14 @@ namespace NMib::NConcurrency::NPrivate
 
 			auto DeviceInfos = co_await pDevices->m_HID(&CHumanInterfaceDevicesActor::f_Enumerate, 0, 0);
 
-			TCActorResultVector<CUsageResult> UsageResults;
+			TCFutureVector<CUsageResult> UsageResults;
 
 			for (auto const &DeviceInfo : DeviceInfos)
-				fs_GetUsages(pDevices, DeviceInfo) > UsageResults.f_AddResult();
+				fs_GetUsages(pDevices, DeviceInfo) > UsageResults;
 
-			TCActorResultVector<TCActor<CHumanInterfaceDeviceActor>> OpenDeviceResults;
+			TCFutureVector<TCActor<CHumanInterfaceDeviceActor>> OpenDeviceResults;
 			{
-				auto Usages = co_await UsageResults.f_GetResults();
+				auto Usages = co_await fg_AllDoneWrapped(UsageResults);
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 
 				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
@@ -582,7 +582,7 @@ namespace NMib::NConcurrency::NPrivate
 					auto &Usage = *UsageResult;
 					if (Usage.m_UsagePage == FIDO_USAGE_PAGE && Usage.m_Usage == FIDO_USAGE_U2FHID)
 					{
-						pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults.f_AddResult();
+						pDevices->m_HID(&CHumanInterfaceDevicesActor::f_OpenPath, DeviceInfo.m_Path) > OpenDeviceResults;
 						NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
 					}
 				}
@@ -591,9 +591,9 @@ namespace NMib::NConcurrency::NPrivate
 			}
 
 
-			TCActorResultVector<CU2FDevice> DeviceInits;
+			TCFutureVector<CU2FDevice> DeviceInits;
 			{
-				auto OpenedDevices = co_await OpenDeviceResults.f_GetResults();
+				auto OpenedDevices = co_await fg_AllDoneWrapped(OpenDeviceResults);
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 
 				TCVector<CHumanInterfaceDevicesActor::CDeviceInfo> NewDeviceInfos;
@@ -609,7 +609,7 @@ namespace NMib::NConcurrency::NPrivate
 						continue;
 					}
 
-					CU2FDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits.f_AddResult();
+					CU2FDevice::fs_Init(*Device, DeviceInfo.m_Path) > DeviceInits;
 
 					NewDeviceInfos.f_Insert(fg_Move(DeviceInfo));
 				}
@@ -618,7 +618,7 @@ namespace NMib::NConcurrency::NPrivate
 			}
 
 			{
-				auto InitializedDevices = co_await DeviceInits.f_GetResults();
+				auto InitializedDevices = co_await fg_AllDoneWrapped(DeviceInits);
 				auto iDeviceInfo = DeviceInfos.f_GetIterator();
 				for (auto &Device : InitializedDevices)
 				{
@@ -990,7 +990,7 @@ namespace NMib::NConcurrency::NPrivate
 			co_return {fg_Move(AuthenticationData.m_Data), Values.m_FactorID, Values.m_FactorName};
 		}
 
-		TCFuture<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
+		TCUnsafeFuture<CAuthenticationResult> f_VerifyAuthenticationResponse(CAuthenticationResponse const &_Response) const
 		{
 			CAuthenticationResult Result;
 
@@ -1067,20 +1067,20 @@ namespace NMib::NConcurrency
 		CDistributedActorTrustManagerAuthenticationActorU2F(TCWeakActor<CDistributedActorTrustManager> const &_TrustManager);
 		virtual ~CDistributedActorTrustManagerAuthenticationActorU2F();
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(CStr const &_UserID, TCSharedPointer<CCommandLineControl> const &_pCommandLine) override;
+		TCFuture<CAuthenticationData> f_RegisterFactor(CStr _UserID, TCSharedPointer<CCommandLineControl> _pCommandLine) override;
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		;
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		;
 
@@ -1107,8 +1107,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CAuthenticationData> CDistributedActorTrustManagerAuthenticationActorU2F::f_RegisterFactor
 		(
-			CStr const &_UserID
-			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			CStr _UserID
+			, TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
 		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
@@ -1147,10 +1147,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<ICDistributedActorAuthenticationHandler::CResponse> CDistributedActorTrustManagerAuthenticationActorU2F::f_SignAuthenticationRequest
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_Description
-			, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-			, TCMap<CStr, CAuthenticationData> const &_Factors
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _Description
+			, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+			, TCMap<CStr, CAuthenticationData> _Factors
 		)
 	{
 		auto Subscription = co_await mp_ProcessingSequencer.f_Sequence();
@@ -1160,8 +1160,6 @@ namespace NMib::NConcurrency
 			(
 				g_Dispatch(BlockingActorCheckout) / [=]() -> TCFuture<ICDistributedActorAuthenticationHandler::CResponse>
 				{
-					TCActorResultMap<TCTuple<CStr, CStr>, ICDistributedActorAuthenticationHandler::CResponse> AuthenticationResults;
-
 					auto SignatureBytes = _SignedProperties.f_GetSignatureBytes();
 
 					// This is handled much more smoothly for the password factor. There we ask for a password and can check all registered factors in parallel and see if the password
@@ -1206,9 +1204,9 @@ namespace NMib::NConcurrency
 
 	auto CDistributedActorTrustManagerAuthenticationActorU2F::f_VerifyAuthenticationResponse
 		(
-			ICDistributedActorAuthenticationHandler::CResponse const &_Response
-			, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-			, CAuthenticationData const &_AuthenticationData
+			ICDistributedActorAuthenticationHandler::CResponse _Response
+			, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+			, CAuthenticationData _AuthenticationData
 		)
 		-> TCFuture<CVerifyAuthenticationReturn>
 	{

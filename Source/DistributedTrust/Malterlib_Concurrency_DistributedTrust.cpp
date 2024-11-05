@@ -62,17 +62,17 @@ namespace NMib::NConcurrency
 
 		co_await Internal.m_AuthenticationInterface.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy authentication interface");
 
-		TCActorResultVector<void> Stops;
+		TCFutureVector<void> Stops;
 		for (auto &Connection : Internal.m_ClientConnections)
 		{
 			for (auto &ConnectionReference : Connection.m_ConnectionReferences)
-				ConnectionReference.f_Disconnect() > Stops.f_AddResult();
+				ConnectionReference.f_Disconnect() > Stops;
 		}
 		
 		for (auto &Listen : Internal.m_Listen)
-			Listen.m_ListenReference.f_Stop() > Stops.f_AddResult();
+			Listen.m_ListenReference.f_Stop() > Stops;
 		
-		auto StopResults = co_await Stops.f_GetResults();
+		auto StopResults = co_await fg_AllDoneWrapped(Stops);
 
 		for (auto &Result : StopResults)
 		{
@@ -90,20 +90,21 @@ namespace NMib::NConcurrency
 		}
 
 		if (Internal.m_fDistributionManagerFactory && Internal.m_ActorDistributionManager)
-			co_await Internal.m_ActorDistributionManager.f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
+			co_await fg_Move(Internal.m_ActorDistributionManager).f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
 
 		co_await fg_Move(Internal.m_InitSequencer).f_Destroy().f_Wrap() > LogError.f_Warning("Failed to destroy init sequencer");
 
 		co_return {};
 	}
 	
-	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr const &_HostID)
+	TCFuture<void> CDistributedActorTrustManager::f_RemoveClient(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
 
 		co_await (Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_RemoveClient, _HostID) % "Failed to remove client from trust database");
-		co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) % "Failed to kick host from distribution manager");
+		if (Internal.m_ActorDistributionManager)
+			co_await (Internal.m_ActorDistributionManager(&CActorDistributionManager::f_KickHost, _HostID) % "Failed to kick host from distribution manager");
 
 		co_return {};
 	}
@@ -126,7 +127,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Clients);
 	}
 	
-	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr const &_HostID)
+	TCFuture<bool> CDistributedActorTrustManager::f_HasClient(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
@@ -140,6 +141,7 @@ namespace NMib::NConcurrency
 	{
 		auto &Internal = *mp_pInternal;
 		co_await Internal.f_WaitForInit();
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 		co_return Internal.m_ActorDistributionManager;
 	}
@@ -174,10 +176,8 @@ namespace NMib::NConcurrency
 		return fg_Clamp(ConnectionConcurrency, 1, 128);
 	}
 	
-	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr const &_HostID)
+	TCFuture<CHostInfo> CDistributedActorTrustManager::fp_GetHostInfo(NStr::CStr _HostID)
 	{
-		TCPromise<CHostInfo> Promise;
-
 		CHostInfo HostInfo;
 		HostInfo.m_HostID = _HostID;
 		auto &Internal = *mp_pInternal;
@@ -185,26 +185,25 @@ namespace NMib::NConcurrency
 		if (pHost && !pHost->m_FriendlyName.f_IsEmpty())
 		{
 			HostInfo.m_FriendlyName = pHost->m_FriendlyName;
-			return Promise <<= HostInfo;
+			co_return fg_Move(HostInfo);
 		}
 		for (auto &ClientConnection : Internal.m_ClientConnections)
 		{
 			auto ClientHostInfo = ClientConnection.m_ClientConnection.f_GetHostInfo();
 			if (ClientHostInfo.m_HostID != _HostID)
 				continue;
+
 			if (ClientHostInfo.m_FriendlyName.f_IsEmpty())
 				continue;
-			return Promise <<= ClientHostInfo;
+
+			co_return fg_Move(ClientHostInfo);
 		}
-		Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID)
-			> [Promise, HostInfo = fg_Move(HostInfo)](TCAsyncResult<ICDistributedActorTrustManagerDatabase::CClient> &&_Client) mutable
-			{
-				if (_Client)
-					HostInfo.m_FriendlyName = _Client->m_LastFriendlyName;
-				Promise.f_SetResult(fg_Move(HostInfo));
-			}
-		;
-		return Promise.f_MoveFuture();
+
+		auto Client = co_await Internal.m_Database(&ICDistributedActorTrustManagerDatabase::f_GetClient, _HostID).f_Wrap();
+		if (Client)
+			HostInfo.m_FriendlyName = Client->m_LastFriendlyName;
+
+		co_return fg_Move(HostInfo);
 	}
 	
 	TCFuture<TCActor<ICActorDistributionManagerAccessHandler>> CDistributedActorTrustManager::f_GetAccessHandler() const

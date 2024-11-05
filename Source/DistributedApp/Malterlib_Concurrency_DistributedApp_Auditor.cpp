@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 			return _Message;
 		}
 
-		mp_AppActor(&CDistributedAppActor::f_Audit, fg_Move(AuditParams)) > fg_DiscardResult();
+		mp_AppActor.f_Bind<&CDistributedAppActor::f_Audit>(fg_Move(AuditParams)).f_DiscardResult();
 
 		return _Message;
 	}
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 			return FirstMessage;
 		}
 
-		mp_AppActor(&CDistributedAppActor::f_Audit, fg_Move(AuditParams)) > fg_DiscardResult();
+		mp_AppActor.f_Bind<&CDistributedAppActor::f_Audit>(fg_Move(AuditParams)).f_DiscardResult();
 
 		return FirstMessage;
 	}

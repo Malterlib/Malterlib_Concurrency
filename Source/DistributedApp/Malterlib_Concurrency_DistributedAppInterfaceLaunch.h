@@ -16,9 +16,9 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<void>
 				(
-					NStr::CStr const &_HostID
-					, CCallingHostInfo const &_HostInfo
-					, NContainer::CByteVector const &_CertificateRequest
+					NStr::CStr _HostID
+					, CCallingHostInfo _HostInfo
+					, NContainer::CByteVector _CertificateRequest
 				)
 			>
 		;
@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 				NWeb::NHTTP::CURL const &_Address
 				, TCActor<CDistributedActorTrustManager> const &_TrustManager
 				, FOnUseTicket &&_fOnUseTicket
-				, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
+				, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError
 				, NStr::CStr const &_Description
 				, NStr::CStr const &_LaunchID
 				, bool _bDelegateTrust
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 		NStr::CStr mp_Description;
 		NStr::CStr mp_LaunchID;
 		FOnUseTicket mp_fOnUseTicket;
-		TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> mp_fOnLaunchError;
+		TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> mp_fOnLaunchError;
 		NContainer::TCMap<NStr::CStr, CHandleRequest> mp_HandleRequests;
 		bool mp_bDelegateTrust = false;
 	};

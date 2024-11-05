@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 					if (f_IsDestroyed())
 					{
 						if (AppSensorStoreLocal)
-							fg_Move(AppSensorStoreLocal).f_Destroy() > fg_DiscardResult();
+							fg_Move(AppSensorStoreLocal).f_Destroy().f_DiscardResult();
 
 						return DMibErrorInstance("Shutting down");
 					}
@@ -53,10 +53,9 @@ namespace NMib::NConcurrency
 
 		Internal.m_AppSensorStoreLocal = fg_Move(AppSensorStoreLocal);
 
-		Internal.m_AppSensorStoreLocalAppServerChangeSubscription = co_await self
+		Internal.m_AppSensorStoreLocalAppServerChangeSubscription = co_await fp_RegisterForAppInterfaceServerChanges
 			(
-				&CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
-				, g_ActorFunctor / [this](TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
+				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppInterfaceServer> _AppInterfaceServer, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 					auto OnResume = co_await fg_OnResume
@@ -127,13 +126,13 @@ namespace NMib::NConcurrency
 		co_return co_await Store(&CDistributedAppSensorStoreLocal::f_OpenSensorReporter, fg_Move(_SensorInfo));
 	}
 
-	auto CDistributedAppActor::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
+	auto CDistributedAppActor::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo) -> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
 		co_return co_await fp_OpenSensorReporter(fg_Move(_SensorInfo));
 	}
 
 	TCFuture<TCActor<CDistributedAppSensorStoreLocal>> CDistributedAppActor::f_OpenSensorStoreLocal()
 	{
-		co_return co_await self(&CDistributedAppActor::fp_OpenSensorStoreLocal);
+		co_return co_await fp_OpenSensorStoreLocal();
 	}
 }

@@ -28,26 +28,26 @@ namespace NMib::NConcurrency
 		ICCommandLineControl();
 		~ICCommandLineControl();
 
-		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrSecure const &_Input)>;
+		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrSecure _Input)>;
 		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID
 			<
-				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector const &_Input, NStr::CStr const &_Error)
+				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector _Input, NStr::CStr _Error)
 			>
 		;
 		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
 
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
-		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) = 0;
+		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
+		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
+		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) = 0;
 
 		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_ReadBinary() = 0;
 		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadLine() = 0;
-		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) = 0;
+		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) = 0;
 		virtual NConcurrency::TCFuture<void> f_AbortReads() = 0;
 
-		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) = 0;
-		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) = 0;
-		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrSecure _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrSecure _Output) = 0;
 	};
 
 	struct CCommandLineControl
@@ -100,9 +100,9 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<uint32> f_RunCommandLine
 			(
-				 NStr::CStr const &_Command
-				 , NEncoding::CEJSONSorted const &_Parameters
-				 , CCommandLineControl &&_CommandLine
+				 NStr::CStr _Command
+				 , NEncoding::CEJSONSorted _Parameters
+				 , CCommandLineControl _CommandLine
 			) = 0
 		;
 	};
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 						NEncoding::CEJSONOrdered &&_CommandDescription
 						, NFunction::TCFunctionMovable
 						<
-							TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+							TCFuture<uint32> (NEncoding::CEJSONSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 						> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
 					)
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 				typename t_CCommandLineSpecification::CCommand f_RegisterDirectCommand
 					(
 						NEncoding::CEJSONOrdered &&_CommandDescription
-						, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
+						, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 						, EDistributedAppCommandFlag _Flags = EDistributedAppCommandFlag_None
 					)
 				;
@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 
 				NStorage::TCSharedPointer
 					<
-						TCActorFunctor<TCFuture<uint32> (NEncoding::CEJSONSorted const &_Parameters, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)>
+						TCActorFunctor<TCFuture<uint32> (NEncoding::CEJSONSorted _Parameters, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine)>
 					>
 					m_pActorRunCommand
 				;
@@ -177,7 +177,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
-				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				TCFuture<uint32> (NEncoding::CEJSONSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 			> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
@@ -189,7 +189,7 @@ namespace NMib::NConcurrency
 	f_RegisterDirectCommand
 		(
 			NEncoding::CEJSONOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> NCommandLine::TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand

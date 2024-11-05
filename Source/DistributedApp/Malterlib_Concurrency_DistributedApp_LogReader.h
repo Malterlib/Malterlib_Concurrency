@@ -148,19 +148,19 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 
 			NContainer::TCVector<CDistributedAppLogReader_LogEntrySubscriptionFilter> m_Filters;
-			TCActorFunctorWithID<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> m_fOnEntry;
+			TCActorFunctorWithID<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry _Entry)> m_fOnEntry;
 			ELogEntriesFlag m_Flags = ELogEntriesFlag_None;
 		};
 
 		template <typename tf_CStream, typename tf_CFilter>
 		static void fs_StreamFilterVector(tf_CStream &_Stream, NContainer::TCVector<tf_CFilter> &o_Filters);
 
-		virtual TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>>> f_GetLogs(CGetLogs &&_Params) = 0;
-		virtual auto f_GetLogEntries(CGetLogEntries &&_Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>> = 0;
-		virtual auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> &&_Filters, TCActorFunctorWithID<TCFuture<void> (CLogChange &&_Change)> &&_fOnChange)
+		virtual TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>>> f_GetLogs(CGetLogs _Params) = 0;
+		virtual auto f_GetLogEntries(CGetLogEntries _Params) -> TCFuture<TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>>> = 0;
+		virtual auto f_SubscribeLogs(NContainer::TCVector<CDistributedAppLogReader_LogFilter> _Filters, TCActorFunctorWithID<TCFuture<void> (CLogChange _Change)> _fOnChange)
 			-> TCFuture<TCActorSubscriptionWithID<>> = 0
 		;
-		virtual auto f_SubscribeLogEntries(CSubscribeLogEntries &&_Params) -> TCFuture<TCActorSubscriptionWithID<>> = 0;
+		virtual auto f_SubscribeLogEntries(CSubscribeLogEntries _Params) -> TCFuture<TCActorSubscriptionWithID<>> = 0;
 	};
 }
 

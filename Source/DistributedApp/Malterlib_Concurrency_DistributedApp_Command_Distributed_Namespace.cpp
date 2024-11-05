@@ -15,9 +15,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListNamespaces
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, bool _bIncludeTrustedHosts
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 
@@ -66,9 +66,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_TrustHostForNamespace
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_Namespace
-			, CStr const &_Host
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _Namespace
+			, CStr _Host
 		)
 	{
 		TCSet<CStr> Hosts;
@@ -82,9 +82,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UntrustHostForNamespace
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_Namespace
-			, CStr const &_Host
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _Namespace
+			, CStr _Host
 		)
 	{
 		TCSet<CStr> Hosts;

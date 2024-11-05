@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 	using namespace NException;
 	using namespace NStorage;
 
-	struct CDistributedAppSensorStoreLocal::CInternal
+	struct CDistributedAppSensorStoreLocal::CInternal : public CActorInternal
 	{
 		struct CSensor;
 		struct CRemoteSensorReporterInterface;
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 		struct CSensorSubscription
 		{
 			TCVector<CDistributedAppSensorReader_SensorFilter> m_Filters;
-			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange &&_Change)> m_fOnChange;
+			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange _Change)> m_fOnChange;
 
 			TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReader::CSensorChange> m_QueuedChanges;
 		};
@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 		struct CReadingSubscriptionShared
 		{
 			TCMap<CDistributedAppSensorReporter::CSensorInfoKey, zuint64> m_LastSeenReading;
-			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> m_fOnReading;
+			TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading _Reading)> m_fOnReading;
 			TCVector<CDistributedAppSensorReader_SensorKeyAndReading> m_QueuedReadings;
 		};
 
@@ -105,31 +105,31 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Start();
 
-		TCFuture<void> f_UpdateSensorForReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, TCWeakDistributedActor<CActor> const &_Actor);
+		TCFuture<void> f_UpdateSensorForReporter(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, TCWeakDistributedActor<CActor> _Actor);
 
-		TCFuture<void> f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
-		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
-		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasAdded);
+		TCFuture<void> f_SensorReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppSensorReporter> _Actor, CTrustedActorInfo _TrustInfo);
+		TCFuture<void> f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo);
+		TCFuture<void> f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, bool _bWasAdded);
 		TCFuture<void> f_NewSensorReadings
 			(
-				CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
+				CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
+				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings
 			)
 		;
 		TCFuture<void> f_StoreSensorReadings
 			(
-				CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-				, NSensorStoreLocalDatabase::CSensorReadingKey const &_DatabaseKey
-				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
+				CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
+				, NSensorStoreLocalDatabase::CSensorReadingKey _DatabaseKey
+				, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings
 			)
 		;
-		TCFuture<void> f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey);
+		TCFuture<void> f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey);
 
 		auto f_GetReportReadingsFunctor(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, NSensorStoreLocalDatabase::CSensorReadingKey _DatabaseKey)
-			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings)>
+			-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>
 		;
 
-		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
+		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction);
 		TCFuture<void> f_PerformLocalCleanup();
 
 		void f_ScheduleFailedRetry();
@@ -166,7 +166,7 @@ namespace NMib::NConcurrency
 		TCSharedPointer<CCanDestroyTracker> m_pCanDestroyStoringLocal = fg_Construct();
 
 		TCTrustedActorSubscription<CDistributedAppSensorReporter> m_SensorsInterfaceSubscription;
-		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
+		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
 		CStr m_ThisHostID;

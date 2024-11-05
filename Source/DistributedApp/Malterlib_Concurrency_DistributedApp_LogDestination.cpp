@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 		~CDistributedAppLogDestination_Internal()
 		{
 			if (m_LogReporter && m_LogReporter->m_fReportEntries)
-				fg_Move(m_LogReporter->m_fReportEntries).f_Destroy() > fg_DiscardResult();
+				fg_Move(m_LogReporter->m_fReportEntries).f_Destroy().f_DiscardResult();
 		}
 
 		void f_ProcessDeferredMessages()
@@ -64,12 +64,14 @@ namespace NMib::NConcurrency
 					Data.m_SourceLocation = {Message.m_Location.m_pFile, Message.m_Location.m_Line};
 			}
 
-			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)) > fg_DirectResultActor()
-				/ [pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
-				{
-					if (!_Result)
-						DMibConErrOut2("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
-				}
+			m_LogReporter->m_fReportEntries(fg_Move(LogEntries)).f_OnResultSet
+				(
+					[pCanDestroy = m_pCanDestroy](TCAsyncResult<CDistributedAppLogReporter::CReportEntriesResult> &&_Result)
+					{
+						if (!_Result)
+							DMibConErrOut2("Error reporting log entries: {}\n", _Result.f_GetExceptionStr());
+					}
+				)
 			;
 		}
 
@@ -199,16 +201,18 @@ namespace NMib::NConcurrency
 							{
 								pInternal->f_ProcessDeferredMessages();
 							}
-							> fg_DiscardResult();
+							> g_DiscardResult
 						;
 					}
 				}
 				else if (!Internal.m_bScheduledProcess)
 				{
 					Internal.m_bScheduledProcess = true;
-					fg_Timeout(0.01)(Internal.m_LogActor) > [pInternal = mp_pInternal]
+					fg_Timeout(0.01)(Internal.m_LogActor) > [pInternal = mp_pInternal]() -> TCFuture<void>
 						{
 							pInternal->f_ProcessDeferredMessages();
+
+							co_return {};
 						}
 					;
 				}

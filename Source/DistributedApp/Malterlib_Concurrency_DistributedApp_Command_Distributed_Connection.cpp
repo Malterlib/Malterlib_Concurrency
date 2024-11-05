@@ -31,11 +31,11 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppActor::f_CommandLine_AddConnection
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_Ticket
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _Ticket
 			, bool _bIncludeFriendlyHostName
 			, int32 _ConnectionConcurrency
-			, TCSet<CStr> &&_TrustedNamespaces
+			, TCSet<CStr> _TrustedNamespaces
 		)
 		-> TCFuture<uint32>
 	{
@@ -67,7 +67,7 @@ namespace NMib::NConcurrency
 
 		if (!_TrustedNamespaces.f_IsEmpty())
 		{
-			TCActorResultMap<CStr, void> TrustResults;
+			TCFutureMap<CStr, void> TrustResults;
 
 			TCSet<CStr> Hosts;
 			Hosts[HostInfo.m_HostID];
@@ -83,11 +83,11 @@ namespace NMib::NConcurrency
 						, Hosts
 						, EDistributedActorTrustManagerOrderingFlag_WaitForSubscriptions
 					)
-					> TrustResults.f_AddResult(Namespace);
+					> TrustResults[Namespace];
 				;
 			}
 
-			auto Results = co_await TrustResults.f_GetResults().f_Wrap();
+			auto Results = co_await fg_AllDoneWrapped(TrustResults).f_Wrap();
 			if (!Results)
 				*_pCommandLine %= "Failed to trust namespaces: {}\n"_f << Results.f_GetExceptionStr();
 			else
@@ -126,11 +126,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GenerateTrustTicket
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_ForListen
-			, TCSet<CStr> const &_Permissions
-			, CStr const &_UserID
-			, CEJSONSorted const &_AuthenticationFactors
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _ForListen
+			, TCSet<CStr> _Permissions
+			, CStr _UserID
+			, CEJSONSorted _AuthenticationFactors
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -174,12 +174,13 @@ namespace NMib::NConcurrency
 				, nullptr
 				, bHasPermissions ? g_ActorFunctor / [this, _Permissions, pCleanup = fg_Move(pCleanup), _UserID, Requirements]
 				(
-					CStr const &_HostID
-					, CCallingHostInfo const &_HostInfo
-				) mutable -> TCFuture<void>
+					CStr _HostID
+					, CCallingHostInfo _HostInfo
+				)
+				mutable -> TCFuture<void>
 				{
 					if (_Permissions.f_IsEmpty())
-					co_return {};
+						co_return {};
 
 					TCMap<CStr, CPermissionRequirements> Permissions;
 					for (auto const &Permission : _Permissions)
@@ -210,7 +211,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetConnetionStatus(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetConnetionStatus(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _TableType)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		CAnsiEncoding AnsiEncoding = _pCommandLine->f_AnsiEncoding();
@@ -284,9 +285,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListConnections
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, bool _bIncludeFriendlyHostName
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto ClientConnections = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClientConnections);
@@ -314,7 +315,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveConnection(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveConnection(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL)
 	{
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
@@ -328,8 +329,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppActor::f_CommandLine_AddAdditionalConnection
 		(
-			 TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 , CStr const &_URL
+			 TCSharedPointer<CCommandLineControl> _pCommandLine
+			 , CStr _URL
 			 , bool _bIncludeFriendlyHostName
 			 , int32 _ConnectionConcurrency
 		)
@@ -353,8 +354,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetConnectionConcurrency
 		(
-			 TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			 , CStr const &_URL
+			 TCSharedPointer<CCommandLineControl> _pCommandLine
+			 , CStr _URL
 			 , int32 _ConnectionConcurrency
 		)
 	{
@@ -378,7 +379,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDebugStats(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDebugStats(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _TableType)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
 		CTableRenderHelper ConnectionTableRenderer = _pCommandLine->f_TableRenderer();

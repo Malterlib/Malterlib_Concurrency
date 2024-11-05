@@ -9,18 +9,20 @@ namespace NMib::NConcurrency
 {
 	using namespace NLogStoreLocalDatabase;
 
-	TCFuture<void> CDistributedAppLogStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> &&_HostsSeen)
+	TCFuture<void> CDistributedAppLogStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, NTime::CTime> _HostsSeen)
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), HostsSeen = fg_Move(_HostsSeen), Prefix = Internal.m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -70,18 +72,20 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs)
+	TCFuture<void> CDistributedAppLogStoreLocal::f_RemoveHosts(NContainer::TCSet<NStr::CStr> _RemovedHostIDs)
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), RemovedHostIDs = fg_Move(_RemovedHostIDs), Prefix = Internal.m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -125,7 +129,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<uint32> CDistributedAppLogStoreLocal::f_RemoveLogs(NContainer::TCSet<CDistributedAppLogReporter::CLogInfoKey> &&_LogInfoKeys)
+	TCFuture<uint32> CDistributedAppLogStoreLocal::f_RemoveLogs(NContainer::TCSet<CDistributedAppLogReporter::CLogInfoKey> _LogInfoKeys)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -145,23 +149,23 @@ namespace NMib::NConcurrency
 
 			++nRemoved;
 			pLog->m_Info.m_bRemoved = true;
-			co_await fg_CallSafe(Internal, &CInternal::f_LogInfoChanged, LogInfoKey, false);
+			co_await Internal.f_LogInfoChanged(LogInfoKey, false);
 		}
 
 		co_return nRemoved;
 	}
 
-	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 	{
 		auto &Internal = *mp_pInternal;
-		co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, &Internal, fg_Move(_WriteTransaction));
+		co_return co_await CInternal::fs_Cleanup(&Internal, fg_Move(_WriteTransaction));
 	}
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_StoreLogEntries
 		(
-			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-			, CLogEntryKey const &_DatabaseKey
-			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
+			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
+			, CLogEntryKey _DatabaseKey
+			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
 		)
 	{
 		if (_pEntries->f_IsEmpty())
@@ -174,6 +178,8 @@ namespace NMib::NConcurrency
 		auto pCanDestroyTracker = m_pCanDestroyStoringLocal;
 
 		DMibLogOperation(DisableDistributedLogReporter); // Prevent recursive logs
+
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
 
 		auto Result = co_await m_Database
 			(
@@ -189,7 +195,7 @@ namespace NMib::NConcurrency
 					, Database = m_Database
 					, KnownHostKey = CKnownHostKey {.m_DbPrefix = m_Prefix, .m_HostID = _LogInfoKey.m_HostID}
 				]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) mutable -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) mutable -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -285,7 +291,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey)
 	{
 		CInternal::CLog *pLog = nullptr;
 		auto OnResume = co_await fg_OnResume
@@ -308,17 +314,17 @@ namespace NMib::NConcurrency
 
 			if (pLog->m_ActiveRefCount == 0) // Might have been recreated
 			{
-				TCActorResultVector<void> Destroys;
+				TCFutureVector<void> Destroys;
 
 				for (auto &Reporter : pLog->m_LogReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportEntries)
-						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys;
 				}
 
 				pLog->m_LogReporters.f_Clear();
-				co_await Destroys.f_GetResults();
+				co_await fg_AllDoneWrapped(Destroys);
 			}
 		}
 
@@ -333,7 +339,7 @@ namespace NMib::NConcurrency
 			TCVector<CDistributedAppLogReporter::CLogEntry> ResizedEntries;
 
 #if DMibPPtrBits < 64
-			static constexpr mint c_MaxSize = 768 * 1024; // Workaround bugs in memory mapping for overflow values in lmdb
+			static constexpr mint c_MaxSize = 64 * 1024; // Workaround bugs in memory mapping for overflow values in lmdb
 #else
 			static constexpr mint c_MaxSize = CActorDistributionManager::mc_HalfMaxMessageSize;
 #endif
@@ -425,17 +431,17 @@ namespace NMib::NConcurrency
 			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
 			, CLogEntryKey _DatabaseKey
 		)
-		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
+		-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> _Entries)>
 	{
 		return g_ActorFunctor
 			(
 				g_ActorSubscription / [this, _LogInfoKey]() -> TCFuture<void>
 				{
-					co_return co_await fg_CallSafe(this, &CInternal::f_CleanupLogReporter, _LogInfoKey);
+					co_return co_await f_CleanupLogReporter(_LogInfoKey);
 				}
 			)
 			/ [this, _LogInfoKey, _DatabaseKey, AllowDestroy = g_AllowWrongThreadDestroy]
-			(TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries) mutable -> TCFuture<CDistributedAppLogReporter::CReportEntriesResult>
+			(TCVector<CDistributedAppLogReporter::CLogEntry> _Entries) mutable -> TCFuture<CDistributedAppLogReporter::CReportEntriesResult>
 			{
 				auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 				if (!pLog)
@@ -475,8 +481,8 @@ namespace NMib::NConcurrency
 
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
-						fg_CallSafe(this, &CInternal::f_StoreLogEntries, _LogInfoKey, _DatabaseKey, pEntries)
-						+ fg_CallSafe(this, &CInternal::f_NewLogEntries, _LogInfoKey, pEntries)
+						f_StoreLogEntries(_LogInfoKey, _DatabaseKey, pEntries)
+						+ f_NewLogEntries(_LogInfoKey, pEntries)
 					)
 					.f_Wrap()
 				;
@@ -503,7 +509,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppLogStoreLocal::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo)
+	auto CDistributedAppLogStoreLocal::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)
 		-> TCFuture<CDistributedAppLogReporter::CLogReporter>
 	{
 		auto &Internal = *mp_pInternal;
@@ -554,7 +560,7 @@ namespace NMib::NConcurrency
 				pLog->m_Info = _LogInfo;
 
 			if (bWasChanged || bWasAdded)
-				co_await fg_CallSafe(Internal, &CInternal::f_LogInfoChanged, LogInfoKey, bWasAdded || bWasCreated);
+				co_await Internal.f_LogInfoChanged(LogInfoKey, bWasAdded || bWasCreated);
 		}
 
 		CDistributedAppLogReporter::CLogReporter Reporter;

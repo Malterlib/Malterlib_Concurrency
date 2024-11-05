@@ -36,15 +36,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CCommandLineControl::f_StdOut(CStrSecure const &_Output) const
 	{
-		TCPromise<void> Promise;
 		if (!m_ControlActor)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		mint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output);
+			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
 				mint(0)
@@ -52,27 +51,26 @@ namespace NMib::NConcurrency
 				, CActorDistributionManager::mc_HalfMaxMessageSize
 				, [&](mint _Start, mint _Len)
 				{
-					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output.f_Extract(_Start, _Len)) > Results.f_AddResult();
+					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOut)(_Output.f_Extract(_Start, _Len)) > Results;
 				}
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(Results).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 		return Promise.f_Future();
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdOutBinary(CSecureByteVector const &_Output) const
 	{
-		TCPromise<void> Promise;
 		if (!m_ControlActor)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		mint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(_Output);
+			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(_Output);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
 				mint(0)
@@ -82,27 +80,27 @@ namespace NMib::NConcurrency
 				{
 					CSecureByteVector ToSend;
 					ToSend.f_Insert(_Output.f_GetArray() + _Start, _Len);
-					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend)) > Results.f_AddResult();
+					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend)) > Results;
 				}
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(Results).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 
 		return Promise.f_Future();
 	}
 
 	TCFuture<void> CCommandLineControl::f_StdErr(CStrSecure const &_Output) const
 	{
-		TCPromise<void> Promise;
 		if (!m_ControlActor)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		mint OutputLen = _Output.f_GetLen();
 		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output);
+			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
 				mint(0)
@@ -110,13 +108,13 @@ namespace NMib::NConcurrency
 				, CActorDistributionManager::mc_HalfMaxMessageSize
 				, [&](mint _Start, mint _Len)
 				{
-					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output.f_Extract(_Start, _Len)) > Results.f_AddResult();
+					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdErr)(_Output.f_Extract(_Start, _Len)) > Results;
 				}
 			)
 		;
 
-		Results.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(Results).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 		return Promise.f_Future();
 	}
 
@@ -143,59 +141,52 @@ namespace NMib::NConcurrency
 	auto CCommandLineControl::f_RegisterForStdInBinary(ICCommandLineControl::FOnBinaryInput &&_fOnBinaryInput, EStdInReaderFlag _Flags) const
 		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
-		TCPromise<TCActorSubscriptionWithID<>> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdInBinary)(fg_Move(_fOnBinaryInput), _Flags);
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdInBinary)(fg_Move(_fOnBinaryInput), _Flags);
 	}
 
 	auto CCommandLineControl::f_RegisterForCancellation(ICCommandLineControl::FOnCancel &&_fOnCancel) const -> TCFuture<TCActorSubscriptionWithID<>>
 	{
-		TCPromise<TCActorSubscriptionWithID<>> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForCancellation)(fg_Move(_fOnCancel));
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForCancellation)(fg_Move(_fOnCancel));
 	}
 
 	auto CCommandLineControl::f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, EStdInReaderFlag _Flags) const
 		-> TCFuture<TCActorSubscriptionWithID<>>
 	{
-		TCPromise<TCActorSubscriptionWithID<>> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdIn)(fg_Move(_fOnInput), _Flags);
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdIn)(fg_Move(_fOnInput), _Flags);
 	}
 
 	TCFuture<CSecureByteVector> CCommandLineControl::f_ReadBinary() const
 	{
-		TCPromise<CSecureByteVector> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadBinary)();
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadBinary)();
 	}
 
 	TCFuture<CStrSecure> CCommandLineControl::f_ReadLine() const
 	{
-		TCPromise<CStrSecure> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadLine)();
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadLine)();
 	}
 
 	TCFuture<CStrSecure> CCommandLineControl::f_ReadPrompt(CStdInReaderPromptParams const &_Params) const
 	{
-		TCPromise<CStrSecure> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadPrompt)(_Params);
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadPrompt)(_Params);
 	}
 
 	TCFuture<void> CCommandLineControl::f_AbortReads() const
 	{
-		TCPromise<void> Promise;
 		if (!m_ControlActor)
-			return Promise <<= DMibErrorInstance("No control actor");
-		return Promise <<= m_ControlActor.f_CallActor(&ICCommandLineControl::f_AbortReads)();
+			return DMibErrorInstance("No control actor");
+		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_AbortReads)();
 	}
 
 	uint32 CCommandLineControl::f_AddAsyncResult(CAsyncResult const &_Result) const
@@ -210,36 +201,36 @@ namespace NMib::NConcurrency
 
 	void CCommandLineControl::operator +=(CStrSecure const &_StdOut) const
 	{
-		f_StdOut(_StdOut) > fg_DiscardResult();;
+		f_StdOut(_StdOut).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStrSecure const &_StdErr) const
 	{
-		f_StdErr(_StdErr) > fg_DiscardResult();;
+		f_StdErr(_StdErr).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CStr::CFormat const &_StdOut) const
 	{
-		f_StdOut(CStr(_StdOut)) > fg_DiscardResult();;
+		f_StdOut(CStr(_StdOut)).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStr::CFormat const &_StdErr) const
 	{
-		f_StdErr(CStr(_StdErr)) > fg_DiscardResult();;
+		f_StdErr(CStr(_StdErr)).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CStrSecure::CFormat const &_StdOut) const
 	{
-		f_StdOut(_StdOut) > fg_DiscardResult();;
+		f_StdOut(_StdOut).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator %=(CStrSecure::CFormat const &_StdErr) const
 	{
-		f_StdErr(_StdErr) > fg_DiscardResult();;
+		f_StdErr(_StdErr).f_DiscardResult();
 	}
 
 	void CCommandLineControl::operator +=(CSecureByteVector const &_StdOut) const
 	{
-		f_StdOutBinary(_StdOut) > fg_DiscardResult();;
+		f_StdOutBinary(_StdOut).f_DiscardResult();
 	}
 }

@@ -109,10 +109,10 @@ namespace NTestAuthentication
 			DMibPublishActorFunction(CServerInterface::f_CheckPermissions3);
 		}
 
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) = 0;
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permission) = 0;
-		virtual NConcurrency::TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permission) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> _Permissions, int64 _AuthenticationLifetime) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> _Permission) = 0;
+		virtual NConcurrency::TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> _Permission) = 0;
 	};
 
 	struct CServerActor : public CDistributedAppActor
@@ -146,21 +146,13 @@ namespace NTestAuthentication
 
 			struct CServerInterfaceImplementation : public CServerInterface
 			{
-				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions);
 				}
 
-				TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> const &_Permissions, int64 _AuthenticationLifetime) override
+				TCFuture<bool> f_CheckPermissions1LifeTime(TCVector<CStr> _Permissions, int64 _AuthenticationLifetime) override
 				{
-					TCPromise<bool> Promise;
 					auto const &Info = fg_GetCallingHostInfo();
 					auto CallingHostInfo =  CCallingHostInfo
 						(
@@ -176,36 +168,17 @@ namespace NTestAuthentication
 						)
 					;
 
-					m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions, CallingHostInfo) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions, CallingHostInfo);
 				}
 
-				TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions2(TCVector<CPermissionQueryLocal> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions);
 				}
 
-				TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permissions) override
+				TCFuture<TCMap<CStr, bool>> f_CheckPermissions3(TCMap<CStr, TCVector<CPermissionQueryLocal>> _Permissions) override
 				{
-					TCPromise<TCMap<CStr, bool>> Promise;
-
-					m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions) > Promise / [Promise](NContainer::TCMap<NStr::CStr, bool> _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions.f_HasPermissions("Test", _Permissions);
 				}
 
 				DMibDelegatedActorImplementation(CServer);
@@ -213,27 +186,23 @@ namespace NTestAuthentication
 
 			TCFuture<void> f_SubscribePermissions()
 			{
-				TCPromise<void> Promise;
-
-				mp_AppState.m_TrustManager
+				mp_Permissions = co_await mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.malterlib/*")
 						 , fg_ThisActor(this)
 					)
-					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription)
-					{
-						mp_Permissions = fg_Move(_TrustedSubscription);
-						Promise.f_SetResult();
-					}
 				;
-				return Promise.f_MoveFuture();
+
+				co_return {};
 			}
 
 		private:
 			TCFuture<void> fp_Destroy() override
 			{
-				return mp_ProtocolInterface.m_Publication.f_Destroy();
+				co_await mp_ProtocolInterface.m_Publication.f_Destroy();
+
+				co_return {};
 			}
 
 			TCDistributedActorInstance<CServerInterfaceImplementation> mp_ProtocolInterface;
@@ -242,7 +211,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -255,7 +224,7 @@ namespace NTestAuthentication
 			{
 				DMibLogWithCategory(Mib/Concurrency/CServerActor, Info, "Shutting down server");
 
-				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				auto Result = co_await fg_Move(mp_ServerActor).f_Destroy().f_Wrap();
 				if (!Result)
 					DMibLogWithCategory(Mib/Concurrency/CServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
@@ -289,10 +258,10 @@ namespace NTestAuthentication
 			DMibPublishActorFunction(CManyServerInterface::f_CheckPermissions4);
 		}
 
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) = 0;
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions2(TCVector<CStr> _Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions3(TCVector<CStr> _Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions4(TCVector<CStr> _Permissions) = 0;
 	};
 
 	// This server is used to test the behavior multiple multiple permission subscriptions
@@ -327,52 +296,24 @@ namespace NTestAuthentication
 
 			struct CServerInterfaceImplementation : public CManyServerInterface
 			{
-				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions1.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions1.f_HasPermission("Test", _Permissions);
 				}
 
-				TCFuture<bool> f_CheckPermissions2(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions2(TCVector<CStr> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions2.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions2.f_HasPermission("Test", _Permissions);
 				}
 
-				TCFuture<bool> f_CheckPermissions3(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions3(TCVector<CStr> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions3.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions3.f_HasPermission("Test", _Permissions);
 				}
 
-				TCFuture<bool> f_CheckPermissions4(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions4(TCVector<CStr> _Permissions) override
 				{
-					TCPromise<bool> Promise;
-
-					m_pThis->mp_Permissions4.f_HasPermission("Test", _Permissions) > Promise / [Promise](bool _Result)
-						{
-							Promise.f_SetResult(_Result);
-						}
-					;
-					return Promise.f_MoveFuture();
+					co_return co_await m_pThis->mp_Permissions4.f_HasPermission("Test", _Permissions);
 				}
 
 				DMibDelegatedActorImplementation(CServer);
@@ -380,72 +321,60 @@ namespace NTestAuthentication
 
 			TCFuture<void> f_SubscribePermissions()
 			{
-				TCPromise<void> Promise;
-
-				mp_AppState.m_TrustManager
+				auto [Permissions1, Permissions2] = co_await
 					(
-						 &CDistributedActorTrustManager::f_SubscribeToPermissions
-						 , fg_CreateVector<CStr>("com.manymalterlib/*")
-						 , fg_ThisActor(this)
+						mp_AppState.m_TrustManager
+						(
+							 &CDistributedActorTrustManager::f_SubscribeToPermissions
+							 , fg_CreateVector<CStr>("com.manymalterlib/*")
+							 , fg_ThisActor(this)
+						)
+						+ mp_AppState.m_TrustManager
+						(
+							 &CDistributedActorTrustManager::f_SubscribeToPermissions
+							 , fg_CreateVector<CStr>("com.manymalterlib/*")
+							 , fg_ThisActor(this)
+						)
 					)
-					+ mp_AppState.m_TrustManager
-					(
-						 &CDistributedActorTrustManager::f_SubscribeToPermissions
-						 , fg_CreateVector<CStr>("com.manymalterlib/*")
-						 , fg_ThisActor(this)
-					)
-					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription1, CTrustedPermissionSubscription &&_TrustedSubscription2)
-					{
-						mp_Permissions1 = fg_Move(_TrustedSubscription1);
-						mp_Permissions2 = fg_Move(_TrustedSubscription2);
-						Promise.f_SetResult();
-					}
 				;
-				return Promise.f_MoveFuture();
+
+				mp_Permissions1 = fg_Move(Permissions1);
+				mp_Permissions2 = fg_Move(Permissions2);
+
+				co_return {};
 			}
 
 			TCFuture<void> f_SubscribePermissions3()
 			{
-				TCPromise<void> Promise;
-
-				mp_AppState.m_TrustManager
+				mp_Permissions3 = co_await mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
 					)
-					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription3)
-					{
-						mp_Permissions3 = fg_Move(_TrustedSubscription3);
-						Promise.f_SetResult();
-					}
 				;
-				return Promise.f_MoveFuture();
+				co_return {};
 			}
 
 			TCFuture<void> f_SubscribePermissions4()
 			{
-				TCPromise<void> Promise;
-
-				mp_AppState.m_TrustManager
+				mp_Permissions4 = co_await mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
 						 , fg_CreateVector<CStr>("com.manymalterlib/*")
 						 , fg_ThisActor(this)
 					)
-					> Promise / [this, Promise](CTrustedPermissionSubscription &&_TrustedSubscription4)
-					{
-						mp_Permissions4 = fg_Move(_TrustedSubscription4);
-						Promise.f_SetResult();
-					}
 				;
-				return Promise.f_MoveFuture();
+
+				co_return {};
 			}
 
 		private:
 			TCFuture<void> fp_Destroy() override
 			{
-				return mp_ProtocolInterface.m_Publication.f_Destroy();
+				co_await mp_ProtocolInterface.m_Publication.f_Destroy();
+
+				co_return {};
 			}
 
 			TCDistributedActorInstance<CServerInterfaceImplementation> mp_ProtocolInterface;
@@ -457,7 +386,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params) override
+		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params) override
 		{
 			if (_Command == "SubscribePermissions3")
 			{
@@ -472,7 +401,7 @@ namespace NTestAuthentication
 			co_return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
-		TCFuture<void> fp_StartApp(CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CManyServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -486,7 +415,7 @@ namespace NTestAuthentication
 			{
 				DMibLogWithCategory(Mib/Concurrency/CManyServerActor, Info, "Shutting down server");
 
-				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				auto Result = co_await fg_Move(mp_ServerActor).f_Destroy().f_Wrap();
 				if (!Result)
 					DMibLogWithCategory(Mib/Concurrency/CManyServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
@@ -516,7 +445,7 @@ namespace NTestAuthentication
 			DMibPublishActorFunction(CSlowServerInterface::f_CheckPermissions1);
 		}
 
-		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) = 0;
+		virtual NConcurrency::TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) = 0;
 	};
 
 	struct CSlowServerActor : public CDistributedAppActor
@@ -550,7 +479,7 @@ namespace NTestAuthentication
 
 			struct CServerInterfaceImplementation : public CSlowServerInterface
 			{
-				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> const &_Permissions) override
+				TCFuture<bool> f_CheckPermissions1(TCVector<CStr> _Permissions) override
 				{
 					co_return co_await m_pThis->mp_Permissions.f_HasPermission("Test", _Permissions);
 				}
@@ -560,8 +489,6 @@ namespace NTestAuthentication
 
 			TCFuture<void> f_SubscribePermissions()
 			{
-				TCPromise<void> Promise;
-
 				mp_Permissions = co_await mp_AppState.m_TrustManager
 					(
 						 &CDistributedActorTrustManager::f_SubscribeToPermissions
@@ -585,7 +512,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CSlowServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -601,7 +528,7 @@ namespace NTestAuthentication
 			{
 				DMibLogWithCategory(Mib/Concurrency/CSlowServerActor, Info, "Shutting down server");
 
-				auto Result = co_await mp_ServerActor.f_Destroy().f_Wrap();
+				auto Result = co_await fg_Move(mp_ServerActor).f_Destroy().f_Wrap();
 				if (!Result)
 					DMibLogWithCategory(Mib/Concurrency/CSlowServerActor, Error, "Failed to shut down server: {}", Result.f_GetExceptionStr());
 			}
@@ -634,17 +561,16 @@ namespace NTestAuthentication
 
 		TCFuture<CActorSubscription> fp_SetupAuthentication
 			(
-				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 				, int64 _AuthenticationLifetime
-				, CStr const &_UserID
+				, CStr _UserID
 			) override
 		{
 			return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 		}
 
-		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params) override
+		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params) override
 		{
-			TCPromise<NEncoding::CEJSONSorted> Promise;
 			if (_Command == "CommandLineHostID")
 				co_return mp_State.m_CommandLineHostID;
 
@@ -652,7 +578,7 @@ namespace NTestAuthentication
 		}
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
 		{
 			// Have to create the user and set it as default user before registering the authentication handler.
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User");
@@ -692,7 +618,7 @@ namespace NTestAuthentication
 						, "Description"_o= "Test 3."
 
 					}
-					, [](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						co_return 0;
 					}
@@ -716,7 +642,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -735,7 +661,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -758,7 +684,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Object)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -789,7 +715,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-many-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -808,7 +734,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-many-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -827,7 +753,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-many-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -846,7 +772,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-many-call-4"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -865,7 +791,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{ "Names"_o= {"--perform-slow-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
-					, [this](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pSlowTestServer = mp_SlowTestServers.f_GetOneActor("", Error);
@@ -912,19 +838,19 @@ namespace NTestAuthentication
 		{
 		}
 
-		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) override
+		TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override
 		{
 			DMibNeverGetHere;
 			co_return {};
@@ -942,7 +868,7 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
+		TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 		{
 			co_return m_ReturnValues.f_PopBack();
 		}
@@ -953,19 +879,19 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
+		TCFuture<void> f_StdOut(NStr::CStrSecure _Output) override
 		{
 			m_StdOut += _Output;
 			co_return {};
 		}
 
-		TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
+		TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
+		TCFuture<void> f_StdErr(NStr::CStrSecure _Output) override
 		{
 			if (m_bEchoStdErr)
 				DMibConOut("{}", _Output);
@@ -975,7 +901,7 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCFuture<void> f_ReturnString(NStr::CStrSecure const &_String)
+		TCFuture<void> f_ReturnString(NStr::CStrSecure _String)
 		{
 			m_ReturnValues.f_InsertLast(_String);
 			co_return {};
@@ -1046,7 +972,7 @@ namespace NTestAuthentication
 		}
 		virtual ~CAuthenticationActorTestSucceed() = default;
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = m_Category;
@@ -1057,10 +983,10 @@ namespace NTestAuthentication
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
@@ -1079,9 +1005,9 @@ namespace NTestAuthentication
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		{
 			co_return CVerifyAuthenticationReturn{bool(_Response.m_Signature == CByteVector((uint8 const *)m_Name.f_GetStr(), m_Name.f_GetLen()))};
@@ -1103,7 +1029,7 @@ namespace NTestAuthentication
 
 		virtual ~CAuthenticationActorFail() = default;
 
-		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr const &_UserID, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) override
+		TCFuture<CAuthenticationData> f_RegisterFactor(NStr::CStr _UserID, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) override
 		{
 			CAuthenticationData Result;
 			Result.m_Category = EAuthenticationFactorCategory_None;
@@ -1114,10 +1040,10 @@ namespace NTestAuthentication
 
 		TCFuture<ICDistributedActorAuthenticationHandler::CResponse> f_SignAuthenticationRequest
 			(
-				NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
-				, CStr const &_Description
-				, ICDistributedActorAuthenticationHandler::CSignedProperties const &_SignedProperties
-				, TCMap<CStr, CAuthenticationData> const &_Factors
+				NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
+				, CStr _Description
+				, ICDistributedActorAuthenticationHandler::CSignedProperties _SignedProperties
+				, TCMap<CStr, CAuthenticationData> _Factors
 			) override
 		{
 			ICDistributedActorAuthenticationHandler::CResponse Response;
@@ -1136,9 +1062,9 @@ namespace NTestAuthentication
 
 		TCFuture<CVerifyAuthenticationReturn> f_VerifyAuthenticationResponse
 			(
-				ICDistributedActorAuthenticationHandler::CResponse const &_Response
-				, ICDistributedActorAuthenticationHandler::CChallenge const &_Challenge
-				, CAuthenticationData const &_AuthenticationData
+				ICDistributedActorAuthenticationHandler::CResponse _Response
+				, ICDistributedActorAuthenticationHandler::CChallenge _Challenge
+				, CAuthenticationData _AuthenticationData
 			) override
 		{
 			co_return CVerifyAuthenticationReturn{false};
@@ -1438,7 +1364,7 @@ public:
 		;
 
 		{
-			TCPromise<void> Promise;
+			TCPromise<void> Promise{CPromiseConstructNoConsume()};
 			ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
 					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
@@ -1446,13 +1372,13 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		}
 		{
-			TCPromise<void> Promise;
+			TCPromise<void> Promise{CPromiseConstructNoConsume()};
 			ManyServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
 					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ManyServerAddress}
@@ -1460,13 +1386,13 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		}
 		{
-			TCPromise<void> Promise;
+			TCPromise<void> Promise{CPromiseConstructNoConsume()};
 			SlowServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
 					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{SlowServerAddress}
@@ -1474,7 +1400,7 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -1529,7 +1455,7 @@ public:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(JSON), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 		// Setup authentication for the user. For the sake of simplicity we will setup the user in TrustManager. We don't need the user there but it is a full trust manager,
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
@@ -1539,20 +1465,20 @@ public:
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed2").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Succeed3").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 		TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Fail1").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-		auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false)
+		auto ExportedWithPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false)
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate)
+		fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate)
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate)
+		fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ManyServerTrust, ExportedWithoutPrivate)
+		fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ManyServerTrust, ExportedWithoutPrivate)
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
-		fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, SlowServerTrust, ExportedWithoutPrivate)
+		fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(SlowServerTrust, ExportedWithoutPrivate)
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
@@ -1644,7 +1570,7 @@ public:
 				JSON["JSONOutput"] = true;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", JSON, pCommandLine)
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 
@@ -1659,7 +1585,9 @@ public:
 				JSON["Permissions"] = _Permissions;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), _Command, JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				;
 				return CEJSONSorted::fs_FromString
 					(
 						pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -1677,7 +1605,15 @@ public:
 					Queries.f_Insert(Query.f_ToJson());
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-2", JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientLaunch.f_RunCommandLine
+					(
+						fHostInfo("UserID", CommandLineHostID)
+						, "--perform-call-2"
+						, fg_TempCopy(JSON)
+						, fg_TempCopy(pCommandLine)
+					)
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				;
 				return CEJSONSorted::fs_FromString
 					(
 						pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
@@ -1700,7 +1636,9 @@ public:
 				}
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				;
 
 				TCMap<CStr, bool> Return;
 				auto Results = CEJSONSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
@@ -1995,16 +1933,16 @@ public:
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
-			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true)
+			auto ExportedWithPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false)
+			auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 			{
@@ -2023,12 +1961,12 @@ public:
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "Password")
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate)
+			ExportedWithPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			ExportedWithoutPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 			{
@@ -2357,7 +2295,7 @@ public:
 		;
 
 		{
-			TCPromise<void> Promise;
+			TCPromise<void> Promise{CPromiseConstructNoConsume()};
 			ServerTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_GenerateConnectionTicket)
 				(
 					CDistributedActorTrustManagerInterface::CGenerateConnectionTicket{ServerAddress}
@@ -2365,7 +2303,7 @@ public:
 				> Promise / [=](CDistributedActorTrustManagerInterface::CTrustGenerateConnectionTicketResult &&_Ticket)
 				{
 					auto &ClientTrust = *pClientTrust;
-					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1) > Promise.f_ReceiveAny();
+					ClientTrust.f_CallActor(&CDistributedActorTrustManagerInterface::f_AddClientConnection)(_Ticket.m_Ticket, g_Timeout, -1).f_OnResultSet(Promise.f_ReceiveAny());
 				}
 			;
 			Promise.f_MoveFuture().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -2420,7 +2358,9 @@ public:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+		;
 
 		// Setup authentication for the user. For the sake of simplicity we will setup the user in TrustManager. We don't need the user there but it is a full trust manager,
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
@@ -2479,7 +2419,9 @@ public:
 				JSON["Permissions"] = _Permissions;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), _Command, JSON, pCommandLine).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+				;
 				return CEJSONSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
 					.f_Boolean()
 				;
@@ -2492,16 +2434,16 @@ public:
 		{
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
-			auto ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true)
+			auto ExportedWithPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			auto ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false)
+			auto ExportedWithoutPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 
@@ -2509,12 +2451,14 @@ public:
 
 			// Add another U2F factor - both should work for authentication
 			TrustManager.f_CallActor(&CDistributedActorTrustManager::f_RegisterUserAuthenticationFactor)(pCommandLine, DefaultUserID, "U2F").f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			ExportedWithPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			ExportedWithoutPrivate = fg_CallSafeDispatched(&fg_ExportUser<CDistributedActorTrustManager>, TrustManager, DefaultUserID, false).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ClientTrust, ExportedWithPrivate)
+			ExportedWithPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+			ExportedWithoutPrivate = fg_CurrentActor().f_Bind<&fg_ExportUser<CDistributedActorTrustManager>>(TrustManager, DefaultUserID, false)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
-			fg_CallSafeDispatched(&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>, ServerTrust, ExportedWithoutPrivate)
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ClientTrust, ExportedWithPrivate)
+				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
+			;
+			fg_CurrentActor().f_Bind<&fg_ImportUser<TCDistributedActorWrapper<CDistributedActorTrustManagerInterface>>>(ServerTrust, ExportedWithoutPrivate)
 				.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 			;
 

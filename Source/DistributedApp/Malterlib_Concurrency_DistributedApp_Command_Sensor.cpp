@@ -25,40 +25,40 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorFilter _Filter
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 				-> TCFuture<uint32>
 				{
-					co_return co_await self(&CDistributedAppActor::f_CommandLine_SensorList, _pCommandLine, _Filter, _Flags, _TableType);
+					co_return co_await f_CommandLine_SensorList(_pCommandLine, _Filter, _Flags, _TableType);
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorStatusFilter _Filter
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 				-> TCFuture<uint32>
 				{
-					co_return co_await self(&CDistributedAppActor::f_CommandLine_SensorStatus, _pCommandLine, _Filter, _Flags, _TableType);
+					co_return co_await f_CommandLine_SensorStatus(_pCommandLine, _Filter, _Flags, _TableType);
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorReadingFilter _Filter
 					, uint64 _MaxEntries
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 				-> TCFuture<uint32>
 				{
-					co_return co_await self(&CDistributedAppActor::f_CommandLine_SensorReadingsList, _pCommandLine, _Filter, _MaxEntries, _Flags, _TableType);
+					co_return co_await f_CommandLine_SensorReadingsList(_pCommandLine, _Filter, _MaxEntries, _Flags, _TableType);
 				}
 				, EDistributedAppCommandFlag_None
 			)
@@ -73,22 +73,22 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorFilter _Filter
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 			> &&_fSensorList
 			, TCActorFunctor
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorStatusFilter _Filter
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 			> &&_fSensorStatus
 			,
@@ -96,12 +96,12 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppSensorReader_SensorReadingFilter _Filter
 					, uint64 _MaxEntries
 					, ESensorOutputFlag _Flags
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 			> && _fSensorReadingsList
 			, EDistributedAppCommandFlag _CommandFlags
@@ -269,7 +269,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fSensorList
 						(
@@ -306,7 +306,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
-				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorStatusFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -383,7 +383,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorReadingsList = fg_Move(_fSensorReadingsList), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
-				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorReadingFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -470,10 +470,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorListOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -635,20 +635,19 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorList
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppSensorReader_SensorFilter const &_Filter
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CDistributedAppSensorReader_SensorFilter _Filter
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 
 		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter}});
 
-		co_return co_await self
+		co_return co_await f_CommandLine_SensorListOutput
 			(
-				&CDistributedAppActor::f_CommandLine_SensorListOutput
-				, _pCommandLine
+				_pCommandLine
 				, fg_Move(SensorsGenerator)
 				, _Flags
 				, _TableType
@@ -658,16 +657,16 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorReadingsOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
 			, uint64 _MaxEntries
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
-			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+			, CStr _TableType
+			, CDistributedAppSensorReader_SensorReadingFilter _Filter
 		)
 	{
-		TCPromise<void> Cancelled;
+		TCPromise<void> Cancelled{CPromiseConstructNoConsume()};
 		auto CancellationSubscription = _pCommandLine->f_RegisterForCancellation
 			(
 				g_ActorFunctor
@@ -686,10 +685,9 @@ namespace NMib::NConcurrency
 
 		auto [Result, bCancelled] = co_await fg_AnyDone
 			(
-				self
+				fp_CommandLine_SensorReadingsOutput
 				(
-					&CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
-					, _pCommandLine
+					_pCommandLine
 					, fg_Move(_SensorReadings)
 					, fg_Move(_Sensors)
 					, _MaxEntries
@@ -709,13 +707,13 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::fp_CommandLine_SensorReadingsOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> &&_SensorReadings
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> &&_Sensors
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReader_SensorKeyAndReading>> _SensorReadings
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppSensorReporter::CSensorInfo>> _Sensors
 			, uint64 _MaxEntries
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
-			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+			, CStr _TableType
+			, CDistributedAppSensorReader_SensorReadingFilter _Filter
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -967,10 +965,10 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorStatus
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppSensorReader_SensorStatusFilter const &_Filter
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CDistributedAppSensorReader_SensorStatusFilter _Filter
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
@@ -980,10 +978,9 @@ namespace NMib::NConcurrency
 		CDistributedAppSensorReader_SensorReadingFilter Filter;
 		Filter.m_Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 
-		co_return co_await self
+		co_return co_await f_CommandLine_SensorReadingsOutput
 			(
-				&CDistributedAppActor::f_CommandLine_SensorReadingsOutput
-				, _pCommandLine
+				_pCommandLine
 				, fg_Move(ReadingsGenerator)
 				, fg_Move(SensorsGenerator)
 				, 0
@@ -996,21 +993,20 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SensorReadingsList
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppSensorReader_SensorReadingFilter const &_Filter
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CDistributedAppSensorReader_SensorReadingFilter _Filter
 			, uint64 _MaxEntries
 			, ESensorOutputFlag _Flags
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenSensorStoreLocal();
 		auto ReadingsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensorReadings, CDistributedAppSensorReader::CGetSensorReadings{.m_Filters = {_Filter}});
 		auto SensorsGenerator = co_await LocalStore(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = {_Filter.m_SensorFilter}});
 
-		co_await self
+		co_await f_CommandLine_SensorReadingsOutput
 			(
-				&CDistributedAppActor::f_CommandLine_SensorReadingsOutput
-				, _pCommandLine
+				_pCommandLine
 				, fg_Move(ReadingsGenerator)
 				, fg_Move(SensorsGenerator)
 				, _MaxEntries

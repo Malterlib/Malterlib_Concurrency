@@ -43,15 +43,15 @@ namespace NMib::NConcurrency
 
 		TCFuture<TCVector<CResponse>> f_RequestAuthentication
 			(
-				CRequest const &_Request
-				, CChallenge const &_Challenge
-				, CStr const &_MultipleRequestID
+				CRequest _Request
+				, CChallenge _Challenge
+				, CStr _MultipleRequestID
 			) override
 		;
 
 		struct CAuthenticationState
 		{
-			TCPromise<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> m_Promise;
+			TCPromise<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> m_Promise{CPromiseConstructNoConsume()};
 			TCVector<ICDistributedActorAuthenticationHandler::CResponse> m_Responses;
 			TCMap<CStr, bool> m_Tested;
 			TCVector<CStr> m_FactorOrder;
@@ -497,9 +497,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> CDistributedAppAuthenticationHandler::f_RequestAuthentication
 		(
-			CRequest const &_Request
-			, CChallenge const &_Challenge
-			, CStr const &_MultipleRequestID
+			CRequest _Request
+			, CChallenge _Challenge
+			, CStr _MultipleRequestID
 		)
 	{
 		if (f_IsDestroyed())
@@ -550,11 +550,14 @@ namespace NMib::NConcurrency
 		else if (!Info.m_bTimerIsSet)
 		{
 			Info.m_bTimerIsSet = true;
-			fg_Timeout(5.0) > [this, pInfo]() mutable
+			fg_Timeout(5.0) > [this, pInfo]() mutable -> TCFuture<void>
 				{
 					if (pInfo->m_bAuthenticationCompleted || pInfo->m_bResultsSet)
-						return;
+						co_return {};
+
 					fp_RequestCollected(pInfo);
+
+					co_return {};
 				}
 			;
 		}
@@ -599,16 +602,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_SetupAuthentication
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			TCSharedPointer<CCommandLineControl> _pCommandLine
 			, int64 _AuthenticationLifetime
-			, CStr const &_UserID
+			, CStr _UserID
 		)
 	{
-		TCPromise<CActorSubscription> Promise;
 		if (!mp_Settings.m_bSupportUserAuthentication)
-			return Promise <<= g_Void;
+			return CActorSubscription{};
 
-		return Promise <<= self(&CDistributedAppActor::fp_EnableAuthentication, _pCommandLine, _AuthenticationLifetime, _UserID);
+		return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 	}
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_EnableAuthentication
@@ -627,21 +629,21 @@ namespace NMib::NConcurrency
 
 		auto Subscription = g_ActorSubscription / [=, this]() -> TCFuture<void>
 			{
-				TCActorResultVector<void> Destroys;
+				TCFutureVector<void> Destroys;
 
-				mp_AuthenticationRemotes.f_Destroy() > Destroys.f_AddResult();
+				mp_AuthenticationRemotes.f_Destroy() > Destroys;
 
 				for (auto &Subscription : mp_AuthenticationRegistrationSubscriptions)
 				{
 					if (Subscription.m_Subscription)
-						Subscription.m_Subscription->f_Destroy() > Destroys.f_AddResult();;
+						Subscription.m_Subscription->f_Destroy() > Destroys;;
 				}
 				mp_AuthenticationRegistrationSubscriptions.f_Clear();
 
 				if (mp_AuthenticationHandlerImplementation)
-					fg_Move(mp_AuthenticationHandlerImplementation).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(mp_AuthenticationHandlerImplementation).f_Destroy() > Destroys;
 
-				co_await Destroys.f_GetUnwrappedResults().f_Wrap() > fg_LogWarning("Mib/Concurrency/App", "Failed to destroy authentication subscription");
+				co_await fg_AllDone(Destroys).f_Wrap() > fg_LogWarning("Mib/Concurrency/App", "Failed to destroy authentication subscription");
 
 				co_return {};
 			}
@@ -660,7 +662,7 @@ namespace NMib::NConcurrency
 
 		co_await mp_AuthenticationRemotes.f_OnActor
 			(
-				g_ActorFunctor / [this, UserID](TCDistributedActor<ICDistributedActorAuthentication> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+				g_ActorFunctor / [this, UserID](TCDistributedActor<ICDistributedActorAuthentication> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 				{
 					mp_AuthenticationRegistrationSubscriptions[_NewActor].m_ActorInfo = _ActorInfo;
 
@@ -694,7 +696,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_RemovedActor, CTrustedActorInfo &&_ActorInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> _RemovedActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 				{
 					mp_AuthenticationRegistrationSubscriptions.f_Remove(_RemovedActor);
 

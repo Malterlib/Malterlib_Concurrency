@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 			NWeb::NHTTP::CURL const &_Address
 			, TCActor<CDistributedActorTrustManager> const &_TrustManager
 			, FOnUseTicket &&_fOnUseTicket
-			, TCActorFunctor<TCFuture<void> (NStr::CStr const &_Error)> &&_fOnLaunchError
+			, TCActorFunctor<TCFuture<void> (NStr::CStr _Error)> &&_fOnLaunchError
 			, NStr::CStr const &_Description
 			, NStr::CStr const &_LaunchID
 			, bool _bDelegateTrust
@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 						{
 							NEncoding::CEJSONSorted const Data = NEncoding::CEJSONSorted::fs_FromString(CommandData);
 							if (mp_fOnLaunchError)
-								mp_fOnLaunchError(Data["Error"].f_String()) > fg_DiscardResult();
+								mp_fOnLaunchError.f_CallDiscard(Data["Error"].f_String());
 						}
 						catch (NException::CException const &_Exception)
 						{
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 				)
-				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
+				/ [this, HandleRequestID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
 

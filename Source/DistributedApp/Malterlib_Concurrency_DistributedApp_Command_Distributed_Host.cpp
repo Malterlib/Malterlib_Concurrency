@@ -13,7 +13,7 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCommandLine;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetHostID(TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetHostID(TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		CStr HostID = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetHostID);
 
@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListTrustedHosts(TCSharedPointer<CCommandLineControl> const &_pCommandLine, bool _bIncludeFriendlyHostName, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListTrustedHosts(TCSharedPointer<CCommandLineControl> _pCommandLine, bool _bIncludeFriendlyHostName, CStr _TableType)
 	{
 		TCMap<CStr, CHostInfo> TrustedHosts = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumClients);
 
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_HostID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveTrustedHost(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _HostID)
 	{
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveClient, _HostID);
 

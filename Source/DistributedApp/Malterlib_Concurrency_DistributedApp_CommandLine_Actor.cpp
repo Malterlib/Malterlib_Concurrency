@@ -24,16 +24,16 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
 		(
-			 CStr const &_Command
-			 , CEJSONSorted const &_Params
-			 , CCommandLineControl &&_CommandLine
+			 CStr _Command
+			 , CEJSONSorted _Params
+			 , CCommandLineControl _CommandLine
 		)
 	{
 		co_return co_await mp_Actor
 			(
 				&CDistributedAppActor::f_RunCommandLine
-				, _Command
-				, _Params
+				, fg_Move(_Command)
+				, fg_Move(_Params)
 				, NStorage::TCSharedPointer<CCommandLineControl>{fg_Construct(fg_Move(_CommandLine))}
 			)
 		;
@@ -191,8 +191,8 @@ namespace NMib::NConcurrency
 	{
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Setting up command line trust");
 
-		co_await self(&CDistributedAppActor::fp_SetupCommandLineListen);
-		co_await self(&CDistributedAppActor::fp_CreateCommandLineTrust);
+		co_await fp_SetupCommandLineListen();
+		co_await fp_CreateCommandLineTrust();
 
 		if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
 			mp_State.m_CommandLineHostID = pCommandLineHost->f_String();

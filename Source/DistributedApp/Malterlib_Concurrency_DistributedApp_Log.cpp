@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NStr;
 
-	TCFuture<CActorSubscription> CDistiributedAppLogActor::f_OnStopDeferring(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnStopDefer)
+	TCFuture<CActorSubscription> CDistiributedAppLogActor::f_OnStopDeferring(TCActorFunctorWeak<TCFuture<void> ()> _fOnStopDefer)
 	{
 		CStr SubscriptionID = NCryptography::fg_RandomID(mp_StopDeferSubscriptions);
 
@@ -30,12 +30,12 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistiributedAppLogActor::f_StopDeferring()
 	{
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto &fOnStopDefer : mp_StopDeferSubscriptions)
-			fOnStopDefer() > Results.f_AddResult();
+			fOnStopDefer() > Results;
 
-		co_await Results.f_GetResults();
+		co_await fg_AllDoneWrapped(Results);
 
 		co_return {};
 	}
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 					if (Internal.m_bAuditLogsDestroyed)
 					{
 						if (AppLogStoreLocal)
-							fg_Move(AppLogStoreLocal).f_Destroy() > fg_DiscardResult();
+							fg_Move(AppLogStoreLocal).f_Destroy().f_DiscardResult();
 
 						return DMibErrorInstance("Shutting down");
 					}
@@ -93,10 +93,9 @@ namespace NMib::NConcurrency
 
 		Internal.m_AppLogStoreLocal = fg_Move(AppLogStoreLocal);
 
-		Internal.m_AppLogStoreLocalAppServerChangeSubscription = co_await self
+		Internal.m_AppLogStoreLocalAppServerChangeSubscription = co_await fp_RegisterForAppInterfaceServerChanges
 			(
-				&CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
-				, g_ActorFunctor / [this](TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
+				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppInterfaceServer> _AppInterfaceServer, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 					auto OnResume = co_await fg_OnResume
@@ -152,7 +151,7 @@ namespace NMib::NConcurrency
 		co_return Internal.m_AppLogStoreLocal;
 	}
 
-	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo)
+	auto CDistributedAppActor::fp_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo)
 		-> TCFuture<CDistributedAppLogReporter::CLogReporter>
 	{
 		auto Store = co_await fp_OpenLogStoreLocal();
@@ -170,13 +169,13 @@ namespace NMib::NConcurrency
 		co_return co_await Store(&CDistributedAppLogStoreLocal::f_OpenLogReporter, fg_Move(_LogInfo));
 	}
 
-	auto CDistributedAppActor::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo &&_LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>
+	auto CDistributedAppActor::f_OpenLogReporter(CDistributedAppLogReporter::CLogInfo _LogInfo) -> TCFuture<CDistributedAppLogReporter::CLogReporter>
 	{
-		co_return co_await self(&CDistributedAppActor::fp_OpenLogReporter, fg_Move(_LogInfo));
+		co_return co_await fp_OpenLogReporter(fg_Move(_LogInfo));
 	}
 
 	TCFuture<TCActor<CDistributedAppLogStoreLocal>> CDistributedAppActor::f_OpenLogStoreLocal()
 	{
-		co_return co_await self(&CDistributedAppActor::fp_OpenLogStoreLocal);
+		co_return co_await fp_OpenLogStoreLocal();
 	}
 }

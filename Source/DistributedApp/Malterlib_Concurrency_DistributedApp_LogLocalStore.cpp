@@ -27,19 +27,19 @@ namespace NMib::NConcurrency
 		co_await Internal.m_LogsInterfaceSubscription.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy local log reporters remote interface subscription");
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 			for (auto &Log : Internal.m_Logs)
 			{
 				for (auto &Reporter : Log.m_LogReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportEntries)
-						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys;
 				}
 				Log.m_LogReporters.f_Clear();
 			}
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local log reporters remote");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local log reporters remote");
 		}
 
 		co_return {};
@@ -62,25 +62,25 @@ namespace NMib::NConcurrency
 		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for can destroy");
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 			for (auto &Log : Internal.m_Logs)
 			{
-				fg_Move(Log.m_LogSequencer).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Log.m_LogSequencer).f_Destroy() > Destroys;
 				for (auto &Reporter : Log.m_LogReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportEntries)
-						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Destroys;
 				}
 			}
 
-			Internal.m_LogsInterfaceSubscription.f_Destroy() > Destroys.f_AddResult();
+			Internal.m_LogsInterfaceSubscription.f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local log store");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local log store");;
 		}
 
 		if (Internal.m_bOwnDatabase)
-			co_await Internal.m_Database.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
+			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
 
 		Internal.m_LogInterfaces.f_Clear();
 		Internal.m_Logs.f_Clear();
@@ -90,9 +90,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppLogStoreLocal::f_StartWithDatabase
 		(
-			TCActor<NDatabase::CDatabaseActor> &&_Database
-			, CStr const &_Prefix
-			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> &&_fCleanup
+			TCActor<NDatabase::CDatabaseActor> _Database
+			, CStr _Prefix
+			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> _fCleanup
 		)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
@@ -108,11 +108,11 @@ namespace NMib::NConcurrency
 		Internal.m_fCleanup = fg_Move(_fCleanup);
 		Internal.m_Prefix = _Prefix;
 
-		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
+		co_await Internal.f_Start();
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::f_StartWithDatabasePath(CStr const &_DatabasePath, uint64 _RetentionDays)
+	TCFuture<void> CDistributedAppLogStoreLocal::f_StartWithDatabasePath(CStr _DatabasePath, uint64 _RetentionDays)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
 
@@ -148,19 +148,21 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
+		co_await Internal.f_Start();
 
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_PerformLocalCleanup()
 	{
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
+
 		co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [this](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				, g_ActorFunctorWeak / [this](CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, this, fg_Move(_Transaction));
+					co_return co_await CInternal::fs_Cleanup(this, fg_Move(_Transaction));
 				}
 			)
 		;
@@ -222,7 +224,7 @@ namespace NMib::NConcurrency
 				(
 					&CDatabaseActor::f_WriteWithCompaction
 					, g_ActorFunctorWeak / [=, ThisActor = fg_ThisActor(m_pThis), Prefix = m_Prefix]
-					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+					(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 					{
 						co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -295,14 +297,14 @@ namespace NMib::NConcurrency
 
 		if (m_RetentionDays && !m_fCleanup)
 		{
-			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap() > fg_LogError("LogLocalStore", "Failed to perform initial database cleanup");
+			co_await f_PerformLocalCleanup().f_Wrap() > fg_LogError("LogLocalStore", "Failed to perform initial database cleanup");
 
 			m_CleanupTimerSubscription = co_await fg_RegisterTimer
 				(
 					24_hours
 					, [this]() -> TCFuture<void>
 					{
-						auto Result = co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap();
+						auto Result = co_await f_PerformLocalCleanup().f_Wrap();
 
 						if (!Result)
 							DMibLogWithCategory(LogLocalStore, Error, "Failed to do nightly cleanup: {}", Result.f_GetExceptionStr());
@@ -317,17 +319,17 @@ namespace NMib::NConcurrency
 
 		co_await m_LogsInterfaceSubscription.f_OnActor
 			(
-				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppLogReporter> const &_Actor, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
+				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppLogReporter> _Actor, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
-					auto Result = co_await fg_CallSafe(*this, &CInternal::f_LogReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
+					auto Result = co_await f_LogReporterInterfaceAdded(fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
 					if (!Result)
 						DMibLogWithCategory(LogLocalStore, Error, "Failures adding new log reporter: {}", Result.f_GetExceptionStr());
 
 					co_return {};
 				}
-				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
-					co_await fg_CallSafe(*this, &CInternal::f_LogReporterInterfaceRemoved, _Actor, fg_Move(_TrustInfo));
+					co_await f_LogReporterInterfaceRemoved(_Actor, fg_Move(_TrustInfo));
 
 					co_return {};
 				}
@@ -343,8 +345,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppLogStoreLocal::f_AddExtraLogReporter
 		(
-			TCDistributedActorInterface<CDistributedAppLogReporter> &&_LogReporter
-			, CTrustedActorInfo const &_TrustInfo
+			TCDistributedActorInterface<CDistributedAppLogReporter> _LogReporter
+			, CTrustedActorInfo _TrustInfo
 		)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
@@ -357,7 +359,7 @@ namespace NMib::NConcurrency
 		auto Subscription = g_ActorSubscription / [this, _TrustInfo, LogInterfaceWeak = _LogReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;
-				co_await fg_CallSafe(Internal, &CInternal::f_LogReporterInterfaceRemoved, LogInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()  
+				co_await Internal.f_LogReporterInterfaceRemoved(LogInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()
 					> fg_LogError("Malterlib/Concurrency/Log", "Error removing log reporter")
 				;
 
@@ -365,7 +367,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto Result = co_await fg_CallSafe(Internal, &CInternal::f_LogReporterInterfaceAdded, fg_Move(_LogReporter), _TrustInfo).f_Wrap();
+		auto Result = co_await Internal.f_LogReporterInterfaceAdded(fg_Move(_LogReporter), _TrustInfo).f_Wrap();
 		if (!Result)
 			DMibLogWithCategory(LogLocalStore, Error, "Failures adding extra log reporter: {}", Result.f_GetExceptionStr());
 

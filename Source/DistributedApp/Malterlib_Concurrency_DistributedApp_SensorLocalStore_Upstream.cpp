@@ -15,22 +15,22 @@ namespace NMib::NConcurrency
 			return;
 
 		m_bScheduledFailedReportersRetry = true;
-		fg_Timeout(60.0) > [this]
+		fg_Timeout(60.0) > [this]() -> TCFuture<void>
 			{
-				fg_CallSafe(*this, &CInternal::f_RetryFailedReporters) > [](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(SensorLocalStore, Error, "Failures during retry opening sensor reporters: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await f_RetryFailedReporters().f_Wrap();
+
+				if (!Result)
+					DMibLogWithCategory(SensorLocalStore, Error, "Failures during retry opening sensor reporters: {}", Result.f_GetExceptionStr());
+
+				co_return {};
 			}
 		;
 	}
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_UpdateSensorForReporter
 		(
-			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-			, TCWeakDistributedActor<CActor> const &_WeakActor
+			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
+			, TCWeakDistributedActor<CActor> _WeakActor
 		)
 	{
 		CSensor *pSensor;
@@ -95,7 +95,7 @@ namespace NMib::NConcurrency
 
 			auto [iSensorReading, ReadTransactionMove] = co_await fg_Move(ReadTransaction).f_BlockingDispatch
 				(
-					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead &&_ReadTransaction)
+					[DatabaseKey, LastSeenUniqueSequence = Reporter.m_LastSeenUniqueSequence](CDatabaseActor::CTransactionRead _ReadTransaction)
 					{
 						auto iSensorReading = _ReadTransaction.m_Transaction.f_ReadCursor((CSensorKey const &)DatabaseKey);
 						iSensorReading.f_FindLowerBound(DatabaseKey);
@@ -174,13 +174,15 @@ namespace NMib::NConcurrency
 		return "Failed to update sensor '{}' for reporter on host '{}'"_f << _Reporter.m_pSensor->f_GetKey() << _Reporter.m_pInterface->m_Actor->f_GetHostInfo().m_RealHostID;
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey, bool _bWasAdded)
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorInfoChanged(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey, bool _bWasAdded)
 	{
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
+		
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = this, ThisActor = fg_ThisActor(m_pThis), DatabaseKey = f_GetDatabaseKey<CSensorKey>(_SensorInfoKey), Prefix = m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 					auto WriteTransaction = fg_Move(_Transaction);
@@ -246,7 +248,7 @@ namespace NMib::NConcurrency
 		if (!pSensor)
 			co_return {};
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		if (_bWasAdded)
 		{
@@ -258,7 +260,7 @@ namespace NMib::NConcurrency
 				SensorReporter.m_pSensor = pSensor;
 				SensorReporter.m_pInterface = &SensorInterface;
 				SensorInterface.m_Reporters.f_Insert(SensorReporter);
-				fg_CallSafe(*this, &CInternal::f_UpdateSensorForReporter, _SensorInfoKey, WeakActor).f_Dispatch() % f_GetSensorUpdateFailedMessage(SensorReporter) > Results.f_AddResult();
+				f_UpdateSensorForReporter(_SensorInfoKey, WeakActor) % f_GetSensorUpdateFailedMessage(SensorReporter) > Results;
 			}
 		}
 		else
@@ -266,11 +268,11 @@ namespace NMib::NConcurrency
 			for (auto &SensorReporter : pSensor->m_SensorReporters)
 			{
 				auto &WeakActor = pSensor->m_SensorReporters.fs_GetKey(SensorReporter);
-				fg_CallSafe(*this, &CInternal::f_UpdateSensorForReporter, _SensorInfoKey, WeakActor).f_Dispatch() % f_GetSensorUpdateFailedMessage(SensorReporter) > Results.f_AddResult();
+				f_UpdateSensorForReporter(_SensorInfoKey, WeakActor) % f_GetSensorUpdateFailedMessage(SensorReporter) > Results;
 			}
 		}
 
-		auto UpstreamResult = co_await Results.f_GetUnwrappedResults().f_Wrap();
+		auto UpstreamResult = co_await fg_AllDone(Results).f_Wrap();
 
 		if (!UpstreamResult)
 			DMibLogWithCategory(SensorLocalStore, Error, "Failed to add/change sensor info in upstream: {}", UpstreamResult.f_GetExceptionStr());
@@ -280,7 +282,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_RetryFailedReporters()
 	{
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto iFailed = m_FailedReporters.f_GetIterator(); iFailed;)
 		{
@@ -289,10 +291,10 @@ namespace NMib::NConcurrency
 
 			auto &SensorKey = Failed.m_pSensor->f_GetKey();
 
-			fg_CallSafe(*this, &CInternal::f_UpdateSensorForReporter, SensorKey, Failed.f_GetID()).f_Dispatch() % f_GetSensorUpdateFailedMessage(Failed) > Results.f_AddResult();
+			f_UpdateSensorForReporter(SensorKey, Failed.f_GetID()) % f_GetSensorUpdateFailedMessage(Failed) > Results;
 		}
 
-		auto AwaitedResults = co_await Results.f_GetResults();
+		auto AwaitedResults = co_await fg_AllDoneWrapped(Results);
 
 		m_bScheduledFailedReportersRetry = false;
 		if (!m_FailedReporters.f_IsEmpty())
@@ -305,8 +307,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_NewSensorReadings
 		(
-			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
+			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
+			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings
 		)
 	{
 		auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
@@ -340,7 +342,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto &pReadings : ReadingsChunks)
 		{
@@ -349,7 +351,7 @@ namespace NMib::NConcurrency
 				auto WeakActor = pSensor->m_SensorReporters.fs_GetKey(Reporter);
 				Reporter.m_WriteSequencer.f_RunSequenced
 					(
-						g_ActorFunctorWeak / [this, pReadings, WeakActor, _SensorInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<void>
+						g_ActorFunctorWeak / [this, pReadings, WeakActor, _SensorInfoKey](CActorSubscription _DoneSubscription) mutable -> TCFuture<void>
 						{
 							auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 							if (!pSensor)
@@ -372,27 +374,27 @@ namespace NMib::NConcurrency
 							co_return {};
 						}
 					)
-					> Results.f_AddResult()
+					> Results
 				;
 			}
 		}
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceAdded
 		(
-			TCDistributedActorInterface<CDistributedAppSensorReporter> &&_Actor
-			, CTrustedActorInfo const &_TrustInfo
+			TCDistributedActorInterface<CDistributedAppSensorReporter> _Actor
+			, CTrustedActorInfo _TrustInfo
 		)
 	{
 		TCWeakDistributedActor<CActor> WeakActor = _Actor.f_Weak();
 		auto &SensorInterface = m_SensorInterfaces[WeakActor];
 		SensorInterface.m_Actor = fg_Move(_Actor);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Sensor : m_Sensors)
 		{
 			auto &SensorReporter = Sensor.m_SensorReporters[WeakActor];
@@ -402,34 +404,34 @@ namespace NMib::NConcurrency
 
 			auto &SensorKey = m_Sensors.fs_GetKey(Sensor);
 
-			fg_CallSafe(*this, &CInternal::f_UpdateSensorForReporter, SensorKey, WeakActor).f_Dispatch() % f_GetSensorUpdateFailedMessage(SensorReporter) > Results.f_AddResult();
+			f_UpdateSensorForReporter(SensorKey, WeakActor) % f_GetSensorUpdateFailedMessage(SensorReporter) > Results;
 		}
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo)
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_SensorReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo)
 	{
 		auto *pInterface = m_SensorInterfaces.f_FindEqual(_Actor);
 
 		if (!pInterface)
 			co_return {};
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto iReporter = pInterface->m_Reporters.f_GetIterator(); iReporter;)
 		{
 			auto &Reporter = *iReporter;
 			++iReporter;
-			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results.f_AddResult();
-			fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Results.f_AddResult();
+			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results;
+			fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Results;
 			Reporter.m_pSensor->m_SensorReporters.f_Remove(&Reporter);
 		}
 
 		m_SensorInterfaces.f_Remove(pInterface);
 
-		co_await Results.f_GetResults();
+		co_await fg_AllDoneWrapped(Results);
 
 		co_return {};
 	}

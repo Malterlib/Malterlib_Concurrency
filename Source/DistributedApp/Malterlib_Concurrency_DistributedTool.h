@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine) override;
-		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) override;
+		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const _Params) override;
 		TCFuture<void> fp_StopApp() override;
 
 		NContainer::TCVector<CTool> mp_Tools;

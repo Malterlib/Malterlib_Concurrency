@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 
 		friend struct NCommandLine::TCCommandLineClient<CCommandLineSpecificationDistributedAppCustomization, CDistributedAppCommandLineClient>;
 
-		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJSONSorted const &_Params);
+		uint32 fp_RunCommand(void const *_pCommand, NEncoding::CEJSONSorted &&_Params);
 
 		struct CInternal;
 

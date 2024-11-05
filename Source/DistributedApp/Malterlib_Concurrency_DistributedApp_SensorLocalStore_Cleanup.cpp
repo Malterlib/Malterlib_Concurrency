@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
-	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppSensorStoreLocal::f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppSensorStoreLocal::f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 	{
 		auto &Internal = *mp_pInternal;
 		for (auto &Sensor : Internal.m_Sensors)
@@ -63,19 +63,19 @@ namespace NMib::NConcurrency
 		co_return fg_Move(_WriteTransaction);
 	}
 
-	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppSensorStoreLocal::fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppSensorStoreLocal::fp_Cleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 	{
 		auto &Internal = *mp_pInternal;
-		co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, &Internal, fg_Move(_WriteTransaction));
+		co_return co_await CInternal::fs_Cleanup(&Internal, fg_Move(_WriteTransaction));
 	}
 
-	auto CDistributedAppSensorStoreLocal::CInternal::fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	auto CDistributedAppSensorStoreLocal::CInternal::fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 		-> TCFuture<NDatabase::CDatabaseActor::CTransactionWrite>
 	{
 		if (_pThis->m_fCleanup)
 			co_return co_await _pThis->m_fCleanup(fg_Move(_WriteTransaction));
 
-		auto WriteTransaction = co_await _pThis->m_pThis->self(&CDistributedAppSensorStoreLocal::f_PrepareForCleanup, fg_Move(_WriteTransaction));
+		auto WriteTransaction = co_await _pThis->m_pThis->f_PrepareForCleanup(fg_Move(_WriteTransaction));
 		auto Prefix = _pThis->m_Prefix;
 		auto RetentionDays = _pThis->m_RetentionDays;
 

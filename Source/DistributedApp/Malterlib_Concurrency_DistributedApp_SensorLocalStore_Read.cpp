@@ -12,7 +12,7 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader::CGetSensors &&_Params)
+	auto CDistributedAppSensorStoreLocal::f_GetSensors(CDistributedAppSensorReader::CGetSensors _Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReporter::CSensorInfo>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -20,6 +20,8 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+		
 		auto ReadTransactionWapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;
@@ -73,13 +75,15 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings &&_Params)
+	auto CDistributedAppSensorStoreLocal::f_GetSensorReadings(CDistributedAppSensorReader::CGetSensorReadings _Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
+
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 		NStorage::TCOptional<uint64> MinSequence;
 		NStorage::TCOptional<uint64> MaxSequence;
@@ -295,7 +299,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus &&_Params)
+	auto CDistributedAppSensorStoreLocal::f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus _Params)
 		-> TCAsyncGenerator<TCVector<CDistributedAppSensorReader_SensorKeyAndReading>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -303,6 +307,8 @@ namespace NMib::NConcurrency
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+		
 		NTime::CTime Now;
 		for (auto &Filter : _Params.m_Filters)
 		{

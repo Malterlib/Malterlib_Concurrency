@@ -15,9 +15,9 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<void>
 				(
-					NStr::CStr const &_HostID
-					, CCallingHostInfo const &_HostInfo
-					, NContainer::CByteVector const &_CertificateRequest
+					NStr::CStr _HostID
+					, CCallingHostInfo _HostInfo
+					, NContainer::CByteVector _CertificateRequest
 				)
 			>
 		;
@@ -35,20 +35,20 @@ namespace NMib::NConcurrency
 
 		TCFuture<NStr::CStr> f_Launch
 			(
-				NStr::CStr const &_HomeDirectory
-				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
-				, NContainer::TCVector<NStr::CStr> &&_Params = {}
+				NStr::CStr _HomeDirectory
+				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
+				, NContainer::TCVector<NStr::CStr> _Params = {}
 			)
 		;
 
 #if DMibConfig_Tests_Enable
-		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
+		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params);
 		TCFuture<uint32> f_RunCommandLine
 			(
-				CCallingHostInfo const &_CallingHost
-				, NStr::CStr const &_Command
-				, NEncoding::CEJSONSorted const &_Params
-				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				CCallingHostInfo _CallingHost
+				, NStr::CStr _Command
+				, NEncoding::CEJSONSorted _Params
+				, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 			)
 		;
 #endif

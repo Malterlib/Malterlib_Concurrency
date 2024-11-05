@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 #endif
 			NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 			_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-			if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
+			if (_pObject->m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
 			{
 #if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
 				_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00001000000);
@@ -125,7 +125,7 @@ namespace NMib::NConcurrency
 #endif
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 						_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-						if (_pObject->m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
+						if (_pObject->m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
 						{
 #if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
 							_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b01000000000);

@@ -490,7 +490,7 @@ namespace NMib::NConcurrency
 
 		TCActorHolderSharedPointer<CActorHolder> pSelfReference;
 		{
-			DMibRefCountDebuggingOnly(NStorage::CRefCountDebugReference TempRef);
+			DIfRefCountDebugging(NStorage::CRefCountDebugReference TempRef);
 			_pActorHolder->m_RefCount.f_Increase
 				(
 #if DMibConfig_RefCountDebugging
@@ -507,7 +507,7 @@ namespace NMib::NConcurrency
 				)
 			;
 
-			DMibRefCountDebuggingOnly(_pActorHolder->m_RefCount.f_Remove(TempRef));
+			DIfRefCountDebugging(_pActorHolder->m_RefCount.f_Remove(TempRef));
 
 			pSelfReference = fg_Attach(_pActorHolder);
 
@@ -656,7 +656,7 @@ namespace NMib::NConcurrency
 
 					NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
 					This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-					if (This.m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
+					if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
 					{
 						if (CapturedDelete.m_Size)
 							CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);
@@ -679,7 +679,7 @@ namespace NMib::NConcurrency
 
 							NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(&This);
 							This.m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
-							if (This.m_RefCount.f_WeakDecrease(DMibRefCountDebuggingOnly(nullptr)) == 0)
+							if (This.m_RefCount.f_WeakDecrease(DIfRefCountDebugging(nullptr)) == 0)
 							{
 								if (CapturedDelete.m_Size)
 									CInternalActorAllocator::f_Free(CapturedDelete.m_pMemory, CapturedDelete.m_Size);

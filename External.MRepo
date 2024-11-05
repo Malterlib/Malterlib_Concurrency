@@ -1,4 +1,7 @@
 {
+	"../../External/cppcoro": {
+		"Hash": "5a00112f608f33bfb77e487351ea3643dda6d281"
+	},
 	"../../External/hidapi": {
 		"Hash": "ba28d382cbe4e5d44ad52d395479c41392b43c87"
 	}

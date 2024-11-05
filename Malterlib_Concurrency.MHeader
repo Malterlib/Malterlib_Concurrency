@@ -73,6 +73,41 @@ Import "Apps/*/*.MHeader"
 	}
 }
 
+%Repository "cppcoro"
+{
+	&
+	{
+		MalterlibEnableThirdPartyComparisonTests true
+		!PlatformFamily "Windows"
+	}
+
+	Repository
+	{
+		Type "External"
+		DefaultUpstreamBranch "main"
+		Remotes =+ {Name: "upstream", URL: "https://github.com/bernardosulzbach/cppcoro.git"}
+	}
+}
+
+%Import "../../External/cppcoro/CMakeLists.txt"
+{
+	&
+	{
+		MalterlibEnableThirdPartyComparisonTests true
+		!PlatformFamily "Windows"
+	}
+
+	Compile
+	{
+		!!CompileDialect "C"
+		Analyzer false
+		Warnings_UnusedFunction false
+		{
+			!!Compiler "Clang"
+		}
+	}
+}
+
 Target
 {
 	&
@@ -196,9 +231,29 @@ Property
 	{
 		%File "Test/*"
 	}
+	Compile
+	{
+		!!CompileDialect "C"
+		SearchPath += "../../External/cppcoro/include"->MakeAbsolute()
+		{
+			&
+			{
+				MalterlibEnableThirdPartyComparisonTests true
+				!PlatformFamily "Windows"
+			}
+		}
+	}
 	%Dependency "Lib_Malterlib_Network"
 	%Dependency "Lib_Malterlib_Concurrency"
 	%Dependency "Lib_Malterlib_Web"
+	%Dependency "Lib_cppcoro_cppcoro"
+	{
+		&
+		{
+			MalterlibEnableThirdPartyComparisonTests true
+			!PlatformFamily "Windows"
+		}
+	}
 }
 
 Property

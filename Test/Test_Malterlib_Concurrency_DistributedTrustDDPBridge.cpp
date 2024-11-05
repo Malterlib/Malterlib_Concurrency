@@ -71,13 +71,13 @@ namespace
 						(
 							{
 								"testMethod"
-								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSONSorted> const &_Params) mutable -> TCFuture<NEncoding::CEJSONSorted>
+								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSONSorted> _Params) mutable -> TCFuture<NEncoding::CEJSONSorted>
 								{
-									TCPromise<NEncoding::CEJSONSorted> Promise;
 									if (_Params[0].f_GetMember("Invalid"))
-										return Promise <<= DMibErrorInstance("Invalid params");
+										co_return DMibErrorInstance("Invalid params");
+
 									auto &HostInfo = fg_GetCallingHostInfo();
-									return Promise <<= NEncoding::CEJSONSorted
+									co_return NEncoding::CEJSONSorted
 										{
 											"Result"_= 5
 											, "HostID"_= HostInfo.f_GetRealHostID()

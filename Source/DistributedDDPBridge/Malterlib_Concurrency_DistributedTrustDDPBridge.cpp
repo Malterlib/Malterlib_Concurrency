@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 				return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
 			}
 			
-			TCActorFunctor<TCFuture<CEJSONSorted> (NContainer::TCVector<NEncoding::CEJSONSorted> const &_Params)> m_fHandlerFunction;
+			TCActorFunctor<TCFuture<CEJSONSorted> (NContainer::TCVector<NEncoding::CEJSONSorted> _Params)> m_fHandlerFunction;
 		};
 		
 		struct CConnection
@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
-		CEJSONSorted fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details = "");
+		CEJSONSorted fp_MethodError(CStr _Error, CStr _Reason, CStr _Details = "");
 		void fp_StartupFailed(CException const &_Exception);
 		
 		CDistributedTrustDDPBridge *m_pThis;
@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 						&CActorDistributionManager::f_RegisterWebsocketHandler
 						, "/ActorDDPBridge"
 						, fg_ThisActor(this)
-						, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> const &_pServerConnection, NStr::CStr const &_HostID) -> TCFuture<void>
+						, [this](NStorage::TCSharedPointer<NWeb::CWebSocketNewServerConnection> _pServerConnection, NStr::CStr _HostID) -> TCFuture<void>
 						{
 							auto &Internal = *mp_pInternal;
 							Internal.fp_NewValidatedWebsocketConnection(_pServerConnection, _HostID);
@@ -156,7 +156,7 @@ namespace NMib::NConcurrency
 		co_return co_await Promise.f_MoveFuture();
 	}
 	
-	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods(NContainer::TCVector<CMethod> &&_Methods)
+	TCFuture<CActorSubscription> CDistributedTrustDDPBridge::f_RegisterMethods(NContainer::TCVector<CMethod> _Methods)
 	{
 		auto &Internal = *mp_pInternal;
 		TCSet<CStr> MethodNames;
@@ -186,7 +186,7 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Subscription);
 	}
 	
-	CEJSONSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr const &_Error, CStr const &_Reason, CStr const &_Details)
+	CEJSONSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr _Error, CStr _Reason, CStr _Details)
 	{
 		CEJSONSorted Ret;
 		Ret["error"] = _Error;
@@ -224,7 +224,7 @@ namespace NMib::NConcurrency
 		NewConnection.m_DDPConnection
 			(
 				&CDDPServerConnection::f_Register
-				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CConnectionInfo const &_ConnectionInfo) -> TCFuture<void>
+				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CConnectionInfo _ConnectionInfo) -> TCFuture<void>
 				// On connection
 				{
 					auto *pConnection = m_Connections.f_FindEqual(ConnectionID);
@@ -246,7 +246,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CMethodInfo const &_MethodInfo) -> TCFuture<void>
+				, g_ActorFunctorWeak / [this, ConnectionID](CDDPServerConnection::CMethodInfo _MethodInfo) -> TCFuture<void>
 				// On method call
 				{
 					auto *pMethodHandler = m_MethodHandlers.f_FindEqual(_MethodInfo.m_Name);
@@ -298,25 +298,25 @@ namespace NMib::NConcurrency
 					;
 					co_return {};
 				}
-				, g_ActorFunctorWeak / [](CDDPServerConnection::CSubscribeInfo const &_SubscribeInfo) -> TCFuture<void>
+				, g_ActorFunctorWeak / [](CDDPServerConnection::CSubscribeInfo _SubscribeInfo) -> TCFuture<void>
 				// On subscribe
 				{
 					_SubscribeInfo.f_Error(CEJSONSorted()); // Sub not found
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "DDP subscription {}", _SubscribeInfo.m_Name);
 					co_return {};
 				}
-				, g_ActorFunctorWeak / [](CStr const &_SubscriptionID) -> TCFuture<void>
+				, g_ActorFunctorWeak / [](CStr _SubscriptionID) -> TCFuture<void>
 				// On unsubscribe
 				{
 					co_return {};
 				}
-				, g_ActorFunctorWeak / [](CStr const &_Error) -> TCFuture<void>
+				, g_ActorFunctorWeak / [](CStr _Error) -> TCFuture<void>
 				// On error
 				{
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Error, "DDP connection error: {}", _Error);
 					co_return {};
 				}
-				, g_ActorFunctorWeak / [this, ConnectionID](EWebSocketStatus _Reason, CStr const& _Message, EWebSocketCloseOrigin _Origin) -> TCFuture<void>
+				, g_ActorFunctorWeak / [this, ConnectionID](EWebSocketStatus _Reason, CStr _Message, EWebSocketCloseOrigin _Origin) -> TCFuture<void>
 				{
 					auto *pConnection = m_Connections.f_FindEqual(ConnectionID);
 					if (!pConnection)

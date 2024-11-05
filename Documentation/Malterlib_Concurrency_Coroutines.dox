@@ -46,7 +46,7 @@ struct CMyActor : public CActor
 		;
 
 		// Here you can trust that pDependency is valid as OnResume is run once on construction
-		co_await self(&CMyActor::f_DoAnotherThing, pDependency->m_Data);
+		co_await f_DoAnotherThing(pDependency->m_Data);
 
 		// Here you can trust that pDependency is valid as OnResume has been run and updated the
 		// pointer when the coroutine was resumed after the co_await

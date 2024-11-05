@@ -232,7 +232,7 @@ MyActor->f_MyFunction();
 
  It's only possible to call an actor through a member function pointer. This ensures that actors are only called from their own sequenced actor stream:
 ~~~
-m_MyActor(&CMyActor::f_MyFunction) > fg_DiscardResult();
+m_MyActor(&CMyActor::f_MyFunction).f_DiscardResult();
 ~~~
 
  Calls are guaranteed to be processed in the same order they were called in the same process. Cross process, all calls made from the same process are
@@ -313,7 +313,7 @@ struct CMyActor : public CActor
 ~~~
 struct CMyActor : public CActor
 {
-	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
+	TCFuture<uint32> f_MyFunction(uint32 _Value)
 	{
 		co_await f_OtherFunction();
 		co_return _Value;
@@ -324,7 +324,7 @@ struct CMyActor : public CActor
 		uint32 Value = 5;
 
 		// Convert direct call to actor call using self(...) actor call
-		uint32 ReturnValue = co_await self(&CMyActor::f_MyFunction, Value).f_Timeout(1.0, "Timed out");
+		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
 		co_return {};
 	}
 };
@@ -599,7 +599,7 @@ return Promise.f_MoveFuture();
  Is equivalent to
 ~~~
 TCPromise<void> Promise;
-fg_DoGlobalThing() > Promise.f_ReceiveAny();
+fg_DoGlobalThing().f_OnResultSet(Promise.f_ReceiveAny());
 return Promise.f_MoveFuture();
 ~~~
  Is equivalent to

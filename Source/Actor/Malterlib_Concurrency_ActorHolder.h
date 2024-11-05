@@ -218,7 +218,7 @@ namespace NMib::NConcurrency
 	public:
 		NStr::CStr m_ActorTypeName;
 #endif
-		DMibRefCountDebuggingOnly(NStorage::CRefCountDebugReference m_DebugSelfRef);
+		DIfRefCountDebugging(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
 	protected:
 		// Alignment zone 3 = 8+8+8+8+4+1+1 = 38 => 64 bytes

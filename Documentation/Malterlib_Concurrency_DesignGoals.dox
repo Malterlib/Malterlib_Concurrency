@@ -22,8 +22,6 @@
 - \ref s_Malterlib_Concurrency_DesignGoals_ScaleLinearly
 - \ref s_Malterlib_Concurrency_DesignGoals_LowOverhead
 - \ref s_Malterlib_Concurrency_DesignGoals_AvoidDanglingRefs
-- \ref s_Malterlib_Concurrency_DesignGoals_AllowMigration
-- \ref s_Malterlib_Concurrency_DesignGoals_AllowRedundancy
 
 \subsection s_Malterlib_Concurrency_DesignGoals_Example Example
 
@@ -85,6 +83,7 @@ struct CMyOtherActor
 						DConErrOut("Error {}\n", _Value);
 						return;
 					}
+
 					DConOut("Value: {}\n", _Value);
 				}
 			)
@@ -96,69 +95,7 @@ struct CMyOtherActor
 ~~~
 
  This is the way we would write the same thing in Malterlib concurrency framework while solving all problems brought up above.
-~~~
-struct CMyActor : public CActor
-{
-	TCFuture<int32> f_MyFunction()
-	{
-		TCPromise<int32> Promise;	// When this variable goes out of scope it will automatically reply
-									// with an CExceptionActorResultWasNotSet exception if no other result was set
 
-		fg_DoSomethingElseAsync() > [this, Promise](TCAsyncResult<void> &&_Result)
-			{
-				// If this CMyActor has been deleted this function will not be called at all and Promise
-				// will go out of scope, returning an exception to the caller of f_MyFunction.
-
-				// TCAsyncResult wraps the result so either you get an exception or a result. No dummy value
-				// needed in case of error.
-
-				if (!_Result)
-				{
-					// This catches all the error conditions, such as the actor in fg_DoSomethingElseAsync being
-					// deleted.
-					Promise.f_SetException(_Result); // Forward exception
-					return;
-				}
-
-				Promise.f_SetResult(m_Value + 5);	// When the result is set we schedule the result functor
-														// to run on the calling actors queue automatically.
-			}
-		;
-		return Promise.f_MoveFuture();
-	}
-
-	int32 m_Value = 6;
-};
-
-struct CMyOtherActor
-{
-	void f_AskForValue()
-	{
-		// You can never call directly into an actors function, instead you call through the member function pointer
-		// allowing the function call do be dispatch to run on the correct queue on the destination actor. No way
-		// to accidentally create a race condition.
-
-		// The result functor after > is automatically associated with the current running actor so the result
-		// functor is called from the right thread/queue.
-
-		m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Value)
-			{
-				if (!_Value)
-				{
-					// This catches all the error conditions, such as m_MyActor being deleted before returning a result.
-					DConErrOut("Error {}", _Value.f_GetExceptionStr());
-					return;
-				}
-				DConOut("Value: {}\n", *_Value);
-			}
-		;
-	}
-
-	TCActor<CMyActor> m_MyActor = fg_Construct();
-};
-~~~
-
- Using coroutines the equivalent code reduces to the following:
 ~~~
 struct CMyActor : public CActor
 {
@@ -193,7 +130,9 @@ struct CMyOtherActor
 			DConErrOut("Error {}", Value.f_GetExceptionStr());
 			co_return {};
 		}
+
 		DConOut("Value: {}\n", *_Value);
+
 		co_return {};
 	}
 
@@ -232,7 +171,7 @@ MyActor->f_MyFunction();
 
  It's only possible to call an actor through a member function pointer. This ensures that actors are only called from their own sequenced actor stream:
 ~~~
-m_MyActor(&CMyActor::f_MyFunction) > fg_DiscardResult();
+m_MyActor(&CMyActor::f_MyFunction).f_DiscardResult();
 ~~~
 
  Calls are guaranteed to be processed in the same order they were called in the same process. Cross process, all calls made from the same process are
@@ -267,24 +206,27 @@ m_MyActor(&CMyActor::f_MyFunction) > [this](TCAsyncResult<int32> &&_Result)
 co_await m_MyActor(&CMyActor::f_MyFunction);
 ~~~
 
-\subsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS Safe asynchronous calls (Coroutines TS)
+\subsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS Safe asynchronous calls (Coroutines)
 
- The current Coroutines TS has some safety issues that you need to be aware of.
+ C++20 Coroutines has some safety issues that you need to be aware of.
 
  Coroutine function parameters are captured by reference for coroutines if the function parameter is defined as a reference. This can easily result in
  dangling references if the function parameter is accessed after the first suspension point.
 
  Because of this when you call `TCFuture` coroutines in non-release builds checks are done at runtime to detect unsafe usages. It also detects
- some usages that are safe, in this case you can use `co_await ECoroutineFlag_AllowReferences` to opt out of the safety checks.
+ some usages that are safe, in this case you can use `co_await ECoroutineFlag_AllowReferences` or `TCUnsafeFuture` to opt out of the safety checks.
 
- Action												| Actor call			| Direct call
- ---------------------------------------------------|-----------------------|---------------
- All parameters values								| Safe					| Safe
- Reference parameter								| Safe					| Unsafe (runtime contract violation)
- Reference parameter before first suspension point	| Safe					| Safe (runtime contract violation)
- Reference this (actor member function)				| Safe					| Safe
- Reference this (lambda)							| Safe (with Dispatch)	| Unsafe (runtime contract violation)
- Reference this (other)								| N/A					| Unsafe (runtime contract violation)
+ To avoid most of these problems `TCFuture` based coroutines are not allowed to have reference paramaters. To opt out of this safety precaution
+ use `TCUnsafeFuture` or use pointers instead of references (if you are sure it's safe).
+
+ Action																	| Actor call						| Direct call
+ -----------------------------------------------------------------------|-----------------------------------|---------------
+ All parameters values													| Safe								| Safe
+ Reference parameter (`TCUnsafeFuture`)									| Unsafe							| Unsafe
+ Reference parameter before first suspension point (`TCUnsafeFuture`)	| Unsafe							| Safe
+ Reference this (actor member function)									| Safe								| Safe
+ Reference this (lambda)												| Safe (with Dispatch, fg_CallSafe)	| Unsafe (runtime contract violation)
+ Reference this (other)													| N/A								| Unsafe (runtime contract violation)
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_ReferenceParam Reference parameter
 
@@ -292,7 +234,7 @@ co_await m_MyActor(&CMyActor::f_MyFunction);
 ~~~+incorrect
 struct CMyActor : public CActor
 {
-	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
+	TCUnsafeFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
 		co_await f_OtherFunction();
 		co_return _Value; // Here _Value will have gone out of scope if f_OtherFunction takes more than 1 second
@@ -302,29 +244,8 @@ struct CMyActor : public CActor
 	{
 		uint32 Value = 5;
 
-		// Contract violation here when f_MyFunction coroutine is called
 		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
-		co_return {};
-	}
-};
-~~~
 
- Actor call safe:
-~~~
-struct CMyActor : public CActor
-{
-	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
-	{
-		co_await f_OtherFunction();
-		co_return _Value;
-	}
-
-	TCFuture<void> f_MyFunction2()
-	{
-		uint32 Value = 5;
-
-		// Convert direct call to actor call using self(...) actor call
-		uint32 ReturnValue = co_await self(&CMyActor::f_MyFunction, Value).f_Timeout(1.0, "Timed out");
 		co_return {};
 	}
 };
@@ -332,53 +253,58 @@ struct CMyActor : public CActor
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_ReferenceParamBeforeFirstSuspensionPoint Reference parameter before first suspenion point
 
- Direct call safe, but contract violation:
+ Direct call safe:
+~~~
+struct CMyActor : public CActor
+{
+	TCUnsafeFuture<uint32> f_MyFunction(uint32 const &_Value)
+	{
+		uint32 Value = _Value; // Store value before first suspenion point
+
+		co_await f_OtherFunction();
+
+		co_return Value;
+	}
+
+	TCFuture<void> f_MyFunction2()
+	{
+		uint32 Value = 5;
+
+		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
+
+		co_return {};
+	}
+};
+~~~
+
+ Actor call with reference parameter is unsafe:
 ~~~+incorrect
 struct CMyActor : public CActor
 {
-	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
+	TCUnsafeFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
-		uint32 Value = _Value; // Store value before first suspenion point
+		uint32 Value = _Value; // Here value will have gone out of scope, because the coroutine is suspended at init before being scheduled on actor
+
 		co_await f_OtherFunction();
+
 		co_return Value;
 	}
-
-	TCFuture<void> f_MyFunction2()
-	{
-		uint32 Value = 5;
-
-		// Contract violation here when f_MyFunction coroutine is called
-		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
-		co_return {};
-	}
 };
-~~~
 
- Opt out of safety checks, but be careful:
-~~~
-struct CMyActor : public CActor
+TCFuture<void> fg_DoSomething(TCActor<CMyActor> _MyActor)
 {
-	TCFuture<uint32> f_MyFunction(uint32 const &_Value)
-	{
-		co_await ECoroutineFlag_AllowReferences;
+	uint32 Value = 5;
 
-		uint32 Value = _Value; // Store value before first suspension point
-		co_await f_OtherFunction();
-		co_return Value;
-	}
+	uint32 ReturnValue = co_await _MyActor(&CMyActor::f_MyFunction, Value).f_Timeout(1.0, "Timed out");
 
-	TCFuture<void> f_MyFunction2()
-	{
-		uint32 Value = 5;
-		uint32 ReturnValue = co_await f_MyFunction(Value).f_Timeout(1.0, "Timed out");
-		co_return {};
-	}
-};
+	co_return {};
+
+}
 ~~~
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_Lambda Lambdas
 
- Direct call unsafe
+ Direct lambda call unsafe:
 ~~~+incorrect
 struct CMyActor : public CActor
 {
@@ -398,7 +324,7 @@ struct CMyActor : public CActor
 };
 ~~~
 
- Dispatch lambda is safe:
+ Dispatch is safe:
 ~~~
 struct CMyActor : public CActor
 {
@@ -420,25 +346,77 @@ struct CMyActor : public CActor
 };
 ~~~
 
+ Call safe with lambda is safe:
+~~~
+struct CMyActor : public CActor
+{
+	TCFuture<void> f_MyFunction()
+	{
+		uint32 Value = 5;
+
+		uint32 ReturnValue = co_await fg_CallSafe
+			(
+				[=]()
+				{
+					return Value;
+				}
+			)
+		;
+
+		co_return {};
+	}
+};
+~~~
+
+ Self call with lambda is safe:
+~~~
+struct CMyActor : public CActor
+{
+	TCFuture<void> f_MyFunction()
+	{
+		uint32 Value = 5;
+
+		uint32 ReturnValue = co_await
+			(
+				self / [=]()
+				{
+					return Value;
+				}
+			)
+		;
+
+		co_return {};
+	}
+};
+~~~
+
 \subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_UnableToDistinguishThis Unable to distinguish member function calls
 
- Due to the way Coroutines TS derives promise types it's not possible to distinguish the first parameter of a function from a member function. Malterlib assumes
+ Due to the way C++20 Coroutines derives promise types it's not possible to distinguish the first parameter of a function from a member function. Malterlib assumes
  that if the first parameter inherits from CActor it's a actor member function call, which is assumed safe because actor member functions normally can only
  be called in safe contexts. This however opens up the possibility of a global or static function that takes the actor as first parameter. This should still be safe
  as you are protected from the actor being destroyed when executed from within the actor context, which should be the only place where you can get a reference
  to the actor in the first place.
 
-~~~
+ If you are compiling with the Malterlib distribution of clang it has been extended to support detecting if a coroutine is a member call so in this case the
+ detection works as expected.
+
+ This will fail to compile on Malterlib clang distribution, but will be allowed on other compilers.
+
+~~~+incorrect
 TCFuture<uint32> fg_MyFunction(CMyActor const &_Actor)
 {
 	co_await fg_OtherFunction(); // If actor is destroyed execution of coroutine will never be resumed
+
 	co_return _Actor.m_State;
 }
 
 TCFuture<void> f_MyActorFunction()
 {
 	uint32 Value = 5;
+
 	uint32 ReturnValue = co_await fg_MyFunction(*this).f_Timeout(1.0, "Timed out");
+
 	co_return {};
 }
 ~~~
@@ -446,7 +424,7 @@ TCFuture<void> f_MyActorFunction()
 \subsection s_Malterlib_Concurrency_DesignGoals_AlwaysGetResult Always get a result
 
  To maximize the chance that all calls get a result back, all interfaces and default concepts are designed with RAII principles. The only
- way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCFuture "TCFuture" in persistent
+ way that you can introduce "forget to reply" bugs is usually when you store a \ref NMib::NConcurrency::TCPromise "TCPromise" in persistent
  state.
 
  The following code will return a \ref NMib::NConcurrency::CExceptionActorResultWasNotSet "CExceptionActorResultWasNotSet" exception since setting a
@@ -467,7 +445,8 @@ TCFuture<void> f_MyBrokenFunction()
 			// and a CExceptionActorResultWasNotSet exception will be returned
 		}
 	;
-	return Promise.f_MoveFuture();
+
+	co_return co_await Promise.f_MoveFuture();
 }
 ~~~
 
@@ -477,53 +456,19 @@ TCFuture<void> f_MyBrokenFunction()
 TCFuture<void> f_MyBrokenFunction()
 {
 	co_await m_MyActor(&CMyActor::f_MyFunction);
+
 	co_return {};
 }
 ~~~
 
 \subsection s_Malterlib_Concurrency_DesignGoals_SafeDestruct Safe destruction
 
- When a TCActor goes out of scope the actor is automatically destroyed. The destructor is called on the actors dispatch queue.
+ When a TCActor goes out of scope the actor is automatically destroyed. First the actor gets a chance to asynchronously and gracefully
+ shut down by overriding the \ref NMib::NConcurrency::CActor::fp_Destroy "fp_Destroy" function inherited from `CActor`. The destructor is then called
+ on the actors dispatch queue.
 
- When you need to manually destroy an actor you can call the `f_Destroy` function on it. This gives the actor a chance to asynchronously and gracefully
- shut down by overriding the \ref NMib::NConcurrency::CActor::fp_Destroy "fp_Destroy" function inherited from `CActor`:
+ When you need to manually destroy an actor you can call the `f_Destroy` function on it:
 
-~~~
-struct CMyActor : public CActor
-{
-protected:
-	TCFuture<void> fp_Destroy() override
-	{
-		TCPromise<void> Promise;
-
-		fp_DestroyAsyncThings() > Promise / [Promise]
-			{
-				Promise.f_SetResult();
-			}
-		;
-
-		return Promise.f_MoveFuture();
-	}
-};
-
-TCFuture<void> f_DestroyActor()
-{
-	TCPromise<void> Promise;
-	m_MyActor->f_Destroy() > [this, Promise](TCAsyncResult<> &&_Result)
-		{
-			if (!_Result)
-			{
-				DMibLog(Error, "Failed to destroy actor: {}", _Result.f_GetExceptionStr());
-				Promise.f_SetException(_Result);
-				return;
-			}
-			Promise.f_SetResult();
-		}
-	;
-	return Promise.f_MoveFuture();
-}
-~~~
- The same thing using coroutines:
 ~~~
 struct CMyActor : public CActor
 {
@@ -531,6 +476,7 @@ protected:
 	TCFuture<void> fp_Destroy() override
 	{
 		co_await fp_DestroyAsyncThings();
+
 		co_return {};
 	}
 };
@@ -541,8 +487,10 @@ TCFuture<void> f_DestroyActor()
 	if (!Result)
 	{
 		DMibLog(Error, "Failed to destroy actor: {}", Result.f_GetExceptionStr());
+
 		co_return Result.f_GetException();
 	}
+
 	co_return {};
 }
 ~~~
@@ -553,18 +501,7 @@ TCFuture<void> f_DestroyActor()
 
  Even though it might be harder to understand initially, operator overloading is used to decrease boiler plate and indentation level.
 
- Currently actors needs to be called through a function pointer. If <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0707r3.pdf">C++ Metaclasses</a>
- are standardized it should be possile to make this a normal function call:
-
-~~~
-	// Old way
-	auto Result = co_await MyActor(&CMyActor::f_MyFunction, 5);
-	auto Result2 = co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)(5);
-
-	// New way
-	auto Result = co_await MyActor->f_MyFunction(5);
-	auto Result2 = co_await MyDistributedActor->f_MyFunction(5);
-~~~
+ Currently actors needs to be called through a function pointer until C++ gets code generation support.
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_ReceiveResult Receiving result and error handling
 
@@ -599,7 +536,7 @@ return Promise.f_MoveFuture();
  Is equivalent to
 ~~~
 TCPromise<void> Promise;
-fg_DoGlobalThing() > Promise.f_ReceiveAny();
+fg_DoGlobalThing().f_OnResultSet(Promise.f_ReceiveAny());
 return Promise.f_MoveFuture();
 ~~~
  Is equivalent to
@@ -616,9 +553,9 @@ auto Cleanup = g_OnScopeExitActor / [this]
 ;
 ~~~
 
-\subsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_CoroutinesTS Minimize boilerplate (Coroutines TS)
+\subsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_CoroutinesTS Minimize boilerplate (Coroutines)
 
- The Coroutines TS does not allow mixing non-void and void `co_return` statements. To allow direct return of execptions similar to how non-coroutine
+ C++20 Coroutines does not allow mixing non-void and void `co_return` statements. To allow direct return of execptions similar to how non-coroutine
  `TCFuture<void>` async functions work in Malterlib we have to adopt a non-void return value even for void functions:
 ~~~
 // Optimal way
@@ -626,6 +563,7 @@ TCFuture<void> f_MyFunction()
 {
 	if (ErrorCondition)
 		co_return DMibErrorInstance("Error encountered");
+
 	co_await fp_OtherFunction();
 }
 
@@ -634,7 +572,9 @@ TCFuture<void> f_MyFunction()
 {
 	if (ErrorCondition)
 		co_return DMibErrorInstance("Error encountered");
+
 	co_await fp_OtherFunction();
+
 	co_return {}; // Void return
 }
 ~~~
@@ -646,27 +586,20 @@ TCFuture<void> f_MyFunction()
 ~~~
 TCDistributedActor<CMyActor> MyDistributedActor = x;
 
-MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)() > [](TCAsyncResult<int32> &&_Result)
-	{
-	}
-;
-~~~
- With coroutines:
-~~~
-TCDistributedActor<CMyActor> MyDistributedActor = x;
-
 co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)();
 ~~~
 
- `f_CallActor` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that to capture the name of the function you are calling the member
- funciton needs to be supplied as a template argument so a hash can be generated at compile time.
+ `f_CallActor` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that to capture the name
+ of the function you are calling the member funciton needs to be supplied as a template argument so a hash can be generated at compile time.
 
  To be able to call a function on an actor remotely you need to publish the function and supply the version
  information for the interface.
 ~~~
 struct CMyActorInterface : public CActor
 {
-	enum
+	static constexpr ch8 const *mc_pDefaultNamespace = "com.company/MyActorNamespace";
+
+	enum : uint32
 	{
 		EProtocolVersion_Min = 0x101
 		, EProtocolVersion_Current = 0x101
@@ -713,9 +646,11 @@ struct CMyActor : public CActor
  Actors published are not automatically trusted by remote processes. They need to be explicitly trusted for your unique host ID
  before the remote process allows the subscribing code to receive your actor. This is usually done through the command line.
 ~~~
-void CMyActor::f_Publish()
+TCFuture<void> CMyActor::f_Publish()
 {
-	m_MyDelegatedInterface.f_Publish<CMyActorInterface>(fg_GetDistributionManager(), this, "MyActorNamespace");
+	co_await m_MyDelegatedInterface<CMyActorInterface>(fg_GetDistributionManager(), this, PublicationWaitTimeout);
+
+	co_return {};
 }
 ~~~
 
@@ -724,15 +659,22 @@ void CMyActor::f_Publish()
 TCFuture<void> f_SubscribeToInterface()
 {
 	mp_RemoteActors = co_await m_TrustManager->f_SubscribeTrustedActors<CMyActorInterface>()
+
 	co_await mp_RemoteActors.f_OnActor
 		(
-			[this](TCDistributedActor<CMyActorInterface> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+			g_ActorFunctor / [this](TCDistributedActor<CMyActorInterface> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 			{
 				// This functor will be called for any actor of type CMyActorInterface published in the
-				// "MyActorNamespace" namspace in any of the processes we are connected to, provided that a
-				// trust has been setup for the namespace in the trust manager.
+				// "com.company/MyActorNamespace" namspace in any of the processes we are connected to,
+				// provided that a trust has been setup for the namespace in the trust manager.
 
 				co_await _NewActor.f_CallActor(&CMyActorInterface::f_MyFunction)();
+
+				co_return {};
+			}
+			, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _ActorInfo) mutable -> TCFuture<void>
+			{
+				// Called when an remote actor is destroyed or the host disconnects
 
 				co_return {};
 			}
@@ -766,19 +708,22 @@ TCFuture<void> f_SubscribeToInterface()
  Designing an interface like below leaves a dangling weak reference to the actor in the actor functor sent in to the callback.
  You could also provide a `f_UnregisterCallback` function, but this error-prone as you can easily forget to call such a function.
 ~~~+incorrect
-void f_RegisterCallback(TCActorFunctor<void (uint32 _Value)> &&_fCallback)
+TCFuturu<void> f_RegisterCallback(TCActorFunctor<void (uint32 _Value)> &&_fCallback)
 {
 	m_Callbacks.f_Insert(fg_Move(_fCallback));
+
+	co_return {};
 }
 ~~~
 
  Instead all interfaces taking a callback uses a `CActorSubscription` to keep track of the lifetime of the callback. If the subscription goes
  out of scope the creator of the subscription gets notified and can take appropriate action:
 ~~~
-CActorSubscription f_RegisterCallback(TCActorFunctor<void (uint32 _Value)> &&_fCallback)
+TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<void (uint32 _Value)> _fCallback)
 {
 	auto *pCallback = &m_Callbacks.f_Insert(fg_Move(_fCallback));
-	return g_ActorSubscription / [this, pCallback]
+
+	co_return g_ActorSubscription / [this, pCallback]
 		{
 			m_Callbacks.f_Remove(pCallback);
 		}
@@ -802,6 +747,7 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
 			{
 				// Called when the remote site lets the actor functor go out of scope
 				co_await fp_Cleanup();
+
 				co_return {};
 			}
 		)
@@ -809,6 +755,7 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
 		{
 			// Remote site calls actor functor to notify you
 			co_await fp_HandleCallbackCall(_Value);
+
 			co_return {};
 		}
 	)
@@ -825,7 +772,7 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
 
 \subsection s_Malterlib_Concurrency_DesignGoals_LowOverhead Low overhead
 
- The overhead for an actor call is usually on the order of 500 to 1000 cycles with a saturated queue. All actor creation, deletion and calls only perform lockless
+ The overhead for an actor call is usually on the order of 100 to 300 cycles with a saturated queue. All actor creation, deletion and calls only perform lockless
  synchronization.
 
  To limit the number threads needed, no blocking is allowed from actor code. Blocking in actor code can lead to deadlocks. Currently no runtime checks are performed
@@ -850,15 +797,5 @@ CStr FileContents = co_await
 	)
 ;
 ~~~
-
-\subsection s_Malterlib_Concurrency_DesignGoals_AllowMigration Allow migration between processes and hosts
-
- Actor migration should be possible between processes. Currently this is not feasible because it's not possible to stream function pointer generally without
- new features in C++ (<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0707r3.pdf">Metaclasses</a>)
-
-\subsection s_Malterlib_Concurrency_DesignGoals_AllowRedundancy Allow transparent redundancy
-
- The design should support redundant logic with the same actor running on different hosts and voting taking place to detect various errors. This is currently
- not implemented.
 
 */

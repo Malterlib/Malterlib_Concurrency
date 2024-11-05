@@ -10,6 +10,8 @@
  Helpers that make it easier to work with coroutines
 
 - \ref p_Malterlib_Concurrency_Coroutines_Helpers_OnResume
+- \ref p_Malterlib_Concurrency_Coroutines_Helpers_AsyncDestroy
+- \ref p_Malterlib_Concurrency_Coroutines_AsyncGenerator
 
 \subsection p_Malterlib_Concurrency_Coroutines_Helpers_OnResume On resume
 
@@ -23,9 +25,9 @@
 ~~~
 struct CMyActor : public CActor
 {
-	TCFuture<void> f_DoAnotherThing(CByteVector const &_Data);
+	TCFuture<void> f_DoAnotherThing(CByteVector _Data);
 
-	TCFuture<CByteVector> f_DoThing(CStr const &_Name)
+	TCFuture<CByteVector> f_DoThing(CStr _Name)
 	{
 		CDependency *pDependency = nullptr;
 
@@ -46,7 +48,7 @@ struct CMyActor : public CActor
 		;
 
 		// Here you can trust that pDependency is valid as OnResume is run once on construction
-		co_await self(&CMyActor::f_DoAnotherThing, pDependency->m_Data);
+		co_await f_DoAnotherThing(pDependency->m_Data);
 
 		// Here you can trust that pDependency is valid as OnResume has been run and updated the
 		// pointer when the coroutine was resumed after the co_await
@@ -63,7 +65,77 @@ private:
 };
 ~~~
 
-\section p_Malterlib_Concurrency_Coroutines_AsyncGenerator Async Generator
+\subsection p_Malterlib_Concurrency_Coroutines_Helpers_AsyncDestroy Async destroy
+
+ You can asynchronously destroy 
+
+~~~
+struct CMyActor : public CActor
+{
+	TCFuture<CByteVector> f_DoThing(CStr _Name)
+	{
+		TCActor<CActor> Actor = fg_Construct();
+
+		auto Destroy = co_await fg_AsyncDestroy(Actor); // Actor will asynchronously destroyed before the future is resolved
+
+		co_return {};
+	}
+
+	TCFuture<CByteVector> f_DoThing2(CStr _Name)
+	{
+		TCActor<CMyActor> Actor = fg_Construct();
+
+		auto Destroy = co_await fg_AsyncDestroy
+			(
+				[&]() mutable -> TCFuture<void>
+				{
+					auto LocalActor = fg_Move(Actor); 	// You have access to the local stack here, but not after the first suspension point,
+														// so make sure to move any data you need into the local coroutine frame.
+
+					co_await LocalActor(&CMyActor::f_Teardown);
+
+					co_await LocalActor->f_Destroy();
+
+					co_return {};
+				}
+			)
+		;
+
+		co_return {};
+	}
+};
+~~~
+
+ Async destroy will be run when the coroutine returns by default. To force any queueud async destruction to run at once you can use g_AsyncDestroy:
+~~~
+for (auto Thing : Things)
+{
+	{
+		TCActor<CMyActor> Actor = fg_Construct(Thing);
+
+		auto Destroy = co_await fg_AsyncDestroy
+			(
+				[&]() mutable -> TCFuture<void>
+				{
+					auto LocalActor = fg_Move(Actor); 	// You have access to the local stack here, but not after the first suspension point,
+														// so make sure to move any data you need into the local coroutine frame.
+
+					co_await LocalActor(&CMyActor::f_Teardown);
+
+					co_await LocalActor->f_Destroy();
+
+					co_return {};
+				}
+			)
+		;
+	}
+	co_await g_AsyncDestroy;
+}
+
+co_return {};
+~~~
+ 
+\section p_Malterlib_Concurrency_Coroutines_AsyncGenerator Async generator
 
  Async generators can be used for a pull based interface. Support for remote interfaces is provided.
 

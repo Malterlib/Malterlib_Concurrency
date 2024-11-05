@@ -1,0 +1,480 @@
+Property.CMakeOutputPath_cppcoro: string = `@('.'->MakeAbsolute())`->MakeAbsolute()
+%Target "Lib_cppcoro_cppcoro"
+{
+	Compile
+	{
+		!!Compile.Type "C++"
+		SearchPath += [
+			`@('../../../../External/cppcoro'->MakeAbsolute())/include`->MakeAbsolute()
+		]
+		PreprocessorDefines += []
+	}
+	Property.MalterlibTargetNameType "Normal"
+	Compile.AllowNonExisting true
+	Target.Group "External/cppcoro"
+	{
+		!!Target.Group undefined
+	}
+	Target.Type "StaticLibrary"
+	Target.BaseName "cppcoro_cppcoro"
+	Target.BaseFileName "cppcoro"
+	%Group "include"
+	{
+		%Group "cppcoro"
+		{
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/awaitable_traits.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/is_awaitable.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_auto_reset_event.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_manual_reset_event.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_generator.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_mutex.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_latch.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/async_scope.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/broken_promise.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/cancellation_registration.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/cancellation_source.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/cancellation_token.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/task.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/sequence_barrier.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/sequence_traits.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/single_producer_sequencer.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/multi_producer_sequencer.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/shared_task.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/single_consumer_event.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/single_consumer_async_auto_reset_event.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/sync_wait.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/io_service.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/config.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/on_scope_exit.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file_share_mode.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file_open_mode.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file_buffering_mode.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/fmap.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/when_all.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/when_all_ready.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/resume_on.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/schedule_on.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/generator.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/readable_file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/recursive_generator.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/writable_file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/read_only_file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/write_only_file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/read_write_file.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file_read_operation.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/file_write_operation.hpp`
+			{
+				Compile.Disabled true
+			}
+			%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/static_thread_pool.hpp`
+			{
+				Compile.Disabled true
+			}
+			%Group "net"
+			{
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ip_address.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ip_endpoint.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ipv4_address.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ipv4_endpoint.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ipv6_address.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/ipv6_endpoint.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_accept_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_connect_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_disconnect_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_recv_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_recv_from_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_send_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/net/socket_send_to_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+			}
+			%Group "detail"
+			{
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/void_value.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/when_all_ready_awaitable.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/when_all_counter.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/when_all_task.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/get_awaiter.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/is_awaiter.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/any.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/sync_wait_task.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/unwrap_reference.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/lightweight_manual_reset_event.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/linux.hpp`
+				{
+					Compile.Disabled true
+				}
+				%File `@('../../../../External/cppcoro'->MakeAbsolute())/include/cppcoro/detail/linux_async_operation.hpp`
+				{
+					Compile.Disabled true
+				}
+			}
+		}
+	}
+	%Group "lib"
+	{
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/cancellation_state.hpp`
+		{
+			Compile.Disabled true
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_helpers.hpp`
+		{
+			Compile.Disabled true
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/auto_reset_event.hpp`
+		{
+			Compile.Disabled true
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/spin_wait.hpp`
+		{
+			Compile.Disabled true
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/spin_mutex.hpp`
+		{
+			Compile.Disabled true
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/async_auto_reset_event.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/async_manual_reset_event.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/async_mutex.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/cancellation_state.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/cancellation_token.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/cancellation_source.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/cancellation_registration.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/lightweight_manual_reset_event.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ip_address.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ip_endpoint.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ipv4_address.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ipv4_endpoint.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ipv6_address.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/ipv6_endpoint.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/static_thread_pool.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/auto_reset_event.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/spin_wait.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/spin_mutex.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/linux.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/io_service.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/readable_file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/writable_file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/read_only_file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/write_only_file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/read_write_file.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/file_read_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/file_write_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_helpers.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_accept_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_connect_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_disconnect_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_send_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_send_to_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_recv_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+		%File `@('../../../../External/cppcoro'->MakeAbsolute())/lib/socket_recv_from_operation.cpp`
+		{
+			Compile.Type "C++"
+		}
+	}
+}

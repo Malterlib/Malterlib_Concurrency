@@ -15,9 +15,9 @@ namespace NMib::NConcurrency
 		NConcurrency::TCFuture<void> f_PreStop() override;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_StartBackup
 			(
-				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
-				, NConcurrency::CActorSubscription &&_ManifestFinished
-				, NStr::CStr const &_BackupRoot
+				NConcurrency::TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
+				, NConcurrency::CActorSubscription _ManifestFinished
+				, NStr::CStr _BackupRoot
 			) override
 		;
 
@@ -51,7 +51,7 @@ namespace NMib::NConcurrency
 		NStr::CStr m_CurrentLogDirectory;
 		EDistributedAppType m_AppType = fg_DistributedAppThreadLocal().m_DefaultAppType;
 
-		NContainer::TCMap<NStr::CStr, TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)>>
+		NContainer::TCMap<NStr::CStr, TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> _AppInterfaceServer, CTrustedActorInfo _TrustInfo)>>
 			m_AppInterfaceServerChangeSubscriptions
 		;
 

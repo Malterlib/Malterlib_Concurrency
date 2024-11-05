@@ -47,7 +47,7 @@ namespace NMib::NConcurrency
 	{
 		struct CCommandLineControlActor : public ICCommandLineControl
 		{
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -57,7 +57,7 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInputBinary, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
 			}
 
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel &&_fOnCancel) override
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 				Subscription.m_fOnCancel = fg_Move(_fOnCancel);
 
 				if (mp_bCancelled)
-					Subscription.m_fOnCancel() > fg_DiscardResult();
+					Subscription.m_fOnCancel.f_CallDiscard();
 
 				co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 					{
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 				;
 			}
 
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) override
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterForStdIn(FOnInput _fOnInput, NProcess::EStdInReaderFlag _Flags) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
 			}
 
-			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) override
+			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -129,19 +129,19 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
 			}
 
-			TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) override
+			TCFuture<void> f_StdOut(NStr::CStrSecure _Output) override
 			{
 				NSys::fg_ConsoleOutput(_Output);
 				co_return {};
 			}
 
-			TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) override
+			TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) override
 			{
 				NSys::fg_ConsoleOutputBinary(_Output);
 				co_return {};
 			}
 
-			TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) override
+			TCFuture<void> f_StdErr(NStr::CStrSecure _Output) override
 			{
 				NSys::fg_ConsoleErrorOutput(_Output);
 				co_return {};
@@ -149,16 +149,16 @@ namespace NMib::NConcurrency
 
 			TCFuture<bool> f_Cancel()
 			{
-				TCActorResultVector<bool> Results;
+				TCFutureVector<bool> Results;
 
 				mp_bCancelled = true;
 
 				bool bDestroyApp = mp_CancellationSubscriptions.f_IsEmpty();
 
 				for (auto &Subscription : mp_CancellationSubscriptions)
-					Subscription.m_fOnCancel() > Results.f_AddResult();
+					Subscription.m_fOnCancel() > Results;
 
-				for (auto &bResult : co_await (co_await Results.f_GetResults() | g_Unwrap))
+				for (auto &bResult : co_await fg_AllDone(Results))
 				{
 					if (bResult)
 						bDestroyApp = true;
@@ -200,7 +200,7 @@ namespace NMib::NConcurrency
 	uint32 CDistributedAppCommandLineClient::fp_RunCommand
 		(
 			void const *_pCommand
-			, NEncoding::CEJSONSorted const &_Params
+			, NEncoding::CEJSONSorted &&_Params
 		)
 	{
 		CDistributedAppCommandLineSpecification::CInternal::CCommand const *pCommand = fg_AutoStaticCast(_pCommand);
@@ -211,7 +211,7 @@ namespace NMib::NConcurrency
 			if (mp_fLazyPreRunDirectCommand)
 				mp_fLazyPreRunDirectCommand(_Params, Command.m_Flags);
 
-			return (*Command.m_pDirectRunCommand)(_Params, *this);
+			return (*Command.m_pDirectRunCommand)(fg_Move(_Params), *this);
 		}
 		else if (Command.m_pActorRunCommand)
 		{
@@ -246,15 +246,18 @@ namespace NMib::NConcurrency
 			CommandLineActor.f_CallActor(&ICCommandLine::f_RunCommandLine)
 				(
 					 Command.m_Names.f_GetFirst()
-					 , _Params
+					 , fg_Move(_Params)
 					 , fg_Move(CommandLineControl)
 				)
-				> fg_DirectResultActor() / [pState](TCAsyncResult<uint32> &&_Result)
-				{
-					DMibLock(pState->m_ResultLock);
-					pState->m_Result = fg_Move(_Result);
-					pState->m_Event.f_Signal();
-				}
+				.f_OnResultSet
+				(
+					[pState](TCAsyncResult<uint32> &&_Result)
+					{
+						DMibLock(pState->m_ResultLock);
+						pState->m_Result = fg_Move(_Result);
+						pState->m_Event.f_Signal();
+					}
+				)
 			;
 
 			auto Subscription = NProcess::NPlatform::fg_Process_WaitForTermination

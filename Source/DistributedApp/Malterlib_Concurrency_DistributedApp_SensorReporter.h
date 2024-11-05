@@ -299,7 +299,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CSensorReading> &&_Readings)> m_fReportReadings;
+			TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CSensorReading> _Readings)> m_fReportReadings;
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
 
@@ -314,7 +314,7 @@ namespace NMib::NConcurrency
 
 		static NContainer::TCVector<NStr::CStr> fs_FlagsToStringArray(ESensorInfoFlag _Flags);
 
-		virtual TCFuture<CSensorReporter> f_OpenSensorReporter(CSensorInfo &&_SensorInfo) = 0;
+		virtual TCFuture<CSensorReporter> f_OpenSensorReporter(CSensorInfo _SensorInfo) = 0;
 	};
 }
 

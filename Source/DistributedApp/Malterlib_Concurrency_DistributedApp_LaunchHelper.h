@@ -31,14 +31,14 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy();
 
 #if DMibConfig_Tests_Enable
-		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params);
+		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJSONSorted &&_Params);
 
 		TCFuture<uint32> f_RunCommandLine
 			(
-				CCallingHostInfo const &_CallingHost
-				, NStr::CStr const &_Command
-				, NEncoding::CEJSONSorted const &_Params
-				, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+				CCallingHostInfo &&_CallingHost
+				, NStr::CStr &&_Command
+				, NEncoding::CEJSONSorted &&_Params
+				, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
 			)
 		;
 #endif
@@ -75,12 +75,12 @@ namespace NMib::NConcurrency
 		{
 			TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 				(
-					TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-					, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
-					, CRegisterInfo const &_RegisterInfo
+					TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
+					, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
+					, CRegisterInfo _RegisterInfo
 				) override
 			;
-			TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles) override;
+			TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) override;
 
 			TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppSensorReporter>> f_GetSensorReporter() override;
 			TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() override;
@@ -108,23 +108,23 @@ namespace NMib::NConcurrency
 		CActorSubscription fp_GetLaunchSubscription(NStr::CStr const &_LaunchID);
 
 		TCFuture<void> fp_Destroy() override;
-		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable);
-		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr const &_Description, NProcess::CProcessLaunchActor::CLaunch &&_Launch, TCActor<CActor> &&_NotificationActor);
+		TCFuture<CDistributedApp_LaunchInfo> f_Launch(NStr::CStr _Description, NStr::CStr _Executable);
+		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithLaunch(NStr::CStr _Description, NProcess::CProcessLaunchActor::CLaunch _Launch, TCActor<CActor> _NotificationActor);
 
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchWithParams
 			(
-				NStr::CStr const &_Description
-				, NStr::CStr const &_Executable
-				, NContainer::TCVector<NStr::CStr> &&_ExtraParams
-				, CSystemEnvironment &&_Environment
+				NStr::CStr _Description
+				, NStr::CStr _Executable
+				, NContainer::TCVector<NStr::CStr> _ExtraParams
+				, CSystemEnvironment _Environment
 			)
 		;
 		TCFuture<CDistributedApp_LaunchInfo> f_LaunchInProcess
 			(
-				NStr::CStr const &_Description
-				, NStr::CStr const &_HomeDirectory
-				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
-				, NContainer::TCVector<NStr::CStr> &&_Params
+				NStr::CStr _Description
+				, NStr::CStr _HomeDirectory
+				, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
+				, NContainer::TCVector<NStr::CStr> _Params
 			)
 		;
 

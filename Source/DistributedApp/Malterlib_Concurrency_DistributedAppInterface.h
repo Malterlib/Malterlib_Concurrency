@@ -33,9 +33,9 @@ namespace NMib::NConcurrency
 			void f_Stream(tf_CStream &_Stream);
 		};
 
-		virtual TCFuture<void> f_AppendManifest(CManifestConfig const &_Config) = 0;
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeInitialFinished(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnInitialFinished) = 0;
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeBackupStopped(TCActorFunctorWithID<TCFuture<void> ()> &&_fOnStopped) = 0;
+		virtual TCFuture<void> f_AppendManifest(CManifestConfig _Config) = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeInitialFinished(TCActorFunctorWithID<TCFuture<void> ()> _fOnInitialFinished) = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_SubscribeBackupStopped(TCActorFunctorWithID<TCFuture<void> ()> _fOnStopped) = 0;
 	};
 
 	struct CDistributedAppInterfaceClient : public CActor
@@ -56,9 +56,9 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_PreStop() = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_StartBackup
 			(
-				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
-				, CActorSubscription &&_ManifestFinished
-				, NStr::CStr const &_BackupRoot
+				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
+				, CActorSubscription _ManifestFinished
+				, NStr::CStr _BackupRoot
 			) = 0
 		;
 	};
@@ -134,12 +134,12 @@ namespace NMib::NConcurrency
 		virtual TCFuture<TCDistributedActorInterfaceWithID<CDistributedAppLogReporter>> f_GetLogReporter() = 0;
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterDistributedApp
 			(
-				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-				, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
-				, CRegisterInfo const &_RegisterInfo
+				TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
+				, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
+				, CRegisterInfo _RegisterInfo
 			) = 0
 		;
-		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles) = 0;
+		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterConfigFiles(CConfigFiles _ConfigFiles) = 0;
 	};
 }
 

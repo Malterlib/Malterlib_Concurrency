@@ -9,18 +9,20 @@ namespace NMib::NConcurrency
 {
 	using namespace NSensorStoreLocalDatabase;
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, CSeenHost> &&_HostsSeen)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_SeenHosts(NContainer::TCMap<NStr::CStr, CSeenHost> _HostsSeen)
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), HostsSeen = fg_Move(_HostsSeen), Prefix = Internal.m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -97,18 +99,20 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_RemoveHosts(NContainer::TCSet<NStr::CStr> &&_RemovedHostIDs)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_RemoveHosts(NContainer::TCSet<NStr::CStr> _RemovedHostIDs)
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto Result = co_await Internal.m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = &Internal, ThisActor = fg_ThisActor(this), RemovedHostIDs = fg_Move(_RemovedHostIDs), Prefix = Internal.m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -156,7 +160,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_RemoveSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys)
+	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_RemoveSensors(NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> _SensorInfoKeys)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -176,7 +180,7 @@ namespace NMib::NConcurrency
 
 			++nRemoved;
 			pSensor->m_Info.m_bRemoved = true;
-			co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, false);
+			co_await Internal.f_SensorInfoChanged(SensorInfoKey, false);
 		}
 
 		co_return nRemoved;
@@ -184,8 +188,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppSensorStoreLocal::f_SnoozeSensors
 		(
-			NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> &&_SensorInfoKeys
-			, NTime::CTimeSpan const &_SnoozeDuration
+			NContainer::TCSet<CDistributedAppSensorReporter::CSensorInfoKey> _SensorInfoKeys
+			, NTime::CTimeSpan _SnoozeDuration
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -217,7 +221,7 @@ namespace NMib::NConcurrency
 
 			pSensor->m_Info.m_SnoozeUntil = SnoozeUntil;
 
-			co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, false);
+			co_await Internal.f_SensorInfoChanged(SensorInfoKey, false);
 		}
 
 		co_return nChanged;
@@ -225,14 +229,16 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_StoreSensorReadings
 		(
-			CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey
-			, CSensorReadingKey const &_DatabaseKey
-			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> &&_pReadings
+			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
+			, CSensorReadingKey _DatabaseKey
+			, TCSharedPointer<TCVector<CDistributedAppSensorReporter::CSensorReading> const> _pReadings
 		)
 	{
 		auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 		if (!pSensor)
 			co_return {};
+
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
 
 		auto pCanDestroyTracker = m_pCanDestroyStoringLocal;
 
@@ -240,7 +246,7 @@ namespace NMib::NConcurrency
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, pThis = this, ThisActor = fg_ThisActor(m_pThis), HostID = _SensorInfoKey.m_HostID, Prefix = m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -341,7 +347,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey const &_SensorInfoKey)
+	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_CleanupSensorReporter(CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey)
 	{
 		CInternal::CSensor *pSensor = nullptr;
 		auto OnResume = co_await fg_OnResume
@@ -364,17 +370,17 @@ namespace NMib::NConcurrency
 
 			if (pSensor->m_ActiveRefCount == 0) // Might have been recreated
 			{
-				TCActorResultVector<void> Destroys;
+				TCFutureVector<void> Destroys;
 
 				for (auto &Reporter : pSensor->m_SensorReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportReadings)
-						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys;
 				}
 
 				pSensor->m_SensorReporters.f_Clear();
-				co_await Destroys.f_GetResults();
+				co_await fg_AllDoneWrapped(Destroys);
 			}
 		}
 
@@ -386,17 +392,17 @@ namespace NMib::NConcurrency
 			CDistributedAppSensorReporter::CSensorInfoKey _SensorInfoKey
 			, CSensorReadingKey _DatabaseKey
 		)
-		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings)>
+		-> TCActorFunctorWithID<TCFuture<void> (NContainer::TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings)>
 	{
 		return g_ActorFunctor
 			(
 				g_ActorSubscription / [this, _SensorInfoKey]() -> TCFuture<void>
 				{
-					co_return co_await fg_CallSafe(this, &CInternal::f_CleanupSensorReporter, _SensorInfoKey);
+					co_return co_await f_CleanupSensorReporter(_SensorInfoKey);
 				}
 			)
 			/ [this, _SensorInfoKey, _DatabaseKey, AllowDestroy = g_AllowWrongThreadDestroy]
-			(TCVector<CDistributedAppSensorReporter::CSensorReading> &&_Readings) mutable -> TCFuture<void>
+			(TCVector<CDistributedAppSensorReporter::CSensorReading> _Readings) mutable -> TCFuture<void>
 			{
 				auto *pSensor = m_Sensors.f_FindEqual(_SensorInfoKey);
 				if (!pSensor)
@@ -432,8 +438,8 @@ namespace NMib::NConcurrency
 
 				auto [DatabaseResult, UpstreamResult] = co_await
 					(
-						fg_CallSafe(this, &CInternal::f_StoreSensorReadings, _SensorInfoKey, _DatabaseKey, pReadings)
-						+ fg_CallSafe(this, &CInternal::f_NewSensorReadings, _SensorInfoKey, pReadings)
+						f_StoreSensorReadings(_SensorInfoKey, _DatabaseKey, pReadings)
+						+ f_NewSensorReadings(_SensorInfoKey, pReadings)
 					)
 					.f_Wrap()
 				;
@@ -456,7 +462,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppSensorStoreLocal::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo &&_SensorInfo)
+	auto CDistributedAppSensorStoreLocal::f_OpenSensorReporter(CDistributedAppSensorReporter::CSensorInfo _SensorInfo)
 		-> TCFuture<CDistributedAppSensorReporter::CSensorReporter>
 	{
 		auto &Internal = *mp_pInternal;
@@ -513,7 +519,7 @@ namespace NMib::NConcurrency
 				pSensor->m_Info = _SensorInfo;
 
 			if (bWasChanged || bWasAdded)
-				co_await fg_CallSafe(Internal, &CInternal::f_SensorInfoChanged, SensorInfoKey, bWasAdded || bWasCreated);
+				co_await Internal.f_SensorInfoChanged(SensorInfoKey, bWasAdded || bWasCreated);
 		}
 
 		CDistributedAppSensorReporter::CSensorReporter Reporter;

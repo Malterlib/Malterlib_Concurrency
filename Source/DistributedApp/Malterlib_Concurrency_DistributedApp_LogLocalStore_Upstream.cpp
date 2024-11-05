@@ -15,22 +15,22 @@ namespace NMib::NConcurrency
 			return;
 
 		m_bScheduledFailedReportersRetry = true;
-		fg_Timeout(60.0) > [this]
+		fg_Timeout(60.0) > [this]() -> TCFuture<void>
 			{
-				fg_CallSafe(*this, &CInternal::f_RetryFailedReporters) > [](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(LogLocalStore, Error, "Failures during retry opening log reporters: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await f_RetryFailedReporters().f_Wrap();
+
+				if (!Result)
+					DMibLogWithCategory(LogLocalStore, Error, "Failures during retry opening log reporters: {}", Result.f_GetExceptionStr());
+
+				co_return {};
 			}
 		;
 	}
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_UpdateLogForReporter
 		(
-			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-			, TCWeakDistributedActor<CActor> const &_WeakActor
+			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
+			, TCWeakDistributedActor<CActor> _WeakActor
 		)
 	{
 		CLog *pLog;
@@ -198,13 +198,15 @@ namespace NMib::NConcurrency
 		return "Failed to update log '{}' for reporter on host '{}'"_f << _Reporter.m_pLog->f_GetKey() << _Reporter.m_pInterface->m_Actor->f_GetHostInfo().m_RealHostID;
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasAdded)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, bool _bWasAdded)
 	{
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
+		
 		auto Result = co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
 				, g_ActorFunctorWeak / [=, ThisActor = fg_ThisActor(m_pThis), pThis = this, DatabaseKey = f_GetDatabaseKey<CLogKey>(_LogInfoKey), Prefix = m_Prefix]
-				(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
 					co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -269,7 +271,7 @@ namespace NMib::NConcurrency
 		if (!pLog)
 			co_return {};
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		if (_bWasAdded)
 		{
@@ -281,7 +283,7 @@ namespace NMib::NConcurrency
 				LogReporter.m_pLog = pLog;
 				LogReporter.m_pInterface = &LogInterface;
 				LogInterface.m_Reporters.f_Insert(LogReporter);
-				fg_CallSafe(*this, &CInternal::f_UpdateLogForReporter, _LogInfoKey, WeakActor).f_Dispatch() % f_GetLogUpdateFailedMessage(LogReporter) > Results.f_AddResult();
+				f_UpdateLogForReporter(_LogInfoKey, WeakActor) % f_GetLogUpdateFailedMessage(LogReporter) > Results;
 			}
 		}
 		else
@@ -289,11 +291,11 @@ namespace NMib::NConcurrency
 			for (auto &LogReporter : pLog->m_LogReporters)
 			{
 				auto &WeakActor = pLog->m_LogReporters.fs_GetKey(LogReporter);
-				fg_CallSafe(*this, &CInternal::f_UpdateLogForReporter, _LogInfoKey, WeakActor).f_Dispatch() % f_GetLogUpdateFailedMessage(LogReporter) > Results.f_AddResult();
+				f_UpdateLogForReporter(_LogInfoKey, WeakActor) % f_GetLogUpdateFailedMessage(LogReporter) > Results;
 			}
 		}
 
-		auto UpstreamResult = co_await Results.f_GetUnwrappedResults().f_Wrap();
+		auto UpstreamResult = co_await fg_AllDone(Results).f_Wrap();
 
 		if (!UpstreamResult)
 			DMibLogWithCategory(LogLocalStore, Error, "Failed to add/change log info in upstream: {}", UpstreamResult.f_GetExceptionStr());
@@ -303,7 +305,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_RetryFailedReporters()
 	{
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto iFailed = m_FailedReporters.f_GetIterator(); iFailed;)
 		{
@@ -312,10 +314,10 @@ namespace NMib::NConcurrency
 
 			auto &LogKey = Failed.m_pLog->f_GetKey();
 
-			fg_CallSafe(*this, &CInternal::f_UpdateLogForReporter, LogKey, Failed.f_GetID()).f_Dispatch() % f_GetLogUpdateFailedMessage(Failed) > Results.f_AddResult();
+			f_UpdateLogForReporter(LogKey, Failed.f_GetID()) % f_GetLogUpdateFailedMessage(Failed) > Results;
 		}
 
-		auto AwaitedResults = co_await Results.f_GetResults();
+		auto AwaitedResults = co_await fg_AllDoneWrapped(Results);
 
 		m_bScheduledFailedReportersRetry = false;
 		if (!m_FailedReporters.f_IsEmpty())
@@ -328,8 +330,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppLogStoreLocal::CInternal::f_NewLogEntries
 		(
-			CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
+			CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
+			, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
 		)
 	{
 		auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
@@ -387,7 +389,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		TCActorResultVector<uint32> Results;
+		TCFutureVector<uint32> Results;
 
 		for (auto &pEntries : EntriesChunks)
 		{
@@ -397,7 +399,7 @@ namespace NMib::NConcurrency
 
 				Reporter.m_WriteSequencer.f_RunSequenced
 					(
-						g_ActorFunctorWeak / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<uint32>
+						g_ActorFunctorWeak / [this, pEntries, WeakActor, _LogInfoKey](CActorSubscription _DoneSubscription) mutable -> TCFuture<uint32>
 						{
 							auto *pLog = m_Logs.f_FindEqual(_LogInfoKey);
 							if (!pLog)
@@ -420,13 +422,13 @@ namespace NMib::NConcurrency
 							co_return ReportEntriesResult.m_ReportDepth;
 						}
 					)
-					> Results.f_AddResult()
+					> Results
 				;
 			}
 		}
 
 		uint32 MaxReportDepth = 0;
-		for (auto ReportDepth : co_await (co_await Results.f_GetResults() | g_Unwrap))
+		for (auto ReportDepth : co_await fg_AllDone(Results))
 			MaxReportDepth = fg_Max(ReportDepth, MaxReportDepth);
 
 		co_return MaxReportDepth + 1;
@@ -434,15 +436,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceAdded
 		(
-			TCDistributedActorInterface<CDistributedAppLogReporter> &&_Actor
-			, CTrustedActorInfo const &_TrustInfo
+			TCDistributedActorInterface<CDistributedAppLogReporter> _Actor
+			, CTrustedActorInfo _TrustInfo
 		)
 	{
 		TCWeakDistributedActor<CActor> WeakActor = _Actor.f_Weak();
 		auto &LogInterface = m_LogInterfaces[WeakActor];
 		LogInterface.m_Actor = fg_Move(_Actor);
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Log : m_Logs)
 		{
 			auto &LogReporter = Log.m_LogReporters[WeakActor];
@@ -452,34 +454,34 @@ namespace NMib::NConcurrency
 
 			auto &LogKey = m_Logs.fs_GetKey(Log);
 
-			fg_CallSafe(*this, &CInternal::f_UpdateLogForReporter, LogKey, WeakActor).f_Dispatch() % f_GetLogUpdateFailedMessage(LogReporter) > Results.f_AddResult();
+			f_UpdateLogForReporter(LogKey, WeakActor) % f_GetLogUpdateFailedMessage(LogReporter) > Results;
 		}
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo)
+	TCFuture<void> CDistributedAppLogStoreLocal::CInternal::f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo)
 	{
 		auto *pInterface = m_LogInterfaces.f_FindEqual(_Actor);
 
 		if (!pInterface)
 			co_return {};
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto iReporter = pInterface->m_Reporters.f_GetIterator(); iReporter;)
 		{
 			auto &Reporter = *iReporter;
 			++iReporter;
-			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results.f_AddResult();
-			fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Results.f_AddResult();
+			fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Results;
+			fg_Move(Reporter.m_Reporter.m_fReportEntries).f_Destroy() > Results;
 			Reporter.m_pLog->m_LogReporters.f_Remove(&Reporter);
 		}
 
 		m_LogInterfaces.f_Remove(pInterface);
 
-		co_await Results.f_GetResults();
+		co_await fg_AllDoneWrapped(Results);
 
 		co_return {};
 	}

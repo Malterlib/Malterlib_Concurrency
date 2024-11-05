@@ -25,30 +25,30 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppLogReader_LogFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppLogReader_LogFilter _Filter
 					, ELogOutputFlag _Flags
 					, uint32 _Verbosity
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 				-> TCFuture<uint32>
 				{
-					co_return co_await self(&CDistributedAppActor::f_CommandLine_LogList, _pCommandLine, _Filter, _Flags, _Verbosity, _TableType);
+					co_return co_await f_CommandLine_LogList(_pCommandLine, _Filter, _Flags, _Verbosity, _TableType);
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppLogReader_LogEntryFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppLogReader_LogEntryFilter _Filter
 					, uint64 _MaxEntries
 					, ELogOutputFlag _Flags
 					, uint32 _Verbosity
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 				-> TCFuture<uint32>
 				{
-					co_return co_await self(&CDistributedAppActor::f_CommandLine_LogEntriesList, _pCommandLine, _Filter, _MaxEntries, _Flags, _Verbosity, _TableType);
+					co_return co_await f_CommandLine_LogEntriesList(_pCommandLine, _Filter, _MaxEntries, _Flags, _Verbosity, _TableType);
 				}
 				, EDistributedAppCommandFlag_None
 			)
@@ -63,12 +63,12 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppLogReader_LogFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppLogReader_LogFilter _Filter
 					, ELogOutputFlag _Flags
 					, uint32 _Verbosity
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 			> &&_fLogList
 			,
@@ -76,13 +76,13 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const &_Params
-					, TCSharedPointer<CCommandLineControl> const &_pCommandLine
-					, CDistributedAppLogReader_LogEntryFilter const &_Filter
+					CEJSONSorted const _Params
+					, TCSharedPointer<CCommandLineControl> _pCommandLine
+					, CDistributedAppLogReader_LogEntryFilter _Filter
 					, uint64 _MaxEntries
 					, ELogOutputFlag _Flags
 					, uint32 _Verbosity
-					, CStr const &_TableType
+					, CStr _TableType
 				)
 			> && _fLogEntriesList
 			, EDistributedAppCommandFlag _CommandFlags
@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fLogList
 						(
@@ -323,7 +323,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fLogEntriesList = fg_Move(_fLogEntriesList), fParseLogFilter, fParseFlags]
-				(CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppLogReader_LogEntryFilter Filter;
 					Filter.m_LogFilter = fParseLogFilter(_Params);
@@ -410,11 +410,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogListOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>> _Logs
 			, ELogOutputFlag _Flags
 			, uint32 _Verbosity
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -520,21 +520,20 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogList
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppLogReader_LogFilter const &_Filter
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CDistributedAppLogReader_LogFilter _Filter
 			, ELogOutputFlag _Flags
 			, uint32 _Verbosity
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
 
 		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter}});
 
-		co_return co_await self
+		co_return co_await f_CommandLine_LogListOutput
 			(
-				&CDistributedAppActor::f_CommandLine_LogListOutput
-				, _pCommandLine
+				_pCommandLine
 				, fg_Move(LogsGenerator)
 				, _Flags
 				, _Verbosity
@@ -545,17 +544,17 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogEntriesOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> &&_LogEntries
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> _LogEntries
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> _Logs
 			, uint64 _MaxEntries
 			, ELogOutputFlag _Flags
 			, uint32 _Verbosity
-			, CStr const &_TableType
-			, CDistributedAppLogReader_LogEntryFilter const &_Filter
+			, CStr _TableType
+			, CDistributedAppLogReader_LogEntryFilter _Filter
 		)
 	{
-		TCPromise<void> Cancelled;
+		TCPromiseFuturePair<void> Cancelled;
 		auto CancellationSubscription = _pCommandLine->f_RegisterForCancellation
 			(
 				g_ActorFunctor
@@ -564,7 +563,7 @@ namespace NMib::NConcurrency
 					{
 					}
 				)
-				/ [Cancelled]() -> TCFuture<bool>
+				/ [Cancelled = fg_Move(Cancelled.m_Promise)]() -> TCFuture<bool>
 				{
 					Cancelled.f_SetResult();
 					co_return false;
@@ -574,10 +573,9 @@ namespace NMib::NConcurrency
 
 		auto [Result, bCancelled] = co_await fg_AnyDone
 			(
-				self
+				fp_CommandLine_LogEntriesOutput
 				(
-					&CDistributedAppActor::fp_CommandLine_LogEntriesOutput
-					, _pCommandLine
+					_pCommandLine
 					, fg_Move(_LogEntries)
 					, fg_Move(_Logs)
 					, _MaxEntries
@@ -586,7 +584,7 @@ namespace NMib::NConcurrency
 					, _TableType
 					, _Filter
 				)
-				, Cancelled.f_Future()
+				, fg_Move(Cancelled.m_Future)
 			)
 		;
 
@@ -598,14 +596,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::fp_CommandLine_LogEntriesOutput
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> &&_LogEntries
-			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> &&_Logs
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReader_LogKeyAndEntry>> _LogEntries
+			, TCAsyncGenerator<NContainer::TCVector<CDistributedAppLogReporter::CLogInfo>> _Logs
 			, uint64 _MaxEntries
 			, ELogOutputFlag _Flags
 			, uint32 _Verbosity
-			, CStr const &_TableType
-			, CDistributedAppLogReader_LogEntryFilter const &_Filter
+			, CStr _TableType
+			, CDistributedAppLogReader_LogEntryFilter _Filter
 		)
 	{
 		CTableRenderHelper TableRenderer = _pCommandLine->f_TableRenderer();
@@ -882,22 +880,21 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_LogEntriesList
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CDistributedAppLogReader_LogEntryFilter const &_Filter
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CDistributedAppLogReader_LogEntryFilter _Filter
 			, uint64 _MaxEntries
 			, ELogOutputFlag _Flags
 			, uint32 _Verbosity
-			, CStr const &_TableType
+			, CStr _TableType
 		)
 	{
 		auto LocalStore = co_await fp_OpenLogStoreLocal();
 		auto EntriesGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogEntries, CDistributedAppLogReader::CGetLogEntries{.m_Filters = {_Filter}});
 		auto LogsGenerator = co_await LocalStore(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {_Filter.m_LogFilter}});
 
-		co_await self
+		co_await f_CommandLine_LogEntriesOutput
 			(
-				&CDistributedAppActor::f_CommandLine_LogEntriesOutput
-				, _pCommandLine
+				_pCommandLine
 				, fg_Move(EntriesGenerator)
 				, fg_Move(LogsGenerator)
 				, _MaxEntries

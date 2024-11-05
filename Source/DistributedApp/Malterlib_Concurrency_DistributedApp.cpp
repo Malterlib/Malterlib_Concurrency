@@ -240,7 +240,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr const &_Description)
+	CCallingHostInfoScope CDistributedAppActor::fp_PopulateCurrentHostInfoIfMissing(CStr _Description)
 	{
 		auto CurrentCallingHostInfo = fg_GetCallingHostInfo();
 		CStr FriendlyName;
@@ -369,7 +369,8 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
-		g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
+		(
+			g_Dispatch(BlockingActor) / [WildcardPath = mp_Settings.f_GetLocalSocketWildcard(true)]
 			{
 				try
 				{
@@ -403,8 +404,8 @@ namespace NMib::NConcurrency
 					DMibLogWithCategory(Mib/Concurrency/App, Error, "Failed to clean up enclave sockets: {}", Exception);
 				}
 			}
-			> BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up enclave sockets")
-		;
+		)
+		.f_OnResultSet(BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up enclave sockets"));
 	}
 
 #ifdef DPlatformFamily_Windows
@@ -413,7 +414,8 @@ namespace NMib::NConcurrency
 		auto BlockingActorCheckout = fg_BlockingActor();
 		auto BlockingActor = BlockingActorCheckout.f_Actor();
 
-		g_Dispatch(BlockingActor) / []
+		(
+			g_Dispatch(BlockingActor) / []
 			{
 				try
 				{
@@ -432,8 +434,8 @@ namespace NMib::NConcurrency
 				{
 				}
 			}
-			> BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up old executables")
-		;
+		)
+		.f_OnResultSet(BlockingActorCheckout.f_MoveResultHandler("Mib/Concurrency/App", "Error cleaning up old executables"));
 	}
 #endif
 
@@ -452,7 +454,7 @@ namespace NMib::NConcurrency
 					if (mp_State.m_bStoppingApp)
 					{
 						if (mp_Settings.m_bSeparateDistributionManager)
-							mp_State.m_DistributionManager.f_Destroy() > fg_DiscardResult();
+							fg_Move(mp_State.m_DistributionManager).f_Destroy().f_DiscardResult();
 
 						return DMibErrorInstance("Startup aborted");
 					}
@@ -525,7 +527,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSONSorted _Params)
+	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSONSorted const _Params)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -677,7 +679,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSONSorted const &_Params, TCActor<CDistiributedAppLogActor> const &_LogActor, EDistributedAppType _AppType)
+	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSONSorted const _Params, TCActor<CDistiributedAppLogActor> _LogActor, EDistributedAppType _AppType)
 	{
 		f_SetAppType(_AppType);
 
@@ -724,7 +726,7 @@ namespace NMib::NConcurrency
 
 				DMibLogWithCategory(Mib/Concurrency/App, Debug, "Running specific application startup");
 
-				co_await (self(&CDistributedAppActor::fp_StartApp, _Params) % "Failed to start app");
+				co_await (fp_StartApp(_Params) % "Failed to start app");
 
 				if (mp_State.m_bStoppingApp)
 					co_return DMibErrorInstance("Startup aborted");
@@ -763,7 +765,7 @@ namespace NMib::NConcurrency
 		LogInfo.m_IdentifierScope = "{} ({})"_f << mp_Settings.m_AppName << mp_Settings.m_RootDirectory;
 		LogInfo.m_Name = "Malterlib Distributed App";
 
-		co_return co_await self(&CDistributedAppActor::fp_OpenLogReporter, LogInfo);
+		co_return co_await fp_OpenLogReporter(LogInfo);
 	}
 
 	void CDistributedAppActor::fp_Construct()
@@ -788,31 +790,34 @@ namespace NMib::NConcurrency
 		if (mp_State.m_DistributionManager)
 			co_await mp_State.m_DistributionManager(&CActorDistributionManager::f_PrepareShutdown, mp_Settings.m_HostTimeoutOnShutdown, mp_Settings.m_KillHostsTimeoutOnShutdown);
 
-		co_await self(&CDistributedAppActor::fp_StopApp).f_Wrap() > LogError("Failed to stop app");
+		co_await fp_StopApp().f_Wrap() > LogError("Failed to stop app");
 
 		auto &Internal = *mp_pInternal;
 
+		if (Internal.m_CommandLinePublication.f_IsValid())
+			co_await Internal.m_CommandLinePublication.f_Destroy().f_Wrap() > LogError("Failed to destroy command line publication");
+
 		if (Internal.m_CommandLine)
-			co_await Internal.m_CommandLine.f_Destroy().f_Wrap() > LogError("Failed to stop command line interface");
+			co_await fg_Move(Internal.m_CommandLine).f_Destroy().f_Wrap() > LogError("Failed to stop command line interface");
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Specific app successfully stopped, destroying app interface");
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
 			if (Internal.m_AppInterfaceClientTrustProxy)
-				Internal.m_AppInterfaceClientTrustProxy.f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Internal.m_AppInterfaceClientTrustProxy).f_Destroy() > Destroys;
 
 			if (Internal.m_AppInterfaceClientRegistrationSubscription)
-				Internal.m_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys.f_AddResult();
+				Internal.m_AppInterfaceClientRegistrationSubscription->f_Destroy() > Destroys;
 
 			if (Internal.m_AppInterfaceClientRegistrationConfigSubscription)
-				Internal.m_AppInterfaceClientRegistrationConfigSubscription->f_Destroy() > Destroys.f_AddResult();
+				Internal.m_AppInterfaceClientRegistrationConfigSubscription->f_Destroy() > Destroys;
 
-			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys.f_AddResult();;
-			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys.f_AddResult();;
+			Internal.m_AppInteraceServerSubscription.f_Destroy() > Destroys;
+			Internal.m_AppInterfaceClientImplementation.f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetResults().f_Timeout(mp_Settings.m_KillHostsTimeoutOnShutdown + 10.0, "Timed out waiting for destroy of app interface").f_Wrap()
+			co_await fg_AllDone(Destroys).f_Timeout(mp_Settings.m_KillHostsTimeoutOnShutdown + 10.0, "Timed out waiting for destroy of app interface").f_Wrap()
 				> LogError("Failed to destroy app interface")
 			;
 		}
@@ -840,54 +845,54 @@ namespace NMib::NConcurrency
 			co_await mp_State.m_LogActor(&CDistiributedAppLogActor::f_StopDeferring);
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 			if (Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription)
-				fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+				fg_Exchange(Internal.m_AppSensorStoreLocalExtraSensorInterfaceSubscription, nullptr)->f_Destroy() > Destroys;
 
 			if (Internal.m_AppSensorStoreLocalAppServerChangeSubscription)
-				fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+				fg_Exchange(Internal.m_AppSensorStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys;
 
 			if (Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription)
-				fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+				fg_Exchange(Internal.m_AppLogStoreLocalExtraLogInterfaceSubscription, nullptr)->f_Destroy() > Destroys;
 
 			if (Internal.m_AppLogStoreLocalAppServerChangeSubscription)
-				fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys.f_AddResult();
+				fg_Exchange(Internal.m_AppLogStoreLocalAppServerChangeSubscription, nullptr)->f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy sensor and log store subscriptions");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy sensor and log store subscriptions");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
-			fg_Move(Internal.m_AppSensorStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
-			fg_Move(Internal.m_AppLogStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppSensorStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys;
+			fg_Move(Internal.m_AppLogStoreLocalAppServerChangeSequencer).f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort app server change sequencers");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to abort app server change sequencers");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
 			for (auto &Subscription : Internal.m_AppInterfaceServerChangeSubscriptions)
-				fg_Move(Subscription).f_Destroy() > Destroys.f_AddResult();
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy app interface server change subscriptions");
+				fg_Move(Subscription).f_Destroy() > Destroys;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy app interface server change subscriptions");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
 			if (Internal.m_AppSensorStoreLocal)
-				Internal.m_AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_DestroyRemote) > Destroys.f_AddResult();
+				Internal.m_AppSensorStoreLocal(&CDistributedAppSensorStoreLocal::f_DestroyRemote) > Destroys;
 			if (Internal.m_AppLogStoreLocal)
-				Internal.m_AppLogStoreLocal(&CDistributedAppLogStoreLocal::f_DestroyRemote) > Destroys.f_AddResult();
+				Internal.m_AppLogStoreLocal(&CDistributedAppLogStoreLocal::f_DestroyRemote) > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy remote for local log and sensor store");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy remote for local log and sensor store");
 		}
 
 		if (mp_State.m_TrustManager)
-			co_await mp_State.m_TrustManager.f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager");
+			co_await fg_TempCopy(mp_State.m_TrustManager).f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager");
 		else if (mp_Settings.m_bSeparateDistributionManager && mp_State.m_DistributionManager)
-			co_await mp_State.m_DistributionManager.f_Destroy().f_Wrap() > LogError("Failed to destroy distribution manager");
+			co_await fg_TempCopy(mp_State.m_DistributionManager).f_Destroy().f_Wrap() > LogError("Failed to destroy distribution manager");
 
 		{
 			auto Future = fg_Exchange(Internal.m_pCanDestroyAuditLogs, nullptr)->f_Future();
@@ -907,44 +912,44 @@ namespace NMib::NConcurrency
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
-			fg_Move(Internal.m_AuditLogReporterInitSequencer).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AuditLogReporterInitSequencer).f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort audit log init sequencers");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to abort audit log init sequencers");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
-			fg_Move(Internal.m_AppSensorStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
-			fg_Move(Internal.m_AppLogStoreLocalInitSequencer).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(Internal.m_AppSensorStoreLocalInitSequencer).f_Destroy() > Destroys;
+			fg_Move(Internal.m_AppLogStoreLocalInitSequencer).f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to abort audit sensor and log store sequencers");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to abort audit sensor and log store sequencers");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
 			if (Internal.m_AppSensorStoreLocal)
-				fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Internal.m_AppSensorStoreLocal).f_Destroy() > Destroys;
 			if (Internal.m_AppLogStoreLocal)
-				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Internal.m_AppLogStoreLocal).f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy for local log and sensor store");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy for local log and sensor store");
 		}
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 
-			fg_Move(mp_State.m_ConfigDatabase).f_Destroy() > Destroys.f_AddResult();
-			fg_Move(mp_State.m_StateDatabase).f_Destroy() > Destroys.f_AddResult();
+			fg_Move(mp_State.m_ConfigDatabase).f_Destroy() > Destroys;
+			fg_Move(mp_State.m_StateDatabase).f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError("Failed to destroy JSON databases");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy JSON databases");
 		}
 
 		if (Internal.m_TrustManagerDatabase)
-			co_await Internal.m_TrustManagerDatabase.f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager database");
+			co_await fg_Move(Internal.m_TrustManagerDatabase).f_Destroy().f_Wrap() > LogError("Failed to destroy trust manager database");
 
 		if (Internal.m_pInitOnce)
 			co_await Internal.m_pInitOnce->f_Destroy().f_Wrap() > LogError("Failed to destroy init once");
@@ -1009,7 +1014,7 @@ namespace NMib::NConcurrency
 									LogActor
 									, fg_Move(_fToDispatch)
 								)
-								> fg_DiscardResult()
+								.f_DiscardResult()
 							;
 						}
 					)
@@ -1239,12 +1244,12 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<CEJSONSorted> CDistributedAppActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
+	TCFuture<CEJSONSorted> CDistributedAppActor::f_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params)
 	{
-		return g_Future <<= self(&CDistributedAppActor::fp_Test_Command, _Command, _Params);
+		co_return co_await fp_Test_Command(fg_Move(_Command), fg_Move(fg_RemoveQualifiers(_Params)));
 	}
 
-	TCFuture<CEJSONSorted> CDistributedAppActor::fp_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
+	TCFuture<CEJSONSorted> CDistributedAppActor::fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params)
 	{
 		co_return {};
 	}

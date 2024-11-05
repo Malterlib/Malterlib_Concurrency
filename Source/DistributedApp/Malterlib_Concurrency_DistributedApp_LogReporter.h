@@ -206,11 +206,11 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 
-			TCActorFunctorWithID<TCFuture<CReportEntriesResult> (NContainer::TCVector<CLogEntry> &&_Entries)> m_fReportEntries;
+			TCActorFunctorWithID<TCFuture<CReportEntriesResult> (NContainer::TCVector<CLogEntry> _Entries)> m_fReportEntries;
 			uint64 m_LastSeenUniqueSequence = 0;
 		};
 
-		virtual TCFuture<CLogReporter> f_OpenLogReporter(CLogInfo &&_LogInfo) = 0;
+		virtual TCFuture<CLogReporter> f_OpenLogReporter(CLogInfo _LogInfo) = 0;
 
 		static NStr::CStr fs_LogSeverityToStr(ELogSeverity _Severity);
 		static ELogSeverity fs_LogSeverityFromStr(NStr::CStr const &_String);

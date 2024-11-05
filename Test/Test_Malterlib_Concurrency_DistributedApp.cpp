@@ -62,7 +62,7 @@ namespace
 							}
 						}
 					}
-					, [](NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine) -> TCFuture<uint32>
+					, [](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						co_return _Params["Integer"].f_Integer();
 					}
@@ -70,7 +70,7 @@ namespace
 			;
 		}
 		
-		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const _Params) override
 		{
 			co_return {};
 		}

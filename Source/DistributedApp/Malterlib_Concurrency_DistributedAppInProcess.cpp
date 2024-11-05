@@ -33,9 +33,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<NStr::CStr> CDistributedAppInProcessActor::f_Launch
 		(
-			NStr::CStr const &_HomeDirectory
-			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
-			, NContainer::TCVector<NStr::CStr> &&_Params
+			NStr::CStr _HomeDirectory
+			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
+			, NContainer::TCVector<NStr::CStr> _Params
 		)
 	{
 		{
@@ -108,7 +108,7 @@ namespace NMib::NConcurrency
 			CDistributedAppCommandLineSpecification::CParsedCommandLine CommandLine;
 			{
 				auto CaptureScope = co_await g_CaptureExceptions;
-				CommandLine = CommandLineClient.f_ParseCommandLine(Params);
+				CommandLine = CommandLineClient.f_ParseCommandLine(fg_Move(Params));
 			}
 
 			AppParams = fg_Move(CommandLine.m_Params);
@@ -132,8 +132,6 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorTrustManager::CTrustTicket> CDistributedAppInProcessActor::fp_HandleTicketRequest()
 	{
-		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
-
 		DMibLogWithCategory(Malterlib/Concurrency, Info, "Generating ticket for '{}'", mp_Description);
 
 		NStr::CStr HandleRequestID = NCryptography::fg_RandomID(mp_HandleRequests);
@@ -158,7 +156,7 @@ namespace NMib::NConcurrency
 						co_return {};
 					}
 				)
-				/ [this, HandleRequestID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
+				/ [this, HandleRequestID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					if (mp_fOnUseTicket)
 						co_await mp_fOnUseTicket(_HostID, _HostInfo, _CertificateRequest);
@@ -194,29 +192,27 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<NEncoding::CEJSONSorted> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
+	TCFuture<NEncoding::CEJSONSorted> CDistributedAppInProcessActor::f_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params)
 	{
-		TCPromise<NEncoding::CEJSONSorted> Promise;
 		if (!mp_DistributedApp)
-			return Promise <<= DMibErrorInstance("No distributed app");
+			co_return DMibErrorInstance("No distributed app");
 
-		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_Test_Command, _Command, _Params);
+		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_Test_Command, fg_Move(_Command), fg_Move(fg_RemoveQualifiers(_Params)));
 	}
 
 	TCFuture<uint32> CDistributedAppInProcessActor::f_RunCommandLine
 		(
-			CCallingHostInfo const &_CallingHost
-			, NStr::CStr const &_Command
-			, NEncoding::CEJSONSorted const &_Params
-			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			CCallingHostInfo _CallingHost
+			, NStr::CStr _Command
+			, NEncoding::CEJSONSorted _Params
+			, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
-		TCPromise<uint32> Promise;
 		if (!mp_DistributedApp)
-			return Promise <<= DMibErrorInstance("No distributed app");
+			co_return DMibErrorInstance("No distributed app");
 
-		CCallingHostInfoScope Scope(fg_TempCopy(_CallingHost));
-		return Promise <<= mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, _Command, _Params, _pCommandLine);
+		CCallingHostInfoScope Scope(fg_Move(_CallingHost));
+		co_return co_await mp_DistributedApp(&CDistributedAppActor::f_RunCommandLine, fg_Move(_Command), fg_Move(_Params), fg_Move(_pCommandLine));
 	}
 #endif
 }

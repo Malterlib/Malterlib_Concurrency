@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
-	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> CDistributedAppLogStoreLocal::f_PrepareForCleanup(NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 	{
 		struct CLogPair
 		{
@@ -74,13 +74,13 @@ namespace NMib::NConcurrency
 		co_return fg_Move(_WriteTransaction);
 	}
 
-	auto CDistributedAppLogStoreLocal::CInternal::fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)
+	auto CDistributedAppLogStoreLocal::CInternal::fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)
 		-> TCFuture<NDatabase::CDatabaseActor::CTransactionWrite>
 	{
 		if (_pThis->m_fCleanup)
 			co_return co_await _pThis->m_fCleanup(fg_Move(_WriteTransaction));
 
-		auto WriteTransaction = co_await _pThis->m_pThis->self(&CDistributedAppLogStoreLocal::f_PrepareForCleanup, fg_Move(_WriteTransaction));
+		auto WriteTransaction = co_await _pThis->m_pThis->f_PrepareForCleanup(fg_Move(_WriteTransaction));
 
 		auto Prefix = _pThis->m_Prefix;
 		auto RetentionDays = _pThis->m_RetentionDays;

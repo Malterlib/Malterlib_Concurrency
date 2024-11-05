@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 	using namespace NContainer;
 	using namespace NCommandLine;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL, bool _bPrimary)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL, bool _bPrimary)
 	{
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL)
 	{
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_URL)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetPrimaryListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _URL)
 	{
 		CDistributedActorTrustManager_Address Address;
 		Address.m_URL = _URL;
@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListListen(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListListen(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _TableType)
 	{
 		auto Listens = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumListens);
 		auto PrimaryListen = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetPrimaryListen);

@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NContainer;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
 	{
 		auto UserName = _Params["UserName"].f_String();
 		auto UserID = NCryptography::fg_RandomID();
@@ -30,7 +30,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID)
 	{
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUser, _UserID);
 
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListUsers(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ListUsers(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _TableType)
 	{
 		TCMap<CStr, CDistributedActorTrustManagerInterface::CUserInfo> Users = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUsers, false);
 
@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
 	{
 		CStr const &UserID = _Params["UserID"].f_String();
 		TCOptional<CStr> UserName;
@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_Key)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _Key)
 	{
 		TCOptional<CStr> UserName;
 		TCMap<CStr, CEJSONSorted> AddMetadata;
@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ExportUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, bool _bIncludePrivate)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ExportUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, bool _bIncludePrivate)
 	{
 		CStr UserData = co_await fg_ExportUser(mp_State.m_TrustManager, _UserID, _bIncludePrivate);
 
@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ImportUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserData)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_ImportUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserData)
 	{
 		CStr UserID = co_await fg_ImportUser(mp_State.m_TrustManager, _UserData);
 
@@ -113,7 +113,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDefaultUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_GetDefaultUser(TCSharedPointer<CCommandLineControl> _pCommandLine)
 	{
 		CStr UserID = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_GetDefaultUser);
 
@@ -122,7 +122,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetDefaultUser(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetDefaultUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID)
 	{
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetDefaultUser, _UserID);
 
@@ -131,9 +131,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RegisterAuthenticationFactor
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_UserID
-			, CStr const &_Factor
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _UserID
+			, CStr _Factor
 			, bool _bQuiet
 		)
 	{
@@ -149,9 +149,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_UnregisterAuthenticationFactor
 		(
-			TCSharedPointer<CCommandLineControl> const &_pCommandLine
-			, CStr const &_UserID
-			, CStr const &_Factor
+			TCSharedPointer<CCommandLineControl> _pCommandLine
+			, CStr _UserID
+			, CStr _Factor
 		)
 	{
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_RemoveUserAuthenticationFactor, _UserID, _Factor);
@@ -161,7 +161,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumUserAuthenticationFactors(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_UserID, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumUserAuthenticationFactors(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _TableType)
 	{
 		TCMap<CStr, CAuthenticationData> Factors = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _UserID);
 
@@ -176,7 +176,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CStr const &_TableType)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_EnumAuthenticationFactors(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _TableType)
 	{
 		TCMap<CStr, CAuthenticationActorInfo> Factors = co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors);
 
@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> const &_pCommandLine, CEJSONSorted const &_Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
 	{
 		if (!mp_AuthenticationHandlerImplementation)
 		{
@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 				co_return DMibErrorInstance("No authentication factor named '{}'"_f << Factor);
 		}
 
-		TCActorResultVector<bool> AuthenticationResults;
+		TCFutureVector<bool> AuthenticationResults;
 		for (auto const &AuthenticationActorInfo : AuthenticationActors)
 		{
 			AuthenticationActorInfo.m_Actor.f_CallActor(&ICDistributedActorAuthentication::f_AuthenticatePermissionPattern)
@@ -255,11 +255,11 @@ namespace NMib::NConcurrency
 					, MultipleRequestData.m_ID
 				)
 				.f_Timeout(10.0, "Timeout waiting for manager to reply")
-				> AuthenticationResults.f_AddResult()
+				> AuthenticationResults
 			;
 		}
 
-		TCVector<TCAsyncResult<bool>> Authentications = co_await AuthenticationResults.f_GetResults();
+		TCVector<TCAsyncResult<bool>> Authentications = co_await fg_AllDoneWrapped(AuthenticationResults);
 
 		aint ReturnValue = 0;
 		DMibCheck(AuthenticationActors.f_GetLen() == Authentications.f_GetLen());

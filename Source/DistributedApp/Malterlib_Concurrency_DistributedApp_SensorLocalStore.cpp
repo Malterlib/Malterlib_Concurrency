@@ -32,19 +32,19 @@ namespace NMib::NConcurrency
 		co_await Internal.m_SensorsInterfaceSubscription.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destory local sensors reporters remote interface subscription");
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 			for (auto &Sensor : Internal.m_Sensors)
 			{
 				for (auto &Reporter : Sensor.m_SensorReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportReadings)
-						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys;
 				}
 				Sensor.m_SensorReporters.f_Clear();
 			}
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local sensor reporters remote");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor reporters remote");;
 		}
 
 		co_return {};
@@ -67,34 +67,34 @@ namespace NMib::NConcurrency
 		co_await fg_Move(CanDestroyFuture).f_Timeout(10.0, "Timeout").f_Wrap() > LogError.f_Warning("Failed to wait for can destroy");
 
 		{
-			TCActorResultVector<void> Destroys;
+			TCFutureVector<void> Destroys;
 			for (auto &Sensor : Internal.m_Sensors)
 			{
-				fg_Move(Sensor.m_SensorSequencer).f_Destroy() > Destroys.f_AddResult();
+				fg_Move(Sensor.m_SensorSequencer).f_Destroy() > Destroys;
 				for (auto &Reporter : Sensor.m_SensorReporters)
 				{
-					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys.f_AddResult();
+					fg_Move(Reporter.m_WriteSequencer).f_Destroy() > Destroys;
 					if (Reporter.m_Reporter.m_fReportReadings)
-						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys.f_AddResult();
+						fg_Move(Reporter.m_Reporter.m_fReportReadings).f_Destroy() > Destroys;
 				}
 			}
 
-			Internal.m_SensorsInterfaceSubscription.f_Destroy() > Destroys.f_AddResult();
+			Internal.m_SensorsInterfaceSubscription.f_Destroy() > Destroys;
 
-			co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed destroy local sensor store");;
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed destroy local sensor store");;
 		}
 
 		if (Internal.m_bOwnDatabase)
-			co_await Internal.m_Database.f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
+			co_await fg_Move(Internal.m_Database).f_Destroy().f_Wrap() > LogError.f_Warning("Failed destroy database");;
 
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabase
 		(
-			TCActor<NDatabase::CDatabaseActor> &&_Database
-			, CStr const &_Prefix
-			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> &&_fCleanup
+			TCActor<NDatabase::CDatabaseActor> _Database
+			, CStr _Prefix
+			, TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> _fCleanup
 		)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
@@ -110,11 +110,11 @@ namespace NMib::NConcurrency
 		Internal.m_fCleanup = fg_Move(_fCleanup);
 		Internal.m_Prefix = _Prefix;
 
-		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
+		co_await Internal.f_Start();
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabasePath(CStr const &_DatabasePath, uint64 _RetentionDays)
+	TCFuture<void> CDistributedAppSensorStoreLocal::f_StartWithDatabasePath(CStr _DatabasePath, uint64 _RetentionDays)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
 
@@ -150,18 +150,20 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		co_await fg_CallSafe(&Internal, &CInternal::f_Start);
+		co_await Internal.f_Start();
 		co_return {};
 	}
 
 	TCFuture<void> CDistributedAppSensorStoreLocal::CInternal::f_PerformLocalCleanup()
 	{
+		auto CheckDestroy = co_await m_pThis->f_CheckDestroyedOnResume();
+
 		co_await m_Database
 			(
 				&CDatabaseActor::f_WriteWithCompaction
-				, g_ActorFunctorWeak / [=, this](CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+				, g_ActorFunctorWeak / [=, this](CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 				{
-					co_return co_await fg_CallSafe(&CInternal::fs_Cleanup, this, fg_Move(_Transaction));
+					co_return co_await fs_Cleanup(this, fg_Move(_Transaction));
 				}
 			)
 		;
@@ -221,7 +223,7 @@ namespace NMib::NConcurrency
 				(
 					&CDatabaseActor::f_WriteWithCompaction
 					, g_ActorFunctorWeak / [=, ThisActor = fg_ThisActor(m_pThis), Prefix = m_Prefix]
-					(CDatabaseActor::CTransactionWrite &&_Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
+					(CDatabaseActor::CTransactionWrite _Transaction, bool _bCompacting) -> TCFuture<CDatabaseActor::CTransactionWrite>
 					{
 						co_await ECoroutineFlag_CaptureMalterlibExceptions;
 
@@ -292,14 +294,14 @@ namespace NMib::NConcurrency
 
 		if (m_RetentionDays && !m_fCleanup)
 		{
-			co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap() > fg_LogError("SensorLocalStore", "Failed to perform initial database cleanup");
+			co_await f_PerformLocalCleanup().f_Wrap() > fg_LogError("SensorLocalStore", "Failed to perform initial database cleanup");
 
 			m_CleanupTimerSubscription = co_await fg_RegisterTimer
 				(
 					24_hours
 					, [this]() -> TCFuture<void>
 					{
-						auto Result = co_await fg_CallSafe(this, &CInternal::f_PerformLocalCleanup).f_Wrap();
+						auto Result = co_await f_PerformLocalCleanup().f_Wrap();
 
 						if (!Result)
 							DMibLogWithCategory(SensorLocalStore, Error, "Failed to do nightly cleanup: {}", Result.f_GetExceptionStr());
@@ -314,17 +316,17 @@ namespace NMib::NConcurrency
 
 		co_await m_SensorsInterfaceSubscription.f_OnActor
 			(
-				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppSensorReporter> const &_Actor, CTrustedActorInfo const &_TrustInfo) -> TCFuture<void>
+				g_ActorFunctor / [this](TCDistributedActor<CDistributedAppSensorReporter> _Actor, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
-					auto Result = co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceAdded, fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
+					auto Result = co_await f_SensorReporterInterfaceAdded(fg_TempCopy(_Actor), _TrustInfo).f_Wrap();
 					if (!Result)
 						DMibLogWithCategory(SensorLocalStore, Error, "Failures adding new sensor reporter: {}", Result.f_GetExceptionStr());
 
 					co_return {};
 				}
-				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo) -> TCFuture<void>
+				, g_ActorFunctor / [this](TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo) -> TCFuture<void>
 				{
-					co_await fg_CallSafe(*this, &CInternal::f_SensorReporterInterfaceRemoved, _Actor, fg_Move(_TrustInfo));
+					co_await f_SensorReporterInterfaceRemoved(_Actor, fg_Move(_TrustInfo));
 
 					co_return {};
 				}
@@ -340,8 +342,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppSensorStoreLocal::f_AddExtraSensorReporter
 		(
-			TCDistributedActorInterface<CDistributedAppSensorReporter> &&_SensorReporter
-			, CTrustedActorInfo const &_TrustInfo
+			TCDistributedActorInterface<CDistributedAppSensorReporter> _SensorReporter
+			, CTrustedActorInfo _TrustInfo
 		)
 	{
 		auto OnResume = co_await f_CheckDestroyedOnResume();
@@ -354,7 +356,7 @@ namespace NMib::NConcurrency
 		auto Subscription = g_ActorSubscription / [this, _TrustInfo, SensorInterfaceWeak = _SensorReporter.f_Weak(), TrustInfo = _TrustInfo]() mutable -> TCFuture<void>
 			{
 				auto &Internal = *mp_pInternal;
-				co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceRemoved, SensorInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()
+				co_await Internal.f_SensorReporterInterfaceRemoved(SensorInterfaceWeak, fg_Move(TrustInfo)).f_Wrap()
 					> fg_LogError("Malterlib/Concurrency/Sensor", "Error removing sensor reporter")
 				;
 
@@ -362,7 +364,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto Result = co_await fg_CallSafe(Internal, &CInternal::f_SensorReporterInterfaceAdded, fg_Move(_SensorReporter), _TrustInfo).f_Wrap();
+		auto Result = co_await Internal.f_SensorReporterInterfaceAdded(fg_Move(_SensorReporter), _TrustInfo).f_Wrap();
 		if (!Result)
 			DMibLogWithCategory(SensorLocalStore, Error, "Failures adding extra sensor reporter: {}", Result.f_GetExceptionStr());
 

@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 	using namespace NException;
 	using namespace NStorage;
 
-	struct CDistributedAppLogStoreLocal::CInternal
+	struct CDistributedAppLogStoreLocal::CInternal : public CActorInternal
 	{
 		struct CLog;
 		struct CRemoteLogReporterInterface;
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 		struct CLogSubscription
 		{
 			TCVector<CDistributedAppLogReader_LogFilter> m_Filters;
-			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange &&_Change)> m_fOnChange;
+			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> m_fOnChange;
 
 			TCMap<CDistributedAppLogReporter::CLogInfoKey, CDistributedAppLogReader::CLogChange> m_QueuedChanges;
 		};
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 		struct CEntrySubscription
 		{
 			TCMap<CDistributedAppLogReporter::CLogInfoKey, zuint64> m_LastSeenEntry;
-			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry &&_Entry)> m_fOnEntry;
+			TCActorFunctor<TCFuture<void> (CDistributedAppLogReader_LogKeyAndEntry _Entry)> m_fOnEntry;
 			TCVector<CDistributedAppLogReader_LogKeyAndEntry> m_QueuedEntries;
 			TCVector<CEntrySubscriptionFilter> m_Filters;
 
@@ -112,31 +112,31 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Start();
 
-		TCFuture<void> f_UpdateLogForReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, TCWeakDistributedActor<CActor> const &_Actor);
+		TCFuture<void> f_UpdateLogForReporter(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, TCWeakDistributedActor<CActor> _Actor);
 
-		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> &&_Actor, CTrustedActorInfo const &_TrustInfo);
-		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> const &_Actor, CTrustedActorInfo &&_TrustInfo);
-		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey, bool _bWasAdded);
+		TCFuture<void> f_LogReporterInterfaceAdded(TCDistributedActorInterface<CDistributedAppLogReporter> _Actor, CTrustedActorInfo _TrustInfo);
+		TCFuture<void> f_LogReporterInterfaceRemoved(TCWeakDistributedActor<CActor> _Actor, CTrustedActorInfo _TrustInfo);
+		TCFuture<void> f_LogInfoChanged(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, bool _bWasAdded);
 		TCFuture<uint32> f_NewLogEntries
 			(
-				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
+				CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
+				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
 			)
 		;
 		TCFuture<void> f_StoreLogEntries
 			(
-				CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey
-				, NLogStoreLocalDatabase::CLogEntryKey const &_DatabaseKey
-				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> const &_pEntries
+				CDistributedAppLogReporter::CLogInfoKey _LogInfoKey
+				, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey
+				, NStorage::TCSharedPointer<TCVector<CDistributedAppLogReporter::CLogEntry> const> _pEntries
 			)
 		;
-		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey const &_LogInfoKey);
+		TCFuture<void> f_CleanupLogReporter(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey);
 
 		auto f_GetReportEntriesFunctor(CDistributedAppLogReporter::CLogInfoKey _LogInfoKey, NLogStoreLocalDatabase::CLogEntryKey _DatabaseKey)
-			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> &&_Entries)>
+			-> TCActorFunctorWithID<TCFuture<CDistributedAppLogReporter::CReportEntriesResult> (NContainer::TCVector<CDistributedAppLogReporter::CLogEntry> _Entries)>
 		;
 
-		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction);
+		static TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> fs_Cleanup(CInternal *_pThis, NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction);
 		TCFuture<void> f_PerformLocalCleanup();
 
 		void f_ScheduleFailedRetry();
@@ -171,7 +171,7 @@ namespace NMib::NConcurrency
 		TCSharedPointer<CCanDestroyTracker> m_pCanDestroyStoringLocal = fg_Construct();
 
 		TCTrustedActorSubscription<CDistributedAppLogReporter> m_LogsInterfaceSubscription;
-		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite &&_WriteTransaction)> m_fCleanup;
+		TCActorFunctor<TCFuture<NDatabase::CDatabaseActor::CTransactionWrite> (NDatabase::CDatabaseActor::CTransactionWrite _WriteTransaction)> m_fCleanup;
 		CActorSubscription m_CleanupTimerSubscription;
 		CStr m_Prefix;
 		CStr m_ThisHostID;

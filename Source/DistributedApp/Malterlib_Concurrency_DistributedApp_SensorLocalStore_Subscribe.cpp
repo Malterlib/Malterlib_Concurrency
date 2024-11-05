@@ -14,8 +14,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppSensorStoreLocal::f_SubscribeSensors
 		(
-			TCVector<CDistributedAppSensorReader_SensorFilter> &&_Filters
-			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange &&_Change)> &&_fOnChange
+			TCVector<CDistributedAppSensorReader_SensorFilter> _Filters
+			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader::CSensorChange _Change)> _fOnChange
 		)
 		-> TCFuture<CActorSubscription>
 	{
@@ -45,25 +45,25 @@ namespace NMib::NConcurrency
 		;
 
 		// Send initial
-		auto Sensors = co_await self(&CDistributedAppSensorStoreLocal::f_GetSensors, CDistributedAppSensorReader::CGetSensors{.m_Filters = pSubscription->m_Filters});
+		auto Sensors = f_GetSensors(CDistributedAppSensorReader::CGetSensors{.m_Filters = pSubscription->m_Filters});
 		for (auto iSensor = co_await fg_Move(Sensors).f_GetIterator(); iSensor; co_await ++iSensor)
 		{
-			TCActorResultVector<void> Results;
+			TCFutureVector<void> Results;
 			for (auto &Sensor : *iSensor)
-				_fOnChange(fg_Move(Sensor)) > Results.f_AddResult();
+				_fOnChange(fg_Move(Sensor)) > Results;
 
-			co_await (co_await Results.f_GetResults() | g_Unwrap);
+			co_await fg_AllDone(Results);
 		}
 
 		// Send readings that came in while sending initial
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Change : pSubscription->m_QueuedChanges)
-			_fOnChange(fg_Move(Change)) > Results.f_AddResult();
+			_fOnChange(fg_Move(Change)) > Results;
 		pSubscription->m_QueuedChanges.f_Clear();
 
 		pSubscription->m_fOnChange = fg_Move(_fOnChange);
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 			{
@@ -87,8 +87,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppSensorStoreLocal::f_SubscribeSensorReadings
 		(
-			TCVector<CDistributedAppSensorReader_SensorReadingSubscriptionFilter> &&_Filters
-			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			TCVector<CDistributedAppSensorReader_SensorReadingSubscriptionFilter> _Filters
+			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading _Reading)> _fOnReading
 		)
 		-> TCFuture<CActorSubscription>
 	{
@@ -128,36 +128,36 @@ namespace NMib::NConcurrency
 
 		if (bNeedInitial)
 		{
-			auto SensorReadings = co_await self(&CDistributedAppSensorStoreLocal::f_GetSensorReadings, fg_Move(GetReadingsParams));
+			auto SensorReadings = f_GetSensorReadings(fg_Move(GetReadingsParams));
 			for (auto iReadings = co_await fg_Move(SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
 			{
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 				for (auto &Reading : *iReadings)
 				{
 					auto &LastSeenReading = pSubscription->m_LastSeenReading[Reading.m_SensorInfoKey];
 					LastSeenReading = fg_Max(LastSeenReading, Reading.m_Reading.m_UniqueSequence);
 
-					_fOnReading(fg_Move(Reading)) > Results.f_AddResult();
+					_fOnReading(fg_Move(Reading)) > Results;
 				}
 
-				co_await (co_await Results.f_GetResults() | g_Unwrap);
+				co_await fg_AllDone(Results);
 			}
 		}
 
 		// Send readings that came in while sending initial
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Reading : pSubscription->m_QueuedReadings)
 		{
 			auto *pLastSeen = pSubscription->m_LastSeenReading.f_FindEqual(Reading.m_SensorInfoKey);
 			if (pLastSeen && Reading.m_Reading.m_UniqueSequence <= *pLastSeen)
 				continue;
-			_fOnReading(fg_Move(Reading)) > Results.f_AddResult();
+			_fOnReading(fg_Move(Reading)) > Results;
 		}
 		pSubscription->m_QueuedReadings.f_Clear();
 
 		pSubscription->m_fOnReading = fg_Move(_fOnReading);
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 			{
@@ -181,8 +181,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppSensorStoreLocal::f_SubscribeSensorStatus
 		(
-			TCVector<CDistributedAppSensorReader_SensorStatusFilter> &&_Filters
-			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading &&_Reading)> &&_fOnReading
+			TCVector<CDistributedAppSensorReader_SensorStatusFilter> _Filters
+			, TCActorFunctor<TCFuture<void> (CDistributedAppSensorReader_SensorKeyAndReading _Reading)> _fOnReading
 		)
 		-> TCFuture<CActorSubscription>
 	{
@@ -212,41 +212,36 @@ namespace NMib::NConcurrency
 		;
 
 		// Send initial
-		auto SensorReadings = co_await self
-			(
-				&CDistributedAppSensorStoreLocal::f_GetSensorStatus
-				, CDistributedAppSensorReader::CGetSensorStatus{.m_Filters = pSubscription->m_Filters}
-			)
-		;
+		auto SensorReadings = f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus{.m_Filters = pSubscription->m_Filters});
 
 		for (auto iReadings = co_await fg_Move(SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
 		{
-			TCActorResultVector<void> Results;
+			TCFutureVector<void> Results;
 			for (auto &Reading : *iReadings)
 			{
 				auto &LastSeenReading = pSubscription->m_LastSeenReading[Reading.m_SensorInfoKey];
 				LastSeenReading = fg_Max(LastSeenReading, Reading.m_Reading.m_UniqueSequence);
 
-				_fOnReading(fg_Move(Reading)) > Results.f_AddResult();
+				_fOnReading(fg_Move(Reading)) > Results;
 			}
 
-			co_await (co_await Results.f_GetResults() | g_Unwrap);
+			co_await fg_AllDone(Results);
 		}
 
 		// Send readings that came in while sending initial
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Reading : pSubscription->m_QueuedReadings)
 		{
 			auto *pLastSeen = pSubscription->m_LastSeenReading.f_FindEqual(Reading.m_SensorInfoKey);
 			if (pLastSeen && Reading.m_Reading.m_UniqueSequence <= *pLastSeen)
 				continue;
-			_fOnReading(fg_Move(Reading)) > Results.f_AddResult();
+			_fOnReading(fg_Move(Reading)) > Results;
 		}
 		pSubscription->m_QueuedReadings.f_Clear();
 
 		pSubscription->m_fOnReading = fg_Move(_fOnReading);
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 			{

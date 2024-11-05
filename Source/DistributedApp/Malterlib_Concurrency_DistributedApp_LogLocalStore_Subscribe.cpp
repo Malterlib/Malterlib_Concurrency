@@ -14,8 +14,8 @@ namespace NMib::NConcurrency
 
 	auto CDistributedAppLogStoreLocal::f_SubscribeLogs
 		(
-			TCVector<CDistributedAppLogReader_LogFilter> &&_Filters
-			, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange &&_Change)> &&_fOnChange
+			TCVector<CDistributedAppLogReader_LogFilter> _Filters
+			, TCActorFunctor<TCFuture<void> (CDistributedAppLogReader::CLogChange _Change)> _fOnChange
 		)
 		-> TCFuture<CActorSubscription>
 	{
@@ -45,25 +45,25 @@ namespace NMib::NConcurrency
 		;
 
 		// Send initial
-		auto Logs = co_await self(&CDistributedAppLogStoreLocal::f_GetLogs, CDistributedAppLogReader::CGetLogs{.m_Filters = {pSubscription->m_Filters}});
+		auto Logs = f_GetLogs(CDistributedAppLogReader::CGetLogs{.m_Filters = {pSubscription->m_Filters}});
 		for (auto iLog = co_await fg_Move(Logs).f_GetIterator(); iLog; co_await ++iLog)
 		{
-			TCActorResultVector<void> Results;
+			TCFutureVector<void> Results;
 			for (auto &Log : *iLog)
-				_fOnChange(fg_Move(Log)) > Results.f_AddResult();
+				_fOnChange(fg_Move(Log)) > Results;
 
-			co_await (co_await Results.f_GetResults() | g_Unwrap);
+			co_await fg_AllDone(Results);
 		}
 
 		// Send entries that came in while sending initial
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Change : pSubscription->m_QueuedChanges)
-			_fOnChange(fg_Move(Change)) > Results.f_AddResult();
+			_fOnChange(fg_Move(Change)) > Results;
 		pSubscription->m_QueuedChanges.f_Clear();
 
 		pSubscription->m_fOnChange = fg_Move(_fOnChange);
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 			{
@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedAppLogStoreLocal::f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries &&_Params) -> TCFuture<CActorSubscription>
+	auto CDistributedAppLogStoreLocal::f_SubscribeLogEntries(CDistributedAppLogReader::CSubscribeLogEntries _Params) -> TCFuture<CActorSubscription>
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -134,10 +134,10 @@ namespace NMib::NConcurrency
 		NTime::CTime LastSeenInitial;
 		if (bNeedInitial)
 		{
-			auto LogEntries = co_await self(&CDistributedAppLogStoreLocal::f_GetLogEntries, fg_Move(GetLogEntriesParams));
+			auto LogEntries = f_GetLogEntries(fg_Move(GetLogEntriesParams));
 			for (auto iEntries = co_await fg_Move(LogEntries).f_GetIterator(); iEntries; co_await ++iEntries)
 			{
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 				for (auto &Entry : *iEntries)
 				{
 					if (_Params.m_Flags & CDistributedAppLogReader::ELogEntriesFlag_IncludeLastSeenSentinel)
@@ -148,21 +148,21 @@ namespace NMib::NConcurrency
 
 					auto &LastSeenEntry = pSubscription->m_LastSeenEntry[Entry.m_LogInfoKey];
 					LastSeenEntry = fg_Max(LastSeenEntry, Entry.m_Entry.m_UniqueSequence);
-					_Params.m_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
+					_Params.m_fOnEntry(fg_Move(Entry)) > Results;
 				}
 
-				co_await (co_await Results.f_GetResults() | g_Unwrap);
+				co_await fg_AllDone(Results);
 			}
 		}
 
 		// Send entries that came in while sending initial
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Entry : pSubscription->m_QueuedEntries)
 		{
 			auto *pLastSeen = pSubscription->m_LastSeenEntry.f_FindEqual(Entry.m_LogInfoKey);
 			if (pLastSeen && Entry.m_Entry.m_UniqueSequence <= *pLastSeen)
 				continue;
-			_Params.m_fOnEntry(fg_Move(Entry)) > Results.f_AddResult();
+			_Params.m_fOnEntry(fg_Move(Entry)) > Results;
 		}
 		pSubscription->m_QueuedEntries.f_Clear();
 
@@ -178,14 +178,14 @@ namespace NMib::NConcurrency
 				CDistributedAppLogReader_LogKeyAndEntry OutEntry;
 				OutEntry.m_Entry.m_Timestamp = pSubscription->m_LastSeenTimestamp;
 
-				_Params.m_fOnEntry(fg_Move(OutEntry)) > Results.f_AddResult();
+				_Params.m_fOnEntry(fg_Move(OutEntry)) > Results;
 			}
 		}
 
 		pSubscription->m_fOnEntry = fg_Move(_Params.m_fOnEntry);
 		pSubscription->m_Flags = _Params.m_Flags;
 
-		co_await (co_await Results.f_GetResults() | g_Unwrap);
+		co_await fg_AllDone(Results);
 
 		co_return g_ActorSubscription / [this, SubscriptionID]() -> TCFuture<void>
 			{
@@ -295,14 +295,13 @@ namespace NMib::NConcurrency
 			return;
 
 		m_bScheduledLastSeenFlush = true;
-		fg_Timeout(60_seconds) > [this]
+		fg_Timeout(60_seconds) > [this]() -> TCFuture<void>
 			{
-				fg_CallSafe(*this, &CInternal::f_FlushLastSeen) > [](TCAsyncResult<void> &&_Result)
-					{
-						if (!_Result)
-							DMibLogWithCategory(LogLocalStore, Error, "Failed to flush last seen: {}", _Result.f_GetExceptionStr());
-					}
-				;
+				auto Result = co_await f_FlushLastSeen().f_Wrap();
+				if (!Result)
+					DMibLogWithCategory(LogLocalStore, Error, "Failed to flush last seen: {}", Result.f_GetExceptionStr());
+
+				co_return {};
 			}
 		;
 	}

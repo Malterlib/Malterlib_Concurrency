@@ -12,12 +12,14 @@ namespace NMib::NConcurrency
 {
 	using namespace NLogStoreLocalDatabase;
 
-	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader::CGetLogs &&_Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
+	auto CDistributedAppLogStoreLocal::f_GetLogs(CDistributedAppLogReader::CGetLogs _Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReporter::CLogInfo>>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
+
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 		auto CaptureScope = co_await
 			(
@@ -63,13 +65,15 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	auto CDistributedAppLogStoreLocal::f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries &&_Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReader_LogKeyAndEntry>>
+	auto CDistributedAppLogStoreLocal::f_GetLogEntries(CDistributedAppLogReader::CGetLogEntries _Params) -> TCAsyncGenerator<TCVector<CDistributedAppLogReader_LogKeyAndEntry>>
 	{
 		auto &Internal = *mp_pInternal;
 
 		if (!Internal.m_bStarted)
 			co_return DMibErrorInstance("Local store not yet started");
 
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+		
 		auto ReadTransactionWrapped = co_await Internal.m_Database(&CDatabaseActor::f_OpenTransactionRead).f_Wrap();
 
 		auto Prefix = Internal.m_Prefix;

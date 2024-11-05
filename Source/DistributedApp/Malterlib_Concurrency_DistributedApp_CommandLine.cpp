@@ -15,12 +15,12 @@ namespace NMib::NConcurrency
 	using namespace NException;
 
 	template <typename t_CCommandLineSpecification>
-	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
+ 	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterCommand
 		(
 			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
-				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				TCFuture<uint32> (NEncoding::CEJSONSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 			> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 	typename t_CCommandLineSpecification::CCommand CCommandLineSpecificationDistributedAppCustomization::TCSection<t_CCommandLineSpecification>::CSection::f_RegisterDirectCommand
 		(
 			NEncoding::CEJSONOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 	{
@@ -58,7 +58,7 @@ namespace NMib::NConcurrency
 			NEncoding::CEJSONOrdered &&_CommandDescription
 			, NFunction::TCFunctionMovable
 			<
-				TCFuture<uint32> (NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine)
+				TCFuture<uint32> (NEncoding::CEJSONSorted &&_Params, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 			> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 	f_RegisterDirectCommand
 		(
 			NEncoding::CEJSONOrdered &&_CommandDescription
-			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted const &_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
+			, NFunction::TCFunctionMovable<uint32 (NEncoding::CEJSONSorted &&_Parameters, CCommandLineClient &_CommandLineClient)> &&_fRunCommand
 			, EDistributedAppCommandFlag _Flags
 		)
 		-> TCCommandLineSpecification<CCommandLineSpecificationDistributedAppCustomization>::CCommand
@@ -86,9 +86,9 @@ namespace NMib::NConcurrency
 {
 	TCFuture<void> CDistributedAppActor::fp_PreRunCommandLine
 		(
-			 CStr const &_Command
-			 , CEJSONSorted const &_Params
-			 , TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			 CStr _Command
+			 , CEJSONSorted const _Params
+			 , TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
 		co_return {};
@@ -96,9 +96,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::f_RunCommandLine
 		(
-			CStr const &_Command
-			, CEJSONSorted const &_Params
-			, TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			CStr _Command
+			, CEJSONSorted const _Params
+			, TCSharedPointer<CCommandLineControl> _pCommandLine
 		)
 	{
 		if (!fp_HasCommandLineAccess(fg_GetCallingHostInfo().f_GetRealHostID()))
@@ -127,9 +127,9 @@ namespace NMib::NConcurrency
 
 		CStr UserID = ValidatedParams.f_GetMemberValue("AuthenticationUser", "").f_String();
 
-		auto AuthenticationSubscription = co_await self(&CDistributedAppActor::fp_SetupAuthentication, _pCommandLine, AuthenticationLifetime, UserID);
+		auto AuthenticationSubscription = co_await fp_SetupAuthentication(_pCommandLine, AuthenticationLifetime, UserID);
 
-		co_await self(&CDistributedAppActor::fp_PreRunCommandLine, _Command, ValidatedParams, _pCommandLine);
+		co_await fp_PreRunCommandLine(_Command, ValidatedParams, _pCommandLine);
 
 		pCommand = SpecInternal.m_CommandByName.f_FindEqual(_Command);
 		if (!pCommand)
@@ -150,24 +150,16 @@ namespace NMib::NConcurrency
 
 	TCFuture<uint32> CDistributedAppActor::fp_RunCommandLineAndLogError
 		(
-			CStr const &_Description
-			, NFunction::TCFunctionMovable<TCFuture<uint32> ()> &&_fCommand
+			CStr _Description
+			, NFunction::TCFunctionMovable<TCFuture<uint32> ()> _fCommand
 		)
 	{
-		TCPromise<uint32> Promise;
-		fg_Dispatch
-			(
-				fg_Move(_fCommand)
-			)
-			> [Promise, _Description](TCAsyncResult<uint32> &&_Other)
-			{
-				if (!_Other)
-					DMibLogWithCategory(Mib/Concurrency/App, Error, "{} failed from command line: {}", _Description, _Other.f_GetExceptionStr());
-				Promise.f_SetResult(fg_Move(_Other));
-			}
-		;
+		auto Result = co_await fg_Dispatch(fg_Move(_fCommand)).f_Wrap();
 
-		return Promise.f_MoveFuture();
+		if (!Result)
+			DMibLogWithCategory(Mib/Concurrency/App, Error, "{} failed from command line: {}", _Description, Result.f_GetExceptionStr());
+
+		co_return fg_Move(Result);
 	}
 
 	void CDistributedAppActor::fp_BuildCommandLine(CDistributedAppCommandLineSpecification &o_CommandLine)

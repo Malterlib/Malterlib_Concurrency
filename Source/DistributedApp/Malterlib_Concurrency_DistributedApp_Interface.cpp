@@ -52,15 +52,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedAppActor::CDistributedAppInterfaceClientImplementation::f_StartBackup
 		(
-			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> &&_BackupInterface
-			, CActorSubscription &&_ManifestFinished
-			, CStr const &_BackupRoot
+			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceBackup> _BackupInterface
+			, CActorSubscription _ManifestFinished
+			, CStr _BackupRoot
 		)
 	{
 		if (!_BackupInterface)
 			co_return DMibErrorInstance("Invalid backup interface");
 
-		co_return co_await m_pThis->self(&CDistributedAppActor::fp_StartBackup, fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot);
+		co_return co_await m_pThis->fp_StartBackup(fg_Move(_BackupInterface), fg_Move(_ManifestFinished), _BackupRoot);
 	}
 
 	TCFuture<void> CDistributedAppActor::fp_PreUpdate()
@@ -75,9 +75,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_StartBackup
 		(
-			TCDistributedActorInterface<CDistributedAppInterfaceBackup> &&_BackupInterface
-			, CActorSubscription &&_ManifestFinished
-			, CStr const &_BackupRoot
+			TCDistributedActorInterface<CDistributedAppInterfaceBackup> _BackupInterface
+			, CActorSubscription _ManifestFinished
+			, CStr _BackupRoot
 		)
 	{
 		co_return {};
@@ -151,9 +151,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CDistributedAppActor::fp_RegisterForAppInterfaceServerChanges
 		(
-			TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> const &_AppInterfaceServer, CTrustedActorInfo const &_TrustInfo)> &&_fOnChangeInterfaceServer
+			TCActorFunctor<TCFuture<void> (TCDistributedActor<CDistributedAppInterfaceServer> _AppInterfaceServer, CTrustedActorInfo _TrustInfo)> _fOnChangeInterfaceServer
 		)
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_bAuditLogsDestroyed)
@@ -180,8 +182,10 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSONSorted _Params)
+	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSONSorted const _Params)
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto &Internal = *mp_pInternal;
 
 		Internal.m_AppInterfaceClientImplementation.f_Construct(mp_State.m_DistributionManager, this);
@@ -207,9 +211,11 @@ namespace NMib::NConcurrency
 		co_await Internal.m_AppInteraceServerSubscription.f_OnActor
 			(
 				g_ActorFunctor / [=, this, RegisterInfo = fg_Move(RegisterInfo), ConfigFiles = fg_Move(ConfigFiles)]
-				(TCDistributedActor<CDistributedAppInterfaceServer> const &_NewActor, CTrustedActorInfo const &_ActorInfo) -> TCFuture<void>
+				(TCDistributedActor<CDistributedAppInterfaceServer> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
+
+					auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
 					DMibLogWithCategory(Mib/Concurrency/App, Info, "Registering with app interface server {}", _ActorInfo.m_HostInfo.f_GetDesc());
 
@@ -226,9 +232,9 @@ namespace NMib::NConcurrency
 
 					TCFuture<TCActorSubscriptionWithID<>> RegisterConfigFilesFuture;
 					if (_NewActor->f_InterfaceVersion() >= CDistributedAppInterfaceServer::EProtocolVersion_SupportConfigFiles)
-						RegisterConfigFilesFuture = _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterConfigFiles)(ConfigFiles).f_Future();
+						RegisterConfigFilesFuture = _NewActor.f_CallActor(&CDistributedAppInterfaceServer::f_RegisterConfigFiles)(ConfigFiles);
 					else
-						RegisterConfigFilesFuture = TCPromise<TCActorSubscriptionWithID<>>() <<= (g_ActorSubscription / []{});
+						RegisterConfigFilesFuture = g_ActorSubscription / []{};
 
 					auto [Subscription, RegisterConfigSubscription] = co_await
 						(
@@ -275,15 +281,15 @@ namespace NMib::NConcurrency
 						;
 					}
 
-					TCActorResultVector<void> OnChangeResults;
+					TCFutureVector<void> OnChangeResults;
 
 					for (auto &fOnChangeInterfaceServer : Internal.m_AppInterfaceServerChangeSubscriptions)
 					{
 						if (fOnChangeInterfaceServer)
-							fOnChangeInterfaceServer(_NewActor, _ActorInfo) > OnChangeResults.f_AddResult();
+							fOnChangeInterfaceServer(_NewActor, _ActorInfo) > OnChangeResults;
 					}
 
-					for (auto &OnChangeResult : co_await OnChangeResults.f_GetResults())
+					for (auto &OnChangeResult : co_await fg_AllDoneWrapped(OnChangeResults))
 					{
 						if (!OnChangeResult)
 							DMibLogWithCategory(Mib/Concurrency/App, Error, "Exception when reporting app interface server change: {}", OnChangeResult.f_GetExceptionStr());
@@ -313,7 +319,7 @@ namespace NMib::NConcurrency
 			void f_Clear()
 			{
 				m_StdInSubscription.f_Clear();
-				fg_Move(m_StdInActor).f_Destroy() > fg_DiscardResult();
+				fg_Move(m_StdInActor).f_Destroy().f_DiscardResult();
 			}
 		};
 
@@ -327,18 +333,19 @@ namespace NMib::NConcurrency
 
 		pState->m_StdInActor = fg_ConstructActor<CStdInActor>();
 
-		TCPromise<CDistributedActorTrustManager::CTrustTicket> Promise;
-		pState->m_StdInActor
+		TCPromiseFuturePair<CDistributedActorTrustManager::CTrustTicket> Promise;
+		pState->m_StdInSubscription = co_await pState->m_StdInActor
 			(
 				&CStdInActor::f_RegisterForInput
 				, g_ActorFunctor /
 				[
 					=
+					, Promise = fg_Move(Promise.m_Promise)
 					, this
 					, Buffer = CStrSecure{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]
-				(EStdInReaderOutputType _Type, const NStr::CStrSecure &_Input) mutable -> TCFuture<void>
+				(EStdInReaderOutputType _Type, NStr::CStrSecure _Input) mutable -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -368,18 +375,16 @@ namespace NMib::NConcurrency
 				, EStdInReaderFlag_None
 				, TCLimitsInt<mint>::mc_Max
 			)
-			> Promise / [=](CActorSubscription &&_Subscription)
-			{
-				DMibConErrOut("{}\n", _RequestMagic);
-				pState->m_StdInSubscription = fg_Move(_Subscription);
-			}
 		;
+		DMibConErrOut("{}\n", _RequestMagic);
 
-		co_return co_await Promise.f_MoveFuture();
+		co_return co_await fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSONSorted _Params)
+	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSONSorted const _Params)
 	{
+		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
+
 		auto &Internal = *mp_pInternal;
 
 		CStr ServerAddress = mp_Settings.m_InterfaceSettings.m_ServerAddress;
@@ -422,12 +427,12 @@ namespace NMib::NConcurrency
 			if (pRequestTicket)
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket with provided functor");
-				RequestTicketFuture = g_Future <<= (*pRequestTicket)();
+				RequestTicketFuture = (*pRequestTicket)();
 			}
 			else
 			{
 				DMibLogWithCategory(Mib/Concurrency/App, Info, "Requesting trust ticket from parent process");
-				RequestTicketFuture = g_Future <<= self(&CDistributedAppActor::fp_GetTicketThroughStdIn, RequestTicketMagic);
+				RequestTicketFuture = fp_GetTicketThroughStdIn(RequestTicketMagic);
 			}
 
 			auto TrustTicket = co_await (fg_Move(RequestTicketFuture).f_Timeout(60.0, "Timed out getting trust ticket through stdin") % "Failed to get ticket through stdin");

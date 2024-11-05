@@ -25,37 +25,34 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedApp_LaunchInfoData::f_Destroy()
 	{
-		TCPromise<void> Promise;
 		if (m_InProcess)
-			return Promise <<= fg_Move(m_InProcess).f_Destroy();
+			return fg_Move(m_InProcess).f_Destroy();
 		else if (m_Launch)
-			return Promise <<= fg_Move(m_Launch).f_Destroy();
+			return fg_Move(m_Launch).f_Destroy();
 		else
-			return Promise <<= g_Void;
+			return g_Void;
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<NEncoding::CEJSONSorted> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr const &_Command, NEncoding::CEJSONSorted const &_Params)
+	TCFuture<NEncoding::CEJSONSorted> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJSONSorted &&_Params)
 	{
-		TCPromise<NEncoding::CEJSONSorted> Promise;
 		if (!m_InProcess)
-			return Promise <<= DMibErrorInstance("No in process actor");
-		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, _Command, _Params);
+			return DMibErrorInstance("No in process actor");
+		return m_InProcess(&CDistributedAppInProcessActor::f_Test_Command, fg_Move(_Command), fg_Move(_Params));
 	}
 
 	TCFuture<uint32> CDistributedApp_LaunchInfoData::f_RunCommandLine
 		(
-			CCallingHostInfo const &_CallingHost
-			, NStr::CStr const &_Command
-			, NEncoding::CEJSONSorted const &_Params
-			, NStorage::TCSharedPointer<CCommandLineControl> const &_pCommandLine
+			CCallingHostInfo &&_CallingHost
+			, NStr::CStr &&_Command
+			, NEncoding::CEJSONSorted &&_Params
+			, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
 		)
 	{
-		TCPromise<uint32> Promise;
 		if (!m_InProcess)
-			return Promise <<= DMibErrorInstance("No in process actor");
+			return DMibErrorInstance("No in process actor");
 
-		return Promise <<= m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, _CallingHost, _Command, _Params, _pCommandLine);
+		return m_InProcess(&CDistributedAppInProcessActor::f_RunCommandLine, fg_Move(_CallingHost), fg_Move(_Command), fg_Move(_Params), fg_Move(_pCommandLine));
 	}
 #endif
 
@@ -64,13 +61,13 @@ namespace NMib::NConcurrency
 		if (!m_Subscription)
 			return CDistributedApp_LaunchInfoData::f_Destroy();
 
-		TCPromise<void> Promise;
-		
+		TCPromiseFuturePair<void> Promise;
+
 		auto Subscription = fg_Move(m_Subscription);
 
-		Subscription->f_Destroy() > Promise / [Promise, This = fg_Move(*this)]() mutable
+		Subscription->f_Destroy() > fg_Move(Promise.m_Promise) / [Promise = Promise.m_Promise, This = fg_Move(*this)]() mutable
 			{
-				This.CDistributedApp_LaunchInfoData::f_Destroy() > [Promise](TCAsyncResult<void> &&)
+				This.CDistributedApp_LaunchInfoData::f_Destroy() > [Promise = fg_Move(Promise)](TCAsyncResult<void> &&)
 					{
 						Promise.f_SetResult();
 					}
@@ -78,7 +75,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 
@@ -94,9 +91,9 @@ namespace NMib::NConcurrency
 	
 	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterDistributedApp
 		(
-			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> &&_ClientInterface
-			, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> &&_TrustInterface
-			, CRegisterInfo const &_RegisterInfo
+			TCDistributedActorInterfaceWithID<CDistributedAppInterfaceClient> _ClientInterface
+			, TCDistributedActorInterfaceWithID<CDistributedActorTrustManagerInterface> _TrustInterface
+			, CRegisterInfo _RegisterInfo
 		)
 	{
 		if (!_ClientInterface)
@@ -161,7 +158,7 @@ namespace NMib::NConcurrency
 		co_return g_ActorSubscription / []{};
 	}
 
-	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterConfigFiles(CConfigFiles &&_ConfigFiles)
+	TCFuture<TCActorSubscriptionWithID<>> CDistributedApp_LaunchHelper::CDistributedAppInterfaceServerImplementation::f_RegisterConfigFiles(CConfigFiles _ConfigFiles)
 	{
 		co_return g_ActorSubscription / []{};
 	}
@@ -194,22 +191,22 @@ namespace NMib::NConcurrency
 		for (auto &Launch : m_PendingLaunches)
 		{
 			if (Launch.m_pClientInterface)
-				Launch.m_pClientInterface->f_Destroy() > fg_DiscardResult();
+				Launch.m_pClientInterface->f_Destroy().f_DiscardResult();
 			if (Launch.m_pTrustInterface)
-				Launch.m_pTrustInterface->f_Destroy() > fg_DiscardResult();
+				Launch.m_pTrustInterface->f_Destroy().f_DiscardResult();
 		}
 	};
 
 	TCFuture<void> CDistributedApp_LaunchHelper::fp_Destroy()
 	{
-		TCActorResultVector<void> Destroys;
+		TCFutureVector<void> Destroys;
 		for (auto &Destroy : m_PendingDestroys)
-			Destroy.f_MoveFuture() > Destroys.f_AddResult();
+			Destroy.f_MoveFuture() > Destroys;
 		m_PendingDestroys.f_Clear();
 
 		CLogError LogError("DistributedAppLaunchHelper");
 
-		co_await Destroys.f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed to destroy pending destroys");
+		co_await fg_AllDone(Destroys).f_Wrap() > LogError.f_Warning("Failed to destroy pending destroys");
 
 		while (auto pLaunch = m_OrderdedLaunches.f_Pop())
 		{
@@ -227,38 +224,40 @@ namespace NMib::NConcurrency
 	{
 		return g_ActorSubscription / [this, _LaunchID]() -> TCFuture<void>
 			{
-				TCPromise<void> Promise;
-
 				auto *pLaunch = m_Launches.f_FindEqual(_LaunchID);
 				if (!pLaunch)
 				{
 					DMibLog(Info, "Launch subscription goes out of scope: {} has no launch", _LaunchID);
-					return Promise <<= g_Void;
+					co_return {};
 				}
 				DMibLog(Info, "Launch subscription goes out of scope: {} {}", _LaunchID, pLaunch->m_HostID);
-				pLaunch->f_Destroy() > [=, this, Pending = m_PendingDestroys[_LaunchID], HostID = pLaunch->m_HostID](auto &&_Result)
-					{
-						if (!_Result)
-							DMibLog(Info, "Launch subscription destroy failed: {} {}", _LaunchID, _Result.f_GetExceptionStr());
+				auto Result = co_await pLaunch->f_Destroy().f_Wrap();
 
-						DMibLog(Info, "Launch subscription destroy finished: {} {}", _LaunchID, HostID);
-						Pending.f_SetResult();
-						Promise.f_SetResult();
-						m_PendingDestroys.f_Remove(_LaunchID);
-					}
-				;
+				auto Pending = m_PendingDestroys[_LaunchID];
+				auto HostID = pLaunch->m_HostID;
+
+				if (!Result)
+					DMibLog(Info, "Launch subscription destroy failed: {} {}", _LaunchID, Result.f_GetExceptionStr());
+
+				DMibLog(Info, "Launch subscription destroy finished: {} {}", _LaunchID, HostID);
+
+				Pending.f_SetResult();
+
+				m_PendingDestroys.f_Remove(_LaunchID);
+
 				m_Launches.f_Remove(_LaunchID);
-				return Promise.f_MoveFuture();
+
+				co_return {};
 			}
 		;
 	}
 
 	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchInProcess
 		(
-			NStr::CStr const &_Description
-			, NStr::CStr const &_HomeDirectory
-			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> &&_fDistributedAppFactory
-			, NContainer::TCVector<NStr::CStr> &&_Params
+			NStr::CStr _Description
+			, NStr::CStr _HomeDirectory
+			, NFunction::TCFunction<TCActor<CDistributedAppActor> ()> _fDistributedAppFactory
+			, NContainer::TCVector<NStr::CStr> _Params
 		)
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
@@ -271,7 +270,7 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor
-				/ [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
+				/ [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
@@ -319,10 +318,10 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		co_return co_await Promise.f_MoveFuture();
 	}
 
-	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr const &_Description, NStr::CStr const &_Executable)
+	auto CDistributedApp_LaunchHelper::f_Launch(NStr::CStr _Description, NStr::CStr _Executable)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
 		return f_LaunchWithParams(_Description, _Executable, {}, {});
@@ -330,10 +329,10 @@ namespace NMib::NConcurrency
 
 	auto CDistributedApp_LaunchHelper::f_LaunchWithParams
 		(
-			NStr::CStr const &_Description
-			, NStr::CStr const &_Executable
-			, NContainer::TCVector<NStr::CStr> &&_ExtraParams
-			, CSystemEnvironment &&_Environment
+			NStr::CStr _Description
+			, NStr::CStr _Executable
+			, NContainer::TCVector<NStr::CStr> _ExtraParams
+			, CSystemEnvironment _Environment
 		)
 		-> TCFuture<CDistributedApp_LaunchInfo>
 	{
@@ -373,9 +372,9 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedApp_LaunchInfo> CDistributedApp_LaunchHelper::f_LaunchWithLaunch
 		(
-			NStr::CStr const &_Description
-			, NProcess::CProcessLaunchActor::CLaunch &&_Launch
-			, TCActor<CActor> &&_NotificationActor
+			NStr::CStr _Description
+			, NProcess::CProcessLaunchActor::CLaunch _Launch
+			, TCActor<CActor> _NotificationActor
 		)
 	{
 		NStr::CStr LaunchID = NCryptography::fg_RandomID(m_Launches);
@@ -388,14 +387,14 @@ namespace NMib::NConcurrency
 				m_Dependencies.m_Address
 				, m_Dependencies.m_TrustManager
 				, g_ActorFunctor
-				/ [this, LaunchID](NStr::CStr const &_HostID, CCallingHostInfo const &_HostInfo, NContainer::CByteVector const &_CertificateRequest) -> TCFuture<void>
+				/ [this, LaunchID](NStr::CStr _HostID, CCallingHostInfo _HostInfo, NContainer::CByteVector _CertificateRequest) -> TCFuture<void>
 				{
 					auto *pLaunch = m_Launches.f_FindEqual(LaunchID);
 					DMibCheck(pLaunch);
 					pLaunch->m_HostID = _HostID;
 					co_return {};
 				}
-				, g_ActorFunctor / [](NStr::CStr const &_Error) -> TCFuture<void>
+				, g_ActorFunctor / [](NStr::CStr _Error) -> TCFuture<void>
 				{
 					co_return {};
 				}
@@ -441,7 +440,7 @@ namespace NMib::NConcurrency
 								}
 							)
 						)
-						> fg_DiscardResult();
+						.f_DiscardResult()
 					;
 				}
 			}
@@ -463,7 +462,7 @@ namespace NMib::NConcurrency
 								}
 							)
 						)
-						> fg_DiscardResult();
+						.f_DiscardResult()
 					;
 				}
 			;
@@ -478,6 +477,6 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		co_return co_await Promise.f_MoveFuture();
 	}
 }

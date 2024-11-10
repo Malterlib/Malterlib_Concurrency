@@ -33,10 +33,10 @@ namespace NMib::NException
 
 namespace NMib::NConcurrency
 {
-	class CAsyncResult;
+	struct CAsyncResult;
 
 	template <typename t_CType>
-	class TCAsyncResult;
+	struct TCAsyncResult;
 
 	template <typename t_CReturnValue>
 	struct TCPromise;

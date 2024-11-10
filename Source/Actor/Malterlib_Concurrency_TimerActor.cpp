@@ -84,7 +84,6 @@ namespace NMib::NConcurrency
 		NContainer::TCMap<fp64, CTimer> m_RegisteredTimers;
 		NContainer::TCLinkedList<CTimer> m_OneshotTimers;
 		NContainer::TCLinkedList<CTimer> m_ExactTimers;
-		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 
 		NIntrusive::TCAVLTree<&CTimer::m_TreeLink, CTimer::CAVLCompare_NextElapse> m_TimerQueue;
 
@@ -93,6 +92,7 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		mint m_ProcessingThread = 0;
 #endif
+		align_cacheline NAtomic::TCAtomic<smint> m_WaitTime;
 	};
 	
 	TCActor<CTimerActor> fg_TimerActor()

@@ -5,20 +5,159 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Function/Function>
+#include <Mib/Function/Traits>
 
 #include "Malterlib_Concurrency_Configuration.h"
 
 namespace NMib::NConcurrency
 {
+	template <typename t_CReturnType>
+	struct TCAsyncGenerator;
+
+	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
+	struct TCFutureWithFlags;
+
+	class CActorHolder;
+
+	constexpr static mint gc_FutureOnResultStorage = sizeof(void *) * 3;
+
+//#define DMibCheckOnResultSizes
+#ifdef DMibCheckOnResultSizes
+
+	template <typename t_CReturnValue>
+	using TCFutureOnResult = NFunction::TCFunction
+		<
+			void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
+			, NFunction::CFunctionNoCopyTag
+			, NFunction::TCFunctionNoAllocOptions
+			<
+				false
+				, gc_FutureOnResultStorage
+				, sizeof(void *)
+				, true
+			>
+		>
+	;
+
+	template <typename t_CReturnValue>
+	using TCFutureOnResultOverSized = NFunction::TCFunctionFastCall
+		<
+			void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
+			, NFunction::CFunctionNoCopyTag
+			, NFunction::TCFunctionNoAllocOptions
+			<
+				true
+				, 0
+				, sizeof(void *)
+				, true
+			>
+		>
+	;
+
+#else
+
+	template <typename t_CReturnValue>
+	using TCFutureOnResult = NFunction::TCFunction
+		<
+			void (NFunction::CThisTag &, TCAsyncResult<t_CReturnValue> &&_AsyncResult)
+			, NFunction::CFunctionNoCopyTag
+			, NFunction::TCFunctionNoAllocOptions
+			<
+				true
+				, gc_FutureOnResultStorage
+				, sizeof(void *)
+				, false
+			>
+		>
+	;
+
+	template <typename t_CReturnValue>
+	using TCFutureOnResultOverSized = TCFutureOnResult<t_CReturnValue>;
+
+#endif
+
+	namespace NPrivate
+	{
+		template <typename t_CTypeList>
+		struct TCOneIsReference;
+
+		template <typename ...tp_CParams>
+		struct TCOneIsReference<NMeta::TCTypeList<tp_CParams...>>
+		{
+			static constexpr bool mc_Value =
+				(
+					... || NTraits::TCIsReference<tp_CParams>::mc_Value
+				)
+			;
+		};
+
+		template <typename t_CType>
+		struct TCIsFuture
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = false;
+		};
+
+		template <typename t_CType>
+		struct TCIsFuture<TCFuture<t_CType>>
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = true;
+		};
+
+		template <typename t_CType, ECoroutineFlag t_Flags>
+		struct TCIsFuture<TCFutureWithFlags<t_CType, t_Flags>>
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = true;
+		};
+
+		template <typename t_CType>
+		struct TCIsUnsafeFuture
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = false;
+		};
+
+		template <typename t_CType>
+		struct TCIsUnsafeFuture<TCUnsafeFuture<t_CType>>
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = true;
+		};
+
+		template <typename t_CType>
+		struct TCIsAsyncGenerator
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = false;
+		};
+
+		template <typename t_CType>
+		struct TCIsAsyncGenerator<TCAsyncGenerator<t_CType>>
+		{
+			using CType = t_CType;
+			static constexpr bool mc_Value = true;
+		};
+	}
+
 	/// Check if member function is callable with the specified parameters when called through the actor interface.
 	/// Implies that all arguments will be converted to rvalue references when called
 	template <typename t_CMemberFunction, typename t_CActor, typename... tp_CCallParams>
-	concept cActorCallableWith = NTraits::cIsCallableWith
+	concept cActorCallableWith =
+		(
+			NTraits::cIsCallableWith
+			<
+				typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CFunctionType>::CType
+				, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tp_CCallParams>...)
+			>
+			&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CClass>
+		)
+		|| NTraits::cIsCallableWith
 		<
-			typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CFunctionType>::CType
-			, void (typename NTraits::TCAddRValueReference<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CCallParams>::CType>::CType...)
+			t_CMemberFunction
+			, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tp_CCallParams>...)
 		>
-		&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CClass>
 	;
 
 	/// Check if functor is callable with the specified parameters when called through the actor interface.
@@ -46,9 +185,6 @@ namespace NMib::NConcurrency
 	template <typename t_CActor, typename t_CFunctor>
 	struct TCActorResultCall;
 
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
-	struct TCActorCall;
-
 	template <typename t_CActor = CActor>
 	class TCActor;
 
@@ -58,24 +194,20 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue>
 	struct TCPromise;
 
-	template <typename t_CReturn, bool t_bDirectCall = false>
-	using TCDispatchedActorCall =
-		TCActorCall
-		<
-			TCActor<CActor>
-			, TCFuture<t_CReturn> (CActor::*)(NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()> &&)
-			, NStorage::TCTuple<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, NMeta::TCTypeList<NFunction::TCFunctionMovable<TCFuture<t_CReturn> ()>>
-			, t_bDirectCall
-		>
-	;
-
 	struct CInternalActorAllocator : public NMemory::CAllocator_Heap
 	{
 		enum
 		{
 			mc_bIsDefault = false
 		};
+	};
+
+	enum class EVirtualCall : uint8
+	{
+		mc_Virtual = 0
+		, mc_NotVirtual
+		, mc_Dynamic
+		, mc_CannotBeDetected
 	};
 
 	namespace NPrivate
@@ -93,6 +225,71 @@ namespace NMib::NConcurrency
 			static constexpr bool mc_Value = t_CActor::mc_bIsAlwaysAlive;
 			static constexpr bool mc_bImpl = t_CActor::mc_bIsAlwaysAliveImpl;
 		};
+
+		template <typename t_CType>
+		struct TCRemoveFuture
+		{
+			using CType = t_CType;
+		};
+
+		template <typename t_CType>
+		struct TCRemoveFuture<TCFuture<t_CType>>
+		{
+			using CType = t_CType;
+		};
+
+		template <typename t_CType, ECoroutineFlag t_Flags>
+		struct TCRemoveFuture<TCFutureWithFlags<t_CType, t_Flags>>
+		{
+			using CType = t_CType;
+		};
+
+		template <typename t_CFunction, bool t_bIsMemberFunctionPointer = NTraits::cIsMemberFunctionPointer<t_CFunction>>
+		struct TCGetMemberOrNonMemberFunctionPointerTraits;
+
+		template <typename t_CMemberFunction>
+		using TCFutureReturn = TCFuture
+			<
+				typename NPrivate::TCRemoveFuture<typename TCGetMemberOrNonMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CType::CReturn>::CType
+			>
+		;
+
+#ifdef DMibCanDetectVirtualMemberFunctions_Constexpr
+		template <EVirtualCall t_Detected, EVirtualCall t_Specified>
+		consteval EVirtualCall fg_CheckVirtualCallDetection()
+		{
+			static_assert(t_Specified == EVirtualCall::mc_Dynamic || t_Detected == t_Specified);
+
+			return t_Detected;
+		}
+#endif
+
+		template <auto t_pMemberFunctionPointer, EVirtualCall t_ForceDetection>
+		constexpr static EVirtualCall gc_VirtualCallDetection =
+#ifdef DMibCanDetectVirtualMemberFunctions_Constexpr
+			fg_CheckVirtualCallDetection
+				<
+					NTraits::cIsVirtualMemberFunction<t_pMemberFunctionPointer> ? EVirtualCall::mc_Virtual : EVirtualCall::mc_NotVirtual
+					, t_ForceDetection
+				>
+			(
+			)
+#else
+	#ifdef DMibCanDetectVirtualMemberFunctions_Dynamic
+			t_ForceDetection == EVirtualCall::mc_Dynamic ? EVirtualCall::mc_Dynamic : t_ForceDetection
+	#else
+			t_ForceDetection == EVirtualCall::mc_Dynamic ? EVirtualCall::mc_CannotBeDetected : t_ForceDetection
+	#endif
+#endif
+		;
+
+		constexpr static EVirtualCall gc_VirtualCallDetectionDynamic =
+#ifdef DMibCanDetectVirtualMemberFunctions_Dynamic
+			EVirtualCall::mc_Dynamic
+#else
+			EVirtualCall::mc_CannotBeDetected
+#endif
+		;
 	}
 
 	template <typename t_CActor>
@@ -129,11 +326,84 @@ namespace NMib::NConcurrency
 
 	struct CActorCommon
 	{
-		TCFuture<void> f_Destroy() &;
 		TCFuture<void> f_Destroy() &&;
 	};
 
 	struct CDispatchHelperWithActor;
+
+	enum class EActorCallType : uint8
+	{
+		mc_Normal
+		, mc_Direct
+	};
+
+	struct CDiscardResult
+	{
+	};
+
+	extern CDiscardResult g_DiscardResult;
+
+	template <typename t_FOnResult>
+	struct TCDirectResultFunctor
+	{
+		t_FOnResult &&m_fOnResult;
+	};
+
+	struct CDirectResult
+	{
+		template <typename tf_FOnResult>
+		TCDirectResultFunctor<tf_FOnResult> operator / (tf_FOnResult &&_fOnResult)
+		{
+			return {.m_fOnResult = fg_Move(_fOnResult)};
+		}
+	};
+
+	extern CDirectResult g_DirectResult;
+
+	struct CBindActorOptions
+	{
+		constexpr CBindActorOptions() = default;
+
+		constexpr CBindActorOptions(EVirtualCall _VirtualCall)
+			: m_VirtualCall(_VirtualCall)
+		{
+		}
+
+		constexpr CBindActorOptions(EActorCallType _CallType)
+			: m_CallType(_CallType)
+		{
+		}
+
+		constexpr CBindActorOptions(EVirtualCall _VirtualCall, EActorCallType _CallType)
+			: m_VirtualCall (_VirtualCall)
+			, m_CallType(_CallType)
+		{
+		}
+
+		constexpr CBindActorOptions(EActorCallType _CallType, EVirtualCall _VirtualCall)
+			: m_VirtualCall (_VirtualCall)
+			, m_CallType(_CallType)
+		{
+		}
+
+
+		constexpr static CBindActorOptions fs_Default()
+		{
+			return {};
+		}
+
+		EVirtualCall m_VirtualCall = EVirtualCall::mc_Dynamic;
+		EActorCallType m_CallType = EActorCallType::mc_Normal;
+	};
+
+	template <typename t_CType>
+	struct TCFutureVector;
+
+	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCBoundActorCall;
+
+	template <typename t_CReturn, typename t_CBoundFunctor, bool t_bUnwrap, typename t_FExceptionTransform = CVoidTag>
+	struct TCBoundActorCallAwaiter;
 
 	template <typename t_CActor>
 	class TCActor /// \brief Contain an instance of a CActor
@@ -217,6 +487,8 @@ namespace NMib::NConcurrency
 
 		CDispatchHelperWithActor f_Dispatch() const;
 
+		TCActorHolderSharedPointer<CActorInternal> &f_Unsafe_AccessInternal();
+
 		template <typename ...tfp_CObject>
 		TCFuture<void> f_DestroyObjectsOn(tfp_CObject && ...p_Objects);
 
@@ -234,11 +506,29 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<tf_CMemberFunction>
+				, TCActor<t_CActor> const &
+				, tf_CMemberFunction
+				, CBindActorOptions::fs_Default()
+				, false
+				, tfp_CCallParams...
+			>
 			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<tf_CMemberFunction>
+				, TCActor<t_CActor> &&
+				, tf_CMemberFunction
+				, CBindActorOptions::fs_Default()
+				, false
+				, tfp_CCallParams...
+			>
 			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
@@ -246,9 +536,11 @@ namespace NMib::NConcurrency
 		<
 			auto tf_pMemberFunction
 			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+			, EVirtualCall tf_VirtualCall = EVirtualCall::mc_Dynamic
 			, typename... tfp_CCallParams
 		>
 		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) const &
+			-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
@@ -256,37 +548,68 @@ namespace NMib::NConcurrency
 		<
 			auto tf_pMemberFunction
 			DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+			, EVirtualCall tf_VirtualCall = EVirtualCall::mc_Dynamic
 			, typename... tfp_CCallParams
 		>
 		auto f_InternalCallActor(tfp_CCallParams &&... p_CallParams) &&
+			-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) const &
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
-		;
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallDirect(tfp_CCallParams &&... p_CallParams) &&
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
-		;
-
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
-		;
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
+		auto f_Bind(tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCActor<t_CActor> const &
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, false
+				, tfp_CCallParams...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) const &
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
+		auto f_Bind(tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCActor<t_CActor> &&
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, false
+				, tfp_CCallParams...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValueDirect(tfp_CCallParams &&... p_CallParams) &&
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
+		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCActor<t_CActor>
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, true
+				, NTraits::TCDecayType<tfp_CCallParams>...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		;
+
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
+		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCActor<t_CActor>
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, true
+				, NTraits::TCDecayType<tfp_CCallParams>...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
 		template <typename tf_FResult>
@@ -307,17 +630,25 @@ namespace NMib::NConcurrency
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCActor<tf_CActor> &&_Actor, tfp_CParams && ...p_Params)
+		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	;
 
-#	define f_CallActor(d_PointerToMemberFunction) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
+#	define f_CallActor(d_PointerToMemberFunction, ...) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction)>
+#	define f_CallActorNotVirtual(d_PointerToMemberFunction, ...) f_InternalCallActor<DMibPointerToMemberFunctionForHash(d_PointerToMemberFunction), EVirtualCall::mc_NotVirtual>
 
 	template <typename tf_CActor>
 	TCActor<tf_CActor> fg_ThisActor(tf_CActor const *_pActor);
+
+	template <typename tf_CActor>
+	TCActor<tf_CActor> fg_ThisActor(TCActorInternal<tf_CActor> *_pActor);
+
+	inline_always TCActor<CActor> fg_ThisActor(CActorHolder *_pActor);
 
 	template <typename tf_CActor>
 	TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor);
@@ -329,7 +660,6 @@ namespace NMib::NConcurrency
 	struct CThisConcurrentActorLowPrio;
 	struct COtherConcurrentActor;
 	struct COtherConcurrentActorLowPrio;
-	struct CDirectResultActor;
 
 	template <typename t_CType, typename t_CLock>
 	struct TCLockActor;
@@ -367,7 +697,7 @@ namespace NMib::NConcurrency
 		bool f_IsValid() const;
 
 		TCActor<CBlockingActor> const &f_Actor() const;
-		inline auto f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error);
+		TCFutureOnResultOverSized<void> f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error);
 
 	private:
 		static void fsp_LogError(NStr::CStr const &_Category, NStr::CStr const &_Error, CAsyncResult const &_Result);
@@ -384,12 +714,13 @@ namespace NMib::NConcurrency
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
 	CBlockingActorCheckout fg_BlockingActor();
 	TCActor<CActor> fg_CurrentActor();
+	TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal);
 	TCWeakActor<CActor> fg_CurrentActorWeak();
+	TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal);
 
 	TCActor<CTimerActor> fg_TimerActor();
 }
 
-DMibDefineActorType(NMib::NConcurrency::CDirectResultActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
 DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActor, true);

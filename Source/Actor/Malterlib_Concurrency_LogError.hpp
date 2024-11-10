@@ -32,77 +32,48 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) const
+	template <typename tf_FResultHandler>
+	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) &&
 	{
 		return [fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this]
 			(auto &&...p_Results) mutable
 			{
 				bool bFailed = false;
-				TCInitializerList<bool> Dummy =
+				(
+					[&]
 					{
-						[
-							&
-						]
+						if (!p_Results)
 						{
-							if (!p_Results)
-							{
-								This.f_LogException(p_Results.f_GetException());
-								bFailed = true;
-							}
-							return true;
+							This.f_LogException(p_Results.f_GetException());
+							bFailed = true;
 						}
-						()...
 					}
-				;
+					()
+					, ...
+				);
+
 				if (bFailed)
 					return;
-				(void)Dummy;
-				fResultHandler();
+
+				if constexpr (NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value)
+					fResultHandler();
+				else
+					fResultHandler(fg_Move(*p_Results)...);
 			}
 		;
 	}
 
-	template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> *>
-	auto CLogErrorResultFunctor::operator / (tf_FResultHandler &&_fResultHandler) const
-	{
-		return [Promise = *this, fResultHandler = fg_Forward<tf_FResultHandler>(_fResultHandler), This = *this]
-			(auto &&...p_Results) mutable
-			{
-				bool bFailed = false;
-				TCInitializerList<bool> Dummy =
-					{
-						[&]
-						{
-							if (!p_Results)
-							{
-								This.f_LogException(p_Results.f_GetException());
-								bFailed = true;
-							}
-							return true;
-						}
-						()...
-					}
-				;
-				(void)Dummy;
-				if (bFailed)
-					return;
-				fResultHandler(fg_Move(*p_Results)...);
-			}
-		;
-	}
-
-	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+	FExceptionTransformer fg_ExceptionTransformer
 		(
-			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
-			, CLogErrorResultFunctor const &_LogError
+			FExceptionTransformer &&_fPreviousTransformer
+			, CLogErrorResultFunctor &&_LogError
 		)
 	;
 
-	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+	FExceptionTransformer fg_ExceptionTransformer
 		(
-			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
-			, CLogErrorResultFunctorWithUserError const &_LogError
+			FExceptionTransformer &&_fPreviousTransformer
+			, CLogErrorResultFunctorWithUserError &&_LogError
 		)
 	;
 }

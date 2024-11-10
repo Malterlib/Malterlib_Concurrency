@@ -49,14 +49,30 @@ namespace NMib::NConcurrency
 					, ^()
 					{
 						(void)pThisReference;
-						if (pThis->mp_bDestroyed.f_Load() >= 4)
+						if (pThis->mp_Destroyed.f_Load() >= 4)
 							return;
-						pThis->fp_RunProcess();
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
 					}
 				)
 			;
 #endif
 		}
+	}
+
+	void COSMainRunLoopActorHolder::fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+#if defined(DPlatformFamily_macOS)
+		TCActorHolderSharedPointer<COSMainRunLoopActorHolder> pThis = fg_Explicit(this);
+		dispatch_async
+			(
+				dispatch_get_main_queue()
+				, ^()
+				{
+					pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
+				}
+			)
+		;
+#endif
 	}
 
 	void COSMainRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
@@ -70,7 +86,7 @@ namespace NMib::NConcurrency
 					dispatch_get_main_queue()
 					, ^()
 					{
-						pThis->fp_RunProcess();
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
 					}
 				)
 			;
@@ -78,9 +94,30 @@ namespace NMib::NConcurrency
 		}
 	}
 
+	void COSMainRunLoopActorHolder::fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		if (fp_AddToQueue(fg_Move(_Entry), _ThreadLocal))
+		{
+#if defined(DPlatformFamily_macOS)
+			TCActorHolderSharedPointer<COSMainRunLoopActorHolder> pThis = fg_Explicit(this);
+			dispatch_async
+				(
+					dispatch_get_main_queue()
+					, ^()
+					{
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
+					}
+				)
+			;
+#endif
+		}
+	}
+
+
+
 	void COSMainRunLoopActorHolder::fp_DestroyThreaded()
 	{
-		mp_bDestroyed.f_Exchange(4);
+		mp_Destroyed.f_Exchange(4);
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 }

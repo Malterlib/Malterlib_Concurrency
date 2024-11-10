@@ -7,14 +7,45 @@
 
 namespace NMib::NConcurrency
 {
+	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
+#		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorResultWasNotSet, _Description, false)
+
+#		ifndef DMibPNoShortCuts
+#			define DErrorActorResultWasNotSet DMibErrorActorResultWasNotSet
+#		endif
+
 	/// Common functionality for TCAsyncResult
-	class CAsyncResult
+	struct CAsyncResult
 	{
+	private:
 		template <typename t_CType2>
-		friend class TCAsyncResult;
-		
-		NException::CExceptionPointer m_pException;
-		bool m_bHasBeenSet = false;
+		friend struct TCAsyncResult;
+
+		enum EDataType
+		{
+			EDataType_Exception = 0
+			, EDataType_HasBeenSet = 1
+			, EDataType_None = 2
+		};
+
+		union CDataUnion
+		{
+			CDataUnion();
+			~CDataUnion();
+
+			inline_always EDataType f_DataType() const;
+
+			CDataUnion(CDataUnion const &_Other);
+			CDataUnion(CDataUnion &&_Other);
+			CDataUnion &operator = (CDataUnion const &_Other);
+			CDataUnion &operator = (CDataUnion &&_Other);
+
+			NException::CExceptionPointer m_pException;
+			mint m_DataType;
+		};
+
+		CDataUnion mp_Data;
+
 	public:
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks m_Callstacks;
@@ -25,7 +56,12 @@ namespace NMib::NConcurrency
 		CAsyncResult(CAsyncResult &&_Other);
 		CAsyncResult &operator =(CAsyncResult const &_Other);
 		CAsyncResult &operator =(CAsyncResult &&_Other);
-		
+
+		NException::CExceptionPointer const &f_ExceptionPointer() const;
+
+		static NException::CExceptionPointer const &fs_ResultWasNotSetException();
+		static NException::CExceptionPointer const &fs_ActorCalledDeletedException();
+
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
 		NStr::CStr f_GetExceptionStr() const noexcept; ///< Returns a string for the contained exception.
 		NStr::CStr f_GetExceptionCallstackStr(mint _Indent) const; ///< Returns a string for the contained exception.
@@ -50,17 +86,19 @@ namespace NMib::NConcurrency
 
 		explicit operator bool () const; ///< Check if async result is has a valid value set: `if (_Result)`
 		bool f_IsSet() const; ///< Check if async result is has a valid value set: `if (_Result.f_IsSet())`
+	private:
+		[[noreturn]] void fp_AccessSlowPath() const;
 	};
-	
+
 	/** \brief Used to represent a result of an async operation
 
 	 Either contains an exception or the result value. If the result is an exception the exception will be thrown if you try to access the value.
 	*/
 	template <typename t_CType = void>
-	class [[nodiscard]] TCAsyncResult : public CAsyncResult
+	struct [[nodiscard]] TCAsyncResult : public CAsyncResult
 	{
 		template <typename t_CType2>
-		friend class TCAsyncResult;
+		friend struct TCAsyncResult;
 
 		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
 	public:
@@ -73,19 +111,20 @@ namespace NMib::NConcurrency
 
 		void f_Clear();
 
-		t_CType const &f_Get() const;
-		t_CType &f_Get();
-		t_CType f_Move();
-		t_CType const &operator *() const;
-		t_CType &operator *();
-		t_CType const *operator ->() const;
-		t_CType *operator ->();
+		inline_always t_CType const &f_Get() const;
+		inline_always t_CType &f_Get();
+		inline_always t_CType f_Move();
+		inline_always t_CType const &operator *() const;
+		inline_always t_CType &operator *();
+		inline_always t_CType const *operator ->() const;
+		inline_always t_CType *operator ->();
 		
 		template <typename ...tfp_CType>
 		void f_SetResult(tfp_CType && ...p_Result);
 		void f_SetResult(TCAsyncResult const &_Result);
 		void f_SetResult(TCAsyncResult &_Result);
 		void f_SetResult(TCAsyncResult &&_Result);
+		t_CType &f_PrepareResult();
 
 		template <typename tf_CStream>
 		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;
@@ -96,10 +135,10 @@ namespace NMib::NConcurrency
 	};
 
 	template <>
-	class [[nodiscard]] TCAsyncResult<void> : public CAsyncResult
+	struct [[nodiscard]] TCAsyncResult<void> : public CAsyncResult
 	{
 		template <typename t_CType2>
-		friend class TCAsyncResult;
+		friend struct TCAsyncResult;
 
 	public:
 		TCAsyncResult();
@@ -127,6 +166,15 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 	};
+#if !DMibConfig_Concurrency_DebugActorCallstacks
+
+#ifdef DPlatformFamily_Windows
+	static_assert(sizeof(TCAsyncResult<void>) == sizeof(void *) * 2);
+#else
+	static_assert(sizeof(TCAsyncResult<void>) == sizeof(void *));
+#endif
+	
+#endif
 
 }
 

@@ -41,6 +41,8 @@ namespace NMib::NConcurrency
 		;
 #endif
 
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
 		bool bDoneSomething = true;
 		while (bDoneSomething)
 		{
@@ -49,10 +51,10 @@ namespace NMib::NConcurrency
 			if (mp_RunQueue.f_TransferThreadSafeQueue(mp_RunQueueLocal))
 				bDoneSomething = true;
 
-			while (auto pEntry = mp_RunQueue.f_FirstQueueEntry(mp_RunQueueLocal))
+			while (auto pEntry = mp_RunQueueLocal.m_LocalQueue.f_GetFirst())
 			{
-				(*pEntry)();
-				mp_RunQueue.f_PopQueueEntry(pEntry);
+				pEntry->m_Link.f_UnsafeUnlink();
+				pEntry->f_Call(ThreadLocal);
 				bDoneSomething = true;
 			}
 		}
@@ -110,9 +112,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> COSMainRunLoop::f_Dispatcher()
+	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> COSMainRunLoop::f_Dispatcher()
 	{
-		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatch &&_Dispatch)
+		return [pThis = NStorage::TCSharedPointer<COSMainRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_Dispatch)
 			{
 				pThis->mp_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
 #if defined(DPlatformFamily_macOS)

@@ -12,7 +12,6 @@ namespace NMib::NFunction
 
 namespace NMib::NConcurrency
 {
-	constinit CFutureMakeHelper g_Future;
 	constinit CCoroutineOnSuspendHelper g_OnSuspend;
 	constinit CCaptureExceptionsHelper g_CaptureExceptions;
 
@@ -86,7 +85,7 @@ namespace NMib::NConcurrency
 	CFutureCoroutineContext::CCaptureExceptionScope::~CCaptureExceptionScope()
 	{
 		if (mp_pThis && NException::fg_UncaughtExceptions() != mp_OriginalExceptions)
- 			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert();
+			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert();
 	}
 
 	void CFutureCoroutineContext::CCaptureExceptionScope::f_Suspend() noexcept
@@ -110,7 +109,7 @@ namespace NMib::NConcurrency
 	CFutureCoroutineContext::CCaptureExceptionWithTransformerScope::CCaptureExceptionWithTransformerScope
 		(
 			CFutureCoroutineContext *_pThis
-			, NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer
+			, FExceptionTransformer &&_fTransformer
 		)
 		: mp_pThis(_pThis)
 		, mp_fTransformer(fg_Move(_fTransformer))
@@ -156,21 +155,6 @@ namespace NMib::NConcurrency
 	CCoroutineOnResumeScope CFutureCoroutineContext::COnResumeScopeAwaiter::await_resume() noexcept
 	{
 		return CCoroutineOnResumeScope(fg_Move(mp_fOnResume));
-	}
-
-	bool CFutureCoroutineContext::COnResumeScopeAwaiter::await_suspend(TCCoroutineHandle<> &&_Handle)
-	{
-		DMibFastCheck(fg_CurrentActor());
-		DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
-
-		auto pException = mp_fOnResume();
-		if (pException)
-		{
-			mp_pThis->f_HandleAwaitedException(fg_Move(pException));
-			return true;
-		}
-
-		return false;
 	}
 
 	CFutureCoroutineContext::COnResumeScopeAwaiter &&CFutureCoroutineContext::await_transform(COnResumeScopeAwaiter &&_Awaiter)
@@ -251,7 +235,7 @@ namespace NMib::NConcurrency
 		}
 		else if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 			return f_SetExceptionResult(fg_Move(pException));
-		
+
 #ifdef DMibNeedDebugException
 		if (fg_IsDebugException(pException))
 			return f_SetExceptionResult(fg_Move(pException));
@@ -268,7 +252,7 @@ namespace NMib::NConcurrency
 
 		if (ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty())
 			return;
-		
+
 		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
 
 		if (ms_bDebugCoroutineSafeCheck)
@@ -278,7 +262,7 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-	void CFutureCoroutineContext::f_HandleAwaitedException(NException::CExceptionPointer &&_pException)
+	void CFutureCoroutineContext::f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException)
 	{
 #if DMibEnableSafeCheck > 0
 		try
@@ -290,54 +274,114 @@ namespace NMib::NConcurrency
 			_pException = _Exception.f_ExceptionPointer();
 		}
 #endif
-		auto fDeliverExceptionResult = f_PrepareExceptionResult(fg_CurrentActor());
-		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+		auto fDeliverExceptionResult = f_PrepareExceptionResult(_fSetException, fg_CurrentActor(_ThreadLocal));
 
-		DMibFastCheck(ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty());
-		DMibFastCheck(!ConcurrencyThreadLocal.m_bCaptureAsyncDestructors);
-		ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
-		{ 
-			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(ConcurrencyThreadLocal.m_bCaptureAsyncDestructors, true)]
+		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
+		DMibFastCheck(!_ThreadLocal.m_bCaptureAsyncDestructors);
+		_ThreadLocal.m_AsyncDestructors.f_Clear();
+		{
+			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
 				{
-					ConcurrencyThreadLocal.m_bCaptureAsyncDestructors = bOld;
+					_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
 				}
 			;
 
 			f_Abort();
 		}
 
-		if (!ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		if (!_ThreadLocal.m_AsyncDestructors.f_IsEmpty())
 		{
-			TCActorResultVector<void> DestroyResults;
+			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+			for (auto &fAsyncDestroy : _ThreadLocal.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults;
 
-			ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
+			_ThreadLocal.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				TCPromise<void> Promise;
-				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-				Promise.f_MoveFuture() > NConcurrency::fg_DirectResultActor()
-					/ [fDeliverExceptionResult = fg_Move(fDeliverExceptionResult), pException = fg_Move(_pException)](TCAsyncResult<void> &&_DestroyResults) mutable
-					{
-						if (!_DestroyResults)
+				TCPromise<void> Promise
+					(
+						[fDeliverExceptionResult = fg_Move(fDeliverExceptionResult), pException = fg_Move(_pException)](TCAsyncResult<void> &&_DestroyResults) mutable
 						{
-							NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
-							ErrorCollector.f_AddError(fg_Move(pException));
-							ErrorCollector.f_AddError(fg_Move(_DestroyResults).f_GetException());
-							pException = fg_Move(ErrorCollector).f_GetException();
-						}
+							if (!_DestroyResults)
+							{
+								NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+								ErrorCollector.f_AddError(fg_Move(pException));
+								ErrorCollector.f_AddError(fg_Move(_DestroyResults).f_GetException());
+								pException = fg_Move(ErrorCollector).f_GetException();
+							}
 
-						fDeliverExceptionResult(fg_Move(pException));
-					}
+							fDeliverExceptionResult(fg_Move(pException));
+						}
+					)
 				;
+
+				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+
 				return;
 			}
 		}
 
 		fDeliverExceptionResult(fg_Move(_pException));
+	}
+
+	void *CFutureCoroutineContext::fs_New(mint _Size, mint _Alignment, mint _PromiseDataSize, mint _PromiseDataAlignment)
+	{
+		auto &ThreadLocal = fg_SystemThreadLocal();
+		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+
+		if (!PromiseThreadLocal.m_pUsePromise)
+		{
+			mint Alignment = fg_Max(_PromiseDataAlignment, mint(_Alignment));
+			mint PromiseSize = fg_AlignUp(_PromiseDataSize, mint(_Alignment));
+			mint Size = PromiseSize + fg_AlignUp(_Size, mint(_Alignment));
+
+			uint8 *pMemory = (uint8 *)NMib::NMemory::fg_AllocAligned(Size, Alignment);
+			uint8 *pReturn = pMemory + PromiseSize;
+
+			PromiseThreadLocal.f_PushAllocation(pMemory);
+
+			return pReturn;
+		}
+
+		return NMib::NMemory::fg_AllocAligned(_Size, (mint)_Alignment);
+	}
+
+	void CFutureCoroutineContext::fs_Delete(void *_pMemory, mint _Size, mint _Alignment)
+	{
+		auto &ThreadLocal = fg_SystemThreadLocal();
+		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+
+		if (auto *pAllocation = PromiseThreadLocal.f_PopAllocation())
+		{
+			auto *pPromiseData = static_cast<NPrivate::CPromiseDataBase *>(pAllocation);
+			DMibFastCheck(pPromiseData->m_BeforeSuspend.m_bAllocatedInCoroutineContext);
+			if (pPromiseData->m_BeforeSuspend.m_bAllocatedInCoroutineContext)
+			{
+				// Store end in coroutine pointer
+				pPromiseData->m_Coroutine = std::coroutine_handle<CFutureCoroutineContext>::from_address
+					(
+						(uint8 *)_pMemory
+						+ fg_AlignUp(_Size, mint(_Alignment))
+					)
+				;
+
+				return; // Will be deallocated when the promise is deleted
+			}
+		}
+
+		return NMib::NMemory::fg_Free(_pMemory, _Size);
+	}
+
+	TCFutureOnResultOverSized<void> CBlockingActorCheckout::f_MoveResultHandler(NStr::CStr const &_Category, NStr::CStr const &_Error)
+	{
+		return [ThisReference = fg_Move(*this), _Category, _Error](auto &&_Result)
+			{
+				if (!_Result)
+					CBlockingActorCheckout::fsp_LogError(_Category, _Error, _Result);
+			}
+		;
 	}
 }
 
@@ -349,15 +393,36 @@ namespace NMib::NConcurrency::NPrivate
 		DMibLog(Error, "Unobserved exception in future: {}{}", NException::fg_ExceptionString(_Exception), _CallStack);
 	}
 
+	CPromiseDataBase::CPromiseDataBase
+		(
+			int32 _RefCount
+			, uint8 _OnResultSet
+			, bool _bOnResultSetAtInit
+			, uint8 _OverAlignment
 #if DMibConfig_Concurrency_DebugFutures
-	CPromiseDataBase::CPromiseDataBase(NStr::CStr const &_Name)
-		: m_FutureTypeName(_Name)
+			, NStr::CStr const &_Name
+#endif
+		)
+		: m_OnResultSet(_OnResultSet)
+		, m_RefCount(_RefCount)
+		, m_BeforeSuspend{.m_bOnResultSetAtInit = _bOnResultSetAtInit, .m_OverAlignment = _OverAlignment}
+#if DMibConfig_Concurrency_DebugFutures
+		, m_FutureTypeName(_Name)
+#endif
 	{
+		DMibFastCheck(_OverAlignment <= 7);
+#if DMibConfig_Concurrency_DebugFutures
 		auto &ConcurrencyManager = fg_ConcurrencyManager();
 		DMibLock(ConcurrencyManager.m_FutureListLock);
 		ConcurrencyManager.m_Futures.f_Insert(this);
+#endif
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		if (_OnResultSet & EFutureResultFlag_DataSet)
+			m_ResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_ResultSetCallstack.m_Callstack, 128);
+#endif
 	}
 
+#if DMibConfig_Concurrency_DebugFutures
 	CPromiseDataBase::~CPromiseDataBase()
 	{
 		auto &ConcurrencyManager = fg_ConcurrencyManager();
@@ -366,4 +431,38 @@ namespace NMib::NConcurrency::NPrivate
 		m_LinkCoro.f_Unlink();
 	}
 #endif
+
+	inline_always_lto CAsyncResult &CPromiseDataBase::f_GetAsyncResult()
+	{
+		constexpr static mint gc_DefaultAlignment = fg_GetHighestBitSet(sizeof(void *));
+		uint8 *pNextClass = (uint8 *)(void *)(this + 1) + sizeof(TCFutureOnResult<void>);
+		uint8 *pAlignedStart = fg_AlignUp(pNextClass, mint(1) << (m_BeforeSuspend.m_OverAlignment + gc_DefaultAlignment));
+
+		return *((CAsyncResult *)pAlignedStart);
+	}
+
+	inline_always_lto void CPromiseDataBase::CCanOnlyBeSetBeforeSuspend::f_NeedAtomicRead()
+	{
+		if (!m_bNeedAtomicRead)
+			m_bNeedAtomicRead = true;
+	}
+
+	inline_always_lto void CPromiseDataBase::f_OnResultPending()
+	{
+		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
+		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
+		m_AfterSuspend.m_bPendingResult = true;
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		m_PendingResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_PendingResultSetCallstack.m_Callstack, 128);
+#endif
+	}
+
+	inline_always_lto void CPromiseDataBase::f_OnResultPendingAppendable()
+	{
+		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
+		m_AfterSuspend.m_bPendingResult = true;
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		m_PendingResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_PendingResultSetCallstack.m_Callstack, 128);
+#endif
+	}
 }

@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCActorInternal<t_CActor>::~TCActorInternal()
 	{
-		this->mp_bDestroyed.f_Exchange(3);
+		this->mp_Destroyed.f_Exchange(3);
 		this->fp_DestroyThreaded();
 	}
 
@@ -113,15 +113,15 @@ namespace NMib::NConcurrency
 		else
 		{
 #if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
-			_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00010000000);
+			_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b000'1000'0000);
 #endif
 			_pObject->f_ConcurrencyManager().f_DispatchOnCurrentThreadOrConcurrentFirst
 				(
 					_pObject->f_GetPriority()
-					, g_OnScopeExit / [_pObject]
+					, g_OnScopeExit / [_pObject](auto && ...pParams)
 					{
 #if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
-						_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00100000000);
+						_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b001'0000'0000);
 #endif
 						NMemory::CCapturedDelete CapturedDelete = NStorage::fg_DeleteWeakObjectGetCapturedDelete(_pObject);
 						_pObject->m_RefCount.f_WeakSetCapturedDelete(CapturedDelete);
@@ -139,49 +139,5 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-	}
-
-	template
-		<
-			typename tf_CActor
-			, typename tf_CFunction
-			, typename tf_CFunctor
-			, typename tf_CResultActor
-			, typename tf_CResultFunctor
-		>
-	bool CActorHolder::f_Call
-		(
-			tf_CFunctor &&_fToCall
-			, TCActor<tf_CResultActor> &&_ResultActor
-			, tf_CResultFunctor &&_fResultFunctor
-		)
-	{
-		static_assert(!NTraits::TCIsSame<tf_CActor, CDirectResultActor>::mc_Value, "Cannot be called");
-		typedef TCReportLocal
-			<
-				tf_CActor
-				, typename NTraits::TCMemberFunctionPointerTraits<tf_CFunction>::CReturn
-				, typename NTraits::TCRemoveReference<tf_CFunctor>::CType
-				, tf_CResultActor
-				, tf_CResultFunctor
-			>
-			CReportLocal
-		;
-#if 0
-		static NThread::CMutual s_Lock;
-		static NContainer::TCSet<NStr::CStr> s_Logged;
-		{
-			DMibLock(s_Lock);
-			NStr::CStr ToLog = NStr::fg_Format("ReportLocal: {}  {}", sizeof(CReportLocal), alignof(CReportLocal));
-			if (s_Logged(ToLog).f_WasCreated())
-				DMibTraceSafe("{}\n", ToLog);
-		}
-#endif
-		if constexpr (NTraits::TCRemoveReference<tf_CFunctor>::CType::mc_bDirectCall)
-			CReportLocal{fg_Move(_fToCall), fg_Move(_fResultFunctor), fg_Move(_ResultActor), (TCActorInternal<tf_CActor> *)this, false}();
-		else
-			this->fp_QueueProcess(CReportLocal{fg_Move(_fToCall), fg_Move(_fResultFunctor), fg_Move(_ResultActor), (TCActorInternal<tf_CActor> *)this, true}, fg_ConcurrencyThreadLocal());
-
-		return true; // Dummy return to allow for fg_Swallow on arguments
 	}
 }

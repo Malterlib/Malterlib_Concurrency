@@ -37,10 +37,12 @@ namespace NMib::NConcurrency
 		if (!pCoroContext)
 			return;
 
+		DMibFastCheck(pCoroContext->m_bRuntimeStateConstructed);
+
 		if constexpr (NTraits::TCIsReference<t_FDestroy>::mc_Value)
-			pCoroContext->m_AsyncDestructors.f_Insert(fg_Move(mp_fDestroy).f_Destroy());
+			pCoroContext->m_State.m_AsyncDestructors.f_Insert(fg_Move(mp_fDestroy).f_Destroy());
 		else
-			pCoroContext->m_AsyncDestructors.f_Insert(fg_CallSafe(fg_Move(mp_fDestroy)));
+			pCoroContext->m_State.m_AsyncDestructors.f_Insert(fg_CallSafe(fg_Move(mp_fDestroy)));
 	}
 
 	template <typename t_FDestroy>

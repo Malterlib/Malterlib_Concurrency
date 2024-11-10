@@ -4,10 +4,19 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/Coroutine>
 #include <Mib/Test/Performance>
+#include <Mib/Test/Memory>
+
+#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+	#include <cppcoro/task.hpp>
+	#include <cppcoro/sync_wait.hpp>
+#endif
 
 #ifdef DCompiler_clang
 #pragma clang diagnostic ignored "-Walways-inline-coroutine"
 #endif
+
+//#define DDoSleep NSys::fg_Thread_Sleep(0.1f)
+#define DDoSleep
 
 namespace NMib::NConcurrency::NTest
 {
@@ -20,10 +29,13 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
 
-
 	class CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
-		constexpr static mint mc_nLoops = 16384 * 128;
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+		constexpr static mint mc_nLoops = 16384;
+#else
+		constexpr static mint mc_nLoops = 16384 * 128 * 10;
+#endif
 
 		static inline_never uint32 fs_TestRecursive(uint32 _Value)
 		{
@@ -52,16 +64,145 @@ namespace NMib::NConcurrency::NTest
 			co_return Return;
 		}
 
+#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+		static inline_always cppcoro::task<uint32> fs_TestRecursiveCppCoro(uint32 _Value)
+		{
+			co_return _Value * 2;
+		}
+		
+		static inline_never cppcoro::task<uint32> fs_TestFunctionCppCoro(uint32 _Value)
+		{
+			uint32 Return = 0;
+			for (mint i = 0; i < mc_nLoops; ++i)
+				Return += co_await fs_TestRecursiveCppCoro(_Value);
+			co_return Return;
+		}
+#endif
+
 		void f_DoTests()
 		{
+			DMibTestSuite(CTestCategory("ThreadSelf") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal]() inline_never
+							{
+								for (mint i = 0; i < mc_nLoops; ++i)
+									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID();;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGet") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal]() inline_never
+							{
+								for (mint i = 0; i < mc_nLoops; ++i)
+									ReturnNormal += (mint)NMib::NSys::fg_Thread_GetLocal(89);
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadBoth") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal]() inline_never
+							{
+								for (mint i = 0; i < mc_nLoops; ++i)
+									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID() + (mint)NMib::NSys::fg_Thread_GetLocal(89);
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadTriple") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal]() inline_never
+							{
+								for (mint i = 0; i < mc_nLoops; ++i)
+									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID() + (mint)NMib::NSys::fg_Thread_GetLocal(89) + (mint)NMib::NSys::fg_Thread_GetLocal(90);
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
 			DMibTestSuite(CTestCategory("Synchronous") << CTestGroup("Performance")) -> TCFuture<void>
 			{
 				mint nTests = 9;
 
+				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				CTestPerformanceMeasure CoroutineTime("Coroutine");
+				CTestPerformanceMeasure CppCoroTime("CppCoro");
 				uint32 ReturnNormal;
-				uint32 ReturnCoro;
+				DDoSleep;
 				{
 					for(mint j = 0; j < nTests; ++j)
 					{
@@ -75,7 +216,11 @@ namespace NMib::NConcurrency::NTest
 						;
 						NormalTime.f_Stop(mc_nLoops);
 					}
+					PerfTest.f_AddBaseline(NormalTime);
 				}
+
+				DDoSleep;
+				uint32 ReturnCoro;
 				{
 					for(mint j = 0; j < nTests; ++j)
 					{
@@ -89,13 +234,31 @@ namespace NMib::NConcurrency::NTest
 						;
 						CoroutineTime.f_Stop(mc_nLoops);
 					}
+					PerfTest.f_Add(CoroutineTime);
+					DMibExpect(ReturnCoro, ==, ReturnNormal);
 				}
 
-				DMibExpect(ReturnNormal, ==, ReturnCoro);
-
-				CTestPerformance PerfTest(0.015);
-				PerfTest.f_AddReference(NormalTime);
-				PerfTest.f_Add(CoroutineTime);
+				DDoSleep;
+#if defined(DMalterlibEnableThirdPartyComparisonTests) && !defined(DPlatformFamily_Windows)
+				uint32 ReturnCppCoro;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						CppCoroTime.f_Start();
+						uint32 Multiplier = 2;
+						[&Multiplier, &ReturnCppCoro]() inline_never
+							{
+								ReturnCppCoro = cppcoro::sync_wait(fs_TestFunctionCppCoro(Multiplier));
+							}
+							()
+						;
+						CppCoroTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_AddReference(CppCoroTime);
+					DMibExpect(ReturnCppCoro, ==, ReturnNormal);
+				}
+#endif
+				DDoSleep;
 				DMibExpectTrue(PerfTest);
 
 				co_return {};
@@ -104,9 +267,14 @@ namespace NMib::NConcurrency::NTest
 			{
 				mint nTests = 10;
 
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+				constexpr mint c_nTasks = 1'000;
+#else
 				constexpr mint c_nTasks = 1'000'000;
+#endif
 
 				CTestPerformanceMeasure MalterlibTime("Malterlib5");
+				TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 				{
 					for(mint j = 0; j < nTests; ++j)
 					{
@@ -114,14 +282,14 @@ namespace NMib::NConcurrency::NTest
 						TCVector<TCPromise<void>> Promises;
 						Promises.f_SetLen(c_nTasks);
 
-						TCActorResultVector<void> Results;
+						TCFutureVector<void> Results;
 						Results.f_SetLen(c_nTasks);
 
 						NAtomic::TCAtomic<bool> bAllScheduled{false};
 						NThread::CEvent Event;
 						for (auto &Promise : Promises)
 						{
-							g_ConcurrentDispatch / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
+							g_Dispatch(LaunchActor) / [&, Future = Promise.f_Future()]() mutable -> TCFuture<void>
 								{
 									if (!bAllScheduled.f_Load())
 										Event.f_Wait();
@@ -129,7 +297,7 @@ namespace NMib::NConcurrency::NTest
 									co_await fg_Move(Future);
 									co_return {};
 								}
-								> Results.f_AddResult()
+								> Results
 							;
 						}
 
@@ -138,7 +306,7 @@ namespace NMib::NConcurrency::NTest
 						for (auto &Promise : Promises)
 							Promise.f_SetResult();
 
-						co_await Results.f_GetResults();
+						co_await fg_AllDoneWrapped(Results);
 						MalterlibTime.f_Stop(c_nTasks);
 					}
 				}

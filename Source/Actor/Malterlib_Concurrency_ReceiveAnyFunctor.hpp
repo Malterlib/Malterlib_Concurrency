@@ -39,7 +39,7 @@ namespace NMib::NConcurrency::NPrivate
 		template <typename ...tfp_CResult>
 		void operator () (tfp_CResult && ...p_Result);
 
-		TCPromise<void> m_Promise;
+		TCPromise<void> m_Promise{CPromiseConstructNoConsume()};
 	};
 
 	template <typename t_CPromise>

@@ -984,7 +984,7 @@ namespace NMib::NConcurrency
 				fg_Move(Actor).f_Destroy() > Results;
 		}
 
-		fg_AllDoneWrapped(Results) > Promise.f_ReceiveAny();
+		fg_AllDoneWrapped(Results).f_OnResultSet(Promise.f_ReceiveAny());
 		return Promise.f_MoveFuture();
 	}
 

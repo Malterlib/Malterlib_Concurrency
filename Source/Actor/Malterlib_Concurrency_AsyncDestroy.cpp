@@ -26,7 +26,7 @@ namespace NMib::NConcurrency
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				fg_AllDoneWrapped(DestroyResults).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 				return {fg_Move(Promise.f_MoveFuture()), {}};
 			}
 		}
@@ -53,7 +53,7 @@ namespace NMib::NConcurrency
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				fg_AllDoneWrapped(DestroyResults).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 				return {fg_Move(Promise.f_MoveFuture()), {}};
 			}
 		}

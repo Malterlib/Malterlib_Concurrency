@@ -25,28 +25,23 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		TCPromise<CActorSubscription> Promise;
-
 		if (f_IsDestroyed())
-		{
-			Promise.f_SetException(DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name));
-			return Promise.f_MoveFuture();
-		}
+			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name);
+
+		TCPromise<CActorSubscription> Promise{CPromiseConstructNoConsume()};
 
 		auto &ToSequence = m_ToSequence.f_Insert(CToSequenceEntry{});
-		ToSequence.m_fToSequence = [Promise](CActorSubscription &&_DoneSubscription) -> TCFuture<t_CReturnType>
+		ToSequence.m_fToSequence = [Promise](CActorSubscription _DoneSubscription) -> TCFuture<t_CReturnType>
 			{
-				TCPromise<t_CReturnType> NewPromise;
-
 				if (!Promise.f_IsSet())
 					Promise.f_SetResult(fg_Move(_DoneSubscription));
 
 				if constexpr (NTraits::TCIsSame<t_CReturnType, void>::mc_Value)
-					return NewPromise <<= g_Void;
+					co_return {};
 				else if constexpr (NTraits::TCHasTrivialDefaultConstructor<t_CReturnType>::mc_Value)
-					return NewPromise <<= t_CReturnType{};
+					co_return t_CReturnType{};
 				else
-					return NewPromise <<= DMibErrorInstance("Value");
+					co_return DMibErrorInstance("Value");
 			}
 		;
 
@@ -59,32 +54,32 @@ namespace NMib::NConcurrency
 
 		fp_ProcessSequence();
 
-		return Promise.f_MoveFuture();
+		co_return co_await Promise.f_MoveFuture();
 	}
 
 	template <typename t_CReturnType>
 	TCFuture<CActorSubscription> TCActorSequencerActor<t_CReturnType>::f_TrySequence(bool _bCanSkip)
 	{
 		if (_bCanSkip && m_nRunning >= m_MaxConcurrency)
-			return {};
+			co_return {};
 
-		return f_Sequence();
+		co_return co_await f_Sequence();
 	}
 
 	template <typename t_CReturnType>
-	TCFuture<t_CReturnType> TCActorSequencerActor<t_CReturnType>::f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence)
+	TCFuture<t_CReturnType> TCActorSequencerActor<t_CReturnType>::f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription _DoneSubscription)> _fToSequence)
 	{
 		using namespace NStr;
 
-		TCPromise<t_CReturnType> Promise;
+		TCPromise<t_CReturnType> Promise{CPromiseConstructNoConsume()};
 
 		if (f_IsDestroyed())
-			return Promise <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name);
+			co_return DMibErrorInstance("Sequencer '{}' has been aborted"_f << m_Name);
 
 		auto &ToSequence = m_ToSequence.f_Insert(CToSequenceEntry{fg_Move(Promise)});
 		ToSequence.m_fToSequence = [fToSequence = fg_Move(_fToSequence)](CActorSubscription &&_DoneSubscription) mutable -> TCFuture<t_CReturnType>
 			{
-				return fg_Move(fToSequence)(fg_Move(_DoneSubscription)).f_Future();
+				return fg_Move(fToSequence)(fg_Move(_DoneSubscription));
 			}
 		;
 
@@ -92,7 +87,7 @@ namespace NMib::NConcurrency
 
 		fp_ProcessSequence();
 
-		return fg_Move(Future);
+		co_return co_await fg_Move(Future);
 	}
 	
 	template <typename t_CReturnType>
@@ -110,7 +105,7 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		TCPromise<void> AbortPromise;
+		TCPromise<void> AbortPromise{CPromiseConstructNoConsume()};
 
 		for (auto &ToSequence : m_ToSequence)
 			ToSequence.m_Promise.f_SetException(DMibErrorInstance("Actor sequencer '{}' aborted"_f << m_Name));
@@ -132,31 +127,27 @@ namespace NMib::NConcurrency
 		++m_nRunning;
 		
 		auto ToSequence = m_ToSequence.f_Pop();
-		g_Dispatch / [this, fToSequence = fg_Move(ToSequence.m_fToSequence)]() mutable -> TCFuture<t_CReturnType>
-			{
-				return fg_CallSafe
-					(
-						fg_Move(fToSequence)
-						, g_ActorSubscription / [this]
+		auto Promise = ToSequence.m_Promise;
+		ToSequence.m_fToSequence
+			(
+				g_ActorSubscription / [this]
+				{
+					--m_nRunning;
+
+					if (f_IsDestroyed())
+					{
+						if (m_nRunning == 0)
 						{
-							--m_nRunning;
-
-							if (f_IsDestroyed())
-							{
-								if (m_nRunning == 0)
-								{
-									if (m_AbortPromise && !(*m_AbortPromise).f_IsSet())
-										(*m_AbortPromise).f_SetResult();
-								}
-								return;
-							}
-
-							fp_ProcessSequence();
+							if (m_AbortPromise && !(*m_AbortPromise).f_IsSet())
+								(*m_AbortPromise).f_SetResult();
 						}
-					)
-				;
-			}
-			> [Promise = ToSequence.m_Promise](TCAsyncResult<t_CReturnType> &&_Result)
+						return;
+					}
+
+					fp_ProcessSequence();
+				}
+			)
+			> [Promise = fg_Move(Promise)](TCAsyncResult<t_CReturnType> &&_Result)
 			{
 				Promise.f_SetResult(fg_Move(_Result));
 			}
@@ -178,18 +169,18 @@ namespace NMib::NConcurrency
 		if (mp_Actor)
 			return fg_Move(mp_Actor).f_Destroy();
 
-		return TCPromise<void>() <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
+		return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 	}
 
 	template <typename t_CReturnType>
-	TCFuture<t_CReturnType> TCSequencer<t_CReturnType>::f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence)
+	TCFuture<t_CReturnType> TCSequencer<t_CReturnType>::f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription _DoneSubscription)> _fToSequence)
 	{
 		using namespace NStr;
 
 		if (mp_Actor)
-			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_RunSequenced, fg_Move(_fToSequence)).f_Future();
+			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_RunSequenced, fg_Move(_fToSequence));
 
-		return TCPromise<t_CReturnType>() <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
+		return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 	}
 
 	template <typename t_CReturnType>
@@ -198,9 +189,9 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		if (mp_Actor)
-			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_Sequence).f_Future();
+			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_Sequence);
 
-		return TCPromise<CActorSubscription>() <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
+		return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 	}
 
 	template <typename t_CReturnType>
@@ -209,9 +200,9 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		if (mp_Actor)
-			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_TrySequence, _bCanSkip).f_Future();
+			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_TrySequence, _bCanSkip);
 
-		return TCPromise<CActorSubscription>() <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
+		return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 	}
 
 	template <typename t_CReturnType>
@@ -220,8 +211,8 @@ namespace NMib::NConcurrency
 		using namespace NStr;
 
 		if (mp_Actor)
-			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_NumWaiting).f_Future();
+			return mp_Actor(&TCActorSequencerActor<t_CReturnType>::f_NumWaiting);
 
-		return TCPromise<mint>() <<= DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
+		return DMibErrorInstance("Sequencer '{}' has been aborted"_f << mp_Name);
 	}
 }

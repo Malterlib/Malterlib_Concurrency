@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	struct CCanDestroyTracker
 	{
 		NStorage::CIntrusiveRefCount m_RefCount;
-		TCPromise<void> m_Promise;
+		TCPromise<void> m_Promise{CPromiseConstructNoConsume()};
 
 		CCanDestroyTracker();
 		~CCanDestroyTracker();

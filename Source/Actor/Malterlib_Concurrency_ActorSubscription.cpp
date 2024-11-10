@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 	{
 		if (!mp_DispatchActor)
 			return;
-		fg_Dispatch(mp_DispatchActor, fg_Move(mp_fCleanup)) > fg_DiscardResult();
+		fg_Dispatch(mp_DispatchActor, fg_Move(mp_fCleanup)).f_DiscardResult();
 	}
 
 	template <typename t_CReturnValue>
@@ -53,20 +53,18 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 
-		TCPromise<void> Promise;
-
 		if (!mp_DispatchActor)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		auto pDispatchActor = fg_Move(mp_DispatchActor);
 		auto pLockedActor = pDispatchActor.f_Lock();
 		if (!pLockedActor)
 		{
 			mp_fCleanup.f_Clear();
-			return Promise <<= DMibErrorInstance("Actor in subscription has been deleted");
+			return DMibErrorInstance("Actor in subscription has been deleted");
 		}
 
-		return Promise <<= fg_Dispatch(pLockedActor, fg_Move(mp_fCleanup));
+		return fg_Dispatch(pLockedActor, fg_Move(mp_fCleanup));
 	}
 
 	CActorSubscription fg_ActorSubscription(TCActor<> const &_DispatchActor, NFunction::TCFunctionMovable<void ()> &&_fCleanup)

@@ -317,7 +317,7 @@ namespace NMib::NConcurrency
 					)
 				;
 
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				fg_AllDoneWrapped(DestroyResults).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 
 				return;
 			}

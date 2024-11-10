@@ -81,9 +81,8 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
 		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
+		requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 	{
-		NConcurrency::TCPromise<NContainer::CSecureByteVector> Promise;
-
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
@@ -94,19 +93,64 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return Promise <<= _Exception;
+			return _Exception.f_ExceptionPointer();
 		}
 
 		NConcurrency::TCAsyncResult<t_CReturn> AsyncResult;
 
-		if constexpr (TCIsAsyncGenerator<t_CReturn>::mc_Value)
-			AsyncResult.f_SetResult(fg_CallSafe((CClass *)_pObject, t_pMemberFunction, fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...));
-		else
-			AsyncResult.f_SetResult((((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...));
+		AsyncResult.f_SetResult((((CClass *)_pObject)->*t_pMemberFunction)(fg_Move(fg_Get<tfp_Indices>(ParamList))...));
 
-		return Promise <<= fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
+		return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
+	template
+	<
+		auto t_pMemberFunction
+		, uint32 t_NameHash
+		, typename t_CStreamContext
+		, typename t_CStreamParams
+		, typename t_CStreamResult
+		, typename t_CReturn
+	>
+	template <mint... tfp_Indices, typename... tfp_CParams>
+	auto TCRuntimeTypeRegistryEntry_MemberFunction
+		<
+			t_pMemberFunction
+			, t_NameHash
+			, t_CStreamContext
+			, t_CStreamParams
+			, t_CStreamResult
+			, t_CReturn
+		>::fp_Call
+		(
+			t_CStreamParams &_ParamsStream
+			, void *_pObject
+			, NMeta::TCIndices<tfp_Indices...> const &_Indices
+			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
+		)
+		-> NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector>
+		requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
+	{
+		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
+
+		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+
+		try
+		{
+			ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList);
+		}
+		catch (NException::CException const &_Exception)
+		{
+			co_return _Exception.f_ExceptionPointer();
+		}
+
+		NConcurrency::TCAsyncResult<t_CReturn> AsyncResult;
+
+		AsyncResult.f_SetResult((((CClass *)_pObject)->*t_pMemberFunction)(fg_Move(fg_Get<tfp_Indices>(ParamList))...));
+
+		co_return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
+	}
+	
 	template
 	<
 		auto t_pMemberFunction
@@ -136,8 +180,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
-				,
-				typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+				, typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
 				, CParams()
 			)
 		;
@@ -193,10 +236,8 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCIndices<tfp_Indices...> const &_Indices
 			, NMeta::TCTypeList<tfp_CParams...> const &_TypeList
 		)
-		-> NConcurrency::TCFuture<NContainer::CSecureByteVector>
+		-> NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector>
 	{
-		NConcurrency::TCPromise<NContainer::CSecureByteVector> Promise;
-
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
@@ -207,15 +248,15 @@ namespace NMib::NConcurrency::NPrivate
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return Promise <<= _Exception;
+			co_return _Exception.f_ExceptionPointer();
 		}
 
-		(((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(ParamList))...);
+		(((CClass *)_pObject)->*t_pMemberFunction)(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
 
 		NConcurrency::TCAsyncResult<void> AsyncResult;
 		AsyncResult.f_SetResult();
 
-		return Promise <<= fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
+		co_return fg_StreamAsyncResult<t_CStreamResult>(fg_Move(AsyncResult), _ParamsStream.f_GetContext(), _ParamsStream.f_GetVersion());
 	}
 
 	template
@@ -310,71 +351,38 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
-		NConcurrency::TCPromise<NContainer::CSecureByteVector> Return;
-
-		struct CState
-		{
-			t_CStreamContext m_Context;
-			NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> m_ParamList;
-			uint32 m_Version;
-		};
-
 		t_CStreamContext *pContext = (t_CStreamContext *)_ParamsStream.f_GetContext();
 
-		NStorage::TCUniquePointer<CState> pState;
+		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
 		try
 		{
-#if defined(DMibSanitizerEnabled_Address) && defined(DPlatformFammily_Windows)
-			pState = fg_Construct
-				(
-					CState
-					{
-						.m_Context = *pContext
-						, .m_ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList)
-						, .m_Version = _ParamsStream.f_GetVersion()
-					}
-				)
-			;
-#else
-			pState = NStorage::TCUniquePointer<CState>
-				(
-					new CState
-					{
-						.m_Context = *pContext
-						, .m_ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList)
-						, .m_Version = _ParamsStream.f_GetVersion()
-					}
-				)
-			;
-#endif
+			ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList);
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return Return <<= _Exception;
+			return _Exception.f_ExceptionPointer();
 		}
 
-		auto &State = *pState;
+		NConcurrency::TCPromiseFuturePair<NContainer::CSecureByteVector> Return;
 
-		NFunction::TCFunctionMovable<void (TCAsyncResult<t_CResult> &&_AsyncResult)> fOnResultSet
-			= [Return, pState = fg_Move(pState)](NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
-			{
-				Return.f_SetResult(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(_Result), &pState->m_Context, pState->m_Version));
-			}
+		TCFutureOnResult<t_CResult> fOnResultSet =
+#if DMibEnableSafeCheck > 0 && defined(DMibCheckOnResultSizes)
+		TCFutureOnResultOverSized<t_CResult>
+			(
+#endif
+				[Return = fg_Move(Return.m_Promise), Context = *pContext, Version = _ParamsStream.f_GetVersion()]
+				(NConcurrency::TCAsyncResult<t_CResult> &&_Result) mutable
+				{
+					Return.f_SetResult(fg_StreamAsyncResult<t_CStreamResult>(fg_Move(_Result), &Context, Version));
+				}
+#if DMibEnableSafeCheck > 0 && defined(DMibCheckOnResultSizes)
+			)
+#endif
 		;
 
 		auto &ThreadLocal = fg_SystemThreadLocal();
-
-#if DMibEnableSafeCheck > 0
-		bool bPreviousExpectCoroutineCall = ThreadLocal.m_bExpectCoroutineCall;
-		ThreadLocal.m_bExpectCoroutineCall = true;
-		auto Cleanup = g_OnScopeExit / [&]
-			{
-				ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
-			}
-		;
-#endif
-
 		auto &PromiseThreadLocal = ThreadLocal.m_PromiseThreadLocal;
+
 		auto pPreviousOnResultSet = PromiseThreadLocal.m_pOnResultSet;
 		PromiseThreadLocal.m_pOnResultSet = &fOnResultSet;
 
@@ -388,8 +396,8 @@ namespace NMib::NConcurrency::NPrivate
 		auto pPreviousOnResultSetConsumedBy = PromiseThreadLocal.m_pOnResultSetConsumedBy;
 		PromiseThreadLocal.m_pOnResultSetConsumedBy = nullptr;
 
-		auto pPreviousExpectCoroutineCallSetConsumedBy = PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy;
-		PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = nullptr;
+		auto pPreviousExpectCoroutineCallSetConsumedBy = PromiseThreadLocal.m_pExpectCoroutineCallConsumedBy;
+		PromiseThreadLocal.m_pExpectCoroutineCallConsumedBy = nullptr;
 
 		auto bPreviousCaptureDebugException = PromiseThreadLocal.m_bCaptureDebugException;
 		PromiseThreadLocal.m_bCaptureDebugException = true;
@@ -397,28 +405,18 @@ namespace NMib::NConcurrency::NPrivate
 		auto CleanupOnResultSetConsumedBy = g_OnScopeExit / [&]
 			{
 				PromiseThreadLocal.m_pOnResultSetConsumedBy = pPreviousOnResultSetConsumedBy;
-				PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy = pPreviousExpectCoroutineCallSetConsumedBy;
+				PromiseThreadLocal.m_pExpectCoroutineCallConsumedBy = pPreviousExpectCoroutineCallSetConsumedBy;
 				PromiseThreadLocal.m_bCaptureDebugException = bPreviousCaptureDebugException;
 			}
 		;
 
 		PromiseThreadLocal.m_OnResultSetTypeHash = fg_GetTypeHash<t_CResult>();
 
-		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
 
-		DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
-		DMibFastCheck
-			(
-				ThreadLocal.m_bExpectCoroutineCall
-				|| !PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy
-				|| Future.f_HasData(PromiseThreadLocal.m_pExpectCoroutineCallSetConsumedBy)
-			)
-		;
-
-		ThreadLocal.m_bExpectCoroutineCall = bPreviousExpectCoroutineCall;
-		Cleanup.f_Clear();
+		DMibFastCheck(PromiseThreadLocal.m_pOnResultSet == &fOnResultSet || Future.f_Debug_HasData(PromiseThreadLocal.m_pOnResultSetConsumedBy));
 #else
-		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Forward<tfp_CParams>(fg_Get<tfp_Indices>(State.m_ParamList))...);
+		auto Future = (((CClass *)_pObject)->*t_pMemberFunction)(fg_Move(fg_Get<tfp_Indices>(ParamList))...);
 #endif
 		if (PromiseThreadLocal.m_pOnResultSet)
 		{
@@ -426,7 +424,7 @@ namespace NMib::NConcurrency::NPrivate
 			Future.f_OnResultSet(fg_Move(fOnResultSet));
 		}
 
-		return Return.f_MoveFuture();
+		return fg_Move(Return.m_Future);
 	}
 
 	template

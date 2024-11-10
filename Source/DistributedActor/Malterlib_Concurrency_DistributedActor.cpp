@@ -99,22 +99,21 @@ namespace NMib::NConcurrency
 				, fp32 _WaitForPublicationsTimeout
 			)
 		{
-			TCPromise<CDistributedActorPublication> Promise;
 			NPrivate::CDistributedActorData *pDistributedData = (NPrivate::CDistributedActorData *)_Actor->f_GetDistributedActorData().f_Get();
 			TCActor<CActorDistributionManager> DistributionManager;
 			
 			if (!pDistributedData)
-				return Promise <<= DMibErrorInstance("Not a distributed actor");
+				return DMibErrorInstance("Not a distributed actor");
 			else if (pDistributedData->m_bRemote)
-				return Promise <<= DMibErrorInstance("You cannot publish a remote actor");
+				return DMibErrorInstance("You cannot publish a remote actor");
 			else
 			{
 				DistributionManager = pDistributedData->m_DistributionManager.f_Lock();
 				if (!DistributionManager)
-					return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+					return DMibErrorInstance("Distribution manager has been deleted");
 			}
 			
-			return Promise <<= DistributionManager
+			return DistributionManager
 				(
 					&CActorDistributionManager::fp_PublishActor
 					, fg_Move(_Actor)
@@ -511,15 +510,13 @@ namespace NMib::NConcurrency
 		return mp_pHost.f_Lock();
 	}
 
-	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect) const
+	TCFuture<CActorSubscription> CCallingHostInfo::f_OnDisconnect(TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect) const
 	{
-		TCPromise<CActorSubscription> Promise;
-
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager was deleted");
+			return DMibErrorInstance("Distribution manager was deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, fg_Move(_fOnDisconnect), mp_UniqueHostID, mp_LastExecutionID);
+		return DistributionManager(&CActorDistributionManager::fp_OnRemoteDisconnect, fg_Move(_fOnDisconnect), mp_UniqueHostID, mp_LastExecutionID);
 	}
 
 	CHostInfo::CHostInfo()
@@ -759,6 +756,7 @@ namespace NMib::NConcurrency
 	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
 		<
 			&CActorDistributionManager::f_CallRemote
+			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
@@ -766,13 +764,15 @@ namespace NMib::NConcurrency
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
-			, NPrivate::CDistributedActorStreamContext&
+			, NPrivate::CDistributedActorStreamContext &
 		) const &
+		-> TCFuture<NContainer::CSecureByteVector>
 	;
 
 	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
 		<
 			&CActorDistributionManager::f_CallRemote
+			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
@@ -780,8 +780,9 @@ namespace NMib::NConcurrency
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
 			, NMib::NContainer::CSecureByteVector &&
-			, NPrivate::CDistributedActorStreamContext&
+			, NPrivate::CDistributedActorStreamContext &
 		) &&
+		-> TCFuture<NContainer::CSecureByteVector>
 	;
 #endif
 }

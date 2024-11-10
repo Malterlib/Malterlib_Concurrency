@@ -9,9 +9,9 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <>
-	void fg_CopyReplyToPromise
+	void fg_CopyReplyToAsyncResult
 		(
-			TCPromise<void> &_Promise
+			TCAsyncResult<void> &_AsyncResult
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
@@ -19,14 +19,14 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		NStream::CBinaryStreamMemoryPtr<> ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise, _Context.f_ActorProtocolVersion()))
+		if (fg_CopyReplyToAsyncResultShared(ReplyStream, _AsyncResult, _Context.f_ActorProtocolVersion()))
 			return;
 		NStr::CStr Error;
 		if (!_Context.f_ValidateContext(Error))
 		{
-			_Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+			_AsyncResult.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
 			return;
 		}
-		_Promise.f_SetResult();
+		_AsyncResult.f_SetResult();
 	}
 }

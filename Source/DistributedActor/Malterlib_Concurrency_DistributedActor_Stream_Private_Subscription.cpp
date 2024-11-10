@@ -31,14 +31,13 @@ namespace NMib::NConcurrency
 		DMibCheck(DistributionManager); // Should be called from place where distribution manager is referenced
 		if (DistributionManager)
 		{
-			DistributionManager
+			DistributionManager.f_Bind<&CActorDistributionManager::fp_RegisterRemoteSubscription>
 				(
-					&CActorDistributionManager::fp_RegisterRemoteSubscription
-					, f_GetStatePtr()
+					f_GetStatePtr()
 					, SubscriptionID
 					, _SubscriptionSequenceID
 				)
-				> fg_DiscardResult()
+				.f_DiscardResult()
 			;
 		}
 
@@ -70,26 +69,24 @@ namespace NMib::NConcurrency::NPrivate
 		auto DistributionManager = m_DistributionManager.f_Lock();
 		if (!DistributionManager)
 			return;
-		DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID) > fg_DiscardResult();
+		DistributionManager.f_Bind<&CActorDistributionManager::fp_DestroyRemoteSubscription>(m_pHost, m_SubscriptionID, m_LastExecutionID).f_DiscardResult();
 	}
 
 	TCFuture<void> CDistributedActorSubscriptionReferenceState::f_Destroy()
 	{
-		TCPromise<void> Promise;
-
 		auto DistributionManager = m_DistributionManager.f_Lock();
 		if (!DistributionManager)
-			return Promise <<= g_Void;
+			return g_Void;
 		
 		m_DistributionManager.f_Clear();
 		
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
+		return DistributionManager(&CActorDistributionManager::fp_DestroyRemoteSubscription, m_pHost, m_SubscriptionID, m_LastExecutionID);
 	}
 	
 	TCFuture<void> CDistributedActorSubscriptionReference::f_Destroy()
 	{
 		if (!m_pState)
-			return TCPromise<void>() <<= g_Void;
+			return g_Void;
 		
 		return m_pState->f_Destroy();
 	}

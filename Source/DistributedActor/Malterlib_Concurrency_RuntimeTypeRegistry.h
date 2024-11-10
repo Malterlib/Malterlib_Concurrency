@@ -5,6 +5,7 @@
 
 #include <Mib/Intrusive/AVLTree>
 #include <Mib/Core/SubSystemInterface>
+#include <Mib/Core/CoroutineFlags>
 
 #if defined(DMibIncluded_Exception) && !defined(DMibRuntimeTypeRegistry)
 #	error "You need to include <Mib/Concurrency/RuntimeType> before execptions are included"
@@ -43,6 +44,12 @@ namespace NMib::NConcurrency
 
 	template <typename t_CReturnValue>
 	struct TCFuture;
+
+	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
+	struct TCFutureWithFlags;
+
+	template <typename t_CReturnValue = void>
+	using TCUnsafeFuture = TCFutureWithFlags<t_CReturnValue, ECoroutineFlag_AllowReferences>;
 }
 
 #include "Malterlib_Concurrency_RuntimeTypeRegistry_Exception.h"

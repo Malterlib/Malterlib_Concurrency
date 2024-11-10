@@ -72,7 +72,7 @@ namespace NMib::NConcurrency
 			OutHost.m_LastError = Host.m_LastError;
 			OutHost.m_LastErrorTime = Host.m_LastErrorTime;
 
-			TCActorResultMap<mint, NWeb::CWebSocketActor::CDebugStats> WebsocketDebugStats;
+			TCFutureMap<mint, NWeb::CWebSocketActor::CDebugStats> WebsocketDebugStats;
 
 			auto fAddConnection = [&](NActorDistributionManagerInternal::CConnection const &_Connection) -> CActorDistributionManager::CConnectionDebugStats &
 				{
@@ -81,7 +81,7 @@ namespace NMib::NConcurrency
 					OutConnection.m_bIncoming = _Connection.m_bIncoming;
 					OutConnection.m_bIdentified = _Connection.m_bIdentified;
 					if (_Connection.m_Connection)
-						_Connection.m_Connection(&NWeb::CWebSocketActor::f_DebugGetStats) > WebsocketDebugStats.f_AddResult(iConnection);
+						_Connection.m_Connection(&NWeb::CWebSocketActor::f_DebugGetStats) > WebsocketDebugStats[iConnection];
 					return OutConnection;
 				}
 			;
@@ -95,11 +95,11 @@ namespace NMib::NConcurrency
 			for (auto &ServerConnection : Host.m_ServerConnections)
 			{
 				auto &OutConnection = fAddConnection(ServerConnection);
-				if (auto pListen = Internal.m_Listens.f_FindEqual(ServerConnection.m_ListenID); !pListen->m_ListenAddresses.f_IsEmpty())
+				if (auto pListen = Internal.m_Listens.f_FindEqual(ServerConnection.m_ListenID); pListen && !pListen->m_ListenAddresses.f_IsEmpty())
 					OutConnection.m_URL = pListen->m_ListenAddresses.f_GetFirst();
 			}
 
-			auto DebugStats = co_await (co_await WebsocketDebugStats.f_GetResults() | g_Unwrap);
+			auto DebugStats = co_await fg_AllDone(WebsocketDebugStats);
 
 			for (auto &Stats : DebugStats)
 			{

@@ -1243,18 +1243,15 @@ namespace NMib::NConcurrency
 	{
 		CStr Return = m_BaseDirectory;
 
-		TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
-				{
-					Return += "/";
-					Return += p_Component;
-					return true;
-				}
-				()...
+				Return += "/";
+				Return += p_Component;
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
 
 		Return += ".json";
 		return Return;

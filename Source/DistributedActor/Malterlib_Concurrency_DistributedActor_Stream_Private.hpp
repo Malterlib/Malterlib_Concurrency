@@ -172,16 +172,15 @@ namespace NMib::NConcurrency::NPrivate
 		{
 			DMibBinaryStreamContext(_Stream, &_Context);
 			DMibBinaryStreamVersion(_Stream, _Version);
-			TCInitializerList<bool> Dummy = 
+			(
+				[&]
 				{
-					[&]
-					{
-						_Stream << TCStreamForwardHelper<tp_CParam, tfp_CParam>::fs_Forward(fg_Forward<tfp_CParam>(p_Params));
-						return true;
-					}()...
+					_Stream << TCStreamForwardHelper<tp_CParam, tfp_CParam>::fs_Forward(fg_Forward<tfp_CParam>(p_Params));
+					return true;
 				}
-			;
-			(void)Dummy;
+				()
+				, ...
+			);
 		}
 	};
 	

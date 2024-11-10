@@ -49,37 +49,34 @@ namespace NMib::NConcurrency::NPrivate
 		if (m_Promise.f_IsSet())
 			return;
 
-		TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
-				{
-					if (m_Promise.f_IsSet())
-						return true;
-					if (!p_Result)
-						m_Promise.f_SetException(fg_Move(p_Result));
-					return true;
-				}
-				()...
+				if (m_Promise.f_IsSet())
+					return;
+
+				if (!p_Result)
+					m_Promise.f_SetException(fg_Move(p_Result));
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
+
 		if (m_Promise.f_IsSet())
 			return;
 
-		TCInitializerList<bool> Dummy2 =
+		(
+			[&]
 			{
-				[&]
-				{
-					if (m_Promise.f_IsSet())
-						return true;
-					if (p_Result)
-						m_Promise.f_SetResult(fg_Move(*p_Result));
-					return true;
-				}
-				()...
+				if (m_Promise.f_IsSet())
+					return;
+
+				if (p_Result)
+					m_Promise.f_SetResult(fg_Move(*p_Result));
 			}
-		;
-		(void)Dummy2;
+			()
+			, ...
+		);
 	}
 
 	template <>
@@ -88,22 +85,23 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		if (m_Promise.f_IsSet())
 			return;
-		TCInitializerList<bool> Dummy =
+
+		(
+			[&]
 			{
-				[&]
-				{
-					if (m_Promise.f_IsSet())
-						return true;
-					if (!p_Result)
-						m_Promise.f_SetException(fg_Move(p_Result));
-					return true;
-				}
-				()...
+				if (m_Promise.f_IsSet())
+					return;
+
+				if (!p_Result)
+					m_Promise.f_SetException(fg_Move(p_Result));
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
+
 		if (m_Promise.f_IsSet())
 			return;
+
 		m_Promise.f_SetResult();
 	}
 
@@ -116,34 +114,30 @@ namespace NMib::NConcurrency::NPrivate
 		NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
 		bool bSuccess = true;
 
-		TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
+				if (!p_Result)
 				{
-					if (m_Promise.f_IsSet())
-						return true;
-					if (!p_Result)
+					ErrorCollector.f_AddError(fg_Move(p_Result).f_GetException());
+					bSuccess = false;
+				}
+				else
+				{
+					if constexpr (NContainer::TCIsContainer<typename NTraits::TCRemoveReferenceAndQualifiers<decltype(*p_Result)>::CType>::mc_Value)
 					{
-						ErrorCollector.f_AddError(fg_Move(p_Result).f_GetException());
-						bSuccess = false;
-					}
-					else
-					{
-						if constexpr (NContainer::TCIsContainer<typename NTraits::TCRemoveReferenceAndQualifiers<decltype(*p_Result)>::CType>::mc_Value)
+						auto Result = fg_Unwrap(fg_Move(*p_Result));
+						if (!Result)
 						{
-							auto Result = fg_Unwrap(fg_Move(*p_Result));
-							if (!Result)
-							{
-								ErrorCollector.f_AddError(fg_Move(Result).f_GetException());
-								bSuccess = false;
-							}
+							ErrorCollector.f_AddError(fg_Move(Result).f_GetException());
+							bSuccess = false;
 						}
 					}
-					return true;
 				}
-				()...
 			}
-		;
+			()
+			, ...
+		);
 
 		if (!bSuccess)
 		{
@@ -151,9 +145,6 @@ namespace NMib::NConcurrency::NPrivate
 			return;
 		}
 
-		(void)Dummy;
-		if (m_Promise.f_IsSet())
-			return;
 		m_Promise.f_SetResult();
 	}
 }

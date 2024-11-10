@@ -291,17 +291,14 @@ namespace NMib::NConcurrency
 	{
 		CDistributedActorInterfaceInfo Ret;
 
-		TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
-				{
-					Ret.mp_InterfaceHashes.f_Insert(DMibConstantTypeHash(tfp_CInterface));
-					return true;
-				}
-				()...
+				Ret.mp_InterfaceHashes.f_Insert(DMibConstantTypeHash(tfp_CInterface));
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
 
 		Ret.mp_ProtocolVersions = _Versions;
 
@@ -319,25 +316,21 @@ namespace NMib::NConcurrency
 		bool bMultipleVersions = false;
 #endif
 
-		TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
-				{
-					CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EProtocolVersion_Min, tfp_CInterface::EProtocolVersion_Current};
-					if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
-						Versions = ThisVersions;
+				CDistributedActorProtocolVersions ThisVersions{tfp_CInterface::EProtocolVersion_Min, tfp_CInterface::EProtocolVersion_Current};
+				if (Versions.m_MinSupported == TCLimitsInt<uint32>::mc_Max)
+					Versions = ThisVersions;
 #if DMibEnableSafeCheck > 0
-					else if (ThisVersions != Versions)
-						bMultipleVersions = true;
+				else if (ThisVersions != Versions)
+					bMultipleVersions = true;
 #endif
-
-					Ret.mp_InterfaceHashes.f_Insert(DMibConstantTypeHash(tfp_CInterface));
-					return true;
-				}
-				()...
+				Ret.mp_InterfaceHashes.f_Insert(DMibConstantTypeHash(tfp_CInterface));
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
 
 		DMibFastCheck(!bMultipleVersions); // Can only publish one protocol version
 

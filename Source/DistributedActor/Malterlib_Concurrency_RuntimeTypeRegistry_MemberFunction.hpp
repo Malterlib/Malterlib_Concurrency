@@ -42,17 +42,16 @@ namespace NMib::NConcurrency::NPrivate
 		)
 	{
 		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
-		TCInitializerList<bool> Dummy =
+
+		(
+			[&]
 			{
-				[&]
-				{
-					_ParamsStream >> fg_Get<tfp_Indices>(ParamList);
-					return true;
-				}
-				()...
+				_ParamsStream >> fg_Get<tfp_Indices>(ParamList);
 			}
-		;
-		(void)Dummy;
+			()
+			, ...
+		);
+
 		return ParamList;
 	}
 
@@ -574,24 +573,21 @@ namespace NMib::NConcurrency::NPrivate
 			>::ms_Entry
 		;
 
-		[[maybe_unused]] TCInitializerList<bool> Dummy =
+		(
+			[&]
 			{
-				[&]
-				{
-					*TCMemberFunctionRegistryImpl
-						<
-							t_pMemberFunction
-							, tfp_CAlternate::mc_Hash
-							, t_CStreamContext
-							, t_CStreamParams
-							, t_CStreamResult
-						>::ms_Entry
-					;
-					return true;
-				}
-				()...
+				*TCMemberFunctionRegistryImpl
+					<
+						t_pMemberFunction
+						, tfp_CAlternate::mc_Hash
+						, t_CStreamContext
+						, t_CStreamParams
+						, t_CStreamResult
+					>::ms_Entry
+				;
 			}
-		;
-
+			()
+			, ...
+		);
 	}
 }

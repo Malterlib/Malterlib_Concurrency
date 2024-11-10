@@ -28,7 +28,7 @@ namespace NMib::NConcurrency
 		g_Dispatch(_Actor) / [pFunction = fg_Move(o_pFunction)]
 			{
 			}
-			> fg_DiscardResult()
+			> g_DiscardResult
 		;
 	}
 
@@ -128,10 +128,8 @@ namespace NMib::NConcurrency
 		if (!DistributionManager)
 			return;
 
-		DistributionManager
+		DistributionManager.f_Bind<&CActorDistributionManager::fp_CleanupRemoteContext>
 			(
-				&CActorDistributionManager::fp_CleanupRemoteContext
-				, 
 				[
 					ImplicitlyPublishedFunctions = fg_Move(ImplicitlyPublishedFunctions)
 					, ImplicitlyPublishedActors = fg_Move(ImplicitlyPublishedActors)
@@ -152,29 +150,24 @@ namespace NMib::NConcurrency
 						pHost->m_ImplicitlyPublishedInterfaces.f_Remove(ActorID);
 				}
 			)
-			> fg_DiscardResult()
+			.f_DiscardResult()
 		;
 	}
 
 	namespace
 	{
-		template <typename tf_CPromise>
-		bool fg_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, tf_CPromise &_Promise)
+		NException::CExceptionPointer fg_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host)
 		{
 			for (auto &ActorFuntor : _State.m_ActorFunctors)
 			{
 				for (auto &Functor : ActorFuntor.m_ActorFunctors)
 				{
 					if (Functor.m_Actor.f_IsEmpty())
-					{
-						_Promise.f_SetException(DMibErrorInstance("You must have one and only one actor in the function arguments if you include a functor"));
-						return false;
-					}
+						return DMibErrorInstance("You must have one and only one actor in the function arguments if you include a functor");
+
 					if (Functor.m_Functions.f_IsEmpty())
-					{
-						_Promise.f_SetException(DMibErrorInstance("You must have at least one function in arguments if you include an actor"));
-						return false;
-					}
+						return DMibErrorInstance("You must have at least one function in arguments if you include an actor");
+
 					ActorFuntor.m_ImplicitlyPublishedActors[Functor.m_ActorID];
 					_Host.m_ImplicitlyPublishedActors[Functor.m_ActorID] = Functor.m_Actor;
 					
@@ -191,10 +184,8 @@ namespace NMib::NConcurrency
 				for (auto &Interface : ActorFuntor.m_Interfaces)
 				{
 					if (Interface.m_Actor.f_IsEmpty())
-					{
-						_Promise.f_SetException(DMibErrorInstance("Invalid actor in interface"));
-						return false;
-					}
+						return DMibErrorInstance("Invalid actor in interface");
+
 					ActorFuntor.m_ImplicitlyPublishedInterfaces[Interface.m_ActorID];
 					auto &PublishedInterface = _Host.m_ImplicitlyPublishedInterfaces[Interface.m_ActorID];
 					PublishedInterface.m_Actor = fg_Move(Interface.m_Actor);
@@ -202,73 +193,72 @@ namespace NMib::NConcurrency
 					PublishedInterface.m_ProtocolVersions = Interface.m_ProtocolVersions;
 				}
 			}
-			return true;
+
+			return {};
 		}
 	}
 	
-	bool CActorDistributionManagerInternal::fp_RegisterActorFunctorsForCall
+	NException::CExceptionPointer CActorDistributionManagerInternal::fp_RegisterActorFunctorsForCall
 		(
 			NPrivate::CDistributedActorStreamContextState &_State
 			, NActorDistributionManagerInternal::CHost &_Host
-			, TCPromise<> &_Promise
 		)
 	{
-		return fg_RegisterActorFunctorsForCall(_State, _Host, _Promise);
+		return fg_RegisterActorFunctorsForCall(_State, _Host);
 	}
 	
 	TCFuture<NContainer::CSecureByteVector> CActorDistributionManager::f_CallRemote
 		(
-			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> const &_pDistributedActorData
-			, NContainer::CSecureByteVector &&_CallData 
-			, NPrivate::CDistributedActorStreamContext const &_Context
+			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
+			, NContainer::CSecureByteVector _CallData
+			, NPrivate::CDistributedActorStreamContext _Context
 		)
 	{
-		TCPromise<NContainer::CSecureByteVector> Promise;
-
 		if (f_IsDestroyed())
-			return Promise <<= DMibErrorInstance("Distribution manager destroyed");
+			co_return DMibErrorInstance("Distribution manager destroyed");
 
 		auto &State = *_Context.m_pState; 
 		auto &DistributedData = *_pDistributedActorData.f_Get();
 
 		if (DistributedData.m_bWasDestroyed)
-			return Promise <<= DMibErrorInstance("Remote actor longer available");
+			co_return DMibErrorInstance("Remote actor longer available");
 
 		auto pHostInterface = DistributedData.m_pHost.f_Lock();
 		
 		if (!pHostInterface || pHostInterface->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
-			return Promise <<= DMibErrorInstance("Remote actor host no longer available");
+			co_return DMibErrorInstance("Remote actor host no longer available");
 
 		auto pHost = reinterpret_cast<NStorage::TCSharedPointerSupportWeak<NActorDistributionManagerInternal::CHost> &>(pHostInterface);
 
 		if (State.m_ActorProtocolVersion != pHost->m_ActorProtocolVersion)
-			return Promise <<= DMibErrorInstance("Remote host restarted with new actor protocol");
+			co_return DMibErrorInstance("Remote host restarted with new actor protocol");
 
 		auto &Internal = *mp_pInternal;
 
 		if (_CallData.f_GetLen() > Internal.m_WebsocketSettings.m_MaxMessageSize)
-			return Promise <<= DMibErrorInstance("Remote call size was larger than the max allowed packet size");
+			co_return DMibErrorInstance("Remote call size was larger than the max allowed packet size");
 
 		State.m_pHost = pHost;
 		State.m_DistributionManager = fg_ThisActor(this);
 		State.m_LastExecutionID = pHost->m_LastExecutionID;
-		
-		if (!fg_RegisterActorFunctorsForCall(State, *pHost, Promise))
-			return Promise.f_MoveFuture();
-			
+
+		if (auto pException = fg_RegisterActorFunctorsForCall(State, *pHost))
+			co_return fg_Move(pException);
+
 		{
 			NStream::CBinaryStreamMemoryPtr<> Stream;
 			Stream.f_OpenReadWrite(_CallData.f_GetArray(), _CallData.f_GetLen(), _CallData.f_GetLen());
 			Stream << uint8(EDistributedActorCommand_RemoteCall);
 		}
-		
+
+		TCPromise<NContainer::CSecureByteVector> Promise{CPromiseConstructNoConsume()};
 
 		auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
 		auto &OutstandingCall = pHost->m_OutstandingCalls[PacketID];
 		OutstandingCall.m_Promise = Promise;
 		OutstandingCall.m_pState = _Context.m_pState;
 
-		return Promise.f_MoveFuture();			
+		co_return co_await Promise.f_MoveFuture();
 	}
 
 	bool CActorDistributionManagerInternal::fp_ApplyRemoteCallResult(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream)
@@ -376,9 +366,9 @@ namespace NMib::NConcurrency
 	
 	CActorSubscription CActorDistributionManager::fp_OnRemoteDisconnect
 		(
-			TCActorFunctorWeak<TCFuture<void> ()> &&_fOnDisconnect
-			, NStr::CStr const &_UniqueHostID
-			, NStr::CStr const &_LastExecutionID
+			TCActorFunctorWeak<TCFuture<void> ()> _fOnDisconnect
+			, NStr::CStr _UniqueHostID
+			, NStr::CStr _LastExecutionID
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -388,7 +378,7 @@ namespace NMib::NConcurrency
 		if (!pHost || (*pHost)->m_LastExecutionID != _LastExecutionID)
 		{
 			// Report disconnect
-			_fOnDisconnect() > fg_DiscardResult();
+			_fOnDisconnect.f_CallDiscard();
 			return nullptr;
 		}
 		
@@ -565,10 +555,8 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		Actor
+		Actor.f_Bind<&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NContainer::CSecureByteVector>>>
 			(
-				&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NContainer::CSecureByteVector>>
-				, 
 				[
 					Actor
 					, ParamData = fg_Move(ParamData)
@@ -589,7 +577,7 @@ namespace NMib::NConcurrency
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
 				] 
-				() mutable
+				() mutable -> TCFuture<NContainer::CSecureByteVector>
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_Move(CallingHostInfo)};
 
@@ -597,10 +585,11 @@ namespace NMib::NConcurrency
 					Stream.f_OpenRead(ParamData);
 					DMibBinaryStreamContext(Stream, &Context);
 					DMibBinaryStreamVersion(Stream, ProtocolVersion);
-					return fCall(Stream);
+
+					co_return co_await fCall(Stream);
 				}
 			) 
-			> 
+			>
 			[
 				this
 				, pHost
@@ -623,18 +612,19 @@ namespace NMib::NConcurrency
 				
 				if (!bException)
 				{
-					TCPromise<> Promise;
+					TCAsyncResult<> Result;
 					NStr::CStr Error;
 					if (!Context.f_ValidateContext(Error))
 					{
-						Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
-						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.f_MoveResult(), Context);
+						Result.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, fg_Move(Result), Context);
 						return;
 					}
 					
-					if (!fp_RegisterActorFunctorsForCall(*Context.m_pState, *pHost, Promise))
+					if (auto pException = fp_RegisterActorFunctorsForCall(*Context.m_pState, *pHost))
 					{
-						fp_ReplyToRemoteCallWithException(pHost, PacketID, Promise.f_MoveResult(), Context);
+						Result.f_SetException(fg_Move(pException));
+						fp_ReplyToRemoteCallWithException(pHost, PacketID, fg_Move(Result), Context);
 						return;
 					}
 				}
@@ -721,9 +711,9 @@ namespace NMib::NConcurrency
 	
 	TCFuture<void> CActorDistributionManager::fp_DestroyRemoteSubscription
 		(
-			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
-			, NStr::CStr const &_SubscriptionID
-			, NStr::CStr const &_LastExecutionID
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
+			, NStr::CStr _SubscriptionID
+			, NStr::CStr _LastExecutionID
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));

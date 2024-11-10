@@ -59,7 +59,7 @@ namespace NMib::NConcurrency
 
 				co_return {};
 			}
-			> fg_DiscardResult()
+			> g_DiscardResult
 		;
 	}
 
@@ -99,7 +99,7 @@ namespace NMib::NConcurrency
 
 				co_return {};
 			}
-			> fg_DiscardResult()
+			> g_DiscardResult
 		;
 	}
 

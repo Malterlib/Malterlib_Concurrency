@@ -228,17 +228,15 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CImplementation>
-	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Destroy()
+	TCUnsafeFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Destroy()
 	{
 		if (!m_pActor)
 			co_return {};
 
 #if DMibEnableSafeCheck > 0
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		DMibFastCheck(ThreadLocal.m_pCurrentActor == mp_pThis);
+		DMibFastCheck(ThreadLocal.m_pCurrentlyProcessingActorHolder == mp_pThis->self.m_pThis.f_Get());
 #endif
-		co_await ECoroutineFlag_AllowReferences;
-
 		m_pActor = nullptr;
 
 		co_await m_Publication.f_Destroy();
@@ -251,7 +249,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CImplementation>
 	template <typename tf_CFirstInterface, typename ...tfp_CInterfaces, typename tf_CThis>
-	TCFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Publish
+	TCUnsafeFuture<void> TCDistributedActorInstance<t_CImplementation>::f_Publish
 		(
 			TCActor<CActorDistributionManager> const &_DistributionManager
 			, tf_CThis *_pThis
@@ -259,8 +257,6 @@ namespace NMib::NConcurrency
 			, NStr::CStr const &_Namespace
 		)
 	{
-		co_await NConcurrency::ECoroutineFlag_AllowReferences;
-
 		if (!m_Actor)
 			f_Construct(_DistributionManager, _pThis);
 
@@ -277,7 +273,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(!mp_pThis);
 		DMibFastCheck(!m_Actor);
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		DMibFastCheck(ThreadLocal.m_pCurrentActor == _pThis);
+		DMibFastCheck(ThreadLocal.m_pCurrentlyProcessingActorHolder == _pThis->self.m_pThis.f_Get());
 		mp_pThis = _pThis;
 #endif
 

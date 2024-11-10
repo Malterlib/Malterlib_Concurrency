@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CDefaultRunLoop> m_pRunLoop = fg_Construct();
 		TCActor<CDispatchingActor> m_HelperActor{fg_Construct(), m_pRunLoop->f_Dispatcher()};
-		NStorage::TCOptional<CCurrentlyProcessingActorScope> m_CurrentActor{fg_Construct(m_HelperActor)};
+		NStorage::TCOptional<CCurrentActorScope> m_CurrentActor{fg_Construct(fg_ConcurrencyThreadLocal(), m_HelperActor)};
 	};
 }
 

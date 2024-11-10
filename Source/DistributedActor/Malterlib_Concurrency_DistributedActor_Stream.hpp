@@ -66,7 +66,7 @@ namespace NMib::NConcurrency
 	TCActorFunctorWithID<t_CFunction, t_SubscriptionID>::TCActorFunctorWithID
 		(
 			TCActor<CActor> &&_Actor
-			, NFunction::TCFunctionMutable<t_CFunction> &&_fFunctor
+			, typename TCActorFunctor<t_CFunction>::CFunction &&_fFunctor
 			, CActorSubscription &&_Subscription
 			, uint32 _SubscriptionID
 		)

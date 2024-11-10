@@ -71,41 +71,38 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<void> CActorDistributionManager::f_KickHost(NStr::CStr const &_HostID)
+	TCFuture<void> CActorDistributionManager::f_KickHost(NStr::CStr _HostID)
 	{
-		TCPromise<void> Promise;
-
 		auto &Internal = *mp_pInternal;
 
 		auto *pHosts = Internal.m_HostsByRealHostID.f_FindEqual(_HostID);
 		if (!pHosts)
-			return Promise <<= g_Void;
+			co_return {};
 
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		for (auto iHost = pHosts->f_GetIterator(); iHost;)
 		{
 			auto &Host = *iHost;
 			++iHost;
 			for (auto &ClientConnection : Host.m_ClientConnections)
-				ClientConnection.f_Disconnect() > Results.f_AddResult();
+				ClientConnection.f_Disconnect() > Results;
 
 			for (auto &ServerConnection : Host.m_ServerConnections)
-				ServerConnection.f_Disconnect() > Results.f_AddResult();
+				ServerConnection.f_Disconnect() > Results;
 
 			Internal.fp_DestroyHost(Host, nullptr, "Host was kicked");
 		}
 
-		Results.f_GetResults() > fg_DirectCallActor() / [Promise](auto &&_Results)
-			{
-				// Ignore errors
-				Promise.f_SetResult();
-			}
-		;
-		return Promise.f_MoveFuture();
+		auto Result = co_await fg_AllDone(Results).f_Wrap();
+
+		if (!Result)
+			DMibLog(Warning, "Errors kicking host ({}): ", _HostID, Result.f_GetExceptionStr());
+
+		co_return {};
 	}
 
-	TCFuture<CActorDistributionManager::CHostState> CActorDistributionManager::f_GetHostState(NStr::CStr const &_UniqueHostID)
+	TCFuture<CActorDistributionManager::CHostState> CActorDistributionManager::f_GetHostState(NStr::CStr _UniqueHostID)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -172,8 +169,8 @@ namespace NMib::NConcurrency
 
 		for (auto &OnDisconnect : Host.m_OnDisconnect)
 		{
-			OnDisconnect.m_fOnDisconnect() > fg_DiscardResult();
-			fg_Move(OnDisconnect.m_fOnDisconnect).f_Destroy() > fg_DiscardResult();
+			OnDisconnect.m_fOnDisconnect.f_CallDiscard();
+			fg_Move(OnDisconnect.m_fOnDisconnect).f_Destroy().f_DiscardResult();
 		}
 		Host.m_OnDisconnect.f_Clear();
 
@@ -273,7 +270,7 @@ namespace NMib::NConcurrency
 		m_Hosts.f_Remove(_Host.m_HostInfo.m_UniqueHostID);
 	}
 
-	TCFuture<NStr::CStr> CActorDistributionManager::f_GetHostFriendlyName(NStr::CStr const &_HostID)
+	TCFuture<NStr::CStr> CActorDistributionManager::f_GetHostFriendlyName(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 

@@ -40,7 +40,7 @@ namespace NMib::NConcurrency
 		if (mp_DistributionManager)
 		{
 			if (auto DistributionManager = mp_DistributionManager.f_Lock())
-				DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, false) > fg_DiscardResult();
+				DistributionManager.f_Bind<&CActorDistributionManager::fp_RemoveConnection>(mp_ConnectionID, false).f_DiscardResult();
 
 			mp_DistributionManager.f_Clear();
 			mp_ConnectionID.f_Clear();
@@ -49,81 +49,71 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorConnectionStatus> CDistributedActorConnectionReference::f_GetStatus()
 	{
-		TCPromise<CDistributedActorConnectionStatus> Promise;
-
 		if (mp_DistributionManager.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+			return DMibErrorInstance("Connection has been disconnected");
 
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+			return DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
+		return DistributionManager(&CActorDistributionManager::fp_GetConnectionStatus, mp_ConnectionID);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Debug_Break(fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
-		TCPromise<void> Promise;
-
 		if (mp_DistributionManager.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+			return DMibErrorInstance("Connection has been disconnected");
 
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+			return DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout, _DebugFlags);
+		return DistributionManager(&CActorDistributionManager::fp_Debug_BreakConnection, mp_ConnectionID, _Timeout, _DebugFlags);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Reconnect()
 	{
-		TCPromise<void> Promise;
-
 		if (mp_DistributionManager.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+			return DMibErrorInstance("Connection has been disconnected");
 
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		mp_DistributionManager.f_Clear();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+			return DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_Reconnect, mp_ConnectionID);
+		return DistributionManager(&CActorDistributionManager::fp_Reconnect, mp_ConnectionID);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_Disconnect(bool _bPreserveHost)
 	{
-		TCPromise<void> Promise;
-
 		if (mp_DistributionManager.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+			return DMibErrorInstance("Connection has been disconnected");
 
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		mp_DistributionManager.f_Clear();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+			return DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, _bPreserveHost);
+		return DistributionManager(&CActorDistributionManager::fp_RemoveConnection, mp_ConnectionID, _bPreserveHost);
 	}
 
 	TCFuture<void> CDistributedActorConnectionReference::f_UpdateConnectionSettings(CActorDistributionConnectionSettings const &_Settings)
 	{
-		TCPromise<void> Promise;
-
 		if (mp_DistributionManager.f_IsEmpty())
-			return Promise <<= DMibErrorInstance("Connection has been disconnected");
+			return DMibErrorInstance("Connection has been disconnected");
 
 		auto DistributionManager = mp_DistributionManager.f_Lock();
 
 		if (!DistributionManager)
-			return Promise <<= DMibErrorInstance("Distribution manager has been deleted");
+			return DMibErrorInstance("Distribution manager has been deleted");
 
-		return Promise <<= DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, mp_ConnectionID, _Settings);
+		return DistributionManager(&CActorDistributionManager::fp_UpdateConnectionSettings, mp_ConnectionID, _Settings);
 	}
 
 	void CActorDistributionManagerInternal::fp_ScheduleReconnect
@@ -138,24 +128,18 @@ namespace NMib::NConcurrency
 		_pConnection->f_Reset(_bResetHost, *this, "Reconnect");
 		_pConnection->f_SetLastError(_ConnectionError);
 
-		fg_TimerActor()
-			(
-				&CTimerActor::f_OneshotTimer
-				, m_ReconnectDelay
-				, fg_ThisActor(m_pThis)
-				, [this, _pConnection, _Sequence, _bRetry]() mutable
-				{
-					if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
-						return;
+		fg_Timeout(m_ReconnectDelay, true)(fg_ThisActor(m_pThis)) > [this, _pConnection, _Sequence, _bRetry]() mutable -> TCFuture<void>
+			{
+				if (!m_ClientConnections.f_FindEqual(_pConnection->m_ConnectionID))
+					co_return {};
 
-					if (_Sequence != _pConnection->m_ConnectionSequence || m_bPreShutdown)
-						return;
+				if (_Sequence != _pConnection->m_ConnectionSequence || m_bPreShutdown)
+					co_return {};
 
-					fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
-				}
-				, true
-			)
-			> fg_DiscardResult()
+				fp_Reconnect(_pConnection, nullptr, _bRetry, _bRetry, 3600.0);
+
+				co_return {};
+			}
 		;
 	}
 
@@ -394,7 +378,7 @@ namespace NMib::NConcurrency
 				Host.m_bOutgoing = true;
 
 				Result.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence, _bRetry]
-					(NWeb::EWebSocketStatus _Reason, NStr::CStr const &_Message, NWeb::EWebSocketCloseOrigin _Origin)
+					(NWeb::EWebSocketStatus _Reason, NStr::CStr _Message, NWeb::EWebSocketCloseOrigin _Origin)
 					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
@@ -442,7 +426,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage)
+				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CSecureByteVector> _pMessage)
 					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();
@@ -597,11 +581,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	template <typename tf_CReturnType>
-	bool CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings
+	NException::CExceptionPointer CActorDistributionManagerInternal::fp_DecodeClientConnectionSettings
 		(
 			CActorDistributionConnectionSettings const &_Settings
-			, TCPromise<tf_CReturnType> &_Promise
 			, CDecodedClientConnectionSetting &o_DecodedSettings
 		)
 	{
@@ -612,10 +594,7 @@ namespace NMib::NConcurrency
 		bAnonymous = _Settings.m_PrivateClientKey.f_IsEmpty();
 
 		if ((_Settings.m_bRetryConnectOnFailure || _Settings.m_bRetryConnectOnFirstFailure) && bAnonymous)
-		{
-			_Promise.f_SetException(DMibErrorInstance("Anonymous connections cannot reconnect on failure"));
-			return false;
-		}
+			return DMibErrorInstance("Anonymous connections cannot reconnect on failure");
 
 		if (_Settings.m_PublicServerCertificate.f_IsEmpty())
 		{
@@ -633,37 +612,35 @@ namespace NMib::NConcurrency
 			}
 			catch (NException::CException const &_Exception)
 			{
-				_Promise.f_SetException(DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr())));
-				return false;
+				return DMibErrorInstance(fg_Format("Error getting server host ID from certificate: {}", _Exception.f_GetErrorStr()));
 			}
 
 			if (RealHostID.f_IsEmpty())
 			{
 				// TODO: Make sure this does not compile
-				_Promise.f_SetException(DMibErrorInstance("Server certifate has no host ID"));
-				return false;
+				return DMibErrorInstance("Server certifate has no host ID");
 			}
 		}
+
 		if (!_Settings.m_PrivateClientKey.f_IsEmpty())
 		{
 			ClientSettings.m_PrivateKeyData = _Settings.m_PrivateClientKey;
 			ClientSettings.m_PublicCertificateData = _Settings.m_PublicClientCertificate;
 		}
-		return true;
+
+		return {};
 	}
 
-	TCFuture<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings const &_Settings, fp64 _Timeout)
+	TCFuture<CActorDistributionManager::CConnectionResult> CActorDistributionManager::f_Connect(CActorDistributionConnectionSettings _Settings, fp64 _Timeout)
 	{
-		TCPromise<CActorDistributionManager::CConnectionResult> Promise;
-
 		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_bPreShutdown)
-			return Promise <<= DMibErrorInstance("Distribution manager is shutting down");
+			co_return DMibErrorInstance("Distribution manager is shutting down");
 
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
-			return Promise.f_MoveFuture();
+		if (auto pError = Internal.fp_DecodeClientConnectionSettings(_Settings, DecodedSettings))
+			co_return fg_Move(pError);
 
 		if (!Internal.m_WebsocketClientConnector)
 			Internal.m_WebsocketClientConnector = NConcurrency::fg_ConstructActor<NWeb::CWebSocketClientActor>(Internal.m_WebsocketSettings);
@@ -685,22 +662,22 @@ namespace NMib::NConcurrency
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return Promise <<= DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
 		}
 		pConnection->m_ServerURL = _Settings.m_ServerURL;
 
+		TCPromise<CActorDistributionManager::CConnectionResult> Promise{CPromiseConstructNoConsume()};
 		Internal.fp_Reconnect(pConnection, fg_Construct(Promise), _Settings.m_bRetryConnectOnFailure, _Settings.m_bRetryConnectOnFirstFailure, _Timeout);
 
-		return Promise.f_MoveFuture();
+		co_return co_await Promise.f_MoveFuture();
 	}
 
-	TCFuture<CDistributedActorConnectionStatus> CActorDistributionManager::fp_GetConnectionStatus(NStr::CStr const &_ConnectionID)
+	TCFuture<CDistributedActorConnectionStatus> CActorDistributionManager::fp_GetConnectionStatus(NStr::CStr _ConnectionID)
 	{
-		TCPromise<CDistributedActorConnectionStatus> Promise;
 		auto &Internal = *mp_pInternal;
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 		if (!pConnection)
-			return Promise <<= DMibErrorInstance("No such client connection");
+			co_return DMibErrorInstance("No such client connection");
 
 		auto &Connection = **pConnection;
 		CDistributedActorConnectionStatus Return;
@@ -714,10 +691,10 @@ namespace NMib::NConcurrency
 		Return.m_Error = Connection.m_LastConnectionError;
 		Return.m_ErrorTime = Connection.m_LastConnectionErrorTime;
 
-		return Promise <<= Return;
+		co_return fg_Move(Return);
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr const &_ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
+	TCFuture<void> CActorDistributionManager::fp_Debug_BreakConnection(NStr::CStr _ConnectionID, fp64 _Timeout, NNetwork::ESocketDebugFlag _DebugFlags)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -732,21 +709,19 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_RemoveConnection(NStr::CStr const &_ConnectionID, bool _bPreserveHost)
+	TCFuture<void> CActorDistributionManager::fp_RemoveConnection(NStr::CStr _ConnectionID, bool _bPreserveHost)
 	{
-		TCPromise<void> Promise;
 		auto &Internal = *mp_pInternal;
 
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 		if (!pConnection)
-		{
-			Promise.f_SetResult();
-			return Promise.f_MoveFuture();
-		}
-
-		auto Future = Promise.f_Future();
+			co_return {};
 
 		auto &Connection = **pConnection;
+
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+
+		auto Future = Promise.f_Future();
 		Internal.fp_DestroyClientConnection
 			(
 				Connection
@@ -757,23 +732,22 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Future;
+		co_return co_await fg_Move(Future);
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_Reconnect(NStr::CStr const &_ConnectionID)
+	TCFuture<void> CActorDistributionManager::fp_Reconnect(NStr::CStr _ConnectionID)
 	{
 		using namespace NStr;
-		TCPromise<void> Promise;
 
 		auto &Internal = *mp_pInternal;
 
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 
 		if (!pConnection)
-			return Promise <<= DMibErrorInstance("No such client connection");
+			co_return DMibErrorInstance("No such client connection");
 
 		if (Internal.m_bPreShutdown)
-			return Promise <<= DMibErrorInstance("Distribution manager is shutting down");
+			co_return DMibErrorInstance("Distribution manager is shutting down");
 
 		auto &Connection = **pConnection;
 
@@ -782,33 +756,31 @@ namespace NMib::NConcurrency
 
 		Internal.fp_Reconnect(*pConnection, nullptr, Connection.m_bRetryConnectOnFailure, Connection.m_bRetryConnectOnFirstFailure, 3600.0);
 
-		return Promise.f_MoveFuture();
+		co_return {};
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr const &_ConnectionID, CActorDistributionConnectionSettings const &_Settings)
+	TCFuture<void> CActorDistributionManager::fp_UpdateConnectionSettings(NStr::CStr _ConnectionID, CActorDistributionConnectionSettings _Settings)
 	{
-		TCPromise<void> Promise;
-
 		auto &Internal = *mp_pInternal;
 		auto *pConnection = Internal.m_ClientConnections.f_FindEqual(_ConnectionID);
 		if (!pConnection)
-			return Promise <<= DMibErrorInstance("No such client connection");
+			co_return DMibErrorInstance("No such client connection");
 
 		auto &Connection = **pConnection;
 		if (!Connection.m_pHost)
-			return Promise <<= DMibErrorInstance("Client has no host");
+			co_return DMibErrorInstance("Client has no host");
 
 		auto &Host = *Connection.m_pHost;
 
 		CActorDistributionManagerInternal::CDecodedClientConnectionSetting DecodedSettings;
-		if (!Internal.fp_DecodeClientConnectionSettings(_Settings, Promise, DecodedSettings))
-			return Promise.f_MoveFuture();
+		if (auto pError = Internal.fp_DecodeClientConnectionSettings(_Settings, DecodedSettings))
+			co_return fg_Move(pError);
 
 		if (DecodedSettings.m_bAnonymous != Host.m_HostInfo.m_bAnonymous)
-			return Promise <<= DMibErrorInstance("You cannot change the anonymous status of the connection");
+			co_return DMibErrorInstance("You cannot change the anonymous status of the connection");
 
 		if (DecodedSettings.m_RealHostID != Host.m_HostInfo.m_RealHostID)
-			return Promise <<= DMibErrorInstance("You cannot change the host ID of the connection");
+			co_return DMibErrorInstance("You cannot change the host ID of the connection");
 
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> pNewSSLContext;
 		try
@@ -817,12 +789,12 @@ namespace NMib::NConcurrency
 		}
 		catch (NException::CException const &_Exception)
 		{
-			return Promise <<= DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
+			co_return DMibErrorInstance(fg_Format("Error creating SSL context: {}", _Exception.f_GetErrorStr()));
 		}
 
 		Connection.m_pSSLContext = fg_Move(pNewSSLContext);
 		Connection.m_ServerURL = _Settings.m_ServerURL;
 
-		return Promise <<= g_Void;
+		co_return {};
 	}
 }

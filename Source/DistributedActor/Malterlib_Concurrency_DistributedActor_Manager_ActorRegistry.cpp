@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 	CDistributedActorPublication::~CDistributedActorPublication()
 	{
 		if (mp_DistributionManager)
-			f_Destroy() > fg_DiscardResult();
+			f_Destroy().f_DiscardResult();
 	}
 
 	bool CDistributedActorPublication::f_IsValid() const
@@ -43,21 +43,21 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CDistributedActorPublication::f_Destroy(fp32 _WaitForPublicationsTimeout)
 	{
-		TCPromise<void> Promise;
-
 		if (!mp_DistributionManager)
-			return Promise <<= g_Void;
+			return g_Void;
 
+		TCFuture<void> RemoveFuture;
 		if (auto DistributionManager = mp_DistributionManager.f_Lock())
-			DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID, _WaitForPublicationsTimeout) > Promise;
-		else
-			Promise.f_SetResult();
+			RemoveFuture = DistributionManager(&CActorDistributionManager::fp_RemoveActorPublication, mp_Namespace, mp_ActorID, _WaitForPublicationsTimeout);
 
 		mp_DistributionManager.f_Clear();
 		mp_Namespace.f_Clear();
 		mp_ActorID.f_Clear();
 
-		return Promise.f_MoveFuture();
+		if (RemoveFuture.f_IsValid())
+			return RemoveFuture;
+		else
+			return g_Void;
 	}
 
 	void CDistributedActorPublication::f_Republish(NStr::CStr const &_HostID) const
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 		if (mp_DistributionManager)
 		{
 			if (auto DistributionManager = mp_DistributionManager.f_Lock())
-				DistributionManager(&CActorDistributionManager::fp_RepublishActorPublication, mp_Namespace, mp_ActorID, _HostID) > fg_DiscardResult();
+				DistributionManager.f_Bind<&CActorDistributionManager::fp_RepublishActorPublication>(mp_Namespace, mp_ActorID, _HostID).f_DiscardResult();
 		}
 	}
 
@@ -76,16 +76,14 @@ namespace NMib::NConcurrency
 
 	TCFuture<CDistributedActorPublication> CActorDistributionManager::fp_PublishActor
 		(
-			TCDistributedActor<CActor> &&_Actor
-			, NStr::CStr const &_Namespace
-			, NPrivate::CDistributedActorInterfaceInfo const &_ClassesToPublish
+			TCDistributedActor<CActor> _Actor
+			, NStr::CStr _Namespace
+			, NPrivate::CDistributedActorInterfaceInfo _ClassesToPublish
 			, fp32 _WaitForPublicationsTimeout
 		)
 	{
-		TCPromise<CDistributedActorPublication> Promise;
-
 		if (!CActorDistributionManager::fs_IsValidNamespaceName(_Namespace))
-			return Promise <<= DMibErrorInstance("Invalid namespace name");
+			co_return DMibErrorInstance("Invalid namespace name");
 
 		auto pDistributedActorData = static_cast<NPrivate::CDistributedActorData const *>(_Actor->f_GetDistributedActorData().f_Get());
 		DMibRequire(pDistributedActorData);
@@ -93,13 +91,13 @@ namespace NMib::NConcurrency
 		auto &Internal = *mp_pInternal;
 
 		if (Internal.m_PublishedActors.f_FindEqual(pDistributedActorData->m_ActorID))
-			return Promise <<= DMibErrorInstance("An actor can only be published in one namespace");
+			co_return DMibErrorInstance("An actor can only be published in one namespace");
 
 		auto &LocalNamespace = Internal.m_LocalNamespaces[_Namespace];
 		auto &PublishedActor = LocalNamespace.m_Actors[pDistributedActorData->m_ActorID];
 
 		if (PublishedActor.m_Actor)
-			return Promise <<= DMibErrorInstance("This actor has already been published in this namespace");
+			co_return DMibErrorInstance("This actor has already been published in this namespace");
 
 		PublishedActor.m_pNamespace = &LocalNamespace;
 		Internal.m_PublishedActors.f_Insert(PublishedActor);
@@ -114,7 +112,7 @@ namespace NMib::NConcurrency
 		Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
 		Publish.m_ProtocolVersions = _ClassesToPublish.f_GetProtocolVersions();
 
-		TCActorResultVector<void> WaitResults;
+		TCFutureVector<void> WaitResults;
 		NContainer::TCVector<CPendingWait> PendingWaits;
 
 		for (auto &pHost : Internal.m_Hosts)
@@ -136,7 +134,7 @@ namespace NMib::NConcurrency
 			{
 				auto WaitID = Publish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
 
-				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults.f_AddResult();
+				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults;
 
 				PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
 			}
@@ -149,39 +147,28 @@ namespace NMib::NConcurrency
 		}
 
 		if (WaitResults.f_IsEmpty())
-			return Promise <<= CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
+			co_return CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
 
-		WaitResults.f_GetResults().f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for publication results")
-			>
-			[
-				Promise
-				, PendingWaits = fg_Move(PendingWaits)
-				, Publication = CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID)
-			]
-			(TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results) mutable
+		auto Results = co_await fg_AllDoneWrapped(WaitResults).f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for publication results").f_Wrap();
+
+		if (!Results)
+			DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publications: {}", Results.f_GetExceptionStr());
+		else
+		{
+			for (auto &Result : *Results)
 			{
-				if (!_Results)
-					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publications: {}", _Results.f_GetExceptionStr());
-				else
-				{
-					for (auto &Result : *_Results)
-					{
-						if (!Result)
-							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publication: {}", Result.f_GetExceptionStr());
-					}
-				}
-
-				for (auto &Wait : PendingWaits)
-					Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
-
-				Promise.f_SetResult(fg_Move(Publication));
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for publication: {}", Result.f_GetExceptionStr());
 			}
-		;
+		}
 
-		return Promise.f_Future();
+		for (auto &Wait : PendingWaits)
+			Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
+
+		co_return CDistributedActorPublication(fg_ThisActor(this), _Namespace, pDistributedActorData->m_ActorID);
 	}
 
-	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr const &_NamespaceID, NStr::CStr const &_ActorID, NStr::CStr const &_HostID)
+	void CActorDistributionManager::fp_RepublishActorPublication(NStr::CStr _NamespaceID, NStr::CStr _ActorID, NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_NamespaceID);
@@ -240,10 +227,8 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<void> CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr const &_Namespace, NStr::CStr const &_ActorID, fp32 _WaitForPublicationsTimeout)
+	TCFuture<void> CActorDistributionManager::fp_RemoveActorPublication(NStr::CStr _Namespace, NStr::CStr _ActorID, fp32 _WaitForPublicationsTimeout)
 	{
-		TCPromise<void> Promise;
-
 		auto &Internal = *mp_pInternal;
 		auto *pLocalNamespace = Internal.m_LocalNamespaces.f_FindEqual(_Namespace);
 		DMibRequire(pLocalNamespace);
@@ -261,7 +246,7 @@ namespace NMib::NConcurrency
 		Unpublish.m_ActorID = _ActorID;
 		Unpublish.m_Namespace = _Namespace;
 
-		TCActorResultVector<void> WaitResults;
+		TCFutureVector<void> WaitResults;
 		NContainer::TCVector<CPendingWait> PendingWaits;
 
 		for (auto &pHost : Internal.m_Hosts)
@@ -283,7 +268,7 @@ namespace NMib::NConcurrency
 			{
 				auto WaitID = Unpublish.m_WaitPublicationID = Host.f_GetUniqueWaitPublicationID();
 
-				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults.f_AddResult();
+				Host.m_WaitingPublications[WaitID].m_Promise.f_Future() > WaitResults;
 
 				PendingWaits.f_Insert(CPendingWait{.m_pHost = pHost, .m_WaitID = WaitID});
 			}
@@ -297,30 +282,25 @@ namespace NMib::NConcurrency
 		}
 
 		if (WaitResults.f_IsEmpty())
-			return Promise <<= g_Void;
+			co_return {};
 
-		WaitResults.f_GetResults().f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for unpublication results")
-			> [Promise, PendingWaits = fg_Move(PendingWaits)](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+		auto Results = co_await fg_AllDoneWrapped(WaitResults).f_Timeout(_WaitForPublicationsTimeout, "Timed out waiting for unpublication results").f_Wrap();
+
+		if (!Results)
+			DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublications: {}", Results.f_GetExceptionStr());
+		else
+		{
+			for (auto &Result : *Results)
 			{
-				if (!_Results)
-					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublications: {}", _Results.f_GetExceptionStr());
-				else
-				{
-					for (auto &Result : *_Results)
-					{
-						if (!Result)
-							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublication: {}", Result.f_GetExceptionStr());
-					}
-				}
-
-				for (auto &Wait : PendingWaits)
-					Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
-
-				Promise.f_SetResult();
+				if (!Result)
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "Failed to wait for unpublication: {}", Result.f_GetExceptionStr());
 			}
-		;
+		}
 
-		return Promise.f_Future();
+		for (auto &Wait : PendingWaits)
+			Wait.m_pHost->m_WaitingPublications.f_Remove(Wait.m_WaitID);
+
+		co_return {};
 	}
 
 	CAbstractDistributedActor::CAbstractDistributedActor() = default;
@@ -382,7 +362,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, CRemoteActor &_RemoteActor
-			, TCActorResultVector<void> *_pResults
+			, TCFutureVector<void> *_pResults
 		)
 	{
 		CAbstractDistributedActor AbstractActor
@@ -396,23 +376,19 @@ namespace NMib::NConcurrency
 				, _RemoteActor.m_ProtocolVersions
 			}
 		;
+
 		auto fSendNotifications = [&](CActorPublicationSubscription &_Subscription)
 			{
 				if (_pResults)
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
-						fg_Dispatch
+						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>
 							(
-								Instance.m_DispatchActor
-								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable -> TCFuture<void>
-								{
-									co_await fg_CallSafe(pOnNewActor, fg_Move(RemoteActor));
-
-									co_return {};
-								}
+								fg_TempCopy(Instance.m_pOnNewActor)
+								, fg_TempCopy(AbstractActor)
 							)
-							> _pResults->f_AddResult()
+							> *_pResults
 						;
 					}
 				}
@@ -420,15 +396,12 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
-						fg_Dispatch
+						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>>
 							(
-								Instance.m_DispatchActor
-								, [pOnNewActor = Instance.m_pOnNewActor, RemoteActor = fg_TempCopy(AbstractActor)]() mutable
-								{
-									fg_CallSafe(pOnNewActor, fg_Move(RemoteActor)) > fg_DiscardResult();
-								}
+								fg_TempCopy(Instance.m_pOnNewActor)
+								, fg_TempCopy(AbstractActor)
 							)
-							> fg_DiscardResult()
+							.f_DiscardResult()
 						;
 					}
 				}
@@ -443,7 +416,7 @@ namespace NMib::NConcurrency
 			fSendNotifications(*pSpecific);
 	}
 
-	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCActorResultVector<void> *_pResults)
+	void CActorDistributionManagerInternal::fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCFutureVector<void> *_pResults)
 	{
 		auto Identifier = CDistributedActorIdentifier{fg_Explicit(_RemoteActor.m_pHost), _RemoteActor.f_GetActorID()};
 
@@ -453,17 +426,12 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
-						fg_Dispatch
+						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CDistributedActorIdentifier>, EVirtualCall::mc_NotVirtual>
 							(
-								Instance.m_DispatchActor
-								, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable -> TCFuture<void>
-								{
-									co_await fg_CallSafe(pOnRemovedActor, fg_Move(Identifier));
-
-									co_return {};
-								}
+								fg_TempCopy(Instance.m_pOnRemovedActor)
+								, fg_TempCopy(Identifier)
 							)
-							> _pResults->f_AddResult()
+							> *_pResults
 						;
 					}
 				}
@@ -471,15 +439,12 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
-						fg_Dispatch
+						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CDistributedActorIdentifier>>
 							(
-								Instance.m_DispatchActor
-								, [pOnRemovedActor = Instance.m_pOnRemovedActor, Identifier]() mutable
-								{
-									fg_CallSafe(pOnRemovedActor, fg_Move(Identifier)) > fg_DiscardResult();
-								}
+								fg_TempCopy(Instance.m_pOnRemovedActor)
+								, fg_TempCopy(Identifier)
 							)
-							> fg_DiscardResult()
+							.f_DiscardResult()
 						;
 					}
 				}
@@ -592,7 +557,7 @@ namespace NMib::NConcurrency
 		auto Mapped = Host.m_RemoteActors(Publish.m_ActorID);
 
 		bool bNeedResults = !_pConnection->m_bPulishFinished || Publish.m_WaitPublicationID;
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		if (Mapped.f_WasCreated())
 		{
@@ -613,7 +578,7 @@ namespace NMib::NConcurrency
 			if (!_pConnection->m_bPulishFinished)
 				ConnectionPublishFinishedPromise = _pConnection->m_PublishFinished.f_Insert();
 
-			Results.f_GetResults() > [ConnectionPublishFinishedPromise, fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
+			fg_AllDoneWrapped(Results) > [ConnectionPublishFinishedPromise, fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
 				{
 					if (ConnectionPublishFinishedPromise.f_IsValid() && !ConnectionPublishFinishedPromise.f_IsSet())
 						ConnectionPublishFinishedPromise.f_SetResult();
@@ -641,7 +606,7 @@ namespace NMib::NConcurrency
 		_Stream >> Unpublish;
 
 		bool bNeedResults = !!Unpublish.m_WaitPublicationID;
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 
 		auto pRemoteActor = Host.m_RemoteActors.f_FindEqual(Unpublish.m_ActorID);
 		if (pRemoteActor)
@@ -681,7 +646,7 @@ namespace NMib::NConcurrency
 
 		if (bNeedResults && !Results.f_IsEmpty())
 		{
-			Results.f_GetResults() > [fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
+			fg_AllDoneWrapped(Results) > [fReportResults = fg_Move(fReportResults)](auto &&_Result) mutable
 				{
 					fReportResults();
 				}
@@ -699,7 +664,7 @@ namespace NMib::NConcurrency
 		CActorPublicationSubscription::~CActorPublicationSubscription() = default;
 	}
 
-	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> &&_fHostInfoChanged)
+	CActorSubscription CActorDistributionManager::f_SubscribeHostInfoChanged(TCActorFunctorWeak<TCFuture<void> (CHostInfo _HostInfo)> &&_fHostInfoChanged)
 	{
 		auto &Internal = *mp_pInternal;
 		auto &OnHostInfoChange = Internal.m_OnHostInfoChanged.f_Insert();
@@ -724,15 +689,15 @@ namespace NMib::NConcurrency
 
 	TCFuture<CActorSubscription> CActorDistributionManager::f_SubscribeActors
 		(
-			NStr::CStr const &_Namespace
-			, TCActor<CActor> const &_Actor
-			, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> &&_fOnNewActor
-			, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)> &&_fOnRemovedActor
+			NStr::CStr _Namespace
+			, TCActor<CActor> _Actor
+			, NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)> _fOnNewActor
+			, NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)> _fOnRemovedActor
 		)
 	{
 		auto &Internal = *mp_pInternal;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> pOnNewActor = fg_Construct(fg_Move(_fOnNewActor));
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)>> pOnRemovedActor = fg_Construct(fg_Move(_fOnRemovedActor));
 
 		mint SubscriptionID = Internal.m_SubscribedActorsNextInstanceID++;
 
@@ -745,19 +710,15 @@ namespace NMib::NConcurrency
 		Instance.m_pOnNewActor = pOnNewActor;
 		Instance.m_pOnRemovedActor = pOnRemovedActor;
 
-		TCActorResultVector<void> ReportResults;
+		TCFutureVector<void> ReportResults;
 		auto fReportExistingActor = [&](CAbstractDistributedActor &&_RemoteActor)
 			{
-				fg_Dispatch
+				_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>
 					(
-						_Actor
-						, [pOnNewActor = pOnNewActor, RemoteActor = fg_Move(_RemoteActor)]() mutable -> TCFuture<void>
-						{
-							co_await fg_CallSafe(pOnNewActor, fg_Move(RemoteActor));
-							co_return {};
-						}
+						fg_TempCopy(pOnNewActor)
+						, fg_Move(_RemoteActor)
 					)
-					> ReportResults.f_AddResult();
+					> ReportResults
 				;
 			}
 		;
@@ -795,7 +756,7 @@ namespace NMib::NConcurrency
 				fReportExistingNamespace(*pRemoteNamespace);
 		}
 
-		co_await ReportResults.f_GetResults();
+		co_await fg_AllDoneWrapped(ReportResults);
 
 		co_return g_ActorSubscription / [this, _Namespace, SubscriptionID]
 			{

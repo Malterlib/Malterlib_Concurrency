@@ -59,11 +59,11 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorDistributionManager::f_SetAuthenticationHandler
 		(
-			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
-			, NStr::CStr const &_LastExecutionID
-			, TCDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
-			, NStr::CStr const &_UserID
-			, NStr::CStr const &_UserName
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
+			, NStr::CStr _LastExecutionID
+			, TCDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
+			, NStr::CStr _UserID
+			, NStr::CStr _UserName
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));
@@ -79,8 +79,8 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorDistributionManager::f_RemoveAuthenticationHandler
 		(
-			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> const &_pHost
-			, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> const &_AuthenticationHandler
+			NStorage::TCSharedPointerSupportWeak<NPrivate::ICHost> _pHost
+			, TCWeakDistributedActor<ICDistributedActorAuthenticationHandler> _AuthenticationHandler
 		)
 	{
 		auto &Host = *(static_cast<NActorDistributionManagerInternal::CHost *>(_pHost.f_Get()));

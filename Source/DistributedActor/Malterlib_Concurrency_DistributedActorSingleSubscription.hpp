@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 				&CActorDistributionManager::f_SubscribeActors
 				, mp_Namespace
 				, fg_CurrentActor()
-				, [this](CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
+				, [this](CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
 					mp_DistributedActor = {};
 					auto Actor = _NewActor.f_GetActor<t_CActor>();
@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 
 					co_return {};
 				}
-				, [this](const CDistributedActorIdentifier &_RemovedActor) -> TCFuture<void>
+				, [this](CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 				{
 					if (mp_DistributedActor && *mp_DistributedActor == _RemovedActor)
 						mp_DistributedActor = {};
@@ -55,12 +55,10 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCFuture<TCDistributedActor<t_CActor>> TCDistributedActorSingleSubscription<t_CActor>::f_GetActor()
 	{
-		TCPromise<TCDistributedActor<t_CActor>> Promise;
-
 		if (mp_DistributedActor.f_IsSet())
-			return Promise <<= mp_DistributedActor;
+			co_return mp_DistributedActor;
 
-		return mp_GetActorPromises.f_Insert(fg_Move(Promise)).f_Future();
+		co_return co_await mp_GetActorPromises.f_Insert().f_Future();
 	}
 
 	template <typename t_CActor>

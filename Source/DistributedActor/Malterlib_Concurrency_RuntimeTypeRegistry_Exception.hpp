@@ -7,7 +7,7 @@
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion);
+	bool fg_CopyReplyToAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion);
 }
 
 namespace NMib::NConcurrency
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void TCAsyncResult<t_CType>::f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion)
 	{
-		if (NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, *this, _ActorProtocolVersion))
+		if (NPrivate::fg_CopyReplyToAsyncResultShared(_Stream, *this, _ActorProtocolVersion))
 			return;
 		t_CType Result;
 		_Stream >> Result;
@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CStream>
 	void TCAsyncResult<void>::f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion)
 	{
-		if (NPrivate::fg_CopyReplyToPromiseOrAsyncResultShared(_Stream, *this, _ActorProtocolVersion))
+		if (NPrivate::fg_CopyReplyToAsyncResultShared(_Stream, *this, _ActorProtocolVersion))
 			return;
 		f_SetResult();
 	}

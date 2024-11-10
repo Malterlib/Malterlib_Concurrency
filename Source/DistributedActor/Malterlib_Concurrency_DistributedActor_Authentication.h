@@ -19,15 +19,15 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<TCActorSubscriptionWithID<>> f_RegisterAuthenticationHandler
 			(
-				TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> &&_Handler
-				, NStr::CStr const &_UserID
+				TCDistributedActorInterfaceWithID<ICDistributedActorAuthenticationHandler> _Handler
+				, NStr::CStr _UserID
 			) = 0
 		;
 		virtual TCFuture<bool> f_AuthenticatePermissionPattern
 			(
-				NStr::CStr const &_Pattern
-				, NContainer::TCSet<NStr::CStr> const &_AuthenticationFactors
-				, NStr::CStr const &_RequestID
+				NStr::CStr _Pattern
+				, NContainer::TCSet<NStr::CStr> _AuthenticationFactors
+				, NStr::CStr _RequestID
 			) = 0
 		;
 	};

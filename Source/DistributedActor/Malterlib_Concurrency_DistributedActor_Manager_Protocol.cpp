@@ -153,7 +153,7 @@ namespace NMib::NConcurrency
 						HostInfo.m_HostID = Host.m_HostInfo.m_RealHostID;
 						HostInfo.m_FriendlyName = Host.m_FriendlyName;
 						for (auto &OnHostInfoChanged : m_OnHostInfoChanged)
-							OnHostInfoChanged.m_fOnHostInfoChanged(HostInfo) > fg_DiscardResult();
+							OnHostInfoChanged.m_fOnHostInfoChanged.f_CallDiscard(HostInfo);
 					}
 
 					// Resend packets that remote thinks are missing
@@ -247,11 +247,11 @@ namespace NMib::NConcurrency
 
 					_pConnection->m_bPulishFinished = true;
 
-					TCActorResultVector<void> PublishResults;
+					TCFutureVector<void> PublishResults;
 					for (auto &PublishFinished : _pConnection->m_PublishFinished)
-						PublishFinished.f_Future() > PublishResults.f_AddResult();
+						PublishFinished.f_Future() > PublishResults;
 
-					PublishResults.f_GetResults().f_Timeout(30.0, "")
+					fg_AllDoneWrapped(PublishResults).f_Timeout(30.0, "")
 						> [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this](auto &&)
 						{
 							if (!pConnection->m_pHost)

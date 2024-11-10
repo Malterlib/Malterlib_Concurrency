@@ -33,34 +33,36 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActorDistributionManager::fp_Destroy()
 	{
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		auto &Internal = *mp_pInternal;
 
 		CLogError LogError("Mib/Concurrency/Actors");
 
 		if (Internal.m_ResolveActor)
-			fg_Move(Internal.m_ResolveActor).f_Destroy() > Results.f_AddResult();
+			fg_Move(Internal.m_ResolveActor).f_Destroy() > Results;
 
 		if (Internal.m_WebsocketClientConnector)
-			fg_Move(Internal.m_WebsocketClientConnector).f_Destroy() > Results.f_AddResult();
+			fg_Move(Internal.m_WebsocketClientConnector).f_Destroy() > Results;
 
 		for (auto &Listen : Internal.m_Listens)
 		{
 			Listen.m_ListenCallbackSubscription.f_Clear();
 			if (Listen.m_WebsocketServer)
-				fg_Move(Listen.m_WebsocketServer).f_Destroy() > Results.f_AddResult();
+				fg_Move(Listen.m_WebsocketServer).f_Destroy() > Results;
 		}
 
+		Internal.m_Listens.f_Clear();
+
 		for (auto &pConnection : Internal.m_ClientConnections)
-			pConnection->f_Disconnect() > Results.f_AddResult();
+			pConnection->f_Disconnect() > Results;
 
 		for (auto &pConnection : Internal.m_ServerConnections)
-			pConnection->f_Disconnect() > Results.f_AddResult();
+			pConnection->f_Disconnect() > Results;
 
 		if (Internal.m_CleanupTimerSubscription)
-			Internal.m_CleanupTimerSubscription->f_Destroy() > Results.f_AddResult();
+			Internal.m_CleanupTimerSubscription->f_Destroy() > Results;
 
-		co_await fg_ExchangeMove(Results).f_GetUnwrappedResults().f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
+		co_await fg_AllDone(Results).f_Wrap() > LogError.f_Warning("Failed to destroy actor distribution manager");
 
 		co_return {};
 	}
@@ -123,31 +125,27 @@ namespace NMib::NConcurrency
 
 	void CActorDistributionManagerInternal::CConnection::f_DiscardIdentifyPromise(NStr::CStr const &_Error)
 	{
-		m_IdentifyPromise.f_Abandon
-			(
-				[&]()
-				{
-					return DMibErrorInstance(_Error).f_ExceptionPointer();
-				}
-			)
+		NException::CExceptionPointer pException;
+		auto fGetExceptionPointer = [&]
+			{
+				if (pException)
+					return pException;
+
+				pException = DMibErrorInstance(_Error).f_ExceptionPointer();
+				return pException;
+			}
 		;
+		m_IdentifyPromise.f_Abandon(fGetExceptionPointer);
+
 		for (auto &Finished : m_PublishFinished)
-		{
-			Finished.f_Abandon
-				(
-					[&]()
-					{
-						return DMibErrorInstance(_Error).f_ExceptionPointer();
-					}
-				)
-			;
-		}
+			Finished.f_Abandon(fGetExceptionPointer);
+
 		m_PublishFinished.f_Clear();
 	}
 
 	TCFuture<void> CActorDistributionManagerInternal::CConnection::f_Disconnect()
 	{
-		return g_Future <<= g_ConcurrentDispatch /
+		return g_ConcurrentDispatch /
 			[
 				bIsLastConnection = m_HostLink.f_IsAloneInList()
 				, ConnectionID = f_GetConnectionID()
@@ -155,23 +153,18 @@ namespace NMib::NConcurrency
 				, Desc = f_GetHostInfo().f_GetDesc()
 				, Connection = fg_Move(m_Connection)
 			]
-			() mutable
+			() mutable -> TCFuture<void>
 			{
-				TCPromise<void> Promise;
 				if (!Connection)
-					return Promise <<= g_Void;
+					co_return {};
 
-				Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0)
-					> fg_ConcurrentActor() / [=, Connection = Connection](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result)
-					{
-						fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
-						if (_Result)
-							Promise.f_SetResult();
-						else
-							Promise.f_SetException(fg_Move(_Result));
-					}
-				;
-				return Promise.f_MoveFuture();
+				auto Result = co_await Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, "Normal disconnect", 5.0).f_Wrap();
+				fs_LogClose(Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
+
+				if (!Result)
+					co_return Result.f_GetException();
+				
+				co_return {};
 			}
 		;
 	}
@@ -195,7 +188,7 @@ namespace NMib::NConcurrency
 			auto ServerURL = f_GetServerURL();
 			auto Desc = f_GetHostInfo().f_GetDesc();
 
-			NStorage::TCOptional<TCPromise<void>> Promise;
+			TCPromise<void> Promise{CPromiseConstructEmpty()};
 			if (_pPromise)
 				Promise = fg_Move(*_pPromise);
 
@@ -203,8 +196,8 @@ namespace NMib::NConcurrency
 				> fg_ConcurrentActor() / [=, Promise = fg_Move(Promise)](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result) mutable
 				{
 					fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);
-					if (Promise)
-						Promise->f_SetResult();
+					if (Promise.f_IsValid())
+						Promise.f_SetResult();
 				}
 			;
 			m_Connection.f_Clear();

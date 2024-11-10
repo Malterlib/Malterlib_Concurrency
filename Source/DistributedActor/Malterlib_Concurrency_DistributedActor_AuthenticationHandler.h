@@ -113,9 +113,9 @@ namespace NMib::NConcurrency
 
 		virtual TCFuture<NContainer::TCVector<CResponse>> f_RequestAuthentication
 			(
-				CRequest const &_Request
-				, CChallenge const &_Challenge
-				, NStr::CStr const &_MultipleRequestID
+				CRequest _Request
+				, CChallenge _Challenge
+				, NStr::CStr _MultipleRequestID
 			) = 0
 		;
 		virtual TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) = 0;

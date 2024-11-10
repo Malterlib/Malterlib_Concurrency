@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CResult>
-	bool fg_CopyReplyToPromiseOrAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, tf_CResult &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion)
+	bool fg_CopyReplyToAsyncResultShared(NStream::CBinaryStreamMemoryPtr<> &_Stream, TCAsyncResult<tf_CResult> &_PromiseOrAsyncResult, uint32 _ActorProtocolVersion)
 	{
 		uint8 bException;
 		_Stream >> bException;
@@ -71,9 +71,9 @@ namespace NMib::NConcurrency::NPrivate
 	}
 	
 	template <typename tf_CResult>
-	void fg_CopyReplyToPromise
+	void fg_CopyReplyToAsyncResult
 		(
-			TCPromise<tf_CResult> &_Promise
+			TCAsyncResult<tf_CResult> &_AsyncResult
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
@@ -81,7 +81,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		CDistributedActorReadStream ReplyStream;
 		ReplyStream.f_OpenRead(_Data);
-		if (fg_CopyReplyToPromiseOrAsyncResultShared(ReplyStream, _Promise, _Context.f_ActorProtocolVersion()))
+		if (fg_CopyReplyToAsyncResultShared(ReplyStream, _AsyncResult, _Context.f_ActorProtocolVersion()))
 			return;
 		DMibBinaryStreamContext(ReplyStream, &_Context);
 		DMibBinaryStreamVersion(ReplyStream, _Version);
@@ -92,16 +92,16 @@ namespace NMib::NConcurrency::NPrivate
 		NStr::CStr Error;
 		if (!_Context.f_ValidateContext(Error))
 		{
-			_Promise.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
+			_AsyncResult.f_SetException(DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error)));
 			return;
 		}
-		_Promise.f_SetResult(fg_Move(Result));
+		_AsyncResult.f_SetResult(fg_Move(Result));
 	}
 
 	template <>
-	void fg_CopyReplyToPromise
+	void fg_CopyReplyToAsyncResult
 		(
-			TCPromise<void> &_Promise
+			TCAsyncResult<void> &_Promise
 			, NContainer::CSecureByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version

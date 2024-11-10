@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 		TCActorFunctorWithID
 			(
 				TCActor<CActor> &&_Actor
-				, NFunction::TCFunctionMutable<t_CFunction> &&_fFunctor
+				, typename TCActorFunctor<t_CFunction>::CFunction &&_fFunctor
 				, CActorSubscription &&_Subscription = nullptr
 				, uint32 _SubscriptionID = t_SubscriptionID
 			)
@@ -117,27 +117,31 @@ namespace NMib::NConcurrency
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, EVirtualCall tf_VirtualCall
 		, typename tf_CActor
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCDistributedActorInterface<tf_CActor> &&_Actor, tfp_CParams && ...p_Params)
+		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CActor, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 
 	template 
 	<
 		auto tf_pMemberFunction
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 tf_NameHash)
+		, EVirtualCall tf_VirtualCall
 		, typename tf_CInterface
 		, uint32 tf_SubscriptionID
 		, typename... tfp_CParams
 	>
 	auto fg_CallActor(TCDistributedActorInterfaceWithID<tf_CInterface, tf_SubscriptionID> &&_Actor, tfp_CParams && ...p_Params)
+		-> NPrivate::TCFutureReturn<decltype(tf_pMemberFunction)>
 		requires cActorCallableWithFunctor<tf_pMemberFunction, tf_CInterface, tfp_CParams...>
 	{
-		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash)>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
+		return fg_CallActor<tf_pMemberFunction DMibIfNotSupportMemberNameFromMemberPointer(, tf_NameHash), tf_VirtualCall>(fg_Move(_Actor.f_GetActor()), fg_Forward<tfp_CParams>(p_Params)...);
 	}
 	
 #define DMibDistributedStreamDeclare(d_Class) DMibStreamDeclare(d_Class, NConcurrency::CDistributedActorWriteStream, Feed); \

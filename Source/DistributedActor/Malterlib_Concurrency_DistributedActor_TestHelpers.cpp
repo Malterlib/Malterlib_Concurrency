@@ -284,7 +284,7 @@ namespace NMib::NConcurrency
 					, pSubscription = &Subscription
 					, pDeleted = Subscription.m_pDeleted
 				]
-				(CAbstractDistributedActor &&_NewActor) -> TCFuture<void>
+				(CAbstractDistributedActor _NewActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
@@ -305,7 +305,7 @@ namespace NMib::NConcurrency
 					, pSubscription = &Subscription
 					, pDeleted = Subscription.m_pDeleted
 				]
-				(CDistributedActorIdentifier const &_RemovedActor) -> TCFuture<void>
+				(CDistributedActorIdentifier _RemovedActor) -> TCFuture<void>
 				{
 					DMibLock(*pRemoteLock);
 					if (pDeletedHelper->f_Load())
@@ -382,17 +382,17 @@ namespace NMib::NConcurrency
 
 	void CDistributedActorTestHelper::f_Destroy()
 	{
-		TCActorResultVector<void> Results;
+		TCFutureVector<void> Results;
 		for (auto &Subscription : mp_Subscriptions)
 		{
 			if (Subscription.m_Subscription)
-				Subscription.m_Subscription->f_Destroy() > Results.f_AddResult();
+				Subscription.m_Subscription->f_Destroy() > Results;
 		}
 
 		for (auto &Publication : mp_Publications)
-			Publication.m_Publication.f_Destroy() > Results.f_AddResult();
+			Publication.m_Publication.f_Destroy() > Results;
 
-		Results.f_GetResults().f_CallSync(mp_pRunLoop, 60.0);
+		fg_AllDone(Results).f_CallSync(mp_pRunLoop, 60.0);
 	}
 
 	void CDistributedActorTestHelper::f_Unpublish(NStr::CStr const &_Publication)

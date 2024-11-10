@@ -37,7 +37,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 			f_DiscardIdentifyPromise("Destroyed");
 
 			if (m_Connection)
-				fg_Move(m_Connection).f_Destroy() > fg_DiscardResult();
+				fg_Move(m_Connection).f_Destroy().f_DiscardResult();
 		}
 
 		void f_Reset(bool _bResetHost, CActorDistributionManagerInternal &_This, NStr::CStr const &_Message, TCPromise<void> *_pPromise);
@@ -61,7 +61,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		CActorSubscription m_ConnectionSubscription;
 		NStorage::TCSharedPointer<NNetwork::CSSLContext> m_pSSLContext;
 		NStorage::TCSharedPointerSupportWeak<CHost> m_pHost;
-		TCPromise<bool> m_IdentifyPromise;
+		TCPromise<bool> m_IdentifyPromise{CPromiseConstructNoConsume()};
 		NContainer::TCVector<TCPromise<void>> m_PublishFinished;
 		DMibListLinkDS_Link(CConnection, m_Link);
 		DMibListLinkDS_Link(CConnection, m_HostLink);
@@ -182,13 +182,13 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct COutstandingCall
 	{
-		TCPromise<NContainer::CSecureByteVector> m_Promise;
+		TCPromise<NContainer::CSecureByteVector> m_Promise{CPromiseConstructEmpty()};
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
 	struct CWaitingForPublication
 	{
-		TCPromise<void> m_Promise;
+		TCPromise<void> m_Promise{CPromiseConstructNoConsume()};
 	};
 
 	struct CHost : public NPrivate::ICHost
@@ -323,7 +323,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 		
 		TCActor<CActor> m_DispatchActor;
 		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CAbstractDistributedActor &&_NewActor)>> m_pOnNewActor;
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier const &_RemovedActor)>> m_pOnRemovedActor;
+		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<TCFuture<void> (CDistributedActorIdentifier &&_RemovedActor)>> m_pOnRemovedActor;
 	};
 
 	struct CActorPublicationSubscription
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 namespace NMib::NConcurrency
 {
-	struct CActorDistributionManagerInternal
+	struct CActorDistributionManagerInternal : public CActorInternal
 	{
 		using CConnection = NActorDistributionManagerInternal::CConnection;
 		using CClientConnection = NActorDistributionManagerInternal::CClientConnection;
@@ -409,7 +409,7 @@ namespace NMib::NConcurrency
 		{
 			~COnHostInfoChanged();
 
-			TCActorFunctorWeak<TCFuture<void> (CHostInfo const &_HostInfo)> m_fOnHostInfoChanged;
+			TCActorFunctorWeak<TCFuture<void> (CHostInfo _HostInfo)> m_fOnHostInfoChanged;
 			NStorage::TCSharedPointer<bool> m_pDestroyed = fg_Construct(false);
 		};
 
@@ -480,24 +480,18 @@ namespace NMib::NConcurrency
 		NStr::CStr fp_TranslateHostname(NStr::CStr const &_Hostname) const;
 		NWeb::NHTTP::CURL fp_TranslateURL(NWeb::NHTTP::CURL const &_URL) const;
 
-		template <typename tf_CReturnType>
-		bool fp_DecodeClientConnectionSettings
+		NException::CExceptionPointer fp_DecodeClientConnectionSettings
 			(
 				CActorDistributionConnectionSettings const &_Settings
-				, TCPromise<tf_CReturnType> &_Promise
 				, CDecodedClientConnectionSetting &o_DecodedSettings
 			)
 		;
 
 		void fp_ResetHostState(CHost &_Host, CConnection *_pSaveConnection, bool _bSaveInactive, NStr::CStr const &_Error);
 		void fp_DestroyHost(CHost &_Host, CConnection *_pSaveConnection, NStr::CStr const &_Reason);
-		void fp_Listen
-			(
-				NStr::CStr const &_ListenID
-				, CActorDistributionListenSettings const &_Settings
-				, NStorage::TCSharedPointer<TCPromise<CDistributedActorListenReference>> const &_pPromise
-			)
-		;
+		TCFuture<void> fp_OnNewConnection(NStr::CStr _ListenID, NWeb::CWebSocketNewServerConnection _NewServerConnection);
+		TCFuture<CDistributedActorListenReference> fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
+		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
 		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CSecureByteVector &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		void fp_ProcessPacketQueue(CConnection *_pConnection);
@@ -516,10 +510,10 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 				, CRemoteActor &_RemoteActor
-				, TCActorResultVector<void> *_pResults
+				, TCFutureVector<void> *_pResults
 			)
 		;
-		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCActorResultVector<void> *_pResults);
+		void fp_NotifyRemovedActor(CRemoteActor const &_RemoteActor, TCFutureVector<void> *_pResults);
 
 		void fp_ReplyToRemoteCallWithException
 			(
@@ -561,7 +555,7 @@ namespace NMib::NConcurrency
 		bool fp_HandleDestroySubscription(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_HandleSubscriptionDestroyed(CConnection *_pConnection, NStream::CBinaryStreamMemoryPtr<> &_Stream);
 		bool fp_NamespaceAllowedForAnonymous(NStr::CStr const &_Namespace) const;
-		bool fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host, TCPromise<> &_Promise);
+		NException::CExceptionPointer fp_RegisterActorFunctorsForCall(NPrivate::CDistributedActorStreamContextState &_State, NActorDistributionManagerInternal::CHost &_Host);
 		void fp_RegisterLocalSubscriptions(NPrivate::CDistributedActorStreamContextState &_State);
 		void fp_DestroyLocalSubscription(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);
 		void fp_DestroyRemoteSubscriptionReset(NActorDistributionManagerInternal::CHost &_Host, NStr::CStr const &_SubscriptionID);

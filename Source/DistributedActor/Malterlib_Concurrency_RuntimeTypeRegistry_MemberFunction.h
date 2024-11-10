@@ -86,6 +86,9 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
+	template <typename t_CType>
+	struct TCIsAsyncGenerator;
+	
 	template
 	<
 		auto t_pMemberFunction
@@ -98,6 +101,7 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCRuntimeTypeRegistryEntry_MemberFunction final : public CRuntimeTypeRegistryEntry_MemberFunction
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
+
 		template <mint... tfp_Indices, typename... tfp_CParams>
 		NConcurrency::TCFuture<NContainer::CSecureByteVector> fp_Call
 			(
@@ -106,7 +110,20 @@ namespace NMib::NConcurrency::NPrivate
 				, NMeta::TCIndices<tfp_Indices...> const &
 				, NMeta::TCTypeList<tfp_CParams...> const &
 			)
+			requires (TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
+
+		template <mint... tfp_Indices, typename... tfp_CParams>
+		NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector> fp_Call
+			(
+				t_CStreamParams &_ParamsStream
+				, void *_pObject
+				, NMeta::TCIndices<tfp_Indices...> const &
+				, NMeta::TCTypeList<tfp_CParams...> const &
+			)
+			requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
+		;
+
 		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
@@ -137,7 +154,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 		template <mint... tfp_Indices, typename... tfp_CParams>
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> fp_Call
+		NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
 				, void *_pObject

@@ -20,9 +20,9 @@ namespace NMib::NConcurrency::NUnwrap
 
 	struct CUnwrapHelperWithTransformer
 	{
-		CUnwrapHelperWithTransformer(NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer);
+		CUnwrapHelperWithTransformer(FExceptionTransformer &&_fTransformer);
 
-		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
+		FExceptionTransformer m_fTransformer;
 
 		static CUnwrapHelperWithTransformer ms_EmptyTransformer;
 	};

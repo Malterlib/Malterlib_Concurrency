@@ -18,15 +18,6 @@ namespace NMib::NConcurrency
 			>
 		struct TCCallMutipleActorStorage;
 
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
-		bool fg_CallActorInternal
-			(
-				TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
-				, TCActor<tf_CResultActor> &&_ResultActor
-				, tf_CResultFunctor &&_fResultFunctor
-			)
-		;
-
 		template <typename tf_CActor>
 		tf_CActor *fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);
 
@@ -61,16 +52,6 @@ namespace NMib::NConcurrency
 
 		template
 		<
-			typename t_CActor2
-			, typename t_CRet
-			, typename t_CFunctor
-			, typename t_CResultActor
-			, typename t_CResultFunctor
-		>
-		friend struct TCReportLocal;
-
-		template
-		<
 			bool t_bUnwrapTuple
 			, typename t_CHandler2
 			, typename t_CActor2
@@ -78,15 +59,6 @@ namespace NMib::NConcurrency
 			, typename t_CResultIndicies2
 		>
 		friend struct NPrivate::TCCallMutipleActorStorage;
-
-		template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, typename tf_CResultActor, typename tf_CResultFunctor, bool tf_bDirectCall>
-		friend bool NPrivate::fg_CallActorInternal
-			(
-				TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &_ActorCall
-				, TCActor<tf_CResultActor> &&_ResultActor
-				, tf_CResultFunctor &&_fResultFunctor
-			)
-		;
 
 		template <typename tf_CActor>
 		friend tf_CActor *NPrivate::fg_GetInternalActor(TCActor<tf_CActor> const &_Actor);

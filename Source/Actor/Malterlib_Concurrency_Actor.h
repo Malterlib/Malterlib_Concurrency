@@ -9,19 +9,9 @@ namespace NMib::NConcurrency
 {
 	struct CActor;
 	namespace NPrivate
-	{
+	{ 
 		struct CThisActor
 		{
-			template <typename tf_CMemberFunction, typename... tfp_CCallParams>
-			auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const
-				requires cActorCallableWith
-				<
-					tf_CMemberFunction
-					, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<tf_CMemberFunction>::CType>::CClass
-					, tfp_CCallParams...
-				>
-			;
-
 			template <typename tf_FFunction>
 			auto operator / (tf_FFunction &&_fFunction) const;
 
@@ -40,6 +30,12 @@ namespace NMib::NConcurrency
 			CThisActor &operator = (CThisActor &&) = default;
 			CThisActor &operator = (CThisActor const &) = default;
 		};
+		
+		template <typename t_CType>
+		struct TCIsFuture;
+
+		template <typename t_CType>
+		struct TCIsAsyncGenerator;
 	}
 
 	struct CActorInternal
@@ -65,20 +61,66 @@ namespace NMib::NConcurrency
 		CActor &operator = (CActor const &) = delete;
 
 		bool f_IsDestroyed() const;
-		void f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
+		TCFuture<void> f_Dispatch(NFunction::TCFunctionMovable<void ()> _fToDisptach);
+
+		// TODO: Add unsafe dipatch funtions that doesn't store lambda
+
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturn
 			(
 				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
-				, typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params
+				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
 			)
+			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 		;
+
+		template <typename tf_CReturnType, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturn
+			(
+				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
+				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			)
+			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
+		;
+
+		template <typename tf_CReturnType, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturnShared
+			(
+				NStorage::TCSharedPointer
+				<
+					NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+				> &&_pToDisptach
+				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			)
+			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
+		;
+
+		template <typename tf_CReturnType, typename ...tfp_CParams>
+		tf_CReturnType f_DispatchWithReturnShared
+			(
+				NStorage::TCSharedPointer
+				<
+					NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+				> &&_pToDisptach
+				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			)
+			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
+		;
+
 		inline_always CConcurrencyManager &f_ConcurrencyManager() const;
 
-		void f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
+		bool f_SuspendCoroutine(CFutureCoroutineContext &_CoroutineContext);
 		CFutureCoroutineContext::COnResumeScopeAwaiter f_CheckDestroyedOnResume() const;
 
 	protected:
+		template <typename tf_CReturnType, typename tf_CFunction, typename ...tfp_CParams>
+		inline_always tf_CReturnType fp_DispatchWithReturnCoroutine
+			(
+				tf_CFunction &&_fToDisptach
+				, tfp_CParams ...p_Params
+			)
+		;
+
 		virtual void fp_Construct();
 		virtual TCFuture<void> fp_Destroy();
 #if DMibEnableSafeCheck > 0
@@ -102,10 +144,8 @@ namespace NMib::NConcurrency
 
 		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
 
-		TCFuture<void> fp_AbortSuspendedCoroutinesWithAsyncDestroy(bool &o_bNeedWait);
+		TCFuture<void> fp_AbortSuspendedCoroutinesWithAsyncDestroy();
 		void fp_AbortSuspendedCoroutines();
-
-		void fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach);
 
 		TCFuture<void> fp_DestroyInternal();
 

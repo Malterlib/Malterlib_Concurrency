@@ -9,56 +9,58 @@ namespace NMib::NConcurrency
 {
 	constinit CAsyncDestroyHelper g_AsyncDestroy;
 
-	TCFutureAwaiter<void, true, void *> CFutureCoroutineContext::await_transform(CAsyncDestroyHelper)
+	TCFutureAwaiter<void, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelper)
 	{
-		TCPromise<void> Promise;
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
 
-		if (!m_AsyncDestructors.f_IsEmpty())
+		DMibFastCheck(m_bRuntimeStateConstructed);
+
+		if (!m_State.m_AsyncDestructors.f_IsEmpty())
 		{
-			TCActorResultVector<void> DestroyResults;
+			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+			for (auto &fAsyncDestroy : m_State.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults;
 
-			m_AsyncDestructors.f_Clear();
+			m_State.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				TCPromise<void> Promise;
-				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-				return {fg_Move(Promise.f_MoveFuture()), nullptr};
+				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				return {fg_Move(Promise.f_MoveFuture()), {}};
 			}
 		}
 
 		Promise.f_SetResult();
 
-		return {fg_Move(Promise.f_MoveFuture()), nullptr};
+		return {fg_Move(Promise.f_MoveFuture()), {}};
 	}
 
-	TCFutureAwaiter<void, false, void *> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoWrap)
+	TCFutureAwaiter<void, false, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoWrap)
 	{
-		TCPromise<void> Promise;
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
 
-		if (!m_AsyncDestructors.f_IsEmpty())
+		DMibFastCheck(m_bRuntimeStateConstructed);
+
+		if (!m_State.m_AsyncDestructors.f_IsEmpty())
 		{
-			TCActorResultVector<void> DestroyResults;
+			TCFutureVector<void> DestroyResults;
 
-			for (auto &fAsyncDestroy : m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+			for (auto &fAsyncDestroy : m_State.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults;
 
-			m_AsyncDestructors.f_Clear();
+			m_State.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				TCPromise<void> Promise;
-				DestroyResults.f_GetResults() > Promise.f_ReceiveAnyUnwrap();
-				return {fg_Move(Promise.f_MoveFuture()), nullptr};
+				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				return {fg_Move(Promise.f_MoveFuture()), {}};
 			}
 		}
 
 		Promise.f_SetResult();
 
-		return {fg_Move(Promise.f_MoveFuture()), nullptr};
+		return {fg_Move(Promise.f_MoveFuture()), {}};
 	}
 
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(FUnitVoidFutureFunction &&_fDestroy)

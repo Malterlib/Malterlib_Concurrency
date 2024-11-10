@@ -40,11 +40,11 @@ namespace NMib::NConcurrency
 		}
 
 	protected:
-		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+		void fp_QueueProcessDestroy(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override
 		{
 			CDefaultActorHolder::fp_QueueProcessDestroy
 				(
-					[this, Functor = fg_Move(_Functor)]() mutable
+					[this, Functor = fg_Move(_Functor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
 						// this is referenced by shared pointer in Functor
 
@@ -56,18 +56,23 @@ namespace NMib::NConcurrency
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
 						;
-						Functor();
+						Functor(_ThreadLocal);
 					}
 					, _ThreadLocal
 				)
 			;
 		}
 
-		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+		void fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal) override
+		{
+			CDefaultActorHolder::fp_QueueRunProcess(_ThreadLocal);
+		}
+
+		void fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal) override
 		{
 			CDefaultActorHolder::fp_QueueProcess
 				(
-					[this, Functor = fg_Move(_Functor)]() mutable
+					[this, Functor = fg_Move(_Functor)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
 						// this is referenced by shared pointer in CDefaultActorHolder::fp_QueueProcess
 
@@ -79,7 +84,30 @@ namespace NMib::NConcurrency
 								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
 							}
 						;
-						Functor();
+						Functor(_ThreadLocal);
+					}
+					, _ThreadLocal
+				)
+			;
+		}
+
+		void fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal) override
+		{
+			CDefaultActorHolder::fp_QueueProcess
+				(
+					[this, _Entry = fg_Move(_Entry)](CConcurrencyThreadLocal &_ThreadLocal) mutable
+					{
+						// this is referenced by shared pointer in CDefaultActorHolder::fp_QueueProcess
+
+						auto &ThreadLocal = *NPrivate::fg_DistributedActorSubSystem().m_ThreadLocal;
+						auto pOldDispatchData = ThreadLocal.m_pCurrentRemoteDispatchActorData;
+						ThreadLocal.m_pCurrentRemoteDispatchActorData = static_cast<NPrivate::CDistributedActorData *>(mp_pDistributedActorData.f_Get());
+						auto Cleanup = g_OnScopeExit / [&]
+							{
+								ThreadLocal.m_pCurrentRemoteDispatchActorData = pOldDispatchData;
+							}
+						;
+						_Entry.f_Detach()->f_Call(_ThreadLocal);
 					}
 					, _ThreadLocal
 				)

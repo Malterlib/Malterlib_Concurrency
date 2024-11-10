@@ -4,11 +4,13 @@
 #pragma once
 
 #include "Malterlib_Concurrency_ActorFunctorShared.hpp"
+#include "Malterlib_Concurrency_ActorFunctor.h"
 
 namespace NMib::NConcurrency
 {
 	template <typename t_CFunction>
-	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor)
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(TCActor<CActor> &&_Actor, CFunction &&_fFunctor)
 		: mp_Actor(fg_Move(_Actor))
 	{
 		if (_fFunctor)
@@ -16,11 +18,13 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctorWeak<t_CFunction>::TCActorFunctorWeak(CNullPtr)
 	{
 	}
 	
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctorWeak<t_CFunction>::~TCActorFunctorWeak()
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -29,22 +33,25 @@ namespace NMib::NConcurrency
 
 		// Destroy functor on correct actor
 		if (!Actor->f_IsCurrentActorAndProcessing())
-			fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
+			fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_DiscardResult();
 	}
 
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	bool TCActorFunctorWeak<t_CFunction>::f_IsEmpty() const
 	{
 		return !mp_pFunctor || mp_pFunctor->f_IsEmpty();
 	}
 	
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCActorFunctorWeak<t_CFunction>::operator bool () const
 	{
 		return mp_pFunctor && !mp_pFunctor->f_IsEmpty();
 	}
 
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	template <typename ...tfp_CParams>
 	auto TCActorFunctorWeak<t_CFunction>::f_CallDirect(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
@@ -52,230 +59,175 @@ namespace NMib::NConcurrency
 		auto Actor = mp_Actor.f_Lock();
 
 		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
-		{
-			return fg_Dispatch
-				(
-					TCActor<>(fg_DirectCallActor())
-					, []() mutable -> TCFuture<CStripedReturn>
-					{
-						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
-					}
-				)
-				.f_Future()
-			;
-		}
+			return DMibErrorInstance("Functor is empty");
 
 		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
-		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
 
-		auto fToDispatch = [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor] mark_no_coroutine_debug () mutable -> TCFuture<CStripedReturn>
+		if (Actor->f_IsCurrentActorAndProcessing())
+		{
+			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+				{
+					return Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, {EVirtualCall::mc_NotVirtual, EActorCallType::mc_Direct}>
+						(
+							fg_TempCopy(mp_pFunctor)
+							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
+						)
+						.f_Call()
+					;
+				}
+				(CMoveList())
+			;
+		}
+		else
+		{
+			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+				{
+					return Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+						(
+							fg_TempCopy(mp_pFunctor)
+							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
+						)
+						.f_Call()
+					;
+				}
+				(CMoveList())
+			;
+		}
+	}
+
+	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	template <typename ...tfp_CParams>
+	void TCActorFunctorWeak<t_CFunction>::f_CallDiscard(tfp_CParams &&...p_Params) const
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	{
+		auto Actor = mp_Actor.f_Lock();
+
+		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
+			return;
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+
+		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> void
 			{
-				return NStorage::fg_TupleApplyAs<CMoveList>
+				return Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 					(
-						[&] mark_no_coroutine_debug (auto &&..._Params) mutable -> TCFuture<CStripedReturn>
+						fg_TempCopy(mp_pFunctor)
+						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
+					)
+					.f_DiscardResult()
+				;
+			}
+			(CMoveList())
+		;
+	}
+
+	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	NStorage::TCOptional<TCActorFunctor<t_CFunction>> TCActorFunctorWeak<t_CFunction>::f_Lock() const
+	{
+		auto Actor = mp_Actor.f_Lock();
+		if (!Actor)
+			return {};
+
+		TCActorFunctor<t_CFunction> Return;
+		Return.mp_Actor = fg_Move(Actor);
+		Return.mp_pFunctor = mp_pFunctor;
+
+		return fg_Move(Return);
+	}
+
+	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	template <typename ...tfp_CParams>
+	auto TCActorFunctorWeak<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	{
+		auto Actor = mp_Actor.f_Lock();
+
+		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
+			return DMibErrorInstance("Functor is empty");
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+
+		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+			{
+				return Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+					(
+						fg_TempCopy(mp_pFunctor)
+						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
+					)
+					.f_Call()
+				;
+			}
+			(CMoveList())
+		;
+	}
+
+	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	template <typename tf_FDispatcher, typename ...tfp_CParams>
+	auto TCActorFunctorWeak<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
+		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+	{
+		auto Actor = mp_Actor.f_Lock();
+
+		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
+			return DMibErrorInstance("Functor is empty");
+
+		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
+
+		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
+			{
+				return fg_Dispatch
+					(
+						Actor
+						,
+						[
+							fDispatcher = fg_Forward<tf_FDispatcher>(_fDispatcher)
+							, ...p_Params2 = NTraits::TCDecayType<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
+							, pFunctor = mp_pFunctor
+						] mark_no_coroutine_debug
+						() mutable
 						{
-							if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
-							{
-								TCPromise<CStripedReturn> Promise;
-								try
-								{
-									Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
-								}
-								catch (...)
-								{
-									Promise.f_SetException(NException::fg_CurrentException());
-								}
-								return Promise.f_MoveFuture();
-							}
-							else if constexpr (NPrivate::TCIsFuture<CReturn>::mc_Value)
-								return (*pFunctor)(fg_Move(_Params)...);
-							else if constexpr (NTraits::TCIsVoid<CReturn>::mc_Value)
-							{
-								TCPromise<CReturn> Promise;
-								(*pFunctor)(fg_Move(_Params)...);
-								Promise.f_SetResult();
-								return Promise.f_Future();
-							}
-							else
-							{
-								TCPromise<CReturn> Promise;
-								Promise.f_SetResult((*pFunctor)(fg_Move(_Params)...));
-								return Promise.f_Future();
-							}
+							return fDispatcher
+								(
+									[&] mark_no_coroutine_debug ()
+									{
+										return [&]<typename ...tfp_CParams3> mark_no_coroutine_debug (tfp_CParams3 &&...p_Params) mutable -> TCFuture<CStripedReturn>
+											{
+												return (*pFunctor)(fg_Move(p_Params)...);
+											}
+											(fg_Move(p_Params2)...)
+										;
+									}
+								)
+							;
 						}
-						, fg_Move(Params)
 					)
 				;
 			}
-		;
-
-		if (Actor->f_IsCurrentActorAndProcessing())
-			return fg_DirectDispatch(fg_Move(fToDispatch)).f_Future();
-		else
-			return fg_Dispatch(mp_Actor, fg_Move(fToDispatch)).f_Future();
-	}
-
-
-	template <typename t_CFunction>
-	template <typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction>::operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
-	{
-		auto Actor = mp_Actor.f_Lock();
-
-		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
-		{
-			return fg_Dispatch
-				(
-					TCActor<>(fg_DirectCallActor())
-					, []() mutable -> TCFuture<CStripedReturn>
-					{
-						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
-					}
-				)
-			;
-		}
-
-		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
-		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
-
-		return fg_Dispatch
-			(
-				Actor
-				, [Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor] mark_no_coroutine_debug () mutable -> TCFuture<CStripedReturn>
-				{
-					return NStorage::fg_TupleApplyAs<CMoveList>
-						(
-							[&] mark_no_coroutine_debug (auto &&..._Params) mutable -> TCFuture<CStripedReturn>
-							{
-								if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
-								{
-									TCPromise<CStripedReturn> Promise;
-									try
-									{
-										Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
-									}
-									catch (...)
-									{
-										Promise.f_SetException(NException::fg_CurrentException());
-									}
-									return Promise.f_MoveFuture();
-								}
-								else if constexpr (NPrivate::TCIsFuture<CReturn>::mc_Value)
-									return (*pFunctor)(fg_Move(_Params)...);
-								else if constexpr (NTraits::TCIsVoid<CReturn>::mc_Value)
-								{
-									TCPromise<CReturn> Promise;
-									(*pFunctor)(fg_Move(_Params)...);
-									Promise.f_SetResult();
-									return Promise.f_Future();
-								}
-								else
-								{
-									TCPromise<CReturn> Promise;
-									Promise.f_SetResult((*pFunctor)(fg_Move(_Params)...));
-									return Promise.f_Future();
-								}
-							}
-							, fg_Move(Params)
-						)
-					;
-				}
-			)
-		;
-	}
-
-	template <typename t_CFunction>
-	template <typename tf_FDispatcher, typename ...tfp_CParams>
-	auto TCActorFunctorWeak<t_CFunction>::f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
-		requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
-	{
-		auto Actor = mp_Actor.f_Lock();
-
-		if (!Actor || !mp_pFunctor || !*mp_pFunctor)
-		{
-			return fg_Dispatch
-				(
-					TCActor<>(fg_DirectCallActor())
-					, []() mutable -> TCFuture<CStripedReturn>
-					{
-						return TCPromise<CStripedReturn>() <<= DMibErrorInstance("Functor is empty");
-					}
-				)
-			;
-		}
-
-		using CMoveList = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CMoveList;
-		using CTupleType = typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CType;
-
-		return fg_Dispatch
-			(
-				Actor
-				, [fDispatcher = fg_Forward<tf_FDispatcher>(_fDispatcher), Params = CTupleType(fg_Forward<tfp_CParams>(p_Params)...), pFunctor = mp_pFunctor] mark_no_coroutine_debug
-				() mutable -> TCFuture<CStripedReturn>
-				{
-					return fDispatcher
-						(
-							[&] mark_no_coroutine_debug () -> TCFuture<CStripedReturn>
-							{
-								return NStorage::fg_TupleApplyAs<CMoveList>
-									(
-										[&] mark_no_coroutine_debug (auto &&..._Params) mutable -> TCFuture<CStripedReturn>
-										{
-											if constexpr (NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value)
-											{
-												TCPromise<CStripedReturn> Promise;
-												try
-												{
-													Promise.f_SetResult(fg_CallSafe(pFunctor, fg_Move(_Params)...));
-												}
-												catch (...)
-												{
-													Promise.f_SetException(NException::fg_CurrentException());
-												}
-												return Promise.f_MoveFuture();
-											}
-											else if constexpr (NPrivate::TCIsFuture<CReturn>::mc_Value)
-												return (*pFunctor)(fg_Move(_Params)...);
-											else if constexpr (NTraits::TCIsVoid<CReturn>::mc_Value)
-											{
-												TCPromise<CReturn> Promise;
-												(*pFunctor)(fg_Move(_Params)...);
-												Promise.f_SetResult();
-												return Promise.f_Future();
-											}
-											else
-											{
-												TCPromise<CReturn> Promise;
-												Promise.f_SetResult((*pFunctor)(fg_Move(_Params)...));
-												return Promise.f_Future();
-											}
-										}
-										, fg_Move(Params)
-									)
-								;
-							}
-						)
-					;
-				}
-			)
+			(CMoveList())
 		;
 	}
 	
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCWeakActor<CActor> const &TCActorFunctorWeak<t_CFunction>::f_GetActor() const
 	{
 		return mp_Actor;
 	}
 	
 	template <typename t_CFunction>
-	NFunction::TCFunctionMovable<t_CFunction> const &TCActorFunctorWeak<t_CFunction>::f_GetFunctor() const
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	auto TCActorFunctorWeak<t_CFunction>::f_GetFunctor() const -> CFunction const &
 	{
 		DMibFastCheck(mp_pFunctor);
 		return *mp_pFunctor;
 	}
 	
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCWeakActor<CActor> &TCActorFunctorWeak<t_CFunction>::f_GetActor()
 	{
 		DMibFastCheck(mp_pFunctor);
@@ -283,15 +235,17 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CFunction>
-	NFunction::TCFunctionMovable<t_CFunction> &TCActorFunctorWeak<t_CFunction>::f_GetFunctor()
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	auto TCActorFunctorWeak<t_CFunction>::f_GetFunctor() -> CFunction &
 	{
 		return *mp_pFunctor;
 	}
 
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCFuture<void> TCActorFunctorWeak<t_CFunction>::f_Destroy() &&
 	{
-		TCPromise<void> Promise;
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
 
 		TCFuture<void> DispatchFuture;
 		auto Actor = mp_Actor.f_Lock();
@@ -303,7 +257,7 @@ namespace NMib::NConcurrency
 			if (Actor->f_IsCurrentActorAndProcessing())
 			{
 				pFunctor.f_Clear();
-				DispatchFuture = TCPromise<void>() <<= g_Void;
+				DispatchFuture = g_Void;
 			}
 			else
 			{
@@ -314,26 +268,30 @@ namespace NMib::NConcurrency
 						{
 							pFunctor.f_Clear();
 						}
-					).f_Future()
+					)
 				;
 			}
 		}
 		else
 		{
 			pFunctor.f_Clear();
-			DispatchFuture = TCPromise<void>() <<= g_Void;
+			DispatchFuture = g_Void;
 		}
 
-		fg_Move(DispatchFuture) > fg_DirectResultActor() / [Promise](TCAsyncResult<void> &&) mutable
-			{
-				Promise.f_SetResult();
-			}
+		fg_Move(DispatchFuture).f_OnResultSet
+			(
+				[Promise](TCAsyncResult<void> &&) mutable
+				{
+					Promise.f_SetResult();
+				}
+			)
 		;
 
 		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	void TCActorFunctorWeak<t_CFunction>::f_Clear()
 	{
 		auto Actor = mp_Actor.f_Lock();
@@ -343,7 +301,7 @@ namespace NMib::NConcurrency
 			if (Actor->f_IsCurrentActorAndProcessing())
 				mp_pFunctor.f_Clear();
 			else
-				fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}) > fg_DiscardResult();
+				fg_Dispatch(Actor, [pFunctor = fg_Move(mp_pFunctor)] {}).f_DiscardResult();
 		}
 
 		mp_Actor.f_Clear();

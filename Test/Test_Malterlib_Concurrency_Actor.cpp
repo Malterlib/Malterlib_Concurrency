@@ -349,6 +349,7 @@ namespace
 						fDoubleDestroy()
 						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
 						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
+						, DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Actor was destroyed")
 					)
 				;
 #endif

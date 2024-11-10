@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 					, bool _bSupportRetry
 				)
 			;
-			TCFuture<t_CResult> f_Call(tp_CParams ...p_Params);
+			TCFuture<t_CResult> f_Call(NTraits::TCDecayType<tp_CParams> ...p_Params);
 
 			TCActorFunctor<TCFuture<t_CResult> (tp_CParams...)> m_fToPerform;
 			NStr::CStr m_ErrorOnRunning;

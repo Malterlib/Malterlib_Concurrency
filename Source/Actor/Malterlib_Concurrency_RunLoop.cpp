@@ -36,6 +36,8 @@ namespace NMib::NConcurrency
 		;
 #endif
 
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+
 		bool bDoneSomething = true;
 		while (bDoneSomething)
 		{
@@ -44,10 +46,10 @@ namespace NMib::NConcurrency
 			if (m_RunQueue.f_TransferThreadSafeQueue(m_RunQueueLocal))
 				bDoneSomething = true;
 
-			while (auto pEntry = m_RunQueue.f_FirstQueueEntry(m_RunQueueLocal))
+			while (auto pEntry = m_RunQueueLocal.m_LocalQueue.f_GetFirst())
 			{
-				(*pEntry)();
-				m_RunQueue.f_PopQueueEntry(pEntry);
+				pEntry->m_Link.f_UnsafeUnlink();
+				pEntry->f_Call(ThreadLocal);
 				bDoneSomething = true;
 			}
 		}
@@ -90,9 +92,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	NFunction::TCFunctionMovable<void (FActorQueueDispatch &&_Dispatch)> CDefaultRunLoop::f_Dispatcher()
+	NFunction::TCFunctionMovable<void (FActorQueueDispatchNoAlloc &&_Dispatch)> CDefaultRunLoop::f_Dispatcher()
 	{
-		return [pThis = NStorage::TCSharedPointer<CDefaultRunLoop>(fg_Explicit(this))](FActorQueueDispatch &&_Dispatch)
+		return [pThis = NStorage::TCSharedPointer<CDefaultRunLoop>(fg_Explicit(this))](FActorQueueDispatchNoAlloc &&_Dispatch)
 			{
 				pThis->m_RunQueue.f_AddToQueue(fg_Move(_Dispatch));
 				pThis->m_Event.f_Signal();

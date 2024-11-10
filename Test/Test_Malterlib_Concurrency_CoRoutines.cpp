@@ -1530,6 +1530,44 @@ namespace NMib::NConcurrency::NTest
 				co_return {};
 			}
 
+			TCFuture<void> f_TestDestroyAtOnce(TCFuture<void> _ToWaitFor0, TCPromise<void> _DestroyStartedPromise)
+			{
+				auto AsyncDestroy = co_await fg_AsyncDestroy
+					(
+						[ToWaitFor0 = fg_Move(_ToWaitFor0), DestroyStartedPromise = fg_Move(_DestroyStartedPromise)]() mutable -> TCFuture<void>
+						{
+							DestroyStartedPromise.f_SetResult();
+							co_await fg_Move(ToWaitFor0);
+							co_return {};
+						}
+					)
+				;
+
+				co_return {};
+			}
+
+			TCFuture<void> f_TestDestroyAtOnceError(TCPromise<void> _DestroyStartedPromise)
+			{
+				auto AsyncDestroy = co_await fg_AsyncDestroy
+					(
+						[DestroyStartedPromise = fg_Move(_DestroyStartedPromise)]() mutable -> TCFuture<void>
+						{
+							DestroyStartedPromise.f_SetResult();
+
+							co_return DMibErrorInstance("Testing");
+						}
+					)
+				;
+
+				co_return {};
+			}
+
+			TCFuture<void> f_TestDestroyAtOnceNoDestory(TCPromise<void> _DestroyStartedPromise)
+			{
+				_DestroyStartedPromise.f_SetResult();
+				co_return {};
+			}
+
 			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
 		};
 
@@ -1668,6 +1706,148 @@ namespace NMib::NConcurrency::NTest
 
 					co_return {};
 				};
+
+				DMibTestCategory("Actor Async Destroy At Once") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+					TCFuture<void> DestroyFuture;
+					{
+						TCPromise<void> DestroyPromise0{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						{
+
+							DestroyFuture = TestDestroyActor
+								(
+									&CAsyncDestroyActor::f_TestDestroyAtOnce
+									, DestroyPromise0.f_Future()
+									, DestroyStartedPromise
+								)
+							;
+
+							co_await DestroyStartedPromise.f_Future();
+							DestroyPromise0.f_SetResult();
+						}
+					}
+
+					fg_Move(DestroyFuture).f_CallSync();
+					fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
+
+					co_return {};
+				};
+
+				DMibTestCategory("Actor Async Destroy At Once Error") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+					TCFuture<void> DestroyFuture;
+					{
+						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						{
+
+							DestroyFuture = TestDestroyActor
+								(
+									&CAsyncDestroyActor::f_TestDestroyAtOnceError
+									, DestroyStartedPromise
+								)
+							;
+
+							co_await DestroyStartedPromise.f_Future();
+						}
+					}
+
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibErrorInstance("Testing"));
+					fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
+
+					co_return {};
+				};
+
+				DMibTestCategory("Actor Async Destroy At Once Discard") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+					{
+						TCPromise<void> DestroyPromise0{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						{
+
+							{
+								TestDestroyActor
+									(
+										&CAsyncDestroyActor::f_TestDestroyAtOnce
+										, DestroyPromise0.f_Future()
+										, DestroyStartedPromise
+									)
+									.f_DiscardResult()
+								;
+							}
+
+							co_await DestroyStartedPromise.f_Future();
+							DestroyPromise0.f_SetResult();
+						}
+					}
+					fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
+
+					co_return {};
+				};
+
+				DMibTestCategory("Actor Async Destroy At Once Error Discard") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+					{
+						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						{
+
+							{
+								TestDestroyActor
+									(
+										&CAsyncDestroyActor::f_TestDestroyAtOnceError
+										, DestroyStartedPromise
+									)
+									.f_DiscardResult()
+								;
+							}
+
+							co_await DestroyStartedPromise.f_Future();
+						}
+					}
+					fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
+
+					co_return {};
+				};
+
+				DMibTestCategory("Actor Async Destroy At Once No Destroy") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
+					{
+						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						{
+
+							{
+								TestDestroyActor.f_Bind<&CAsyncDestroyActor::f_TestDestroyAtOnceNoDestory, EVirtualCall::mc_NotVirtual>
+									(
+										DestroyStartedPromise
+									)
+									.f_DiscardResult()
+								;
+							}
+
+							co_await DestroyStartedPromise.f_Future();
+						}
+					}
+					fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
+
+					co_return {};
+				};
+
+
 
 				DMibTestCategory("Object") -> TCFuture<void>
 				{

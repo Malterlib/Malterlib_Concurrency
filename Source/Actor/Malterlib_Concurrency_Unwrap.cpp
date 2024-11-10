@@ -31,7 +31,7 @@ namespace NMib::NConcurrency::NUnwrap
 		)
 	;
 
-	CUnwrapHelperWithTransformer::CUnwrapHelperWithTransformer(NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fTransformer)
+	CUnwrapHelperWithTransformer::CUnwrapHelperWithTransformer(FExceptionTransformer &&_fTransformer)
 		: m_fTransformer(fg_Move(_fTransformer))
 	{
 	}

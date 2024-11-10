@@ -6,107 +6,10 @@
 
 namespace NMib::NConcurrency
 {
-	template <typename t_CType>
-	TCActorResultVector<t_CType>::CInternal::CInternal()
-	{
-	}
-
-	template <typename t_CType>
-	TCActorResultVector<t_CType>::CInternal::~CInternal()
-	{
-	}
-
 	namespace NPrivate
 	{
 		constexpr static mint const gc_ActorResultFinishedMask = DMibBitRangeTyped(0, sizeof(mint)*8-2, mint);
 		constexpr static mint const gc_ActorResultResultsGottenMask = DMibBitRangeTyped(sizeof(mint)*8-1, sizeof(mint)*8-1, mint);
-	}
-
-	//
-	// Map
-	//
-
-	template <typename t_CKey, typename t_CValue>
-	TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> TCActorResultMap<t_CKey, t_CValue>::CInternalActor::f_GetResults()
-	{
-		if (mp_bResultsGotten)
-			DMibError("You have already gotten the results from this result vector once");
-
-		mp_bResultsGotten = true;
-		if (mp_nFinished.f_Get() == (mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask))
-			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
-		return mp_GetResultsPromise.f_Future();
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	template <typename tf_CKey>
-	TCActorResultMap<t_CKey, t_CValue>::CResultReceived::CResultReceived(tf_CKey &&_Key, TCActor<CInternalActor> const &_pActor)
-		: m_Key(fg_Forward<tf_CKey>(_Key))
-		, mp_Actor(_pActor)
-	{
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	void TCActorResultMap<t_CKey, t_CValue>::CResultReceived::operator ()(TCAsyncResult<t_CValue> &&_Result) const
-	{
-		auto &Internal = mp_Actor->f_AccessInternal();
-		[[maybe_unused]] auto Mapped = Internal.mp_Results(m_Key, fg_Move(_Result));
-		DMibFastCheck(Mapped.f_WasCreated()); // It's not valid to add the same result twice
-		mint nFinished = ++Internal.mp_nFinished;
-		if (Internal.mp_bResultsGotten && nFinished == (Internal.mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask))
-			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	TCActorResultMap<t_CKey, t_CValue>::TCActorResultMap()
-		: mp_Actor(fg_ConstructActor<CInternalActor>())
-	{
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	template <typename tf_CKey>
-	TCActorResultCall<TCActor<typename TCActorResultMap<t_CKey, t_CValue>::CInternalActor>, typename TCActorResultMap<t_CKey, t_CValue>::CResultReceived> TCActorResultMap<t_CKey, t_CValue>::f_AddResult(tf_CKey &&_Key)
-	{
-		auto &Internal = mp_Actor->f_AccessInternal();
-		[[maybe_unused]] auto nAdded = Internal.mp_nAdded.f_FetchAdd(1);
-		DMibFastCheck(!(nAdded & NPrivate::gc_ActorResultResultsGottenMask));
-
-		return TCActorResultCall<TCActor<CInternalActor>, CResultReceived>
-			(
-				mp_Actor
-				, CResultReceived(fg_Forward<tf_CKey>(_Key), mp_Actor)
-			)
-		;
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	auto TCActorResultMap<t_CKey, t_CValue>::f_GetResults() -> decltype(fs_ActorType()(&CInternalActor::f_GetResults))
-	{
-		auto &Internal = mp_Actor->f_AccessInternal();
-		Internal.mp_nAdded.f_FetchOr(NPrivate::gc_ActorResultResultsGottenMask);
-
-		return mp_Actor(&CInternalActor::f_GetResults);
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	TCUnsafeFuture<NContainer::TCMap<t_CKey, t_CValue>> TCActorResultMap<t_CKey, t_CValue>::f_GetUnwrappedResults()
-		requires(!NTraits::TCIsVoid<t_CValue>::mc_Value)
-	{
-		co_return co_await (co_await f_GetResults() | g_Unwrap);
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	TCUnsafeFuture<NContainer::TCSet<t_CKey>> TCActorResultMap<t_CKey, t_CValue>::f_GetUnwrappedResults()
-		requires(NTraits::TCIsVoid<t_CValue>::mc_Value)
-	{
-		co_return co_await (co_await f_GetResults() | g_Unwrap);
-	}
-
-	template <typename t_CKey, typename t_CValue>
-	bool TCActorResultMap<t_CKey, t_CValue>::f_IsEmpty() const
-	{
-		auto &Internal = mp_Actor->f_AccessInternal();
-		return (Internal.mp_nAdded.f_Load() & NPrivate::gc_ActorResultFinishedMask) == 0;
 	}
 
 	template <typename tf_CType>
@@ -770,21 +673,25 @@ namespace NMib::NConcurrency
 			{
 				if constexpr (tf_bDirect)
 				{
-					return reinterpret_cast<CCallActor>(_Actor).template f_CallByValueDirect<&CActor::f_DispatchWithReturn<CReturnType, tfp_CFunctionParams...>>
+					return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue
+						<
+							&CActor::f_DispatchWithReturn<CReturnType, NTraits::TCDecayType<tfp_CFunctionParams>...>
+							, {EActorCallType::mc_Direct, EVirtualCall::mc_NotVirtual}
+						>
 						(
 							NFunction::TCFunctionMovable<CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>::CType...)>
 							(fg_Forward<tf_FToDispatch>(_fDispatch))
-							, fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...
+							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
 				}
 				else
 				{
-					return reinterpret_cast<CCallActor>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CFunctionParams...>>
+					return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue<&CActor::f_DispatchWithReturn<CReturnType, tfp_CFunctionParams...>, EVirtualCall::mc_NotVirtual>
 						(
 							NFunction::TCFunctionMovable<CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>::CType...)>
 							(fg_Forward<tf_FToDispatch>(_fDispatch))
-							, fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...
+							, fg_Forward<tfp_CParams>(p_Params)...
 						)
 					;
 				}
@@ -793,19 +700,56 @@ namespace NMib::NConcurrency
 			{
 				static_assert(!NPrivate::TCIsPromise<CReturnType>::mc_Value);
 
-				using CProtectedReturn = typename NPrivate::TCRunProtectedFutureHelper<CReturnType>::CReturn;
+				using CInnerReturn = typename TCGetReturnType<CReturnType>::CType;
 				static_assert(!tf_bDirect); // Not implemented
 
-				return reinterpret_cast<CCallActor>(_Actor).template f_CallByValue<&CActor::f_DispatchWithReturn<CProtectedReturn, tfp_CFunctionParams...>>
+				return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue
+					<
+						&CActor::f_DispatchWithReturn<TCFuture<CInnerReturn>, tfp_CFunctionParams...>
+						, EVirtualCall::mc_NotVirtual
+					>
 					(
-						NFunction::TCFunctionMovable<CProtectedReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>::CType...)>
-						(
-							[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)] mark_no_coroutine_debug (auto && ...p_InnerParams) mutable -> CProtectedReturn
+						[fDispatch = fg_Forward<tf_FToDispatch>(_fDispatch)]<typename ...tfp_CParams2>(tfp_CParams2 ...p_InnerParams) mutable -> TCFuture<CInnerReturn>
+						{
+#ifdef DCompiler_clang_cl
+							auto fWorkaroundExceptions = [&]() inline_never mutable
+								{
+									return fDispatch(fg_Move(p_InnerParams)...);
+								}
+							;
+
+							try
 							{
-								return TCFuture<CReturnType>::fs_RunProtected()(fg_Forward<tf_FToDispatch>(fDispatch), fg_Forward<decltype(p_InnerParams)>(p_InnerParams)...);
+								if constexpr (NTraits::TCIsVoid<CInnerReturn>::mc_Value)
+								{
+									fWorkaroundExceptions();
+									co_return {};
+								}
+								else
+									co_return fWorkaroundExceptions();
 							}
-						)
-						, fg_CopyOrMove<tfp_CFunctionParams>(fg_Forward<tfp_CParams>(p_Params))...
+							catch (...)
+							{
+								co_return NException::fg_CurrentException();
+							}
+#else
+							try
+							{
+								if constexpr (NTraits::TCIsVoid<CInnerReturn>::mc_Value)
+								{
+									fDispatch(fg_Move(p_InnerParams)...);
+									co_return {};
+								}
+								else
+									co_return fDispatch(fg_Move(p_InnerParams)...);
+							}
+							catch (...)
+							{
+								co_return NException::fg_CurrentException();
+							}
+#endif
+						}
+						, fg_Forward<tfp_CParams>(p_Params)...
 					)
 				;
 			}
@@ -851,21 +795,6 @@ namespace NMib::NConcurrency
 			(
 				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
 				, fg_CurrentActor()
-				, fg_Forward<tf_FToDispatch>(_fDispatch)
-				, fg_Forward<tfp_CParams>(p_Params)...
-			)
-		;
-	}
-
-	template <typename tf_FToDispatch, typename ...tfp_CParams>
-	inline_always auto fg_UnsafeDirectDispatch(tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
-	{
-		using CFunctionType = NTraits::TCRemoveReferenceType<tf_FToDispatch>;
-
-		return NPrivate::fg_DispatchGenericImpl<true>
-			(
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&CFunctionType::operator ())>::CParams()
-				, fg_DirectCallActor()
 				, fg_Forward<tf_FToDispatch>(_fDispatch)
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
@@ -927,39 +856,93 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	inline_always auto TCFuture<t_CReturnValue>::f_Dispatch() &&
-	{
-		return NPrivate::fg_DispatchGenericImpl<true>
-			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
-			)
-		;
-	}
-
-	template <typename t_CReturnValue>
-	TCFuture<t_CReturnValue> TCFuture<t_CReturnValue>::f_Timeout(fp64 _Timeout, NStr::CStr const &_TimeoutMessage, bool _bFireAtExit) &&
-	{
-		return fg_Move(*this).f_Dispatch().f_Timeout(_Timeout, _TimeoutMessage, _bFireAtExit);
-	}
-
-	template <typename t_CReturnValue>
 	auto TCFuture<t_CReturnValue>::f_CallSync() &&
 	{
-		return fg_Move(*this).f_Dispatch().f_CallSync();
+		TCAsyncResult<t_CReturnValue> Result;
+		NThread::CEvent WaitEvent;
+		auto This = fg_Move(*this);
+		This.f_OnResultSet
+			(
+				[&](TCAsyncResult<t_CReturnValue> &&_Result)
+				{
+					Result = fg_Move(_Result);
+					WaitEvent.f_SetSignaled();
+				}
+			)
+		;
+
+		WaitEvent.f_Wait();
+
+		return Result.f_Move();
 	}
 
 	template <typename t_CReturnValue>
 	auto TCFuture<t_CReturnValue>::f_CallSync(fp64 _Timeout) &&
 	{
-		return fg_Move(*this).f_Dispatch().f_CallSync(_Timeout);
+		NStorage::TCSharedPointer<NPrivate::TCCallSyncState<t_CReturnValue>> pResult = fg_Construct();
+		auto This = fg_Move(*this);
+		This.f_OnResultSet
+			(
+				[pResult](TCAsyncResult<t_CReturnValue> &&_Result)
+				{
+					pResult->f_SetResult(fg_Move(_Result));
+				}
+			)
+		;
+
+		if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
+		{
+			NStr::CStr CallstackStr;
+			{
+				DMibLock(pResult->m_Lock);
+				CallstackStr = pResult->m_Result.f_GetExceptionCallstackStr(0);
+			}
+
+			if (CallstackStr)
+				DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to finish. Call stack:\n{}", CallstackStr));
+			else
+				DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to finish"));
+		}
+
+		DMibLock(pResult->m_Lock);
+		return pResult->m_Result.f_Move();
 	}
 
 	template <typename t_CReturnValue>
 	auto TCFuture<t_CReturnValue>::f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout) &&
 	{
-		return fg_Move(*this).f_Dispatch().f_CallSync(_pRunLoop, _Timeout);
+		NStorage::TCSharedPointer<NPrivate::TCCallSyncState<t_CReturnValue, NPrivate::CRunLoopState>> pResult = fg_Construct(_pRunLoop);
+		auto This = fg_Move(*this);
+		This.f_OnResultSet
+			(
+				[pResult](TCAsyncResult<t_CReturnValue> &&_Result)
+				{
+					pResult->f_SetResult(fg_Move(_Result));
+				}
+			)
+		;
+
+		if (_Timeout >= 0.0)
+		{
+			if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
+			{
+				NStr::CStr CallstackStr;
+				{
+					DMibLock(pResult->m_Lock);
+					CallstackStr = pResult->m_Result.f_GetExceptionCallstackStr(0);
+				}
+
+				if (CallstackStr)
+					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to finish. Call stack:\n{}", CallstackStr));
+				else
+					DMibError(NStr::fg_Format("Timed out waiting for synchronous actor call to finish"));
+			}
+		}
+		else
+			pResult->m_RunLoop.f_Wait();
+
+		DMibLock(pResult->m_Lock);
+		return pResult->m_Result.f_Move();
 	}
 
 	struct CDispatchHelperWithActor
@@ -1048,33 +1031,38 @@ namespace NMib::NConcurrency
 		template <typename tf_CCoroutineContext>
 		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
 		{
-			DMibFastCheck(fg_CurrentActor());
-			DMibFastCheck(fg_CurrentActorProcessingOrOverridden());
+			auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
+			auto &ThreadLocal = ConcurrencyThreadLocal.m_SystemThreadLocal;
+
+			DMibFastCheck(fg_CurrentActor(ConcurrencyThreadLocal));
 
 			auto &CoroutineContext = _Handle.promise();
-			auto KeepAlive = CoroutineContext.f_KeepAlive(fg_CurrentActor());
-			auto Actor = KeepAlive.f_MoveActor();
-			auto pRealActor = Actor.f_GetRealActor();
+			CoroutineContext.f_Suspend(ThreadLocal, true);
 
-			CoroutineContext.f_Suspend(true);
-
-			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			ThreadLocal.m_pCurrentlyProcessingActorHolder->f_Yield();
-
-			pRealActor->f_QueueProcess
+			ConcurrencyThreadLocal.m_pCurrentlyProcessingActorHolder->f_Yield();
+			ConcurrencyThreadLocal.m_pCurrentlyProcessingActorHolder->f_QueueProcess
 				(
-					[Actor, _Handle, KeepAlive = fg_Move(KeepAlive), pRealActor]() mutable
+					[
+						KeepAlive = CoroutineContext.f_KeepAliveImplicit()
+#if DMibEnableSafeCheck > 0
+						, pRealActor = ConcurrencyThreadLocal.m_pCurrentlyProcessingActorHolder
+#endif
+					]
+					(CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
+						DMibFastCheck(_ThreadLocal.m_pCurrentlyProcessingActorHolder == pRealActor);
+
 						if (!KeepAlive.f_HasValidCoroutine())
 							return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
 
-						auto &CoroutineContext = _Handle.promise();
-						CCurrentActorScope CurrentActorScope(fg_ThisActor(pRealActor));
+						auto Handle = KeepAlive.template f_Coroutine<CFutureCoroutineContext>();
+						auto &CoroutineContext = Handle.promise();
 						bool bAborted = false;
-						auto RestoreStates = CoroutineContext.f_Resume(bAborted);
+						auto RestoreStates = CoroutineContext.f_Resume(_ThreadLocal.m_SystemThreadLocal, &tf_CCoroutineContext::fs_GetVirtualKeepAlive, bAborted);
 						if (!bAborted)
-							_Handle.resume();
+							Handle.resume();
 					}
+					, ConcurrencyThreadLocal
 				)
 			;
 
@@ -1131,102 +1119,472 @@ namespace NMib::NConcurrency
 	extern CDirectDispatchHelper const &g_DirectDispatch;
 
 	template <typename t_CReturnValue>
-	template <typename tf_FResultHandler>
-	inline_always void TCFuture<t_CReturnValue>::operator > (tf_FResultHandler &&_fResultHandler) &&
+	template<typename tf_CFunctor>
+	inline_always void TCFuture<t_CReturnValue>::operator > (tf_CFunctor &&_Functor) &&
+		requires (NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType, void (TCAsyncResult<t_CReturnValue> &&)>::mc_Value)
 	{
-		NPrivate::fg_DispatchGenericImpl<true>
-			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
-			)
-			> fg_Forward<tf_FResultHandler>(_fResultHandler)
-		;
+		auto Actor = fg_CurrentActor();
+		DMibFastCheck(Actor);
+		fg_Move(*this) > fg_Move(Actor) / fg_Forward<tf_CFunctor>(_Functor);
 	}
 
 	template <typename t_CReturnValue>
-	inline_always void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<TCActor<CConcurrentActor>, NPrivate::CDiscardResultFunctor> &&_fResultHandler) &&
+	template <typename tf_CResultActor, typename tf_CResultFunctor>
+	void TCFuture<t_CReturnValue>::operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
+		requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&)>::mc_Value) // Incorrect type in result call
 	{
-		NPrivate::fg_DispatchGenericImpl<true>
-			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
-			)
-			> fg_Move(_fResultHandler)
-		;
+		auto This = fg_Move(*this);
+
+#ifdef DMibCheckOnResultSizes
+		if constexpr (sizeof(TCActorResultCall<tf_CResultActor, tf_CResultFunctor>) > gc_FutureOnResultStorage)
+		{
+			This.f_OnResultSet
+				(
+					TCFutureOnResultOverSized<t_CReturnValue>
+					(
+						[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
+						{
+							if constexpr (NTraits::TCIsSame<tf_CResultActor, TCActor<CDirectResultActor>>::mc_Value)
+							{
+								NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
+								return;
+							}
+
+							auto Actor = fg_Move(ResultCall.mp_Actor);
+							auto pActor = Actor.f_GetRealActor();
+							pActor->f_QueueProcess
+								(
+									[
+										Functor = fg_Move(ResultCall.mp_Functor)
+										, Result = fg_Move(_Result)
+#if DMibEnableSafeCheck > 0
+										, pActor
+#endif
+									]
+									(CConcurrencyThreadLocal &_ThreadLocal) mutable
+									{
+										DMibFastCheck(pActor == _ThreadLocal.m_pCurrentlyProcessingActorHolder);
+										NPrivate::fg_CallResultFunctor
+											(
+												_ThreadLocal
+												, Functor
+												, fg_Move(Result)
+											)
+										;
+									}
+								)
+							;
+						}
+					)
+				)
+			;
+		}
+		else
+#endif
+		{
+			This.f_OnResultSet
+				(
+					[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
+					{
+						if constexpr (NTraits::TCIsSame<tf_CResultActor, TCActor<CDirectResultActor>>::mc_Value)
+						{
+							NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
+							return;
+						}
+
+						auto Actor = fg_Move(ResultCall.mp_Actor);
+						auto pActor = Actor.f_GetRealActor();
+						pActor->f_QueueProcess
+							(
+								[
+									Functor = fg_Move(ResultCall.mp_Functor)
+									, Result = fg_Move(_Result)
+#if DMibEnableSafeCheck > 0
+									, pActor
+#endif
+								]
+								(CConcurrencyThreadLocal &_ThreadLocal) mutable
+								{
+									DMibFastCheck(pActor == _ThreadLocal.m_pCurrentlyProcessingActorHolder);
+									NPrivate::fg_CallResultFunctor
+										(
+											_ThreadLocal
+											, Functor
+											, fg_Move(Result)
+										)
+									;
+								}
+							)
+						;
+					}
+				)
+			;
+		}
 	}
 
 	template <typename t_CReturnValue>
 	template <typename tf_CReturnValue>
-	inline_always void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> const &_Promise) &&
+	inline_always void TCFuture<t_CReturnValue>::operator > (TCPromise<tf_CReturnValue> &&_Promise) &&
 	{
-		NPrivate::fg_DispatchGenericImpl<true>
+		auto This = fg_Move(*this);
+		This.f_OnResultSet
 			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
-			)
-			> _Promise
-		;
-	}
-
-	template <typename t_CActor, typename t_CFunctor, typename t_CParams, typename t_CTypeList, bool tf_bDirectCall>
-	template <typename tf_CType>
-	inline_always auto TCActorCall<t_CActor, t_CFunctor, t_CParams, t_CTypeList, tf_bDirectCall>::operator + (TCFuture<tf_CType> &&_Future) &&
-	{
-		return fg_Move(*this) + NPrivate::fg_DispatchGenericImpl<true>
-			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<tf_CType>>(fg_Move(_Future))
+				[Promise = fg_Move(_Promise)](TCAsyncResult<t_CReturnValue> &&_Result)
+				{
+					Promise.f_SetResult(fg_Move(_Result));
+				}
 			)
 		;
 	}
 
-	template <typename... tp_CCalls>
-	template <typename tf_CType>
-	inline_always auto TCActorCallPack<tp_CCalls...>::operator + (TCFuture<tf_CType> &&_Future) &&
+	template <typename t_CReturnValue>
+	template <typename tf_CResult>
+	inline_always void TCFuture<t_CReturnValue>::operator > (TCPromiseWithExceptionTransfomer<tf_CResult> &&_PromiseWithError) &&
 	{
-		return fg_Move(*this) + NPrivate::fg_DispatchGenericImpl<true>
+		auto This = fg_Move(*this);
+		This.f_OnResultSet
 			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<tf_CType>>(fg_Move(_Future))
+				[Promise = fg_Move(_PromiseWithError.m_Promise), fTransformer = fg_Move(_PromiseWithError).f_GetTransformer()](TCAsyncResult<t_CReturnValue> &&_Result) mutable
+				{
+					if (!_Result)
+						Promise.f_SetException(fTransformer(_Result.f_GetException()));
+					else
+						Promise.f_SetResult(fg_Move(_Result));
+				}
 			)
 		;
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CKey, typename tf_CForwardKey>
+	void TCFuture<t_CReturnValue>::operator > (TCFutureMapBoundKey<tf_CKey, t_CReturnValue, tf_CForwardKey> &&_BoundKey) &&
+	{
+		auto This = fg_Move(*this);
+		This.f_OnResultSet(_BoundKey.m_This.fp_AddResult(fg_Forward<tf_CForwardKey>(_BoundKey.m_Key)));
+	}
+
+	template <typename t_CReturnValue>
+	void TCFuture<t_CReturnValue>::operator > (TCFutureVector<t_CReturnValue> &_FutureVector) &&
+	{
+		auto This = fg_Move(*this);
+		This.f_OnResultSet(_FutureVector.fp_AddResult());
+	}
+
+	template <typename t_CReturnValue>
+	void TCFuture<t_CReturnValue>::operator > (TCVectorOfFutures<t_CReturnValue> &_ResultVector) &&
+	{
+		_ResultVector.f_Insert(fg_Move(*this));
+	}
+
+	template <typename t_CReturnValue>
+	void TCFuture<t_CReturnValue>::operator > (NContainer::TCMapResult<TCFuture<t_CReturnValue> &> &&_MapResult) &&
+	{
+		*_MapResult = fg_Move(*this);
+	}
+
+	template <typename... tp_CFutures>
+	template <typename tf_CType>
+	inline_always TCFuturePack<tp_CFutures..., TCFuture<tf_CType>> TCFuturePack<tp_CFutures...>::operator + (TCFuture<tf_CType> &&_Future) &&
+	{
+		return NStorage::fg_TupleConcatenate(fg_Move(m_Futures), NStorage::fg_Tuple(fg_Move(_Future)));
+	}
+
+	template <typename... tp_CFutures>
+	template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
+	inline_always auto TCFuturePack<tp_CFutures...>::operator +
+		(
+			TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other
+		) &&
+		-> TCFuturePack<tp_CFutures..., TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>
+	{
+		return NStorage::fg_TupleConcatenate(fg_Move(m_Futures), NStorage::fg_Tuple(fg_Move(_Other)));
 	}
 
 	template <typename t_CReturnValue>
 	template <typename tf_CType>
 	inline_always auto TCFuture<t_CReturnValue>::operator + (TCFuture<tf_CType> &&_Other) &&
 	{
-		return NPrivate::fg_DispatchGenericImpl<true>
-			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
-			)
-			+ fg_Move(_Other)
-		;
+		return TCFuturePack<TCFuture, TCFuture<tf_CType>>(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_Other)));
 	}
 
 	template <typename t_CReturnValue>
-	template <typename tf_CActor, typename tf_CFunctor, typename tf_CParams, typename tf_CTypeList, bool tf_bDirectCall>
-	inline_always auto TCFuture<t_CReturnValue>::operator + (TCActorCall<tf_CActor, tf_CFunctor, tf_CParams, tf_CTypeList, tf_bDirectCall> &&_ActorCall) &&
+	template <typename tf_CReturn, typename tf_CActor, typename tf_FFunctionPointer, CBindActorOptions tf_BindOptions, bool tf_bByValue, typename ...tfp_CParams>
+	auto TCFuture<t_CReturnValue>::operator + (TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...> &&_Other) &&
 	{
-		return NPrivate::fg_DispatchGenericImpl<true>
+		return TCFuturePack<TCFuture, TCBoundActorCall<tf_CReturn, tf_CActor, tf_FFunctionPointer, tf_BindOptions, tf_bByValue, tfp_CParams...>>(NStorage::fg_Tuple(fg_Move(*this), fg_Move(_Other)));
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_CReturn, typename tf_CFutureLike>
+	inline_always auto TCFuture<t_CReturnValue>::operator + (TCFutureWithExceptionTransformer<tf_CReturn, tf_CFutureLike> &&_Other) &&
+	{
+		return fg_Move(*this) + fg_Move(_Other).f_Dispatch();
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &_Futures)
+	{
+		return _Futures.fp_GetResults();
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &&_Futures)
+	{
+		return _Futures.fp_GetResults();
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &_Futures)
+	{
+		return _Futures.fp_GetUnwrappedResults();
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &&_Futures)
+	{
+		return _Futures.fp_GetUnwrappedResults();
+	}
+
+	namespace NPrivate
+	{
+		template <typename t_CType>
+		struct TCVectorAllDoneState
+		{
+			~TCVectorAllDoneState()
+			{
+				auto &PromiseData = *m_Promise.f_Unsafe_PromiseData();
+				PromiseData.f_OnResult();
+			}
+
+			NStorage::CIntrusiveRefCount m_RefCount;
+			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> m_Promise{CPromiseConstructNoConsume()};
+		};
+
+		template <typename t_CType>
+		struct TCVectorAllDoneValueSetter
+		{
+			void operator ()(TCAsyncResult<t_CType> &&_Result)
+			{
+				m_Value = fg_Move(_Result);
+			}
+
+			TCAsyncResult<t_CType> &m_Value;
+			NStorage::TCSharedPointer<TCVectorAllDoneState<t_CType>> m_pState;
+		};
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(NContainer::TCVector<TCFuture<tf_CType>> &_Futures)
+	{
+		if (_Futures.f_IsEmpty())
+			return NContainer::TCVector<TCAsyncResult<tf_CType>>();
+
+		NStorage::TCSharedPointer<NPrivate::TCVectorAllDoneState<tf_CType>> pState = fg_Construct();
+		auto &State = *pState;
+		auto &PromiseData = *State.m_Promise.f_Unsafe_PromiseData();
+		auto &Result = PromiseData.m_Result.f_PrepareResult();
+		auto nFutures = _Futures.f_GetLen();
+		State.m_RefCount.m_RefCount.f_FetchAdd(nFutures, NAtomic::EMemoryOrder_Relaxed);
+		Result.f_SetLen(nFutures);
+		auto pResultArray = Result.f_GetArray();
+
+		mint iFuture = 0;
+		mint nDirectFutures = 0;
+		for (auto &Future : _Futures)
+		{
+			DMibFastCheck(Future.f_IsValid());
+			if (Future.f_OnResultSetNoClear(NPrivate::TCVectorAllDoneValueSetter<tf_CType>{.m_Value = pResultArray[iFuture], .m_pState = fg_Attach(&State)}))
+			{
+				auto &PromiseData = *Future.f_Unsafe_PromiseData();
+				auto *pValueSetter = static_cast<NPrivate::TCVectorAllDoneValueSetter<tf_CType> *>(PromiseData.m_fOnResult.f_Unsafe_GetFunctor());
+				pValueSetter->m_pState.f_Detach();
+				PromiseData.m_fOnResult.f_Clear();
+				++nDirectFutures;
+			}
+
+			++iFuture;
+		}
+
+		_Futures.f_Clear();
+
+		if (nDirectFutures)
+			State.m_RefCount.m_RefCount.f_FetchSub(nDirectFutures, NAtomic::EMemoryOrder_Relaxed);
+
+		return State.m_Promise.f_Future();
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(NContainer::TCVector<TCFuture<tf_CType>> &&_Futures)
+	{
+		return fg_AllDoneWrapped(_Futures);
+	}
+
+	namespace NPrivate
+	{
+		template <typename t_CKey, typename t_CValue>
+		struct TCMapAllDoneState
+		{
+			~TCMapAllDoneState()
+			{
+				auto &PromiseData = *m_Promise.f_Unsafe_PromiseData();
+				PromiseData.f_OnResult();
+			}
+
+			NStorage::CIntrusiveRefCount m_RefCount;
+			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> m_Promise{CPromiseConstructNoConsume()};
+		};
+
+		template <typename t_CKey, typename t_CValue>
+		struct TCMapAllDoneValueSetter
+		{
+			void operator ()(TCAsyncResult<t_CValue> &&_Result)
+			{
+				m_Value = fg_Move(_Result);
+			}
+
+			TCAsyncResult<t_CValue> &m_Value;
+			NStorage::TCSharedPointer<TCMapAllDoneState<t_CKey, t_CValue>> m_pState;
+		};
+	}
+
+	template <typename tf_CKey, typename tf_CValue>
+	TCFuture<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CValue>>> fg_AllDoneWrapped(NContainer::TCMap<tf_CKey, TCFuture<tf_CValue>> &_Futures)
+	{
+		if (_Futures.f_IsEmpty())
+			return NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CValue>>();
+
+		NStorage::TCSharedPointer<NPrivate::TCMapAllDoneState<tf_CKey, tf_CValue>> pState = fg_Construct();
+		auto &State = *pState;
+		auto &PromiseData = *State.m_Promise.f_Unsafe_PromiseData();
+		auto &ResultMap = PromiseData.m_Result.f_PrepareResult();
+
+		mint PrecachedCount = 0;
+		mint nDirectFutures = 0;
+
+		for (auto &FutureEntry : _Futures.f_Entries())
+		{
+			if (PrecachedCount == 0)
+			{
+				State.m_RefCount.m_RefCount.f_FetchAdd(1024, NAtomic::EMemoryOrder_Relaxed);
+				PrecachedCount = 1024;
+			}
+
+			--PrecachedCount;
+			auto &Future = FutureEntry.f_Value();
+			DMibFastCheck(Future.f_IsValid());
+			if (Future.f_OnResultSetNoClear(NPrivate::TCMapAllDoneValueSetter<tf_CKey, tf_CValue>{.m_Value = ResultMap[FutureEntry.f_Key()], .m_pState = fg_Attach(&State)}))
+			{
+				auto &PromiseData = *Future.f_Unsafe_PromiseData();
+				auto *pValueSetter = static_cast<NPrivate::TCMapAllDoneValueSetter<tf_CKey, tf_CValue> *>(PromiseData.m_fOnResult.f_Unsafe_GetFunctor());
+				pValueSetter->m_pState.f_Detach();
+				PromiseData.m_fOnResult.f_Clear();
+				++nDirectFutures;
+			}
+		}
+
+		_Futures.f_Clear();
+
+		State.m_RefCount.m_RefCount.f_FetchSub(PrecachedCount + nDirectFutures, NAtomic::EMemoryOrder_Relaxed);
+
+		return State.m_Promise.f_Future();
+	}
+
+	template <typename tf_CKey, typename tf_CValue>
+	inline_always TCFuture<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CValue>>> fg_AllDoneWrapped(NContainer::TCMap<tf_CKey, TCFuture<tf_CValue>> &&_Futures)
+	{
+		return fg_AllDoneWrapped(_Futures);
+	}
+
+	template <typename tf_CType>
+	TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(NContainer::TCVector<TCFuture<tf_CType>> &_Futures)
+	{
+		TCPromise<NContainer::TCVector<tf_CType>> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(_Futures).f_OnResultSet
 			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, TCMoveValueFunctor<TCFuture<t_CReturnValue>>(fg_Move(*this))
+				[Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<tf_CType>>> &&_Results)
+				{
+					if (!_Results)
+						return Promise.f_SetException(fg_Move(_Results).f_GetException());
+
+					Promise.f_SetResult(fg_Unwrap(fg_Move(*_Results)));
+				}
 			)
-			+ fg_Move(_ActorCall)
 		;
+
+		return Promise.f_MoveFuture();
+	}
+
+	template <typename tf_CType>
+	inline_always TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(NContainer::TCVector<TCFuture<tf_CType>> &&_Futures)
+	{
+		return fg_AllDone(_Futures);
+	}
+
+	template <typename tf_CKey, typename tf_CValue>
+	TCFuture<NContainer::TCMap<tf_CKey, tf_CValue>> fg_AllDone(NContainer::TCMap<tf_CKey, TCFuture<tf_CValue>> &_Futures)
+	{
+		TCPromise<NContainer::TCMap<tf_CKey, tf_CValue>> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(_Futures).f_OnResultSet
+			(
+				[Promise](TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CValue>>> &&_Results)
+				{
+					if (!_Results)
+						return Promise.f_SetException(fg_Move(_Results).f_GetException());
+
+					Promise.f_SetResult(fg_Unwrap(fg_Move(*_Results)));
+				}
+			)
+		;
+
+		return Promise.f_MoveFuture();
+	}
+
+	template <typename tf_CKey, typename tf_CValue>
+	inline_always TCFuture<NContainer::TCMap<tf_CKey, tf_CValue>> fg_AllDone(NContainer::TCMap<tf_CKey, TCFuture<tf_CValue>> &&_Futures)
+	{
+		return fg_AllDone(_Futures);
+	}
+
+	template <typename tf_CKey>
+	TCFuture<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> fg_AllDone(NContainer::TCMap<tf_CKey, TCFuture<void>> &_Futures)
+	{
+		TCPromise<NContainer::TCSet<tf_CKey>> Promise{CPromiseConstructNoConsume()};
+		fg_AllDoneWrapped(_Futures).f_OnResultSet
+			(
+				[Promise](TCAsyncResult<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> &&_Results)
+				{
+					if (!_Results)
+						return Promise.f_SetException(fg_Move(_Results).f_GetException());
+
+					Promise.f_SetResult(fg_Unwrap(fg_Move(*_Results)));
+				}
+			)
+		;
+
+		return Promise.f_MoveFuture();
+	}
+
+	template <typename tf_CKey>
+	inline_always TCFuture<NContainer::TCMap<tf_CKey, TCAsyncResult<void>>> fg_AllDone(NContainer::TCMap<tf_CKey, TCFuture<void>> &&_Futures)
+	{
+		return fg_AllDone(_Futures);
+	}
+
+	TCFuture<void> fg_AllDone(NContainer::TCVector<TCFuture<void>> &_Futures);
+	TCFuture<void> fg_AllDone(NContainer::TCVector<TCFuture<void>> &&_Futures);
+
+	template <typename t_CType>
+	TCFutureVector<t_CType>::CInternal::CInternal()
+	{
 	}
 
 	template <typename t_CType>
-	TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> TCActorResultVector<t_CType>::CInternal::f_GetResults()
+	TCFutureVector<t_CType>::CInternal::~CInternal()
+	{
+	}
+
+	template <typename t_CType>
+	TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> TCFutureVector<t_CType>::CInternal::f_GetResults()
 	{
 		mint nAdded = mp_nAdded.f_Load();
 
@@ -1252,7 +1610,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	void TCActorResultVector<t_CType>::CInternal::fp_TransferResults()
+	void TCFutureVector<t_CType>::CInternal::fp_TransferResults()
 	{
 		auto *pResult = mp_pFirstResult.f_Exchange(nullptr);
 
@@ -1266,14 +1624,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCActorResultVector<t_CType>::CResultReceived::CResultReceived(mint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal)
+	TCFutureVector<t_CType>::CResultReceived::CResultReceived(mint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal)
 		: mp_iResult(_iResult)
 		, mp_pInternal(_pInternal)
 	{
 	}
 
 	template <typename t_CType>
-	void TCActorResultVector<t_CType>::CResultReceived::operator ()(TCAsyncResult<t_CType> &&_Result) const
+	void TCFutureVector<t_CType>::CResultReceived::operator ()(TCAsyncResult<t_CType> &&_Result) const
 	{
 		auto &Internal = *mp_pInternal;
 		if (Internal.mp_bDefinedSize || Internal.mp_bLazyResultsGotten.f_Load(NAtomic::EMemoryOrder_Acquire))
@@ -1304,14 +1662,14 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCActorResultVector<t_CType>::TCActorResultVector()
+	TCFutureVector<t_CType>::TCFutureVector()
 		: mp_pInternal(fg_Construct())
 	{
 
 	}
 
 	template <typename t_CType>
-	TCActorResultVector<t_CType>::TCActorResultVector(mint _DefinedSize)
+	TCFutureVector<t_CType>::TCFutureVector(mint _DefinedSize)
 		: mp_pInternal(fg_Construct())
 	{
 		mp_pInternal->mp_bDefinedSize = true;
@@ -1320,7 +1678,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	void TCActorResultVector<t_CType>::f_SetLen(mint _DefinedSize)
+	void TCFutureVector<t_CType>::f_SetLen(mint _DefinedSize)
 	{
 		DMibRequire(!mp_pInternal->mp_bDefinedSize);
 		DMibRequire(mp_pInternal->mp_nAdded.f_Load() == 0);
@@ -1331,56 +1689,74 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	TCActorResultVector<t_CType>::~TCActorResultVector()
+	TCFutureVector<t_CType>::~TCFutureVector()
 	{
 		if (mp_pInternal)
 			mp_pInternal.f_Clear();
 	}
 
 	template <typename t_CType>
-	TCActorResultCall<TCActor<CDirectResultActor>, typename TCActorResultVector<t_CType>::CResultReceived> TCActorResultVector<t_CType>::f_AddResult()
+	auto TCFutureVector<t_CType>::fp_AddResult() -> CResultReceived
 	{
 		auto &Internal = *mp_pInternal;
 		DMibRequire(!(Internal.mp_nFinished.f_Load() & NPrivate::gc_ActorResultResultsGottenMask));
 		mint iResult = Internal.mp_nAdded.f_FetchAdd(1);
 		DMibRequire(!Internal.mp_bDefinedSize || iResult < Internal.mp_Results.f_GetLen());
-		return fg_DirectResultActor() / CResultReceived(iResult, mp_pInternal);
+		return CResultReceived(iResult, mp_pInternal);
 	}
 
 	template <typename t_CType>
-	bool TCActorResultVector<t_CType>::f_IsEmpty() const
+	bool TCFutureVector<t_CType>::f_IsEmpty() const
 	{
 		auto &Internal = *mp_pInternal;
 		return Internal.mp_nAdded.f_Load() == 0;
 	}
 
 	template <typename t_CType>
-	inline_always auto TCActorResultVector<t_CType>::f_GetResults()
+	inline_always auto TCFutureVector<t_CType>::fp_GetResults()
 	{
-		return NPrivate::fg_DispatchGenericImpl<true>
+		return fg_Exchange(mp_pInternal, nullptr)->f_GetResults();
+	}
+
+	template <typename t_CType>
+	TCFuture<NContainer::TCVector<t_CType>> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
+		requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
+	{
+		TCPromise<NContainer::TCVector<t_CType>> Promise{CPromiseConstructNoConsume()};
+
+		fp_GetResults().f_OnResultSet
 			(
-				NMeta::TCTypeList<>()
-				, fg_DirectCallActor()
-				, [pInternal = fg_Move(mp_pInternal)]() mutable -> TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>>
+				[Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<t_CType>>> &&_Results)
 				{
-					return pInternal->f_GetResults();
+					if (!_Results)
+						return Promise.f_SetException(fg_Move(_Results).f_GetException());
+
+					Promise.f_SetResult(fg_Unwrap(fg_Move(*_Results)));
 				}
 			)
 		;
+
+		return Promise.f_MoveFuture();
 	}
 
 	template <typename t_CType>
-	TCUnsafeFuture<NContainer::TCVector<t_CType>> TCActorResultVector<t_CType>::f_GetUnwrappedResults()
-		requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
-	{
-		co_return co_await (co_await f_GetResults() | g_Unwrap);
-	}
-
-	template <typename t_CType>
-	TCUnsafeFuture<void> TCActorResultVector<t_CType>::f_GetUnwrappedResults()
+	TCFuture<void> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
 		requires(NTraits::TCIsVoid<t_CType>::mc_Value)
 	{
-		co_await (co_await f_GetResults() | g_Unwrap);
-		co_return {};
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+
+		fp_GetResults().f_OnResultSet
+			(
+				[Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+				{
+					if (!_Results)
+						return Promise.f_SetException(fg_Move(_Results).f_GetException());
+
+					Promise.f_SetResult(fg_Unwrap(fg_Move(*_Results)));
+				}
+			)
+		;
+
+		return Promise.f_MoveFuture();
 	}
 }

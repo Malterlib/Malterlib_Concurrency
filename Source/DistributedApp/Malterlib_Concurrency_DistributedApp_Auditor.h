@@ -105,135 +105,17 @@ namespace NMib::NConcurrency
 		NStr::CStr m_Category;
 	};
 
-	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromiseWithAppAuditor
-	{
-		TCPromiseWithAppAuditor(TCPromise<t_CReturnValue> const &_Promise, CDistributedAppAuditor const &_Auditor);
+	FExceptionTransformer fg_ExceptionTransformer
+		(
+			FExceptionTransformer &&_fPreviousTransformer
+			, CDistributedAppAuditor const &_Auditor
+		)
+	;
 
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCPromise<t_CReturnValue> m_Promise;
-		CDistributedAppAuditor m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromiseWithErrorWithAppAuditor
-	{
-		TCPromiseWithErrorWithAppAuditor(TCPromiseWithError<t_CReturnValue> const &_Promise, CDistributedAppAuditor const &_Auditor);
-
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCPromiseWithError<t_CReturnValue> m_Promise;
-		CDistributedAppAuditor m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromiseWithAppAuditorWithError
-	{
-		TCPromiseWithAppAuditorWithError(TCPromise<t_CReturnValue> const &_Promise, CDistributedAppAuditorWithError const &_Auditor);
-
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCPromise<t_CReturnValue> m_Promise;
-		CDistributedAppAuditorWithError m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard]] TCPromiseWithErrorWithAppAuditorWithError
-	{
-		TCPromiseWithErrorWithAppAuditorWithError(TCPromiseWithError<t_CReturnValue> const &_Promise, CDistributedAppAuditorWithError const &_Auditor);
-
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		TCPromiseWithError<t_CReturnValue> m_Promise;
-		CDistributedAppAuditorWithError m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard("You need to co_await the result")]] TCFutureWithAppAuditor
-	{
-		struct CNoUnwrapAsyncResult
-		{
-			TCFutureWithAppAuditor *m_pWrapped;
-			auto operator co_await() &&;
-		};
-
-		TCFutureWithAppAuditor(TCFuture<t_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor);
-
-		auto operator co_await() &&;
-		CNoUnwrapAsyncResult f_Wrap() &&;
-
-		TCFuture<t_CReturnValue> m_Future;
-		CDistributedAppAuditor m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard("You need to co_await the result")]] TCFutureWithErrorWithAppAuditor
-	{
-		struct CNoUnwrapAsyncResult
-		{
-			TCFutureWithErrorWithAppAuditor *m_pWrapped;
-			auto operator co_await() &&;
-		};
-
-		TCFutureWithErrorWithAppAuditor(TCFutureWithError<t_CReturnValue> &&_Future, CDistributedAppAuditor const &_Auditor);
-
-		auto operator co_await() &&;
-		CNoUnwrapAsyncResult f_Wrap() &&;
-
-		TCFutureWithError<t_CReturnValue> m_Future;
-		CDistributedAppAuditor m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard("You need to co_await the result")]] TCFutureWithAppAuditorWithError
-	{
-		struct CNoUnwrapAsyncResult
-		{
-			TCFutureWithAppAuditorWithError *m_pWrapped;
-			auto operator co_await() &&;
-		};
-
-		TCFutureWithAppAuditorWithError(TCFuture<t_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor);
-
-		auto operator co_await() &&;
-		CNoUnwrapAsyncResult f_Wrap() &&;
-
-		TCFuture<t_CReturnValue> m_Future;
-		CDistributedAppAuditorWithError m_Auditor;
-	};
-
-	template <typename t_CReturnValue>
-	struct [[nodiscard("You need to co_await the result")]] TCFutureWithErrorWithAppAuditorWithError
-	{
-		struct CNoUnwrapAsyncResult
-		{
-			TCFutureWithErrorWithAppAuditorWithError *m_pWrapped;
-			auto operator co_await() &&;
-		};
-
-		TCFutureWithErrorWithAppAuditorWithError(TCFutureWithError<t_CReturnValue> &&_Future, CDistributedAppAuditorWithError const &_Auditor);
-
-		auto operator co_await() &&;
-		CNoUnwrapAsyncResult f_Wrap() &&;
-
-		TCFutureWithError<t_CReturnValue> m_Future;
-		CDistributedAppAuditorWithError m_Auditor;
-	};
+	FExceptionTransformer fg_ExceptionTransformer
+		(
+			FExceptionTransformer &&_fPreviousTransformer
+			, CDistributedAppAuditorWithError const &_Auditor
+		)
+	;
 }

@@ -8,12 +8,19 @@
 namespace NMib::NConcurrency
 {
 	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
+	struct TCActorFunctorWeak;
+
+	template <typename t_CFunction>
+		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	struct TCActorFunctor
 	{
 		using CReturn = typename NTraits::TCFunctionTraits<t_CFunction>::CReturn;
-		using CFunction = NFunction::TCFunctionMovable<t_CFunction>;
+		using CFunction = NFunction::TCFunctionMovable<typename NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::CType>;
 		static_assert(NPrivate::TCIsFuture<CReturn>::mc_Value || NPrivate::TCIsAsyncGenerator<CReturn>::mc_Value, "You need to return a future or async generator");
 		using CStripedReturn = typename NPrivate::TCIsFuture<CReturn>::CType;
+
+		friend struct TCActorFunctorWeak<t_CFunction>;
 
 		TCActorFunctor() = default;
 		TCActorFunctor(TCActorFunctor &&) = default;
@@ -23,10 +30,10 @@ namespace NMib::NConcurrency
 		~TCActorFunctor();
 		
 		TCActorFunctor(CNullPtr);
-		TCActorFunctor(TCActor<CActor> &&_Actor, NFunction::TCFunctionMovable<t_CFunction> &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
+		TCActorFunctor(TCActor<CActor> &&_Actor, CFunction &&_fFunctor, CActorSubscription &&_Subscription = nullptr);
 		
 		template <typename ...tfp_CParams>
-		auto operator ()(tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+		auto operator ()(tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
@@ -35,17 +42,22 @@ namespace NMib::NConcurrency
 			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
+		template <typename ...tfp_CParams>
+		void f_CallDiscard(tfp_CParams &&...p_Params) const
+			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
+		;
+
 		template <typename tf_FDispatcher, typename ...tfp_CParams>
-		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCDispatchedActorCall<CStripedReturn>
+		auto f_CallWrapped(tf_FDispatcher &&_fDispatcher, tfp_CParams &&...p_Params) const -> TCFuture<CStripedReturn>
 			requires(NPrivate::cIsActorFunctorCallableWith<t_CFunction, tfp_CParams...>)
 		;
 
 		TCActor<CActor> const &f_GetActor() const;
-		NFunction::TCFunctionMovable<t_CFunction> const &f_GetFunctor() const;
+		CFunction const &f_GetFunctor() const;
 		CActorSubscription const &f_GetSubscription() const;
 
 		TCActor<CActor> &f_GetActor();
-		NFunction::TCFunctionMovable<t_CFunction> &f_GetFunctor();
+		CFunction &f_GetFunctor();
 		CActorSubscription &f_GetSubscription();
 		TCFuture<void> f_Destroy() &&;
 
@@ -56,15 +68,21 @@ namespace NMib::NConcurrency
 
 	protected:
 		TCActor<CActor> mp_Actor;
-		NStorage::TCSharedPointer<NFunction::TCFunctionMovable<t_CFunction>> mp_pFunctor;
+		NStorage::TCSharedPointer<CFunction> mp_pFunctor;
 		CActorSubscription mp_Subscription;
 	};
 	
 	template <typename tf_CFunctor>
 	auto fg_ActorFunctor(TCActor<> const &_Actor, tf_CFunctor &&_fFunctor, CActorSubscription &&_Subscription = nullptr)
 	{
-		using CFunction = typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType::operator ())>::CFunctionType;
-		return TCActorFunctor<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)}; 
+		using CFunction = NPrivate::TCRemoveReferencesFromFunctor
+			<
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType::operator ())>::CFunctionType
+			>
+			::CType
+		;
+
+		return TCActorFunctor<CFunction>{fg_TempCopy(_Actor), fg_Forward<tf_CFunctor>(_fFunctor), fg_Move(_Subscription)};
 	}
 	
 	struct CActorFunctorHelperWithProperties

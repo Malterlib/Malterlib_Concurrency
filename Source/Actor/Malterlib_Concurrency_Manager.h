@@ -24,6 +24,8 @@
 namespace NMib::NConcurrency
 {
 	struct CConcurrencyThreadLocal;
+	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
+	
 	struct CFutureCoroutineContext;
 
 	struct CBlockingActorStorage
@@ -82,8 +84,8 @@ namespace NMib::NConcurrency
 		TCActor<CDynamicConcurrentActor> const &f_GetDynamicConcurrentActor();
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
 
-		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
-		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
+		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
 
 		void f_SetExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);
 		EExecutionPriority f_GetExecutionPriority(EPriority _Priority);
@@ -115,9 +117,9 @@ namespace NMib::NConcurrency
 		
 		struct CQueue
 		{
-			align_cacheline CConcurrentRunQueue m_JobQueue;
+			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc m_JobQueue;
 			NAtomic::TCAtomic<mint> m_Working;
-			align_cacheline CConcurrentRunQueue::CLocalQueueData m_JobQueueLocal;
+			align_cacheline CConcurrentRunQueueNonVirtualNoAlloc::CLocalQueueData m_JobQueueLocal;
 			mint m_iQueue;
 			EPriority m_Priority;
 			NThread::CEventAutoReset m_Event;
@@ -130,11 +132,13 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_RunThread(CQueue &_Queue, NThread::CThreadObjectNonTracked *_pThread);
-		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
-		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_QueueJob(EPriority _Priority, mint _iFixedCore, mint _iLastCore, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		bool fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_Functor, CConcurrencyThreadLocal &_ThreadLocal);
+		bool fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal);
+
 		inline_never mint fp_InitConcurrentActors();
-		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
-		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
+		void fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal);
 
 		void fp_AddedActor();
 		void fp_RemovedActor();
@@ -164,6 +168,7 @@ namespace NMib::NConcurrency
 		NContainer::TCVector<CQueue> m_Queues[EPriority_Max];
 
 		bool m_bDestroyed = false;
+		bool m_bFinishedDestroying = false;
 		bool m_bStopped = false;
 
 		align_cacheline NAtomic::TCAtomic<mint> m_nConcurrentActors;
@@ -207,7 +212,7 @@ namespace NMib::NConcurrency
 
 	struct CCaptureExceptionSettings
 	{
-		NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> m_fTransformer;
+		FExceptionTransformer m_fTransformer;
 	};
 
 	struct CConcurrencyThreadLocal final
@@ -215,21 +220,24 @@ namespace NMib::NConcurrency
 		CConcurrencyThreadLocal();
 		~CConcurrencyThreadLocal();
 
-		CActor *m_pCurrentActor = nullptr;
 		CActorHolder *m_pCurrentlyProcessingActorHolder = nullptr;
 		CActorHolder *m_pCurrentlyDestructingActorHolder = nullptr;
 		CConcurrencyManager::CQueue *m_pThisQueue = nullptr;
+		CSystemThreadLocal &m_SystemThreadLocal;
 		mint m_iConcurrentActor[EPriority_Max];
 		mint m_JobQueueIndex[EPriority_Max];
 		mint m_nActorsIndex = NMisc::fg_GetRandomUnsigned();
-		bool m_bCurrentlyProcessingInActorHolder = false;
-		bool m_bForceNonLocal = false;
 
 		NException::CExceptionPointer m_pNoResultException;
+		NException::CExceptionPointer m_pResultWasNotSetException;
+		NException::CExceptionPointer m_pActorDeletedException;
+		NException::CExceptionPointer m_pActorCalledDeletedException;
 
 		NContainer::TCVector<CCaptureExceptionSettings> m_PendingCaptureExceptions;
 		NContainer::TCVector<TCFuture<void>> m_AsyncDestructors;
 
+		bool m_bCurrentlyProcessingInActorHolder = false;
+		bool m_bForceNonLocal = false;
 		bool m_bCaptureAsyncDestructors = false;
 
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -239,7 +247,6 @@ namespace NMib::NConcurrency
 #if DMibEnableSafeCheck > 0
 		CActor *m_pCurrentlyConstructingActor = nullptr;
 		CActor *m_pCurrentlyDestructingActor = nullptr;
-		CActorHolder *m_pCurrentlyOverridenProcessingActorHolder = nullptr;
 		mint m_AllowWrongThreadDestroySequence = 0;
 #endif
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
@@ -256,21 +263,13 @@ namespace NMib::NConcurrency
 
 	extern CAllowWrongThreadDestroy g_AllowWrongThreadDestroy;
 
-	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
-
 	bool fg_ActorRunning(TCActor<> &_Actor);
-	bool fg_CurrentActorProcessing();
-#if DMibEnableSafeCheck > 0
-	bool fg_CurrentActorProcessingOrOverridden();
-#endif
 
 	template <typename tf_CActor, typename... tfp_CParams>
 	TCActor<tf_CActor> fg_ConstructActor(tfp_CParams &&...p_Params);
 
 	template <typename tf_CActor, typename tf_CHolderType, typename... tfp_CHolderParams, typename... tfp_CParams>
 	TCActor<tf_CActor> fg_ConstructActor(TCConstruct<tf_CHolderType, tfp_CHolderParams...> &&_HolderParams, tfp_CParams &&...p_Params);
-
-	auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor());
 }
 
 #include "Malterlib_Concurrency_ActorHelpers.h"

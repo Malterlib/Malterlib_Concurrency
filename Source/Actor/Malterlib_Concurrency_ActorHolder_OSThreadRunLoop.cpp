@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 
 						mp_ThreadStartedEvent.f_SetSignaled();
 
-						fp_RunProcess();
+						fp_RunProcess(fg_ConcurrencyThreadLocal());
 
 						while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 							CFRunLoopRun();
@@ -132,13 +132,32 @@ namespace NMib::NConcurrency
 						(void)pThisReference;
 						if (pThis->mp_bDestroyed.f_Load() >= 4)
 							return;
-						pThis->fp_RunProcess();
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
 					}
 				)
 			;
 			CFRunLoopWakeUp(mp_RunLoopRef);
 #endif
 		}
+	}
+
+	void COSThreadRunLoopActorHolder::fp_QueueRunProcess(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+#if defined(DPlatformFamily_macOS)
+		DMibFastCheck(mp_RunLoopRef);
+		TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
+		CFRunLoopPerformBlock
+			(
+				mp_RunLoopRef
+				, kCFRunLoopDefaultMode
+				, ^()
+				{
+					pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
+				}
+			)
+		;
+		CFRunLoopWakeUp(mp_RunLoopRef);
+#endif
 	}
 
 	void COSThreadRunLoopActorHolder::fp_QueueProcess(FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
@@ -154,7 +173,29 @@ namespace NMib::NConcurrency
 					, kCFRunLoopDefaultMode
 					, ^()
 					{
-						pThis->fp_RunProcess();
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
+					}
+				)
+			;
+			CFRunLoopWakeUp(mp_RunLoopRef);
+#endif
+		}
+	}
+
+	void COSThreadRunLoopActorHolder::fp_QueueProcessEntry(CConcurrentRunQueueEntryHolder &&_Entry, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		if (fp_AddToQueue(fg_Move(_Entry), _ThreadLocal))
+		{
+#if defined(DPlatformFamily_macOS)
+			DMibFastCheck(mp_RunLoopRef);
+			TCActorHolderSharedPointer<COSThreadRunLoopActorHolder> pThis = fg_Explicit(this);
+			CFRunLoopPerformBlock
+				(
+					mp_RunLoopRef
+					, kCFRunLoopDefaultMode
+					, ^()
+					{
+						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
 					}
 				)
 			;

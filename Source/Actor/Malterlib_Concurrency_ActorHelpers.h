@@ -19,6 +19,11 @@ namespace NMib::NConcurrency
 		return TCActor<tf_CActor>(fg_Explicit(_pActor));
 	}
 
+	inline_always TCActor<CActor> fg_ThisActor(CActorHolder *_pActor)
+	{
+		return TCActor<CActor>(fg_Explicit(static_cast<TCActorInternal<CActor> *>(_pActor)));
+	}
+
 	template <typename tf_CActor>
 	DMibSuppressUndefinedSanitizer TCWeakActor<tf_CActor> fg_ThisActorWeak(tf_CActor const *_pActor)
 	{

@@ -7,35 +7,30 @@
 
 namespace NMib::NConcurrency
 {
-	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(CActor const *_pActor)
+	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(CConcurrencyThreadLocal &_ThreadLocal, CActorHolder *_pActor)
+		: mp_ThreadLocal(_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		ThreadLocal.m_pCurrentActor = const_cast<CActor *>(_pActor);
-#if DMibEnableSafeCheck > 0
-		mp_pLastOverriddenProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
-		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)_pActor->self.m_pThis;
-#endif
+		mp_pLastActor = _ThreadLocal.m_pCurrentlyProcessingActorHolder;
+		_ThreadLocal.m_pCurrentlyProcessingActorHolder = _pActor;
+
+		mp_bLastProcessing = _ThreadLocal.m_bCurrentlyProcessingInActorHolder;
+		_ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 	}
 
-	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(TCActor<CActor> const &_Actor)
+	CCurrentlyProcessingActorScope::CCurrentlyProcessingActorScope(CConcurrencyThreadLocal &_ThreadLocal, TCActor<CActor> const &_Actor)
+		: mp_ThreadLocal(_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mp_pLastActor = ThreadLocal.m_pCurrentActor;
-		ThreadLocal.m_pCurrentActor = NPrivate::fg_GetInternalActor(_Actor);
-#if DMibEnableSafeCheck > 0
-		mp_pLastOverriddenProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
-		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = (CActorHolder *)ThreadLocal.m_pCurrentActor->self.m_pThis;
-#endif
+		mp_pLastActor = _ThreadLocal.m_pCurrentlyProcessingActorHolder;
+		_ThreadLocal.m_pCurrentlyProcessingActorHolder = _Actor.f_Get();
+
+		mp_bLastProcessing = _ThreadLocal.m_bCurrentlyProcessingInActorHolder;
+		_ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
 	}
 
 	CCurrentlyProcessingActorScope::~CCurrentlyProcessingActorScope()
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		ThreadLocal.m_pCurrentActor = mp_pLastActor;
-#if DMibEnableSafeCheck > 0
-		ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder = mp_pLastOverriddenProcessingActorHolder;
-#endif
+		mp_ThreadLocal.m_pCurrentlyProcessingActorHolder = mp_pLastActor;
+		mp_ThreadLocal.m_bCurrentlyProcessingInActorHolder = mp_bLastProcessing;
 	}
 
 	CActor::CActor()
@@ -46,7 +41,6 @@ namespace NMib::NConcurrency
 
 		ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_pActorUnsafe.f_Store(this, NAtomic::EMemoryOrder_Relaxed);
 		self.m_pThis = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-		ThreadLocal.m_pCurrentActor = this;
 	}
 
 	CActor::~CActor()
@@ -58,7 +52,8 @@ namespace NMib::NConcurrency
 	CActorInternal::CActorInternal()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		mp_pThis = ThreadLocal.m_pCurrentActor;
+		mp_pThis = ThreadLocal.m_pCurrentlyConstructingActor;
+		DMibFastCheck(!!mp_pThis);
 	}
 
 	CActorInternal::~CActorInternal()
@@ -74,14 +69,11 @@ namespace NMib::NConcurrency
 		return !!self.m_pThis.f_GetBits();
 	}
 
-	void CActor::fp_DisptachInternal(NFunction::TCFunctionMovable<void ()> &&_fToDisptach)
+	TCFuture<void> CActor::f_Dispatch(NFunction::TCFunctionMovable<void ()> _fToDisptach)
 	{
 		_fToDisptach();
-	}
 
-	void CActor::f_Dispatch(NFunction::TCFunctionMovable<void ()> &&_fToDisptach)
-	{
-		_fToDisptach();
+		co_return {};
 	}
 
 	void CActor::fp_Construct()
@@ -128,9 +120,8 @@ namespace NMib::NConcurrency
 		if (mp_SuspendedCoroutines.f_IsEmpty())
 			co_return {};
 
-		bool bNeedAwait = false;
-		auto Future = fp_AbortSuspendedCoroutinesWithAsyncDestroy(bNeedAwait);
-		if (bNeedAwait)
+		auto Future = fp_AbortSuspendedCoroutinesWithAsyncDestroy();
+		if (Future.f_IsValid())
 			co_await fg_Move(Future);
 
 		co_return {};
@@ -138,7 +129,7 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActor::fp_Destroy()
 	{
-		return TCPromise<void>() <<= g_Void;
+		return g_Void;
 	}
 
 #if DMibEnableSafeCheck > 0
@@ -230,10 +221,9 @@ namespace NMib::NConcurrency
 	CReportLocalState::CReportLocalState() = default;
 	CReportLocalState::~CReportLocalState() = default;
 
-	void CReportLocalState::f_StoreCallStates()
+	void CReportLocalState::f_StoreCallStates(CSystemThreadLocal &_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_SystemThreadLocal();
-		for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
+		for (auto &Scope : _ThreadLocal.m_CrossActorStateScopes)
 		{
 			auto State = Scope.f_StoreState(false);
 			if (State)
@@ -251,9 +241,38 @@ namespace NMib::NConcurrency
 		return Return;
 	}
 
+#if DMibConfig_Concurrency_DebugActorCallstacks
+	void CReportLocalState::f_CaptureCallstack()
+	{
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
+		if (ThreadLocal.m_pCallstacks)
+			m_Callstacks = *ThreadLocal.m_pCallstacks;
+
+		auto &Callstack = m_Callstacks.f_InsertFirst();
+		Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
+#	ifdef DMibDebug
+		mint nFramesToRemove = 5; // fg_System_GetStackTrace + Constructor + f_Call + operator > + f_CaptureCallstack()
+#		ifdef DCompiler_clang
+			nFramesToRemove += 1; // Two frames for constructor
+#		endif
+#	else
+		mint nFramesToRemove = 0; // We don't know what inlining will do
+#	endif
+		NMemory::fg_MemMove(Callstack.m_Callstack, Callstack.m_Callstack + nFramesToRemove, sizeof(Callstack.m_Callstack) - sizeof(Callstack.m_Callstack[0]) * nFramesToRemove);
+		Callstack.m_CallstackLen -= nFramesToRemove;
+
+		if (m_Callstacks.f_GetLen() > 16)
+			m_Callstacks.f_Remove(m_Callstacks.f_GetLast());
+	}
+#endif
+
 	constinit CCoroutineYield g_Yield;
+	constinit CAccessCoroutine g_AccessCoroutine;
 
 	constinit CIsGeneratorAborted g_bShouldAbort;
+
+	constinit CDiscardResult g_DiscardResult;
+	constinit CDirectResult g_DirectResult;
 }
 
 namespace NMib::NConcurrency

@@ -5,14 +5,10 @@
 
 namespace NMib::NConcurrency
 {
-#if DMibEnableSafeCheck > 0
-	template NMib::NConcurrency::TCActorCall<NMib::NConcurrency::TCActor<NMib::NConcurrency::CDirectCallActor>, NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > (NMib::NConcurrency::CActor::*)(NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> &&), NStorage::TCTuple<NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> >, NMib::NMeta::TCTypeList<NMib::NFunction::TCFunctionMovable<NMib::NConcurrency::TCFuture<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > ()> >, true>::~TCActorCall();
-#endif
 	template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor>::~TCActor();
 	template NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >::~TCPromiseData();
 	template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor> NMib::NConcurrency::TCWeakActor<NMib::NConcurrency::CActor>::f_Lock() const;
 	template void NMib::NConcurrency::fg_DeleteWeakObject<NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor>>(CInternalActorAllocator &, NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor> *);
-	template TCFuture<NContainer::TCVector<TCAsyncResult<void>>> NMib::NConcurrency::TCActorResultVector<void>::CInternal::f_GetResults();
 }
 namespace NMib::NStorage
 {
@@ -31,7 +27,7 @@ namespace NMib::NContainer
 }
 namespace NMib
 {
-	template void NMib::fg_DeleteObject<NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >, NMib::NMemory::CAllocator_Heap &>(NMib::NMemory::CAllocator_Heap &, NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > *, mint);
+	template void NMib::fg_DeleteObject<NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >, NMib::NMemory::CAllocator_Heap &>(NMib::NMemory::CAllocator_Heap &, NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> > *);
 	template NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >, false, 0> *
 	NMib::TCConstruct<NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >, false, 0>, NMib::NFunction::TCFunctionMovable<void ()> >::f_Create<NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >, false, 0>, NMib::NMemory::CAllocator_Heap &>(NMib::NMemory::CAllocator_Heap &);
 	template NMib::NStorage::NPrivate::TCSharedPointerCounter<NMib::TCOnScopeExit<NFunction::TCFunctionMovable<void ()> >, false, 0> *

@@ -7,10 +7,30 @@
 
 namespace NMib::NConcurrency
 {
-	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+	using FExceptionTransformer = NFunction::TCFunction
+		<
+			NException::CExceptionPointer (NException::CExceptionPointer &&_pException)
+			, NFunction::TCFunctionNoAllocOptions
+			<
+				true
+				, sizeof(void *)
+				, sizeof(void *)
+				, false
+			>
+		>
+	;
+
+	FExceptionTransformer fg_ExceptionTransformer
 		(
-			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
+			FExceptionTransformer &&_fPreviousTransformer
 			, NStr::CStr &&_Message
+		)
+	;
+
+	FExceptionTransformer fg_ExceptionTransformer
+		(
+			FExceptionTransformer &&_fPreviousTransformer
+			, NStr::CStr const &_Message
 		)
 	;
 }

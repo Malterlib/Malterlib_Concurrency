@@ -118,11 +118,23 @@ namespace NMib::NConcurrency
 		return Promise.f_MoveFuture();
 	}
 
+	template <typename t_CReturnType>
+	NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> const &TCAsyncGenerator<t_CReturnType>::f_Unsafe_PromiseData() const
+	{
+		return mp_pData;
+	}
+
 #if DMibEnableSafeCheck > 0
 	template <typename t_CReturnType>
-	bool TCAsyncGenerator<t_CReturnType>::f_HasData(void const *_pData) const
+	bool TCAsyncGenerator<t_CReturnType>::f_Debug_HasData(void const *_pData) const
 	{
 		return true;
+	}
+
+	template <typename t_CReturnType>
+	bool TCAsyncGenerator<t_CReturnType>::f_Debug_HadCoroutine(void const *_pData) const
+	{
+		return mp_pData->m_pHadCoroutine == _pData;
 	}
 #endif
 

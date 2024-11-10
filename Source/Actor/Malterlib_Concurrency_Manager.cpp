@@ -5,6 +5,60 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/LogError>
 
+//#define DDoWorkPolling
+
+namespace NMib
+{
+	NConcurrency::CConcurrencyThreadLocal &CPromiseThreadLocal::f_ConcurrencyThreadLocal()
+	{
+		if (!m_pConcurrencyThreadLocal) [[unlikely]]
+			m_pConcurrencyThreadLocal = &NConcurrency::fg_ConcurrencyThreadLocal();
+
+		return *m_pConcurrencyThreadLocal;
+	}
+
+#if DMibEnableSafeCheck > 0
+	CPromiseThreadLocal::~CPromiseThreadLocal()
+	{
+		DMibFastCheck(!m_pCoroutinePromiseAllocation);
+		DMibFastCheck(m_PreviousCoroutinePromiseAllocations.f_IsEmpty());
+	}
+#endif
+
+	inline_never void CPromiseThreadLocal::fp_PushAllocationSlowPath(void *_pAllocation)
+	{
+		m_PreviousCoroutinePromiseAllocations.f_InsertLast(m_pCoroutinePromiseAllocation);
+		m_pCoroutinePromiseAllocation = _pAllocation;
+	}
+
+	inline_never void *CPromiseThreadLocal::fp_PopAllocationSlowPath()
+	{
+		auto pRet = m_pCoroutinePromiseAllocation;
+		m_pCoroutinePromiseAllocation = m_PreviousCoroutinePromiseAllocations.f_PopBack();
+
+		return pRet;
+	}
+
+	inline_always_lto void CPromiseThreadLocal::f_PushAllocation(void *_pAllocation)
+	{
+		if (!m_pCoroutinePromiseAllocation) [[likely]]
+		{
+			m_pCoroutinePromiseAllocation = _pAllocation;
+			return;
+		}
+
+		fp_PushAllocationSlowPath(_pAllocation);
+	}
+	
+	inline_always_lto void *CPromiseThreadLocal::f_PopAllocation()
+	{
+		if (m_PreviousCoroutinePromiseAllocations.f_IsEmpty()) [[likely]]
+			return fg_Exchange(m_pCoroutinePromiseAllocation, nullptr);
+
+		return fp_PopAllocationSlowPath();
+	}
+}
+
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassImplement(CExceptionActorDeleted);
@@ -66,36 +120,6 @@ namespace NMib::NConcurrency
 		};
 
 		constinit TCSubSystem<CSubSystem_Concurrency, ESubSystemDestruction_BeforeMemoryManager> g_SubSystem_Concurrency = {DAggregateInit};
-	}
-
-#if DMibEnableSafeCheck > 0
-	bool fg_CurrentActorProcessingOrOverridden()
-	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		auto pProcessingActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-		if (!pProcessingActorHolder)
-			pProcessingActorHolder = ThreadLocal.m_pCurrentlyOverridenProcessingActorHolder;
-
-		if (!pProcessingActorHolder)
-			return false;
-
-		if (ThreadLocal.m_pCurrentActor)
-			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(pProcessingActorHolder);
-		else
-			return true; // Current actor is deduced from ThreadLocal.m_pCurrentlyProcessingActorHolder so by definition it's running
-	}
-#endif
-
-	bool fg_CurrentActorProcessing()
-	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
-			return false;
-
-		if (ThreadLocal.m_pCurrentActor)
-			return ThreadLocal.m_pCurrentActor->self.m_pThis->f_IsProcessedOnActorHolder(ThreadLocal.m_pCurrentlyProcessingActorHolder);
-		else
-			return true; // Current actor is deduced from ThreadLocal.m_pCurrentlyProcessingActorHolder so by definition it's running
 	}
 
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority)
@@ -163,10 +187,14 @@ namespace NMib::NConcurrency
 		return fg_ConcurrencyManager().f_GetDynamicConcurrentActorLowPrio();
 	}
 
-//#define DMibNoConcurrency
+//#define DMibConcurrency 1
 
 	CConcurrencyThreadLocal::CConcurrencyThreadLocal()
+		: m_SystemThreadLocal(fg_SystemThreadLocal())
 	{
+
+		m_SystemThreadLocal.m_PromiseThreadLocal.m_pConcurrencyThreadLocal = this;
+		
 		for (mint iQueue = 0; iQueue < EPriority_Max; ++iQueue)
 		{
 			NMisc::CRandomShiftRNG RandomGenerator
@@ -176,8 +204,8 @@ namespace NMib::NConcurrency
 					, uint32(NTime::NPlatform::fg_Timer_CyclesFast() & constant_int64(0xFFFFFFFF))
 				}
 			;
-#ifdef DMibNoConcurrency
-			mint nThreads = 1;
+#ifdef DMibConcurrency
+			mint nThreads = DMibConcurrency;
 #else
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
@@ -188,9 +216,21 @@ namespace NMib::NConcurrency
 
 	CConcurrencyThreadLocal::~CConcurrencyThreadLocal() = default;
 
-	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
+	void fg_ConcurrencyThreadLocalInit()
 	{
+		[[maybe_unused]] auto &Local = *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
+	}
+	
+	inline_always_lto CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
+	{
+#ifdef DMibConfig_ManualForeignThreadInitialization
+		DMibFastCheck(NPrivate::g_SubSystem_Concurrency.f_WasCreated() && NPrivate::g_SubSystem_Concurrency.f_GetUnsafe()->m_ThreadLocal.f_TryGet());
+		// Make sure to call fg_SystemThreadInit() on non-Malterlib threads.
+
+		return *NPrivate::g_SubSystem_Concurrency.f_GetUnsafe()->m_ThreadLocal.f_TryGet();
+#else
 		return *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
+#endif
 	}
 
 	CAllowWrongThreadDestroy::~CAllowWrongThreadDestroy()
@@ -208,9 +248,11 @@ namespace NMib::NConcurrency
 
 	CConcurrencyManager::CConcurrencyManager(EExecutionPriority _ExecutionPriority[EPriority_Max])
 	{
+		// Init time before starting any threads
+		NTime::CSystem_Time::fs_TimeInitDone();
 
-#ifdef DMibNoConcurrency
-		mint nThreads = 1;
+#ifdef DMibConcurrency
+		mint nThreads = DMibConcurrency;
 #else
 		mint nThreads = NSys::fg_Thread_GetVirtualCores();
 #endif
@@ -262,7 +304,7 @@ namespace NMib::NConcurrency
 	{
 		struct CCoroutineActor : public CActor
 		{
-			TCFuture<void> f_ReferenceCoroutine(uint32 const &_Reference)
+			TCFuture<void> f_ReferenceCoroutine(uint32 _Reference)
 			{
 				co_return {};
 			}
@@ -323,8 +365,10 @@ namespace NMib::NConcurrency
 		{
 			DMibLock(m_TimerActorLock);
 			if (m_pTimerActor)
-				fg_Move(m_pTimerActor).f_Destroy() > fg_DiscardResult();
+				fg_Move(m_pTimerActor).f_Destroy().f_DiscardResult();
 		}
+
+		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 
 		auto fProcessQueues = [&]()
 			{
@@ -338,13 +382,13 @@ namespace NMib::NConcurrency
 						for (auto &Queue : Queue)
 						{
 							Queue.m_JobQueue.f_TransferThreadSafeQueue(Queue.m_JobQueueLocal);
-							if (!Queue.m_JobQueue.f_FirstQueueEntry(Queue.m_JobQueueLocal))
+							if (!Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
 								continue;
 							bDoneSomething = true;
-							while (auto pEntry = Queue.m_JobQueue.f_FirstQueueEntry(Queue.m_JobQueueLocal))
+							while (auto pEntry = Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
 							{
-								(*pEntry)();
-								Queue.m_JobQueue.f_PopQueueEntry(pEntry);
+								pEntry->m_Link.f_UnsafeUnlink();
+								pEntry->f_Call(ThreadLocal);
 							}
 						}
 					}
@@ -479,7 +523,7 @@ namespace NMib::NConcurrency
 		return m_ExecutionPriority[_Priority];
 	}
 
-	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
+	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (_ThreadLocal.m_pThisQueue)
 		{
@@ -500,12 +544,12 @@ namespace NMib::NConcurrency
 			Queue.f_Signal(this);
 	}
 
-	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue)
 	{
 		fp_DispatchOnCurrentThreadOrConcurrentFirst(_Priority, fg_Move(_ToQueue), fg_ConcurrencyThreadLocal());
 	}
 
-	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
+	void CConcurrencyManager::fp_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (_ThreadLocal.m_pThisQueue)
 		{
@@ -526,16 +570,30 @@ namespace NMib::NConcurrency
 			Queue.f_Signal(this);
 	}
 
-	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatch &&_ToQueue)
+	void CConcurrencyManager::f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue)
 	{
 		fp_DispatchOnCurrentThreadOrConcurrent(_Priority, fg_Move(_ToQueue), fg_ConcurrencyThreadLocal());
 	}
 
-	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedCore, FActorQueueDispatch &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
+	void CConcurrencyManager::fp_QueueJob(EPriority _Priority, mint _iFixedQueue, mint _iLastQueue, FActorQueueDispatchNoAlloc &&_ToQueue, CConcurrencyThreadLocal &_ThreadLocal)
 	{
+		auto pQueueEntry = CConcurrentRunQueueNonVirtualNoAlloc::fs_QueueEntry(fg_Move(_ToQueue));
+
+		if (_iLastQueue < m_nThreads)
+		{
+			auto &Queue = m_Queues[_Priority].f_GetArray()[_iLastQueue];
+			if (Queue.m_JobQueue.f_AddToQueueIfEmpty(fg_Move(pQueueEntry)))
+			{
+				mint Value = Queue.m_Working.f_FetchAdd(1);
+				if (Value == 0)
+					Queue.f_Signal(this);
+				return;
+			}
+		}
+
 		mint iJobQueue;
-		if (_iFixedCore < m_nThreads)
-			iJobQueue = _iFixedCore;
+		if (_iFixedQueue < m_nThreads)
+			iJobQueue = _iFixedQueue;
 		else
 		{
 			do
@@ -551,15 +609,16 @@ namespace NMib::NConcurrency
 					}
 				}
 
-				if (_ThreadLocal.m_pCurrentActor)
+				if (_ThreadLocal.m_pCurrentlyProcessingActorHolder && _ThreadLocal.m_bCurrentlyProcessingInActorHolder)
 				{
-					mint iCurrentCore = _ThreadLocal.m_pCurrentActor->self.m_pThis->mp_iFixedCore;
-					if (iCurrentCore < m_nThreads)
+					mint iCurrentQueue = _ThreadLocal.m_pCurrentlyProcessingActorHolder->mp_iFixedQueue;
+					if (iCurrentQueue < m_nThreads)
 					{
-						iJobQueue = iCurrentCore;
+						iJobQueue = iCurrentQueue;
 						break;
 					}
 				}
+
 				auto &iJobQueueNew = _ThreadLocal.m_JobQueueIndex[_Priority];
 				if (iJobQueueNew == iThisQueue) // Don't queue new actors on the same queue
 					++iJobQueueNew;
@@ -573,18 +632,37 @@ namespace NMib::NConcurrency
 		}
 
 		auto &Queue = m_Queues[_Priority].f_GetArray()[iJobQueue];
-		if (fp_AddToQueue(Queue, fg_Move(_ToQueue), _ThreadLocal))
+		if (fp_AddToQueue(Queue, fg_Move(pQueueEntry), _ThreadLocal))
 			Queue.f_Signal(this);
 	}
 
 	constexpr static const mint gc_ProcessingMask = DMibBitTyped(sizeof(mint) * 8 - 1, mint);
 
-	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatch &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, NStorage::TCUniquePointer<CConcurrentRunQueueEntry_FunctorNonVirtualNoAlloc> &&_pQueueEntry, CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		if (_ThreadLocal.m_pThisQueue == &_Queue && !_ThreadLocal.m_bForceNonLocal)
+		if (_ThreadLocal.m_pThisQueue == &_Queue)
 		{
-			_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
-			return false;
+			if (!_ThreadLocal.m_bForceNonLocal) [[likely]]
+			{
+				_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_pQueueEntry), _Queue.m_JobQueueLocal);
+				return false;
+			}
+		}
+		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_pQueueEntry));
+
+		mint Value = _Queue.m_Working.f_FetchAdd(1);
+		return Value == 0;
+	}
+
+	bool CConcurrencyManager::fp_AddToQueue(CQueue &_Queue, FActorQueueDispatchNoAlloc &&_Functor, CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		if (_ThreadLocal.m_pThisQueue == &_Queue)
+		{
+			if (!_ThreadLocal.m_bForceNonLocal) [[likely]]
+			{
+				_Queue.m_JobQueue.f_AddToQueueLocal(fg_Move(_Functor), _Queue.m_JobQueueLocal);
+				return false;
+			}
 		}
 		_Queue.m_JobQueue.f_AddToQueue(fg_Move(_Functor));
 
@@ -607,6 +685,10 @@ namespace NMib::NConcurrency
 #endif
 		while (_pThread->f_GetState() != NThread::EThreadState_EventWantQuit)
 		{
+#ifdef DDoWorkPolling
+			NTime::CCyclesClock Clock;
+			Clock.f_Start();
+#endif
 			while (true)
 			{
 				bool bDoMore = true;
@@ -634,15 +716,15 @@ namespace NMib::NConcurrency
 							bDoneSomething = false;
 							if (_Queue.m_JobQueue.f_TransferThreadSafeQueue(_Queue.m_JobQueueLocal))
 								bDoneSomething = true;
-							while (auto *pJob = _Queue.m_JobQueue.f_FirstQueueEntry(_Queue.m_JobQueueLocal))
+							while (auto *pJob = _Queue.m_JobQueueLocal.m_LocalQueue.f_GetFirst())
 							{
 #if DMibPPtrBits > 32
 								if (!Checkout.f_IsCheckedOut())
 									Checkout = fg_GetSys()->f_MemoryManager_Checkout();
 #endif
 
-								(*pJob)();
-								_Queue.m_JobQueue.f_PopQueueEntry(pJob);
+								pJob->m_Link.f_UnsafeUnlink();
+								pJob->f_Call(ThreadLocal);
 								bDoneSomething = true;
 							}
 						}
@@ -652,7 +734,12 @@ namespace NMib::NConcurrency
 #if DMibPPtrBits > 32
 				Checkout = NMemory::CMemoryManagerCheckout(nullptr);
 #endif
+#ifdef DDoWorkPolling
+				if (Clock.f_GetTime() > 0.000'035) // Loop for at least 35 µs before going to kernel
+					break;
+#else
 				break;
+#endif
 			}
 			_Queue.m_Event.f_Wait();
 		}
@@ -660,7 +747,7 @@ namespace NMib::NConcurrency
 
 	void CConcurrencyManager::fp_AddedActor()
 	{
-		DMibFastCheck(!m_bDestroyed);
+		DMibFastCheck(!m_bFinishedDestroying);
 
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		if (ThreadLocal.m_pThisQueue)
@@ -926,6 +1013,8 @@ namespace NMib::NConcurrency
 		// Sync up to make sure nothing is still waiting to process on actors
 		fWaitForAllDone();
 
+		m_bFinishedDestroying = true;
+
 		m_bDestroyingAlwaysAliveActors = true;
 		auto Cleanup = g_OnScopeExit / [&]
 			{
@@ -1021,7 +1110,7 @@ namespace NMib::NConcurrency
 					Actor = f_ConstructActor(fg_Construct<CConcurrentActorImpl>());
 				else if (Prio == EPriority_Low)
 					Actor = f_ConstructActor(fg_Construct<CConcurrentActorLowPrioImpl>());
-				Actor->f_SetFixedCore(iActor);
+				Actor->f_SetFixedQueue(iActor);
 				m_ConcurrentActorsRef[Prio][iActor] = Actor;
 				++iActor;
 			}
@@ -1258,48 +1347,44 @@ namespace NMib::NConcurrency
 		return m_pTimerActor;
 	}
 
-	TCActor<CActor> fg_CurrentActor()
+	TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal)
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (ThreadLocal.m_pCurrentActor)
-		{
-			DMibFastCheck(fg_ThisActor(ThreadLocal.m_pCurrentActor) != fg_DirectCallActor()); // It's not safe to use the direct call actor
-			return fg_ThisActor(ThreadLocal.m_pCurrentActor);
-		}
-
-		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+		if (!_ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return {};
 
-		TCActor<> Actor(fg_Explicit(static_cast<TCActorInternal<CActor> *>(ThreadLocal.m_pCurrentlyProcessingActorHolder)));
+		TCActor<> Actor(fg_Explicit(static_cast<TCActorInternal<CActor> *>(_ThreadLocal.m_pCurrentlyProcessingActorHolder)));
 
 		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
 
 		return Actor;
 	}
 
-	TCWeakActor<CActor> fg_CurrentActorWeak()
+	inline_always_lto TCActor<CActor> fg_CurrentActor()
 	{
-		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (ThreadLocal.m_pCurrentActor)
-		{
-			DMibFastCheck(fg_ThisActor(ThreadLocal.m_pCurrentActor) != fg_DirectCallActor()); // It's not safe to use the direct call actor
-			return fg_ThisActorWeak(ThreadLocal.m_pCurrentActor);
-		}
+		return fg_CurrentActor(fg_ConcurrencyThreadLocal());
+	}
 
-		if (!ThreadLocal.m_pCurrentlyProcessingActorHolder)
+	TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		if (!_ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return {};
 
-		TCWeakActor<> Actor(TCActorHolderWeakPointer<TCActorInternal<CActor>>(static_cast<TCActorInternal<CActor> *>(ThreadLocal.m_pCurrentlyProcessingActorHolder)));
+		TCWeakActor<> Actor(TCActorHolderWeakPointer<TCActorInternal<CActor>>(static_cast<TCActorInternal<CActor> *>(_ThreadLocal.m_pCurrentlyProcessingActorHolder)));
 
 		DMibFastCheck(Actor != fg_DirectCallActor()); // It's not safe to use the direct call actor
 
 		return Actor;
+	}
+
+	inline_always_lto TCWeakActor<CActor> fg_CurrentActorWeak()
+	{
+		return fg_CurrentActorWeak(fg_ConcurrencyThreadLocal());
 	}
 
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription)
 	{
 		if (!_Subscription)
-			return TCPromise<void>() <<= g_Void;
+			return g_Void;
 
 		TCFuture<void> Future = _Subscription->f_Destroy();
 		_Subscription.f_Clear();
@@ -1310,16 +1395,9 @@ namespace NMib::NConcurrency
 	CConcurrencyManager &fg_CurrentConcurrencyManager()
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (ThreadLocal.m_pCurrentActor)
-			return ThreadLocal.m_pCurrentActor->f_ConcurrencyManager();
 		if (ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return ThreadLocal.m_pCurrentlyProcessingActorHolder->f_ConcurrencyManager();
 		return fg_ConcurrencyManager();
-	}
-
-	auto fg_DiscardResult() -> decltype(NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor())
-	{
-		return NConcurrency::TCActor<NConcurrency::CDirectCallActor>() / NPrivate::CDiscardResultFunctor();
 	}
 
 #if DMibConfig_Concurrency_DebugActorCallstacks

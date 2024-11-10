@@ -241,13 +241,13 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NUnwrap
 {
-	template <typename t_CReturnType, typename t_FExceptionTransform = void *>
+	template <typename t_CReturnType, typename t_FExceptionTransform = CVoidTag>
 	struct [[nodiscard]] TCUnwrapAwaiter;
 
 	template <typename t_CReturnType, typename t_FExceptionTransform>
 	struct [[nodiscard]] TCUnwrapAwaiter<TCAsyncResult<t_CReturnType>, t_FExceptionTransform>
 	{
-		TCUnwrapAwaiter(TCAsyncResult<t_CReturnType> &&_Result, t_FExceptionTransform &&_fExceptionTransform = nullptr)
+		TCUnwrapAwaiter(TCAsyncResult<t_CReturnType> &&_Result, t_FExceptionTransform &&_fExceptionTransform = {})
 			: mp_Result(fg_Move(_Result))
 			, mp_fExceptionTransform(fg_Move(_fExceptionTransform))
 		{
@@ -267,7 +267,13 @@ namespace NMib::NConcurrency::NUnwrap
 
 			DMibFastCheck(!mp_Result);
 
-			CoroutineContext.f_HandleAwaitedException(fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform));
+			CoroutineContext.f_HandleAwaitedException
+				(
+					fg_ConcurrencyThreadLocal()
+					, &tf_CCoroutineContext::fs_GetVirtualKeepAlive
+					, fg_TransformException(fg_Move(mp_Result).f_GetException(), mp_fExceptionTransform)
+				)
+			;
 			return true;
 		}
 

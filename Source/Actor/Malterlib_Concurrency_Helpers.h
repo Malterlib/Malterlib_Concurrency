@@ -8,45 +8,28 @@
 namespace NMib::NConcurrency
 {
 	DMibImpErrorClassDefine(CExceptionActorDeleted, NMib::NException::CException);
-#		define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NException::CExceptionActorDeleted, _Description)
+#		define DMibErrorActorDeleted(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorDeleted, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorDeleted DMibErrorActorDeleted
 #		endif
 
 	DMibImpErrorClassDefine(CExceptionActorAlreadyDestroyed, NMib::NException::CException);
-#		define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorAlreadyDestroyed, _Description)
+#		define DMibErrorActorAlreadyDestroyed(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorAlreadyDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorAlreadyDestroyed DMibErrorActorAlreadyDestroyed
 #		endif
 
 	DMibImpErrorClassDefine(CExceptionActorIsBeingDestroyed, NMib::NException::CException);
-#		define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NException::CExceptionActorIsBeingDestroyed, _Description)
+#		define DMibErrorActorIsBeingDestroyed(_Description) DMibImpError(NMib::NConcurrency::CExceptionActorIsBeingDestroyed, _Description)
 
 #		ifndef DMibPNoShortCuts
 #			define DErrorActorIsBeingDestroyed DMibErrorActorIsBeingDestroyed
 #		endif
 
-	DMibImpErrorClassDefine(CExceptionActorResultWasNotSet, NMib::NException::CException);
-#		define DMibErrorActorResultWasNotSet(_Description) DMibImpError(NMib::NException::CExceptionActorResultWasNotSet, _Description, false)
-
-#		ifndef DMibPNoShortCuts
-#			define DErrorActorResultWasNotSet DMibErrorActorResultWasNotSet
-#		endif
-
 	template <typename t_CActor>
 	class TCActorInternal;
-
-	template 
-	<
-		typename t_CActor
-		, typename t_CRet
-		, typename t_CFunctor
-		, typename t_CResultActor
-		, typename t_CResultFunctor
-	>
-	struct TCReportLocal;
 
 	struct CTimerActor;
 	struct CConcurrentActor;
@@ -59,53 +42,34 @@ namespace NMib::NConcurrency
 
 	struct CCurrentActorScope
 	{
-		inline_always CCurrentActorScope(CActor const *_pActor);
-		inline_always CCurrentActorScope(TCActor<CActor> const &_Actor);
+		inline_always CCurrentActorScope(CConcurrencyThreadLocal &_ThreadLocal, CActorHolder *_pActor);
+		inline_always CCurrentActorScope(CConcurrencyThreadLocal &_ThreadLocal, TCActor<CActor> const &_Actor);
 		inline_always ~CCurrentActorScope();
 
 	private:
 		DMibThreadLocalScopeDebugMember;
-		CActor *mp_pLastActor;
+		CActorHolder *mp_pLastActor;
+		CConcurrencyThreadLocal &mp_ThreadLocal;
+		bool mp_bLastProcessing;
 	};
 
 	struct CCurrentlyProcessingActorScope
 	{
-		CCurrentlyProcessingActorScope(CActor const *_pActor);
-		CCurrentlyProcessingActorScope(TCActor<CActor> const &_Actor);
+		CCurrentlyProcessingActorScope(CConcurrencyThreadLocal &_ThreadLocal, CActorHolder *_pActor);
+		CCurrentlyProcessingActorScope(CConcurrencyThreadLocal &_ThreadLocal, TCActor<CActor> const &_Actor);
 		~CCurrentlyProcessingActorScope();
 
 	private:
 		DMibThreadLocalScopeDebugMember;
-		CActor *mp_pLastActor;
-#if DMibEnableSafeCheck > 0
-		CActorHolder *mp_pLastOverriddenProcessingActorHolder;
-#endif
+		CActorHolder *mp_pLastActor;
+		CConcurrencyThreadLocal &mp_ThreadLocal;
+		bool mp_bLastProcessing;
 	};
 
 	struct CDirectResultActor;
 
 	namespace NPrivate
 	{
-		struct CDiscardResultFunctor
-		{
-			template <typename tf_CResult>
-			void operator() (TCAsyncResult<tf_CResult> &&_Result) const volatile
-			{
-			}
-		};
-		
-		template <typename t_CType>
-		struct TCRemoveFuture
-		{
-			using CType = t_CType;
-		};
-		
-		template <typename t_CType>
-		struct TCRemoveFuture<TCFuture<t_CType>>
-		{
-			using CType = t_CType;
-		};
-		
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		CAsyncCallstacks *fg_SetConcurrentCallstacks(CAsyncCallstacks *_pCallstacks, CAsyncCallstacks *_pPredicate);
 
@@ -139,6 +103,7 @@ namespace NMib::NConcurrency
 			CAsyncCallstacks *m_pOld;
 			CAsyncCallstacks *m_pThis;
 			bool m_bValid = true;
+			DMibThreadLocalScopeDebugMember;
 		};
 #endif
 	}

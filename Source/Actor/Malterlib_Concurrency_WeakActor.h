@@ -84,6 +84,8 @@ namespace NMib::NConcurrency
 
 		TCActor<t_CActor> f_Lock() const;
 
+		TCActorHolderWeakPointer<CActorInternal> &f_Unsafe_AccessInternal();
+
 		template <typename tf_CActor>
 		COrdering_Strong operator <=> (TCWeakActor<tf_CActor> const& _Right) const;
 		template <typename tf_CActor>
@@ -98,22 +100,86 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<tf_CMemberFunction>
+				, TCWeakActor<t_CActor> const &
+				, tf_CMemberFunction
+				, CBindActorOptions::fs_Default()
+				, false
+				, tfp_CCallParams...
+			>
 			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
 		template <typename tf_CMemberFunction, typename... tfp_CCallParams>
 		auto operator () (tf_CMemberFunction &&_pMemberFunction, tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<tf_CMemberFunction>
+				, TCWeakActor<t_CActor> &&
+				, tf_CMemberFunction
+				, CBindActorOptions::fs_Default()
+				, false
+				, tfp_CCallParams...
+			>
 			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) const &
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		auto f_Bind(tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCWeakActor<t_CActor> const &
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, false
+				, tfp_CCallParams...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pMemberFunction, typename... tfp_CCallParams>
-		auto f_CallByValue(tfp_CCallParams &&... p_CallParams) &&
-			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		auto f_Bind(tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCWeakActor<t_CActor> &&
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, false
+				, tfp_CCallParams...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		;
+
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCWeakActor<t_CActor>
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, true
+				, NTraits::TCDecayType<tfp_CCallParams>...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
+		;
+
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
+			-> TCBoundActorCall
+			<
+				NPrivate::TCFutureReturn<decltype(tf_pFunctionPointer)>
+				, TCWeakActor<t_CActor>
+				, decltype(tf_pFunctionPointer)
+				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
+				, true
+				, NTraits::TCDecayType<tfp_CCallParams>...
+			>
+			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
 		template <typename tf_CStr>

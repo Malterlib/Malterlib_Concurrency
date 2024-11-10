@@ -68,43 +68,67 @@ namespace NMib::NConcurrency
 			DMibLog(Error, "{}: {}", m_Description, NException::fg_ExceptionString(_pException));
 	}
 
-	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+	FExceptionTransformer fg_ExceptionTransformer
 		(
-			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
-			, CLogErrorResultFunctor const &_LogError
+			FExceptionTransformer &&_fPreviousTransformer
+			, CLogErrorResultFunctor &&_LogError
 		)
 	{
-		return [_LogError, fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
-			{
-				auto pException = fPreviousTransformer(fg_Move(_pException));
-				if (!pException)
-					return nullptr;
+		if (!_fPreviousTransformer)
+		{
+			return [LogError = fg_Move(_LogError)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+				{
+					LogError.f_LogException(fg_Move(_pException));
+					return fg_Move(_pException);
+				}
+			;
+		}
+		else
+		{
+			return [LogError = fg_Move(_LogError), fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+				{
+					auto pException = fPreviousTransformer(fg_Move(_pException));
+					if (!pException)
+						return nullptr;
 
-				_LogError.f_LogException(pException);
+					LogError.f_LogException(pException);
 
-				return pException;
-			}
-		;
+					return pException;
+				}
+			;
+		}
 	}
 
-
-	NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> fg_ExceptionTransformer
+	FExceptionTransformer fg_ExceptionTransformer
 		(
-			NFunction::TCFunction<NException::CExceptionPointer (NException::CExceptionPointer &&_pException)> &&_fPreviousTransformer
-			, CLogErrorResultFunctorWithUserError const &_LogError
+			FExceptionTransformer &&_fPreviousTransformer
+			, CLogErrorResultFunctorWithUserError &&_LogError
 		)
 	{
-		return [_LogError, fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
-			{
-				auto pException = fPreviousTransformer(fg_Move(_pException));
-				if (!pException)
-					return nullptr;
+		if (!_fPreviousTransformer)
+		{
+			return [LogError = fg_Move(_LogError)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+				{
+					LogError.f_LogException(_pException);
 
-				_LogError.f_LogException(pException);
+					return NException::fg_MakeException(DMibErrorInstance(LogError.m_UserError));
+				}
+			;
+		}
+		else
+		{
+			return [LogError = fg_Move(_LogError), fPreviousTransformer = fg_Move(_fPreviousTransformer)](NException::CExceptionPointer &&_pException) -> NException::CExceptionPointer
+				{
+					auto pException = fPreviousTransformer(fg_Move(_pException));
+					if (!pException)
+						return nullptr;
 
-				return NException::fg_MakeException(DMibErrorInstance(_LogError.m_UserError));
-			}
-		;
+					LogError.f_LogException(pException);
+
+					return NException::fg_MakeException(DMibErrorInstance(LogError.m_UserError));
+				}
+			;
+		}
 	}
 
 	void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError)

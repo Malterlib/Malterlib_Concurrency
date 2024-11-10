@@ -54,8 +54,11 @@ namespace NMib::NConcurrency
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
+		NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> const &f_Unsafe_PromiseData() const;
+		
 #if DMibEnableSafeCheck > 0
-		bool f_HasData(void const *_pData) const;
+		bool f_Debug_HasData(void const *_pData) const;
+		bool f_Debug_HadCoroutine(void const *_pData) const;
 #endif
 
 	private:

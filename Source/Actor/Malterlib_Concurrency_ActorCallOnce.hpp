@@ -20,13 +20,13 @@ namespace NMib::NConcurrency
 	TCActorCallOnce<t_CResult, tp_CParams...>::~TCActorCallOnce()
 	{
 		if (m_CallState)
-			fg_Move(m_CallState).f_Destroy() > fg_DiscardResult();
+			fg_Move(m_CallState).f_Destroy().f_DiscardResult();
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
 	TCFuture<void> TCActorCallOnce<t_CResult, tp_CParams...>::f_Destroy()
 	{
-		TCPromise<void> Promise;
+		TCPromise<void> Promise{CPromiseConstructNoConsume()};
 
 		if (m_CallState)
 			return Promise <<= fg_Move(m_CallState).f_Destroy();
@@ -37,8 +37,7 @@ namespace NMib::NConcurrency
 	template <typename t_CResult, typename ...tp_CParams>
 	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::operator()(tp_CParams ...p_Params)
 	{
-		TCPromise<t_CResult> Promise;
-		return Promise <<= m_CallState.template f_CallByValue<&CCallState::f_Call>(fg_Forward<tp_CParams>(p_Params)...);
+		return m_CallState.template f_Bind<&CCallState::f_Call, EVirtualCall::mc_NotVirtual>(fg_Forward<tp_CParams>(p_Params)...).f_Call();
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
@@ -55,42 +54,42 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(tp_CParams ...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(NTraits::TCDecayType<tp_CParams> ...p_Params)
 	{
-		TCPromise<t_CResult> Promise;
-
 		if (m_Result.f_IsSet())
-			return Promise <<= m_Result;
+			co_return m_Result;
 
 		if (m_bRunning)
 		{
 			if (m_ErrorOnRunning.f_IsEmpty())
-				return m_Promises.f_Insert(fg_Move(Promise)).f_Future();
+				co_return co_await m_Promises.f_Insert().f_Future();
 			else
-				return Promise <<= DMibErrorInstance(m_ErrorOnRunning);
+				co_return DMibErrorInstance(m_ErrorOnRunning);
 		}
 
 		m_bRunning = true;
 
-		m_fToPerform(fg_Forward<tp_CParams>(p_Params)...) > [this, Promise](TCAsyncResult<t_CResult> const &_Result)
-			{
-				Promise.f_SetResult(_Result);
+		auto Result = co_await m_fToPerform(fg_Forward<tp_CParams>(p_Params)...).f_Wrap();
 
-				for (auto &DeferredPromise : m_Promises)
-					DeferredPromise.f_SetResult(_Result);
-				m_Promises.f_Clear();
-
-				if (_Result || !m_bSupportRetry)
+		fg_Dispatch
+			(
+				[Promises = fg_Move(m_Promises), Result]() mutable
 				{
-					m_Result = _Result;
-					m_fToPerform.f_Clear();
+					for (auto &DeferredPromise : Promises)
+						DeferredPromise.f_SetResult(Result);
 				}
-
-				m_bRunning = false;
-			}
+			)
+			.f_DiscardResult()
 		;
 
-		return Promise.f_MoveFuture();
+		if (Result || !m_bSupportRetry)
+		{
+			m_Result = Result;
+			m_fToPerform.f_Clear();
+		}
 
+		m_bRunning = false;
+
+		co_return fg_Move(Result);
 	}
 }

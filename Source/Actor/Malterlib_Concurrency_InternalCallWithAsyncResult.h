@@ -14,95 +14,115 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn>
 	struct TCGetReturnType
 	{
-		typedef t_CReturn CType;
+		using CType = t_CReturn;
 	};
 
 	template <typename t_CReturn>
 	struct TCGetReturnType<TCFuture<t_CReturn>>
 	{
-		typedef t_CReturn CType;
+		using CType = t_CReturn;
+	};
+
+	template <typename t_CReturn, ECoroutineFlag t_Flags>
+	struct TCGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>>
+	{
+		using CType = t_CReturn;
+	};
+
+	template <typename t_CReturn, typename t_CPromiseParam>
+	struct TCCallActorGetReturnType
+	{
+		// Assumed to be on result function
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
 	};
 
 	template <typename t_CReturn>
-	struct TCGetAsyncType
+	struct TCCallActorGetReturnType<t_CReturn, CPromiseConstructDiscardResult>
 	{
-		typedef t_CReturn CType;
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
 	};
 
 	template <typename t_CReturn>
-	struct TCGetAsyncType<TCFuture<t_CReturn>>
+	struct TCCallActorGetReturnType<t_CReturn, CVoidTag>
 	{
-		typedef t_CReturn CType;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = t_CReturn;
+	};
+
+	template <typename t_CReturn, typename t_CPromiseParam>
+	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, t_CPromiseParam>
+	{
+		// Assumed to be on result function
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
+	};
+
+	template <typename t_CReturn, ECoroutineFlag t_Flags, typename t_CPromiseParam>
+	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, t_CPromiseParam>
+	{
+		// Assumed to be on result function
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
 	};
 
 	template <typename t_CReturn>
-	struct TCGetAsyncType<TCAsyncGenerator<t_CReturn>>
+	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CVoidTag>
 	{
-		typedef t_CReturn CType;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = TCFuture<t_CReturn>;
 	};
 
-	template <typename t_CType>
-	struct TCIsPromise
+	template <typename t_CReturn, ECoroutineFlag t_Flags>
+	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CVoidTag>
 	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = false;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = TCFuture<t_CReturn>;
 	};
 
-	template <typename t_CType>
-	struct TCIsPromise<TCPromise<t_CType>>
+	template <typename t_CReturn>
+	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CPromiseConstructDiscardResult>
 	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = true;
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
 	};
 
-	template <typename t_CType>
-	struct TCIsFuture
+	template <typename t_CReturn, ECoroutineFlag t_Flags>
+	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CPromiseConstructDiscardResult>
 	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = false;
+		constexpr static bool mc_bIsVoid = true;
+		using CType = void;
 	};
 
-	template <typename t_CType>
-	struct TCIsFuture<TCFuture<t_CType>>
+	template <typename t_CReturn>
+	struct TCCallActorGetReturnType<TCFuture<t_CReturn>, CPromiseConstructNoConsume>
 	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = true;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = TCFuture<t_CReturn>;
 	};
 
-	template <typename t_CType>
-	struct TCIsPromiseWithError
+	template <typename t_CReturn, ECoroutineFlag t_Flags>
+	struct TCCallActorGetReturnType<TCFutureWithFlags<t_CReturn, t_Flags>, CPromiseConstructNoConsume>
 	{
-		static constexpr bool mc_Value = false;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = TCFuture<t_CReturn>;
 	};
 
-	template <typename t_CReturnValue>
-	struct TCIsPromiseWithError<TCPromiseWithError<t_CReturnValue>>
+	template <typename t_CReturn>
+	struct TCCallActorGetReturnType<t_CReturn, CPromiseConstructNoConsume>
 	{
-		static constexpr bool mc_Value = true;
+		constexpr static bool mc_bIsVoid = false;
+		using CType = TCFuture<t_CReturn>;
 	};
 
-	template <typename t_CType>
-	struct TCIsAsyncGenerator
-	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = false;
-	};
-
-	template <typename t_CType>
-	struct TCIsAsyncGenerator<TCAsyncGenerator<t_CType>>
-	{
-		using CType = t_CType;
-		static constexpr bool mc_Value = true;
-	};
-
-	template <typename tf_CResultFunctor, typename tf_CResultActor, typename tf_CResult>
-	void fg_CallResultFunctor(tf_CResultFunctor &_ResultFunctor, tf_CResultActor &&_pResultActor, tf_CResult &&_Result)
+	template <typename tf_CResultFunctor, typename tf_CResult>
+	void fg_CallResultFunctor(CConcurrencyThreadLocal &_ThreadLocal, tf_CResultFunctor &_ResultFunctor, tf_CResult &&_Result)
 	{
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		auto &Callstack = _Result.m_Callstacks;
 		CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
-		CCurrentActorScope CurrentActor(_pResultActor);
 		(void)_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 	}
 
@@ -113,7 +133,7 @@ namespace NMib::NConcurrency::NPrivate
 		auto &Callstack = _Result.m_Callstacks;
 		CAsyncCallstacksScope CallstacksScope(Callstack);
 #endif
-		CCurrentActorScope CurrentActor(nullptr);
+		CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), nullptr);
 		(void)_ResultFunctor(fg_Forward<tf_CResult>(_Result));
 	}
 }

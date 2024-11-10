@@ -14,16 +14,13 @@ namespace NMib::NConcurrency
 		friend void operator > (CAsyncResult const &_Result, CLogErrorResultFunctor const &_LogError);
 
 		template <typename tf_CResult>
-		friend void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError);
+		friend void operator > (NContainer::TCVector<TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_LogError);
 
 		template <typename tf_CKey, typename tf_CResult>
-		friend void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> const &_Result, CLogErrorResultFunctor const &_LogError);
+		friend void operator > (NContainer::TCMap<tf_CKey, TCAsyncResult<tf_CResult>> &&_Result, CLogErrorResultFunctor &&_LogError);
 
-		template <typename tf_FResultHandler, TCEnableIfType<NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
-
-		template <typename tf_FResultHandler, TCEnableIfType<!NPrivate::TCAllAsyncResultsAreVoid<tf_FResultHandler>::mc_Value> * = nullptr>
-		auto operator / (tf_FResultHandler &&_fResultHandler) const;
+		template <typename tf_FResultHandler>
+		auto operator / (tf_FResultHandler &&_fResultHandler) &&;
 
 		CLogErrorResultFunctorWithUserError operator % (NStr::CStr &&_UserError);
 

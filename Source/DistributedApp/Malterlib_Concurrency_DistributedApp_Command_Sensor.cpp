@@ -496,6 +496,7 @@ namespace NMib::NConcurrency
 		Columns.f_AddHeading("Removed", 1);
 		Columns.f_AddHeading("Snoozed Until", 1);
 		Columns.f_AddHeading("Paused", 1);
+		Columns.f_AddHeading("Flags", 1);
 		Columns.f_AddHeading("Metadata", 1);
 
 		Columns.f_SetSortByColumns({"Environment", "Host Description", "Host ID", "Application", "Identifier", "Identifier Scope"});
@@ -565,6 +566,7 @@ namespace NMib::NConcurrency
 								, "Name"_= SensorInfo.m_Name
 								, "Type"_= SensorInfo.m_Type
 								, "ExpectedReportInterval"_= SensorInfo.m_ExpectedReportInterval
+								, "Flags"_= CDistributedAppSensorReporter::fs_FlagsToStringArray(SensorInfo.m_Flags)
 								, "UnitDivisors"_= fg_Move(UnitDivisors)
 								, "WarnValue"_= fComparisonValue(SensorInfo.m_WarnValue)
 								, "CriticalValue"_= fComparisonValue(SensorInfo.m_CriticalValue)
@@ -604,6 +606,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_bRemoved ? "true" : "false"
 							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil.f_ToLocal()) : CStr()
 							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
+							, "{vs}"_f << CDistributedAppSensorReporter::fs_FlagsToStringArray(SensorInfo.m_Flags)
 							, SensorInfo.m_MetaData
 						)
 					;

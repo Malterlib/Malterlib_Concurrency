@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 
 	CDistributedAppSensorReporter::~CDistributedAppSensorReporter() = default;
 
-	auto CDistributedAppSensorReporter::CSensorInfo::f_Key() -> CSensorInfoKey
+	auto CDistributedAppSensorReporter::CSensorInfo::f_Key() const -> CSensorInfoKey
 	{
 		return {m_HostID, m_Scope, m_Identifier, m_IdentifierScope};
 	}
@@ -423,6 +423,22 @@ namespace NMib::NConcurrency
 			UnitDivisor.m_nDecimals = 1;
 			UnitDivisor.m_UnitFormatter = "{fn1} TiB";
 		}
+
+		return Return;
+	}
+
+	NContainer::TCVector<NStr::CStr> CDistributedAppSensorReporter::fs_FlagsToStringArray(ESensorInfoFlag _Flags)
+	{
+		NContainer::TCVector<NStr::CStr> Return;
+
+		if (fg_IsSet(_Flags, ESensorInfoFlag::mc_PreventRebootOnWarning))
+			Return.f_Insert("PreventRebootOnWarning");
+
+		if (fg_IsSet(_Flags, ESensorInfoFlag::mc_PreventRebootOnError))
+			Return.f_Insert("PreventRebootOnError");
+
+		if (fg_IsSet(_Flags, ESensorInfoFlag::mc_PreventRebootOnOutdated))
+			Return.f_Insert("PreventRebootOnOutdated");
 
 		return Return;
 	}

@@ -35,8 +35,9 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_PauseReporting = 0x107
 			, EProtocolVersion_SnoozeSensor = 0x108
 			, EProtocolVersion_InfoMetaData = 0x109
+			, EProtocolVersion_SensorInfoFlags = 0x110
 
-			, EProtocolVersion_Current = 0x109
+			, EProtocolVersion_Current = 0x110
 		};
 
 		enum ESensorDataType
@@ -249,11 +250,21 @@ namespace NMib::NConcurrency
 			NStr::CStr m_IdentifierScope;
 		};
 
+		enum class ESensorInfoFlag : uint32
+		{
+			mc_None = 0
+			, mc_PreventRebootOnWarning = fg_Bit(0)
+			, mc_PreventRebootOnError = fg_Bit(1)
+			, mc_PreventRebootOnOutdated = fg_Bit(2)
+
+			, mc_AllPreventRebootFlags = mc_PreventRebootOnWarning | mc_PreventRebootOnError | mc_PreventRebootOnOutdated
+		};
+
 		struct CSensorInfo : public CSensorInfoAutomatic
 		{
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
-			CSensorInfoKey f_Key();
+			CSensorInfoKey f_Key() const;
 
 			template <typename tf_CStr>
 			void f_Format(tf_CStr &o_Str) const;
@@ -279,6 +290,7 @@ namespace NMib::NConcurrency
 			fp32 m_ExpectedReportInterval = fp32::fs_Inf();
 			fp32 m_PauseReportingFor = fp32::fs_QNan();
 			ESensorDataType m_Type = ESensorDataType_Integer;
+			ESensorInfoFlag m_Flags = ESensorInfoFlag::mc_None;
 			bool m_bRemoved = false;
 		};
 
@@ -299,6 +311,8 @@ namespace NMib::NConcurrency
 
 		static NStr::CStr fs_FormatSensorDivisors(NContainer::TCMap<CSensorData, CUnit> const &_Divisors, ch8 const *_pSeparator = "\n");
 		static NContainer::TCMap<CSensorData, CUnit> fs_BytesDivisors();
+
+		static NContainer::TCVector<NStr::CStr> fs_FlagsToStringArray(ESensorInfoFlag _Flags);
 
 		virtual TCFuture<CSensorReporter> f_OpenSensorReporter(CSensorInfo &&_SensorInfo) = 0;
 	};

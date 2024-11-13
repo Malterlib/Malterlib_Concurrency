@@ -155,6 +155,9 @@ namespace NMib::NConcurrency
 
 		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetaData)
 			_Stream % m_MetaData;
+
+		if (_Stream.f_GetVersion() >= EProtocolVersion_SensorInfoFlags)
+			_Stream % m_Flags;
 	}
 
 	template <typename tf_CStream>
@@ -187,6 +190,7 @@ namespace NMib::NConcurrency
 				"    Type: {}\n"
 				"    UnitDivisors: {}\n"
 				"    ExpectedReportInterval: {}\n"
+				"    Flags: {vs}\n"
 				"    WarnValue: {}\n"
 				"    CriticalValue: {}\n"
 				"    LastSeen: {}\n"
@@ -202,6 +206,7 @@ namespace NMib::NConcurrency
 			<< CDistributedAppSensorReporter::fs_SensorDataTypeToString(m_Type)
 			<< CDistributedAppSensorReporter::fs_FormatSensorDivisors(m_UnitDivisors, ", ")
 			<< m_ExpectedReportInterval
+			<< CDistributedAppSensorReporter::fs_FlagsToStringArray(m_Flags)
 			<< m_WarnValue
 			<< m_CriticalValue
 			<< m_LastSeen

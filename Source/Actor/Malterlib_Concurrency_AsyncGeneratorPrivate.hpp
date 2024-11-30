@@ -152,7 +152,7 @@ namespace NMib::NConcurrency::NPrivate
 		if (PromiseThreadLocal.m_pOnResultSetConsumedBy == this)
 			PromiseThreadLocal.m_pOnResultSetConsumedBy = pPromiseData.f_Get();
 #endif
-		return g_ActorFunctor(CurrentActor)
+		return g_ActorFunctor(fg_Move(CurrentActor))
 			(
 				g_ActorSubscription(fg_DirectCallActor()) / [pAborted = m_pAborted]()
 				{

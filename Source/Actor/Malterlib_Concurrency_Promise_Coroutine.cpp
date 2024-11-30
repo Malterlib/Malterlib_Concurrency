@@ -125,7 +125,7 @@ namespace NMib::NConcurrency
 				pRoutine->m_State.m_Link.f_UnsafeUnlink();
 				pRoutine->m_bLinkConstructed = false;
 
-				pRoutine->f_SetExceptionResult(fg_TempCopy(CAsyncResult::fs_ActorDeletedException()));
+				pRoutine->f_SetExceptionResult(fg_TempCopy(CAsyncResult::fs_ActorCalledDeletedException()));
 				pRoutine->f_Abort();
 			}
 		}
@@ -159,7 +159,7 @@ namespace NMib::NConcurrency
 			pRoutine->m_State.m_Link.f_UnsafeUnlink();
 			pRoutine->m_bLinkConstructed = false;
 
-			pRoutine->f_SetExceptionResult(fg_TempCopy(CAsyncResult::fs_ActorDeletedException()));
+			pRoutine->f_SetExceptionResult(fg_TempCopy(CAsyncResult::fs_ActorCalledDeletedException()));
 			pRoutine->f_Abort();
 		}
 	}
@@ -550,7 +550,7 @@ namespace NMib::NConcurrency
 
 		// Or if you are not in an actor:
 
-		TCFuture<void> f_MyCoroutineFunction()
+		TCFuture<void> fg_MyCoroutineFunction()
 		{
 			co_await
 				(

@@ -190,13 +190,32 @@ namespace NMib::NConcurrency
 			}
 		};
 
-		// Alignment zone 1 = 8+16+8+8 = 40 => 64 bytes
+		// Alignment zone 1 = 8 + 5 * 8 + 4 + 1 + 1 = 54 => 64 bytes
 		NStorage::TCSharedPointer<ICDistributedActorData> mp_pDistributedActorData;
 		NContainer::TCSet<COnTerminate> mp_OnTerminate;
 
-		// Alignment zone 2 = 8+8 = 16 => 64 bytes
+		CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
+		CConcurrencyManager *mp_pConcurrencyManager;
+
+		CActor * mp_pActorUnsafeLocal{nullptr};
+
+		uint32 mp_iFixedQueue{gc_InvalidQueue};
+
+		// Note: Changing these is not thread safe
+
+		uint8 mp_Priority:1 = 0;
+		uint8 mp_bImmediateDelete:1 = false;
+		uint8 mp_bIsAlwaysAlive:1 = false;
+		uint8 mp_bHasOverriddenDestroy:1 = false;
+
+		bool mp_bYield = false;
+
+		// Alignment zone 2 = 8 + 8 + 8 + 4 + 1 = 29 => 64 bytes
 		align_cacheline CConcurrentRunQueue mp_ConcurrentRunQueue;
 		NAtomic::TCAtomic<mint> mp_Working;
+		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr};
+		NAtomic::TCAtomic<uint32> mp_iLastQueue{gc_InvalidQueue};
+		mutable NAtomic::TCAtomic<uint8> mp_Destroyed;
 
 	private:
 #if DMibConfig_Concurrency_DebugBlockDestroy
@@ -206,26 +225,7 @@ namespace NMib::NConcurrency
 #endif
 		DIfRefCountDebugging(NStorage::CRefCountDebugReference m_DebugSelfRef);
 
-	protected:
-		// Alignment zone 3 = 8 * 4 + 4 * 2 + 1 + 1 = 42 => 64 bytes
-		align_cacheline CConcurrentRunQueue::CLocalQueueData mp_ConcurrentRunQueueLocal;
-		CConcurrencyManager *mp_pConcurrencyManager;
-
-		NAtomic::TCAtomic<CActor *> mp_pActorUnsafe{nullptr};
-		mutable NAtomic::TCAtomic<smint> mp_bDestroyed;
-
-		uint32 mp_iFixedQueue{gc_InvalidQueue};
-		NAtomic::TCAtomic<uint32> mp_iLastQueue{gc_InvalidQueue};
-
-		// Note: Changing these is not thread safe
-		uint8 mp_Priority:1 = 0;
-		uint8 mp_bImmediateDelete:1 = false;
-		uint8 mp_bIsAlwaysAlive:1 = false;
-		uint8 mp_bHasOverriddenDestroy:1 = false;
-
-		bool mp_bYield = false;
-
-		// Alignment zone 4: Actor storage, other actor holder data
+		// Alignment zone 3: Actor storage, other actor holder data
 	};
 
 #if DMibPMemoryCacheLineSize == 64 && DMibConfig_RefCountDebugging != 1

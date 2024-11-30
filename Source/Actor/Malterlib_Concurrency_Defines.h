@@ -556,7 +556,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_Bind(tfp_CCallParams &&... p_CallParams) const &
 			-> TCBoundActorCall
 			<
@@ -570,7 +570,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_Bind(tfp_CCallParams &&... p_CallParams) &&
 			-> TCBoundActorCall
 			<
@@ -584,7 +584,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
 			-> TCBoundActorCall
 			<
@@ -598,7 +598,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
 			-> TCBoundActorCall
 			<
@@ -660,7 +660,6 @@ namespace NMib::NConcurrency
 	struct CThisConcurrentActorLowPrio;
 	struct COtherConcurrentActor;
 	struct COtherConcurrentActorLowPrio;
-	struct CDirectResultActor;
 
 	template <typename t_CType, typename t_CLock>
 	struct TCLockActor;
@@ -722,7 +721,6 @@ namespace NMib::NConcurrency
 	TCActor<CTimerActor> fg_TimerActor();
 }
 
-DMibDefineActorType(NMib::NConcurrency::CDirectResultActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
 DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActor, true);

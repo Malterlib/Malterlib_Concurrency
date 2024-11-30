@@ -77,15 +77,15 @@ namespace NMib::NConcurrency
 
 	NException::CExceptionPointer const &CAsyncResult::f_ExceptionPointer() const
 	{
-		DMibFastCheck(m_Data.f_DataType() == EDataType_Exception);
-		return m_Data.m_pException;
+		DMibFastCheck(mp_Data.f_DataType() == EDataType_Exception);
+		return mp_Data.m_pException;
 	}
 
 	void CAsyncResult::f_Access() const
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
-			std::rethrow_exception(m_Data.m_pException);
-		else if (m_Data.f_DataType() == EDataType_None)
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			std::rethrow_exception(mp_Data.m_pException);
+		else if (mp_Data.f_DataType() == EDataType_None)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorActorResultWasNotSet("No result specified");
@@ -94,9 +94,9 @@ namespace NMib::NConcurrency
 
 	[[noreturn]] inline_never void CAsyncResult::fp_AccessSlowPath() const
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
-			std::rethrow_exception(m_Data.m_pException);
-		else if (m_Data.f_DataType() == EDataType_None)
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			std::rethrow_exception(mp_Data.m_pException);
+		else if (mp_Data.f_DataType() == EDataType_None)
 		{
 			NException::CDisableExceptionTraceScope DisableExceptionTrace;
 			DMibErrorActorResultWasNotSet("No result specified");
@@ -124,14 +124,6 @@ namespace NMib::NConcurrency
 		return ThreadLocal.m_pResultWasNotSetException;
 	}
 
-	NException::CExceptionPointer const &CAsyncResult::fs_ActorDeletedException()
-	{
-		CConcurrencyThreadLocal &ThreadLocal = fg_ConcurrencyThreadLocal();
-		if (!ThreadLocal.m_pActorDeletedException)
-			ThreadLocal.m_pActorDeletedException = fg_MakeException(DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Actor was destroyed", false));
-		return ThreadLocal.m_pActorDeletedException;
-	}
-
 	NException::CExceptionPointer const &CAsyncResult::fs_ActorCalledDeletedException()
 	{
 		CConcurrencyThreadLocal &ThreadLocal = fg_ConcurrencyThreadLocal();
@@ -142,32 +134,32 @@ namespace NMib::NConcurrency
 
 	NException::CExceptionPointer CAsyncResult::f_GetException() const & noexcept
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
-			return m_Data.m_pException;
-		else if (m_Data.f_DataType() == EDataType_None)
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			return mp_Data.m_pException;
+		else if (mp_Data.f_DataType() == EDataType_None)
 			return fg_NoResultException();
 		return nullptr;
 	}
 
 	NException::CExceptionPointer CAsyncResult::f_GetException() && noexcept
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
-			return fg_Move(m_Data.m_pException);
-		else if (m_Data.f_DataType() == EDataType_None)
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			return fg_Move(mp_Data.m_pException);
+		else if (mp_Data.f_DataType() == EDataType_None)
 			return fg_NoResultException();
 		return nullptr;
 	}
 
 	NStr::CStr CAsyncResult::f_GetExceptionStr() const noexcept
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
+		if (mp_Data.f_DataType() == EDataType_Exception)
 		{
 			NStr::CStr Return;
 			if
 				(
 					!NException::fg_VisitException<NException::CExceptionBase>
 					(
-						m_Data.m_pException
+						mp_Data.m_pException
 						, [&](NException::CExceptionBase const& _Exception)
 						{
 							Return = _Exception.f_GetErrorStr();
@@ -180,7 +172,7 @@ namespace NMib::NConcurrency
 
 			return Return;
 		}
-		else if (m_Data.f_DataType() == EDataType_None)
+		else if (mp_Data.f_DataType() == EDataType_None)
 			return NStr::gc_Str<"No result specified">;
 
 		return NStr::gc_Str<"No error (no exception was set)">;
@@ -188,12 +180,12 @@ namespace NMib::NConcurrency
 	
 	NStr::CStr CAsyncResult::f_GetExceptionCallstackStr(mint _Indent) const
 	{
-		if (m_Data.f_DataType() == EDataType_Exception)
+		if (mp_Data.f_DataType() == EDataType_Exception)
 		{
 			NStr::CStr Return;
 			NException::fg_VisitException<NException::CExceptionBase>
 				(
-					m_Data.m_pException
+					mp_Data.m_pException
 					, [&](NException::CExceptionBase const& _Exception)
 					{
 						Return = _Exception.f_GetCallstackStr(_Indent);
@@ -219,17 +211,17 @@ namespace NMib::NConcurrency
 	{
 		using namespace NException;
 
-		if (m_Data.f_DataType() == EDataType_HasBeenSet)
+		if (mp_Data.f_DataType() == EDataType_HasBeenSet)
 			;
-		else if (m_Data.f_DataType() == EDataType_Exception)
-			m_Data.m_pException.~CExceptionPointer();
+		else if (mp_Data.f_DataType() == EDataType_Exception)
+			mp_Data.m_pException.~CExceptionPointer();
 
-		m_Data.m_DataType = EDataType_None;
+		mp_Data.m_DataType = EDataType_None;
 	}
 
 	inline_always_lto CVoidTag TCAsyncResult<void>::f_Get() const
 	{
-		if (m_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
+		if (mp_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
 			return CVoidTag();
 
 		fp_AccessSlowPath();
@@ -237,7 +229,7 @@ namespace NMib::NConcurrency
 	
 	inline_always_lto CVoidTag TCAsyncResult<void>::f_Get()
 	{
-		if (m_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
+		if (mp_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
 			return CVoidTag();
 
 		fp_AccessSlowPath();
@@ -245,7 +237,7 @@ namespace NMib::NConcurrency
 	
 	inline_always_lto CVoidTag TCAsyncResult<void>::f_Move()
 	{
-		if (m_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
+		if (mp_Data.f_DataType() == EDataType_HasBeenSet) [[likely]]
 			return CVoidTag();
 
 		fp_AccessSlowPath();
@@ -280,24 +272,24 @@ namespace NMib::NConcurrency
 	{
 		using namespace NException;
 		
-		DMibRequire(m_Data.f_DataType() == EDataType_None || m_Data.f_DataType() == EDataType_Exception);
+		DMibRequire(mp_Data.f_DataType() == EDataType_None || mp_Data.f_DataType() == EDataType_Exception);
 
-		if (m_Data.f_DataType() == EDataType_Exception)
-			m_Data.m_pException.~CExceptionPointer();
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			mp_Data.m_pException.~CExceptionPointer();
 
-		new (&m_Data.m_pException) CExceptionPointer(_pException);
+		new (&mp_Data.m_pException) CExceptionPointer(_pException);
 	}
 
 	void CAsyncResult::f_SetException(NException::CExceptionPointer &&_pException)
 	{
 		using namespace NException;
 		
-		DMibRequire(m_Data.f_DataType() == EDataType_None || m_Data.f_DataType() == EDataType_Exception);
+		DMibRequire(mp_Data.f_DataType() == EDataType_None || mp_Data.f_DataType() == EDataType_Exception);
 
-		if (m_Data.f_DataType() == EDataType_Exception)
-			m_Data.m_pException.~CExceptionPointer();
+		if (mp_Data.f_DataType() == EDataType_Exception)
+			mp_Data.m_pException.~CExceptionPointer();
 
-		new (&m_Data.m_pException) CExceptionPointer(fg_Move(_pException));
+		new (&mp_Data.m_pException) CExceptionPointer(fg_Move(_pException));
 	}
 
 	void CAsyncResult::f_SetExceptionAppendable(NException::CExceptionPointer &&_pException)
@@ -324,9 +316,9 @@ namespace NMib::NConcurrency
 
 	void CAsyncResult::f_SetException(CAsyncResult &&_AsyncResult)
 	{
-		DMibRequire(m_Data.f_DataType() == EDataType_None);
-		DMibRequire(_AsyncResult.m_Data.f_DataType() == EDataType_Exception);
-		f_SetException(fg_Move(_AsyncResult.m_Data.m_pException));
+		DMibRequire(mp_Data.f_DataType() == EDataType_None);
+		DMibRequire(_AsyncResult.mp_Data.f_DataType() == EDataType_Exception);
+		f_SetException(fg_Move(_AsyncResult.mp_Data.m_pException));
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		m_Callstacks = fg_Move(_AsyncResult.m_Callstacks);
 #endif
@@ -334,9 +326,9 @@ namespace NMib::NConcurrency
 
 	void CAsyncResult::f_SetException(CAsyncResult const &_AsyncResult)
 	{
-		DMibRequire(m_Data.f_DataType() == EDataType_None);
-		DMibRequire(_AsyncResult.m_Data.f_DataType() == EDataType_Exception);
-		f_SetException(_AsyncResult.m_Data.m_pException);
+		DMibRequire(mp_Data.f_DataType() == EDataType_None);
+		DMibRequire(_AsyncResult.mp_Data.f_DataType() == EDataType_Exception);
+		f_SetException(_AsyncResult.mp_Data.m_pException);
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		m_Callstacks = _AsyncResult.m_Callstacks;
 #endif
@@ -344,24 +336,24 @@ namespace NMib::NConcurrency
 	
 	void CAsyncResult::f_SetCurrentException()
 	{
-		DMibRequire(m_Data.f_DataType() == EDataType_None);
+		DMibRequire(mp_Data.f_DataType() == EDataType_None);
 		f_SetException(NException::fg_CurrentException());
 	}
 
 	void TCAsyncResult<void>::f_SetResult()
 	{
-		DMibRequire(m_Data.f_DataType() == EDataType_None);
-		m_Data.m_DataType = EDataType_HasBeenSet;
+		DMibRequire(mp_Data.f_DataType() == EDataType_None);
+		mp_Data.m_DataType = EDataType_HasBeenSet;
 	}
 
 	CAsyncResult::operator bool () const
 	{
-		return m_Data.f_DataType() == EDataType_HasBeenSet;
+		return mp_Data.f_DataType() == EDataType_HasBeenSet;
 	}
 
 	bool CAsyncResult::f_IsSet() const
 	{
-		return m_Data.f_DataType() != EDataType_None;
+		return mp_Data.f_DataType() != EDataType_None;
 	}
 }
 

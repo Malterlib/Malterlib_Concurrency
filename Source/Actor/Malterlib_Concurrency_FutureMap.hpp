@@ -59,8 +59,8 @@ namespace NMib::NConcurrency
 
 		if (nFinished & NPrivate::gc_ActorResultResultsGottenMask)
 		{
-			DMibFastCheck(false);
-			DMibError("You have already gotten the results from this result vector once");
+			// You have already gotten the results from this future map already
+			DMibPDebugBreak;
 		}
 
 		if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)

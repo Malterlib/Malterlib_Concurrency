@@ -97,14 +97,16 @@ namespace NMib::NConcurrency
 
 	void CActorHolder::fp_DeleteActor()
 	{
-		auto *pActor = mp_pActorUnsafe.f_Exchange(nullptr);
+		mp_pActorUnsafeLocal = nullptr;
+		auto *pActor = mp_pActorUnsafe.f_Exchange(nullptr, NAtomic::EMemoryOrder_Relaxed);
 		if (pActor)
 			pActor->~CActor();
 	}
 
 	void CActorHolder::fp_DetachActor()
 	{
-		mp_pActorUnsafe.f_Store(nullptr);
+		mp_pActorUnsafeLocal = nullptr;
+		mp_pActorUnsafe.f_Store(nullptr, NAtomic::EMemoryOrder_Relaxed);
 	}
 
 	CActor *CActorHolder::fp_GetActorRelaxed() const
@@ -225,10 +227,11 @@ namespace NMib::NConcurrency
 			;
 #endif
 			pJob->m_Link.f_UnsafeUnlink();
-			if (mp_pActorUnsafe.f_Load(NAtomic::EMemoryOrder_Relaxed))
+			if (mp_pActorUnsafeLocal)
 				pJob->f_Call(_ThreadLocal);
 			else
-				mp_ConcurrentRunQueue.f_DeleteQueueEntry(pJob);
+				pJob->f_Cleanup();
+
 			return !!_ThreadLocal.m_pCurrentlyProcessingActorHolder;
 		}
 		return false;
@@ -311,7 +314,7 @@ namespace NMib::NConcurrency
 
 	bool CActorHolder::f_IsHolderDestroyed() const
 	{
-		return mp_bDestroyed.f_Load(NAtomic::EMemoryOrder_Relaxed) != 0;
+		return mp_Destroyed.f_Load(NAtomic::EMemoryOrder_Relaxed) != 0;
 	}
 
 	bool CActorHolder::f_IsCurrentActorAndProcessing() const
@@ -345,8 +348,8 @@ namespace NMib::NConcurrency
 
 	bool CActorHolder::fp_Terminate()
 	{
-		smint Expected = 0;
-		if (mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
+		uint8 Expected = 0;
+		if (mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
 		{
 			TCActorHolderSharedPointer<CActorHolder> pReferenceHolder = fg_Explicit(this); // Reference needs to be alive during actor queueing
 			fp_DestroyActorHolder(nullptr, fg_TempCopy(pReferenceHolder), fg_ConcurrencyThreadLocal());
@@ -363,7 +366,7 @@ namespace NMib::NConcurrency
 		return [pActorInternal = fg_Move(_pActorHolder), _Promise](TCAsyncResult<void> &&_Result) mutable
 			{
 				auto &ActorInternal = *pActorInternal;
-				if (smint Expected = 0; ActorInternal.mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
+				if (uint8 Expected = 0; ActorInternal.mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
 				{
 #if DMibEnableSafeCheck > 0
 					if (auto *pActor = ActorInternal.fp_GetActorRelaxed())
@@ -408,7 +411,7 @@ namespace NMib::NConcurrency
 		else
 		{
 			TCAsyncResult<void> Result;
-			Result.f_SetException(CAsyncResult::fs_ActorDeletedException());
+			Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
 			CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise)(fg_Move(Result));
 		}
 
@@ -513,7 +516,7 @@ namespace NMib::NConcurrency
 
 			pSelfReference = fg_Attach(_pActorHolder);
 
-			mint Destroyed = _pActorHolder->mp_bDestroyed.f_Exchange(0);
+			mint Destroyed = _pActorHolder->mp_Destroyed.f_Exchange(0);
 			if (Destroyed != 1)
 				DMibPDebugBreak;
 		}
@@ -543,8 +546,8 @@ namespace NMib::NConcurrency
 		if (_pActorHolder == ThreadLocal.m_pCurrentlyDestructingActorHolder)
 			return true;
 
-		smint Expected = 0;
-		if (_pActorHolder->mp_bDestroyed.f_CompareExchangeStrong(Expected, 1))
+		uint8 Expected = 0;
+		if (_pActorHolder->mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
 		{
 			if (CActorHolder::fsp_ScheduleActorDestroy(_pActorHolder, ThreadLocal))
 				return true;
@@ -630,7 +633,7 @@ namespace NMib::NConcurrency
 				pActor->fp_AbortSuspendedCoroutines();
 				This.fp_DeleteActor();
 			}
-			This.mp_bDestroyed.f_Exchange(2);
+			This.mp_Destroyed.f_Exchange(2);
 
 			bool bShouldDelete;
 
@@ -904,7 +907,7 @@ namespace NMib::NConcurrency
 				(
 					[this, pStayAlive = fg_Move(pStayAlive)](CConcurrencyThreadLocal &_ThreadLocal)
 					{
-						if (this->mp_bDestroyed.f_Load() >= 3)
+						if (this->mp_Destroyed.f_Load() >= 3)
 							return;
 
 						this->fp_RunProcess(_ThreadLocal);
@@ -996,7 +999,7 @@ namespace NMib::NConcurrency
 	{
 		{
 			DMibLock(mp_DestroyLock);
-			mp_bDestroyed.f_Exchange(4);
+			mp_Destroyed.f_Exchange(4);
 		}
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
@@ -1013,7 +1016,7 @@ namespace NMib::NConcurrency
 				(
 					[this, pStayAlive = fg_Move(pStayAlive)](CConcurrencyThreadLocal &_ThreadLocal) mutable
 					{
-						if (this->mp_bDestroyed.f_Load() >= 4)
+						if (this->mp_Destroyed.f_Load() >= 4)
 							return;
 
 						fp_RunProcess(_ThreadLocal);
@@ -1295,7 +1298,7 @@ namespace NMib::NConcurrency
 					this->f_GetPriority()
 					, [this, pStayAlive = fg_Move(pStayAlive)](CConcurrencyThreadLocal &_ThreadLocal)
 					{
-						if (this->mp_bDestroyed.f_Load() >= 3)
+						if (this->mp_Destroyed.f_Load() >= 3)
 							return;
 
 						this->fp_RunProcess(_ThreadLocal);

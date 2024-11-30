@@ -181,30 +181,22 @@ namespace NMib::NConcurrency
 		{
 			DMibFastCheck(mp_Actor);
 
-			if constexpr (NTraits::TCIsSame<t_CActor, TCActor<CDirectResultActor>>::mc_Value)
-			{
-				CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), nullptr);
-				mp_Functor(fg_Forward<tfp_CParams>(p_Params)...);
-			}
-			else
-			{
-				auto pActor = mp_Actor.f_GetRealActor();
-				pActor->f_QueueProcess
-					(
-						[
-							...Params = fg_Forward<tfp_CParams>(p_Params), Functor = fg_Move(mp_Functor)
+			auto pActor = mp_Actor.f_GetRealActor();
+			pActor->f_QueueProcess
+				(
+					[
+						...Params = fg_Forward<tfp_CParams>(p_Params), Functor = fg_Move(mp_Functor)
 #if DMibEnableSafeCheck > 0
-							,pActor
+						,pActor
 #endif
-						]
-						(CConcurrencyThreadLocal &_ThreadLocal) mutable
-						{
-							DMibFastCheck(_ThreadLocal.m_pCurrentlyProcessingActorHolder == pActor);
-							Functor(fg_Move(Params)...);
-						}
-					)
-				;
-			}
+					]
+					(CConcurrencyThreadLocal &_ThreadLocal) mutable
+					{
+						DMibFastCheck(_ThreadLocal.m_pCurrentlyProcessingActorHolder == pActor);
+						Functor(fg_Move(Params)...);
+					}
+				)
+			;
 		}
 
 		TCActorResultCall &operator =(TCActorResultCall const &_Other)
@@ -367,25 +359,6 @@ namespace NMib::NConcurrency
 			using CType = CVoidTag;
 		};
 	}
-
-	template <typename t_CActorCall, typename... tp_CCalls>
-	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCActorCallPackWithError : protected CActorWithErrorBase
-	{
-		struct CNoUnwrapAsyncResult
-		{
-			TCActorCallPackWithError *m_pWrapped;
-			auto operator co_await() &&;
-		};
-
-		TCActorCallPackWithError(t_CActorCall *_pActorCall, NStr::CStr const &_Error);
-
-		auto operator co_await() &&;
-		CNoUnwrapAsyncResult f_Wrap() &&;
-
-	private:
-
-		t_CActorCall *mp_pActorCall;
-	};
 
 	template <bool t_bUnwrap, typename t_FExceptionTransform, typename... tp_CFutures>
 	struct TCFuturePackAwaiter
@@ -553,7 +526,7 @@ namespace NMib::NConcurrency
 			if (_Timeout >= 0.0)
 			{
 				if (pResult->m_RunLoop.f_WaitTimeout(_Timeout))
-					DMibError("Timed out waiting for synchronous futures to resolve");
+					DMibError("Timed out waiting for futures to resolve synchronously");
 			}
 			else
 				pResult->m_RunLoop.f_Wait();
@@ -611,9 +584,9 @@ namespace NMib::NConcurrency
 			t_CActor m_Actor;
 			t_CHandler m_Handler;
 
-			TCCallMutipleActorStorage(t_CActor const &_Actor, t_CHandler &&_Handler)
+			TCCallMutipleActorStorage(t_CActor &&_Actor, t_CHandler &&_Handler)
 				: m_Handler(fg_Move(_Handler))
-				, m_Actor(_Actor)
+				, m_Actor(fg_Move(_Actor))
 			{
 			}
 
@@ -625,7 +598,6 @@ namespace NMib::NConcurrency
 
 			void f_ReportResult()
 			{
-				static_assert(!NTraits::TCIsSame<t_CActor, TCActor<CDirectResultActor>>::mc_Value);
 				NStorage::TCSharedPointer<TCCallMutipleActorStorage> pThis = fg_Explicit(this);
 				m_Actor.f_GetRealActor()->f_QueueProcess
 					(
@@ -642,54 +614,6 @@ namespace NMib::NConcurrency
 					)
 				;
 			}
-			void f_Finished()
-			{
-				if (++m_nFinished == mc_nResults)
-					f_ReportResult();
-			}
-		};
-
-		template
-		<
-			bool t_bUnwrapTuple
-			, typename t_CHandler
-			, typename... tp_CResultTypes
-			, mint... tp_ResultIndices
-		>
-		struct TCCallMutipleActorStorage<t_bUnwrapTuple, t_CHandler, TCActor<CDirectResultActor>, NMeta::TCTypeList<tp_CResultTypes...>, NMeta::TCIndices<tp_ResultIndices...>>
-		{
-			enum
-			{
-				mc_nResults = sizeof...(tp_CResultTypes)
-			};
-			NStorage::CIntrusiveRefCount m_RefCount;
-			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
-			NAtomic::TCAtomic<mint> m_nFinished;
-			TCActor<CDirectResultActor> m_Actor;
-			t_CHandler m_Handler;
-
-			TCCallMutipleActorStorage(TCActor<CDirectResultActor> const &_Actor, t_CHandler &&_Handler)
-				: m_Handler(fg_Move(_Handler))
-				, m_Actor(_Actor)
-			{
-			}
-
-			~TCCallMutipleActorStorage()
-			{
-				if (m_nFinished.f_Load() != mc_nResults)
-					f_ReportResult();
-			}
-
-			void f_ReportResult()
-			{
-				auto &This = *this;
-				CCurrentActorScope CurrentActor(fg_ConcurrencyThreadLocal(), nullptr);
-				if constexpr (t_bUnwrapTuple)
-					m_Handler(fg_Move(fg_Get<tp_ResultIndices>(This.m_Results))...);
-				else
-					m_Handler(fg_Move(This.m_Results));
-			}
-
 			void f_Finished()
 			{
 				if (++m_nFinished == mc_nResults)
@@ -755,7 +679,7 @@ namespace NMib::NConcurrency
 		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
 		using CStorage = NPrivate::TCCallMutipleActorStorage<true, tf_CResultFunctor, tf_CResultActor, CTypeList>;
 
-		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(_ResultCall.mp_Actor, fg_Move(_ResultCall.mp_Functor));
+		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultCall.mp_Actor), fg_Move(_ResultCall.mp_Functor));
 
 		(
 			[&]
@@ -883,10 +807,15 @@ namespace NMib::NConcurrency
 					fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), this);
 				}
 			;
-			f_CallNoDelete(_ThreadLocal);
+			f_CallNoShared(_ThreadLocal);
 		}
 
 		void f_CallNoDelete(CConcurrencyThreadLocal &_ThreadLocal)
+		{
+			f_CallNoShared(_ThreadLocal);
+		}
+
+		inline_always void f_CallNoShared(CConcurrencyThreadLocal &_ThreadLocal)
 		{
 			DMibFastCheck(m_pActorInternal);
 			auto &PromiseThreadLocal = _ThreadLocal.m_SystemThreadLocal.m_PromiseThreadLocal;

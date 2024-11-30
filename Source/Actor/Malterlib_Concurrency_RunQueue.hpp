@@ -1,4 +1,4 @@
-// Copyright © 2024 Favro Holding AB 
+// Copyright © 2024 Unbroken AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -212,12 +212,6 @@ namespace NMib::NConcurrency
 			pEntry->m_Link.f_UnsafeUnlink();
 			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), static_cast<tf_CEntry *>(pEntry));
 		}
-	}
-
-	template <typename tf_CBaseEntry, typename tf_CEntry>
-	void TCConcurrentRunQueue<tf_CBaseEntry, tf_CEntry>::f_DeleteQueueEntry(CConcurrentRunQueueEntry *_pEntry)
-	{
-		_pEntry->f_Cleanup();
 	}
 
 	template <typename tf_CBaseEntry, typename tf_CEntry>

@@ -773,7 +773,6 @@ namespace NMib::NConcurrency
 	}
 #endif
 
-
 	template <typename t_CReturnValue>
 	auto TCFuture<t_CReturnValue>::operator co_await() &&
 	{

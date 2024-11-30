@@ -829,7 +829,7 @@ namespace NMib::NConcurrency
 	bool TCFuture<t_CReturnValue>::f_ObserveIfAvailable()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_BeforeSuspend.m_bNeedAtomicRead || !pData->m_BeforeSuspend.m_bOnResultSetAtInit);
+		DMibFastCheck(pData->m_BeforeSuspend.m_bNeedAtomicRead);
 
 		uint8 Expected = EFutureResultFlag_DataSet;
 
@@ -842,7 +842,7 @@ namespace NMib::NConcurrency
 	bool TCFuture<t_CReturnValue>::f_ObserveIfAvailableRelaxed()
 	{
 		auto pData = mp_pData.f_Get();
-		DMibFastCheck(pData->m_BeforeSuspend.m_bNeedAtomicRead || !pData->m_BeforeSuspend.m_bOnResultSetAtInit);
+		DMibFastCheck(!pData->m_BeforeSuspend.m_bNeedAtomicRead);
 
 		uint8 Expected = EFutureResultFlag_DataSet;
 
@@ -1683,4 +1683,3 @@ namespace NMib::NConcurrency::NPrivate
 		fg_Forward<tf_CAllocator>(_Allocator).f_Free(_pObject, Size);
 	}
 }
-

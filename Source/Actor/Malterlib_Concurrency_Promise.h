@@ -114,15 +114,15 @@ namespace NMib::NConcurrency
 
 	struct CFutureCoroutineContext;
 
-	struct CAsyncDestroyHelperNoWrap
+	struct CAsyncDestroyHelperNoUnWrap
 	{
 	};
 
 	struct CAsyncDestroyHelper
 	{
-		CAsyncDestroyHelperNoWrap f_Wrap() const
+		CAsyncDestroyHelperNoUnWrap f_Wrap() const
 		{
-			return CAsyncDestroyHelperNoWrap();
+			return CAsyncDestroyHelperNoUnWrap();
 		}
 	};
 
@@ -275,7 +275,7 @@ namespace NMib::NConcurrency
 		CCaptureExceptionScopeWithTransformerAwaiter await_transform(CCaptureExceptionsHelperWithTransformer &&_Transformer);
 
 		TCFutureAwaiter<void, true, CVoidTag> await_transform(CAsyncDestroyHelper);
-		TCFutureAwaiter<void, false, CVoidTag> await_transform(CAsyncDestroyHelperNoWrap);
+		TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> await_transform(CAsyncDestroyHelperNoUnWrap);
 		COnResumeScopeAwaiter &&await_transform(COnResumeScopeAwaiter &&_Awaiter);
 
 		void unhandled_exception();
@@ -310,10 +310,11 @@ namespace NMib::NConcurrency
 		void f_SetExceptionResult(NException::CExceptionPointer &&_pException);
 		bool f_IsException();
 
-		// Needed always: 4 pointers
+		// Needed always: 5 pointers
 		NPrivate::CPromiseDataBase *m_pPromiseData = nullptr;
 		NContainer::TCVector<NFunction::TCFunctionMovable<void () noexcept>> m_RestoreScopes;
 		CCoroutineHandler m_CoroutineHandlers;
+		NStorage::TCUniquePointer<CPromiseKeepAlive> m_pKeepAlive;
 		ECoroutineFlag m_Flags = ECoroutineFlag_None;
 		bool m_bAwaitingInitialResume:1 = false;
 		bool m_bRuntimeStateConstructed:1 = false;
@@ -337,7 +338,7 @@ namespace NMib::NConcurrency
 
 		union
 		{
-			// Needed after initial resume: 4 pointers
+			// Needed after initial resume: 3 pointers
 			CRuntimeState m_State;
 			// Needed before initial resume: 3 pointers
 #if DMibEnableSafeCheck > 0
@@ -346,9 +347,6 @@ namespace NMib::NConcurrency
 			void *m_RunQueueImplStorage[3];
 #endif
 		};
-
-		// Needed when initial resume isn't used
-		NStorage::TCUniquePointer<CPromiseKeepAlive> m_pKeepAlive;
 
 		struct CDLinkTranslatorm_Link
 		{
@@ -456,7 +454,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	private:
 		friend struct TCFutureCoroutineContextShared<t_CReturnType>;
-		
+
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> mp_pPromiseData;
 #if DMibConfig_RefCountDebugging
 		NStorage::CRefCountDebugReference m_Reference;
@@ -594,7 +592,6 @@ namespace NMib::NConcurrency::NPrivate
 		{
 		}
 
-
 		template <typename tf_CReturnType>
 		void return_value(tf_CReturnType &&_Value);
 		void return_value(CVoidTag &&_Value);
@@ -696,14 +693,7 @@ namespace NMib::NConcurrency::NPrivate
 
 #if DMibConfig_Concurrency_DebugFutures
 		~CPromiseDataBase();
-		NStorage::CIntrusiveRefCount m_RefCount;
-		DMibListLinkDS_Link(CPromiseDataBase, m_Link);
-		DMibListLinkDS_Link(CPromiseDataBase, m_LinkCoro);		
-		NStr::CStr m_FutureTypeName;
-#else
-		NStorage::CIntrusiveRefCount m_RefCount;
 #endif
-
 #if DMibConfig_RefCountDebugging
 		using CPromiseRefCount = NStorage::CIntrusiveRefCount;
 #else
@@ -722,8 +712,9 @@ namespace NMib::NConcurrency::NPrivate
 
 		CAsyncResult &f_GetAsyncResult();
 
-		TCCoroutineHandle<CFutureCoroutineContext> m_Coroutine;
+		NStorage::CIntrusiveRefCount m_RefCount;
 		CPromiseRefCount m_PromiseRefCount;
+		TCCoroutineHandle<CFutureCoroutineContext> m_Coroutine;
 
 		NAtomic::TCAtomic<uint8> m_OnResultSet;
 
@@ -749,6 +740,12 @@ namespace NMib::NConcurrency::NPrivate
 		};
 		CCanBeSetAfterSuspend m_AfterSuspend;
 
+#if DMibConfig_Concurrency_DebugFutures
+		NStorage::CIntrusiveRefCount m_RefCount;
+		DMibListLinkDS_Link(CPromiseDataBase, m_Link);
+		DMibListLinkDS_Link(CPromiseDataBase, m_LinkCoro);
+		NStr::CStr m_FutureTypeName;
+#endif
 #if DMibEnableSafeCheck > 0
 		CActorHolder *m_pCoroutineOwner = nullptr;
 		void *m_pHadCoroutine = nullptr;
@@ -845,7 +842,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCFutureCoroutineKeepAlive<t_CReturnValue> f_CoroutineKeepAlive(TCActor<> &&_Actor);
 
- 		FOnResult m_fOnResult;
+		FOnResult m_fOnResult;
 		TCAsyncResult<t_CReturnValue> m_Result;
 	};
 }
@@ -1035,6 +1032,9 @@ namespace NMib::NConcurrency
 		void operator > (TCFutureVector<t_CReturnValue> &_FutureVector) &&;
 		void operator > (TCVectorOfFutures<t_CReturnValue> &_ResultVector) &&;
 		void operator > (NContainer::TCMapResult<TCFuture<t_CReturnValue> &> &&_MapResult) &&;
+
+		template <typename tf_FOnResult>
+		void operator > (TCDirectResultFunctor<tf_FOnResult> &&_fOnResult) &&;
 
 		template <typename tf_CKey, typename tf_CForwardKey>
 		inline_always void operator > (TCFutureMapBoundKey<tf_CKey, t_CReturnValue, tf_CForwardKey> &&_BoundKey) &&;

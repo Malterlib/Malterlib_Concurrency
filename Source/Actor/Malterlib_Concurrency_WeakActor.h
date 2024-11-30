@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_Bind(tfp_CCallParams &&... p_CallParams) const &
 			-> TCBoundActorCall
 			<
@@ -140,7 +140,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_Bind(tfp_CCallParams &&... p_CallParams) &&
 			-> TCBoundActorCall
 			<
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) const &
 			-> TCBoundActorCall
 			<
@@ -168,7 +168,7 @@ namespace NMib::NConcurrency
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
-		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = {}, typename... tfp_CCallParams>
+		template <auto tf_pFunctionPointer, CBindActorOptions tf_BindOptions = CBindActorOptions{}, typename... tfp_CCallParams>
 		auto f_BindByValue(tfp_CCallParams &&... p_CallParams) &&
 			-> TCBoundActorCall
 			<

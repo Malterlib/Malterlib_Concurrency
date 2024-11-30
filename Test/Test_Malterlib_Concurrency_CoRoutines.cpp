@@ -1506,7 +1506,7 @@ namespace NMib::NConcurrency::NTest
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated")
 			{
@@ -1525,7 +1525,7 @@ namespace NMib::NConcurrency::NTest
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated 2")
 			{
@@ -1544,7 +1544,7 @@ namespace NMib::NConcurrency::NTest
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated 3")
 			{
@@ -1566,7 +1566,7 @@ namespace NMib::NConcurrency::NTest
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 		}
 
@@ -1789,7 +1789,7 @@ namespace NMib::NConcurrency::NTest
 						DestroyPromise.f_SetResult();
 					}
 
-					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 
 					co_return {};
 				};
@@ -1827,7 +1827,7 @@ namespace NMib::NConcurrency::NTest
 						}
 					}
 
-					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Actor was destroyed"));
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 
 					co_return {};
 				};
@@ -2268,6 +2268,11 @@ namespace NMib::NConcurrency::NTest
 										auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 									}
 									co_await g_AsyncDestroy;
+									for (auto &Result : co_await g_AsyncDestroy.f_Wrap())
+									{
+										if (!Result)
+											DMibConOut("Error: {}\n", Result.f_GetExceptionStr());
+									}
 								}
 
 								DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);

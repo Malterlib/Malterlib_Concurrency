@@ -9,6 +9,7 @@ namespace NMib::NConcurrency
 	extern template NMib::NConcurrency::NPrivate::TCPromiseData<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<void>, NMib::NMemory::CAllocator_Heap, NMib::NContainer::CVectorOptionsDefault> >::~TCPromiseData();
 	extern template NMib::NConcurrency::TCActor<NMib::NConcurrency::CActor> NMib::NConcurrency::TCWeakActor<NMib::NConcurrency::CActor>::f_Lock() const;
 	extern template void NMib::NConcurrency::fg_DeleteWeakObject<NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor>>(CInternalActorAllocator &, NMib::NConcurrency::TCActorInternal<NMib::NConcurrency::CActor> *);
+	extern template TCFuture<NContainer::TCVector<TCAsyncResult<void>>> NMib::NConcurrency::TCFutureVector<void>::CInternal::f_GetResults();
 }
 namespace NMib::NStorage
 {

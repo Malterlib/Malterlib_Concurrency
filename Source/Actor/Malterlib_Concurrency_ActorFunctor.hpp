@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 		{
 			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
 				{
-					return mp_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, {EVirtualCall::mc_NotVirtual, EActorCallType::mc_Direct}>
+					return mp_Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, CBindActorOptions{EVirtualCall::mc_NotVirtual, EActorCallType::mc_Direct}>
 						(
 							fg_TempCopy(mp_pFunctor)
 							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -79,7 +79,7 @@ namespace NMib::NConcurrency
 		{
 			return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
 				{
-					return mp_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+					return mp_Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 						(
 							fg_TempCopy(mp_pFunctor)
 							, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 
 		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> void
 			{
-				return mp_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+				return mp_Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 					(
 						fg_TempCopy(mp_pFunctor)
 						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 
 		return [&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&) -> TCFuture<CStripedReturn>
 			{
-				return mp_Actor.f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
+				return mp_Actor.template f_Bind<&CActor::f_DispatchWithReturnShared<CReturn, tfp_CParams2...>, EVirtualCall::mc_NotVirtual>
 					(
 						fg_TempCopy(mp_pFunctor)
 						, fg_CopyOrMove<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))...

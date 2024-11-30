@@ -676,7 +676,7 @@ namespace NMib::NConcurrency
 					return reinterpret_cast<CCallActor>(_Actor).template f_BindByValue
 						<
 							&CActor::f_DispatchWithReturn<CReturnType, NTraits::TCDecayType<tfp_CFunctionParams>...>
-							, {EActorCallType::mc_Direct, EVirtualCall::mc_NotVirtual}
+							, CBindActorOptions{EActorCallType::mc_Direct, EVirtualCall::mc_NotVirtual}
 						>
 						(
 							NFunction::TCFunctionMovable<CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CFunctionParams>::CType...)>
@@ -1144,12 +1144,6 @@ namespace NMib::NConcurrency
 					(
 						[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
 						{
-							if constexpr (NTraits::TCIsSame<tf_CResultActor, TCActor<CDirectResultActor>>::mc_Value)
-							{
-								NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
-								return;
-							}
-
 							auto Actor = fg_Move(ResultCall.mp_Actor);
 							auto pActor = Actor.f_GetRealActor();
 							pActor->f_QueueProcess
@@ -1186,12 +1180,6 @@ namespace NMib::NConcurrency
 				(
 					[ResultCall = fg_Move(_ResultCall)](TCAsyncResult<t_CReturnValue> &&_Result) mutable
 					{
-						if constexpr (NTraits::TCIsSame<tf_CResultActor, TCActor<CDirectResultActor>>::mc_Value)
-						{
-							NPrivate::fg_CallResultFunctorDirect(ResultCall.mp_Functor, fg_Move(_Result));
-							return;
-						}
-
 						auto Actor = fg_Move(ResultCall.mp_Actor);
 						auto pActor = Actor.f_GetRealActor();
 						pActor->f_QueueProcess
@@ -1268,6 +1256,14 @@ namespace NMib::NConcurrency
 	{
 		auto This = fg_Move(*this);
 		This.f_OnResultSet(_FutureVector.fp_AddResult());
+	}
+
+	template <typename t_CReturnValue>
+	template <typename tf_FOnResult>
+	void TCFuture<t_CReturnValue>::operator > (TCDirectResultFunctor<tf_FOnResult> &&_fOnResult) &&
+	{
+		auto This = fg_Move(*this);
+		This.f_OnResultSet(fg_Move(_fOnResult.m_fOnResult));
 	}
 
 	template <typename t_CReturnValue>
@@ -1595,8 +1591,8 @@ namespace NMib::NConcurrency
 
 		if (nFinished & NPrivate::gc_ActorResultResultsGottenMask)
 		{
-			DMibFastCheck(false);
-			DMibError("You have already gotten the results from this result vector once");
+			// You have already gotten the results from this future vector already
+			DMibPDebugBreak;
 		}
 
 		mp_bLazyResultsGotten.f_Store(true);

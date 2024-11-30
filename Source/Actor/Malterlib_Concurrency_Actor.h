@@ -63,8 +63,6 @@ namespace NMib::NConcurrency
 		bool f_IsDestroyed() const;
 		TCFuture<void> f_Dispatch(NFunction::TCFunctionMovable<void ()> _fToDisptach);
 
-		// TODO: Add unsafe dipatch funtions that doesn't store lambda
-
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturn
 			(

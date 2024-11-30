@@ -9,13 +9,13 @@ namespace NMib::NConcurrency
 	{
 		struct CThisActor;
 		template
-			<
-				bool t_bUnwrapTuple
-				, typename t_CHandler
-				, typename t_CActor
-				, typename t_CResultTypes
-				, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
-			>
+		<
+			bool t_bUnwrapTuple
+			, typename t_CHandler
+			, typename t_CActor
+			, typename t_CResultTypes
+			, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
+		>
 		struct TCCallMutipleActorStorage;
 
 		template <typename tf_CActor>

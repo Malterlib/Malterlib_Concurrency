@@ -85,7 +85,7 @@ namespace NMib::NConcurrency
 	CFutureCoroutineContext::CCaptureExceptionScope::~CCaptureExceptionScope()
 	{
 		if (mp_pThis && NException::fg_UncaughtExceptions() != mp_OriginalExceptions)
- 			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert();
+			fg_ConcurrencyThreadLocal().m_PendingCaptureExceptions.f_Insert();
 	}
 
 	void CFutureCoroutineContext::CCaptureExceptionScope::f_Suspend() noexcept
@@ -235,7 +235,7 @@ namespace NMib::NConcurrency
 		}
 		else if (this->m_Flags & ECoroutineFlag_CaptureExceptions)
 			return f_SetExceptionResult(fg_Move(pException));
-		
+
 #ifdef DMibNeedDebugException
 		if (fg_IsDebugException(pException))
 			return f_SetExceptionResult(fg_Move(pException));
@@ -252,7 +252,7 @@ namespace NMib::NConcurrency
 
 		if (ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_IsEmpty())
 			return;
-		
+
 		ConcurrencyThreadLocal.m_PendingCaptureExceptions.f_Clear();
 
 		if (ms_bDebugCoroutineSafeCheck)
@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
 		DMibFastCheck(!_ThreadLocal.m_bCaptureAsyncDestructors);
 		_ThreadLocal.m_AsyncDestructors.f_Clear();
-		{ 
+		{
 			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
 				{
 					_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
@@ -395,7 +395,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	CPromiseDataBase::CPromiseDataBase
 		(
-		 	uint8 _OnResultSet
+			uint8 _OnResultSet
 			, bool _bOnResultSetAtInit
 			, uint8 _OverAlignment
 #if DMibConfig_Concurrency_DebugFutures

@@ -497,7 +497,6 @@ namespace NMib::NConcurrency
 
 			using CBoundFunctor = TCActorCallWithParams<typename TCChooseType<c_bIsMemberPointer, tf_CFunctor, CFunctionType>::CType>;
 
-			static_assert(!NTraits::TCIsSame<CContainedActor, CDirectResultActor>::mc_Value, "Cannot be called");
 			using CReportLocalFuture = TCReportLocalFuture<CContainedActor, CReturn, CBoundFunctor>;
 
 			using CFunctorReturn = typename CFunctionTraits::CReturn;
@@ -554,7 +553,7 @@ namespace NMib::NConcurrency
 							, ConcurrencyThreadLocal.m_SystemThreadLocal
 							, false
 						}
-						.CReportLocalFuture::f_CallNoDelete(ConcurrencyThreadLocal)
+						.f_CallNoDelete(ConcurrencyThreadLocal)
 					;
 				}
 				else

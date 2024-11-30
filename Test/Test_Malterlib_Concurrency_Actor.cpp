@@ -458,7 +458,6 @@ namespace
 						fDoubleDestroy()
 						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
 						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
-						, DMibImpExceptionInstance(CExceptionActorResultWasNotSet, "Actor was destroyed")
 					)
 				;
 			};
@@ -2395,7 +2394,7 @@ namespace
 					PerfTest.f_Add(ActorMeasure);
 				}();
 #endif
-#if DDoTest_Message_BranchedConcurrentActor
+#if DDoTest_Message_BranchedConcurrentActor && !defined(DCompiler_Workaround_Apple_clang)
 				[&]() inline_never
 				{
 					fp_BlockOnAllThreads(true);

@@ -15,11 +15,11 @@ namespace NMib::NConcurrency
 #		endif
 
 	/// Common functionality for TCAsyncResult
-	class CAsyncResult
+	struct CAsyncResult
 	{
-	public:
+	private:
 		template <typename t_CType2>
-		friend class TCAsyncResult;
+		friend struct TCAsyncResult;
 
 		enum EDataType
 		{
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 			mint m_DataType;
 		};
 
-		CDataUnion m_Data;
+		CDataUnion mp_Data;
 
 	public:
 #if DMibConfig_Concurrency_DebugActorCallstacks
@@ -60,7 +60,6 @@ namespace NMib::NConcurrency
 		NException::CExceptionPointer const &f_ExceptionPointer() const;
 
 		static NException::CExceptionPointer const &fs_ResultWasNotSetException();
-		static NException::CExceptionPointer const &fs_ActorDeletedException();
 		static NException::CExceptionPointer const &fs_ActorCalledDeletedException();
 
 		void f_Access() const; ///< Try to access the contained value. Useful to throw the contained exception in case you want to catch and handle it.
@@ -96,10 +95,10 @@ namespace NMib::NConcurrency
 	 Either contains an exception or the result value. If the result is an exception the exception will be thrown if you try to access the value.
 	*/
 	template <typename t_CType = void>
-	class [[nodiscard]] TCAsyncResult : public CAsyncResult
+	struct [[nodiscard]] TCAsyncResult : public CAsyncResult
 	{
 		template <typename t_CType2>
-		friend class TCAsyncResult;
+		friend struct TCAsyncResult;
 
 		NStorage::TCAggregateSimple<t_CType> m_ResultAggregate;
 	public:
@@ -136,10 +135,10 @@ namespace NMib::NConcurrency
 	};
 
 	template <>
-	class [[nodiscard]] TCAsyncResult<void> : public CAsyncResult
+	struct [[nodiscard]] TCAsyncResult<void> : public CAsyncResult
 	{
 		template <typename t_CType2>
-		friend class TCAsyncResult;
+		friend struct TCAsyncResult;
 
 	public:
 		TCAsyncResult();

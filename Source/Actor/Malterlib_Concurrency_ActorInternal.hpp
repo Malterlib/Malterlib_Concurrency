@@ -60,7 +60,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	TCActorInternal<t_CActor>::~TCActorInternal()
 	{
-		this->mp_bDestroyed.f_Exchange(3);
+		this->mp_Destroyed.f_Exchange(3);
 		this->fp_DestroyThreaded();
 	}
 

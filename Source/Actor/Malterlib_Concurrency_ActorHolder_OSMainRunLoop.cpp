@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 					, ^()
 					{
 						(void)pThisReference;
-						if (pThis->mp_bDestroyed.f_Load() >= 4)
+						if (pThis->mp_Destroyed.f_Load() >= 4)
 							return;
 						pThis->fp_RunProcess(fg_ConcurrencyThreadLocal());
 					}
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 
 	void COSMainRunLoopActorHolder::fp_DestroyThreaded()
 	{
-		mp_bDestroyed.f_Exchange(4);
+		mp_Destroyed.f_Exchange(4);
 		CDefaultActorHolder::fp_DestroyThreaded();
 	}
 }

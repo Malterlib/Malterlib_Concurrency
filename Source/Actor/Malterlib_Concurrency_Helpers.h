@@ -66,8 +66,6 @@ namespace NMib::NConcurrency
 		bool mp_bLastProcessing;
 	};
 
-	struct CDirectResultActor;
-
 	namespace NPrivate
 	{
 #if DMibConfig_Concurrency_DebugActorCallstacks

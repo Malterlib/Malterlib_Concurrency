@@ -1,4 +1,4 @@
-// Copyright © 2024 Favro Holding AB
+// Copyright © 2024 Unbroken AB
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #pragma once
@@ -162,7 +162,6 @@ namespace NMib::NConcurrency
 		void f_AddToQueue(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry);
 		bool f_AddToQueueLocal(TCConcurrentRunQueueEntryHolder<tf_CBaseEntry> &&_Entry, CLocalQueueData &_LocalQueue);
 
-		void f_DeleteQueueEntry(CConcurrentRunQueueEntry *_pEntry);
 		bool f_TransferThreadSafeQueue(CLocalQueueData &_LocalQueue);
 		bool f_IsEmpty(CLocalQueueData &_LocalQueue);
 		bool f_OneOrLessInQueue(CLocalQueueData &_LocalQueue);

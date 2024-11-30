@@ -271,8 +271,6 @@ namespace NMib::NConcurrency
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCFuture<void> TCActorFunctor<t_CFunction>::f_Destroy() &&
 	{
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
-
 		auto Subscription = fg_Move(f_GetSubscription());
 
 		TCFuture<void> DestroySubscriptionFuture;
@@ -281,9 +279,10 @@ namespace NMib::NConcurrency
 		else
 			DestroySubscriptionFuture = g_Void;
 
+		TCPromiseFuturePair<void> Promise;
 		fg_Move(DestroySubscriptionFuture).f_OnResultSet
 			(
-				[Promise, Actor = fg_Move(mp_Actor), pFunctor = fg_Move(mp_pFunctor)](TCAsyncResult<void> &&_Result) mutable
+				[Promise = fg_Move(Promise.m_Promise), Actor = fg_Move(mp_Actor), pFunctor = fg_Move(mp_pFunctor)](TCAsyncResult<void> &&_Result) mutable
 				{
 					TCFuture<void> DispatchFuture;
 
@@ -317,7 +316,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CFunction>

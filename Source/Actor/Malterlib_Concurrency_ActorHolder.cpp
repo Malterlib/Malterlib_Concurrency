@@ -361,11 +361,11 @@ namespace NMib::NConcurrency
 		return false;
 	}
 
-	inline_always auto CActorHolder::fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise)
+	inline_always auto CActorHolder::fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &&_Promise)
 	{
 		DMibFastCheck(_pActorHolder != nullptr);
 
-		return [pActorInternal = fg_Move(_pActorHolder), _Promise](TCAsyncResult<void> &&_Result) mutable
+		return [pActorInternal = fg_Move(_pActorHolder), Promise = fg_Move(_Promise)](TCAsyncResult<void> &&_Result) mutable
 			{
 				auto &ActorInternal = *pActorInternal;
 				if (uint8 Expected = 0; ActorInternal.mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
@@ -381,9 +381,9 @@ namespace NMib::NConcurrency
 							NFunction::TCFunctionSmallMutable<void ()>
 							(
 #endif
-								[_Promise = fg_Move(_Promise), Result = fg_Move(_Result)]() mutable
+								[Promise = fg_Move(Promise), Result = fg_Move(_Result)]() mutable
 								{
-									_Promise.f_SetResult(fg_Move(Result));
+									Promise.f_SetResult(fg_Move(Result));
 								}
 #if DMibConfig_RefCountDebugging
 							)
@@ -394,30 +394,28 @@ namespace NMib::NConcurrency
 					;
 				}
 				else
-					_Promise.f_SetResult(fg_Move(_Result));
+					Promise.f_SetResult(fg_Move(_Result));
 			}
 		;
 	}
 
 	TCFuture<void> CActorCommon::f_Destroy() &&
 	{
-		// Test
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
-
 		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
 		if (!pActorInternal)
-			return Promise <<= g_Void;
+			return g_Void;
 
+		TCPromiseFuturePair<void> Promise;
 		if (pActorInternal->fp_GetActorRelaxed())
-			(static_cast<TCActor<> &&>(*this)).f_Bind<&CActor::fp_DestroyInternal>() > g_DirectResult / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise);
+			(static_cast<TCActor<> &&>(*this)).f_Bind<&CActor::fp_DestroyInternal>() > g_DirectResult / CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise));
 		else
 		{
 			TCAsyncResult<void> Result;
 			Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
-			CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), Promise)(fg_Move(Result));
+			CActorHolder::fsp_DestroyHandler(fg_Move(pActorInternal), fg_Move(Promise.m_Promise))(fg_Move(Result));
 		}
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	void CActorHolder::f_BlockDestroy(CActorDestroyEventLoop const &_EventLoop)

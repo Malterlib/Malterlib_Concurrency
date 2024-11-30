@@ -80,7 +80,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyByValue(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	;
 
@@ -88,7 +88,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	;
 
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	;
 
@@ -104,7 +104,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_CToCleanup &_ToDestroy)
 		requires requires
 		{
-			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
 		}
 	;
 
@@ -112,7 +112,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy() > fg_DiscardResult();
+			_pToDestroy->f_Destroy().f_DiscardResult();
 		}
 	;
 
@@ -120,7 +120,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_CToCleanup &_ToDestroy)
 		requires requires
 		{
-			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
 		}
 	;
 
@@ -128,7 +128,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy() > fg_DiscardResult();
+			_pToDestroy->f_Destroy().f_DiscardResult();
 		}
 	;
 

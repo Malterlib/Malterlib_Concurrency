@@ -83,7 +83,7 @@ namespace
 
 		TCAsyncGenerator<int32> f_TestAsyncGeneratorSelf2()
 		{
-			auto Generator = co_await self(&CTestActor::f_TestAsyncGenerator);
+			auto Generator = f_TestAsyncGenerator();
 
 			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
 				co_yield *iValue;
@@ -160,7 +160,7 @@ namespace
 			co_return Return;
 		}
 
-		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParam(int32 const &_Param)
+		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParam(int32 _Param)
 		{
 			co_yield 5;
 			co_yield _Param;
@@ -171,18 +171,18 @@ namespace
 		TCFuture<int32> f_TestAsyncGeneratorAccessParamConsumer()
 		{
 			int32 Return = 0;
-			for (auto iValue = co_await fg_CallSafe(this, &CTestActor::f_TestAsyncGeneratorAccessParam, 7).f_GetIterator(); iValue; co_await ++iValue)
+			for (auto iValue = co_await f_TestAsyncGeneratorAccessParam(7).f_GetIterator(); iValue; co_await ++iValue)
 				Return += *iValue;
 			co_return Return;
 		}
 
-		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelf(int32 const &_Param)
+		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelf(int32 _Param)
 		{
 			auto Generator = co_await
 				(
 					self.f_Invoke
 					(
-						[TestDestruction = CTestDestruction{}](int32 const &_Param) -> TCAsyncGenerator<int32>
+						[TestDestruction = CTestDestruction{}](int32 _Param) -> TCAsyncGenerator<int32>
 						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{
@@ -210,18 +210,18 @@ namespace
 		TCFuture<int32> f_TestAsyncGeneratorAccessParamSelfConsumer()
 		{
 			int32 Return = 0;
-			for (auto iValue = co_await fg_CallSafe(this, &CTestActor::f_TestAsyncGeneratorAccessParamSelf, 7).f_GetIterator(); iValue; co_await ++iValue)
+			for (auto iValue = co_await f_TestAsyncGeneratorAccessParamSelf(7).f_GetIterator(); iValue; co_await ++iValue)
 				Return += *iValue;
 			co_return Return;
 		}
 
-		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelfMove(int32 &&_Param)
+		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelfMove(int32 _Param)
 		{
 			auto Generator = co_await
 				(
 					self.f_Invoke
 					(
-						[TestDestruction = CTestDestruction{}](int32 &&_Param) -> TCAsyncGenerator<int32>
+						[TestDestruction = CTestDestruction{}](int32 _Param) -> TCAsyncGenerator<int32>
 						{
 							auto Cleanup = g_OnScopeExit / [&]
 								{
@@ -249,14 +249,14 @@ namespace
 		TCFuture<int32> f_TestAsyncGeneratorAccessParamSelfMoveConsumer()
 		{
 			int32 Return = 0;
-			for (auto iValue = co_await fg_CallSafe(this, &CTestActor::f_TestAsyncGeneratorAccessParamSelfMove, 7).f_GetIterator(); iValue; co_await ++iValue)
+			for (auto iValue = co_await f_TestAsyncGeneratorAccessParamSelfMove(7).f_GetIterator(); iValue; co_await ++iValue)
 				Return += *iValue;
 			co_return Return;
 		}
 
-		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelf2(int32 const &_Param)
+		TCAsyncGenerator<int32> f_TestAsyncGeneratorAccessParamSelf2(int32 _Param)
 		{
-			auto Generator = co_await self(&CTestActor::f_TestAsyncGeneratorAccessParam, _Param);
+			auto Generator = f_TestAsyncGeneratorAccessParam(_Param);
 
 			for (auto iValue = co_await fg_Move(Generator).f_GetIterator(); iValue; co_await ++iValue)
 				co_yield *iValue;
@@ -267,7 +267,7 @@ namespace
 		TCFuture<int32> f_TestAsyncGeneratorAccessParamSelf2Consumer()
 		{
 			int32 Return = 0;
-			for (auto iValue = co_await fg_CallSafe(this, &CTestActor::f_TestAsyncGeneratorAccessParamSelf2, 7).f_GetIterator(); iValue; co_await ++iValue)
+			for (auto iValue = co_await f_TestAsyncGeneratorAccessParamSelf2(7).f_GetIterator(); iValue; co_await ++iValue)
 				Return += *iValue;
 			co_return Return;
 		}
@@ -289,7 +289,7 @@ namespace
 			DMibTestSuite("Access Param")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
@@ -308,7 +308,7 @@ namespace
 			DMibTestSuite("Eager Execution")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
@@ -364,7 +364,7 @@ namespace
 					DMibTestPath("{}"_f << i);
 
 					TCActor<> ProcessingActor = fg_Construct();
-					CCurrentActorScope ActorScope(ProcessingActor);
+					CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 					TCActor<CTestActor> TestActor = fg_Construct();
 
@@ -431,7 +431,7 @@ namespace
 					DMibTestPath("{}"_f << i);
 
 					TCActor<> ProcessingActor = fg_Construct();
-					CCurrentActorScope ActorScope(ProcessingActor);
+					CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 					TCActor<CTestActor> TestActor = fg_Construct();
 
@@ -486,11 +486,11 @@ namespace
 			DMibTestSuite("Callsafe param conversion function")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
-				TCFunctionMovable<TCAsyncGenerator<int32> (int32 const &)> fTestEager = [](int32 const &_Value) -> TCAsyncGenerator<int32>
+				TCFunctionMovable<TCAsyncGenerator<int32> (int32 const &)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield _Value;
@@ -515,7 +515,7 @@ namespace
 			DMibTestSuite("Callsafe param conversion lambda")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
@@ -525,7 +525,7 @@ namespace
 						{
 							return fg_CallSafe
 								(
-									[](int32 const &_Value) -> TCAsyncGenerator<int32>
+									[](int32 _Value) -> TCAsyncGenerator<int32>
 									{
 										co_yield 1;
 										co_yield _Value;
@@ -547,11 +547,11 @@ namespace
 			DMibTestSuite("Dispatch param conversion function")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
-				TCFunctionMovable<TCAsyncGenerator<int32> (int32 const &)> fTestEager = [](int32 const &_Value) -> TCAsyncGenerator<int32>
+				TCFunctionMovable<TCAsyncGenerator<int32> (int32)> fTestEager = [](int32 _Value) -> TCAsyncGenerator<int32>
 					{
 						co_yield 1;
 						co_yield _Value;
@@ -568,14 +568,14 @@ namespace
 			DMibTestSuite("Dispatch param conversion lambda")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CTestActor> TestActor = fg_Construct();
 
 				auto Generator = fg_Dispatch
 					(
 						TestActor
-						, [](int32 const &_Value) -> TCAsyncGenerator<int32>
+						, [](int32 _Value) -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
 							co_yield _Value;
@@ -594,7 +594,7 @@ namespace
 			DMibTestSuite("Transfer ownership")
 			{
 				TCActor<> ProcessingActor = fg_Construct();
-				CCurrentActorScope ActorScope(ProcessingActor);
+				CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 				TCActor<CSeparateThreadActor> TestOtherActor(fg_Construct(), "TestOtherActor");
@@ -862,7 +862,7 @@ namespace
 				TCActor<CTestActor> TestActor = fg_Construct();
 				{
 					TCActor<> ProcessingActor = fg_Construct();
-					CCurrentActorScope ActorScope(ProcessingActor);
+					CCurrentActorScope ActorScope(fg_ConcurrencyThreadLocal(), ProcessingActor);
 					DMibExpectException(TestActor(&CTestActor::f_TestAsyncGeneratorException).f_CallSync(g_Timeout).f_GetIterator().f_CallSync(g_Timeout), DMibErrorInstance("Test error"));
 					DMibExpectException
 						(

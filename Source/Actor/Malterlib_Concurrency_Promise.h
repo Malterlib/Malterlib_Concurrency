@@ -1345,7 +1345,7 @@ namespace NMib::NConcurrency
 		template <typename tf_FResultHandler>
 		auto operator / (tf_FResultHandler &&_fResultHandler) &&;
 
-		TCPromise<t_CReturnValue> m_Promise{CPromiseConstructNoConsume()};
+		TCPromise<t_CReturnValue> m_Promise;
 	};
 
 	template <typename t_CReturnValue, typename t_CFutureLike>

@@ -13,21 +13,29 @@
 #include <future>
 #endif
 
-//#define DDoCheckMessages
-//#define DDoGarbageCollection false
+#define DDoCheckMessages
+#define DDoGarbageCollection true
 
 #define DDoTest_Message_DispatchVector 1
 #define DDoTest_Message_Dispatch 1
 #define DDoTest_Message_DispatchThreaded 1
 #define DDoTest_Message_ActorDiscard 1
+#define DDoTest_Message_ActorDiscardCoro 1
+#define DDoTest_Message_ActorDiscardCoroVirtual 1
 #define DDoTest_Message_ActorDirect 1
 #define DDoTest_Message_ActorToOther 1
-#define DDoTest_Message_ActorToOtherCoroutine 1
+#define DDoTest_Message_ActorToOtherCoroutine 0
 #define DDoTest_Message_ActorToSame 1
 #define DDoTest_Message_ActorToSameCoroutine 1
 #define DDoTest_Message_PCActorToDiscard 1
+#define DDoTest_Message_PCActorToDiscardCoro 1
 #define DDoTest_Message_PCActorToResVector 1
+#define DDoTest_Message_PCActorToResVectorCoro 1
+#define DDoTest_Message_PCActorToVector 1
+#define DDoTest_Message_PCActorToResMap 1
+#define DDoTest_Message_PCActorToMap 1
 #define DDoTest_Message_CActorToResVector 1
+#define DDoTest_Message_CActorToResVectorCoro 1
 #define DDoTest_Message_BranchedConcurrentActor 1
 #define DDoTest_Message_BranchedConcurrentActorCoroutine 1
 
@@ -37,6 +45,12 @@
 #define DDoTest_Create_ActorConcurrent 1
 #define DDoTest_Create_Actor 1
 #define DDoTest_Create_ActorOutside 1
+
+#define DDoSleepOuter
+//#define DDoSleepOuter NSys::fg_Thread_Sleep(0.1f)
+
+#define DDoSleep
+//#define DDoSleep NSys::fg_Thread_Sleep(0.1f)
 
 namespace
 {
@@ -51,7 +65,26 @@ namespace
 	using namespace NMib::NFunction;
 	using namespace NMib::NStr;
 
-	constexpr mint gc_nRepetitions = 11;
+	constexpr static mint gc_nRepetitions = 111;
+	constexpr static mint gc_YieldMask = 0xff;
+	// 0b1						742
+	// 0b1111 					270
+	// 0b11111					255
+	// 0b111111					248
+	// 0b1111111				244
+	// 0b11111111				242
+	// 0b111111111				245
+	// 0b1111111111				251
+	// 0b11111111111			254
+	// 0b111111111111			250
+	// 0b1111111111111			260
+	// 0b11111111111111			291
+	// 0b111111111111111		352
+	// 0b1111111111111111		481
+	// 0b11111111111111111		536
+	// 0b111111111111111111 	511
+	// 0b1111111111111111111	487
+
 
 	class CConstructorExceptionActor : public CActor
 	{
@@ -76,7 +109,7 @@ namespace
 
 	class CPerformanceTestActor : public CActor
 	{
-		zuint32 m_Value;
+		uint32 m_Value = 0;
 	public:
 		enum
 		{
@@ -92,14 +125,118 @@ namespace
 		{
 		}
 
-		void f_AddInt(uint32 _Value)
+		TCFuture<void> f_AddIntNoCoro(uint32 _Value)
 		{
 			m_Value += _Value;
+
+			return g_Void;
+		}
+
+		virtual TCFuture<void> f_AddInt(uint32 _Value)
+		{
+			TCPromise<void> Promise{CPromiseConstructConsume()};
+			m_Value += _Value;
+
+			Promise.f_SetResult();
+			return Promise.f_MoveFutureConsumedResultSet();
+		}
+
+		void f_AddIntNoFuture(uint32 _Value)
+		{
+			m_Value += _Value;
+		}
+
+		uint32 f_AddIntRetNoFuture(uint32 _Value)
+		{
+			m_Value += _Value;
+			return m_Value;
+		}
+
+		TCFuture<void> f_AddIntCoro(uint32 _Value)
+		{
+			m_Value += _Value;
+
+			co_return {};
+		}
+
+		virtual TCFuture<void> f_AddIntCoroVirtual(uint32 _Value)
+		{
+			m_Value += _Value;
+
+			co_return {};
 		}
 
 		uint32 f_GetResult()
 		{
 			return m_Value;
+		}
+
+		uint32 f_ExchangeResult()
+		{
+			return fg_Exchange(m_Value, 0);
+		}
+	};
+
+	struct CDestructActorSeparateThread : public CActor
+	{
+		using CActorHolder = CSeparateThreadActorHolder;
+
+		void f_NoFuture()
+		{
+		}
+
+		TCFuture<void> fp_Destroy()
+		{
+			fg_CurrentActor();
+			co_return {};
+		}
+
+		virtual TCFuture<void> f_FutureVirtual()
+		{
+			{
+				fg_CurrentActor();
+			}
+			co_return {};
+		}
+
+		TCFuture<void> f_Future()
+		{
+			{
+				fg_CurrentActor();
+			}
+			co_return {};
+		}
+	};
+
+	struct CDestructActor : public CActor
+	{
+		void f_NoFuture()
+		{
+			{
+				fg_CurrentActor();
+			}
+		}
+
+		TCFuture<void> fp_Destroy()
+		{
+			fg_CurrentActor();
+			co_return {};
+		}
+
+		virtual TCFuture<void> f_FutureVirtual()
+		{
+			{
+				fg_CurrentActor();
+			}
+			co_return {};
+		}
+
+		TCFuture<void> f_Future()
+		{
+			{
+				fg_CurrentActor();
+			}
+			co_return {};
 		}
 	};
 
@@ -114,7 +251,6 @@ namespace
 		static int fs_Setup(CPerformanceTestActorEmul *_pThis)
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			ThreadLocal.m_pCurrentActor = _pThis;
 #if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = _pThis;
 #endif
@@ -125,7 +261,6 @@ namespace
 			 : CPerformanceTestActor(fs_Setup(this))
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			ThreadLocal.m_pCurrentActor = nullptr;
 #if DMibEnableSafeCheck > 0
 			ThreadLocal.m_pCurrentlyConstructingActor = nullptr;
 #endif
@@ -142,32 +277,36 @@ namespace
 	public:
 		virtual TCFuture<uint32> f_GetError()
 		{
-			TCPromise<uint32> Promise;
-			return Promise <<= DMibErrorInstance("Error");
+			TCPromise<uint32> Promise{CPromiseConstructConsume()};
+			Promise.f_SetException(DMibErrorInstance("Error"));
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
 		virtual TCFuture<uint32> f_GetNoError()
 		{
-			TCPromise<uint32> Promise;
-			return Promise <<= 5;
+			TCPromise<uint32> Promise{CPromiseConstructConsume()};
+			Promise.f_SetResult(5);
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
 		virtual TCFuture<void> f_GetErrorVoid()
 		{
-			TCPromise<void> Promise;
-			return Promise <<= DMibErrorInstance("Error");
+			TCPromise<void> Promise{CPromiseConstructConsume()};
+			Promise.f_SetException(DMibErrorInstance("Error"));
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
 		virtual TCFuture<void> f_GetNoErrorVoid()
 		{
-			TCPromise<void> Promise;
-			return Promise <<= g_Void;
+			TCPromise<void> Promise{CPromiseConstructConsume()};
+			Promise.f_SetResult();
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
 		virtual TCFuture<void> f_GetResultWasNotSet()
 		{
-			TCPromise<void> Promise;
-			return Promise.f_MoveFuture();
+			TCPromise<void> Promise{CPromiseConstructConsume()};
+			return Promise.f_MoveFutureConsumed();
 		}
 	};
 
@@ -184,8 +323,8 @@ namespace
 			return 0;
 		}
 
-		virtual TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> &&_pValue) = 0;
-		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> &&_pValue) = 0;
+		virtual TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> _pValue) = 0;
+		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) = 0;
 	};
 
 	class CDerivedActor : public CBaseActor
@@ -203,20 +342,23 @@ namespace
 
 		virtual TCFuture<void> fp_Destroy() override
 		{
-			TCPromise<void> Promise;
-			return Promise <<= g_Void;
+			TCPromise<void> Promise{CPromiseConstructConsume()};
+			Promise.f_SetResult();
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
-		TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> &&_pValue) override
+		TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> _pValue) override
 		{
-			TCPromise<uint32> Promise;
-			return Promise <<= _pValue->f_ToInt();
+			TCPromise<uint32> Promise{CPromiseConstructConsume()};
+			Promise.f_SetResult(_pValue->f_ToInt());
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
-		TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> &&_pValue) override
+		TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) override
 		{
-			TCPromise<uint32> Promise;
-			return Promise <<= _pValue->f_ToInt();
+			TCPromise<uint32> Promise{CPromiseConstructConsume()};
+			Promise.f_SetResult(_pValue->f_ToInt());
+			return Promise.f_MoveFutureConsumedResultSet();
 		}
 
 		mint m_DummyMember0 = 0;
@@ -228,7 +370,7 @@ namespace
 		TCActorFunctor<TCFuture<void> (int32)> m_fCallback;
 	public:
 
-		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32)> &&_fCallback)
+		TCFuture<CActorSubscription> f_RegisterCallback(TCActorFunctor<TCFuture<void> (int32)> _fCallback)
 		{
 			m_fCallback = fg_Move(_fCallback);
 
@@ -242,56 +384,57 @@ namespace
 
 		void f_CallCallback(int32 _Value)
 		{
-			m_fCallback(_Value) > NConcurrency::fg_DiscardResult();
+			m_fCallback.f_CallDiscard(_Value);
 		}
 	};
 
+	TCFuture<mint> fg_ReturnCoroOne()
+	{
+		co_return mint(1);
+	}
+
+	mint fg_ReturnOne()
+	{
+		return 1;
+	}
+
 	class CActor_Tests : public NMib::NTest::CTest
 	{
-		void fp_BlockOnAllThreads(TCActorResultVector<void> &_Results, bool _bGarbageCollect)
+		TCFunctionMovable<void ()> fp_GarbageCollectFunctor(bool _bGarbageCollect)
+		{
+			return [_bGarbageCollect]
+				{
+					(void)_bGarbageCollect;
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+	#ifdef DDoGarbageCollection
+					if (_bGarbageCollect)
+						Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
+					else
+	#endif
+	#ifdef DDoCheckMessages
+						Checkout.f_CheckMessages();
+	#else
+						;
+	#endif
+				}
+			;
+		}
+
+		void fp_BlockOnAllThreads(TCFutureVector<void> &_Results, bool _bGarbageCollect)
 		{
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
 			for (mint i = 0; i < nThreads; ++i)
-			{
-				fg_ConcurrentDispatch
-					(
-						[_bGarbageCollect]
-						{
-							(void)_bGarbageCollect;
-							auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#ifdef DDoGarbageCollection
-							if (_bGarbageCollect)
-								Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
-							else
-#endif
-#ifdef DDoCheckMessages
-								Checkout.f_CheckMessages();
-#else
-								;
-#endif
-						}
-					)
-					> _Results.f_AddResult()
-				;
-			}
+				fg_ConcurrentDispatch(fp_GarbageCollectFunctor(_bGarbageCollect)) > _Results;
 		}
 		void fp_BlockOnAllThreads(bool _bGarbageCollect)
 		{
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
-			TCActorResultVector<void> Results{nThreads};
+			TCFutureVector<void> Results;
+			Results.f_SetLen(nThreads);
+
 			fp_BlockOnAllThreads(Results, _bGarbageCollect);
-			Results.f_GetResults().f_CallSync();
-			auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#ifdef DDoGarbageCollection
-			if (_bGarbageCollect)
-				Checkout.f_GarbageCollectLocalArena(DDoGarbageCollection); // Garbage collect memory
-			else
-#endif
-#ifdef DDoCheckMessages
-				Checkout.f_CheckMessages();
-#else
-				;
-#endif
+			fg_AllDoneWrapped(Results).f_CallSync();
+			fp_GarbageCollectFunctor(_bGarbageCollect)();
 		}
 	public:
 
@@ -325,25 +468,10 @@ namespace
 
 				auto fDoubleDestroy = [&]
 					{
-						(Actor.f_Destroy() + Actor.f_Destroy()).f_CallSync(g_Timeout / 2);
+						(fg_TempCopy(Actor).f_Destroy() + fg_TempCopy(Actor).f_Destroy()).f_CallSync(g_Timeout / 2);
 					}
 				;
 
-#if DMibConfig_Concurrency_DebugBlockDestroy
-				
-#ifdef DCompiler_MSVC
-				CStr DeletedError = "Actor 'struct NMib::NConcurrency::CActor' called has been deleted";
-#else
-				CStr DeletedError = "Actor 'NMib::NConcurrency::CActor' called has been deleted";
-#endif
-				DMibExpectException
-					(
-						fDoubleDestroy()
-						, DMibImpExceptionInstance(CExceptionActorAlreadyDestroyed, "Actor has already been destroyed")
-						, DMibImpExceptionInstance(CExceptionActorDeleted, DeletedError)
-					)
-				;
-#else
 				DMibExpectException
 					(
 						fDoubleDestroy()
@@ -351,7 +479,143 @@ namespace
 						, DMibImpExceptionInstance(CExceptionActorDeleted, "Actor called has been deleted")
 					)
 				;
-#endif
+			};
+			DMibTestSuite("DestructRefCount") -> TCFuture<void>
+			{
+				{
+					DMibTestPath("Future");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActor> Actor{fg_Construct()};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActor::f_Future>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+				{
+					DMibTestPath("FutureVirtual");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActor> Actor{fg_Construct()};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActor::f_FutureVirtual>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+				{
+					DMibTestPath("NoFuture");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActor> Actor{fg_Construct()};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActor::f_NoFuture>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+				{
+					DMibTestPath("SeparateThreadFuture");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActorSeparateThread::f_Future>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+				{
+					DMibTestPath("SeparateThreadFutureVirtual");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActorSeparateThread::f_FutureVirtual>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+				{
+					DMibTestPath("SeparateThreadNoFuture");
+					bool bCrashed = false;
+					TCFutureVector<void> Results;
+					for (mint i = 0; i < 200; ++i)
+					{
+						TCActor<CDestructActorSeparateThread> Actor{fg_Construct(), "TestThread"};
+
+						for (mint i = 0; i < 200; ++i)
+							Actor.f_Bind<&CDestructActorSeparateThread::f_NoFuture>() > Results;
+
+						g_Dispatch(fg_ConcurrentActor()) / [Actor = fg_Move(Actor)]
+							{
+							}
+							> g_DiscardResult
+						;
+					}
+
+					DMibExpectFalse(bCrashed);
+
+					co_await fg_AllDone(Results);
+				}
+
+				co_return {};
 			};
 		}
 
@@ -475,11 +739,11 @@ namespace
 					DMibTestPath("Pointer params");
 					TCActor<CBaseActor> TestActor = fg_ConstructActor<CDerivedActor>();
 
-					TCFuture<uint32> SharedPointerFuture = g_Future <<= TestActor(&CBaseActor::f_SharedPointer, fg_Construct(CStr("5")));
+					TCFuture<uint32> SharedPointerFuture = TestActor(&CBaseActor::f_SharedPointer, fg_Construct(CStr("5")));
 					uint32 SharedPointerResult = fg_Move(SharedPointerFuture).f_CallSync(g_Timeout);
 					DMibExpect(SharedPointerResult, ==, 5);
 
-					TCFuture<uint32> UniquePointerFuture = g_Future <<= TestActor(&CBaseActor::f_UniquePointer, fg_Construct(CStr("5")));
+					TCFuture<uint32> UniquePointerFuture = TestActor(&CBaseActor::f_UniquePointer, fg_Construct(CStr("5")));
 					uint32 UniquePointerResult = fg_Move(UniquePointerFuture).f_CallSync(g_Timeout);
 					DMibExpect(UniquePointerResult, ==, 5);
 				}
@@ -506,7 +770,7 @@ namespace
 
 					uint32 Value = fDispatchBoilerplate
 						(
-							[TestActor]
+							[TestActor]() -> TCFuture<uint32>
 							{
 								TCPromise<uint32> Promise;
 								TestActor(&CExceptionActor::f_GetNoError) > Promise / [Promise](uint32 _Result)
@@ -514,352 +778,8 @@ namespace
 										Promise.f_SetResult(_Result);
 									}
 								;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-					DMibExpect(Value, ==, 5);
 
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise / [Promise](uint32 _Result)
-											{
-												Promise.f_SetResult(_Result);
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise % _Error / [Promise](uint32 _Result)
-											{
-												Promise.f_SetResult(_Result);
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Forward errors to promise void");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					fDispatchBoilerplate
-						(
-							[TestActor]
-							{
-								TCPromise<void> Promise;
-								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Promise / [Promise]()
-									{
-										Promise.f_SetResult();
-									}
-								;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise / [Promise]()
-											{
-												Promise.f_SetResult();
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error / [Promise]()
-											{
-												Promise.f_SetResult();
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Forward call pack errors to promise");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					uint32 Value = fDispatchBoilerplate
-						(
-							[TestActor]
-							{
-								TCPromise<uint32> Promise;
-								TestActor(&CExceptionActor::f_GetNoError)
-									+ TestActor(&CExceptionActor::f_GetNoError)
-									> Promise / [Promise](uint32 _Result0, uint32 _Result1)
-									{
-										Promise.f_SetResult(_Result0);
-									}
-								;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-					DMibExpect(Value, ==, 5);
-
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError)
-											+ TestActor(&CExceptionActor::f_GetError)
-											> Promise / [Promise](uint32 _Result0, uint32 _Result1)
-											{
-												Promise.f_SetResult(_Result0);
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetNoError)
-											+ TestActor(&CExceptionActor::f_GetError)
-											> Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
-											{
-												Promise.f_SetResult(_Result0);
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Forward call pack errors to promise void");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					fDispatchBoilerplate
-						(
-							[TestActor]
-							{
-								TCPromise<void> Promise;
-								TestActor(&CExceptionActor::f_GetNoErrorVoid)
-									+ TestActor(&CExceptionActor::f_GetNoErrorVoid)
-									> Promise / [Promise]()
-									{
-										Promise.f_SetResult();
-									}
-								;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid)
-											+ TestActor(&CExceptionActor::f_GetError)
-											> Promise / [Promise](CVoidTag, uint32 _Value)
-											{
-												Promise.f_SetResult();
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetNoErrorVoid)
-											+ TestActor(&CExceptionActor::f_GetErrorVoid)
-											> Promise % _Error / [Promise]()
-											{
-												Promise.f_SetResult();
-											}
-										;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Forward result to promise");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					uint32 Value = fDispatchBoilerplate
-						(
-							[TestActor]
-							{
-								TCPromise<uint32> Promise;
-								TestActor(&CExceptionActor::f_GetNoError) > Promise;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-					DMibExpect(Value, ==, 5);
-
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<uint32> Promise;
-										TestActor(&CExceptionActor::f_GetError) > Promise % _Error;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Forward result to promise void");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					fDispatchBoilerplate
-						(
-							[TestActor]
-							{
-								TCPromise<void> Promise;
-								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Promise;
-								return Promise.f_MoveFuture();
-							}
-						)
-					;
-
-					auto fCallWithError = [&]
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
-
-					auto fCallWithErrorString = [&](auto _Error)
-						{
-							fDispatchBoilerplate
-								(
-									[TestActor, _Error]
-									{
-										TCPromise<void> Promise;
-										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error;
-										return Promise.f_MoveFuture();
-									}
-								)
-							;
-						}
-					;
-					DMibExpectException(fCallWithErrorString("Failed important call"), DMibErrorInstance("Failed important call: Error"));
-					DMibExpectException(fCallWithErrorString(NStr::CStr("Failed important call")), DMibErrorInstance("Failed important call: Error"));
-				}
-				{
-					DMibTestPath("Return actor call to promise");
-					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
-
-					uint32 Value = fDispatchBoilerplate
-						(
-							[TestActor]() -> TCFuture<uint32>
-							{
-								return g_Future <<= TestActor(&CExceptionActor::f_GetNoError);
+								co_return co_await Promise.f_MoveFuture();
 							}
 						)
 					;
@@ -871,7 +791,463 @@ namespace
 								(
 									[TestActor]() -> TCFuture<uint32>
 									{
-										return g_Future <<= TestActor(&CExceptionActor::f_GetError);
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise / [Promise](uint32 _Result)
+											{
+												Promise.f_SetResult(_Result);
+											}
+										;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise % _Error / [Promise](uint32 _Result)
+											{
+												Promise.f_SetResult(_Result);
+											}
+										;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Forward errors to promise void");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<void>
+							{
+								TCPromise<void> Promise;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid) > Promise / [Promise]()
+									{
+										Promise.f_SetResult();
+									}
+								;
+								co_await Promise.f_MoveFuture();
+
+								co_return {};
+							}
+						)
+					;
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<void>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise / [Promise]()
+											{
+												Promise.f_SetResult();
+											}
+										;
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error / [Promise]()
+											{
+												Promise.f_SetResult();
+											}
+										;
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Forward call pack errors to promise");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					uint32 Value = fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<uint32>
+							{
+								TCPromise<uint32> Promise;
+								TestActor(&CExceptionActor::f_GetNoError)
+									+ TestActor(&CExceptionActor::f_GetNoError)
+									> Promise / [Promise](uint32 _Result0, uint32 _Result1)
+									{
+										Promise.f_SetResult(_Result0);
+									}
+								;
+								co_return co_await Promise.f_MoveFuture();
+							}
+						)
+					;
+					DMibExpect(Value, ==, 5);
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError)
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Promise / [Promise](uint32 _Result0, uint32 _Result1)
+											{
+												Promise.f_SetResult(_Result0);
+											}
+										;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetNoError)
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
+											{
+												Promise.f_SetResult(_Result0);
+											}
+										;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+
+					auto fCallWithErrorStringBind = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor.f_Bind<&CExceptionActor::f_GetNoError>()
+											+ TestActor.f_Bind<&CExceptionActor::f_GetError>()
+											> Promise % _Error / [Promise](uint32 _Result0, uint32 _Result1)
+											{
+												Promise.f_SetResult(_Result0);
+											}
+										;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorStringBind("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorStringBind(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Forward call pack errors to promise void");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<uint32>
+							{
+								TCPromise<void> Promise;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid)
+									+ TestActor(&CExceptionActor::f_GetNoErrorVoid)
+									> Promise / [Promise]()
+									{
+										Promise.f_SetResult();
+									}
+								;
+								co_await Promise.f_MoveFuture();
+
+								co_return {};
+							}
+						)
+					;
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<uint32>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid)
+											+ TestActor(&CExceptionActor::f_GetError)
+											> Promise / [Promise](CVoidTag, uint32 _Value)
+											{
+												Promise.f_SetResult();
+											}
+										;
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetNoErrorVoid)
+											+ TestActor(&CExceptionActor::f_GetErrorVoid)
+											> Promise % _Error / [Promise]()
+											{
+												Promise.f_SetResult();
+											}
+										;
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Forward result to promise");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					uint32 Value = fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<uint32>
+							{
+								TCPromise<uint32> Promise;
+								TestActor(&CExceptionActor::f_GetNoError) > fg_TempCopy(Promise);
+								co_return co_await Promise.f_MoveFuture();
+							}
+						)
+					;
+					DMibExpect(Value, ==, 5);
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > fg_TempCopy(Promise);
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<uint32> Promise;
+										TestActor(&CExceptionActor::f_GetError) > Promise % _Error;
+										co_return co_await Promise.f_MoveFuture();
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Forward result to promise void");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<uint32>
+							{
+								TCPromise<void> Promise;
+								TestActor(&CExceptionActor::f_GetNoErrorVoid) > fg_TempCopy(Promise);
+								co_await Promise.f_MoveFuture();
+
+								co_return {};
+							}
+						)
+					;
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<uint32>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > fg_TempCopy(Promise);
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException(fCallWithError(), DMibErrorInstance("Error"));
+
+					auto fCallWithErrorString = [&](auto _Error)
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor, _Error]() -> TCFuture<uint32>
+									{
+										TCPromise<void> Promise;
+										TestActor(&CExceptionActor::f_GetErrorVoid) > Promise % _Error;
+										co_await Promise.f_MoveFuture();
+
+										co_return {};
+									}
+								)
+							;
+						}
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString("Failed important call")
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+					DMibExpectException
+						(
+							fCallWithErrorString(NStr::CStr("Failed important call"))
+							, DMibErrorInstanceWrapped("Failed important call: Error", DMibErrorInstance("Error").f_ExceptionPointer())
+						)
+					;
+				}
+				{
+					DMibTestPath("Return actor call to promise");
+					TCActor<CExceptionActor> TestActor = fg_ConstructActor<CExceptionActor>();
+
+					uint32 Value = fDispatchBoilerplate
+						(
+							[TestActor]() -> TCFuture<uint32>
+							{
+								co_return co_await TestActor(&CExceptionActor::f_GetNoError);
+							}
+						)
+					;
+					DMibExpect(Value, ==, 5);
+
+					auto fCallWithError = [&]
+						{
+							fDispatchBoilerplate
+								(
+									[TestActor]() -> TCFuture<uint32>
+									{
+										co_return co_await TestActor(&CExceptionActor::f_GetError);
 									}
 								)
 							;
@@ -887,7 +1263,7 @@ namespace
 						(
 							[TestActor]() -> TCFuture<void>
 							{
-								return g_Future <<= TestActor(&CExceptionActor::f_GetNoErrorVoid);
+								co_return co_await TestActor(&CExceptionActor::f_GetNoErrorVoid);
 							}
 						)
 					;
@@ -898,7 +1274,7 @@ namespace
 								(
 									[TestActor]() -> TCFuture<void>
 									{
-										return g_Future <<= TestActor(&CExceptionActor::f_GetErrorVoid);
+										co_return co_await TestActor(&CExceptionActor::f_GetErrorVoid);
 									}
 								)
 							;
@@ -963,9 +1339,7 @@ namespace
 
 				DMibExpect(CallbackReference, !=, nullptr);
 
-				TestActor(&CCallbackActor::f_CallCallback, 32)
-					> fg_DiscardResult()
-				;
+				TestActor.f_Bind<&CCallbackActor::f_CallCallback>(32).f_DiscardResult();
 
 				FinishedEvent.f_Wait();
 				{
@@ -983,14 +1357,8 @@ namespace
 
 			auto [Result0, Result1] = co_await
 				(
-					g_ConcurrentDispatch / [Start = _Start, End = _Start + (_End - _Start) / 2]() -> TCFuture<uint32>
-					{
-						return fs_BranchedConcurrentCoroutine(Start, End);
-					}
-					+ g_ConcurrentDispatch / [Start = _Start + (_End - _Start) / 2, End = _End]() -> TCFuture<uint32>
-					{
-						return fs_BranchedConcurrentCoroutine(Start, End);
-					}
+					fg_ConcurrentActor().f_Bind<fs_BranchedConcurrentCoroutine>(_Start, _Start + (_End - _Start) / 2)
+					+ fg_ConcurrentActor().f_Bind<fs_BranchedConcurrentCoroutine>(_Start + (_End - _Start) / 2, _End)
 				)
 			;
 
@@ -1002,11 +1370,12 @@ namespace
 			DMibTestSuite(CTestCategory("Message") << CTestGroup("Performance"))
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#if DMibConfig_RefCountDebugging
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+				mint nIterations = 1'000;
+#elif DMibConfig_RefCountDebugging
 				mint nIterations = 10'000;
-#elif defined(DMibDebug)
-
-				mint nIterations = 100'000;
+#elif defined(DConfig_ReleaseDebug)
+				mint nIterations = 500'000;
 #else
 				mint nIterations = 5'000'000;
 #endif
@@ -1033,7 +1402,7 @@ namespace
 							Dispatch
 								= [&]
 								{
-									ActorEmul.f_AddInt(1);
+									(void)ActorEmul.f_AddIntNoCoro(uint32(1));
 								}
 							;
 						}
@@ -1067,7 +1436,7 @@ namespace
 								(
 									[&]
 									{
-										ActorEmul.f_AddInt(1);
+										(void)ActorEmul.f_AddIntNoCoro(uint32(1));
 									}
 								)
 							;
@@ -1104,7 +1473,7 @@ namespace
 								(
 									[&]
 									{
-										ActorEmul.f_AddInt(1);
+										(void)ActorEmul.f_AddIntNoCoro(uint32(1));
 									}
 								)
 							;
@@ -1125,32 +1494,129 @@ namespace
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Discard");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
-										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)).f_DiscardResult();
+									}
+
+									co_return {};
 								}
 							)
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 
 						fp_BlockOnAllThreads(false);
 					}
 
 					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_ActorDiscardCoro
+				[&]() inline_never
+				{
+					DMibTestPath("Actor Discard Coro");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Discard Coro");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+								{
+									for (mint i = 0; i < nIterations; ++i)
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)).f_DiscardResult();
+									}
+
+									co_return {};
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_ActorDiscardCoroVirtual
+				[&]() inline_never
+				{
+					DMibTestPath("Actor Discard Coro Virtual");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Discard CV");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+								{
+									for (mint i = 0; i < nIterations; ++i)
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoroVirtual>(uint32(1)).f_DiscardResult();
+									}
+
+									co_return {};
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
 					PerfTest.f_Add(ActorMeasure);
 				}();
 #endif
 #if DDoTest_Message_ActorDirect
+				DDoSleepOuter;
 				[&]() inline_never
 				{
 					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
@@ -1159,35 +1625,139 @@ namespace
 					fp_BlockOnAllThreads(true);
 					CTestPerformanceMeasure ActorMeasure("Actor->Direct");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
 
 					uint32 Result = 0;;
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
+						DDoSleep;
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
-										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > NConcurrency::fg_DirectResultActor() / [](TCAsyncResult<void> &&)
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
 											{
 											}
 										;
 									}
+
+									co_return {};
 								}
 							)
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 
 						fp_BlockOnAllThreads(false);
 					}
 
 					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
 
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
 					PerfTest.f_Add(ActorMeasure);
 				}();
+				DDoSleepOuter;
+				[&]() inline_never
+				{
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+
+					DMibTestPath("Actor Direct NoFuture");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Direct NoFuture");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DDoSleep;
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+								{
+									for (mint i = 0; i < nIterations; ++i)
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
+											{
+											}
+										;
+									}
+
+									co_return {};
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+				DDoSleepOuter;
+				[&]() inline_never
+				{
+					auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
+
+					DMibTestPath("Actor Direct Coro");
+					fp_BlockOnAllThreads(true);
+					CTestPerformanceMeasure ActorMeasure("Actor->Direct Coro");
+					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CSeparateThreadActor> LaunchActor{fg_Construct(), "Test"};
+
+					uint32 Result = 0;;
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DDoSleep;
+						DMibTestScopeMeasure(ActorMeasure, nIterations);
+							(
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
+								{
+									for (mint i = 0; i < nIterations; ++i)
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > g_DirectResult / [](TCAsyncResult<void> &&)
+											{
+											}
+										;
+									}
+
+									co_return {};
+								}
+							)
+							.f_CallSync()
+						;
+
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					(g_Dispatch(LaunchActor) / fp_GarbageCollectFunctor(true)).f_CallSync();
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+				DDoSleepOuter;
 #endif
 #if DDoTest_Message_ActorToOther
 				[&]() inline_never
@@ -1198,6 +1768,7 @@ namespace
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+					TCActor<CActor> LaunchActor{fg_Construct()};
 
 					uint32 Result = 0;;
 					auto ReplyActor = fg_ConstructActor<CActor>();
@@ -1205,21 +1776,26 @@ namespace
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
-								g_ConcurrentDispatch / [&]
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
-										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1) > ReplyActor / [](TCAsyncResult<void> &&)
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > ReplyActor / [](TCAsyncResult<void> &&)
 											{
 											}
 										;
 									}
+
+									co_return {};
 								}
 							)
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1234,6 +1810,7 @@ namespace
 					DMibTestPath("Actor->Other Coro");
 					fp_BlockOnAllThreads(true);
 					mint nIterations = nIterationsFull;
+					TCActor<CActor> LaunchActor{fg_Construct()};
 
 					CTestPerformanceMeasure ActorMeasure("Actor->Other Coro");
 					TCActor<CPerformanceTestActor> PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
@@ -1243,10 +1820,15 @@ namespace
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, 2);
 							(
-								g_ConcurrentDispatch / [&]() -> TCFuture<void>
+								g_Dispatch(LaunchActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
-										co_await PerfTestActor(&CPerformanceTestActor::f_AddInt, 1);
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										co_await PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1));
+									}
 
 									co_return {};
 								}
@@ -1254,7 +1836,7 @@ namespace
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1278,21 +1860,26 @@ namespace
 					{
 						DMibTestScopeMeasure(ActorMeasure, nIterations);
 							(
-								g_Dispatch(PerfTestActor) / [&]
+								g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
 									{
-										PerfTestActor(&CPerformanceTestActor::f_AddInt, 1)	> PerfTestActor / [](TCAsyncResult<void> &&)
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddInt>(uint32(1)) > PerfTestActor / [](TCAsyncResult<void> &&)
 											{
 											}
 										;
 									}
+
+									co_return {};
 								}
 							)
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1319,14 +1906,19 @@ namespace
 								g_Dispatch(PerfTestActor) / [&]() -> TCFuture<void>
 								{
 									for (mint i = 0; i < nIterations; ++i)
-										co_await PerfTestActor(&CPerformanceTestActor::f_AddInt, 1);
+									{
+										if ((i & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										co_await PerfTestActor.f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1));
+									}
 									co_return {};
 								}
 							)
 							.f_CallSync()
 						;
 
-						Result = PerfTestActor(&CPerformanceTestActor::f_GetResult).f_CallSync();
+						Result = PerfTestActor.f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1356,25 +1948,270 @@ namespace
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						TCActorResultVector<void> Results{nSplits};
+						TCFutureVector<void> Results;
+						Results.f_SetLen(nSplits);
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
 							fg_ConcurrentDispatch
 								(
-									[nIterationsPerSplit, pActor]
+									[nIterationsPerSplit, pActor]() -> TCFuture<void>
 									{
 										for (mint i = 0; i < nIterationsPerSplit; ++i)
-											(*pActor)(&CPerformanceTestActor::f_AddInt, 1) > fg_DiscardResult();
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											(*pActor).f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)).f_DiscardResult();
+										}
+
+										co_return {};
 									}
 								)
-								> Results.f_AddResult();
+								> Results;
 							;
 						}
-						Results.f_GetResults().f_CallSync();
-						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
+						fg_AllDoneWrapped(Results).f_CallSync();
+						Result = PerfTestActors[0].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
 						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
-							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
+							Result += PerfTestActors[iSplit].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToDiscardCoro
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->DiscardCo");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->DiscardCo");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						TCFutureVector<void> Results;
+						Results.f_SetLen(nSplits);
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<void>
+									{
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											(*pActor).f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)).f_DiscardResult();
+										}
+
+										co_return {};
+									}
+								)
+								> Results;
+							;
+						}
+						fg_AllDoneWrapped(Results).f_CallSync();
+						Result = PerfTestActors[0].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
+							Result += PerfTestActors[iSplit].f_Bind<&CPerformanceTestActor::f_GetResult>().f_CallSync();
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToResMap
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->ResMap");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->ResMap");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						TCFutureVector<uint32> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+									{
+										TCFutureMap<uint32, void> ResultMap;
+
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap[i];
+										}
+
+										co_await fg_AllDoneWrapped(ResultMap);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									}
+								)
+								> Dispatches;
+							;
+						}
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToMap
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->Map");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->Map");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						TCFutureVector<uint32> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+									{
+										TCMapOfFutures<uint32, void> ResultMap;
+
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultMap(i);
+										}
+
+										co_await fg_AllDoneWrapped(ResultMap);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									}
+								)
+								> Dispatches;
+							;
+						}
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToVector
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->Vector");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->Vector");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						TCVectorOfFutures<uint32> Dispatches;
+						Dispatches.f_Reserve(nSplits);
+
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+									{
+										TCVectorOfFutures<void> ResultVector;
+										ResultVector.f_Reserve(nIterationsPerSplit);
+
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										}
+
+										co_await fg_AllDoneWrapped(ResultVector);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									}
+								)
+								> Dispatches;
+							;
+						}
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1403,33 +2240,100 @@ namespace
 
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
-						TCVector<TCActorResultVector<void>> Results;
-						TCActorResultVector<void> Dispatches{nSplits};
-						Results.f_SetLen(nSplits);
+						TCFutureVector<uint32> Dispatches;
+						Dispatches.f_SetLen(nSplits);
 
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							auto *pActor = &PerfTestActors[iSplit];
-							auto &ResultVector = Results[iSplit];
-							ResultVector.f_SetLen(nIterationsPerSplit);
 							fg_ConcurrentDispatch
 								(
-									[nIterationsPerSplit, pActor, &ResultVector]
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
 									{
+										TCFutureVector<void> ResultVector;
+										ResultVector.f_SetLen(nIterationsPerSplit);
+
 										for (mint i = 0; i < nIterationsPerSplit; ++i)
-											(*pActor)(&CPerformanceTestActor::f_AddInt, 1) > ResultVector.f_AddResult();
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										}
+
+										co_await fg_AllDoneWrapped(ResultVector);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
 									}
 								)
-								> Dispatches.f_AddResult();
+								> Dispatches;
 							;
 						}
-						Dispatches.f_GetResults().f_CallSync();
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToResVectorCoro
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->ResVecCo");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVecCo");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						TCFutureVector<uint32> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
-							Results[iSplit].f_GetResults().f_CallSync();
-						Result = PerfTestActors[0](&CPerformanceTestActor::f_GetResult).f_CallSync();
-						for (mint iSplit = 1; iSplit < nSplits; ++iSplit)
-							Result += PerfTestActors[iSplit](&CPerformanceTestActor::f_GetResult).f_CallSync();
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+									{
+										TCFutureVector<void> ResultVector;
+										ResultVector.f_SetLen(nIterationsPerSplit);
+
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntCoro>(uint32(1)) > ResultVector;
+										}
+
+										co_await fg_AllDoneWrapped(ResultVector);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									}
+								)
+								> Dispatches;
+							;
+						}
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1455,37 +2359,95 @@ namespace
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
-						TCActorResultVector<mint> Results{nIterations};
-						TCActorResultVector<void> Dispatches{nSplits};
+						TCFutureVector<TCVector<mint>> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
 						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
 						{
 							fg_ConcurrentDispatch
 								(
-									[&]
+									[&]() -> TCFuture<TCVector<mint>>
 									{
 										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
+										TCFutureVector<mint> Results;
+										Results.f_SetLen(nIterationsPerSplit);
 										for (mint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
 										{
-											fg_Dispatch
-												(
-													ConcurrentActor
-													, []
-													{
-														return mint(1);
-													}
-												)
-												> Results.f_AddResult()
-											;
+											if ((iIteration & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											ConcurrentActor.f_Bind<fg_ReturnOne>() > Results;
 										}
+
+										co_return co_await fg_AllDone(Results);
 									}
 								)
-								> Dispatches.f_AddResult();
+								> Dispatches;
 							;
 						}
-						Dispatches.f_GetResults().f_CallSync();
-						auto ResultsVector = Results.f_GetResults().f_CallSync();
-						for (auto &Results : ResultsVector)
-							Result += *Results;
+						for (auto &ResultVector : fg_AllDoneWrapped(Dispatches).f_CallSync())
+						{
+							for (auto &Results : *ResultVector)
+								Result += Results;
+						}
+
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_CActorToResVectorCoro
+				[&]() inline_never
+				{
+					DMibTestPath("C Actor->ResVectorC");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("C Actor->ResVectorC");
+
+					uint32 Result = 0;
+					mint nIterations = nIterationsFull;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						TCFutureVector<TCVector<mint>> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							fg_ConcurrentDispatch
+								(
+									[&]() -> TCFuture<TCVector<mint>>
+									{
+										auto &ConcurrentActor = fg_ConcurrencyManager().f_GetConcurrentActorForThisThread(EPriority_Normal);
+										TCFutureVector<mint> Results;
+										Results.f_SetLen(nIterationsPerSplit);
+										for (mint iIteration = 0; iIteration < nIterationsPerSplit; ++iIteration)
+										{
+											if ((iIteration & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											ConcurrentActor.f_Bind<fg_ReturnCoroOne>() > Results;
+										}
+
+										co_return co_await fg_AllDone(Results);
+									}
+								)
+								> Dispatches;
+							;
+						}
+						for (auto &ResultVector : fg_AllDoneWrapped(Dispatches).f_CallSync())
+						{
+							for (auto &Results : *ResultVector)
+								Result += Results;
+						}
+
 						fp_BlockOnAllThreads(false);
 					}
 
@@ -1501,36 +2463,28 @@ namespace
 					mint nIterations = nIterationsFull / 2;
 					DMibTestPath("Branched");
 					CTestPerformanceMeasure ActorMeasure("Branched");
-					TCFunction<TCFuture<uint32> (uint32 _Start, uint32 _End)> Actor;
-					Actor = [&Actor](uint32 _Start, uint32 _End) -> TCFuture<uint32>
+					auto fActor = [](this auto &_fThis, uint32 _Start, uint32 _End) -> TCUnsafeFuture<uint32>
 						{
-							TCPromise<uint32> Promise;
-
 							if ((_End - _Start) == 1)
-								return Promise <<= 1;
+								co_return 1;
 
-							fg_ConcurrentActor()
+							auto [Result0, Result1] = co_await
 								(
-									&CActor::f_DispatchWithReturn<TCFuture<uint32>>
-									, [&Actor, Start = _Start, End = _Start + (_End - _Start) / 2]
-									{
-										return Actor(Start, End);
-									}
+									fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
+									(
+										_fThis
+										, _Start
+										, _Start + (_End - _Start) / 2
+									)
+									+ fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>, uint32, uint32>>
+									(
+										_fThis
+										, _Start + (_End - _Start) / 2
+										, _End
+									)
 								)
-								+ fg_ConcurrentActor()
-								(
-									&CActor::f_DispatchWithReturn<TCFuture<uint32>>
-									, [&Actor, Start = _Start + (_End - _Start) / 2, End = _End]
-									{
-										return Actor(Start, End);
-									}
-								)
-								> fg_ThisConcurrentActor() / [Promise](TCAsyncResult<uint32> &&_Result0, TCAsyncResult<uint32> &&_Result1)
-								{
-									Promise.f_SetResult(*_Result0 + *_Result1);
-								}
 							;
-							return Promise.f_MoveFuture();
+							co_return Result0 + Result1;
 						}
 					;
 
@@ -1541,12 +2495,11 @@ namespace
 					for (mint i = 0; i < gc_nRepetitions; ++i)
 					{
 						DMibTestScopeMeasureThreads(ActorMeasure, nIterationsFull, NSys::fg_Thread_GetPhysicalCores());
-						Result += fg_ConcurrentActor()
+						Result += fg_ConcurrentActor().f_Bind<&CActor::f_DispatchWithReturn<TCFuture<uint32>>>
 							(
-								&CActor::f_DispatchWithReturn<TCFuture<uint32>>
-								, [&]
+								[&]() -> TCFuture<uint32>
 								{
-									return Actor(0, nIterations);
+									co_return co_await fActor(0, nIterations);
 								}
 							).f_CallSync(g_Timeout / 3);
 						;
@@ -1649,17 +2602,7 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
-			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
-			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
-
-			auto Cleanup = g_OnScopeExit / [&]
-				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
-					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
-				}
-			;
+			CCurrentActorScope ProcessingScope(ThreadLocal, &Holder);
 
 			TCVector<TCOptional<CPerformanceTestActorEmul>> Actors;
 			Actors.f_SetLen(nIterations);
@@ -1700,16 +2643,7 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
-			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
-			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
-			auto Cleanup = g_OnScopeExit / [&]
-				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
-					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
-				}
-			;
+			CCurrentActorScope ProcessingScope(ThreadLocal, &Holder);
 
 			TCLinkedList<CPerformanceTestActorEmul> ToDispatch;
 
@@ -1748,16 +2682,8 @@ namespace
 			auto &ConcurrencyManager = fg_ConcurrencyManager();
 			TCActorInternal<CActor> Holder{&ConcurrencyManager, nullptr};
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
-			auto pOldActorHolder = ThreadLocal.m_pCurrentlyProcessingActorHolder;
-			ThreadLocal.m_pCurrentlyProcessingActorHolder = &Holder;
-			bool bCurrentlyProcessingInActorHolder = ThreadLocal.m_bCurrentlyProcessingInActorHolder;
-			ThreadLocal.m_bCurrentlyProcessingInActorHolder = true;
-			auto Cleanup = g_OnScopeExit / [&]
-				{
-					ThreadLocal.m_pCurrentlyProcessingActorHolder = pOldActorHolder;
-					ThreadLocal.m_bCurrentlyProcessingInActorHolder = bCurrentlyProcessingInActorHolder;
-				}
-			;
+
+			CCurrentActorScope ProcessingScope(ThreadLocal, &Holder);
 
 			TCThreadSafeQueue<CPerformanceTestActorEmul> ToDispatch;
 
@@ -1808,7 +2734,7 @@ namespace
 				for (auto &Actor : ConcurrentActors)
 					Actor = fg_ConcurrentActor();
 				{
-					TCActorResultVector<void> ThreadResults;
+					TCFutureVector<void> ThreadResults;
 					DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (mint iThread = 0; iThread < nThreads; ++iThread)
 					{
@@ -1817,30 +2743,31 @@ namespace
 								ConcurrentActors[iThread]
 								, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
 								{
-									TCPromise<void> Promise;
 									auto pArray = PerfTestActors.f_GetArray();
 									auto pEnd = pArray + iStart + nIterationsPerThread;
 									for (auto pPerfTestActor = pArray + iStart; pPerfTestActor != pEnd; ++pPerfTestActor)
-										*pPerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+									{
+										if (((pPerfTestActor - pArray) & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
 
-									TCActorResultVector<void> Results;
+										*pPerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+									}
+
+									TCFutureVector<void> Results;
 									fp_BlockOnAllThreads(Results, false);
-									Results.f_GetResults() > Promise / [Promise](TCVector<TCAsyncResult<void>> &&)
-										{
-											Promise.f_SetResult();
-										}
-									;
-									return Promise.f_MoveFuture();
+									co_await fg_AllDone(Results);
+
+									co_return {};
 								}
 							)
-							> ThreadResults.f_AddResult()
+							> ThreadResults
 						;
 					}
-					ThreadResults.f_GetResults().f_CallSync();
+					fg_AllDoneWrapped(ThreadResults).f_CallSync();
 					fp_BlockOnAllThreads(false);
 				}
 				{
-					TCActorResultVector<void> ThreadResults;
+					TCFutureVector<void> ThreadResults;
 					DMibTestScopeMeasureThreads(ActorMeasureDestroy, nIterations, NSys::fg_Thread_GetPhysicalCores());
 					for (mint iThread = 0; iThread < nThreads; ++iThread)
 					{
@@ -1849,30 +2776,34 @@ namespace
 								ConcurrentActors[iThread]
 								, [&, iStart = iThread * nIterationsPerThread]() -> TCFuture<void>
 								{
-									TCPromise<void> Promise;
 									auto pArray = PerfTestActors.f_GetArray();
 									auto pEnd = pArray + iStart + nIterationsPerThread;
-									TCActorResultVector<void> Results{nIterationsPerThread};
+									TCFutureVector<void> Results;
+									Results.f_SetLen(nIterationsPerThread);
+
 									for (auto pPerfTestActor = pArray + iStart; pPerfTestActor != pEnd; ++pPerfTestActor)
-										fg_Move(*pPerfTestActor).f_Destroy() > Results.f_AddResult();
-									Results.f_GetResults() > Promise / [this, Promise, nThreads](TCVector<TCAsyncResult<void>> &&)
-										{
-											TCActorResultVector<void> Results{nThreads};
-											fp_BlockOnAllThreads(Results, false);
-											Results.f_GetResults() > Promise / [Promise](TCVector<TCAsyncResult<void>> &&)
-												{
-													Promise.f_SetResult();
-												}
-											;
-										}
-									;
-									return Promise.f_MoveFuture();
+									{
+										if (((pPerfTestActor - pArray) & gc_YieldMask) == gc_YieldMask)
+											co_await g_Yield;
+
+										fg_Move(*pPerfTestActor).f_Destroy() > Results;
+									}
+
+									co_await fg_AllDone(Results);
+
+									TCFutureVector<void> BlockResults;
+									BlockResults.f_SetLen(nThreads);
+									fp_BlockOnAllThreads(BlockResults, false);
+
+									co_await fg_AllDone(BlockResults);
+
+									co_return {};
 								}
 							)
-							> ThreadResults.f_AddResult()
+							> ThreadResults
 						;
 					}
-					ThreadResults.f_GetResults().f_CallSync();
+					fg_AllDoneWrapped(ThreadResults).f_CallSync();
 					fp_BlockOnAllThreads(false);
 				}
 			}
@@ -1903,10 +2834,19 @@ namespace
 					fg_Dispatch
 						(
 							ConcurrentActor
-							, [&]
+							, [&]() -> TCFuture<void>
 							{
+								mint i = 0;
 								for (auto &PerfTestActor : PerfTestActors)
+								{
+									if ((i & gc_YieldMask) == gc_YieldMask)
+										co_await g_Yield;
+									++i;
+
 									PerfTestActor = fg_ConstructActor<CPerformanceTestActor>();
+								}
+
+								co_return {};
 							}
 						).f_CallSync()
 					;
@@ -1917,19 +2857,23 @@ namespace
 					fg_Dispatch
 						(
 							ConcurrentActor
-							, [&]
+							, [&]() -> TCFuture<void>
 							{
-								TCPromise<void> Promise;
-								TCActorResultVector<void> Results{PerfTestActors.f_GetLen()};
+								TCFutureVector<void> Results;
+								Results.f_SetLen(PerfTestActors.f_GetLen());
+								mint i = 0;
 								for (auto &PerfTestActor : PerfTestActors)
-									fg_Move(PerfTestActor).f_Destroy() > Results.f_AddResult();
+								{
+									if ((i & gc_YieldMask) == gc_YieldMask)
+										co_await g_Yield;
+									++i;
 
-								Results.f_GetResults() > [Promise](auto &&)
-									{
-										Promise.f_SetResult();
-									}
-								;
-								return Promise.f_MoveFuture();
+									fg_Move(PerfTestActor).f_Destroy() > Results;
+								}
+
+								co_await fg_AllDone(Results);
+
+								co_return {};
 							}
 						).f_CallSync()
 					;
@@ -1963,11 +2907,13 @@ namespace
 				}
 				{
 					DMibTestScopeMeasure(ActorMeasureDestroy, nIterations);
-					TCActorResultVector<void> Results{PerfTestActors.f_GetLen()};
-					for (auto &PerfTestActor : PerfTestActors)
-						fg_Move(PerfTestActor).f_Destroy() > Results.f_AddResult();
+					TCFutureVector<void> Results;
+					Results.f_SetLen(PerfTestActors.f_GetLen());
 
-					Results.f_GetResults().f_CallSync();
+					for (auto &PerfTestActor : PerfTestActors)
+						fg_Move(PerfTestActor).f_Destroy() > Results;
+
+					fg_AllDoneWrapped(Results).f_CallSync();
 					fp_BlockOnAllThreads(false);
 				}
 			}
@@ -1984,16 +2930,16 @@ namespace
 			DMibTestSuite(CTestCategory("Lifetime") << CTestGroup("Performance"))
 			{
 				auto Checkout = fg_GetSys()->f_MemoryManager_Checkout();
-#if DMibConfig_RefCountDebugging
+#if defined(DMibDebug) || defined(DMibSanitizerEnabled)
+				mint nIterations = 1'000;
+#elif DMibConfig_RefCountDebugging
 				mint nIterations = 10'000;
-#elif defined(DMibDebug)
-				mint nIterations = 100'000;
 #else
 				mint nIterations = 1'000'000;
 #endif
 				[[maybe_unused]] mint nIterationsFull = nIterations;
 				CTestPerformance PerfTest(0.1);
-				CTestPerformance PerfTestDestroy(0.025);
+				CTestPerformance PerfTestDestroy(0.01);
 				CCreateContext CreateContext{PerfTest, PerfTestDestroy, nIterations, Checkout};
 
 				f_PerformanceTests_Create_Vector(CreateContext);
@@ -2014,20 +2960,85 @@ namespace
 			f_PerformanceTests_Message();
 		}
 
+		void f_PromiseLimits()
+		{
+#if DMibEnableSafeCheck > 0 && !defined(DMibDebug) && DMibPPtrBits > 32
+			DMibTestSuite("Promise Limits")
+			{
+				mint nToTest = 512 * 1024 * 1024 - 2; // 4 GB memory
+				TCPromise<void> Promise;
+				TCVector<TCPromise<void>> Promises;
+				Promises.f_Reserve(nToTest + 1);
+				for (mint i = 0; i < nToTest; ++i)
+					Promises.f_Insert(Promise);
+
+				auto fTestPromise = [&]
+					{
+						auto Cleanup = g_OnScopeExit / [&]
+							{
+								Promise.f_Unsafe_PromiseData()->m_RefCount.f_Decrease();
+							}
+						;
+						auto PromiseTest = Promise;
+						Cleanup.f_Clear();
+					}
+				;
+				DMibExpectViolatesSafeCheck(fTestPromise(), "(Return & mc_PromiseMask) == mc_PromiseMask || (Return & mc_PromiseMask) < (mc_PromiseMask - 1) 'Promise reference overflow'");
+				auto fForceFutureReference = [&]
+					{
+						auto Cleanup = g_OnScopeExit / [&]
+							{
+								Promise.f_Unsafe_PromiseData()->m_RefCount.m_RefCount.f_FetchSub
+									(
+										NConcurrency::NPrivate::CPromiseDataBaseRefCount::mc_FutureBit
+										, NAtomic::EMemoryOrder_Release
+									)
+								;
+							}
+						;
+						Promise.f_Unsafe_PromiseData()->m_RefCount.f_IncreaseFuture();
+
+						Cleanup.f_Clear();
+						return Promise.fp_AttachFutureIgnoreFutureGotten();
+					}
+				;
+
+				auto Future1 = Promise.f_Future();
+				auto Future2 = fForceFutureReference();
+				auto Future3 = fForceFutureReference();
+				auto fTestFuture = [&]
+					{
+						auto Future = fForceFutureReference();
+					}
+				;
+				DMibExpectViolatesSafeCheck(fTestFuture(), "fs_GetFutureCount(Return) <= 2 'Maximum three futures'");
+			};
+#endif
+		}
+
+		void f_TestPromisePair()
+		{
+			DMibTestSuite("Promise Pair") -> TCFuture<void>
+			{
+				TCPromiseFuturePair<void> Promise;
+
+				Promise.m_Promise.f_SetResult();
+				Promise.m_Promise.f_ClearResultSet();
+
+				co_await fg_Move(Promise.m_Future);
+
+				co_return {};
+			};
+		}
+
 		void f_DoTests()
 		{
-/*
-			DMibConOut2("gc_ActorQueueDispatchFunctionMemory -> {}\n", (gc_ActorQueueDispatchFunctionMemory - sizeof(void *)*(2 + 1)));
-			DMibConOut2("sizeof(FActorQueueDispatch) 48 -> {}\n", sizeof(FActorQueueDispatch));
-			DMibConOut2("sizeof(CActor) 24 -> {}\n", sizeof(CActor));
-			DMibConOut2("sizeof(CActorHolder) 256 -> {}\n", sizeof(CActorHolder));
-			DMibConOut2("sizeof(TCActorInternal<CActor>) 256 -> {}\n", sizeof(TCActorInternal<CActor>));
-			DMibConOut2("sizeof(CConcurrentRunQueue::CQueueEntry) 64 -> {}\n", sizeof(CConcurrentRunQueue::CQueueEntry));
-*/
 			f_ConstructionTests();
 			f_DestructTests();
 			f_FunctionalTests();
 			f_PerformanceTests();
+			f_PromiseLimits();
+			f_TestPromisePair();
 		}
 	};
 

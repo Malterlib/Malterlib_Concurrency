@@ -61,7 +61,7 @@ namespace NMib::NConcurrency
 		}
 		catch (NException::CDebugException const &_Exception)
 		{
-			return TCPromise<void>() <<= _Exception;
+			return TCFuture<void>(_Exception);
 		}
 #endif
 		DMibFastCheck(m_bRuntimeStateConstructed);
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 			if (!DestroyResults.f_IsEmpty())
 			{
 				TCPromise<void> Promise{CPromiseConstructNoConsume()};
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
+				fg_AllDoneWrapped(DestroyResults).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
 				return fg_Move(Promise.f_MoveFuture());
 			}
 		}
@@ -104,8 +104,6 @@ namespace NMib::NConcurrency
 
 	TCFuture<void> CActor::fp_AbortSuspendedCoroutinesWithAsyncDestroy()
 	{
-		TCPromise<void> Promise;
-
 		auto &ConcurrencyThreadLocal = fg_ConcurrencyThreadLocal();
 
 		DMibFastCheck(ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty());
@@ -150,21 +148,22 @@ namespace NMib::NConcurrency
 
 		if (!ConcurrencyThreadLocal.m_AsyncDestructors.f_IsEmpty())
 		{
-			TCActorResultVector<void> DestroyResults;
+			TCFutureVector<void> DestroyResults;
 
 			for (auto &fAsyncDestroy : ConcurrencyThreadLocal.m_AsyncDestructors)
-				fg_Move(fAsyncDestroy) > DestroyResults.f_AddResult();
+				fg_Move(fAsyncDestroy) > DestroyResults;
 
 			ConcurrencyThreadLocal.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
 			{
-				o_bNeedWait = true;
-				DestroyResults.f_GetUnwrappedResults() > Promise;
+				TCPromiseFuturePair<void> Promise;
+				fg_AllDone(DestroyResults) > fg_Move(Promise.m_Promise);
+				return fg_Move(Promise.m_Future);
 			}
 		}
 
-		return Promise.f_MoveFuture();
+		return TCFuture<void>();
 	}
 
 	void CActor::fp_AbortSuspendedCoroutines()

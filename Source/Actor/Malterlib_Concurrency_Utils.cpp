@@ -7,10 +7,10 @@ namespace NMib::NConcurrency
 {
 	TCFuture<void> fg_AllDone(NContainer::TCVector<TCFuture<void>> &_Futures)
 	{
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
+		TCPromiseFuturePair<void> Promise;
 		fg_AllDoneWrapped(_Futures).f_OnResultSet
 			(
-				[Promise](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
+				[Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<NContainer::TCVector<TCAsyncResult<void>>> &&_Results)
 				{
 					if (!_Results)
 						return Promise.f_SetException(fg_Move(_Results).f_GetException());
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	TCFuture<void> fg_AllDone(NContainer::TCVector<TCFuture<void>> &&_Futures)

@@ -7,7 +7,7 @@
 #include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/Actor/Lock>
 
-namespace
+namespace NTestActor2
 {
 	const static fp64 g_SecondsToWait = 1.0/1000.0;
 	using namespace NMib::NConcurrency;
@@ -27,9 +27,17 @@ namespace
 		{
 
 		}
+		TCFuture<void> f_TestValueFuture()
+		{
+			co_return {};
+		}
 		int f_TestValue1(int _Value)
 		{
 			return _Value;
+		}
+		TCFuture<int> f_TestValue1Future(int _Value)
+		{
+			co_return _Value;
 		}
 		int f_TestValue2(int _Value0, int _Value1)
 		{
@@ -64,20 +72,20 @@ namespace
 		{
 			TCPromise<void> Promise;
 
-			self(&CTestActor::f_TestValue)
+			f_TestValueFuture()
 				> [Promise](NMib::NConcurrency::TCAsyncResult<void> &&_Result)
 				{
 					Promise.f_SetResult(fg_Move(_Result));
 				}
 			;
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 		TCFuture<int> f_TestPromiseRet()
 		{
 			TCPromise<int> Promise;
 
-			self(&CTestActor::f_TestValue1, 4)
+			f_TestValue1Future(4)
 				> [Promise](NMib::NConcurrency::TCAsyncResult<int> &&_Result)
 				{
 					Promise.f_SetResult(fg_Move(_Result));
@@ -85,7 +93,7 @@ namespace
 			;
 
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 	};
 
@@ -129,7 +137,7 @@ namespace
 
 		void fp_SyncOnAllThreads()
 		{
-			TCActorResultVector<void> Results;
+			TCFutureVector<void> Results;
 
 			mint nThreads = NSys::fg_Thread_GetVirtualCores();
 			for (mint i = 0; i < nThreads; ++i)
@@ -140,11 +148,11 @@ namespace
 						{
 						}
 					)
-					> Results.f_AddResult()
+					> Results
 				;
 			}
 
-			Results.f_GetResults().f_CallSync(g_Timeout);
+			fg_AllDoneWrapped(Results).f_CallSync(g_Timeout);
 		}
 		
 		void f_TestAsyncResult()
@@ -175,7 +183,7 @@ namespace
 
 				CEvent Event;
 
-				pActor.f_Destroy() > fg_ThisConcurrentActor() / [&](TCAsyncResult<void> &&)
+				fg_Move(pActor).f_Destroy() > fg_ThisConcurrentActor() / [&](TCAsyncResult<void> &&)
 					{
 						Event.f_SetSignaled();
 					}
@@ -210,6 +218,7 @@ namespace
 							pState
 							, Cleanup = fg_Move(Cleanup)
 						]
+						(CConcurrencyThreadLocal &_ThreadLocal)
 						{
 							pState->m_Event1.f_SetSignaled();
 						}
@@ -231,7 +240,7 @@ namespace
 
 				mint nDestroyedStart = g_nDestroyedActors.f_Load();
 
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 
 				mint nDestructions = 10;
 
@@ -247,14 +256,14 @@ namespace
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
 								fg_ConcurrencyThreadLocal().m_bForceWakeUp = true;
 #endif
-								ActorLocked(&CTestActorWithDestroy::f_Test) > fg_DiscardResult();
+								ActorLocked.f_Bind<&CTestActorWithDestroy::f_Test>().f_DiscardResult();
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
 								fg_ConcurrencyThreadLocal().m_bForceWakeUp = false;
 #endif
 							}
 							co_return {};
 						}
-						> Results.f_AddResult()
+						> Results
 					;
 
 #if DMibConfig_Tests_Enable && !defined(DTests_PerfTests)
@@ -264,7 +273,7 @@ namespace
 				}
 
 
-				Results.f_GetResults().f_CallSync(g_Timeout);
+				fg_AllDoneWrapped(Results).f_CallSync(g_Timeout);
 
 				fp_SyncOnAllThreads();
 
@@ -287,7 +296,7 @@ namespace
 
 				mint nDestroyedStart = g_nDestroyedActors.f_Load();
 
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 
 				mint nDestructions = 10;
 
@@ -312,7 +321,7 @@ namespace
 #endif
 				}
 
-				Results.f_GetResults().f_CallSync(g_Timeout);
+				fg_AllDoneWrapped(Results).f_CallSync(g_Timeout);
 
 				fp_SyncOnAllThreads();
 
@@ -336,7 +345,12 @@ namespace
 				EExecutionPriority ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
 
 				CConcurrencyManager ConcurrencyManager(ExecutionPriority);
-				
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						ConcurrencyManager.f_BlockOnDestroy();
+					}
+				;
+
 				using namespace NMib::NThread;
 				using namespace NMib::NConcurrency;
 
@@ -373,7 +387,7 @@ namespace
 				;
 
 				{
-					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](FActorQueueDispatch &&_Functor){_Functor();}));
+					auto pLocalActor = fg_ConstructActor<CLocalActor>(fg_Construct([&](FActorQueueDispatchNoAlloc &&_Functor){_Functor(fg_ConcurrencyThreadLocal());}));
 					auto pActor = fg_ConstructActor<CTestActor>();
 					auto pLockActor = fg_ConstructActor<TCLockActor<int, NThread::CMutual>>(fg_Construct("MalterlibTestSeparateActorThread"), Object, Lock);
 
@@ -386,12 +400,12 @@ namespace
 					NAtomic::TCAtomic<bool> bHandledTimer2;
 					NMib::NThread::CEvent HandlersFinished;
 					HandlersFinished.f_ResetSignaled();
-					TCActorResultVector<int> VectorResults;
+					TCFutureVector<int> VectorResults;
 
 					for (int i = 0; i < 128*1024; ++i)
 					{
 						++nExpectedHandlers;
-						pLockActor(&TCLockActor<int, NThread::CMutual>::f_Lock)
+						pLockActor.f_Bind<&TCLockActor<int, NThread::CMutual>::f_Lock>()
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<TCLockActor<int, NThread::CMutual>::CLockReference> &&_Result)
 							{
 								auto &LockResult = *_Result;
@@ -413,33 +427,36 @@ namespace
 					}
 
 					++nExpectedHandlers;
-					fg_TimerActor()
+					ConcurrencyManager.f_GetTimerActor().f_Bind<&CTimerActor::f_OneshotTimer>
 						(
-							&CTimerActor::f_OneshotTimer
-							, 0.2
+							0.2
 							, pLocalActor
-							, [&]
+							, [&]() -> TCFuture<void>
 							{
 								if (--nExpectedHandlers == 0)
 									HandlersFinished.f_SetSignaled();
+
+								co_return {};
 							}
 							, true
 						)
-						> fg_DiscardResult()
+						.f_DiscardResult()
 					;
 
 
 					{
 						++nExpectedHandlers;
-						fg_TimerActor()
+						ConcurrencyManager.f_GetTimerActor()
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 1000000.0
 								, pLocalActor
-								, [&]
+								, [&]() -> TCFuture<void>
 								{
 									if (--nExpectedHandlers == 0)
 										HandlersFinished.f_SetSignaled();
+
+									co_return {};
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -453,18 +470,20 @@ namespace
 						;
 
 						nExpectedHandlers += 2;
-						fg_TimerActor()
+						ConcurrencyManager.f_GetTimerActor()
 							(
 								&CTimerActor::f_OneshotTimerAbortable
 								, 0.1
 								, pLocalActor
-								, [&]
+								, [&]() -> TCFuture<void>
 								{
 									if (!bHandledTimer0.f_Exchange(true))
 									{
 										if (--nExpectedHandlers == 0)
 											HandlersFinished.f_SetSignaled();
 									}
+
+									co_return {};
 								}
 							)
 							> pLocalActor / [&](NMib::NConcurrency::TCAsyncResult<CActorSubscription> &&_Result)
@@ -477,7 +496,7 @@ namespace
 						;
 
 						++nExpectedHandlers;
-						fg_TimerActor()
+						ConcurrencyManager.f_GetTimerActor()
 							(
 								&CTimerActor::f_RegisterTimer
 								, 1000000.0
@@ -500,7 +519,7 @@ namespace
 						;
 
 						nExpectedHandlers += 2;
-						fg_TimerActor()
+						ConcurrencyManager.f_GetTimerActor()
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
@@ -526,7 +545,7 @@ namespace
 						;
 
 						nExpectedHandlers += 2;
-						fg_TimerActor()
+						ConcurrencyManager.f_GetTimerActor()
 							(
 								&CTimerActor::f_RegisterTimer
 								, 0.5
@@ -829,12 +848,12 @@ namespace
 
 					for (int i = 0; i < 512; ++i)
 					{
-						pActor(&CTestActor::f_TestValue8, 1, 1, 1, 1, 1, 1, 1, 1) > VectorResults.f_AddResult();
+						pActor(&CTestActor::f_TestValue8, 1, 1, 1, 1, 1, 1, 1, 1) > VectorResults;
 					}
 
 					++nExpectedHandlers;
 					
-					VectorResults.f_GetResults()
+					fg_AllDoneWrapped(VectorResults)
 						> pActor / [&, pActor](NMib::NConcurrency::TCAsyncResult<NMib::NContainer::TCVector<NMib::NConcurrency::TCAsyncResult<int>>> &&_Result)
 						{
 							[[maybe_unused]] mint Results = 0;
@@ -898,16 +917,112 @@ namespace
 					DMibLock(TimersLock);
 				}
 
-				ConcurrencyManager.f_BlockOnDestroy();
-
 				//DMibTrace("nTestLockThread: {} nTestLockActor: {}\r\n", nTestLockThread.f_Load() << nTestLockActor.f_Load());
 			};
 		}
+
+		template <mint t_Align>
+		struct TCOverAlignResult
+		{
+			uint32 m_Value0;
+			alignas(t_Align) uint32 m_Value1;
+		};
+
+		struct COverAlignActor : public CActor
+		{
+#if DMibPPtrBits < 64
+			TCFuture<TCOverAlignResult<4>> f_Get4()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+#endif
+			TCFuture<TCOverAlignResult<8>> f_Get8()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<16>> f_Get16()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<32>> f_Get32()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<64>> f_Get64()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<128>> f_Get128()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<256>> f_Get256()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+			TCFuture<TCOverAlignResult<512>> f_Get512()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+
+#if DMibPPtrBits > 32
+			TCFuture<TCOverAlignResult<1024>> f_Get1024()
+			{
+				co_return {.m_Value0 = 5, .m_Value1 = 15};
+			}
+#endif
+		};
+
+		void f_OverAlignTests()
+		{
+			DMibTestSuite("OverAlign") -> TCFuture<void>
+			{
+				TCActor<COverAlignActor> Actor{fg_Construct()};
+#if DMibPPtrBits < 64
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get4)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get4)).m_Value1, ==, 15);
+#endif
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get8)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get8)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get16)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get16)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get32)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get32)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get64)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get64)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get128)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get128)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get256)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get256)).m_Value1, ==, 15);
+
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get512)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get512)).m_Value1, ==, 15);
+
+#if DMibPPtrBits > 32
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get1024)).m_Value0, ==, 5);
+				DMibExpect((co_await Actor(&COverAlignActor::f_Get1024)).m_Value1, ==, 15);
+#endif
+				co_return {};
+			};
+		}
+
 		void f_DoTests()
 		{
 			f_TestAsyncResult();
 			f_DestroyTests();
 			f_GeneralTests();
+			f_OverAlignTests();
 		}
 	};
 

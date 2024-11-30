@@ -11,8 +11,6 @@ namespace NMib::NConcurrency
 
 	TCFutureAwaiter<void, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelper)
 	{
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
-
 		DMibFastCheck(m_bRuntimeStateConstructed);
 
 		if (!m_State.m_AsyncDestructors.f_IsEmpty())
@@ -25,21 +23,14 @@ namespace NMib::NConcurrency
 			m_State.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
-			{
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
-				return {fg_Move(Promise.f_MoveFuture()), {}};
-			}
+				return {fg_AllDone(DestroyResults), {}};
 		}
 
-		Promise.f_SetResult();
-
-		return {fg_Move(Promise.f_MoveFuture()), {}};
+		return {g_Void, {}};
 	}
 
-	TCFutureAwaiter<void, false, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoWrap)
+	TCFutureAwaiter<NContainer::TCVector<TCAsyncResult<void>>, true, CVoidTag> CFutureCoroutineContext::await_transform(CAsyncDestroyHelperNoUnWrap)
 	{
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
-
 		DMibFastCheck(m_bRuntimeStateConstructed);
 
 		if (!m_State.m_AsyncDestructors.f_IsEmpty())
@@ -52,15 +43,10 @@ namespace NMib::NConcurrency
 			m_State.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
-			{
-				fg_AllDoneWrapped(DestroyResults) > Promise.f_ReceiveAnyUnwrap();
-				return {fg_Move(Promise.f_MoveFuture()), {}};
-			}
+				return {fg_AllDoneWrapped(DestroyResults), {}};
 		}
 
-		Promise.f_SetResult();
-
-		return {fg_Move(Promise.f_MoveFuture()), {}};
+		return {NContainer::TCVector<TCAsyncResult<void>>{}, {}};
 	}
 
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(FUnitVoidFutureFunction &&_fDestroy)

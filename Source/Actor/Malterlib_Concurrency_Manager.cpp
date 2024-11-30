@@ -312,7 +312,7 @@ namespace NMib::NConcurrency
 		// Initialize callstack locations for valid reference coroutines
 
 		TCActor<CCoroutineActor> CoroutineActor = fg_Construct();
-		CoroutineActor(&CCoroutineActor::f_ReferenceCoroutine, 5).f_CallSync();
+		CoroutineActor.f_Bind<&CCoroutineActor::f_ReferenceCoroutine, EVirtualCall::mc_NotVirtual>(5).f_CallSync();
 
 		(
 			g_ConcurrentDispatch / []() -> TCFuture<uint32>
@@ -955,7 +955,7 @@ namespace NMib::NConcurrency
 			{
 				for (bool bAllDone = false; !bAllDone;)
 				{
-					TCActorResultVector<bool> ConcurrentActorSyncs;
+					TCFutureVector<bool> ConcurrentActorSyncs;
 					{
 						DMibLock(m_TimerActorLock);
 						if (m_pTimerActor)
@@ -965,7 +965,7 @@ namespace NMib::NConcurrency
 									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
 									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
 								}
-								> ConcurrentActorSyncs.f_AddResult()
+								> ConcurrentActorSyncs
 							;
 						}
 					}
@@ -979,16 +979,16 @@ namespace NMib::NConcurrency
 									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
 									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
 								}
-								> ConcurrentActorSyncs.f_AddResult()
+								> ConcurrentActorSyncs
 							;
 						}
 					}
 
-					auto Done = ConcurrentActorSyncs.f_GetResults().f_CallSync();
+					auto Done = fg_AllDoneWrapped(ConcurrentActorSyncs).f_CallSync();
 					bAllDone = true;
-					for (auto &bDone : Done)
+					for (auto &Done : Done)
 					{
-						if (!bDone)
+						if (Done && !*Done)
 						{
 							bAllDone = false;
 							break;

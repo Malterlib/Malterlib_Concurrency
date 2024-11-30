@@ -643,7 +643,7 @@ namespace NMib::NConcurrency
 			NStorage::CIntrusiveRefCount m_RefCount;
 			NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...> m_Results;
 			NAtomic::TCAtomic<mint> m_nFinished;
-			TCPromise<NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...>> m_Promise{CPromiseConstructNoConsume()};
+			TCPromiseFuturePair<NStorage::TCTuple<TCAsyncResult<tp_CResultTypes>...>> m_Promise;
 
 			TCCallMutipleFutureStorage() = default;
 
@@ -655,8 +655,8 @@ namespace NMib::NConcurrency
 
 			void f_ReportResult()
 			{
-				m_Promise.f_SetResult(fg_Move(m_Results));
-				m_Promise.f_ClearResultSet();
+				m_Promise.m_Promise.f_SetResult(fg_Move(m_Results));
+				m_Promise.m_Promise.f_ClearResultSet();
 			}
 
 			void f_Finished()
@@ -728,7 +728,7 @@ namespace NMib::NConcurrency
 			, ...
 		);
 
-		return pStorage->m_Promise.f_Future();
+		return fg_Move(pStorage->m_Promise.m_Future);
 	}
 
 	struct CReportLocalState
@@ -954,7 +954,7 @@ namespace NMib::NConcurrency
 
 		CReportLocalState m_State;
 		t_CFunctor m_ToCall;
-		TCPromise<t_CRet> m_Promise{CPromiseConstructNoConsume()};
+		TCPromise<t_CRet> m_Promise;
 		TCActorInternal<t_CActor> *m_pActorInternal;
 #if DMibConfig_Concurrency_DebugBlockDestroy
 		NStr::CStr m_ActorTypeName;
@@ -1626,7 +1626,7 @@ namespace NMib::NConcurrency
 		{
 			struct CState final
 			{
-				TCPromise<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise{CPromiseConstructNoConsume()};
+				TCPromiseFuturePair<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
 				NAtomic::CAtomicFlag m_bReplied;
 			};
 
@@ -1643,14 +1643,15 @@ namespace NMib::NConcurrency
 								if (!pState->m_bReplied.f_TestAndSet())
 								{
 									if (!_Result)
-										pState->m_Promise.f_SetException(fg_Move(_Result));
+										pState->m_Promise.m_Promise.f_SetException(fg_Move(_Result));
 									else
 									{
 										NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...> Results;
 										fg_Get<tfp_Indidies>(Results) = fg_Move(*_Result);
-										pState->m_Promise.f_SetResult(fg_Move(Results));
-										pState->m_Promise.f_ClearResultSet();
+										pState->m_Promise.m_Promise.f_SetResult(fg_Move(Results));
 									}
+
+									pState->m_Promise.m_Promise.f_ClearResultSet();
 								}
 							}
 						)
@@ -1660,7 +1661,7 @@ namespace NMib::NConcurrency
 				, ...
 			);
 
-			return pState->m_Promise.f_Future();
+			return fg_Move(pState->m_Promise.m_Future);
 		}
 
 		template <typename ...tfp_CParams, mint ...tfp_Indidies>
@@ -1671,7 +1672,7 @@ namespace NMib::NConcurrency
 
 			struct CState
 			{
-				TCPromise<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise{CPromiseConstructNoConsume()};
+				TCPromiseFuturePair<NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...>> m_Promise;
 				NException::CExceptionPointer m_Errors[c_nParams];
 				NAtomic::CAtomicFlag m_bReplied;
 				NAtomic::TCAtomic<mint> m_nErrors;
@@ -1693,7 +1694,8 @@ namespace NMib::NConcurrency
 									if (State.m_nErrors.f_FetchAdd(1) == c_nParams && !State.m_bReplied.f_TestAndSet())
 									{
 										NContainer::TCVector<NException::CExceptionPointer> Exceptions(State.m_Errors, c_nParams);
-										State.m_Promise.f_SetException(DMibErrorInstanceExceptionVector("All operations failed", fg_Move(Exceptions), false));
+										State.m_Promise.m_Promise.f_SetException(DMibErrorInstanceExceptionVector("All operations failed", fg_Move(Exceptions), false));
+										State.m_Promise.m_Promise.f_ClearResultSet();
 									}
 								}
 								else
@@ -1702,8 +1704,8 @@ namespace NMib::NConcurrency
 									{
 										NStorage::TCTuple<NStorage::TCOptional<typename TCConvertResultTypeVoid<tfp_CParams>::CType>...> Results;
 										fg_Get<tfp_Indidies>(Results) = fg_Move(*_Result);
-										State.m_Promise.f_SetResult(fg_Move(Results));
-										State.m_Promise.f_ClearResultSet();
+										State.m_Promise.m_Promise.f_SetResult(fg_Move(Results));
+										State.m_Promise.m_Promise.f_ClearResultSet();
 									}
 								}
 							}
@@ -1714,7 +1716,7 @@ namespace NMib::NConcurrency
 				, ...
 			);
 
-			return pState->m_Promise.f_Future();
+			return fg_Move(pState->m_Promise.m_Future);
 		}
 	}
 

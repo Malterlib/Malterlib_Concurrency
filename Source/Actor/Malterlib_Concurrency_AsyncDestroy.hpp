@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 		if constexpr (NTraits::TCIsReference<t_FDestroy>::mc_Value)
 			return fg_Move(mp_fDestroy).f_Destroy();
 		else
-			return {fg_CallSafe(fg_Move(mp_fDestroy)), nullptr};
+			return {fg_CallSafe(fg_Move(mp_fDestroy)), {}};
 	}
 
 
@@ -167,7 +167,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyByValue(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	{
 		using FDestroy = typename NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>::CType;
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	{
 		using FDestroy = typename NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>::CType;
@@ -189,7 +189,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_FDestroy &&_fDestroy)
 		requires requires
 		{
-			_fDestroy() > fg_DiscardResult();
+			_fDestroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_CToCleanup &_ToDestroy)
 		requires requires
 		{
-			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
@@ -228,7 +228,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy() > fg_DiscardResult();
+			_pToDestroy->f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
@@ -247,7 +247,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_CToCleanup &_ToDestroy)
 		requires requires
 		{
-			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
@@ -267,7 +267,7 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy() > fg_DiscardResult();
+			_pToDestroy->f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
@@ -298,7 +298,7 @@ namespace NMib::NConcurrency
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(tf_CToCleanup &_ToDestroy)
 		requires requires
 		{
-			fg_Move(_ToDestroy).f_Destroy() > fg_DiscardResult();
+			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyGeneric

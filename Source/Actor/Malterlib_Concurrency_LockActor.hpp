@@ -77,7 +77,7 @@ namespace NMib::NConcurrency
 		{
 			mp_pState->f_Unlock(mp_LockSequence);
 			if (auto Actor = mp_pActor.f_Lock())
-				Actor(&TCLockActor::fp_Unlock, mp_LockSequence) > fg_DiscardResult();
+				Actor.template f_Bind<&TCLockActor<t_CType, t_CLock>::fp_Unlock>(mp_LockSequence).f_DiscardResult();
 		}
 	}
 

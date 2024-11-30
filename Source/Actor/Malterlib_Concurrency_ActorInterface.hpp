@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 		if (f_GetSubscription())
 			return f_GetSubscription()->f_Destroy();
 		else
-			return TCPromise<void>() <<= g_Void;
+			return g_Void;
 	}
 		
 	template <typename t_CInterface>

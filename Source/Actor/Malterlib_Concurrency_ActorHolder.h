@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 
 		void fp_RunProcess(CConcurrencyThreadLocal &_ThreadLocal);
 		virtual DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fp_GetRealActor(NConcurrency::CActorHolder *_pActorInternal) const = 0;
-		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &_Promise);
+		static auto fsp_DestroyHandler(TCActorHolderSharedPointer<CActorHolder> &&_pActorHolder, TCPromise<void> &&_Promise);
 
 		void fp_DeleteActor();
 		void fp_DetachActor();

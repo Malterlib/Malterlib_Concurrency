@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 		TCActorSequencerActor(TCActorSequencerActor const &_Other) = delete;
 		TCActorSequencerActor& operator = (TCActorSequencerActor const &_Other) = delete;
 
-		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence);
+		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription _DoneSubscription)> _fToSequence);
 		TCFuture<CActorSubscription> f_Sequence();
 		TCFuture<CActorSubscription> f_TrySequence(bool _bCanSkip);
 		mint f_NumWaiting() const;
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 		TCSequencer(NStr::CStr const &_Name, mint _MaxConcurrency = 1);
 
 		TCFuture<void> f_Destroy() &&;
-		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription &&_DoneSubscription)> &&_fToSequence);
+		TCFuture<t_CReturnType> f_RunSequenced(TCActorFunctorWeak<TCFuture<t_CReturnType> (CActorSubscription _DoneSubscription)> _fToSequence);
 		TCFuture<CActorSubscription> f_Sequence();
 		TCFuture<CActorSubscription> f_TrySequence(bool _bCanSkip = true);
 		TCFuture<mint> f_NumWaiting() const;

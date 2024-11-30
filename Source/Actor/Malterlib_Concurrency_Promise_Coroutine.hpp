@@ -784,10 +784,10 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue, typename t_CFutureLike>
 	TCFuture<t_CReturnValue> TCFutureWithExceptionTransformer<t_CReturnValue, t_CFutureLike>::f_Dispatch() &&
 	{
-		TCPromise<t_CReturnValue> Promise{CPromiseConstructNoConsume()};
+		TCPromiseFuturePair<t_CReturnValue> Promise;
 		fg_Move(m_Future).f_OnResultSet
 			(
-				[Promise, fTransformer = fg_Move(*this).f_GetTransformer()](TCAsyncResult<t_CReturnValue> &&_Result)
+				[Promise = fg_Move(Promise.m_Promise), fTransformer = fg_Move(*this).f_GetTransformer()](TCAsyncResult<t_CReturnValue> &&_Result)
 				{
 					if (!_Result)
 						return Promise.f_SetException(fTransformer(fg_Move(_Result).f_GetException()));
@@ -799,7 +799,7 @@ namespace NMib::NConcurrency
 				}
 			)
 		;
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CReturnValue, typename t_CFutureLike>

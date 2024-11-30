@@ -6,6 +6,7 @@
 #include <Mib/Concurrency/Coroutine>
 #include <Mib/Concurrency/ActorFunctorWeak>
 #include <Mib/Concurrency/ActorSubscription>
+#include <Mib/Concurrency/LogError>
 
 namespace NMib::NConcurrency
 {
@@ -61,7 +62,7 @@ namespace NMib::NConcurrency
 			NIntrusive::TCAVLLink<> m_TreeLink;
 			mint m_NextCallbackID = 0;
 			NContainer::TCLinkedList<CTimerSubscriptionState> m_Callbacks;
-			TCActorFunctorWeak<void ()> m_fOneshotCallback;
+			TCActorFunctorWeak<TCFuture<void> ()> m_fOneshotCallback;
 
 			NStorage::TCSharedPointer<bool> m_pDestroyed;
 			fp64 m_NextElapse = 0.0;
@@ -108,22 +109,44 @@ namespace NMib::NConcurrency
 
 	void CTimerActor::CInternal::fp_CallTimerCallback(CTimer &_Timer, CTimerSubscriptionState &_Callback)
 	{
+		auto fLocked = _Callback.m_fCallback.f_Lock();
+		if (!fLocked)
+			return;
+
 		_Callback.m_bOutstanding = true;
 		_Callback.m_bMissed = false;
 
-		_Callback.m_fCallback() > [this, pTimer = &_Timer, pCallback = &_Callback, pDestroyed = _Callback.m_pDestroyed](auto &&_Result)
+		(*fLocked)() >
+			[
+				this
+				, pTimer = &_Timer
+				, pCallback = &_Callback
+				, pDestroyed = _Callback.m_pDestroyed
+				, Cleanup = g_OnScopeExit / [pCallback = &_Callback, pDestroyed = _Callback.m_pDestroyed]
+				{
+					if (*pDestroyed)
+						return;
+
+					pCallback->m_bOutstanding = false;
+					if (pCallback->m_bDestroying)
+					{
+						if (pCallback->m_DestroyPromise.f_IsValid() && !pCallback->m_DestroyPromise.f_IsSet())
+							pCallback->m_DestroyPromise.f_SetResult();
+					}
+				}
+			]
+			(auto &&_Result) mutable
 			{
-				(void)_Result;
+				if (!_Result)
+					DMibLogWithCategory(Timers, Error, "Exception in timer result: {}", _Result.f_GetExceptionStr());
+
 				if (*pDestroyed)
 					return;
 
-				pCallback->m_bOutstanding = false;
+				Cleanup();
+
 				if (pCallback->m_bDestroying)
-				{
-					if (pCallback->m_DestroyPromise.f_IsValid() && !pCallback->m_DestroyPromise.f_IsSet())
-						pCallback->m_DestroyPromise.f_SetResult();
 					return;
-				}
 
 				if (pCallback->m_bMissed && m_Clock.f_GetTime() < (pTimer->m_NextElapse - pTimer->m_Period * 0.1))
 					fp_CallTimerCallback(*pTimer, *pCallback);
@@ -135,13 +158,37 @@ namespace NMib::NConcurrency
 	{
 		for (auto &Callback : _Timer.m_Callbacks)
 		{
-			if (Callback.m_bOutstanding || Callback.m_bDestroying)
+			if (Callback.m_bDestroying)
 				continue;
+
+			if (Callback.m_bOutstanding)
+			{
+				Callback.m_bMissed = true;
+				continue;
+			}
+
 			fp_CallTimerCallback(_Timer, Callback);
 		}
 
 		if (_Timer.m_fOneshotCallback)
-			_Timer.m_fOneshotCallback() > fg_DiscardResult();
+		{
+			auto fLocked = _Timer.m_fOneshotCallback.f_Lock();
+			if (fLocked)
+			{
+				(*fLocked)().f_OnResultSet
+					(
+						[](TCAsyncResult<void> &&_Result)
+						{
+							if (!_Result)
+							{
+								if (!_Result.f_HasExceptionType<CExceptionActorDeleted>())
+									fg_Move(_Result) > fg_LogError("Timers", "Exception in one-shot timer result");
+							}
+						}
+					)
+				;
+			}
+		}
 	}
 
 	void CTimerActor::CInternal::fp_ProcessTimers()
@@ -236,7 +283,7 @@ namespace NMib::NConcurrency
 										{
 											fp_ProcessTimers();
 										}
-										> fg_DiscardResult()
+										> g_DiscardResult
 									;
 								}
 								else
@@ -385,7 +432,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fCallback, bool _bFireAtExit)
+	void CTimerActor::f_OneshotTimer(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback, bool _bFireAtExit)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -409,7 +456,7 @@ namespace NMib::NConcurrency
 		Internal.fp_StartThread();
 	}
 
-	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_Actor, NFunction::TCFunctionMovable<void ()> &&_fCallback)
+	CActorSubscription CTimerActor::f_OneshotTimerAbortable(fp64 _Period, TCActor<CActor> const &_Actor, FUnitVoidFutureFunction &&_fCallback)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -563,54 +610,56 @@ namespace NMib::NConcurrency
 		return *this;
 	}
 
-	void CTimeoutHelper::operator > (NFunction::TCFunctionMovable<void ()> &&_fOnTimeout) const
+	void CTimeoutHelper::operator > (FUnitVoidFutureFunction &&_fOnTimeout) const
 	{
-		fg_TimerActor()
+		fg_TimerActor().f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
 			(
-				&CTimerActor::f_OneshotTimer
-				, mp_Period
+				mp_Period
 				, mp_DispatchActor ? mp_DispatchActor : fg_CurrentActor()
 				, fg_Move(_fOnTimeout)
 				, mp_bFireAtExit
 			)
-			> fg_DiscardResult();
+			.f_DiscardResult()
 		;
 	}
 
 	TCFuture<void> CTimeoutHelper::f_Dispatch()
 	{
-		TCPromise<void> Promise;
+		TCPromiseFuturePair<void> Promise;
 		fg_OneshotTimer
 			(
 				mp_Period
-				, [Promise]
+				, [Promise = fg_Move(Promise.m_Promise)]() -> TCFuture<void>
 				{
 					Promise.f_SetResult();
+
+					co_return {};
 				}
 				, fg_DirectCallActor()
 				, mp_bFireAtExit
 			)
 		;
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
-	TCFutureAwaiter<void, true, void *> CTimeoutHelper::operator co_await()
+	TCFutureAwaiter<void, true, CVoidTag> CTimeoutHelper::operator co_await()
 	{
-		TCPromise<void> Promise;
-		fg_TimerActor()
+		TCPromiseFuturePair<void> Promise;
+		fg_TimerActor().f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
 			(
-				&CTimerActor::f_OneshotTimer
-				, mp_Period
+				mp_Period
 				, fg_CurrentActor()
-				, [Promise]
+				, [Promise = fg_Move(Promise.m_Promise)]() -> TCFuture<void>
 				{
 					Promise.f_SetResult();
+
+					co_return {};
 				}
 				, mp_bFireAtExit
 			)
-			> fg_DiscardResult();
+			.f_DiscardResult()
 		;
-		return Promise.f_MoveFuture().operator co_await();
+		return fg_Move(Promise.m_Future).operator co_await();
 	}
 
 	CTimeoutHelper fg_Timeout(fp64 _Period, bool _bFireAtExit)
@@ -620,7 +669,7 @@ namespace NMib::NConcurrency
 		return CTimeoutHelper(_Period, _bFireAtExit);
 	}
 
-	void fg_OneshotTimer(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_Actor, bool _bFireAtExit)
+	void fg_OneshotTimer(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_Actor, bool _bFireAtExit)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -628,19 +677,18 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		fg_TimerActor()
+		fg_TimerActor().f_Bind<&CTimerActor::f_OneshotTimer, EVirtualCall::mc_NotVirtual>
 			(
-				&CTimerActor::f_OneshotTimer
-				, _Period
+				_Period
 				, fg_Move(Actor)
 				, fg_Move(_fCallback)
 				, _bFireAtExit
 			)
-			> fg_DiscardResult();
+			.f_DiscardResult()
 		;
 	}
 
-	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, NFunction::TCFunctionMovable<void ()> &&_fCallback, TCActor<CActor> const &_Actor)
+	TCFuture<CActorSubscription> fg_OneshotTimerAbortable(fp64 _Period, FUnitVoidFutureFunction &&_fCallback, TCActor<CActor> const &_Actor)
 	{
 		DMibFastCheck(_Period >= 0.001);
 
@@ -648,23 +696,13 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return g_Future <<= fg_UnsafeDirectDispatch
+		return fg_TimerActor().f_Bind<&CTimerActor::f_OneshotTimerAbortable, EVirtualCall::mc_NotVirtual>
 			(
-				[_Period, Actor = fg_Move(Actor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
-				{
-					TCPromise<CActorSubscription> Promise;
-					fg_TimerActor()
-						(
-							&CTimerActor::f_OneshotTimerAbortable
-							, _Period
-							, Actor
-							, fg_Move(fCallback)
-						)
-						> Promise;
-					;
-					return Promise.f_MoveFuture();
-				}
+				_Period
+				, Actor
+				, fg_Move(_fCallback)
 			)
+			.f_Call()
 		;
 	}
 
@@ -676,23 +714,13 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return g_Future <<= fg_UnsafeDirectDispatch
+		return fg_TimerActor().f_Bind<&CTimerActor::f_RegisterTimer, EVirtualCall::mc_NotVirtual>
 			(
-				[_Period, Actor = fg_Move(Actor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
-				{
-					TCPromise<CActorSubscription> Promise;
-					fg_TimerActor()
-						(
-							&CTimerActor::f_RegisterTimer
-							, _Period
-							, Actor
-							, fg_Move(fCallback)
-						)
-						> Promise;
-					;
-					return Promise.f_MoveFuture();
-				}
+				_Period
+				, Actor
+				, fg_Move(_fCallback)
 			)
+			.f_Call()
 		;
 	}
 
@@ -704,32 +732,22 @@ namespace NMib::NConcurrency
 		if (!Actor)
 			Actor = fg_CurrentActor();
 
-		return g_Future <<= fg_UnsafeDirectDispatch
+		return fg_TimerActor().f_Bind<&CTimerActor::f_RegisterExactTimer, EVirtualCall::mc_NotVirtual>
 			(
-				[_Period, Actor = fg_Move(Actor), fCallback = fg_Move(_fCallback)]() mutable -> TCFuture<CActorSubscription>
-				{
-					TCPromise<CActorSubscription> Promise;
-					fg_TimerActor()
-						(
-							&CTimerActor::f_RegisterExactTimer
-							, _Period
-							, Actor
-							, fg_Move(fCallback)
-						)
-						> Promise;
-					;
-					return Promise.f_MoveFuture();
-				}
+				_Period
+				, Actor
+				, fg_Move(_fCallback)
 			)
+			.f_Call()
 		;
 	}
 
 	TCFuture<CTimeoutAbortable> fg_TimeoutAbortable(fp64 _Period)
 	{
-		TCPromise<void> Promise;
+		TCPromiseFuturePair<void> Promise;
 		CTimeoutAbortable Return;
 
-		Return.m_Future = Promise.f_Future();
+		Return.m_Future = fg_Move(Promise.m_Future);
 
 		struct CPromiseHolder
 		{
@@ -752,10 +770,12 @@ namespace NMib::NConcurrency
 		Return.m_Subscription = co_await fg_OneshotTimerAbortable
 			(
 				_Period
-				, [PromiseHolder = CPromiseHolder(fg_Move(Promise))]() mutable
+				, [PromiseHolder = CPromiseHolder(fg_Move(Promise.m_Promise))]() mutable -> TCFuture<void>
 				{
 					PromiseHolder.m_Promise.f_SetResult();
-					PromiseHolder.m_Promise = CPromiseConstructEmpty();
+					PromiseHolder.m_Promise.f_ClearResultSet();
+
+					co_return {};
 				}
 			)
 		;

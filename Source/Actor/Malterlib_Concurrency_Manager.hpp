@@ -64,7 +64,7 @@ namespace NMib::NConcurrency
 
 		auto Cleanup = g_OnScopeExit / [&pActor]
 			{
-				TCActor<tf_CType>(fg_Move(pActor)).f_Destroy() > fg_DiscardResult();
+				TCActor<tf_CType>(fg_Move(pActor)).f_Destroy().f_DiscardResult();
 			}
 		;
 
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 								fg_Move(Actor)
 								, fg_Move(fOnExitFunctor)
 							)
-							> fg_DiscardResult()
+							.f_DiscardResult()
 						;
 					}
 				)
@@ -151,7 +151,7 @@ namespace NMib::NConcurrency
 								fg_Move(Actor)
 								, fg_Move(fOnExitFunctor)
 							)
-							> fg_DiscardResult()
+							.f_DiscardResult()
 						;
 					}
 				)

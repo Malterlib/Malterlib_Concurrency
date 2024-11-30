@@ -16,18 +16,21 @@ namespace NMib::NConcurrency
 	{
 		DMibRequire(mp_pData && !!mp_pData->m_LastValue); // Already at end
 
-		TCPromise<void> Promise;
-		mp_pData->m_fGetNext.f_CallDirect() > fg_DirectResultActor() / [pData = mp_pData, Promise](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result)
-			{
-				if (!_Result)
-					return Promise.f_SetException(fg_Move(_Result));
+		TCPromiseFuturePair<void> Promise;
+		mp_pData->m_fGetNext.f_CallDirect().f_OnResultSet
+			(
+				[pData = mp_pData, Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result)
+				{
+					if (!_Result)
+						return Promise.f_SetException(fg_Move(_Result));
 
-				pData->m_LastValue = fg_Move(*_Result);
-				Promise.f_SetResult();
-			}
+					pData->m_LastValue = fg_Move(*_Result);
+					Promise.f_SetResult();
+				}
+			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CReturnType>
@@ -40,21 +43,23 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	TCFuture<void> TCAsyncGenerator<t_CReturnType>::CIterator::f_Destroy() &&
 	{
-		TCPromise<void> Promise;
-
 		if (!mp_pData)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		auto pData = mp_pData.f_Get();
 
-		fg_Move(pData->m_fGetNext).f_Destroy() > [Promise, pData = fg_Move(mp_pData)](TCAsyncResult<void> &&_Result) mutable
-			{
-				pData.f_Clear();
-				Promise.f_SetResult(fg_Move(_Result));
-			}
+		TCPromiseFuturePair<void> Promise;
+		fg_Move(pData->m_fGetNext).f_Destroy().f_OnResultSet
+			(
+				[Promise = fg_Move(Promise.m_Promise), pData = fg_Move(mp_pData)](TCAsyncResult<void> &&_Result) mutable
+				{
+					pData.f_Clear();
+					Promise.f_SetResult(fg_Move(_Result));
+				}
+			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CReturnType>
@@ -66,30 +71,32 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	auto TCAsyncGenerator<t_CReturnType>::f_GetIterator() && -> TCFuture<CIterator>
 	{
-		TCPromise<CIterator> Promise;
-
 		if (!mp_pData)
-			return Promise <<= CIterator(fg_Move(*this));
+			return CIterator(fg_Move(*this));
 
 		CIterator Iterator(fg_Move(*this));
 
 		auto *pData = Iterator.mp_pData.f_Get();
 
 		if (!pData->m_fGetNext)
-			return Promise <<= DMibErrorInstance("Invalid async generator missing get next functor");
+			return DMibErrorInstance("Invalid async generator missing get next functor");
 
-		pData->m_fGetNext.f_CallDirect() > fg_DirectResultActor() / [Promise, Iterator = fg_Move(Iterator)](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Value) mutable
-			{
-				if (!_Value)
-					return Promise.f_SetException(fg_Move(_Value));
+		TCPromiseFuturePair<CIterator> Promise;
+		pData->m_fGetNext.f_CallDirect().f_OnResultSet
+			(
+				[Promise = fg_Move(Promise.m_Promise), Iterator = fg_Move(Iterator)](TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Value) mutable
+				{
+					if (!_Value)
+						return Promise.f_SetException(fg_Move(_Value));
 
-				Iterator.mp_pData->m_LastValue = fg_Move(*_Value);
+					Iterator.mp_pData->m_LastValue = fg_Move(*_Value);
 
-				Promise.f_SetResult(fg_Move(Iterator));
-			}
+					Promise.f_SetResult(fg_Move(Iterator));
+				}
+			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CReturnType>
@@ -101,21 +108,20 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnType>
 	TCFuture<void> TCAsyncGenerator<t_CReturnType>::f_Destroy() &&
 	{
-		TCPromise<void> Promise;
-
 		if (!mp_pData)
-			return Promise <<= g_Void;
+			return g_Void;
 
 		auto pData = mp_pData.f_Get();
 
-		fg_Move(pData->m_fGetNext).f_Destroy() > [Promise, pData = fg_Move(mp_pData)](TCAsyncResult<void> &&_Result) mutable
+		TCPromiseFuturePair<void> Promise;
+		fg_Move(pData->m_fGetNext).f_Destroy() > [Promise = fg_Move(Promise.m_Promise), pData = fg_Move(mp_pData)](TCAsyncResult<void> &&_Result) mutable
 			{
 				pData.f_Clear();
 				Promise.f_SetResult(fg_Move(_Result));
 			}
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CReturnType>

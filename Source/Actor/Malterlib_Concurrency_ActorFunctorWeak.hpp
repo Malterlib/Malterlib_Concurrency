@@ -245,8 +245,6 @@ namespace NMib::NConcurrency
 		requires (!NPrivate::TCAddRValueReferencesToFunctor<t_CFunction>::mc_bAnyReference)
 	TCFuture<void> TCActorFunctorWeak<t_CFunction>::f_Destroy() &&
 	{
-		TCPromise<void> Promise{CPromiseConstructNoConsume()};
-
 		TCFuture<void> DispatchFuture;
 		auto Actor = mp_Actor.f_Lock();
 		auto pFunctor = fg_Move(mp_pFunctor);
@@ -278,16 +276,17 @@ namespace NMib::NConcurrency
 			DispatchFuture = g_Void;
 		}
 
+		TCPromiseFuturePair<void> Promise;
 		fg_Move(DispatchFuture).f_OnResultSet
 			(
-				[Promise](TCAsyncResult<void> &&) mutable
+				[Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<void> &&) mutable
 				{
 					Promise.f_SetResult();
 				}
 			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CFunction>

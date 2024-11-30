@@ -22,6 +22,7 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NThread;
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
+	using namespace NMib::NStr;
 
 	DMibImpErrorClassDefine(CCustomException, NMib::NException::CException);
 	DMibImpErrorClassImplement(CCustomException);
@@ -50,7 +51,7 @@ namespace NMib::NConcurrency::NTest
 			fg_TestAddCleanupPath(mp_Settings.m_RootDirectory);
 		}
 
-		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const &_Params) override
+		TCFuture<void> fp_StartApp(NEncoding::CEJSONSorted const _Params) override
 		{
 			co_return {};
 		}
@@ -99,9 +100,15 @@ namespace NMib::NConcurrency::NTest
 		}
 	};
 
+	struct CTestClass
+	{
+	};
+
 	class CTestActor2 : public CActor
 	{
 	public:
+
+		using CActorHolder = CDelegatedActorHolder;
 
 		TCFuture<uint32> f_Test()
 		{
@@ -110,6 +117,12 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<void> f_TestVoid()
 		{
+			co_return {};
+		}
+
+		static TCFuture<void> fs_TestParams(CTestClass *_pTest, int32 _Value)
+		{
+			co_await fg_Timeout(0.001);
 			co_return {};
 		}
 	};
@@ -295,7 +308,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<void> f_WaitCleanupScope()
 		{
-			return m_WaitForCleanupScopeExit.f_Future();
+			co_return co_await m_WaitForCleanupScopeExit.f_Future();
 		}
 
 		TCFuture<uint32> f_TestFutureWithErrorWrapped()
@@ -441,14 +454,14 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestActorResultVector()
 		{
-			TCActorResultVector<uint32> AsyncResults;
+			TCFutureVector<uint32> AsyncResults;
 
-			m_TestActor(&CTestActor2::f_Test) > AsyncResults.f_AddResult();
-			m_TestActor(&CTestActor2::f_Test) > AsyncResults.f_AddResult();
+			m_TestActor(&CTestActor2::f_Test) > AsyncResults;
+			m_TestActor(&CTestActor2::f_Test) > AsyncResults;
 
 			uint32 Value = 0;
 
-			for (auto &Result : co_await AsyncResults.f_GetResults())
+			for (auto &Result : co_await fg_AllDoneWrapped(AsyncResults))
 				Value += *Result;
 
 			co_return Value;
@@ -573,7 +586,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturn()
 		{
-			return [=, this, Value2 = 20]() -> TCFuture<uint32>
+			co_return co_await [=, this, Value2 = 20]() -> TCFuture<uint32>
 				{
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
@@ -584,55 +597,70 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnCorrected()
 		{
-			return g_Future <<= self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
-				{
-					auto Cleanup = g_OnScopeExit / [&]
-						{
-							DMibFastCheck(TestDestruction.m_Test == 20);
-						}
-					;
-					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-					co_return Value + Value2;
-				}
+			co_return co_await
+				(
+					self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					{
+						auto Cleanup = g_OnScopeExit / [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
+						uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+						co_return Value + Value2;
+					}
+				)
 			;
 		}
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursive()
 		{
-			return g_Future <<= self / [=, this, Value2 = 20]() -> TCFuture<uint32>
-				{
-					return [=, this]() -> TCFuture<uint32>
-						{
-							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-							co_return Value + Value2;
-						}
-						()
-					;
-				}
+			co_return co_await
+				(
+					self / [=, this, Value2 = 20]() -> TCFuture<uint32>
+					{
+						co_return co_await
+							(
+								[=, this]() -> TCFuture<uint32>
+								{
+									uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+									co_return Value + Value2;
+								}
+								()
+							)
+						;
+					}
+				)
 			;
 		}
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDirectReturnRecursiveCorrected()
 		{
-			return g_Future <<= self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
-			{
-					auto Cleanup = g_OnScopeExit / [&]
-						{
-							DMibFastCheck(TestDestruction.m_Test == 20);
-						}
-					;
-					return g_Future <<= self / [=, this]() -> TCFuture<uint32>
-						{
-							auto Cleanup = g_OnScopeExit / [&]
+			co_return co_await
+				(
+					self / [=, this, Value2 = 20, TestDestruction = CTestDestruction{}]() -> TCFuture<uint32>
+					{
+						auto Cleanup = g_OnScopeExit / [&]
+							{
+								DMibFastCheck(TestDestruction.m_Test == 20);
+							}
+						;
+						co_return co_await
+							(
+								self / [=, this]() -> TCFuture<uint32>
 								{
-									DMibFastCheck(TestDestruction.m_Test == 20);
+									auto Cleanup = g_OnScopeExit / [&]
+										{
+											DMibFastCheck(TestDestruction.m_Test == 20);
+										}
+									;
+									uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
+									co_return Value + Value2;
 								}
-							;
-							uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
-							co_return Value + Value2;
-						}
-					;
-				}
+							)
+						;
+					}
+				)
 			;
 		}
 
@@ -645,10 +673,10 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-				() > Promise
+				() > fg_TempCopy(Promise)
 			;
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroDispatchedCorrected()
@@ -665,10 +693,10 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-				> Promise
+				> fg_TempCopy(Promise)
 			;
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoro()
@@ -680,10 +708,10 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-				() > Promise
+				() > fg_TempCopy(Promise)
 			;
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestLambdaReferenceNoCoroCorrected()
@@ -700,13 +728,13 @@ namespace NMib::NConcurrency::NTest
 					uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 					co_return Value + Value2;
 				}
-				> Promise
+				> fg_TempCopy(Promise)
 			;
 
-			return Promise.f_MoveFuture();
+			co_return co_await Promise.f_MoveFuture();
 		}
 
-		TCFuture<uint32> f_TestParameterReference(uint32 const &_Value)
+		TCFuture<uint32> f_TestParameterReference(uint32 _Value)
 		{
 			uint32 Value = co_await m_TestActor(&CTestActor2::f_Test);
 
@@ -724,7 +752,7 @@ namespace NMib::NConcurrency::NTest
 		TCFuture<uint32> f_TestParameterReferenceRecursiveCorrected()
 		{
 			uint32 RefValue = 20;
-			uint32 Value = co_await self(&CTestActor::f_TestParameterReference, RefValue);
+			uint32 Value = co_await f_TestParameterReference(RefValue);
 
 			co_return Value;
 		}
@@ -740,7 +768,7 @@ namespace NMib::NConcurrency::NTest
 		TCFuture<uint32> f_TestParameterReferenceRecursivePackCorrected()
 		{
 			uint32 RefValue = 20;
-			auto [Value0, Value1] = co_await (self(&CTestActor::f_TestParameterReference, RefValue) + self(&CTestActor::f_TestParameterReference, RefValue));
+			auto [Value0, Value1] = co_await (f_TestParameterReference(RefValue) + f_TestParameterReference(RefValue));
 
 			co_return Value0 + Value1;
 		}
@@ -749,70 +777,94 @@ namespace NMib::NConcurrency::NTest
 		{
 			TCPromise<uint32> Promise;
 			uint32 RefValue = 20;
-			f_TestParameterReference(RefValue) > Promise;
-			return Promise.f_MoveFuture();
+			f_TestParameterReference(RefValue) > fg_TempCopy(Promise);
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroCorrected()
 		{
 			TCPromise<uint32> Promise;
-			uint32 RefValue = 20;
-			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
-			return Promise.f_MoveFuture();
+			{
+				uint32 RefValue = 20;
+				f_TestParameterReference(RefValue) > fg_TempCopy(Promise);
+			}
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturn()
 		{
-			uint32 RefValue = 20;
-			return f_TestParameterReference(RefValue);
+			TCFuture<uint32> Future;
+			{
+				uint32 RefValue = 20;
+				Future = f_TestParameterReference(RefValue);
+			}
+			co_return co_await fg_Move(Future);
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnCorrected()
 		{
-			uint32 RefValue = 20;
-			return g_Future <<= self(&CTestActor::f_TestParameterReference, RefValue);
+			TCFuture<uint32> Future;
+			{
+				uint32 RefValue = 20;
+				Future = f_TestParameterReference(RefValue);
+			}
+			co_return co_await fg_Move(Future);
 		}
 
-		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams(uint32 const &_Param)
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams(uint32 _Param)
 		{
-			uint32 RefValue = 20;
-			return f_TestParameterReference(RefValue);
+			TCFuture<uint32> Future;
+			{
+				uint32 RefValue = 20;
+				Future = f_TestParameterReference(RefValue);
+			}
+			co_return co_await fg_Move(Future);
 		}
 
-		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParamsCorrected(uint32 const &_Param)
+		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParamsCorrected(uint32 _Param)
 		{
-			uint32 RefValue = 20;
-			return g_Future <<= self(&CTestActor::f_TestParameterReference, RefValue);
+			TCFuture<uint32> Future;
+			{
+				uint32 RefValue = 20;
+				Future = f_TestParameterReference(RefValue);
+			}
+			co_return co_await fg_Move(Future);
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatched()
 		{
 			TCPromise<uint32> Promise;
-			uint32 RefValue = 20;
-			f_TestParameterReference(RefValue) > Promise;
-			return Promise.f_MoveFuture();
+			{
+				uint32 RefValue = 20;
+				f_TestParameterReference(RefValue) > fg_TempCopy(Promise);
+			}
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterReferenceRecursiveNoCoroDispatchedCorrected()
 		{
 			TCPromise<uint32> Promise;
-			uint32 RefValue = 20;
-			self(&CTestActor::f_TestParameterReference, RefValue) > Promise;
-			return Promise.f_MoveFuture();
+			{
+				uint32 RefValue = 20;
+				f_TestParameterReference(RefValue) > fg_TempCopy(Promise);
+			}
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterNonReferenceRecursiveNoCoro()
 		{
 			TCPromise<uint32> Promise;
-			uint32 RefValue = 20;
-			f_TestParameter(RefValue) > Promise;
-			return Promise.f_MoveFuture();
+			{
+				uint32 RefValue = 20;
+				f_TestParameter(RefValue) > fg_TempCopy(Promise);
+			}
+			co_return co_await Promise.f_MoveFuture();
 		}
 
 		TCFuture<uint32> f_TestParameterNonReferenceRecursiveNoCoroDirectReturn()
 		{
 			uint32 RefValue = 20;
-			return f_TestParameter(RefValue);
+			co_return co_await f_TestParameter(RefValue);
 		}
 
 		TCFuture<uint32> f_TestConcurrentDispatch(uint32 _Value)
@@ -860,7 +912,7 @@ namespace NMib::NConcurrency::NTest
 
 							co_return {};
 						}
-						> fg_DiscardResult()
+						> g_DiscardResult
 					;
 				}
 			;
@@ -870,7 +922,7 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<uint32> f_WaitCleanupResultCall()
 		{
-			return m_WaitForResultCallToFinish.f_Future();
+			co_return co_await m_WaitForResultCallToFinish.f_Future();
 		}
 
 		TCFuture<uint32> f_TestActorResultUnwrapped()
@@ -893,19 +945,19 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto fResultContainer = [&]
 				{
-					TCActorResultVector<uint32> Results;
+					TCFutureVector<uint32> Results;
 					for (mint i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_Test) > Results.f_AddResult();
+						m_TestActor(&CTestActor2::f_Test) > Results;
 					return Results;
 				}
 			;
 
 			uint32 Value = 0;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | g_Unwrap))
 				Value += Result;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | (g_Unwrap % "Test error")))
 				Value += Result;
 
 			co_return Value + _Value;
@@ -915,15 +967,15 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto fResultContainer = [&]
 				{
-					TCActorResultVector<void> Results;
+					TCFutureVector<void> Results;
 					for (mint i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_TestVoid) > Results.f_AddResult();
+						m_TestActor(&CTestActor2::f_TestVoid) > Results;
 					return Results;
 				}
 			;
 
-			co_await (co_await fResultContainer().f_GetResults() | g_Unwrap);
-			co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error"));
+			co_await (co_await fg_AllDoneWrapped(fResultContainer()) | g_Unwrap);
+			co_await (co_await fg_AllDoneWrapped(fResultContainer()) | (g_Unwrap % "Test error"));
 
 			co_return _Value;
 		}
@@ -932,19 +984,19 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto fResultContainer = [&]
 				{
-					TCActorResultMap<int, uint32> Results;
-					for (mint i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_Test) > Results.f_AddResult(i);
+					TCFutureMap<int, uint32> Results;
+					for (int i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_Test) > Results[i];
 					return Results;
 				}
 			;
 
 			uint32 Value = 0;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | g_Unwrap))
 				Value += Result;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | (g_Unwrap % "Test error")))
 				Value += Result;
 
 			co_return Value + _Value;
@@ -954,17 +1006,17 @@ namespace NMib::NConcurrency::NTest
 		{
 			auto fResultContainer = [&]
 				{
-					TCActorResultMap<int, void> Results;
-					for (mint i = 0; i < 10; ++i)
-						m_TestActor(&CTestActor2::f_TestVoid) > Results.f_AddResult(i);
+					TCFutureMap<int, void> Results;
+					for (int i = 0; i < 10; ++i)
+						m_TestActor(&CTestActor2::f_TestVoid) > Results[i];
 					return Results;
 				}
 			;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | g_Unwrap))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | g_Unwrap))
 				;
 
-			for (auto &Result : co_await (co_await fResultContainer().f_GetResults() | (g_Unwrap % "Test error")))
+			for (auto &Result : co_await (co_await fg_AllDoneWrapped(fResultContainer()) | (g_Unwrap % "Test error")))
 				;
 
 			co_return _Value;
@@ -972,9 +1024,9 @@ namespace NMib::NConcurrency::NTest
 
 		TCFuture<void> f_TestCoroutineInResultCallUnobservedError(uint32 _Value)
 		{
-			g_ConcurrentDispatch / [_Value]
+			g_ConcurrentDispatch / [_Value]() -> TCFuture<uint32>
 				{
-					return _Value * 2;
+					co_return _Value * 2;
 				}
 				> [this](TCAsyncResult<uint32> _Value) mutable
 				{
@@ -1217,14 +1269,21 @@ namespace NMib::NConcurrency::NTest
 			co_return {};
 		}
 
-		TCActor<CTestActor2> m_TestActor = fg_Construct();
+		TCFuture<void> fp_Destroy() override
+		{
+			co_await fg_Move(m_TestActor).f_Destroy();
+
+			co_return {};
+		}
+
+		TCActor<CTestActor2> m_TestActor{fg_Construct(), fg_ThisActor(this)};
 		TCPromise<void> m_WaitForCleanupScopeExit;
 		TCPromise<uint32> m_WaitForResultCallToFinish;
 	};
 
 	struct CTestDestroyActor : public CActor
 	{
-		TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+		TCFuture<void> f_TestDestroy(TCFuture<void> _ToWaitFor)
 		{
 			co_await fg_Move(_ToWaitFor);
 
@@ -1236,12 +1295,71 @@ namespace NMib::NConcurrency::NTest
 	{
 		using CActorHolder = CDelegatedActorHolder;
 
-		TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+		TCFuture<void> f_TestDestroy(TCFuture<void> _ToWaitFor)
 		{
 			co_await fg_Move(_ToWaitFor);
 
 			co_return {};
 		}
+	};
+
+	class CBaseActor : public CActor
+	{
+	public:
+		virtual uint32 f_GetValue()
+		{
+			return 1;
+		}
+
+		virtual uint32 f_GetSpecificValue(uint32 _Value)
+		{
+			return 0;
+		}
+
+		virtual TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> _pValue) = 0;
+		virtual TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) = 0;
+	};
+
+	class CDerivedActor : public CBaseActor
+	{
+	public:
+		virtual uint32 f_GetValue() override
+		{
+			return 2;
+		}
+
+		virtual uint32 f_GetSpecificValue(uint32 _Value) override
+		{
+			return _Value;
+		}
+
+		TCFuture<uint32> f_GetSpecificValueFuture(uint32 _Value)
+		{
+			co_return _Value;
+		}
+
+		TCFuture<uint32> f_GetSpecificValueCoro(uint32 _Value)
+		{
+			co_return _Value;
+		}
+
+		virtual TCFuture<void> fp_Destroy() override
+		{
+			co_return {};
+		}
+
+		TCFuture<uint32> f_SharedPointer(TCSharedPointer<CStr> _pValue) override
+		{
+			co_return _pValue->f_ToInt();
+		}
+
+		TCFuture<uint32> f_UniquePointer(TCUniquePointer<CStr> _pValue) override
+		{
+			co_return _pValue->f_ToInt();
+		}
+
+		mint m_DummyMember0 = 0;
+		mint m_DummyMember1 = 1;
 	};
 
 	class CCoroutines_Tests : public NMib::NTest::CTest
@@ -1251,6 +1369,11 @@ namespace NMib::NConcurrency::NTest
 			DMibTestSuite("General")
 			{
 				TCActor<CTestActor> TestActor(fg_Construct());
+				auto Destroy = g_OnScopeExit / [&]
+					{
+						fg_Move(TestActor).f_Destroy().f_CallSync();
+					}
+				;
 
 #if DMibEnableSafeCheck > 0
 				NStr::CStr ReferenceThisError = "false 'Unsafe call to coroutine with reference this pointer'";
@@ -1262,18 +1385,7 @@ namespace NMib::NConcurrency::NTest
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDirectReturnRecursive).f_CallSync(), ReferenceThisError);
 #endif
 				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestLambdaReferenceNoCoroDispatched).f_CallSync(), ReferenceThisError);
-
-				NStr::CStr ReferenceParamError = "false 'Unsafe call to coroutine with reference parameters'";
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursive).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoro).f_CallSync(), ReferenceParamError);
-#if DMibConcurrencySupportCoroutineFreeFunctionDebug
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturn).f_CallSync(), ReferenceParamError);
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDirectReturnSameParams, 20).f_CallSync(), ReferenceParamError);
 #endif
-				DMibExpectViolatesSafeCheck(TestActor(&CTestActor::f_TestParameterReferenceRecursiveNoCoroDispatched).f_CallSync(), ReferenceParamError);
-				DMibExpectException(TestActor(&CTestActor::f_TestParameterReferenceRecursivePack).f_CallSync(), DMibErrorInstanceExceptionVector(ReferenceParamError + " - x2", {})	);
-#endif
-
 				TestActor(&CTestActor::f_TestReturn).f_CallSync();
 
 				DMibExpect(TestActor(&CTestActor::f_Test).f_CallSync(), ==, 40);
@@ -1281,7 +1393,6 @@ namespace NMib::NConcurrency::NTest
 
 				DMibExpect(TestActor(&CTestActor::f_TestForwardAsyncResult).f_CallSync(), ==, 40);
 				TestActor(&CTestActor::f_TestForwardVoidAsyncResult).f_CallSync();
-
 
 				DMibExpect(TestActor(&CTestActor::f_TestCleanup).f_CallSync(), ==, 10);
 				TestActor(&CTestActor::f_WaitCleanupScope).f_CallSync();
@@ -1357,7 +1468,12 @@ namespace NMib::NConcurrency::NTest
 
 				DMibExpect(AppActor(&CTestDistributedApp::f_Test).f_CallSync(), ==, 32);
 				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithAuditor).f_CallSync(), DMibErrorInstance("Test Exception"));
-				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithErrorWithAuditorWith).f_CallSync(), DMibErrorInstance("Extra error: Test Exception"));
+				DMibExpectException
+					(
+						AppActor(&CTestDistributedApp::f_TestFutureWithErrorWithAuditorWith).f_CallSync()
+						, DMibErrorInstanceWrapped("Extra error: Test Exception", DMibErrorInstance("Test Exception").f_ExceptionPointer())
+					)
+				;
 				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
 				DMibExpectException(AppActor(&CTestDistributedApp::f_TestFutureWithErrorWithAuditorWithError).f_CallSync(), DMibErrorInstance("Auditor exception"));
 
@@ -1375,13 +1491,13 @@ namespace NMib::NConcurrency::NTest
 					{
 						TCActor<CTestDestroyActor> TestDestroyActor = fg_Construct();
 
-						DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
-						TestDestroyActor.f_Destroy().f_CallSync();
+						DestroyFuture = TestDestroyActor(&CTestDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
+						fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
 					}
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated")
 			{
@@ -1393,14 +1509,14 @@ namespace NMib::NConcurrency::NTest
 						{
 							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
 
-							DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-							TestDestroyActor.f_Destroy().f_CallSync();
+							DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+							fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
 						}
 					}
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated 2")
 			{
@@ -1412,14 +1528,14 @@ namespace NMib::NConcurrency::NTest
 						{
 							TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), MainActor};
 
-							DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-							MainActor.f_Destroy().f_CallSync();
+							DestroyFuture = TestDestroyActor.f_Bind<&CTestDestroyDelegatedActor::f_TestDestroy>(DestroyPromise.f_Future());
+							fg_Move(MainActor).f_Destroy().f_CallSync();
 						}
 					}
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 			DMibTestSuite("Destroy Delegated 3")
 			{
@@ -1433,15 +1549,15 @@ namespace NMib::NConcurrency::NTest
 							{
 								TCActor<CTestDestroyDelegatedActor> TestDestroyActor{fg_Construct(), Delegated};
 
-								DestroyFuture = g_Future <<= TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
-								MainActor.f_Destroy().f_CallSync();
+								DestroyFuture = TestDestroyActor(&CTestDestroyDelegatedActor::f_TestDestroy, DestroyPromise.f_Future());
+								fg_Move(MainActor).f_Destroy().f_CallSync();
 							}
 						}
 					}
 					DestroyPromise.f_SetResult();
 				}
 
-				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+				DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 			};
 		}
 
@@ -1501,7 +1617,7 @@ namespace NMib::NConcurrency::NTest
 				co_return {};
 			}
 
-			TCFuture<void> f_TestDestroy(TCFuture<void> &&_ToWaitFor)
+			TCFuture<void> f_TestDestroy(TCFuture<void> _ToWaitFor)
 			{
 				TCActor<CAsyncDestroyActor> Variable = fg_Construct(m_pTestState);
 
@@ -1512,7 +1628,7 @@ namespace NMib::NConcurrency::NTest
 				co_return {};
 			}
 
-			TCFuture<void> f_TestDestroyOrder(TCFuture<void> &&_ToWaitFor0, TCFuture<void> &&_ToWaitFor1, TCPromise<void> &&_DestroyStartedPromise)
+			TCFuture<void> f_TestDestroyOrder(TCFuture<void> _ToWaitFor0, TCFuture<void> _ToWaitFor1, TCPromise<void> _DestroyStartedPromise)
 			{
 				auto AsyncDestroy = co_await fg_AsyncDestroy
 					(
@@ -1655,8 +1771,8 @@ namespace NMib::NConcurrency::NTest
 						{
 							TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 
-							DestroyFuture = g_Future <<= TestDestroyActor(&CAsyncDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
-							TestDestroyActor.f_Destroy().f_CallSync();
+							DestroyFuture = TestDestroyActor(&CAsyncDestroyActor::f_TestDestroy, DestroyPromise.f_Future());
+							fg_Move(TestDestroyActor).f_Destroy().f_CallSync();
 
 							DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 2);
 							DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 2);
@@ -1664,7 +1780,7 @@ namespace NMib::NConcurrency::NTest
 						DestroyPromise.f_SetResult();
 					}
 
-					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 
 					co_return {};
 				};
@@ -1681,7 +1797,7 @@ namespace NMib::NConcurrency::NTest
 						{
 							TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 
-							DestroyFuture = g_Future <<= TestDestroyActor
+							DestroyFuture = TestDestroyActor
 								(
 									&CAsyncDestroyActor::f_TestDestroyOrder
 									, DestroyPromise0.f_Future()
@@ -1690,7 +1806,7 @@ namespace NMib::NConcurrency::NTest
 								)
 							;
 
-							auto DestroyActorFuture = TestDestroyActor.f_Destroy();
+							auto DestroyActorFuture = fg_Move(TestDestroyActor).f_Destroy();
 							co_await DestroyStartedPromise.f_Future();
 							DestroyPromise0.f_SetResult();
 							DestroyPromise1.f_SetResult();
@@ -1702,7 +1818,7 @@ namespace NMib::NConcurrency::NTest
 						}
 					}
 
-					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorResultWasNotSet, "Result was not set"));
+					DMibExpectException(fg_Move(DestroyFuture).f_CallSync(), DMibImpErrorInstance(CExceptionActorDeleted, "Actor called has been deleted"));
 
 					co_return {};
 				};
@@ -1714,8 +1830,8 @@ namespace NMib::NConcurrency::NTest
 					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 					TCFuture<void> DestroyFuture;
 					{
-						TCPromise<void> DestroyPromise0{CPromiseConstructNoConsume()};
-						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyPromise0;
+						TCPromise<void> DestroyStartedPromise;
 						{
 
 							DestroyFuture = TestDestroyActor
@@ -1744,7 +1860,7 @@ namespace NMib::NConcurrency::NTest
 					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 					TCFuture<void> DestroyFuture;
 					{
-						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyStartedPromise;
 						{
 
 							DestroyFuture = TestDestroyActor
@@ -1770,8 +1886,8 @@ namespace NMib::NConcurrency::NTest
 
 					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 					{
-						TCPromise<void> DestroyPromise0{CPromiseConstructNoConsume()};
-						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyPromise0;
+						TCPromise<void> DestroyStartedPromise;
 						{
 
 							{
@@ -1800,7 +1916,7 @@ namespace NMib::NConcurrency::NTest
 
 					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 					{
-						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyStartedPromise;
 						{
 
 							{
@@ -1827,7 +1943,7 @@ namespace NMib::NConcurrency::NTest
 
 					TCActor<CAsyncDestroyActor> TestDestroyActor = fg_Construct(pTestState);
 					{
-						TCPromise<void> DestroyStartedPromise{CPromiseConstructNoConsume()};
+						TCPromise<void> DestroyStartedPromise;
 						{
 
 							{
@@ -2143,6 +2259,11 @@ namespace NMib::NConcurrency::NTest
 										auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
 									}
 									co_await g_AsyncDestroy;
+									for (auto &Result : co_await g_AsyncDestroy.f_Wrap())
+									{
+										if (!Result)
+											DMibConOut("Error: {}\n", Result.f_GetExceptionStr());
+									}
 								}
 
 								DMibExpect(pTestState->m_nStartDestroy.f_Load(), ==, 10);
@@ -2288,6 +2409,11 @@ namespace NMib::NConcurrency::NTest
 				DMibTestCategory("General")
 				{
 					TCActor<CTestActor> TestActor(fg_Construct());
+					auto Destroy = g_OnScopeExit / [&]
+						{
+							fg_Move(TestActor).f_Destroy().f_CallSync();
+						}
+					;
 
 					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeException, false).f_CallSync(), DMibErrorInstance("Aborted"));
 					DMibExpectException(TestActor(&CTestActor::f_TestOnResumeException, true).f_CallSync(), DMibErrorInstance("Aborted"));
@@ -2363,6 +2489,11 @@ namespace NMib::NConcurrency::NTest
 					NStr::CStr CaptureInsideTryCatchError = "false 'It's not supported to capture exceptions inside a try/catch statement'";
 
 					TCActor<CTestActor> TestActor(fg_Construct());
+					auto Destroy = g_OnScopeExit / [&]
+						{
+							fg_Move(TestActor).f_Destroy().f_CallSync();
+						}
+					;
 
 					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScope).f_CallSync(), DMibErrorInstance("Test Exception"));
 					DMibExpectException(TestActor(&CTestActor::f_TestThrowExceptionCaptureScopeDouble).f_CallSync(), DMibErrorInstance("Test Exception"));
@@ -2416,6 +2547,18 @@ namespace NMib::NConcurrency::NTest
 			};
 		}
 
+		void f_TestParamDetection()
+		{
+			DMibTestSuite("ParamDetection") -> TCFuture<void>
+			{
+				CTestClass Testing;
+
+				co_await CTestActor2::fs_TestParams(&Testing, 5);
+
+				co_return {};
+			};
+		}
+
 		void f_DoTests()
 		{
 #if DMibEnableSafeCheck > 0
@@ -2433,6 +2576,7 @@ namespace NMib::NConcurrency::NTest
 			f_TestAsyncDestroy();
 			f_TestOnResume();
 			f_TestCapture();
+			f_TestParamDetection();
 		}
 	};
 

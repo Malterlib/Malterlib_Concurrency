@@ -49,23 +49,12 @@ namespace NMib::NConcurrency
 	template <typename t_CKey, typename t_CValue>
 	TCFutureMap<t_CKey, t_CValue>::CInternal::~CInternal()
 	{
+		mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
 	}
 
 	template <typename t_CKey, typename t_CValue>
 	TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> TCFutureMap<t_CKey, t_CValue>::CInternal::f_GetResults()
 	{
-		mint nAdded = mp_nAdded.f_Load();
-		mint nFinished = mp_nFinished.f_FetchOr(NPrivate::gc_ActorResultResultsGottenMask);
-
-		if (nFinished & NPrivate::gc_ActorResultResultsGottenMask)
-		{
-			// You have already gotten the results from this future map already
-			DMibPDebugBreak;
-		}
-
-		if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)
-			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
-
 		return mp_GetResultsPromise.f_Future();
 	}
 
@@ -80,11 +69,6 @@ namespace NMib::NConcurrency
 	void TCFutureMap<t_CKey, t_CValue>::CResultReceived::operator ()(TCAsyncResult<t_CValue> &&_Result) const
 	{
 		mp_Result = fg_Move(_Result);
-
-		auto &Internal = *mp_pInternal;
-		mint nFinished = ++Internal.mp_nFinished;
-		if ((nFinished & NPrivate::gc_ActorResultResultsGottenMask) && (nFinished & NPrivate::gc_ActorResultFinishedMask) == Internal.mp_nAdded.f_Load(NAtomic::EMemoryOrder_Relaxed))
-			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
 	}
 
 	template <typename t_CKey, typename t_CValue>
@@ -113,8 +97,6 @@ namespace NMib::NConcurrency
 	auto TCFutureMap<t_CKey, t_CValue>::fp_AddResult(tf_CKey &&_Key) -> CResultReceived
 	{
 		auto &Internal = *mp_pInternal;
-		DMibRequire(!(Internal.mp_nFinished.f_Load() & NPrivate::gc_ActorResultResultsGottenMask));
-		Internal.mp_nAdded.f_FetchAdd(1);
 		auto MapResult = Internal.mp_Results(fg_Forward<tf_CKey>(_Key));
 		DMibFastCheck(MapResult.f_WasCreated());
 		return CResultReceived(MapResult.f_GetResult(), mp_pInternal);
@@ -124,7 +106,7 @@ namespace NMib::NConcurrency
 	bool TCFutureMap<t_CKey, t_CValue>::f_IsEmpty() const
 	{
 		auto &Internal = *mp_pInternal;
-		return Internal.mp_nAdded.f_Load() == 0;
+		return Internal.Internal.mp_Results.f_IsEmpty();
 	}
 
 	template <typename t_CKey, typename t_CValue>

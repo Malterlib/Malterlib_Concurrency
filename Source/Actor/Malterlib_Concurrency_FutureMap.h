@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CKey, typename t_CValue>
-	struct TCFutureMap
+	struct TCFutureMap final
 	{
 	private:
 		template <typename tf_CKey, typename tf_CValue>
@@ -59,23 +59,23 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn2, typename t_CActor2, typename t_FFunctionPointer2, CBindActorOptions t_BindOptions2, bool t_bByValue2, typename ...tp_CParams2>
 		friend struct TCBoundActorCall;
 
-		struct CInternal
+		struct CInternal final
 		{
 			CInternal();
 			~CInternal();
 		public:
-			NStorage::CIntrusiveRefCount m_RefCount;
 			friend struct TCFutureMap;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nAdded;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nFinished;
-			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
-			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
 
 			TCFuture<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> f_GetResults();
 			void fp_TransferResults();
+
+			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
+			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
+
+			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 		};
 
-		class CResultReceived
+		class CResultReceived final
 		{
 			TCAsyncResult<t_CValue> &mp_Result;
 			NStorage::TCSharedPointer<CInternal> mp_pInternal;

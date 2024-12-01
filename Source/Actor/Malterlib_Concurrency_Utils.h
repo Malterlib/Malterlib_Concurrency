@@ -28,103 +28,6 @@ namespace NMib::NConcurrency
 		CCanDestroyResultFunctor f_Track();
 	};
 
-	template <typename t_CType>
-	struct TCFutureVector;
-
-	template <typename tf_CType>
-	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &_Futures);
-
-	template <typename tf_CType>
-	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &&_Futures);
-
-	template <typename tf_CType>
-	TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &_Futures);
-
-	template <typename tf_CType>
-	TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &&_Futures);
-
-	TCFuture<void> fg_AllDone(TCFutureVector<void> &_Futures);
-	TCFuture<void> fg_AllDone(TCFutureVector<void> &&_Futures);
-
-	template <typename t_CType>
-	struct TCFutureVector
-	{
-	private:
-		template <typename tf_CType>
-		friend TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &_Futures);
-		template <typename tf_CType>
-		friend TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(TCFutureVector<tf_CType> &&_Futures);
-
-		template <typename tf_CType>
-		friend TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &_Futures);
-		template <typename tf_CType>
-		friend TCFuture<NContainer::TCVector<tf_CType>> fg_AllDone(TCFutureVector<tf_CType> &&_Futures);
-
-		friend TCFuture<void> fg_AllDone(TCFutureVector<void> &_Futures);
-		friend TCFuture<void> fg_AllDone(TCFutureVector<void> &&_Futures);
-
-		template <typename t_CReturnValue2>
-		friend struct TCFuture;
-
-		template <typename t_CReturn2, typename t_CActor2, typename t_FFunctionPointer2, CBindActorOptions t_BindOptions2, bool t_bByValue2, typename ...tp_CParams2>
-		friend struct TCBoundActorCall;
-
-		struct CQueuedResult
-		{
-			mint m_iResult;
-			TCAsyncResult<t_CType> m_Result;
-			CQueuedResult *m_pNext;
-		};
-
-		struct CInternal
-		{
-			CInternal();
-			~CInternal();
-		public:
-			NStorage::CIntrusiveRefCount m_RefCount;
-			friend struct TCFutureVector;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nAdded;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nFinished;
-			align_cacheline NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
-			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
-			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
-			bool mp_bDefinedSize = false;
-			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
-
-			TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
-			void fp_TransferResults();
-		};
-
-		class CResultReceived
-		{
-			mint mp_iResult;
-			NStorage::TCSharedPointer<CInternal> mp_pInternal;
-		public:
-			CResultReceived(mint _iResult, NStorage::TCSharedPointer<CInternal> const &_pInternal);
-			void operator ()(TCAsyncResult<t_CType> &&_Result) const;
-		};
-
-	public:
-		TCFutureVector(mint _DefinedSize);
-		TCFutureVector();
-		~TCFutureVector();
-		void f_SetLen(mint _DefinedSize);
-		bool f_IsEmpty() const;
-
-	private:
-		CResultReceived fp_AddResult();
-
-		auto fp_GetResults();
-		TCFuture<NContainer::TCVector<t_CType>> fp_GetUnwrappedResults()
-			requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
-		;
-		TCFuture<void> fp_GetUnwrappedResults()
-			requires(NTraits::TCIsVoid<t_CType>::mc_Value)
-		;
-
-		NStorage::TCSharedPointer<CInternal> mp_pInternal;
-	};
-
 	template <typename tf_CType>
 	TCFuture<NContainer::TCVector<TCAsyncResult<tf_CType>>> fg_AllDoneWrapped(NContainer::TCVector<TCFuture<tf_CType>> &_Futures);
 
@@ -312,4 +215,4 @@ namespace NMib::NConcurrency
 #include "Malterlib_Concurrency_Utils.hpp"
 
 #include "Malterlib_Concurrency_FutureMap.h"
-
+#include "Malterlib_Concurrency_FutureVector.h"

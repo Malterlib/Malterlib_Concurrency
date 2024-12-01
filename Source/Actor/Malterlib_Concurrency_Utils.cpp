@@ -27,14 +27,4 @@ namespace NMib::NConcurrency
 	{
 		return fg_AllDone(_Futures);
 	}
-
-	TCFuture<void> fg_AllDone(TCFutureVector<void> &_Futures)
-	{
-		return _Futures.fp_GetUnwrappedResults();
-	}
-
-	TCFuture<void> fg_AllDone(TCFutureVector<void> &&_Futures)
-	{
-		return _Futures.fp_GetUnwrappedResults();
-	}
 }

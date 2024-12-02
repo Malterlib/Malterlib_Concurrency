@@ -44,45 +44,62 @@ namespace NMib::NConcurrency
 	template <typename t_CType>
 	TCFutureVector<t_CType>::CInternal::~CInternal()
 	{
+		if (!mp_bLazyResultsGotten.f_Load(NAtomic::EMemoryOrder_Acquire)) [[unlikely]]
+		{
+			fp_DestroyResults();
+
+			mp_GetResultsPromise.f_Abandon
+				(
+					[]() -> NException::CExceptionPointer
+					{
+						return CAsyncResult::fs_ResultWasNotSetException();
+					}
+				)
+			;
+
+			return;
+		}
+
+		fp_TransferResults();
+		mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
 	}
 
 	template <typename t_CType>
 	TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> TCFutureVector<t_CType>::CInternal::f_GetResults()
 	{
-		mint nAdded = mp_nAdded.f_Load();
-
 		if (!mp_bDefinedSize)
-			mp_Results.f_SetLen(nAdded);
+			mp_Results.f_SetLen(mp_nAdded);
 
-		mint nFinished = mp_nFinished.f_FetchOr(NPrivate::gc_ActorResultResultsGottenMask);
+		mp_bLazyResultsGotten.f_Store(true, NAtomic::EMemoryOrder_Release);
 
-		if (nFinished & NPrivate::gc_ActorResultResultsGottenMask)
-		{
-			// You have already gotten the results from this future vector already
-			DMibPDebugBreak;
-		}
-
-		mp_bLazyResultsGotten.f_Store(true);
-
-		if ((nFinished & NPrivate::gc_ActorResultFinishedMask) == nAdded)
-		{
-			fp_TransferResults();
-			mp_GetResultsPromise.f_SetResult(fg_Move(mp_Results));
-		}
 		return mp_GetResultsPromise.f_Future();
+	}
+
+	template <typename t_CType>
+	void TCFutureVector<t_CType>::CInternal::fp_DestroyResults()
+	{
+		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
+
+		while (pResult)
+		{
+			auto pNextResult = pResult->m_pNext;
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pResult);
+			pResult = pNextResult;
+		}
 	}
 
 	template <typename t_CType>
 	void TCFutureVector<t_CType>::CInternal::fp_TransferResults()
 	{
-		auto *pResult = mp_pFirstResult.f_Exchange(nullptr);
+		auto *pResult = mp_pFirstResult.f_Exchange(nullptr, NAtomic::EMemoryOrder_Acquire);
 
 		auto pResultsArray = mp_Results.f_GetArray();
 		while (pResult)
 		{
 			pResultsArray[pResult->m_iResult] = fg_Move(pResult->m_Result);
-			NStorage::TCUniquePointer<CQueuedResult> pResultDelete = fg_Explicit(pResult);
-			pResult = pResult->m_pNext;
+			auto pNextResult = pResult->m_pNext;
+			fg_DeleteObjectDefiniteType(NMemory::CDefaultAllocator(), pResult);
+			pResult = pNextResult;
 		}
 	}
 
@@ -110,17 +127,11 @@ namespace NMib::NConcurrency
 			{
 				CQueuedResult *pFirstResult = Internal.mp_pFirstResult.f_Load(NAtomic::EMemoryOrder_Relaxed);
 				pQueuedResult->m_pNext = pFirstResult;
-				if (Internal.mp_pFirstResult.f_CompareExchangeStrong(pFirstResult, pQueuedResult.f_Get()))
+				if (Internal.mp_pFirstResult.f_CompareExchangeStrong(pFirstResult, pQueuedResult.f_Get(), NAtomic::EMemoryOrder_Release, NAtomic::EMemoryOrder_Relaxed))
 					break;
 			}
-			pQueuedResult.f_Detach();
-		}
 
-		mint nFinished = ++Internal.mp_nFinished;
-		if ((nFinished & NPrivate::gc_ActorResultResultsGottenMask) && (nFinished & NPrivate::gc_ActorResultFinishedMask) == Internal.mp_nAdded.f_Load(NAtomic::EMemoryOrder_Relaxed))
-		{
-			Internal.fp_TransferResults();
-			Internal.mp_GetResultsPromise.f_SetResult(fg_Move(Internal.mp_Results));
+			pQueuedResult.f_Detach();
 		}
 	}
 
@@ -144,8 +155,7 @@ namespace NMib::NConcurrency
 	void TCFutureVector<t_CType>::f_SetLen(mint _DefinedSize)
 	{
 		DMibRequire(!mp_pInternal->mp_bDefinedSize);
-		DMibRequire(mp_pInternal->mp_nAdded.f_Load() == 0);
-		DMibRequire(mp_pInternal->mp_nFinished.f_Load() == 0);
+		DMibRequire(mp_pInternal->mp_nAdded == 0);
 
 		mp_pInternal->mp_bDefinedSize = true;
 		mp_pInternal->mp_Results.f_SetLen(_DefinedSize);
@@ -162,8 +172,7 @@ namespace NMib::NConcurrency
 	auto TCFutureVector<t_CType>::fp_AddResult() -> CResultReceived
 	{
 		auto &Internal = *mp_pInternal;
-		DMibRequire(!(Internal.mp_nFinished.f_Load() & NPrivate::gc_ActorResultResultsGottenMask));
-		mint iResult = Internal.mp_nAdded.f_FetchAdd(1);
+		mint iResult = Internal.mp_nAdded++;
 		DMibRequire(!Internal.mp_bDefinedSize || iResult < Internal.mp_Results.f_GetLen());
 		return CResultReceived(iResult, mp_pInternal);
 	}
@@ -172,7 +181,7 @@ namespace NMib::NConcurrency
 	bool TCFutureVector<t_CType>::f_IsEmpty() const
 	{
 		auto &Internal = *mp_pInternal;
-		return Internal.mp_nAdded.f_Load() == 0;
+		return Internal.mp_nAdded == 0;
 	}
 
 	template <typename t_CType>

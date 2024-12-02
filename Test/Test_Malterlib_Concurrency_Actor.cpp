@@ -30,6 +30,7 @@
 #define DDoTest_Message_PCActorToDiscard 1
 #define DDoTest_Message_PCActorToDiscardCoro 1
 #define DDoTest_Message_PCActorToResVector 1
+#define DDoTest_Message_PCActorToResVectorDyn 1
 #define DDoTest_Message_PCActorToResVectorCoro 1
 #define DDoTest_Message_PCActorToVector 1
 #define DDoTest_Message_PCActorToResMap 1
@@ -2253,6 +2254,66 @@ namespace
 									{
 										TCFutureVector<void> ResultVector;
 										ResultVector.f_SetLen(nIterationsPerSplit);
+
+										for (mint i = 0; i < nIterationsPerSplit; ++i)
+										{
+											if ((i & gc_YieldMask) == gc_YieldMask)
+												co_await g_Yield;
+
+											pActor->f_Bind<&CPerformanceTestActor::f_AddIntNoFuture>(uint32(1)) > ResultVector;
+										}
+
+										co_await fg_AllDoneWrapped(ResultVector);
+
+										co_return co_await pActor->f_Bind<&CPerformanceTestActor::f_ExchangeResult>();
+									}
+								)
+								> Dispatches;
+							;
+						}
+						auto DispatchResults = fg_AllDoneWrapped(Dispatches).f_CallSync();
+						for (auto &DispatchResult : DispatchResults)
+							Result += *DispatchResult;
+						fp_BlockOnAllThreads(false);
+					}
+
+					DMibExpect(Result, ==, nIterations*gc_nRepetitions);
+
+					PerfTest.f_Add(ActorMeasure);
+				}();
+#endif
+#if DDoTest_Message_PCActorToResVectorDyn
+				[&]() inline_never
+				{
+					DMibTestPath("PC Actor->ResVecD");
+					fp_BlockOnAllThreads(true);
+
+					CTestPerformanceMeasure ActorMeasure("PC Actor->ResVecD");
+
+					uint32 Result = 0;
+					mint nSplits = NSys::fg_Thread_GetVirtualCores();
+					mint nIterations = nIterationsFull;
+					mint nIterationsPerSplit = nIterations / nSplits;
+					nIterations = nIterationsPerSplit * nSplits;
+					TCVector<TCActor<CPerformanceTestActor>> PerfTestActors;
+					PerfTestActors.f_SetLen(nSplits);
+					for (mint i = 0; i < nSplits; ++i)
+						PerfTestActors[i] = fg_ConstructActor<CPerformanceTestActor>();
+
+					for (mint i = 0; i < gc_nRepetitions; ++i)
+					{
+						TCFutureVector<uint32> Dispatches;
+						Dispatches.f_SetLen(nSplits);
+
+						DMibTestScopeMeasureThreads(ActorMeasure, nIterations, NSys::fg_Thread_GetPhysicalCores());
+						for (mint iSplit = 0; iSplit < nSplits; ++iSplit)
+						{
+							auto *pActor = &PerfTestActors[iSplit];
+							fg_ConcurrentDispatch
+								(
+									[nIterationsPerSplit, pActor]() -> TCFuture<uint32>
+									{
+										TCFutureVector<void> ResultVector;
 
 										for (mint i = 0; i < nIterationsPerSplit; ++i)
 										{

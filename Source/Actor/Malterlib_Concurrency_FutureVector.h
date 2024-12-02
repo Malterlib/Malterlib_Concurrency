@@ -24,7 +24,7 @@ namespace NMib::NConcurrency
 	TCFuture<void> fg_AllDone(TCFutureVector<void> &&_Futures);
 
 	template <typename t_CType>
-	struct TCFutureVector
+	struct TCFutureVector final
 	{
 	private:
 		template <typename tf_CType>
@@ -46,33 +46,34 @@ namespace NMib::NConcurrency
 		template <typename t_CReturn2, typename t_CActor2, typename t_FFunctionPointer2, CBindActorOptions t_BindOptions2, bool t_bByValue2, typename ...tp_CParams2>
 		friend struct TCBoundActorCall;
 
-		struct CQueuedResult
+		struct CQueuedResult final
 		{
 			mint m_iResult;
 			TCAsyncResult<t_CType> m_Result;
 			CQueuedResult *m_pNext;
 		};
 
-		struct CInternal
+		struct CInternal final
 		{
 			CInternal();
 			~CInternal();
 		public:
-			NStorage::CIntrusiveRefCount m_RefCount;
 			friend struct TCFutureVector;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nAdded;
-			align_cacheline NAtomic::TCAtomic<mint> mp_nFinished;
-			align_cacheline NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
-			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
-			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
-			bool mp_bDefinedSize = false;
-			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 
 			TCFuture<NContainer::TCVector<TCAsyncResult<t_CType>>> f_GetResults();
 			void fp_TransferResults();
+			void fp_DestroyResults();
+
+			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
+			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
+			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
+			bool mp_bDefinedSize = false;
+			align_cacheline mint mp_nAdded = 0;
+			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
+			NAtomic::TCAtomic<CQueuedResult *> mp_pFirstResult;
 		};
 
-		class CResultReceived
+		class CResultReceived final
 		{
 			mint mp_iResult;
 			NStorage::TCSharedPointer<CInternal> mp_pInternal;

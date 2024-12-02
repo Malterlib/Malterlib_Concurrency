@@ -89,11 +89,7 @@ namespace NMib::NConcurrency
 			m_State.m_AsyncDestructors.f_Clear();
 
 			if (!DestroyResults.f_IsEmpty())
-			{
-				TCPromise<void> Promise{CPromiseConstructNoConsume()};
-				fg_AllDoneWrapped(DestroyResults).f_OnResultSet(Promise.f_ReceiveAnyUnwrap());
-				return fg_Move(Promise.f_MoveFuture());
-			}
+				return fg_AllDone(DestroyResults);
 		}
 
 		m_State.~CRuntimeState();

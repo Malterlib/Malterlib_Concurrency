@@ -199,7 +199,7 @@ namespace NMib::NConcurrency
 			if (_pPromise)
 				Promise = fg_Move(*_pPromise);
 
-			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message, 5.0)
+			m_Connection(&NWeb::CWebSocketActor::f_CloseWithLinger, NWeb::EWebSocketStatus_NormalClosure, _Message.f_Left(NWeb::CWebSocketActor::mc_MaxCloseMessageLength), 5.0)
 				> fg_ConcurrentActor() / [=, Promise = fg_Move(Promise)](TCAsyncResult<NWeb::CWebSocketActor::CCloseInfo> &&_Result) mutable
 				{
 					fs_LogClose(_Result, bIsLastConnection, ConnectionID, ServerURL, Desc);

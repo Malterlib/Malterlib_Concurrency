@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 
 			NStr::CStr CloseMessage = fg_Format
 				(
-					"Invalid connection: <{}> Closed {} incoming connection '{}' due to invalid state: {}"
+					"Invalid connection: <{}> Closed {} incoming '{}'. {}"
 					, pConnection->f_GetHostInfo()
 					, bLast ? "last" : "additional"
 					, pConnection->f_GetConnectionID()

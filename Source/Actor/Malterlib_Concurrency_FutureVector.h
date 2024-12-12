@@ -65,7 +65,7 @@ namespace NMib::NConcurrency
 			void fp_DestroyResults();
 
 			NContainer::TCVector<TCAsyncResult<t_CType>> mp_Results;
-			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
+			TCPromise<NContainer::TCVector<TCAsyncResult<t_CType>>> mp_GetResultsPromise;
 			NAtomic::TCAtomic<bool> mp_bLazyResultsGotten = false;
 			bool mp_bDefinedSize = false;
 			align_cacheline mint mp_nAdded = 0;

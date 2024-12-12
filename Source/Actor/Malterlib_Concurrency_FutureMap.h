@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 			void fp_TransferResults();
 
 			NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>> mp_Results;
-			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise{CPromiseConstructNoConsume()};
+			TCPromise<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> mp_GetResultsPromise;
 
 			align_cacheline NStorage::CIntrusiveRefCount m_RefCount;
 		};

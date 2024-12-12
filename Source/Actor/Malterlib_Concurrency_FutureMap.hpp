@@ -119,11 +119,11 @@ namespace NMib::NConcurrency
 	TCFuture<NContainer::TCMap<t_CKey, t_CValue>> TCFutureMap<t_CKey, t_CValue>::fp_GetUnwrappedResults()
 		requires (!NTraits::TCIsVoid<t_CValue>::mc_Value)
 	{
-		TCPromise<NContainer::TCMap<t_CKey, t_CValue>> Promise{CPromiseConstructNoConsume()};
+		TCPromiseFuturePair<NContainer::TCMap<t_CKey, t_CValue>> Promise;
 
 		fp_GetResults().f_OnResultSet
 			(
-				[Promise](TCAsyncResult<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> &&_Results)
+				[Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> &&_Results)
 				{
 					if (!_Results)
 						return Promise.f_SetException(fg_Move(_Results).f_GetException());
@@ -133,18 +133,18 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 
 	template <typename t_CKey, typename t_CValue>
 	TCFuture<NContainer::TCSet<t_CKey>> TCFutureMap<t_CKey, t_CValue>::fp_GetUnwrappedResults()
 		requires (NTraits::TCIsVoid<t_CValue>::mc_Value)
  	{
-		TCPromise<NContainer::TCSet<t_CKey>> Promise{CPromiseConstructNoConsume()};
+		TCPromiseFuturePair<NContainer::TCSet<t_CKey>> Promise;
 
 		fp_GetResults().f_OnResultSet
 			(
-				[Promise](TCAsyncResult<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> &&_Results)
+				[Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<NContainer::TCMap<t_CKey, TCAsyncResult<t_CValue>>> &&_Results)
 				{
 					if (!_Results)
 						return Promise.f_SetException(fg_Move(_Results).f_GetException());
@@ -154,6 +154,6 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		return Promise.f_MoveFuture();
+		return fg_Move(Promise.m_Future);
 	}
 }

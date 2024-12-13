@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 
 	struct CConcurrencyThreadLocal;
 
-	CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
+	mark_nodebug CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal();
 
 	struct CFutureCoroutineContext;
 

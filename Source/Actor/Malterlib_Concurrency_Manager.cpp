@@ -216,7 +216,7 @@ namespace NMib::NConcurrency
 		[[maybe_unused]] auto &Local = *NPrivate::g_SubSystem_Concurrency->m_ThreadLocal;
 	}
 	
-	inline_always_lto CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
+	mark_nodebug inline_always_lto CConcurrencyThreadLocal &fg_ConcurrencyThreadLocal()
 	{
 #ifdef DMibConfig_ManualForeignThreadInitialization
 		DMibFastCheck(NPrivate::g_SubSystem_Concurrency.f_WasCreated() && NPrivate::g_SubSystem_Concurrency.f_GetUnsafe()->m_ThreadLocal.f_TryGet());
@@ -1345,7 +1345,7 @@ namespace NMib::NConcurrency
 		return m_pTimerActor;
 	}
 
-	TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal)
+	mark_nodebug TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (!_ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return {};
@@ -1357,12 +1357,12 @@ namespace NMib::NConcurrency
 		return Actor;
 	}
 
-	inline_always_lto TCActor<CActor> fg_CurrentActor()
+	mark_nodebug inline_always_lto TCActor<CActor> fg_CurrentActor()
 	{
 		return fg_CurrentActor(fg_ConcurrencyThreadLocal());
 	}
 
-	TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal)
+	mark_nodebug TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal)
 	{
 		if (!_ThreadLocal.m_pCurrentlyProcessingActorHolder)
 			return {};
@@ -1374,7 +1374,7 @@ namespace NMib::NConcurrency
 		return Actor;
 	}
 
-	inline_always_lto TCWeakActor<CActor> fg_CurrentActorWeak()
+	mark_nodebug inline_always_lto TCWeakActor<CActor> fg_CurrentActorWeak()
 	{
 		return fg_CurrentActorWeak(fg_ConcurrencyThreadLocal());
 	}

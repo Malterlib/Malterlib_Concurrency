@@ -713,10 +713,10 @@ namespace NMib::NConcurrency
 	TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
 	CBlockingActorCheckout fg_BlockingActor();
-	TCActor<CActor> fg_CurrentActor();
-	TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal);
-	TCWeakActor<CActor> fg_CurrentActorWeak();
-	TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal);
+	mark_nodebug TCActor<CActor> fg_CurrentActor();
+	mark_nodebug TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal);
+	mark_nodebug TCWeakActor<CActor> fg_CurrentActorWeak();
+	mark_nodebug TCWeakActor<CActor> fg_CurrentActorWeak(CConcurrencyThreadLocal &_ThreadLocal);
 
 	TCActor<CTimerActor> fg_TimerActor();
 }

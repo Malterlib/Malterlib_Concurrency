@@ -95,12 +95,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		t_CType &operator *()
+		mark_nodebug t_CType &operator *()
 		{
 			return f_Get();
 		}
 
-		t_CType *operator ->()
+		mark_nodebug t_CType *operator ->()
 		{
 			return &f_Get();
 		}
@@ -111,12 +111,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		t_CType const &operator *() const
+		mark_nodebug t_CType const &operator *() const
 		{
 			return f_Get();
 		}
 
-		t_CType const *operator ->() const
+		mark_nodebug t_CType const *operator ->() const
 		{
 			return &f_Get();
 		}
@@ -286,12 +286,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		t_CType &operator *()
+		mark_nodebug t_CType &operator *()
 		{
 			return f_Get();
 		}
 
-		t_CType *operator ->()
+		mark_nodebug t_CType *operator ->()
 		{
 			return &f_Get();
 		}
@@ -302,12 +302,12 @@ namespace NMib::NContainer
 			return m_pEntry->m_Data;
 		}
 
-		t_CType const &operator *() const
+		mark_nodebug t_CType const &operator *() const
 		{
 			return f_Get();
 		}
 
-		t_CType const *operator ->() const
+		mark_nodebug t_CType const *operator ->() const
 		{
 			return &f_Get();
 		}

@@ -191,8 +191,8 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Destroy();
 
-		TCActor<t_CActor> const &operator *() const;
-		TCActor<t_CActor> const *operator -> () const;
+		mark_nodebug TCActor<t_CActor> const &operator *() const;
+		mark_nodebug TCActor<t_CActor> const *operator -> () const;
 		CDispatchHelperWithActor f_Dispatch() const;
 
 	private:

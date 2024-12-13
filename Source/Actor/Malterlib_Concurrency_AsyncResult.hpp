@@ -113,23 +113,23 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	inline_always t_CType const &TCAsyncResult<t_CType>::operator *() const
+	mark_nodebug inline_always t_CType const &TCAsyncResult<t_CType>::operator *() const
 	{
 		return f_Get();;
 	}
 	template <typename t_CType>
-	inline_always t_CType &TCAsyncResult<t_CType>::operator *()
+	mark_nodebug inline_always t_CType &TCAsyncResult<t_CType>::operator *()
 	{
 		return f_Get();;
 	}
 
 	template <typename t_CType>
-	inline_always t_CType const *TCAsyncResult<t_CType>::operator ->() const
+	mark_nodebug inline_always t_CType const *TCAsyncResult<t_CType>::operator ->() const
 	{
 		return &f_Get();;
 	}
 	template <typename t_CType>
-	inline_always t_CType *TCAsyncResult<t_CType>::operator ->()
+	mark_nodebug inline_always t_CType *TCAsyncResult<t_CType>::operator ->()
 	{
 		return &f_Get();;
 	}

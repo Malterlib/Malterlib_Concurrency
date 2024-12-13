@@ -497,7 +497,7 @@ namespace NMib::NConcurrency
 #endif
 
 #if DMibConcurrencySupportCoroutineFreeFunctionDebug
-	extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite)
+	extern "C" mark_nodebug void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite)
 	{
 		auto &PromiseThreadLocal = fg_SystemThreadLocal().m_PromiseThreadLocal;
 		PromiseThreadLocal.m_bExpectCoroutineCall = false;

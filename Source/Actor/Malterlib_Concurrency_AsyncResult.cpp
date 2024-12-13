@@ -243,12 +243,12 @@ namespace NMib::NConcurrency
 		fp_AccessSlowPath();
 	}
 
-	inline_always_lto CVoidTag TCAsyncResult<void>::operator *() const
+	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator *() const
 	{
 		return f_Get();
 	}
 	
-	inline_always_lto CVoidTag TCAsyncResult<void>::operator *()
+	mark_nodebug inline_always_lto CVoidTag TCAsyncResult<void>::operator *()
 	{
 		return f_Get();
 	}

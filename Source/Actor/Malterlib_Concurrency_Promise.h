@@ -95,25 +95,25 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename tf_CThis>
-	mark_artificial inline_always TCFutureForwardThis<tf_CThis &&> fg_MoveThis(tf_CThis &_This)
+	mark_nodebug mark_artificial inline_always TCFutureForwardThis<tf_CThis &&> fg_MoveThis(tf_CThis &_This)
 	{
 		return TCFutureForwardThis<tf_CThis &&>(fg_Move(_This));
 	}
 
 	template <ECoroutineFlag tf_Flags, typename tf_CThis>
-	mark_artificial inline_always TCFutureForwardThis<tf_CThis &&, tf_Flags> fg_MoveThis(tf_CThis &_This)
+	mark_nodebug mark_artificial inline_always TCFutureForwardThis<tf_CThis &&, tf_Flags> fg_MoveThis(tf_CThis &_This)
 	{
 		return TCFutureForwardThis<tf_CThis &&, tf_Flags>(fg_Move(_This));
 	}
 
 	template <typename tf_CThis>
-	mark_artificial inline_always TCFutureForwardThis<tf_CThis const &> fg_CopyThis(tf_CThis const &_This)
+	mark_nodebug mark_artificial inline_always TCFutureForwardThis<tf_CThis const &> fg_CopyThis(tf_CThis const &_This)
 	{
 		return TCFutureForwardThis<tf_CThis const &>(_This);
 	}
 
 	template <ECoroutineFlag tf_Flags, typename tf_CThis>
-	mark_artificial inline_always TCFutureForwardThis<tf_CThis const &, tf_Flags> fg_CopyThis(tf_CThis const &_This)
+	mark_nodebug mark_artificial inline_always TCFutureForwardThis<tf_CThis const &, tf_Flags> fg_CopyThis(tf_CThis const &_This)
 	{
 		return TCFutureForwardThis<tf_CThis const &, tf_Flags>(_This);
 	}
@@ -966,7 +966,7 @@ struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::NPrivate::TCPro
 {
 };
 
-extern "C" void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite);
+extern "C" mark_nodebug void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite);
 
 namespace NMib::NConcurrency
 {

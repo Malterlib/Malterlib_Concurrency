@@ -114,10 +114,10 @@ namespace NMib::NConcurrency
 		inline_always t_CType const &f_Get() const;
 		inline_always t_CType &f_Get();
 		inline_always t_CType f_Move();
-		inline_always t_CType const &operator *() const;
-		inline_always t_CType &operator *();
-		inline_always t_CType const *operator ->() const;
-		inline_always t_CType *operator ->();
+		mark_nodebug inline_always t_CType const &operator *() const;
+		mark_nodebug inline_always t_CType &operator *();
+		mark_nodebug inline_always t_CType const *operator ->() const;
+		mark_nodebug inline_always t_CType *operator ->();
 		
 		template <typename ...tfp_CType>
 		void f_SetResult(tfp_CType && ...p_Result);
@@ -153,8 +153,8 @@ namespace NMib::NConcurrency
 		CVoidTag f_Get() const;
 		CVoidTag f_Get();
 		CVoidTag f_Move();
-		CVoidTag operator *() const;
-		CVoidTag operator *();
+		mark_nodebug CVoidTag operator *() const;
+		mark_nodebug CVoidTag operator *();
 		
 		void f_SetResult();
 		void f_SetResult(TCAsyncResult const &_Result);

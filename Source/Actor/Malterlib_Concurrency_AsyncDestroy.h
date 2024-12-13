@@ -76,77 +76,12 @@ namespace NMib::NConcurrency
 #endif
 	};
 
-	template <typename tf_FDestroy>
-	auto fg_AsyncDestroyByValue(tf_FDestroy &&_fDestroy)
-		requires requires
-		{
-			_fDestroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_FDestroy>
-	auto fg_AsyncDestroy(tf_FDestroy &&_fDestroy)
-		requires requires
-		{
-			_fDestroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_FDestroy>
-	auto fg_AsyncDestroyLogError(tf_FDestroy &&_fDestroy)
-		requires requires
-		{
-			_fDestroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_CToCleanup>
-	auto fg_AsyncDestroy(tf_CToCleanup &_ToDestroy)
-		requires requires
-		{
-			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_CToCleanup>
-	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
-		requires requires
-		{
-			_pToDestroy->f_Destroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_CToCleanup>
-	auto fg_AsyncDestroyLogError(tf_CToCleanup &_ToDestroy)
-		requires requires
-		{
-			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_CToCleanup>
-	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
-		requires requires
-		{
-			_pToDestroy->f_Destroy().f_DiscardResult();
-		}
-	;
-
-	template <typename tf_CActor>
-	auto fg_AsyncDestroy(TCActor<tf_CActor> &_ToDestroy);
-	
-	template <typename tf_CActor>
-	auto fg_AsyncDestroyByValue(TCActor<tf_CActor> &_ToDestroy);
-
 	TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction> fg_AsyncDestroy(CActorSubscription &&_pToDestroy);
 
 	using CAsyncDestroy = TCAsyncDestroy<FUnitVoidFutureFunction>;
 	using CAsyncDestroyAwaiter = TCAsyncDestroyAwaiter<FUnitVoidFutureFunction, FUnitVoidFutureFunction>;
 
 	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(FUnitVoidFutureFunction &&_fDestroy);
-
-	template <typename tf_CToCleanup>
-	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(tf_CToCleanup &_ToDestroy);
 }
 
 #include "Malterlib_Concurrency_AsyncDestroy.hpp"

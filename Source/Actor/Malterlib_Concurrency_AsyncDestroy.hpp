@@ -228,14 +228,15 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroy(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy().f_DiscardResult();
+			fg_Move(*_pToDestroy).f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
 			(
-				[pToDestroy = fg_Forward<tf_CToCleanup>(_pToDestroy)]() -> TCFuture<void>
+				[pToDestroy = fg_Forward<tf_CToCleanup>(_pToDestroy)]() mutable -> TCFuture<void>
 				{
-					co_await pToDestroy->f_Destroy();
+					auto pToDestroyCoroutine = fg_Move(pToDestroy);
+					co_await fg_Move(*pToDestroyCoroutine).f_Destroy();
 
 					co_return {};
 				}
@@ -267,14 +268,15 @@ namespace NMib::NConcurrency
 	auto fg_AsyncDestroyLogError(tf_CToCleanup &&_pToDestroy)
 		requires requires
 		{
-			_pToDestroy->f_Destroy().f_DiscardResult();
+			fg_Move(*_pToDestroy).f_Destroy().f_DiscardResult();
 		}
 	{
 		return fg_AsyncDestroyByValue
 			(
 				[pToDestroy = _pToDestroy]() -> TCFuture<void>
 				{
-					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await pToDestroy->f_Destroy().f_Wrap());
+					auto pToDestroyCoroutine = fg_Move(pToDestroy);
+					NPrivate::fg_AsyncDestroyLogErrorHelper(co_await fg_Move(*pToDestroyCoroutine)->f_Destroy().f_Wrap());
 
 					co_return {};
 				}

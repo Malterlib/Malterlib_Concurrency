@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 			, typename t_CHandler
 			, typename t_CActor
 			, typename t_CResultTypes
-			, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
+			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>
 		>
 		struct TCCallMutipleActorStorage;
 

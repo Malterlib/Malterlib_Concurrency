@@ -11,7 +11,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
 	struct TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>
 	{
-		using CIndices = typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CParams)>::CType;
+		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 		using CValue = t_CReturn;
 		using CParamsType = typename TCChooseType
 			<

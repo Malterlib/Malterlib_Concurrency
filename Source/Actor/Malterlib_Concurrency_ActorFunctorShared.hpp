@@ -16,7 +16,7 @@ namespace NMib::NConcurrency::NPrivate
 		using CMoveList = NMeta::TCTypeList<typename NTraits::TCAddRValueReference<typename NTraits::TCDecay<tp_CParams>::CType>::CType...>;
 		using CCallType = void (*)(typename NTraits::TCDecay<tp_CParams>::CType...);
 		using CType = NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...>;
-		using CIndices = typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CParams)>::CType;
+		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 	};
 
 	template <typename t_CFunction, typename ...tp_CParams>

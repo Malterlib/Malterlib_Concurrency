@@ -180,7 +180,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
-				, typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+				, NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
 				, CParams()
 			)
 		;
@@ -288,7 +288,7 @@ namespace NMib::NConcurrency::NPrivate
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
 				,
-				typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+				NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
 				, CParams()
 			)
 		;
@@ -456,8 +456,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
-				,
-				typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>::CType()
+				, NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
 				, CParams()
 			)
 		;

@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 			static constexpr mint mc_nParams = NMeta::TCTypeList_Len<CMemberPointerTypes>::mc_Value;
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
-			using CIndices = typename NMeta::TCMakeConsecutiveIndices<mc_nParams>::CType;
+			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
 			template <typename... tfp_CParams>
 			TCActorCallWithParams(t_FMemberFunctionPointer _pMemberPointer, tfp_CParams &&...p_Params)
@@ -94,7 +94,7 @@ namespace NMib::NConcurrency
 
 			static constexpr mint mc_nParams = NMeta::TCTypeList_Len<CMemberPointerTypes>::mc_Value;
 			using CReturnType = typename CTraits::CReturn;
-			using CIndices = typename NMeta::TCMakeConsecutiveIndices<mc_nParams>::CType;
+			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
 			template <typename... tfp_CParams>
 			TCActorCallWithParams(t_FFunctionType *_pFunctionPointer, tfp_CParams &&...p_Params)
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency
 		template <typename... tfp_CParams>
 		auto fg_ToTupleByValue(TCConstruct<void, tfp_CParams...> &&_Params)
 		{
-			return fg_ToTupleByValueHelper(fg_Move(_Params), typename NMeta::TCMakeConsecutiveIndices<TCConstruct<void, tfp_CParams...>::mc_nParams>::CType());
+			return fg_ToTupleByValueHelper(fg_Move(_Params), NMeta::TCConsecutiveIndices<TCConstruct<void, tfp_CParams...>::mc_nParams>());
 		}
 
 
@@ -443,7 +443,7 @@ namespace NMib::NConcurrency
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
 		{
-			fg_Move(*this).fp_ActorCall(fg_Move(_ResultCall), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+			fg_Move(*this).fp_ActorCall(fg_Move(_ResultCall), NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		}
 
 		template <typename tf_CFunctor>
@@ -452,17 +452,17 @@ namespace NMib::NConcurrency
 		{
 			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
-			fg_Move(*this).fp_ActorCall(fg_Move(pActor) / fg_Forward<tf_CFunctor>(_Functor), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+			fg_Move(*this).fp_ActorCall(fg_Move(pActor) / fg_Forward<tf_CFunctor>(_Functor), NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		}
 
 		auto f_CallSync(fp64 _Timeout = -1.0) &&
 		{
-			return fg_Move(*this).template fp_CallSync<NPrivate::CDummyRunLoop>(_Timeout, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+			return fg_Move(*this).template fp_CallSync<NPrivate::CDummyRunLoop>(_Timeout, NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		}
 
 		auto f_CallSync(NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop, fp64 _Timeout = -1.0) &&
 		{
-			return fg_Move(*this).template fp_CallSync<NPrivate::CRunLoopState>(_Timeout, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType(), _pRunLoop);
+			return fg_Move(*this).template fp_CallSync<NPrivate::CRunLoopState>(_Timeout, NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>(), _pRunLoop);
 		}
 
 		struct CNoUnwrapAsyncResult
@@ -503,7 +503,7 @@ namespace NMib::NConcurrency
 				, tfp_CParams && ...p_Params
 			) &&
 		{
-			auto Future = fg_Move(*this).fp_ActorFutureCall(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+			auto Future = fg_Move(*this).fp_ActorFutureCall(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 
 			using CReturnType = NStorage::TCTuple<typename NPrivate::TCConvertResultTypeVoid<typename tp_CFutures::CValue>::CType...>;
 			NStorage::TCSharedPointer<NPrivate::TCCallSyncState<CReturnType, tf_CRunLoop>> pResult = fg_Construct(fg_Forward<tfp_CParams>(p_Params)...);
@@ -518,7 +518,7 @@ namespace NMib::NConcurrency
 							return;
 						}
 						auto &Results = *_Results;
-						pResult->f_TransferResults(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType(), fg_Get<tfp_Indices>(Results)...);
+						pResult->f_TransferResults(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>(), fg_Get<tfp_Indices>(Results)...);
 					}
 				)
 			;
@@ -624,7 +624,7 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename t_CResultTypes
-			, typename t_CResultIndicies = typename NMeta::TCMakeConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>::CType
+			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>
 		>
 		struct TCCallMutipleFutureStorage;
 
@@ -1723,13 +1723,13 @@ namespace NMib::NConcurrency
 	template <typename ...tfp_CParams>
 	auto fg_AnyDone(tfp_CParams && ...p_Params)
 	{
-		return NPrivate::fg_AnyDoneImpl(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
+		return NPrivate::fg_AnyDoneImpl(NMeta::TCConsecutiveIndices<sizeof...(tfp_CParams)>(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
 	}
 
 	template <typename ...tfp_CParams>
 	auto fg_AnySuccess(tfp_CParams && ...p_Params)
 	{
-		return NPrivate::fg_AnySuccessImpl(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
+		return NPrivate::fg_AnySuccessImpl(NMeta::TCConsecutiveIndices<sizeof...(tfp_CParams)>(), NPrivate::fg_ConvertToFuture(fg_Forward<tfp_CParams>(p_Params))...);
 	}
 }
 

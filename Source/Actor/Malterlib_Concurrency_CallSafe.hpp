@@ -114,7 +114,7 @@ namespace NMib::NConcurrency
 		return fg_CallSafeImpl<CReturn, tfp_CStorageParams...>
 			(
 				fg_Forward<tf_CFunctor>(_fFunction)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CParams)>::CType()
+				, NMeta::TCConsecutiveIndices<sizeof...(tfp_CParams)>()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;

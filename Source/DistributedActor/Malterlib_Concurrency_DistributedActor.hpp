@@ -529,7 +529,7 @@ namespace NMib::NConcurrency
 			(
 				_DistributionManager
 				, fg_Move(_HolderParams)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams)>::CType()
+				, NMeta::TCConsecutiveIndices<sizeof...(tfp_CHolderParams)>()
 				, fg_Forward<tfp_CParams>(p_Params)...
 			)
 		;

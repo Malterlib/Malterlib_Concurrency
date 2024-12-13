@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 	template <typename tf_CType, typename ...tfp_CParams, typename ...tfp_CHolderParams>
 	TCActor<t_CActor> &TCActor<t_CActor>::operator =(TCConstruct<void, TCConstruct<tf_CType, tfp_CParams...>, tfp_CHolderParams...> &&_Construct)
 	{
-		fp_Construct(fg_Move(_Construct), typename NMeta::TCMakeConsecutiveIndices<sizeof...(tfp_CHolderParams) + 1, 1>::CType());
+		fp_Construct(fg_Move(_Construct), NMeta::TCConsecutiveIndices<sizeof...(tfp_CHolderParams) + 1, 1>());
 		return *this;
 	}
 

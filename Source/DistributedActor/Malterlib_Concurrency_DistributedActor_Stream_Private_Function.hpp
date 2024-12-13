@@ -511,7 +511,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				_Stream
 				, m_fFunction
-				, typename NMeta::TCMakeConsecutiveIndices<NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::mc_nParams>::CType()
+				, NMeta::TCConsecutiveIndices<NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::mc_nParams>()
 			)
 		;
 	}

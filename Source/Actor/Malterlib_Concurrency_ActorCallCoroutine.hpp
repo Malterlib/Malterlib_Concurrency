@@ -173,7 +173,7 @@ namespace NMib::NConcurrency
 
 					if constexpr (t_bUnwrap)
 					{
-						if (auto pException = fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType()))
+						if (auto pException = fp_HasException(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>()))
 						{
 							CoroutineContext.f_HandleAwaitedException
 								(
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, fg_CurrentActor(ConcurrencyThreadLocal)
-				, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType()
+				, NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>()
 			)
 		;
 
@@ -202,7 +202,7 @@ namespace NMib::NConcurrency
 		{
 			if constexpr (t_bUnwrap)
 			{
-				if (auto pException = fp_HasException(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType()))
+				if (auto pException = fp_HasException(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>()))
 				{
 					CoroutineContext.f_HandleAwaitedException
 						(
@@ -226,11 +226,11 @@ namespace NMib::NConcurrency
 	auto TCFuturePackAwaiter<t_bUnwrap, t_FExceptionTransform, tp_CFutures...>::await_resume() noexcept(!t_bUnwrap)
 	{
 		if constexpr (t_bUnwrap)
-			return fp_Unwrap(typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+			return fp_Unwrap(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		else
 		{
 			if constexpr (!NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
-				fp_TransformExceptions(mp_Results, typename NMeta::TCMakeConsecutiveIndices<sizeof...(tp_CFutures)>::CType());
+				fp_TransformExceptions(mp_Results, NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 			return fg_Move(mp_Results);
 		}
 	}

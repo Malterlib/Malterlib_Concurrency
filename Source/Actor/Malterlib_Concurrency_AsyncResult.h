@@ -132,6 +132,9 @@ namespace NMib::NConcurrency
 		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
 		template <typename tf_CStream>
 		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
+
+		template <typename tf_CStr>
+		void f_Format(tf_CStr &o_Str) const;
 	};
 
 	template <>
@@ -165,6 +168,9 @@ namespace NMib::NConcurrency
 		void f_FeedWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion) const;
 		template <typename tf_CStream>
 		void f_ConsumeWithProtocol(tf_CStream &_Stream, uint32 _ActorProtocolVersion);
+
+		template <typename tf_CStr>
+		void f_Format(tf_CStr &o_Str) const;
 	};
 #if !DMibConfig_Concurrency_DebugActorCallstacks
 

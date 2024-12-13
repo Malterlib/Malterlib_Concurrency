@@ -170,4 +170,23 @@ namespace NMib::NConcurrency
 
 		return *m_ResultAggregate;
 	}
+
+	template <typename t_CType>
+	template <typename tf_CStr>
+	void TCAsyncResult<t_CType>::f_Format(tf_CStr &o_Str) const
+	{
+		if (*this)
+			o_Str += typename tf_CStr::CFormat("{}") << **this;
+		else
+			o_Str += typename tf_CStr::CFormat("[{}]") << f_GetExceptionStr();
+	}
+
+	template <typename tf_CStr>
+	void TCAsyncResult<void>::f_Format(tf_CStr &o_Str) const
+	{
+		if (*this)
+			o_Str += typename tf_CStr::CFormat("{}") << **this;
+		else
+			o_Str += typename tf_CStr::CFormat("[{}]") << f_GetExceptionStr();
+	}
 }

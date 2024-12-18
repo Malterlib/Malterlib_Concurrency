@@ -1237,8 +1237,13 @@ namespace NTestTrustManager
 				CStr Subscription = ClientHelper.f_Subscribe("com.malterlib/Test");
 				TCDistributedActor<CTestActor> Actor = ClientHelper.f_GetRemoteActor<CTestActor>(Subscription);
 
+#if defined(DMibSanitizerEnabled_Thread)
+				mint nEnclaves = 8;
+#else
+				mint nEnclaves = 128;
+#endif
 				TCVector<TCActor<CDistributedActorTrustManager>> ClientTrustManagers;
-				for (mint i = 0; i < 128; ++i)
+				for (mint i = 0; i < nEnclaves; ++i)
 				{
 					CDistributedActorTrustManager::COptions Options{.m_ReconnectDelay = 1_ms};
 					Options.m_Enclave = NCryptography::fg_RandomID();
@@ -1774,7 +1779,7 @@ namespace NTestTrustManager
 				{
 					DMibTestPath("Subscribe stress");
 					TCFutureVector<void> Dispatches;
-#if DMibConfig_RefCountDebugging
+#if DMibConfig_RefCountDebugging || defined(DMibSanitizerEnabled_Thread)
 					constexpr mint c_nLoops = 100;
 #else
 					constexpr mint c_nLoops = 100000;

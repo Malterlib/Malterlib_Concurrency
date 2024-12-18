@@ -508,7 +508,7 @@ namespace NTestTrustManager
 			CDistributedActorTestHelper m_ClientHelper;
 			CCallingHostInfo m_ServerHostInfo;
 
-			TCActor<> m_TestActor = fg_ConcurrentActor();
+			TCActor<> m_TestActor{fg_Construct()};
 
 			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_ExpectedPermissionsEmpty;
 			NContainer::TCMap<CPermissionIdentifiers, NContainer::TCMap<NStr::CStr, CPermissionRequirements>> m_ExpectedPermissions;

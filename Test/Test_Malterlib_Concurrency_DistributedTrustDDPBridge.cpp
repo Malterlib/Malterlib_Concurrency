@@ -62,7 +62,7 @@ namespace
 				
 				DdpBridge(&CDistributedTrustDDPBridge::f_Startup).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 
-				auto HandlerActor = fg_ConcurrentActor();
+				TCActor<CActor> HandlerActor{fg_Construct()};
 				
 				CActorSubscription HandlerSubscription = DdpBridge
 					(

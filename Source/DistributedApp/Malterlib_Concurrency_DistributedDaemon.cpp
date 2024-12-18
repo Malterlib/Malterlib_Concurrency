@@ -26,21 +26,24 @@ namespace NMib::NConcurrency
 			m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, m_Actor);
 
 			m_Actor(&CDistributedAppActor::f_StartApp, _Params, m_ApplyLoggingResults.m_LogActor, EDistributedAppType_Daemon)
-				> fg_ConcurrentActor() / [](TCAsyncResult<NStr::CStr> &&_Result)
-				{
-					if (_Result)
-						return;
+				.f_OnResultSet
+				(
+					[](TCAsyncResult<NStr::CStr> &&_Result)
+					{
+						if (_Result)
+							return;
 
-					DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
+						DMibLogWithCategory(Malterlib/Concurrency/DistributedDaemon, Error, "Failed to start application: {}", _Result.f_GetExceptionStr());
 
-					NStr::CStr Ticket = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
-					if (Ticket.f_IsEmpty())
-						return;
+						NStr::CStr Ticket = fg_GetSys()->f_GetProtectedEnvironmentVariable("MalterlibDistributedAppInterfaceServerRequestTicket");
+						if (Ticket.f_IsEmpty())
+							return;
 
-					NEncoding::CEJSONSorted Json;
-					Json["Error"] = _Result.f_GetExceptionStr();
-					DMibConErrOut2("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
-				}
+						NEncoding::CEJSONSorted Json;
+						Json["Error"] = _Result.f_GetExceptionStr();
+						DMibConErrOut2("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
+					}
+				)
 			;
 		}
 		~CDistributedDaemonDaemon()

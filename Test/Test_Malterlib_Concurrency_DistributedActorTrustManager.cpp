@@ -1788,12 +1788,12 @@ namespace NTestTrustManager
 					{
 						fg_ConcurrentDispatch
 							(
-								[&]
+								[ClientTrustManager, HelperActor = RunLoopHelper.m_HelperActor]
 								{
 									ClientTrustManager.f_Bind<&CDistributedActorTrustManager::f_SubscribeTrustedActors<CTestActor>>
 										(
 											"com.malterlib/Test"
-											, RunLoopHelper.m_HelperActor
+											, HelperActor
 											, 0
 											, TCLimitsInt<uint32>::mc_Max
 										)

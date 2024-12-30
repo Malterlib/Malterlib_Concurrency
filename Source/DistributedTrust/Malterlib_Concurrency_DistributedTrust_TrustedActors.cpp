@@ -352,8 +352,6 @@ namespace NMib::NConcurrency
 
 				if (pNamespace->m_nSubscriptions == 0 && pNamespace->m_Types.f_IsEmpty())
 				{
-					DMibFastCheck(!pNamespace->m_bSubscribing);
-
 					pNamespace->m_Subscription.f_Clear();
 
 					if (!pNamespace->m_bExistsInDatabase)

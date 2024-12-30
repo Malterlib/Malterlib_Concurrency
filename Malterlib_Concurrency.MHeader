@@ -297,6 +297,7 @@ Property
 	MalterlibConcurrency_DebugBlockDestroy: bool = false // User(Debug)=true: Set to true to enable debug of block destroy for concurrency manager
 	MalterlibConcurrency_DebugFutures: bool = false // User(Debug)=true: Set to true to enable future reference debugging
 	MalterlibConcurrency_DebugUnobservedException: bool = false // User(Debug)=true: Set to true to enable unobserved exception callstack debugging
+	MalterlibConcurrency_DebugSubscriptions: bool = false // User(Debug)=true: Set to true to enable logging of actor subscriptions
 }
 
 Compile
@@ -314,6 +315,10 @@ Compile
 	PreprocessorDefines += "DMibConfig_Concurrency_DebugUnobservedExceptions"
 	{
 		!!MalterlibConcurrency_DebugUnobservedException true
+	}
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugSubscriptions"
+	{
+		!!MalterlibConcurrency_DebugSubscriptions true
 	}
 }
 
@@ -344,6 +349,14 @@ Compile
 	PreprocessorDefines += "DMibConfig_Concurrency_DebugUnobservedException=0"
 	{
 		!!MalterlibConcurrency_DebugUnobservedException false
+	}
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugSubscriptions=1"
+	{
+		!!MalterlibConcurrency_DebugSubscriptions true
+	}
+	PreprocessorDefines += "DMibConfig_Concurrency_DebugSubscriptions=0"
+	{
+		!!MalterlibConcurrency_DebugSubscriptions false
 	}
 	PreprocessorDefines += "DMibConfig_Concurrency_DebugBlockDestroy=1"
 	{

@@ -119,13 +119,58 @@ namespace NMib::NConcurrency
 		{
 			auto &Host = *pHost;
 			if (!Host.f_CanSendPublish())
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': Anon {}"
+						, Publish.m_ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_HostInfo.m_bAnonymous
+					)
+				;
 				continue;
+			}
 
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
+						, Publish.m_ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_bAllowAllNamespaces
+						, Host.m_AllowedNamespaces
+					)
+				;
 				continue;
+			}
 
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot publish new actor {} for namespace '{}' to '{}{}{}': Anonymous"
+						, Publish.m_ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+					)
+				;
 				continue;
+			}
 
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
@@ -187,12 +232,60 @@ namespace NMib::NConcurrency
 		{
 			if (Host.m_HostInfo.m_RealHostID != _HostID)
 				continue;
+
 			if (!Host.f_CanSendPublish())
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': Anon {}"
+						, _ActorID
+						, _NamespaceID
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_HostInfo.m_bAnonymous
+					)
+				;
 				return;
+			}
+
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_NamespaceID))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
+						, _ActorID
+						, _NamespaceID
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_bAllowAllNamespaces
+						, Host.m_AllowedNamespaces
+					)
+				;
 				return;
+			}
+
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_NamespaceID))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot re-publish actor {} for namespace '{}' to '{}{}{}': Anonymous"
+						, _ActorID
+						, _NamespaceID
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+					)
+				;
 				return;
+			}
 
 			auto &PublishedActor = *pPublishedActor;
 
@@ -253,13 +346,58 @@ namespace NMib::NConcurrency
 		{
 			auto &Host = *pHost;
 			if (!Host.f_CanSendPublish())
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': Anon {}"
+						, _ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_HostInfo.m_bAnonymous
+					)
+				;
 				continue;
+			}
 
 			if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(_Namespace))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
+						, _ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+						, Host.m_bAllowAllNamespaces
+						, Host.m_AllowedNamespaces
+					)
+				;
 				continue;
+			}
 
 			if (Host.m_HostInfo.m_bAnonymous && !Internal.fp_NamespaceAllowedForAnonymous(_Namespace))
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "   Cannot un-publish actor {} for namespace '{}' to '{}{}{}': Anonymous"
+						, _ActorID
+						, _Namespace
+						, Host.m_HostInfo.m_RealHostID
+						, Host.m_bIncoming ? " in" : ""
+						, Host.m_bOutgoing ? " out" : ""
+					)
+				;
 				continue;
+			}
 
 			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
@@ -383,6 +521,17 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> Low level report new actor: {}"
+								, _RemoteActor.m_Namespace
+								, Instance.f_GetID()
+								, _RemoteActor.f_GetActorID()
+							)
+						;
+
 						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>
 							(
 								fg_TempCopy(Instance.m_pOnNewActor)
@@ -396,7 +545,18 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
-						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>>
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> Low level report new actor: {}"
+								, _RemoteActor.m_Namespace
+								, Instance.f_GetID()
+								, _RemoteActor.f_GetActorID()
+							)
+						;
+
+						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CAbstractDistributedActor>, EVirtualCall::mc_NotVirtual>
 							(
 								fg_TempCopy(Instance.m_pOnNewActor)
 								, fg_TempCopy(AbstractActor)
@@ -426,6 +586,17 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> Low level report removed actor: {}"
+								, _RemoteActor.m_Namespace
+								, Instance.f_GetID()
+								, _RemoteActor.f_GetActorID()
+							)
+						;
+
 						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CDistributedActorIdentifier>, EVirtualCall::mc_NotVirtual>
 							(
 								fg_TempCopy(Instance.m_pOnRemovedActor)
@@ -439,6 +610,17 @@ namespace NMib::NConcurrency
 				{
 					for (auto &Instance : _Subscription.m_Instances)
 					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> Low level report removed actor: {}"
+								, _RemoteActor.m_Namespace
+								, Instance.f_GetID()
+								, _RemoteActor.f_GetActorID()
+							)
+						;
+
 						Instance.m_DispatchActor.f_Bind<&CActor::f_DispatchWithReturnShared<TCFuture<void>, CDistributedActorIdentifier>>
 							(
 								fg_TempCopy(Instance.m_pOnRemovedActor)
@@ -514,7 +696,19 @@ namespace NMib::NConcurrency
 		auto &Host = *pHost;
 
 		if (!Host.f_CanReceivePublish() || Host.m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		{
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/Distribution
+					, SubscriptionLogVerbosity
+					, "   Low level publish packet: Skipped: CanReceive {} Deleted {}"
+					, pHost->f_CanReceivePublish()
+					, pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed)
+				)
+			;
+
 			return true;
+		}
 
 		CDistributedActorCommand_Publish Publish;
 
@@ -550,9 +744,22 @@ namespace NMib::NConcurrency
 
 		if (!bAllowAllNamespaces && !AllowedNamespaces.f_FindEqual(Publish.m_Namespace))
 		{
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/Distribution
+					, SubscriptionLogVerbosity
+					, "   Low level publish packet: Not allowed: bAllowAllNamespaces {} AllowedNamespaces {vs} Namespace {}"
+					, bAllowAllNamespaces
+					, AllowedNamespaces
+					, Publish.m_Namespace
+				)
+			;
+
 			fReportResults();
 			return true;
 		}
+
+		DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "   Low level publish packet: Allowed: {}", Publish.m_Namespace);
 
 		auto Mapped = Host.m_RemoteActors(Publish.m_ActorID);
 
@@ -598,7 +805,18 @@ namespace NMib::NConcurrency
 		auto &Host = *pHost;
 
 		if (!pHost->f_CanReceivePublish() || pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed))
+		{
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/Distribution
+					, SubscriptionLogVerbosity
+					, "   Low level unpublish packet: Skipped: CanReceive {} Deleted {}"
+					, pHost->f_CanReceivePublish()
+					, pHost->m_bDeleted.f_Load(NAtomic::EMemoryOrder_Relaxed)
+				)
+			;
 			return true;
+		}
 
 		auto VersionScope = Host.f_StreamVersion(_Stream);
 
@@ -747,19 +965,36 @@ namespace NMib::NConcurrency
 
 		if (_Namespace.f_IsEmpty())
 		{
+			DMibLogWithCategory
+				(
+					Mib/Concurrency/Distribution
+					, SubscriptionLogVerbosity
+					, "<{}> Low level subscribe full: {} = {}"
+					, SubscriptionID
+					, _Namespace
+					, Internal.m_RemoteNamespaces.f_GetLen()
+				)
+			;
 			for (auto &RemoteNamespace : Internal.m_RemoteNamespaces)
 				fReportExistingNamespace(RemoteNamespace);
 		}
 		else
 		{
+			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Low level subscribe: {}", SubscriptionID, _Namespace);
+
 			if (auto *pRemoteNamespace = Internal.m_RemoteNamespaces.f_FindEqual(_Namespace))
+			{
+				DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "   <{}> Low level subscribe report: {}", SubscriptionID, pRemoteNamespace->m_RemoteActors.f_GetLen());
 				fReportExistingNamespace(*pRemoteNamespace);
+			}
 		}
 
 		co_await fg_AllDoneWrapped(ReportResults);
 
 		co_return g_ActorSubscription / [this, _Namespace, SubscriptionID]
 			{
+				DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}> Low level unsubscribe: {}", SubscriptionID, _Namespace);
+
 				auto &Internal = *mp_pInternal;
 
 				auto pSubscribed = Internal.m_SubscribedActors.f_FindEqual(_Namespace);

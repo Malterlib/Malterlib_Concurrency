@@ -24,6 +24,9 @@ namespace NMib::NConcurrency::NPrivate
 		uint32 m_TypeHash = 0;
 		CDistributedActorProtocolVersions m_ProtocolVersions;
 		NStr::CStr m_NamespaceName;
+#if (DMibSysLogSeverities) & DMibConcurrency_SubscriptionLogVerbosity
+		NStr::CStr m_DebugID;
+#endif
 
 		// Handled on dipatch actor
 		NContainer::TCVector<NStorage::TCVariant<NContainer::TCMap<CDistributedActorIdentifier, TCTrustedActor<CActor>>, NContainer::TCSet<CDistributedActorIdentifier>>> m_DeferredChanges;

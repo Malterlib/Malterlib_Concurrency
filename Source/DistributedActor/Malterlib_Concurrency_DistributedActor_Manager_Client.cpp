@@ -435,14 +435,24 @@ namespace NMib::NConcurrency
 
 						if (Sequence != pConnection->m_ConnectionSequence)
 						{
-							DMibLog(DebugVerbose2, " ---- {} {} Invalid connection sequence", pConnection->m_pHost->m_bIncoming, pConnection->f_GetConnectionID());
+							DMibLog
+								(
+									SubscriptionLogVerbosity
+									, " ---- {} Invalid connection sequence. {} != {}"
+									, pConnection->f_GetConnectionID()
+									, Sequence
+									, pConnection->m_ConnectionSequence
+								)
+							;
 							co_return {};
 						}
+
 						if (!pConnection->m_pHost)
 						{
-							DMibLog(DebugVerbose2, " ---- {} No host", pConnection->f_GetConnectionID());
+							DMibLog(SubscriptionLogVerbosity, " ---- {} No host", pConnection->f_GetConnectionID());
 							co_return {};
 						}
+
 						if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
 							fp_OnInvalidConnection(pConnection.f_Get(), DMibErrorInstance("Failed to handle incoming message").f_ExceptionPointer());
 
@@ -559,7 +569,7 @@ namespace NMib::NConcurrency
 									if (*_Result)
 										DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
 									else
-										DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
+										DMibLogWithCategory(Mib/Concurrency/Actors, SubscriptionLogVerbosity, "{} Identify false", ToLog);
 
 									if (_pPromise)
 									{

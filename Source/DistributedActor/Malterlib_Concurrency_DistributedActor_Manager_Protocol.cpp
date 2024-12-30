@@ -31,7 +31,7 @@ namespace NMib::NConcurrency
 		mint Length = _pMessage->f_GetLen();
 		if (Length < 1)
 		{
-			DMibLog(DebugVerbose2, " ---- {} {} Too small", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID());
+			DMibLog(DebugVerbose2, " ---- {} {} Too small", _pConnection->m_pHost ? _pConnection->m_pHost->m_bIncoming : false, _pConnection->f_GetConnectionID());
 			return false;
 		}
 
@@ -180,7 +180,16 @@ namespace NMib::NConcurrency
 						}
 					}
 
-					DMibLog(DebugVerbose2, " ---- {} {} Identify", Host.m_bIncoming, _pConnection->f_GetConnectionID());
+					DMibLog
+						(
+							SubscriptionLogVerbosity, " ---- {} {} Identify AllowAll {} Allowed {vs} Host {}"
+							, Host.m_bIncoming
+							, _pConnection->f_GetConnectionID()
+							, Identify.m_bAllowAllNamespaces
+							, Identify.m_AllowedNamespaces
+							, Host.f_GetHostInfo()
+						)
+					;
 
 					_pConnection->m_bIdentified = true;
 					Host.m_ActiveConnections.f_Insert(*_pConnection);
@@ -195,9 +204,38 @@ namespace NMib::NConcurrency
 						{
 							auto &Namespace = NamespaceActors.f_GetNamespace();
 							if (!Host.m_bAllowAllNamespaces && !Host.m_AllowedNamespaces.f_FindEqual(Namespace))
+							{
+								DMibLogWithCategory
+									(
+										Mib/Concurrency/Distribution
+										, SubscriptionLogVerbosity
+										, "   Cannot publish namespace '{}' to '{}{}{}': bAllowAll: {} Allowed: {vs}"
+										, Namespace
+										, Host.m_HostInfo.m_RealHostID
+										, Host.m_bIncoming ? " in" : ""
+										, Host.m_bOutgoing ? " out" : ""
+										, Host.m_bAllowAllNamespaces
+										, Host.m_AllowedNamespaces
+									)
+								;
 								continue;
+							}
+
 							if (Host.m_HostInfo.m_bAnonymous && !fp_NamespaceAllowedForAnonymous(Namespace))
+							{
+								DMibLogWithCategory
+									(
+										Mib/Concurrency/Distribution
+										, SubscriptionLogVerbosity
+										, "   Cannot publish namespace '{}' to '{}{}{}': Anonymous"
+										, Namespace
+										, Host.m_HostInfo.m_RealHostID
+										, Host.m_bIncoming ? " in" : ""
+										, Host.m_bOutgoing ? " out" : ""
+									)
+								;
 								continue;
+							}
 
 							for (auto &Actor : NamespaceActors.m_Actors)
 							{
@@ -213,10 +251,37 @@ namespace NMib::NConcurrency
 								Stream << Publish;
 								auto Data = Stream.f_MoveVector();
 
+								DMibLogWithCategory
+									(
+										Mib/Concurrency/Distribution
+										, SubscriptionLogVerbosity
+										, "   Sending publish packet for namespace '{}' to '{}{}{}': {}"
+										, Namespace
+										, Host.m_HostInfo.m_RealHostID
+										, Host.m_bIncoming ? " in" : ""
+										, Host.m_bOutgoing ? " out" : ""
+										, Publish.m_ActorID
+									)
+								;
 								fp_QueuePacket(pHost, fg_TempCopy(Data));
 							}
 						}
 					}
+					else
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "   Cannot send publish to '{}{}{}': Anon {}"
+								, Host.m_HostInfo.m_RealHostID
+								, Host.m_bIncoming ? " in" : ""
+								, Host.m_bOutgoing ? " out" : ""
+								, Host.m_HostInfo.m_bAnonymous
+							)
+						;
+					}
+
 					if (Identify.m_ProtocolVersion >= EDistributedActorProtocolVersion_InitialPublishFinishedSupported)
 					{
 						CDistributedActorCommand_InitialPublishFinished Identify;
@@ -255,11 +320,20 @@ namespace NMib::NConcurrency
 					for (auto &PublishFinished : _pConnection->m_PublishFinished)
 						PublishFinished.f_Future() > PublishResults;
 
-					fg_AllDoneWrapped(PublishResults).f_Timeout(30.0, "")
-						> [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this](auto &&)
+					fg_AllDone(PublishResults).f_Timeout(30.0, "")
+						> [pConnection = NStorage::TCSharedPointer<CConnection, NStorage::CSupportWeakTag>(fg_Explicit(_pConnection)), this](auto &&_Result)
 						{
 							if (!pConnection->m_pHost)
 								return;
+
+							DMibLog
+								(
+									SubscriptionLogVerbosity
+									, " ---- {} Identify publish finished: {}"
+									, pConnection->f_GetConnectionID()
+									, (_Result ? NStr::CStr("Success") : _Result.f_GetExceptionStr())
+								)
+							;
 
 							auto &Host = *pConnection->m_pHost;
 							if (Host.m_ActorProtocolVersion >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -287,6 +361,8 @@ namespace NMib::NConcurrency
 
 					CDistributedActorCommand_InitialPublishFinishedProcessing InitialPublishFinishedProcessing;
 					Stream >> InitialPublishFinishedProcessing;
+
+					DMibLog(SubscriptionLogVerbosity, " ---- {} {} Identify publish finished processing", Host.m_bIncoming, _pConnection->f_GetConnectionID());
 
 					if (!_pConnection->m_IdentifyPromise.f_IsSet())
 						_pConnection->m_IdentifyPromise.f_SetResult(_pConnection->m_bFirstConnection);
@@ -467,7 +543,15 @@ namespace NMib::NConcurrency
 		catch (NException::CException const &_Exception)
 		{
 			(void)_Exception;
-			DMibLog(DebugVerbose2, " ---- {} {} Exception processing data {}", _pConnection->m_pHost->m_bIncoming, _pConnection->f_GetConnectionID(), _Exception.f_GetErrorStr());
+			DMibLog
+				(
+					SubscriptionLogVerbosity
+					, " ---- {} {} Exception processing data {}"
+					, _pConnection->m_pHost ? _pConnection->m_pHost->m_bIncoming : false
+					, _pConnection->f_GetConnectionID()
+					, _Exception.f_GetErrorStr()
+				)
+			;
 			// Malicious client
 			return false;
 		}
@@ -503,6 +587,20 @@ namespace NMib::NConcurrency
 		Identify.m_bAllowAllNamespaces = bAllowAllNamespaces;
 		if (!bAllowAllNamespaces)
 			Identify.m_AllowedNamespaces = AllowedNamespaces;
+
+		DMibLogWithCategory
+			(
+				Mib/Concurrency/Distribution
+				, SubscriptionLogVerbosity
+				, "   Sending identify packet to '{}{}{}{}': bAllowAllNamespaces {} AllowedNamespaces {vs}"
+				, pHost->m_HostInfo.m_RealHostID
+				, _pConnection->m_bIncoming ? " connin" : " connout"
+				, pHost->m_bIncoming ? " in" : ""
+				, pHost->m_bOutgoing ? " out" : ""
+				, Identify.m_bAllowAllNamespaces
+				, Identify.m_AllowedNamespaces
+			)
+		;
 
 		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
 		Stream << Identify;

@@ -17,6 +17,14 @@
 #include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Network/DebugFlags>
 
+#if DMibConfig_Concurrency_DebugSubscriptions
+#	define SubscriptionLogVerbosity Debug
+#	define DMibConcurrency_SubscriptionLogVerbosity DMibLogSeverity_Debug
+#else
+#	define SubscriptionLogVerbosity DebugVerbose1
+#	define DMibConcurrency_SubscriptionLogVerbosity DMibLogSeverity_DebugVerbose1
+#endif
+
 namespace NMib::NWeb
 {
 	struct CWebSocketNewServerConnection;

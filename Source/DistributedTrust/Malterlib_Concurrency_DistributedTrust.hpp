@@ -29,10 +29,34 @@ namespace NMib::NConcurrency
 			if (mp_pState->m_DispatchActor == fg_CurrentActor())
 			{
 				mp_pState->m_pSubscription = this;
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "<{}, {}> Subscription valid in constructor (Apply deferred)"
+						, mp_pState->m_NamespaceName
+						, mp_pState->m_DebugID
+					)
+				;
 				mp_pState->f_ApplyDeferredChanges();
 			}
 			else
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "<{}, {}> Subscription not valid in constructor"
+						, mp_pState->m_NamespaceName
+						, mp_pState->m_DebugID
+					)
+				;
 				mp_pState->m_pSubscription = nullptr;
+			}
+		}
+		else
+		{
+			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in constructor");
 		}
 	}
 
@@ -47,10 +71,34 @@ namespace NMib::NConcurrency
 			if (mp_pState->m_DispatchActor == fg_CurrentActor())
 			{
 				mp_pState->m_pSubscription = this;
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "<{}, {}> Subscription valid in operator = (Apply deferred)"
+						, mp_pState->m_NamespaceName
+						, mp_pState->m_DebugID
+					)
+				;
 				mp_pState->f_ApplyDeferredChanges();
 			}
 			else
+			{
+				DMibLogWithCategory
+					(
+						Mib/Concurrency/Distribution
+						, SubscriptionLogVerbosity
+						, "<{}, {}> Subscription not valid in operator ="
+						, mp_pState->m_NamespaceName
+						, mp_pState->m_DebugID
+					)
+				;
 				mp_pState->m_pSubscription = nullptr;
+			}
+		}
+		else
+		{
+			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "State not valid in operator =");
 		}
 		return *this;
 	}
@@ -191,6 +239,9 @@ namespace NMib::NConcurrency
 		State.m_TypeHash = DMibConstantTypeHash(tf_CActor);
 		State.m_ProtocolVersions = _Versions;
 		State.m_NamespaceName = _Namespace;
+#if (DMibSysLogSeverities) & DMibConcurrency_SubscriptionLogVerbosity
+		State.m_DebugID = NCryptography::fg_RandomID();
+#endif
 
 		auto Subscription = co_await fp_SubscribeTrustedActors(pState);
 
@@ -228,24 +279,32 @@ namespace NMib::NConcurrency
 
 		TCFutureVector<void> Results;
 
-		for (auto &Actor : m_Actors)
+		if (pState->m_fOnNewActor)
 		{
-			TCPromiseFuturePair<void> OnNewActorFinishedPromise;
-			Actor.mp_OnNewActorFinished = fg_Move(OnNewActorFinishedPromise.m_Future);
+			for (auto &Actor : m_Actors)
+			{
+				TCPromiseFuturePair<void> OnNewActorFinishedPromise;
+				DMibCheck(!Actor.mp_OnNewActorFinished.f_IsValid());
+				Actor.mp_OnNewActorFinished = fg_Move(OnNewActorFinishedPromise.m_Future);
 
-			fg_CallSafe
-				(
-					[pState, Actor = Actor.m_Actor, TrustInfo = Actor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)]() mutable -> TCFuture<void>
-					{
-						if (pState->m_fOnNewActor)
+				fg_CallSafe
+					(
+						[pState, Actor = Actor.m_Actor, TrustInfo = Actor.m_TrustInfo, OnNewActorFinishedPromise = fg_Move(OnNewActorFinishedPromise.m_Promise)]() mutable -> TCFuture<void>
+						{
+							DMibFastCheck(pState->m_fOnNewActor);
+
 							co_await pState->m_fOnNewActor(Actor, TrustInfo);
-						OnNewActorFinishedPromise.f_SetResult();
-						co_return {};
-					}
-				)
-				> Results
-			;
+
+							OnNewActorFinishedPromise.f_SetResult();
+							co_return {};
+						}
+					)
+					> Results
+				;
+			}
 		}
+		else
+			DMibLogWithCategory(Mib/Concurrency/Distribution, SubscriptionLogVerbosity, "<{}, {}> f_OnActor: No m_fOnNewActor", pState->m_NamespaceName, pState->m_DebugID);
 
 		for (auto &Result : co_await fg_AllDoneWrapped(Results))
 		{
@@ -302,6 +361,16 @@ namespace NMib::NConcurrency
 			{
 				if (!m_pSubscription)
 				{
+					DMibLogWithCategory
+						(
+							Mib/Concurrency/Distribution
+							, SubscriptionLogVerbosity
+							, "<{}, {}> f_AddDistributedActors: No subscription, deferred"
+							, pThis->m_NamespaceName
+							, pThis->m_DebugID
+						)
+					;
+
 					m_DeferredChanges.f_Insert(fg_Move(Actors));
 					co_return {};
 				}
@@ -316,11 +385,37 @@ namespace NMib::NConcurrency
 					auto &Subscription = *m_pSubscription;
 					auto MapResult = Subscription.m_Actors(Identifier, fg_Move(TypedActor));
 					if (!MapResult.f_WasCreated())
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> f_AddDistributedActors: Was not created, ignored"
+								, pThis->m_NamespaceName
+								, pThis->m_DebugID
+							)
+						;
 						continue;
+					}
 
 					auto &NewActor = *MapResult;
 
+					if (!pThis->m_fOnNewActor)
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> f_AddDistributedActors: No m_fOnNewActor"
+								, pThis->m_NamespaceName
+								, pThis->m_DebugID
+							)
+						;
+						continue;
+					}
+
 					TCPromiseFuturePair<void> OnNewActorFinishedPromise;
+					DMibCheck(!NewActor.mp_OnNewActorFinished.f_IsValid());
 					NewActor.mp_OnNewActorFinished = fg_Move(OnNewActorFinishedPromise.m_Future);
 
 					fg_CallSafe
@@ -333,6 +428,19 @@ namespace NMib::NConcurrency
 							]
 							() mutable -> TCFuture<void>
 							{
+								DMibFastCheck(pThis->m_fOnNewActor);
+
+								DMibLogWithCategory
+									(
+										Mib/Concurrency/Distribution
+										, SubscriptionLogVerbosity
+										, "<{}, {}> f_AddDistributedActors: Report new m_fOnNewActor {}"
+										, pThis->m_NamespaceName
+										, pThis->m_DebugID
+										, TrustInfo.m_HostInfo
+									)
+								;
+
 								if (pThis->m_fOnNewActor)
 									co_await pThis->m_fOnNewActor(Actor, TrustInfo);
 
@@ -365,6 +473,16 @@ namespace NMib::NConcurrency
 			{
 				if (!m_pSubscription)
 				{
+					DMibLogWithCategory
+						(
+							Mib/Concurrency/Distribution
+							, SubscriptionLogVerbosity
+							, "<{}, {}> f_RemoveDistributedActors: No subscription, deferred"
+							, pThis->m_NamespaceName
+							, pThis->m_DebugID
+						)
+					;
+
 					m_DeferredChanges.f_Insert(fg_Move(Actors));
 					co_return {};
 				}
@@ -398,11 +516,49 @@ namespace NMib::NConcurrency
 									}
 
 									if (pThis->m_fOnRemovedActor)
+									{
+										DMibLogWithCategory
+											(
+												Mib/Concurrency/Distribution
+												, SubscriptionLogVerbosity
+												, "<{}, {}> f_RemoveDistributedActors: Report new m_fOnRemovedActor {}"
+												, pThis->m_NamespaceName
+												, pThis->m_DebugID
+												, TrustInfo.m_HostInfo
+											)
+										;
 										co_await pThis->m_fOnRemovedActor(fg_Move(WeakActor), fg_Move(TrustInfo));
+									}
+									else
+									{
+										DMibLogWithCategory
+											(
+												Mib/Concurrency/Distribution
+												, SubscriptionLogVerbosity
+												, "<{}, {}> f_RemoveDistributedActors: Report new m_fOnRemovedActor does not exist: {}"
+												, pThis->m_NamespaceName
+												, pThis->m_DebugID
+												, TrustInfo.m_HostInfo
+											)
+										;
+									}
+
 									co_return {};
 								}
 							)
 							> Results
+						;
+					}
+					else
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Distribution
+								, SubscriptionLogVerbosity
+								, "<{}, {}> f_RemoveDistributedActors: No actor, ignored"
+								, pThis->m_NamespaceName
+								, pThis->m_DebugID
+							)
 						;
 					}
 				}

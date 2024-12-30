@@ -83,7 +83,20 @@ namespace NMib::NConcurrency
 				if (_Result->m_Status != NWeb::EWebSocketStatus_NormalClosure || _bIsLastConnection)
 					DMibLogWithCategory(Mib/Concurrency/Actors, Info, "<{}> Closed '{}' {{{}}: {} - {}", _Desc, _ServerURL, _ConnectionID, _Result->m_Status, _Result->m_Reason);
 				else
-					DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "<{}> Closed '{}' {{{}}: {} - {}", _Desc, _ServerURL, _ConnectionID, _Result->m_Status, _Result->m_Reason);
+				{
+					DMibLogWithCategory
+						(
+							Mib/Concurrency/Actors
+							, SubscriptionLogVerbosity
+							, "<{}> Closed '{}' {{{}}: {} - {}"
+							, _Desc
+							, _ServerURL
+							, _ConnectionID
+							, _Result->m_Status
+							, _Result->m_Reason
+						)
+					;
+				}
 			}
 		}
 		else

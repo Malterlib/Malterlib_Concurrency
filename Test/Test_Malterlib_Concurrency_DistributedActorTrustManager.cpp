@@ -27,7 +27,11 @@ using namespace NMib::NTest;
 using namespace NMib::NStorage;
 using namespace NMib::NNetwork;
 
-static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+#if DMibConfig_Concurrency_DebugSubscriptions
+	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier * 10.0;
+#else
+	static fp64 g_Timeout = 60.0 * gc_TimeoutMultiplier;
+#endif
 
 namespace NTestTrustManager
 {
@@ -1781,6 +1785,8 @@ namespace NTestTrustManager
 					TCFutureVector<void> Dispatches;
 #if DMibConfig_RefCountDebugging || defined(DMibSanitizerEnabled_Thread)
 					constexpr mint c_nLoops = 100;
+#elif DMibPPtrBits == 32 && DMibConfig_Concurrency_DebugSubscriptions
+					constexpr mint c_nLoops = 10000;
 #else
 					constexpr mint c_nLoops = 100000;
 #endif

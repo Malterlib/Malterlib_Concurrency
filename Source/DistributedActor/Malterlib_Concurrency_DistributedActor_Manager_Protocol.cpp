@@ -107,8 +107,12 @@ namespace NMib::NConcurrency
 
 					Host.m_LastExecutionID = Identify.m_ExecutionID;
 
-					Host.m_bAllowAllNamespaces = Identify.m_bAllowAllNamespaces;
-					Host.m_AllowedNamespaces = Identify.m_AllowedNamespaces;
+					Host.m_bAllowAllNamespaces = Host.m_bAllowAllNamespaces || Identify.m_bAllowAllNamespaces;
+
+					if (Host.m_bAllowAllNamespaces)
+						Host.m_AllowedNamespaces.f_Clear();
+					else
+						Host.m_AllowedNamespaces += Identify.m_AllowedNamespaces;
 
 					uint32 HostActorProtocolVersion = Host.m_ActorProtocolVersion.f_Load(NAtomic::EMemoryOrder_Relaxed);
 

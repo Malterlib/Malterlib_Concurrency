@@ -223,266 +223,256 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		auto fFinishConnection = [this, UniqueHostID, RealHostID, bAnonymous, fReject, pNewServerConnection, WebPath, _ListenID]() mutable
+		if (!bAnonymous && m_AccessHandler)
+		{
+			auto Result = co_await m_AccessHandler(&ICActorDistributionManagerAccessHandler::f_ValidateClientAccess, RealHostID, pSocketInfo->m_CertificateChain).f_Wrap();
+
+			if (!Result)
 			{
-				NWeb::CWebSocketNewServerConnection &NewServerConnection = *pNewServerConnection;
+				fReject(Result.f_GetExceptionStr());
+				co_return {};
+			}
 
-				auto *pHandler = m_WebsocketHandlers.f_FindLargestLessThanEqual(WebPath);
+			auto &Error = *Result;
+			if (!Error.f_IsEmpty())
+			{
+				fReject(Error);
+				co_return {};
+			}
+		}
 
-				if (pHandler && WebPath.f_StartsWith(pHandler->f_GetWebPath()))
-				{
-					auto Actor = pHandler->m_Actor.f_Lock();
-					if (!Actor)
+		auto *pHandler = m_WebsocketHandlers.f_FindLargestLessThanEqual(WebPath);
+
+		if (pHandler && WebPath.f_StartsWith(pHandler->f_GetWebPath()))
+		{
+			auto Actor = pHandler->m_Actor.f_Lock();
+			if (!Actor)
+			{
+				fReject("Web socket handler no longer exists");
+				co_return {};
+			}
+
+			fg_Dispatch
+				(
+					Actor
+					,[fNewWebsocketConnection = pHandler->m_fNewWebsocketConnection, pNewServerConnection, RealHostID]() mutable -> TCFuture<void>
 					{
-						fReject("Web socket handler no longer exists");
-						return;
+						co_return co_await fNewWebsocketConnection(pNewServerConnection, RealHostID);
 					}
-					fg_Dispatch
-						(
-							Actor
-							,[fNewWebsocketConnection = pHandler->m_fNewWebsocketConnection, pNewServerConnection, RealHostID]() mutable -> TCFuture<void>
-							{
-								co_return co_await fNewWebsocketConnection(pNewServerConnection, RealHostID);
-							}
-						)
-						> [fReject](TCAsyncResult<void> &&_Result)
-						{
-							if (!_Result)
-								fReject("Internal error calling web socket handler");
-						}
-					;
-					return;
-				}
-
-				if (NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
+				)
+				> [fReject](TCAsyncResult<void> &&_Result)
 				{
-					fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
-					return;
+					if (!_Result)
+						fReject("Internal error calling web socket handler");
 				}
+			;
+			co_return {};
+		}
 
-				mint ConnectionID = m_NextConnectionID++;
+		if (NewServerConnection.m_Protocols.f_Contains("MalterlibDistributedActors") < 0)
+		{
+			fReject("Unsupported protocol, only MalterlibDistributedActors is supported");
+			co_return {};
+		}
 
-				NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
+		mint ConnectionID = m_NextConnectionID++;
 
-				pConnection->m_ListenID = _ListenID;
+		NStorage::TCSharedPointer<CServerConnection, NStorage::CSupportWeakTag> pConnection = fg_Construct(ConnectionID);
 
-				auto MappedHost = m_Hosts(UniqueHostID);
+		pConnection->m_ListenID = _ListenID;
 
-				if (MappedHost.f_WasCreated())
-				{
-					*MappedHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, bAnonymous});
-					m_HostsByRealHostID[RealHostID].f_Insert(**MappedHost);
+		auto MappedHost = m_Hosts(UniqueHostID);
 
-					fp_CleanupMarkInactive(**MappedHost);
-				}
+		if (MappedHost.f_WasCreated())
+		{
+			*MappedHost = fg_Construct(*m_pThis, CDistributedActorHostInfo{UniqueHostID, RealHostID, bAnonymous});
+			m_HostsByRealHostID[RealHostID].f_Insert(**MappedHost);
 
-				auto &Host = **MappedHost;
-				if (Host.m_HostInfo.m_bAnonymous != bAnonymous)
-				{
-					fReject("Mismatching anonymous for host");
-					return;
-				}
-				if (Host.m_HostInfo.m_RealHostID != RealHostID)
-				{
-					fReject("Mismatching real host ID for host");
-					return;
-				}
+			fp_CleanupMarkInactive(**MappedHost);
+		}
 
-				m_ServerConnections[ConnectionID] = pConnection;
-				pConnection->m_pHost = *MappedHost;
-				Host.m_ServerConnections.f_Insert(*pConnection);
+		auto &Host = **MappedHost;
+		if (Host.m_HostInfo.m_bAnonymous != bAnonymous)
+		{
+			fReject("Mismatching anonymous for host");
+			co_return {};
+		}
+		if (Host.m_HostInfo.m_RealHostID != RealHostID)
+		{
+			fReject("Mismatching real host ID for host");
+			co_return {};
+		}
 
-				Host.m_bIncoming = true;
-				pConnection->m_bIncoming = true;
+		m_ServerConnections[ConnectionID] = pConnection;
+		pConnection->m_pHost = *MappedHost;
+		Host.m_ServerConnections.f_Insert(*pConnection);
 
-				NewServerConnection.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
-					(NWeb::EWebSocketStatus _Reason, NStr::CStr _Message, NWeb::EWebSocketCloseOrigin _Origin) -> TCFuture<void>
-					{
-						auto pConnection = pConnectionWeak.f_Lock();
-						if (!pConnection)
-							co_return {};
+		Host.m_bIncoming = true;
+		pConnection->m_bIncoming = true;
 
-						if (!pConnection->m_pHost)
-							co_return {};
+		NewServerConnection.m_fOnClose = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak(), Address = NewServerConnection.m_Info.m_PeerAddress]
+			(NWeb::EWebSocketStatus _Reason, NStr::CStr _Message, NWeb::EWebSocketCloseOrigin _Origin) -> TCFuture<void>
+			{
+				auto pConnection = pConnectionWeak.f_Lock();
+				if (!pConnection)
+					co_return {};
 
-						bool bLast = pConnection->m_Link.f_IsAloneInList();
+				if (!pConnection->m_pHost)
+					co_return {};
 
-						NStr::CStr CloseMessage = fg_Format
-							(
-								"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
-								, pConnection->f_GetHostInfo()
-								, bLast ? "last" : "additional"
-								, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
-								, pConnection->f_GetConnectionID()
-								, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
-								, _Reason
-								, _Message
-							)
-						;
+				bool bLast = pConnection->m_Link.f_IsAloneInList();
 
-						if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
-						{
-							if (pConnection->m_HostLink.f_IsAloneInList())
-							{
-								pConnection->m_pHost->m_bLoggedConnection = false;
-								DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
-							}
-							else
-								DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", CloseMessage);
-						}
-						else
-						{
-							pConnection->m_pHost->m_bLoggedConnection = false;
-							DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "{}", CloseMessage);
-						}
-
-						fp_DestroyServerConnection
-							(
-								*pConnection
-								, false
-								, CloseMessage
-								, _Reason == NWeb::EWebSocketStatus_NormalClosure
-								&& bLast
-								&& _Message != "Remove connection (preserve host)"
-								&& !_Message.f_StartsWith("Invalid connection:")
-							)
-						;
-
-						co_return {};
-					}
-				;
-
-				NewServerConnection.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak()]
-					(NStorage::TCSharedPointer<NContainer::CSecureByteVector> _pMessage) -> TCFuture<void>
-					{
-						auto pConnection = pConnectionWeak.f_Lock();
-						if (!pConnection)
-							co_return {};
-
-						if (!pConnection->m_pHost)
-							co_return {};
-
-						if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
-							fp_OnInvalidConnection(pConnection.f_Get(), DMibErrorInstance("Failed to handle incoming message").f_ExceptionPointer());
-
-						co_return {};
-					}
-				;
-
-				pConnection->f_DiscardIdentifyPromise("Reconnected");
-				pConnection->m_IdentifyPromise = TCPromise<bool>();
-				pConnection->m_bPulishFinished = false;
-
-				NWeb::NHTTP::CResponseHeader ResponseHeader;
-				ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);
-				auto &EntityFields = ResponseHeader.f_GetEntityFields();
-				EntityFields.f_SetUnknownField("MalterlibDistributedActors_Enclave", m_Enclave);
-
-				auto pConnectionWeak = pConnection.f_Weak();
-				auto Address = NewServerConnection.m_Info.m_PeerAddress;
-
-				pConnection->m_Connection = NewServerConnection.f_Accept
+				NStr::CStr CloseMessage = fg_Format
 					(
-						"MalterlibDistributedActors"
-						, fg_ThisActor(m_pThis) / [pConnectionWeak = fg_Move(pConnectionWeak), Address = fg_Move(Address)]
-						(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
-						{
-							if (_Subscription)
+						"<{}> Lost {} incoming connection from '{}' {{{}}: {} {} {}"
+						, pConnection->f_GetHostInfo()
+						, bLast ? "last" : "additional"
+						, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
+						, pConnection->f_GetConnectionID()
+						, _Origin == NWeb::EWebSocketCloseOrigin_Local ? "Local" : "Remote"
+						, _Reason
+						, _Message
+					)
+				;
+
+				if (_Reason == NWeb::EWebSocketStatus_NormalClosure)
+				{
+					if (pConnection->m_HostLink.f_IsAloneInList())
+					{
+						pConnection->m_pHost->m_bLoggedConnection = false;
+						DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", CloseMessage);
+					}
+					else
+						DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", CloseMessage);
+				}
+				else
+				{
+					pConnection->m_pHost->m_bLoggedConnection = false;
+					DMibLogWithCategory(Mib/Concurrency/Actors, Warning, "{}", CloseMessage);
+				}
+
+				fp_DestroyServerConnection
+					(
+						*pConnection
+						, false
+						, CloseMessage
+						, _Reason == NWeb::EWebSocketStatus_NormalClosure
+						&& bLast
+						&& _Message != "Remove connection (preserve host)"
+						&& !_Message.f_StartsWith("Invalid connection:")
+					)
+				;
+
+				co_return {};
+			}
+		;
+
+		NewServerConnection.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak = pConnection.f_Weak()]
+			(NStorage::TCSharedPointer<NContainer::CSecureByteVector> _pMessage) -> TCFuture<void>
+			{
+				auto pConnection = pConnectionWeak.f_Lock();
+				if (!pConnection)
+					co_return {};
+
+				if (!pConnection->m_pHost)
+					co_return {};
+
+				if (!fp_HandleProtocolIncoming(pConnection.f_Get(), _pMessage))
+					fp_OnInvalidConnection(pConnection.f_Get(), DMibErrorInstance("Failed to handle incoming message").f_ExceptionPointer());
+
+				co_return {};
+			}
+		;
+
+		pConnection->f_DiscardIdentifyPromise("Reconnected");
+		pConnection->m_IdentifyPromise = TCPromise<bool>();
+		pConnection->m_bPulishFinished = false;
+
+		NWeb::NHTTP::CResponseHeader ResponseHeader;
+		ResponseHeader.f_SetStatus(NWeb::NHTTP::EStatus_SwitchingProtocols);
+		auto &EntityFields = ResponseHeader.f_GetEntityFields();
+		EntityFields.f_SetUnknownField("MalterlibDistributedActors_Enclave", m_Enclave);
+
+		auto pConnectionWeak = pConnection.f_Weak();
+		auto Address = NewServerConnection.m_Info.m_PeerAddress;
+
+		pConnection->m_Connection = NewServerConnection.f_Accept
+			(
+				"MalterlibDistributedActors"
+				, fg_ThisActor(m_pThis) / [pConnectionWeak = fg_Move(pConnectionWeak), Address = fg_Move(Address)]
+				(NConcurrency::TCAsyncResult<NConcurrency::CActorSubscription> &&_Subscription)
+				{
+					if (_Subscription)
+					{
+						auto pConnection = pConnectionWeak.f_Lock();
+						if (!pConnection)
+							return;
+						if (!pConnection->m_pHost)
+							return;
+						if (!pConnection->m_Connection)
+							return;
+
+						pConnection->m_IdentifyPromise.f_Future() > [=](TCAsyncResult<bool> &&_Result) mutable
 							{
 								auto pConnection = pConnectionWeak.f_Lock();
 								if (!pConnection)
 									return;
+
+								if (!_Result)
+								{
+									DMibLogWithCategory
+										(
+											Mib/Concurrency/Actors
+											, Error
+											, "Error identifying connection from '{}' {{{}}: {}"
+											, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
+											, pConnection->f_GetConnectionID()
+											, _Result.f_GetExceptionStr()
+										)
+									;
+									return;
+								}
 								if (!pConnection->m_pHost)
 									return;
-								if (!pConnection->m_Connection)
-									return;
 
-								pConnection->m_IdentifyPromise.f_Future() > [=](TCAsyncResult<bool> &&_Result) mutable
-									{
-										auto pConnection = pConnectionWeak.f_Lock();
-										if (!pConnection)
-											return;
-
-										if (!_Result)
-										{
-											DMibLogWithCategory
-												(
-													Mib/Concurrency/Actors
-													, Error
-													, "Error identifying connection from '{}' {{{}}: {}"
-													, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
-													, pConnection->f_GetConnectionID()
-													, _Result.f_GetExceptionStr()
-												)
-											;
-											return;
-										}
-										if (!pConnection->m_pHost)
-											return;
-
-										NStr::CStr ToLog = NStr::fg_Format
-											(
-												"<{}> Accepted '{}' {{{}}"
-												, pConnection->f_GetHostInfo()
-												, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
-												, pConnection->f_GetConnectionID()
-											)
-										;
-
-										if (!pConnection->m_pHost->m_bLoggedConnection)
-										{
-											pConnection->m_pHost->m_bLoggedConnection = true;
-											DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
-										}
-										else
-											DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
-									}
-								;
-								pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
-							}
-							else
-							{
-								DMibLogWithCategory
+								NStr::CStr ToLog = NStr::fg_Format
 									(
-										Mib/Concurrency/Actors
-										, Error
-										, "Error accepting connection from '{}': {}"
+										"<{}> Accepted '{}' {{{}}"
+										, pConnection->f_GetHostInfo()
 										, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
-										, _Subscription.f_GetExceptionStr()
+										, pConnection->f_GetConnectionID()
 									)
 								;
+
+								if (!pConnection->m_pHost->m_bLoggedConnection)
+								{
+									pConnection->m_pHost->m_bLoggedConnection = true;
+									DMibLogWithCategory(Mib/Concurrency/Actors, Info, "{}", ToLog);
+								}
+								else
+									DMibLogWithCategory(Mib/Concurrency/Actors, DebugVerbose1, "{}", ToLog);
 							}
-						}
-						, fg_Move(ResponseHeader)
-					)
-				;
-				fp_Identify(pConnection.f_Get());
-			}
+						;
+						pConnection->m_ConnectionSubscription = fg_Move(*_Subscription);
+					}
+					else
+					{
+						DMibLogWithCategory
+							(
+								Mib/Concurrency/Actors
+								, Error
+								, "Error accepting connection from '{}': {}"
+								, Address.f_GetString(NNetwork::ENetAddressStringFlag_IncludePort)
+								, _Subscription.f_GetExceptionStr()
+							)
+						;
+					}
+				}
+				, fg_Move(ResponseHeader)
+			)
 		;
 
-		if (!bAnonymous && m_AccessHandler)
-		{
-			m_AccessHandler(&ICActorDistributionManagerAccessHandler::f_ValidateClientAccess, RealHostID, pSocketInfo->m_CertificateChain)
-				> [fReject, fFinishConnection](TCAsyncResult<NStr::CStr> &&_Result) mutable
-				{
-					if (!_Result)
-					{
-						fReject(_Result.f_GetExceptionStr());
-						return;
-					}
-					auto &Error = *_Result;
-					if (!Error.f_IsEmpty())
-					{
-						fReject(Error);
-						return;
-					}
-
-					fFinishConnection();
-				}
-			;
-		}
-		else
-			fFinishConnection();
+		fp_Identify(pConnection.f_Get());
 
 		co_return {};
 	}

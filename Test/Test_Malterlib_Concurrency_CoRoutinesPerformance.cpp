@@ -29,6 +29,9 @@ namespace NMib::NConcurrency::NTest
 	using namespace NMib::NFunction;
 	using namespace NMib::NMemory;
 
+	static thread_local mint g_ThreadLocalCpp;
+	static thread_local mint g_ThreadLocalCpp2;
+
 	class CCoroutinesPerformance_Tests : public NMib::NTest::CTest
 	{
 #if defined(DMibDebug) || defined(DMibSanitizerEnabled)
@@ -94,8 +97,10 @@ namespace NMib::NConcurrency::NTest
 						NormalTime.f_Start();
 						[&ReturnNormal]() inline_never
 							{
+								auto Return = ReturnNormal;
 								for (mint i = 0; i < mc_nLoops; ++i)
-									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID();;
+									Return += NMib::NSys::fg_Thread_GetCurrentUID();;
+								ReturnNormal = Return;
 							}
 							()
 						;
@@ -113,6 +118,47 @@ namespace NMib::NConcurrency::NTest
 			{
 				mint nTests = 9;
 
+				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal, ThreadLocal]() inline_never
+							{
+								auto ThreadLocal2 = ThreadLocal;
+								auto Return = ReturnNormal;
+								for (mint i = 0; i < mc_nLoops; ++i)
+									Return += (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
+								ReturnNormal = Return;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGetC++") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				g_ThreadLocalCpp = 0;
+
 				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				volatile uint32 ReturnNormal;
@@ -123,7 +169,155 @@ namespace NMib::NConcurrency::NTest
 						[&ReturnNormal]() inline_never
 							{
 								for (mint i = 0; i < mc_nLoops; ++i)
-									ReturnNormal += (mint)NMib::NSys::fg_Thread_GetLocal(89);
+									ReturnNormal += (mint)g_ThreadLocalCpp;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGetC++2") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				g_ThreadLocalCpp2 = 0;
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal]() inline_never
+							{
+								for (mint i = 0; i < mc_nLoops; ++i)
+									ReturnNormal += (mint)g_ThreadLocalCpp2;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGetAlwaysSet") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal, ThreadLocal]() inline_never
+							{
+								auto ThreadLocal2 = ThreadLocal;
+								auto Return = ReturnNormal;
+								for (mint i = 0; i < mc_nLoops; ++i)
+									Return += (mint)NMib::NSys::fg_Thread_GetLocalAlwaysSet(ThreadLocal2);
+
+								ReturnNormal = Return;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGetFast") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal, ThreadLocal]() inline_never
+							{
+								auto ThreadLocal2 = ThreadLocal;
+								auto Return = ReturnNormal;
+								for (mint i = 0; i < mc_nLoops; ++i)
+									Return += (mint)NMib::NSys::fg_Thread_GetLocalFast(ThreadLocal2);
+								ReturnNormal = Return;
+							}
+							()
+						;
+						NormalTime.f_Stop(mc_nLoops);
+					}
+					PerfTest.f_Add(NormalTime);
+				}
+
+				DMibExpectTrue(PerfTest);
+
+				co_return {};
+			};
+
+			DMibTestSuite(CTestCategory("ThreadGetAlwaysSetFast") << CTestGroup("Performance")) -> TCFuture<void>
+			{
+				mint nTests = 9;
+
+				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocalFast();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocalFast(ThreadLocal);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocalFast(ThreadLocal, nullptr);
+
+				CTestPerformance PerfTest(0.015);
+				CTestPerformanceMeasure NormalTime("Normal");
+				volatile uint32 ReturnNormal;
+				{
+					for(mint j = 0; j < nTests; ++j)
+					{
+						NormalTime.f_Start();
+						[&ReturnNormal, ThreadLocal]() inline_never
+							{
+								auto ThreadLocal2 = ThreadLocal;
+								auto Return = ReturnNormal;
+								for (mint i = 0; i < mc_nLoops; ++i)
+									Return += (mint)NMib::NSys::fg_Thread_GetLocalAlwaysSetFast(ThreadLocal2);
+								ReturnNormal = Return;
 							}
 							()
 						;
@@ -141,6 +335,14 @@ namespace NMib::NConcurrency::NTest
 			{
 				mint nTests = 9;
 
+				auto ThreadLocal = NMib::NSys::fg_Thread_AllocLocal();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocal(ThreadLocal, nullptr);
+
 				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				volatile uint32 ReturnNormal;
@@ -148,10 +350,13 @@ namespace NMib::NConcurrency::NTest
 					for(mint j = 0; j < nTests; ++j)
 					{
 						NormalTime.f_Start();
-						[&ReturnNormal]() inline_never
+						[&ReturnNormal, ThreadLocal]() inline_never
 							{
+								auto ThreadLocal2 = ThreadLocal;
+								auto Return = ReturnNormal;
 								for (mint i = 0; i < mc_nLoops; ++i)
-									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID() + (mint)NMib::NSys::fg_Thread_GetLocal(89);
+									Return += NMib::NSys::fg_Thread_GetCurrentUID() + (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocal2);
+								ReturnNormal = Return;
 							}
 							()
 						;
@@ -169,6 +374,17 @@ namespace NMib::NConcurrency::NTest
 			{
 				mint nTests = 9;
 
+				auto ThreadLocal0 = NMib::NSys::fg_Thread_AllocLocal();
+				auto ThreadLocal1 = NMib::NSys::fg_Thread_AllocLocal();
+				auto Cleanup = g_OnScopeExit / [&]
+					{
+						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal0);
+						NMib::NSys::fg_Thread_FreeLocal(ThreadLocal1);
+					}
+				;
+				NMib::NSys::fg_Thread_SetLocal(ThreadLocal0, nullptr);
+				NMib::NSys::fg_Thread_SetLocal(ThreadLocal1, nullptr);
+
 				CTestPerformance PerfTest(0.015);
 				CTestPerformanceMeasure NormalTime("Normal");
 				uint32 ReturnNormal;
@@ -176,10 +392,19 @@ namespace NMib::NConcurrency::NTest
 					for(mint j = 0; j < nTests; ++j)
 					{
 						NormalTime.f_Start();
-						[&ReturnNormal]() inline_never
+						[&ReturnNormal, ThreadLocal0, ThreadLocal1]() inline_never
 							{
+								auto ThreadLocalCopy0 = ThreadLocal0;
+								auto ThreadLocalCopy1 = ThreadLocal1;
+								auto Return = ReturnNormal;
 								for (mint i = 0; i < mc_nLoops; ++i)
-									ReturnNormal += NMib::NSys::fg_Thread_GetCurrentUID() + (mint)NMib::NSys::fg_Thread_GetLocal(89) + (mint)NMib::NSys::fg_Thread_GetLocal(90);
+								{
+									Return += NMib::NSys::fg_Thread_GetCurrentUID() 
+										+ (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy0) 
+										+ (mint)NMib::NSys::fg_Thread_GetLocal(ThreadLocalCopy1)
+									;
+								}
+								ReturnNormal = Return;
 							}
 							()
 						;

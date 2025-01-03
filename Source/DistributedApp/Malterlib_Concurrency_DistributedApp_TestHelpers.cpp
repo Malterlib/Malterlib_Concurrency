@@ -90,11 +90,11 @@ namespace NMib::NConcurrency
 			if (!Contents.f_IsEmpty())
 			{
 				DMibLogOperation(Log);
-				for (auto &Line : Contents.f_SplitLine<false>())
+				for ([[maybe_unused]] auto &Line : Contents.f_SplitLine<false>())
 					DMibLogWithCategoryStr(State.m_LastPath, Info, "{}", Line);
 			}
 		}
-		catch (NException::CException const &_Exception)
+		catch ([[maybe_unused]] NException::CException const &_Exception)
 		{
 			DMibLog(Error, "Error monitoring for log forwarding '{}': {}", State.m_LastPath, _Exception);
 		}
@@ -164,7 +164,7 @@ namespace NMib::NConcurrency
 
 							co_await Internal.f_UpdateFile(Identifier);
 						}
-						catch (NException::CException const &_Exception)
+						catch ([[maybe_unused]] NException::CException const &_Exception)
 						{
 							DMibLog(Error, "Error monitoring for log forwarding '{}': {}", Change.m_Path, _Exception);
 						}

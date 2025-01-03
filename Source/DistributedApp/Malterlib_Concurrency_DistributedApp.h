@@ -518,6 +518,8 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_SaveStateDatabase();
 		TCFuture<void> fp_SaveConfigDatabase();
 
+		CFutureCoroutineContext::COnResumeScopeAwaiter fp_CheckStoppedOrDestroyedOnResume() const;
+
 		CCallingHostInfoScope fp_PopulateCurrentHostInfoIfMissing(NStr::CStr _Description);
 
 		TCFuture<CActorSubscription> fp_RegisterForAppInterfaceServerChanges

@@ -99,6 +99,21 @@ namespace NMib::NConcurrency
 	}
 #endif
 
+	CFutureCoroutineContext::COnResumeScopeAwaiter CDistributedAppActor::fp_CheckStoppedOrDestroyedOnResume() const
+	{
+		return fg_OnResume
+			(
+				[this]() -> NException::CExceptionPointer
+				{
+					if (f_IsDestroyed() || mp_State.m_bStoppingApp)
+						return DMibImpExceptionInstance(CExceptionActorIsBeingDestroyed, "Shutting down");
+
+					return {};
+				}
+			)
+		;
+	}
+
 	TCFuture<void> CDistributedAppActor::fp_AuditToDistributedLogger(CDistributedAppAuditParams _AuditParams)
 	{
 		auto &Internal = *mp_pInternal;

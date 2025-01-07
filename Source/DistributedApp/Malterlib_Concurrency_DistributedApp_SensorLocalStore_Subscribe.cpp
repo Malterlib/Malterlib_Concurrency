@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 
 		// Send initial
 		auto Sensors = f_GetSensors(CDistributedAppSensorReader::CGetSensors{.m_Filters = pSubscription->m_Filters});
-		for (auto iSensor = co_await fg_Move(Sensors).f_GetIterator(); iSensor; co_await ++iSensor)
+		for (auto iSensor = co_await fg_Move(Sensors).f_GetPipelinedIterator(); iSensor; co_await ++iSensor)
 		{
 			TCFutureVector<void> Results;
 			for (auto &Sensor : *iSensor)
@@ -129,7 +129,7 @@ namespace NMib::NConcurrency
 		if (bNeedInitial)
 		{
 			auto SensorReadings = f_GetSensorReadings(fg_Move(GetReadingsParams));
-			for (auto iReadings = co_await fg_Move(SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
+			for (auto iReadings = co_await fg_Move(SensorReadings).f_GetPipelinedIterator(); iReadings; co_await ++iReadings)
 			{
 				TCFutureVector<void> Results;
 				for (auto &Reading : *iReadings)
@@ -214,7 +214,7 @@ namespace NMib::NConcurrency
 		// Send initial
 		auto SensorReadings = f_GetSensorStatus(CDistributedAppSensorReader::CGetSensorStatus{.m_Filters = pSubscription->m_Filters});
 
-		for (auto iReadings = co_await fg_Move(SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
+		for (auto iReadings = co_await fg_Move(SensorReadings).f_GetPipelinedIterator(); iReadings; co_await ++iReadings)
 		{
 			TCFutureVector<void> Results;
 			for (auto &Reading : *iReadings)

@@ -8,6 +8,15 @@
 
 #include "Malterlib_Concurrency_Defines.h"
 #include "Malterlib_Concurrency_Coroutine.h"
+
+namespace NMib::NConcurrency
+{
+	template <typename t_CReturnType>
+	using TFAsyncGeneratorGetNext = TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()>;
+}
+
+#define DMibAsyncGeneratorDebugLevel DebugVerbose1
+
 #include "Malterlib_Concurrency_AsyncGeneratorPrivate.h"
 
 namespace NMib::NConcurrency
@@ -17,6 +26,8 @@ namespace NMib::NConcurrency
 	{
 		struct CIterator
 		{
+			~CIterator();
+
 			CIterator(CIterator &&) = default;
 			CIterator(CIterator const &) = delete;
 
@@ -38,8 +49,32 @@ namespace NMib::NConcurrency
 			NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> mp_pData;
 		};
 
-		TCFuture<CIterator> f_GetIterator() &&;
-		TCAsyncGenerator(TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> &&_fFunctor);
+		struct CPipelinedIterator
+		{
+			~CPipelinedIterator();
+
+			CPipelinedIterator(CPipelinedIterator &&) = default;
+			CPipelinedIterator(CPipelinedIterator const &) = delete;
+
+			CPipelinedIterator &operator = (CPipelinedIterator &&) = default;
+			CPipelinedIterator &operator = (CPipelinedIterator const &) = delete;
+
+			explicit operator bool () const;
+
+			TCFuture<void> operator ++ () noexcept;
+			t_CReturnType &&operator * () noexcept;
+
+			TCFuture<void> f_Destroy() &&;
+
+		private:
+			friend struct TCAsyncGenerator;
+
+			CPipelinedIterator(TCAsyncGenerator &&_Generator);
+
+			NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorDataPipelined<t_CReturnType>> mp_pData;
+		};
+
+		TCAsyncGenerator(TFAsyncGeneratorGetNext<t_CReturnType> &&_fFunctor, bool _bSupportPipelines, bool _bIsCoroutine);
 
 		TCAsyncGenerator() = default;
 
@@ -51,10 +86,15 @@ namespace NMib::NConcurrency
 
 		TCFuture<void> f_Destroy() &&;
 
+		TCFuture<CIterator> f_GetSimpleIterator() &&;
+		TCFuture<CPipelinedIterator> f_GetPipelinedIterator(uint32 _PipelineLength = 5) &&;
+
 		template <typename tf_CStream>
 		void f_Stream(tf_CStream &_Stream);
 
 		NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> const &f_Unsafe_PromiseData() const;
+
+		bool f_SupportsPipelines() const;
 
 #if DMibEnableSafeCheck > 0
 		bool f_Debug_HasData(void const *_pData) const;
@@ -68,6 +108,11 @@ namespace NMib::NConcurrency
 	struct CIsGeneratorAborted;
 
 	extern CIsGeneratorAborted g_bShouldAbort;
+
+	struct CGetGeneratorPipelineLength;
+
+	extern CGetGeneratorPipelineLength g_GetPipelineLength;
 }
 
 #include "Malterlib_Concurrency_AsyncGenerator.hpp"
+#include "Malterlib_Concurrency_AsyncGeneratorPipelined.hpp"

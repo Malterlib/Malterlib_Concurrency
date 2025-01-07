@@ -171,7 +171,7 @@ namespace NMib::NConcurrency
 				fGetNext.f_SetID(pContext->f_GetAutomaticNotRequiredSubscriptionID());
 				
 				_Stream % fg_Move(fGetNext);
-				mp_pData = fg_Construct(fg_Move(fGetNext));
+				mp_pData = fg_Construct(fg_Move(fGetNext), pContext->f_ActorProtocolVersion() >= EDistributedActorProtocolVersion_PipelinedAsyncGenerators, false);
 			}
 			else
 			{

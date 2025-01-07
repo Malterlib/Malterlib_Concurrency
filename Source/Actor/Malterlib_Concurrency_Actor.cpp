@@ -271,6 +271,7 @@ namespace NMib::NConcurrency
 	constinit CAccessCoroutine g_AccessCoroutine;
 
 	constinit CIsGeneratorAborted g_bShouldAbort;
+	constinit CGetGeneratorPipelineLength g_GetPipelineLength;
 
 	constinit CDiscardResult g_DiscardResult;
 	constinit CDirectResult g_DirectResult;

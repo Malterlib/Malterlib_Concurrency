@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "../Actor/Malterlib_Concurrency_AsyncGenerator.h"
+
 namespace NMib::NConcurrency
 {
 	template <typename ...tf_CFunctionOptions>
@@ -205,79 +207,61 @@ namespace NMib::NConcurrency
 						if (!DistributionManager)
 							co_return DMibErrorInstance("Actor distribution manager for actor no longer exists");
 
-						t_CReturn UpstreamGenerator
-							{
-								g_ActorFunctor /
-								[
-									fRemoteFunctor = NStorage::TCOptional<TCActorFunctor<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()>>()
-									, Context
-									, pActorData = fg_Move(pActorData)
-									, Version = pActorDataRaw->m_ProtocolVersion
-									, bInProgress = false
-									, StreamData = Stream.f_MoveVector()
-								]
-								() mutable -> TCFuture<NStorage::TCOptional<CAsyncGeneratorType>>
-								{
-									if (bInProgress)
-										co_return DMibErrorInstance("Iteration already in progress");
-									bInProgress = true;
+						auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), Stream.f_MoveVector(), Context);
 
-									if (!fRemoteFunctor)
-									{
-										TCActor<CActorDistributionManager> DistributionManager = pActorData->m_DistributionManager.f_Lock();
-
-										if (!DistributionManager)
-											co_return DMibErrorInstance("Actor distribution manager for actor no longer exists");
-
-										auto Data = co_await DistributionManager(&CActorDistributionManager::f_CallRemote, fg_Move(pActorData), fg_Move(StreamData), Context);
-
-										NException::CDisableExceptionTraceScope DisableTrace;
-										{
-											auto CaptureScope = co_await (g_CaptureExceptions % "Exception reading remote result");
-
-											CDistributedActorReadStream ReplyStream;
-											ReplyStream.f_OpenRead(Data);
-
-											DMibBinaryStreamContext(ReplyStream, &Context);
-											DMibBinaryStreamVersion(ReplyStream, Version);
-
-											TCActorFunctorWithID<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()> fRemoteFunctorStream;
-
-											bool bException;
-											ReplyStream >> bException;
-											if (bException)
-												co_return DMibErrorInstance("Unexpected exception in async generator");
-
-											bool bHasGenerator;
-											ReplyStream >> bHasGenerator;
-											if (bHasGenerator)
-											{
-												ReplyStream >> fRemoteFunctorStream;
-												fRemoteFunctor = fg_Move(fRemoteFunctorStream);
-												if (!*fRemoteFunctor)
-													co_return DMibErrorInstance("Invalid iteration functor");
-											}
-
-											NStr::CStr Error;
-											if (!Context.f_ValidateContext(Error))
-												co_return DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error));
-										}
-									}
-
-									auto Result = co_await (*fRemoteFunctor)();
-
-									bInProgress = false;
-
-									co_return fg_Move(Result);
-								}
-							}
-						;
-
-						auto iValue = co_await fg_Move(UpstreamGenerator).f_GetIterator();
-						while (iValue)
+						NException::CDisableExceptionTraceScope DisableTrace;
+						TCActorFunctorWithID<TCFuture<NStorage::TCOptional<CAsyncGeneratorType>> ()> fRemoteFunctor;
 						{
-							co_yield fg_Move(*iValue);
-							co_await ++iValue;
+							auto CaptureScope = co_await (g_CaptureExceptions % "Exception reading remote result");
+
+							CDistributedActorReadStream ReplyStream;
+							ReplyStream.f_OpenRead(Data);
+
+							DMibBinaryStreamContext(ReplyStream, &Context);
+							DMibBinaryStreamVersion(ReplyStream, pActorDataRaw->m_ProtocolVersion);
+
+							bool bException;
+							ReplyStream >> bException;
+							if (bException)
+								co_return DMibErrorInstance("Unexpected exception in async generator");
+
+							bool bHasGenerator;
+							ReplyStream >> bHasGenerator;
+							if (bHasGenerator)
+							{
+								ReplyStream >> fRemoteFunctor;
+								if (!fRemoteFunctor)
+									co_return DMibErrorInstance("Invalid iteration functor");
+							}
+
+							NStr::CStr Error;
+							if (!Context.f_ValidateContext(Error))
+								co_return DMibErrorInstance(fg_Format("Invalid set of parameter and return types: {}", Error));
+						}
+
+						t_CReturn UpstreamGenerator{fg_Move(fRemoteFunctor), Context.f_ActorProtocolVersion() >= EDistributedActorProtocolVersion_PipelinedAsyncGenerators, false};
+
+						uint32 PipelineLength = co_await g_GetPipelineLength;
+
+						DMibLog(DMibAsyncGeneratorDebugLevel, "Streaming function PipelineLength {}", PipelineLength);
+
+						if (PipelineLength)
+						{
+							auto iValue = co_await fg_Move(UpstreamGenerator).f_GetPipelinedIterator(PipelineLength);
+							while (iValue)
+							{
+								co_yield fg_Move(*iValue);
+								co_await ++iValue;
+							}
+						}
+						else
+						{
+							auto iValue = co_await fg_Move(UpstreamGenerator).f_GetSimpleIterator();
+							while (iValue)
+							{
+								co_yield fg_Move(*iValue);
+								co_await ++iValue;
+							}
 						}
 
 						co_return {};

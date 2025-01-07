@@ -1085,6 +1085,25 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_Reset(FOnResult &&_fOnResult)
+	{
+		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
+		DMibFastCheck(!fg_SystemThreadLocal().m_PromiseThreadLocal.m_pOnResultSet);
+
+		m_fOnResult = fg_Move(_fOnResult);
+
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		m_OnResultSetCallstack = {};
+		m_ResultSetCallstack = {};
+		m_OnResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_OnResultSetCallstack.m_Callstack, 128);
+#endif
+		if (m_BeforeSuspend.m_bOnResultSetAtInit)
+			m_BeforeSuspend.m_bOnResultSetAtInit = false;
+		m_Result = TCAsyncResult<t_CReturnValue>();
+		m_OnResultSet = EFutureResultFlag_ResultFunctorSet;
+	}
+
+	template <typename t_CReturnValue>
 	void TCPromiseData<t_CReturnValue>::f_Reset()
 	{
 		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
@@ -1293,6 +1312,35 @@ namespace NMib::NConcurrency::NPrivate
 			m_fOnResult(fg_Move(m_Result));
 			m_fOnResult.f_Clear();
 		}
+	}
+
+	template <typename t_CReturnValue>
+	void TCPromiseData<t_CReturnValue>::f_OnResultNoClear()
+	{
+		DMibFastCheck(!m_AfterSuspend.m_bPendingResult);
+		EFutureResultFlag PreviousFlags;
+#ifdef DMibConcurrencyNonAtomicOnResultSet
+		if (m_BeforeSuspend.m_bOnResultSetAtInit)
+		{
+			auto &OnResultSet = m_OnResultSet.f_NonAtomic();
+			PreviousFlags = (EFutureResultFlag )OnResultSet;
+			OnResultSet |= EFutureResultFlag_DataSet;
+		}
+		else
+			PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+#else
+		EFutureResultFlag PreviousFlags = (EFutureResultFlag)m_OnResultSet.f_FetchOr(EFutureResultFlag_DataSet, f_MemoryOrder(NAtomic::EMemoryOrder_AcquireRelease));
+#endif
+
+		DMibFastCheck(!(PreviousFlags & EFutureResultFlag_DataSet)); // You can only set result once
+		DMibFastCheck(m_Result.f_IsSet());
+
+#if DMibConfig_Concurrency_DebugActorCallstacks
+		if (!(PreviousFlags & EFutureResultFlag_DataSet))
+			m_ResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_ResultSetCallstack.m_Callstack, 128);
+#endif
+		if (PreviousFlags & EFutureResultFlag_ResultFunctorSet)
+			m_fOnResult(fg_Move(m_Result));
 	}
 
 	template <typename t_CReturnValue>

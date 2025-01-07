@@ -12,18 +12,46 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturnType>
-	struct TCAsyncGeneratorData
+	struct TCAsyncGeneratorDataShared
 	{
-		TCAsyncGeneratorData(TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> &&_fGetNext);
+		void f_Destroy(bool _bIsCoroutine);
 
-		TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> m_fGetNext;
+		NStorage::CIntrusiveRefCount m_RefCount;
+		TFAsyncGeneratorGetNext<t_CReturnType> m_fGetNext;
 		NStorage::TCOptional<t_CReturnType> m_LastValue;
+	};
+	
+	template <typename t_CReturnType>
+	struct TCAsyncGeneratorData : public TCAsyncGeneratorDataShared<t_CReturnType>
+	{
+		TCAsyncGeneratorData(TFAsyncGeneratorGetNext<t_CReturnType> &&_fGetNext, bool _bSupportsPipelines, bool _bIsCoroutine);
+
+		void f_Destroy();
+
+		bool m_bSupportsPipelines = true;
+		bool m_bIsCoroutine = true;
+	};
+
+	template <typename t_CReturnType>
+	struct TCAsyncGeneratorDataPipelined : public TCAsyncGeneratorDataShared<t_CReturnType>
+	{
+		TCAsyncGeneratorDataPipelined(TCAsyncGeneratorData<t_CReturnType> &&_Other);
+
+		void f_QueueNext();
+		void f_Destroy();
+
+		NThread::CLowLevelRecursiveLock m_Lock;
+		NContainer::TCLinkedList<TCFuture<NStorage::TCOptional<t_CReturnType>>> m_QueuedResults;
+		bool m_bDone = false;
+		bool m_bSupportsPipelines = true;
+		bool m_bIsCoroutine = true;
 	};
 
 	template <typename t_CReturnType>
 	struct TCAsyncGeneratorCoroutineContext : public TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>
 	{
 		TCAsyncGeneratorCoroutineContext(ECoroutineFlag _Flags = ECoroutineFlag_None) noexcept;
+		~TCAsyncGeneratorCoroutineContext();
 
 		struct CYieldSuspender
 		{
@@ -35,10 +63,31 @@ namespace NMib::NConcurrency::NPrivate
 			void await_resume() noexcept;
 		};
 
-		CSuspendAlways initial_suspend() noexcept
+		struct CGeneratorRunState
 		{
-			return {};
-		}
+			CGeneratorRunState(TCWeakActor<> &&_AsyncGeneratorOwner)
+				: m_AsyncGeneratorOwner(fg_Move(_AsyncGeneratorOwner))
+			{
+			}
+
+			void f_Destroy();
+			TCUnsafeFuture<NStorage::TCOptional<t_CReturnType>> f_GetGeneratorValue();
+			void f_RunGenerator();
+
+			NStorage::CIntrusiveRefCount m_RefCount;
+			TCWeakActor<> m_AsyncGeneratorOwner;
+			TCPromiseData<NStorage::TCOptional<t_CReturnType>> *m_pPromiseData = nullptr;
+			NContainer::TCLinkedList<TCPromise<NStorage::TCOptional<t_CReturnType>>> m_QueuedCalls;
+			NThread::CLowLevelLock m_Lock;
+			NAtomic::TCAtomic<bool> m_bAborted;
+			NException::CExceptionPointer m_pException;
+			uint32 m_PipelineLength = 0;
+			bool m_bInProgress = false;
+			bool m_bDone = false;
+			bool m_bDestroyed = false;
+		};
+
+		CSuspendAlways initial_suspend() noexcept;
 
 		void return_value(CEmpty);
 
@@ -71,8 +120,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		TCAsyncGenerator<t_CReturnType> get_return_object();
 
-		TCWeakActor<> m_AsyncGeneratorOwner;
-		NStorage::TCSharedPointer<NAtomic::TCAtomic<bool>> m_pAborted;
+		NStorage::TCSharedPointer<CGeneratorRunState> m_pRunState;
 	};
 
 	template <typename t_CReturnType, ECoroutineFlag t_Flags>

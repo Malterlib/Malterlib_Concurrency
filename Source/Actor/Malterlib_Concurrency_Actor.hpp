@@ -1063,7 +1063,8 @@ namespace NMib::NConcurrency
 									NPrivate::TCAsyncGeneratorCoroutineContext<typename NPrivate::TCIsAsyncGeneratorCoroutineContext<tf_CCoroutineContext>::CReturnType>
 								>().promise()
 							;
-							GeneratorContext.m_AsyncGeneratorOwner = fg_ThisActor(_ThreadLocal.m_pCurrentlyProcessingActorHolder);
+							DMibLock(GeneratorContext.m_pRunState->m_Lock);
+							GeneratorContext.m_pRunState->m_AsyncGeneratorOwner = fg_ThisActor(_ThreadLocal.m_pCurrentlyProcessingActorHolder);
 						}
 
 #if DMibEnableSafeCheck > 0

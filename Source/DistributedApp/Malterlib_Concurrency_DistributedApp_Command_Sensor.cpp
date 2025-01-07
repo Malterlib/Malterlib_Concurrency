@@ -512,7 +512,7 @@ namespace NMib::NConcurrency
 		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
-		for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
+		for (auto iSensors = co_await fg_Move(_Sensors).f_GetPipelinedIterator(); iSensors; co_await ++iSensors)
 		{
 			for (auto &SensorInfo : *iSensors)
 			{
@@ -723,7 +723,7 @@ namespace NMib::NConcurrency
 
 		TCMap<CDistributedAppSensorReporter::CSensorInfoKey, CDistributedAppSensorReporter::CSensorInfo> SensorInfos;
 		{
-			for (auto iSensors = co_await fg_Move(_Sensors).f_GetIterator(); iSensors; co_await ++iSensors)
+			for (auto iSensors = co_await fg_Move(_Sensors).f_GetPipelinedIterator(); iSensors; co_await ++iSensors)
 			{
 				for (auto &SensorInfo : *iSensors)
 					SensorInfos[SensorInfo.f_Key()] = SensorInfo;
@@ -780,7 +780,7 @@ namespace NMib::NConcurrency
 
 		NTime::CTime Now = NTime::CTime::fs_NowUTC();
 
-		for (auto iReadings = co_await fg_Move(_SensorReadings).f_GetIterator(); iReadings; co_await ++iReadings)
+		for (auto iReadings = co_await fg_Move(_SensorReadings).f_GetPipelinedIterator(); iReadings; co_await ++iReadings)
 		{
 			for (auto &Reading : *iReadings)
 			{

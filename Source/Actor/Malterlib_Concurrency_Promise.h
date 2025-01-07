@@ -890,6 +890,7 @@ namespace NMib::NConcurrency::NPrivate
 		~TCPromiseData();
 
 		void f_Reset();
+		void f_Reset(FOnResult &&_fOnResult);
 
 		bool f_IsSet() const;
 		bool f_IsDiscarded() const;
@@ -898,6 +899,8 @@ namespace NMib::NConcurrency::NPrivate
 		void f_ReportNothingSet();
 		void f_OnResult();
 		void f_OnResultRelaxed();
+		void f_OnResultNoClear();
+
 		void f_SetResult();
 		void f_SetResult(TCAsyncResult<t_CReturnValue> const &_Result);
 		void f_SetResult(TCAsyncResult<t_CReturnValue> &_Result);

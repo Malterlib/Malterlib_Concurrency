@@ -23,8 +23,18 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturnType>
-	TCAsyncGeneratorData<t_CReturnType>::TCAsyncGeneratorData(TCActorFunctor<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> &&_fGetNext)
-		: m_fGetNext(fg_Move(_fGetNext))
+	TCAsyncGeneratorData<t_CReturnType>::TCAsyncGeneratorData(TFAsyncGeneratorGetNext<t_CReturnType> &&_fGetNext, bool _bSupportsPipelines, bool _bIsCoroutine)
+		: TCAsyncGeneratorDataShared<t_CReturnType>{.m_fGetNext{fg_Move(_fGetNext)}}
+		, m_bSupportsPipelines(_bSupportsPipelines)
+		, m_bIsCoroutine(_bIsCoroutine)
+	{
+	}
+
+	template <typename t_CReturnType>
+	TCAsyncGeneratorDataPipelined<t_CReturnType>::TCAsyncGeneratorDataPipelined(TCAsyncGeneratorData<t_CReturnType> &&_Other)
+		: TCAsyncGeneratorDataShared<t_CReturnType>{.m_fGetNext = fg_Move(_Other.m_fGetNext)}
+		, m_bSupportsPipelines(_Other.m_bSupportsPipelines)
+		, m_bIsCoroutine(_Other.m_bIsCoroutine)
 	{
 	}
 
@@ -104,13 +114,19 @@ namespace NMib::NConcurrency::NPrivate
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
 		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
 		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
-			pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+		{
+			pPromiseData->m_Result.f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_OnResultNoClear();
+		}
 		else if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
 		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
 			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
 		else
-			pPromiseData->f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+		{
+			pPromiseData->m_Result.f_SetResult(fg_Forward<tf_CReturnType>(_Value));
+			pPromiseData->f_OnResultNoClear();
+		}
 #endif
 		return {};
 	}
@@ -120,9 +136,245 @@ namespace NMib::NConcurrency::NPrivate
 	{
 #ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
-		pPromiseData->f_SetResult(fg_Move(_Value));
+		pPromiseData->m_Result.f_SetResult(fg_Move(_Value));
+		pPromiseData->f_OnResultNoClear();
 #endif
 		return {};
+	}
+
+	template <typename t_CReturnType>
+	CSuspendAlways TCAsyncGeneratorCoroutineContext<t_CReturnType>::initial_suspend() noexcept
+	{
+		auto &ThreadLocal = fg_SystemThreadLocal();
+
+		this->m_bAwaitingInitialResume = true;
+
+		if (!ThreadLocal.m_CrossActorStateScopes.f_IsEmpty()) [[unlikely]]
+		{
+			for (auto &Scope : ThreadLocal.m_CrossActorStateScopes)
+				Scope.f_InitialSuspend();
+		}
+
+		this->f_InitialSuspend(ThreadLocal);
+
+		return {};
+	}
+
+	template <typename t_CReturnType>
+	TCUnsafeFuture<NStorage::TCOptional<t_CReturnType>> TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState::f_GetGeneratorValue()
+	{
+		m_Lock.f_Lock();
+		auto Cleanup = g_OnScopeExit / [&]
+			{
+				m_Lock.f_Unlock();
+			}
+		;
+
+		if (m_bDone || m_bDestroyed || !m_pPromiseData)
+			co_return {};
+
+		if (m_pException)
+			co_return m_pException;
+
+		TCPromiseFuturePair<NStorage::TCOptional<t_CReturnType>> Promise;
+		m_QueuedCalls.f_Insert(fg_Move(Promise.m_Promise));
+
+		DMibLog(DMibAsyncGeneratorDebugLevel, "f_GetGeneratorValue {} Queued: {}", fg_GetTypeName<t_CReturnType>(), m_QueuedCalls.f_GetLen());
+
+		if (!fg_Exchange(m_bInProgress, true))
+			f_RunGenerator();
+
+		Cleanup();
+
+		co_return co_await fg_Move(Promise.m_Future);
+
+		co_return {};
+	}
+
+	template <typename t_CReturnType>
+	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState::f_RunGenerator()
+	{
+		DMibFastCheck(m_pPromiseData);
+
+		auto &PromiseData = *m_pPromiseData;
+
+		m_RefCount.m_RefCount.f_FetchAdd(2, NAtomic::EMemoryOrder_Relaxed);
+
+		DMibFastCheck(!m_bDestroyed);
+
+		PromiseData.f_Reset
+			(
+				[pRunState = NStorage::TCSharedPointer<CGeneratorRunState>(fg_Attach(this))]
+				(TCAsyncResult<NStorage::TCOptional<t_CReturnType>> &&_Result) mutable
+				{
+					auto pRunStateLocal = fg_Move(pRunState);
+
+					auto &RunState = *pRunStateLocal;
+					DMibLock(RunState.m_Lock);
+
+					if (RunState.m_QueuedCalls.f_IsEmpty())
+						return;
+
+					if (!_Result)
+					{
+						RunState.m_pException = _Result.f_GetException();
+						auto Calls = fg_Move(RunState.m_QueuedCalls);
+
+						for (auto &Promise : Calls)
+							Promise.f_SetException(RunState.m_pException);
+
+						return;
+					}
+
+					if (!*_Result)
+					{
+						RunState.m_bDone = true;
+						auto Calls = fg_Move(RunState.m_QueuedCalls);
+						for (auto &Promise : Calls)
+							Promise.f_SetResult(NStorage::TCOptional<t_CReturnType>());
+
+						if (RunState.m_pPromiseData)
+							RunState.m_pPromiseData->m_fOnResult.f_Clear();
+					}
+					else
+					{
+						RunState.m_QueuedCalls.f_PopFirst().f_SetResult(fg_Move(_Result));
+
+						DMibLog(DMibAsyncGeneratorDebugLevel, "Deliver value {} Queued: {}", fg_GetTypeName<t_CReturnType>(), RunState.m_QueuedCalls.f_GetLen());
+
+						if (RunState.m_QueuedCalls.f_IsEmpty())
+						{
+							RunState.m_bInProgress = false;
+							if (RunState.m_pPromiseData)
+								RunState.m_pPromiseData->m_fOnResult.f_Clear();
+						}
+						else if (RunState.m_pPromiseData)
+							RunState.f_RunGenerator();
+					}
+				}
+			)
+		;
+
+		fg_Dispatch
+			(
+				m_AsyncGeneratorOwner
+				, [KeepAlive = TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>>(fg_Explicit(m_pPromiseData))]() mutable -> TCFuture<void>
+				{
+					if (!KeepAlive.f_HasValidCoroutine())
+						co_return {}; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
+
+					auto &ThreadLocal = fg_SystemThreadLocal();
+
+ #if DMibEnableSafeCheck > 0
+					auto CurrentActor = fg_CurrentActor(ThreadLocal.m_PromiseThreadLocal.f_ConcurrencyThreadLocal());
+					DMibFastCheck(CurrentActor);
+					DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
+ #endif
+					auto CoroutineHandle = KeepAlive.template f_Coroutine<CFutureCoroutineContext>();
+					auto &CoroutineContext = CoroutineHandle.promise();
+
+					if (CoroutineContext.m_bAwaitingInitialResume)
+					{
+						CoroutineContext.m_bAwaitingInitialResume = false;
+
+						{
+							FRestoreScopesState RestoreScopes;
+							CoroutineContext.f_ResumeInitialSuspend(ThreadLocal, RestoreScopes);
+
+							CoroutineHandle.resume();
+						}
+					}
+					else
+					{
+						bool bAborted = false;
+						auto RestoreStates = CoroutineContext.f_Resume
+							(
+								ThreadLocal
+								, &TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetExceptionFunctor
+								, bAborted
+							)
+						;
+
+						if (!bAborted)
+							CoroutineHandle.resume();
+					}
+
+					co_return {};
+				}
+			)
+			.f_OnResultSet
+			(
+				[pRunState = NStorage::TCSharedPointer<CGeneratorRunState>(fg_Attach(this))](TCAsyncResult<void> &&_Result)
+				{
+					if (_Result)
+						return;
+
+					auto &RunState = *pRunState;
+
+					DMibLock(RunState.m_Lock);
+
+					RunState.m_pException = _Result.f_GetException();
+
+					auto Calls = fg_Move(RunState.m_QueuedCalls);
+
+					for (auto &Promise : Calls)
+						Promise.f_SetException(RunState.m_pException);
+				}
+			)
+		;
+	}
+
+	template <typename t_CReturnType>
+	struct TCAsyncGeneratorCoroutineFunctor
+	{
+		NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> m_pRunState;
+		TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>> m_KeepAlive;
+#ifndef DCompiler_MSVC_Workaround
+		DMibNoUniqueAddress
+#endif
+		CAllowWrongThreadDestroy m_AllowDestroy;
+
+		void f_Destroy();
+
+		TCFuture<NStorage::TCOptional<t_CReturnType>> operator ()()
+		{
+			return m_pRunState->f_GetGeneratorValue();
+		}
+	};
+
+	template <typename t_CReturnType>
+	void TCAsyncGeneratorCoroutineFunctor<t_CReturnType>::f_Destroy()
+	{
+		m_pRunState->f_Destroy();
+	}
+
+	template <typename t_CReturnType>
+	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState::f_Destroy()
+	{
+		DMibLock(m_Lock);
+		m_QueuedCalls.f_Clear();
+		m_bDestroyed = true;
+	}
+
+	template <typename t_CReturnType>
+	void TCAsyncGeneratorDataShared<t_CReturnType>::f_Destroy(bool _bIsCoroutine)
+	{
+		if (_bIsCoroutine && !m_fGetNext.f_IsEmpty())
+		{
+			auto pFunctor = static_cast<NPrivate::TCAsyncGeneratorCoroutineFunctor<t_CReturnType> *>(m_fGetNext.f_GetFunctor().f_GetFunctor());
+			pFunctor->f_Destroy();
+		}
+	}
+
+	template <typename t_CReturnType>
+	TCAsyncGeneratorCoroutineContext<t_CReturnType>::~TCAsyncGeneratorCoroutineContext()
+	{
+		if (m_pRunState)
+		{
+			auto &RunState = *m_pRunState;
+			DMibLock(RunState.m_Lock);
+			RunState.m_pPromiseData = nullptr;
+		}
 	}
 
 	template <typename t_CReturnType>
@@ -141,100 +393,29 @@ namespace NMib::NConcurrency::NPrivate
 		TCActor<CActor> CurrentActor;
 
 		if (PromiseThreadLocal.m_pCurrentActorCalled)
-			CurrentActor = fg_ThisActor((TCActorInternal<CActor> * )PromiseThreadLocal.m_pCurrentActorCalled);
+			CurrentActor = fg_ThisActor((TCActorInternal<CActor> *)PromiseThreadLocal.m_pCurrentActorCalled);
 		else
 			CurrentActor = fg_CurrentActor(ConcurrencyThreadLocal);
 
-		m_AsyncGeneratorOwner = CurrentActor;
-		m_pAborted = fg_Construct(false);
+		m_pRunState = fg_Construct(CurrentActor);
+		m_pRunState->m_pPromiseData = pData;
 
 #if DMibEnableSafeCheck > 0
 		if (PromiseThreadLocal.m_pOnResultSetConsumedBy == this)
 			PromiseThreadLocal.m_pOnResultSetConsumedBy = pData;
 #endif
-		return g_ActorFunctor(fg_Move(CurrentActor))
-			(
-				g_ActorSubscription(fg_DirectCallActor()) / [pAborted = m_pAborted]()
-				{
-					pAborted->f_Exchange(true);
-				}
-			)
-			/
-			[
-				KeepAlive = TCFutureCoroutineKeepAliveImplicit<NStorage::TCOptional<t_CReturnType>>(fg_Move(pPromiseData))
-				, bInProgress = false
-				, bInitialSuspend = true
-				, AllowDestroy = g_AllowWrongThreadDestroy
-			]() mutable -> TCFuture<NStorage::TCOptional<t_CReturnType>>
+		return
 			{
-				if (fg_Exchange(bInProgress, true))
-					co_return DMibErrorInstance("Iteration already in progress");
-
-				auto &PromiseData = KeepAlive.f_PromiseData();
-
-				if (bInitialSuspend)
-				{
-					bInitialSuspend = false;
-					PromiseData.m_Coroutine.promise().CFutureCoroutineContext::initial_suspend();
-					PromiseData.m_Coroutine.resume();
-				}
-
-				PromiseData.m_RefCount.f_IncreaseFuture();
-				TCFuture<NStorage::TCOptional<t_CReturnType>> Future(NStorage::TCSharedPointer<NPrivate::TCPromiseData<NStorage::TCOptional<t_CReturnType>>>{fg_Attach(&PromiseData)});
-				auto Result = co_await fg_Move(Future);
-				bInProgress = false;
-
-				if (Result)
-				{
-					auto &CoroutineContext = TCCoroutineHandle<TCAsyncGeneratorCoroutineContext<t_CReturnType>>::from_address(PromiseData.m_Coroutine.address()).promise();
-
-					if (CoroutineContext.m_AsyncGeneratorOwner != fg_CurrentActor())
+				g_ActorFunctor(CurrentActor)
+				(
+					g_ActorSubscription(fg_DirectCallActor()) / [pRunState = m_pRunState]()
 					{
-						auto Actor = CoroutineContext.m_AsyncGeneratorOwner.f_Lock();
-						if (!Actor)
-							co_return DMibErrorInstance("Generator owner was deleted");
-
-						co_await fg_ContinueRunningOnActor(Actor);
+						pRunState->m_bAborted.f_Exchange(true);
 					}
-
-					PromiseData.f_Reset();
-					PromiseData.m_BeforeSuspend.m_bOnResultSetAtInit = false;
-
-					fg_Dispatch
-						(
-							CoroutineContext.m_AsyncGeneratorOwner
-							, [KeepAlive = KeepAlive.f_Copy()]
-							() mutable
-							{
-								if (!KeepAlive.f_HasValidCoroutine())
-									return; // Can happen when f_Suspend throws or co-routines are aborted in fp_DestroyInternal
-
-								auto &ThreadLocal = fg_SystemThreadLocal();
-
-			 #if DMibEnableSafeCheck > 0
-								auto CurrentActor = fg_CurrentActor(ThreadLocal.m_PromiseThreadLocal.f_ConcurrencyThreadLocal());
-								DMibFastCheck(CurrentActor);
-								DMibFastCheck(CurrentActor->f_CurrentlyProcessing());
-			 #endif
-								auto CoroutineHandle = KeepAlive.template f_Coroutine<CFutureCoroutineContext>();
-								auto &CoroutineContext = CoroutineHandle.promise();
-								bool bAborted = false;
-								auto RestoreStates = CoroutineContext.f_Resume
-									(
-										ThreadLocal
-										, &TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetExceptionFunctor
-										, bAborted
-									)
-								;
-								if (!bAborted)
-									CoroutineHandle.resume();
-							}
-						)
-						.f_DiscardResult()
-					;
-				}
-
-				co_return Result;
+				)
+				/ TCAsyncGeneratorCoroutineFunctor<t_CReturnType>{.m_pRunState = m_pRunState, .m_KeepAlive{fg_Move(pPromiseData)}}
+				, true
+				, true
 			}
 		;
 	}

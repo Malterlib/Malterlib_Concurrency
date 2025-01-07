@@ -46,7 +46,7 @@ namespace NMib::NConcurrency
 
 		// Send initial
 		auto Logs = f_GetLogs(CDistributedAppLogReader::CGetLogs{.m_Filters = {pSubscription->m_Filters}});
-		for (auto iLog = co_await fg_Move(Logs).f_GetIterator(); iLog; co_await ++iLog)
+		for (auto iLog = co_await fg_Move(Logs).f_GetPipelinedIterator(); iLog; co_await ++iLog)
 		{
 			TCFutureVector<void> Results;
 			for (auto &Log : *iLog)
@@ -135,7 +135,7 @@ namespace NMib::NConcurrency
 		if (bNeedInitial)
 		{
 			auto LogEntries = f_GetLogEntries(fg_Move(GetLogEntriesParams));
-			for (auto iEntries = co_await fg_Move(LogEntries).f_GetIterator(); iEntries; co_await ++iEntries)
+			for (auto iEntries = co_await fg_Move(LogEntries).f_GetPipelinedIterator(); iEntries; co_await ++iEntries)
 			{
 				TCFutureVector<void> Results;
 				for (auto &Entry : *iEntries)

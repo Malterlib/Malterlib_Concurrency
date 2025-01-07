@@ -445,7 +445,7 @@ namespace NMib::NConcurrency
 		CEJSONSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
-		for (auto iLogs = co_await fg_Move(_Logs).f_GetIterator(); iLogs; co_await ++iLogs)
+		for (auto iLogs = co_await fg_Move(_Logs).f_GetPipelinedIterator(); iLogs; co_await ++iLogs)
 		{
 			for (auto &LogInfo : *iLogs)
 			{
@@ -611,7 +611,7 @@ namespace NMib::NConcurrency
 
 		TCMap<CDistributedAppLogReporter::CLogInfoKey, CDistributedAppLogReporter::CLogInfo> LogInfos;
 		{
-			for (auto iLogs = co_await fg_Move(_Logs).f_GetIterator(); iLogs; co_await ++iLogs)
+			for (auto iLogs = co_await fg_Move(_Logs).f_GetPipelinedIterator(); iLogs; co_await ++iLogs)
 			{
 				for (auto &LogInfo : *iLogs)
 					LogInfos[LogInfo.f_Key()] = LogInfo;
@@ -671,7 +671,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		for (auto iEntries = co_await fg_Move(_LogEntries).f_GetIterator(); iEntries; co_await ++iEntries)
+		for (auto iEntries = co_await fg_Move(_LogEntries).f_GetPipelinedIterator(); iEntries; co_await ++iEntries)
 		{
 			for (auto &Entry : *iEntries)
 			{

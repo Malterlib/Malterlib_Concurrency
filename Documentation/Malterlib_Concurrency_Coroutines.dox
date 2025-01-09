@@ -67,7 +67,7 @@ private:
 
 \subsection p_Malterlib_Concurrency_Coroutines_Helpers_AsyncDestroy Async destroy
 
- You can asynchronously destroy 
+ You can asynchronously destroy objects with a `f_Destroy` function or run a custom async destroy functor within a coroutine function.
 
 ~~~
 struct CMyActor : public CActor
@@ -76,7 +76,7 @@ struct CMyActor : public CActor
 	{
 		TCActor<CActor> Actor = fg_Construct();
 
-		auto Destroy = co_await fg_AsyncDestroy(Actor); // Actor will asynchronously destroyed before the future is resolved
+		auto Destroy = co_await fg_AsyncDestroy(Actor); // Actor will asynchronously be destroyed before the future is resolved
 
 		co_return {};
 	}
@@ -106,7 +106,7 @@ struct CMyActor : public CActor
 };
 ~~~
 
- Async destroy will be run when the coroutine returns by default. To force any queueud async destruction to run at once you can use g_AsyncDestroy:
+ Async destroy will be run when the coroutine returns by default. To force any queued async destruction to run at once you can use g_AsyncDestroy:
 ~~~
 for (auto Thing : Things)
 {

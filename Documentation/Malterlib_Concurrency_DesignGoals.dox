@@ -37,7 +37,7 @@ struct CMyActor
 
 	void f_MyFunction(TCFunction<void (int _Error, int32 _Value)> &&_fHandler)
 	{
-		// You could easily forget to dispatch to you own thread, in which case you have a race condition
+		// You could easily forget to dispatch on our thread, in which case you have a race condition
 
 		f_DisptachOnOurThread
 			(
@@ -77,7 +77,7 @@ struct CMyOtherActor
 			(
 				[this](int _Error, int32 _Value)
 				{
-					// Here the this pointer could be invalid because the CMyOtherActor instance have been deleted
+					// Here, the this pointer could be invalid because the CMyOtherActor instance has been deleted
 					if (_Error)
 					{
 						DConErrOut("Error {}\n", _Value);
@@ -149,9 +149,9 @@ struct CMyOtherActor
 
  When you call a function asynchronously the function call owns itself and any arguments you send to it. If the call site goes out of scope, the function call
  still continues and is not aborted. This allows:
- 	- Control flow can be continued without aborting functions. For example timing out a async function call, but still allowing the async call to finish naturally.
- 	- Async functions can start running without awaiting them first. This is important for some algorithms where generating inputs for a async function call is expensive.
- 	- The call site can be destroyed asyncronously. This is important to be able to destroy an actor without waiting for all async function calls to finish.
+ 	- Control flow can be continued without aborting functions. For example timing out an async function call, but still allowing the async call to finish naturally.
+ 	- Async functions can start running without awaiting them first. This is important for some algorithms where generating inputs for an async function call is expensive.
+ 	- The call site can be destroyed asynchronously. This is important to be able to destroy an actor without waiting for all async function calls to finish.
 
 \subsection s_Malterlib_Concurrency_DesignGoals_SafeAsync Safe asynchronous calls
 
@@ -210,13 +210,13 @@ co_await m_MyActor(&CMyActor::f_MyFunction);
 
  C++20 Coroutines has some safety issues that you need to be aware of.
 
- Coroutine function parameters are captured by reference for coroutines if the function parameter is defined as a reference. This can easily result in
+ Coroutine function parameters are captured by reference if the function parameter is defined as a reference. This can easily result in
  dangling references if the function parameter is accessed after the first suspension point.
 
  Because of this when you call `TCFuture` coroutines in non-release builds checks are done at runtime to detect unsafe usages. It also detects
  some usages that are safe, in this case you can use `co_await ECoroutineFlag_AllowReferences` or `TCUnsafeFuture` to opt out of the safety checks.
 
- To avoid most of these problems `TCFuture` based coroutines are not allowed to have reference paramaters. To opt out of this safety precaution
+ To avoid most of these problems `TCFuture` based coroutines are not allowed to have reference parameters. To opt out of this safety precaution
  use `TCUnsafeFuture` or use pointers instead of references (if you are sure it's safe).
 
  Action																	| Actor call						| Direct call
@@ -251,7 +251,7 @@ struct CMyActor : public CActor
 };
 ~~~
 
-\subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_ReferenceParamBeforeFirstSuspensionPoint Reference parameter before first suspenion point
+\subsubsection s_Malterlib_Concurrency_DesignGoals_SafeAsync_CoroutinesTS_ReferenceParamBeforeFirstSuspensionPoint Reference parameter before first suspension point
 
  Direct call safe:
 ~~~
@@ -259,7 +259,7 @@ struct CMyActor : public CActor
 {
 	TCUnsafeFuture<uint32> f_MyFunction(uint32 const &_Value)
 	{
-		uint32 Value = _Value; // Store value before first suspenion point
+		uint32 Value = _Value; // Store value before first suspension point
 
 		co_await f_OtherFunction();
 
@@ -501,7 +501,7 @@ TCFuture<void> f_DestroyActor()
 
  Even though it might be harder to understand initially, operator overloading is used to decrease boiler plate and indentation level.
 
- Currently actors needs to be called through a function pointer until C++ gets code generation support.
+ Currently actors need to be called through a function pointer until C++ gets code generation support.
 
 \subsubsection s_Malterlib_Concurrency_DesignGoals_MinimizeBoilerplate_ReceiveResult Receiving result and error handling
 
@@ -590,7 +590,7 @@ co_await MyDistributedActor.f_CallActor(&CMyActor::f_MyFunction)();
 ~~~
 
  `f_CallActor` works on non-distributed actors as well. The reason it's needed when calling distributed actors is that to capture the name
- of the function you are calling the member funciton needs to be supplied as a template argument so a hash can be generated at compile time.
+ of the function you are calling the member function needs to be supplied as a template argument so a hash can be generated at compile time.
 
  To be able to call a function on an actor remotely you need to publish the function and supply the version
  information for the interface.
@@ -616,7 +616,7 @@ struct CMyActorInterface : public CActor
 
  You then need to publish an implementation of the interface so remote processes can see your actor. The easiest way to do this
  is to use a `TCDistributedActorInstance`. The delegated distributed actor will run on the sequenced processing queue of the containing
- actor and it's lifetime is also tied to it. This allows you to publish several actor interfaces without the overhead of dispatching
+ actor and its lifetime is also tied to it. This allows you to publish several actor interfaces without the overhead of dispatching
  across actors. Another option would be using multiple inheritance, but that is not supported for actors.
 ~~~
 struct CMyActor : public CActor
@@ -665,7 +665,7 @@ TCFuture<void> f_SubscribeToInterface()
 			g_ActorFunctor / [this](TCDistributedActor<CMyActorInterface> _NewActor, CTrustedActorInfo _ActorInfo) -> TCFuture<void>
 			{
 				// This functor will be called for any actor of type CMyActorInterface published in the
-				// "com.company/MyActorNamespace" namspace in any of the processes we are connected to,
+				// "com.company/MyActorNamespace" namespace in any of the processes we are connected to,
 				// provided that a trust has been setup for the namespace in the trust manager.
 
 				co_await _NewActor.f_CallActor(&CMyActorInterface::f_MyFunction)();
@@ -767,7 +767,7 @@ CActorSubscription Subscription = co_await MyActor.f_CallActor(&CMyActor::f_Regi
  The default actor holder schedules work on a thread pool in the concurrency manager. The thread pool uses one thread per virtual core. There are
  two thread pools, one for normal priority and one for low priority work.
 
- The framework heavily relies on a concurrent memory manager. By default the \ref p_Malterlib_Memory_MemoryManager "Malterlib built in memory manager" will be used.
+ The framework heavily relies on a concurrent memory manager. By default the \ref p_Malterlib_Memory_MemoryManager "Malterlib built-in memory manager" will be used.
  If you use another memory manager you could run into scaling issues for some usage patterns.
 
 \subsection s_Malterlib_Concurrency_DesignGoals_LowOverhead Low overhead

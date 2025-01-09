@@ -281,7 +281,7 @@ namespace NMib::NConcurrency
 
 					mint ConnectionConcurrency = pConnectionState->m_ClientConnection.f_GetEffectiveConnectionConcurrency(m_DefaultConnectionConcurrency);
 					if (pConnectionState->m_ConnectionReferences.f_GetLen() >= ConnectionConcurrency)
-						return; // Settings changed asyncronously
+						return; // Settings changed asynchronously
 
 					auto &ConnectionResult = *_ConnectionResult;
 

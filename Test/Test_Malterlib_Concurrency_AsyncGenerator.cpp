@@ -4,6 +4,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/Actor/Timer>
 #include <Mib/Concurrency/AsyncGenerator>
+#include <Mib/Concurrency/AsyncDestroy>
 #include <Mib/Test/Exception>
 
 namespace
@@ -284,7 +285,12 @@ namespace
 				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelfConsumer).f_CallSync(g_Timeout), ==, 21);
 				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorSelf2Consumer).f_CallSync(g_Timeout), ==, 21);
 				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerForCoAwait).f_CallSync(g_Timeout), ==, 21);
-				DMibExpect(TestActor(&CTestActor::f_TestAsyncGeneratorConsumerDefaulted).f_CallSync(g_Timeout), ==, 0);
+				DMibExpectException
+					(
+						TestActor(&CTestActor::f_TestAsyncGeneratorConsumerDefaulted).f_CallSync(g_Timeout)
+						, DMibErrorInstance("Invalid async generator")
+					)
+				;
 			};
 			DMibTestSuite("Access Param")
 			{
@@ -848,14 +854,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							for (mint i = 0; i < 300; ++i)
 							{
@@ -880,6 +889,8 @@ namespace
 
 				(++iIterator).f_DiscardResult();
 
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
@@ -893,14 +904,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							for (mint i = 0; i < 300; ++i)
 							{
@@ -925,6 +939,8 @@ namespace
 
 				(++iIterator).f_DiscardResult();
 
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");
 
@@ -933,7 +949,7 @@ namespace
 
 				co_return {};
 			};
-			DMibTestSuite("Abort After Iterator Wait Should finish") -> TCFuture<void>
+			DMibTestSuite("Abort After Iterator Wait Should finish or Async Destroy") -> TCFuture<void>
 			{
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
@@ -944,6 +960,18 @@ namespace
 						TestActor
 						, [FinishedPromise]() -> TCAsyncGenerator<int32>
 						{
+							auto AsyncDestroy = co_await fg_AsyncDestroy
+								(
+									[FinishedPromise]() -> TCFuture<void>
+									{
+										if (!FinishedPromise.f_IsSet())
+											FinishedPromise.f_SetResult();
+
+										co_return {};
+									}
+								)
+							;
+
 							co_yield 1;
 
 							co_await fg_Timeout(0.1);
@@ -956,7 +984,8 @@ namespace
 									co_await fg_Timeout(0.1);
 							}
 
-							FinishedPromise.f_SetResult();
+							if (!FinishedPromise.f_IsSet())
+								FinishedPromise.f_SetResult();
 
 							co_return {};
 						}
@@ -980,7 +1009,7 @@ namespace
 
 				co_return {};
 			};
-			DMibTestSuite("Abort After Iterator Wait Should finish Pipelined") -> TCFuture<void>
+			DMibTestSuite("Abort After Iterator Wait Should finish or Async Destroy Pipelined") -> TCFuture<void>
 			{
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
@@ -991,6 +1020,18 @@ namespace
 						TestActor
 						, [FinishedPromise]() -> TCAsyncGenerator<int32>
 						{
+							auto AsyncDestroy = co_await fg_AsyncDestroy
+								(
+									[FinishedPromise]() -> TCFuture<void>
+									{
+										if (!FinishedPromise.f_IsSet())
+											FinishedPromise.f_SetResult();
+
+										co_return {};
+									}
+								)
+							;
+
 							co_yield 1;
 
 							co_await fg_Timeout(0.1);
@@ -1102,14 +1143,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							while (true)
 							{
@@ -1131,6 +1175,8 @@ namespace
 
 				(++iIterator).f_DiscardResult();
 
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
@@ -1144,14 +1190,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							while (true)
 							{
@@ -1173,6 +1222,8 @@ namespace
 
 				(++iIterator).f_DiscardResult();
 
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				co_await fg_Move(iIterator).f_Destroy();
 				co_await AbortedPromise.f_Future().f_Timeout(g_Timeout, "Timed out");;
 
@@ -1186,14 +1237,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							while (true)
 							{
@@ -1213,6 +1267,9 @@ namespace
 
 				auto iIterator = co_await fg_Move(Generator).f_GetSimpleIterator();
 				(++iIterator).f_DiscardResult();
+
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				{
 					auto Functor = [iIterator = fg_Move(iIterator)]{};
 				}
@@ -1228,14 +1285,17 @@ namespace
 				TCActor<CSeparateThreadActor> TestActor(fg_Construct(), "TestActor");
 
 				TCSharedPointer<NAtomic::TCAtomic<bool>> pAborted = fg_Construct(false);
+				TCSharedPointer<NThread::CEvent> pStartedEvent = fg_Construct();
 				TCPromise<void> AbortedPromise;
 
 				auto Generator = co_await fg_Dispatch
 					(
 						TestActor
-						, [pAborted, AbortedPromise]() -> TCAsyncGenerator<int32>
+						, [pAborted, pStartedEvent, AbortedPromise]() -> TCAsyncGenerator<int32>
 						{
 							co_yield 1;
+
+							pStartedEvent->f_SetSignaled();
 
 							while (true)
 							{
@@ -1255,6 +1315,9 @@ namespace
 
 				auto iIterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
 				(++iIterator).f_DiscardResult();
+
+				pStartedEvent->f_WaitTimeout(g_Timeout);
+
 				{
 					auto Functor = [iIterator = fg_Move(iIterator)]{};
 				}

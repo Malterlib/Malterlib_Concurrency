@@ -262,6 +262,37 @@ namespace NMib::NConcurrency
 	}
 #endif
 
+	TCFuture<void> CFutureCoroutineContext::f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal)
+	{
+		DMibFastCheck(_ThreadLocal.m_AsyncDestructors.f_IsEmpty());
+		DMibFastCheck(!_ThreadLocal.m_bCaptureAsyncDestructors);
+		_ThreadLocal.m_AsyncDestructors.f_Clear();
+		{
+			auto Cleanup = g_OnScopeExit / [&, bOld = fg_Exchange(_ThreadLocal.m_bCaptureAsyncDestructors, true)]
+				{
+					_ThreadLocal.m_bCaptureAsyncDestructors = bOld;
+				}
+			;
+
+			f_Abort();
+		}
+
+		if (!_ThreadLocal.m_AsyncDestructors.f_IsEmpty())
+		{
+			TCFutureVector<void> DestroyResults;
+
+			for (auto &fAsyncDestroy : _ThreadLocal.m_AsyncDestructors)
+				fg_Move(fAsyncDestroy) > DestroyResults;
+
+			_ThreadLocal.m_AsyncDestructors.f_Clear();
+
+			if (!DestroyResults.f_IsEmpty())
+				return fg_AllDone(DestroyResults);
+		}
+
+		return {};
+	}
+
 	void CFutureCoroutineContext::f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException)
 	{
 #if DMibEnableSafeCheck > 0

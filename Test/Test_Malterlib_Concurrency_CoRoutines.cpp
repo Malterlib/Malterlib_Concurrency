@@ -1364,6 +1364,20 @@ namespace NMib::NConcurrency::NTest
 
 	class CCoroutines_Tests : public NMib::NTest::CTest
 	{
+		TCFuture<void> fp_BlockOnAllThreads()
+		{
+			mint nThreads = NSys::fg_Thread_GetVirtualCores();
+
+			TCFutureVector<void> Results;
+
+			for (mint i = 0; i < nThreads; ++i)
+				fg_ConcurrentDispatch([]{}) > Results;
+
+			co_await fg_AllDone(Results);
+
+			co_return {};
+		}
+		
 		void f_TestGeneral()
 		{
 			DMibTestSuite("General")
@@ -1609,7 +1623,7 @@ namespace NMib::NConcurrency::NTest
 				++m_pTestState->m_nDestructed;
 			}
 
-			TCFuture<void> fp_Destroy()
+			TCFuture<void> fp_Destroy() override
 			{
 				++m_pTestState->m_nStartDestroy;
 				co_await fg_Timeout(0.001);
@@ -1685,6 +1699,21 @@ namespace NMib::NConcurrency::NTest
 			}
 
 			TCSharedPointer<CAsyncDestroyTestState> m_pTestState;
+		};
+
+		struct CImmediateAsyncDestroyActor : public CAsyncDestroyActor
+		{
+			CImmediateAsyncDestroyActor(TCSharedPointer<CAsyncDestroyTestState> const &_pTestState)
+				: CAsyncDestroyActor(_pTestState)
+			{
+			}
+
+			TCFuture<void> fp_Destroy() override
+			{
+				++m_pTestState->m_nStartDestroy;
+				++m_pTestState->m_nDestroyed;
+				co_return {};
+			}
 		};
 
 		void f_TestAsyncDestroy()
@@ -1963,7 +1992,349 @@ namespace NMib::NConcurrency::NTest
 					co_return {};
 				};
 
+				DMibTestCategory("Async Generator") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
 
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_return {};
+							}
+						)
+					;
+
+					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibAssertTrue(Iterator);
+					DMibExpect(*Iterator, ==, 1);
+
+					co_await ++Iterator;
+					DMibExpectFalse(Iterator);
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+
+				DMibTestCategory("Aborted Async Generator") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+
+					co_await fg_Move(Generator).f_Destroy();
+
+					// The body of the coroutine dosen't start running until the iterator is gotten
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+
+					co_return {};
+				};
+
+				DMibTestCategory("Aborted Async Generator Pipelined") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibAssertTrue(Iterator);
+					DMibExpect(*Iterator, ==, 1);
+
+					co_await ++Iterator;
+					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+
+					co_await fg_Move(Iterator).f_Destroy();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+
+				DMibTestCategory("Aborted Async Generator Simple") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibAssertTrue(Iterator);
+					DMibExpect(*Iterator, ==, 1);
+
+					co_await ++Iterator;
+					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+
+					co_await fg_Move(Iterator).f_Destroy();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+
+				DMibTestCategory("Abandoned Async Generator Pipelined") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CImmediateAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					{
+						auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+						DMibAssertTrue(Iterator);
+						DMibExpect(*Iterator, ==, 1);
+
+						co_await ++Iterator;
+						DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					}
+
+					co_await fp_BlockOnAllThreads();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+
+				DMibTestCategory("Abandoned Async Generator Simple") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CImmediateAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_yield 1;
+
+								DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 0);
+								DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 0);
+
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					{
+						auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+						DMibAssertTrue(Iterator);
+						DMibExpect(*Iterator, ==, 1);
+
+						co_await ++Iterator;
+						DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+						DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+						DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					}
+
+					co_await fp_BlockOnAllThreads();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+
+				DMibTestCategory("Aborted Changed Owner Async Generator Pipelined") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_ContinueRunningOnActor(fg_ThisConcurrentActor());
+
+								co_yield 1;
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					auto Iterator = co_await fg_Move(Generator).f_GetPipelinedIterator(1);
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibAssertTrue(Iterator);
+					DMibExpect(*Iterator, ==, 1);
+
+					co_await ++Iterator;
+					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+
+					co_await fg_Move(Iterator).f_Destroy();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
+				
+				DMibTestCategory("Aborted Changed Owner Async Generator Simple") -> TCFuture<void>
+				{
+					TCSharedPointer<CAsyncDestroyTestState> pTestState = fg_Construct();
+
+					auto Generator = fg_CallSafe
+						(
+							[pTestState]() -> TCAsyncGenerator<uint32>
+							{
+								TCActor<CAsyncDestroyActor> Variable = fg_Construct(pTestState);
+
+								auto AsyncDestroy = co_await fg_AsyncDestroy(Variable);
+
+								co_await fg_ContinueRunningOnActor(fg_ThisConcurrentActor());
+
+								co_yield 1;
+								co_yield 1;
+								co_yield 1;
+
+								co_return {};
+							}
+						)
+					;
+
+					auto Iterator = co_await fg_Move(Generator).f_GetSimpleIterator();
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("2"));
+					DMibAssertTrue(Iterator);
+					DMibExpect(*Iterator, ==, 1);
+
+					co_await ++Iterator;
+					DMibTest(!!DMibExpr(Iterator) && DMibExpr("2"));
+
+					DMibTest(DMibExpr(pTestState->m_nDestroyed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+					DMibTest(DMibExpr(pTestState->m_nDestructed.f_Load()) == DMibExpr(0) && DMibExpr("3"));
+
+					co_await fg_Move(Iterator).f_Destroy();
+
+					DMibExpect(pTestState->m_nDestroyed.f_Load(), ==, 1);
+					DMibExpect(pTestState->m_nDestructed.f_Load(), ==, 1);
+
+					co_return {};
+				};
 
 				DMibTestCategory("Object") -> TCFuture<void>
 				{

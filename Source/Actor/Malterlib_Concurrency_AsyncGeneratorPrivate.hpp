@@ -192,6 +192,19 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_CReturnType>
+	auto TCAsyncGeneratorCoroutineContext<t_CReturnType>::fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor)
+		-> CFutureCoroutineContext::FDeliverExceptionResult
+	{
+		auto *pThis = static_cast<TCAsyncGeneratorCoroutineContext<t_CReturnType> *>(&_Context);
+
+		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NException::CExceptionPointer &&_pException)
+			{
+				KeepAlive.f_PromiseData().f_SetException(fg_Move(_pException));
+			}
+		;
+	}
+
+	template <typename t_CReturnType>
 	void TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState::f_RunGenerator()
 	{
 		DMibFastCheck(m_pPromiseData);
@@ -290,7 +303,7 @@ namespace NMib::NConcurrency::NPrivate
 						auto RestoreStates = CoroutineContext.f_Resume
 							(
 								ThreadLocal
-								, &TCFutureCoroutineContextShared<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetExceptionFunctor
+								, &TCAsyncGeneratorCoroutineContext<NStorage::TCOptional<t_CReturnType>>::fs_KeepaliveSetExceptionFunctor
 								, bAborted
 							)
 						;
@@ -359,11 +372,79 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturnType>
 	void TCAsyncGeneratorDataShared<t_CReturnType>::f_Destroy(bool _bIsCoroutine)
 	{
-		if (_bIsCoroutine && !m_fGetNext.f_IsEmpty())
+		if (!_bIsCoroutine || m_fGetNext.f_IsEmpty())
+			return;
+
+		auto pFunctor = static_cast<NPrivate::TCAsyncGeneratorCoroutineFunctor<t_CReturnType> *>(m_fGetNext.f_GetFunctor().f_GetFunctor());
+		pFunctor->f_Destroy();
+	}
+
+	template <typename t_CReturnType>
+	TCFuture<void> TCAsyncGeneratorDataShared<t_CReturnType>::fs_AsyncDestroy
+		(
+			NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> _pRunState
+		)
+	{
+		auto &RunState = *_pRunState;
+
+		TCActor<CActor> OwnerActor;
 		{
-			auto pFunctor = static_cast<NPrivate::TCAsyncGeneratorCoroutineFunctor<t_CReturnType> *>(m_fGetNext.f_GetFunctor().f_GetFunctor());
-			pFunctor->f_Destroy();
+			DMibLock(RunState.m_Lock);
+
+			OwnerActor = RunState.m_AsyncGeneratorOwner.f_Lock();
+			if (!OwnerActor)
+			{
+				co_return {};
+			}
 		}
+		
+		if (fg_CurrentActor() != OwnerActor)
+		{
+			TCPromiseFuturePair<void> Promise;
+
+			co_await fg_ContinueRunningOnActor(OwnerActor);
+		}
+
+		auto pPromiseData = RunState.m_pPromiseData;
+		if (!pPromiseData || !pPromiseData->m_Coroutine)
+			co_return {};
+
+		auto &CoroutineContext = pPromiseData->m_Coroutine.promise();
+		auto Future = CoroutineContext.f_AsyncDestroy(fg_ConcurrencyThreadLocal());
+
+		if (Future.f_IsValid())
+		{
+			if (Future.f_ObserveIfAvailable())
+				co_return {};
+
+			co_await fg_ContinueRunningOnActor(fg_ThisConcurrentActor());
+			co_await fg_Move(Future);
+		}
+
+		co_return {};
+	}
+
+	template <typename t_CReturnType>
+	TCFuture<void> TCAsyncGeneratorDataShared<t_CReturnType>::f_AsyncDestroy(bool _bIsCoroutine)
+	{
+		if (!_bIsCoroutine || !m_fGetNext)
+			return g_Void;
+
+		auto pFunctor = static_cast<NPrivate::TCAsyncGeneratorCoroutineFunctor<t_CReturnType> *>(m_fGetNext.f_GetFunctor().f_GetFunctor());
+
+		return fs_AsyncDestroy(pFunctor->m_pRunState);
+	}
+
+	template <typename t_CReturnType>
+	TCFuture<void> TCAsyncGeneratorDataPipelined<t_CReturnType>::f_AsyncDestroy()
+	{
+		return TCAsyncGeneratorDataShared<t_CReturnType>::f_AsyncDestroy(m_bIsCoroutine);
+	}
+
+	template <typename t_CReturnType>
+	TCFuture<void> TCAsyncGeneratorData<t_CReturnType>::f_AsyncDestroy()
+	{
+		return TCAsyncGeneratorDataShared<t_CReturnType>::f_AsyncDestroy(m_bIsCoroutine);
 	}
 
 	template <typename t_CReturnType>
@@ -372,7 +453,15 @@ namespace NMib::NConcurrency::NPrivate
 		if (m_pRunState)
 		{
 			auto &RunState = *m_pRunState;
-			DMibLock(RunState.m_Lock);
+
+			NTime::CClock Clock{true};
+			RunState.m_Lock.f_Lock();
+			auto LockCleanup = g_OnScopeExit / [&]
+				{
+					RunState.m_Lock.f_Unlock();
+				}
+			;
+
 			RunState.m_pPromiseData = nullptr;
 		}
 	}

@@ -12,9 +12,14 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename t_CReturnType>
+	struct TCAsyncGeneratorCoroutineContext;
+
+	template <typename t_CReturnType>
 	struct TCAsyncGeneratorDataShared
 	{
 		void f_Destroy(bool _bIsCoroutine);
+		TCFuture<void> f_AsyncDestroy(bool _bIsCoroutine);
+		static TCFuture<void> fs_AsyncDestroy(NStorage::TCSharedPointer<typename TCAsyncGeneratorCoroutineContext<t_CReturnType>::CGeneratorRunState> _pRunState);
 
 		NStorage::CIntrusiveRefCount m_RefCount;
 		TFAsyncGeneratorGetNext<t_CReturnType> m_fGetNext;
@@ -27,6 +32,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCAsyncGeneratorData(TFAsyncGeneratorGetNext<t_CReturnType> &&_fGetNext, bool _bSupportsPipelines, bool _bIsCoroutine);
 
 		void f_Destroy();
+		TCFuture<void> f_AsyncDestroy();
 
 		bool m_bSupportsPipelines = true;
 		bool m_bIsCoroutine = true;
@@ -39,6 +45,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		void f_QueueNext();
 		void f_Destroy();
+		TCFuture<void> f_AsyncDestroy();
 
 		NThread::CLowLevelRecursiveLock m_Lock;
 		NContainer::TCLinkedList<TCFuture<NStorage::TCOptional<t_CReturnType>>> m_QueuedResults;
@@ -86,6 +93,8 @@ namespace NMib::NConcurrency::NPrivate
 			bool m_bDone = false;
 			bool m_bDestroyed = false;
 		};
+
+		static CFutureCoroutineContext::FDeliverExceptionResult fs_KeepaliveSetExceptionFunctor(CFutureCoroutineContext &_Context, TCActor<CActor> &&_Actor);
 
 		CSuspendAlways initial_suspend() noexcept;
 

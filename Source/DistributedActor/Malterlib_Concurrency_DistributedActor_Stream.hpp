@@ -154,6 +154,35 @@ namespace NMib::NConcurrency
 		return mp_ProtocolVersions;
 	}
 
+	namespace NPrivate
+	{
+		template <typename t_CReturnType>
+		struct TCStreamingFunctionAsyncGenerator : public TCStreamingFunction<NFunction::TCFunctionMovable<TCFuture<NStorage::TCOptional<t_CReturnType>> ()>>
+		{
+			using CFunction = NFunction::TCFunctionMovable<TCFuture<NStorage::TCOptional<t_CReturnType>> ()>;
+			using CSuper = TCStreamingFunction<NFunction::TCFunctionMovable<TCFuture<NStorage::TCOptional<t_CReturnType>> ()>>;
+
+			TCStreamingFunctionAsyncGenerator(CFunction &&_fFunction, bool _bIsCoroutine)
+				: CSuper(fg_Move(_fFunction))
+				, mp_bIsCoroutine(_bIsCoroutine)
+			{
+			}
+
+			~TCStreamingFunctionAsyncGenerator()
+			{
+				if (!mp_bIsCoroutine || !this->m_fFunction)
+					return;
+
+				auto pFunctor = static_cast<NPrivate::TCAsyncGeneratorCoroutineFunctor<t_CReturnType> *>(this->m_fFunction.f_GetFunctor());
+
+				TCAsyncGeneratorDataShared<t_CReturnType>::fs_AsyncDestroy(pFunctor->m_pRunState).f_DiscardResult();
+			}
+
+		private:
+			bool mp_bIsCoroutine = false;
+		};
+	}
+
 	template <typename t_CReturnType>
 	template <typename tf_CStream>
 	void TCAsyncGenerator<t_CReturnType>::f_Stream(tf_CStream &_Stream)
@@ -175,10 +204,20 @@ namespace NMib::NConcurrency
 			}
 			else
 			{
-				TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> (), gc_SubscriptionNotRequired> fGetNext(fg_Move(mp_pData->m_fGetNext));
-				fGetNext.f_SetID(pContext->f_GetAutomaticNotRequiredSubscriptionID());
+				auto &fGetNext = this->mp_pData->m_fGetNext;
 
-				_Stream % fg_Move(fGetNext);
+				NStorage::TCSharedPointer<NPrivate::CStreamingFunction> pFunction;
+				if (!fGetNext.f_IsEmpty())
+					pFunction = fg_Construct<NPrivate::TCStreamingFunctionAsyncGenerator<t_CReturnType>>(fg_Move(fGetNext.f_GetFunctor()), this->mp_pData->m_bIsCoroutine);
+
+				_Stream.f_FeedActorFunctor
+					(
+						fg_Move(fGetNext.f_GetActor())
+						, fg_Move(pFunction)
+						, pContext->f_GetAutomaticNotRequiredSubscriptionID()
+						, fg_Move(fGetNext.f_GetSubscription())
+					)
+				;
 			}
 		}
 	}

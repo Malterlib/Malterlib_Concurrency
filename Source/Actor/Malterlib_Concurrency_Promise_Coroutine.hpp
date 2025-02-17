@@ -280,7 +280,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		return [KeepAlive = pThis->f_KeepAlive(fg_Move(_Actor))](NException::CExceptionPointer &&_pException)
 			{
-				KeepAlive.mp_pPromiseData->f_SetExceptionNoReport(fg_Move(_pException));
+				KeepAlive.f_PromiseData().f_SetExceptionNoReport(fg_Move(_pException));
 			}
 		;
 	}

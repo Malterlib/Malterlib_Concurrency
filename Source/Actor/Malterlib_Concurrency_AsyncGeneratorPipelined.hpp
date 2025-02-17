@@ -63,25 +63,62 @@ namespace NMib::NConcurrency
 		if (!mp_pData)
 			return g_Void;
 
-		auto pData = mp_pData.f_Get();
-
 		TCPromiseFuturePair<void> Promise;
-		TFAsyncGeneratorGetNext<t_CReturnType> fGetNext;
+
+		auto &Data = *mp_pData;
+
+		TCFuture<void> SubscriptionDestroyFuture;
 		{
-			DMibLock(pData->m_Lock);
-			fGetNext = fg_Move(pData->m_fGetNext);
+			DMibLock(Data.m_Lock);
+			auto &Subscription = Data.m_fGetNext.f_GetSubscription();
+			if (Subscription)
+				SubscriptionDestroyFuture = fg_Exchange(Subscription, nullptr)->f_Destroy();
+			else
+				SubscriptionDestroyFuture = g_Void;
 		}
 
-		fg_Move(fGetNext).f_Destroy().f_OnResultSet
+		SubscriptionDestroyFuture.f_OnResultSet
 			(
-				[Promise = fg_Move(Promise.m_Promise), pData = fg_Move(mp_pData)](TCAsyncResult<void> &&_Result) mutable
+				[pData = fg_Move(mp_pData), Promise = fg_Move(Promise.m_Promise)](TCAsyncResult<void> &&_SubscriptionResult) mutable
 				{
-					{
-						DMibLock(pData->m_Lock);
-						pData->f_Destroy();
-					}
-					pData.f_Clear();
-					Promise.f_SetResult(fg_Move(_Result));
+					auto &Data = *pData;
+					Data.f_AsyncDestroy().f_OnResultSet
+						(
+							[pData = fg_Move(pData), Promise = fg_Move(Promise), SubscriptionResult = fg_Move(_SubscriptionResult)](TCAsyncResult<void> &&_Result) mutable
+							{
+								TFAsyncGeneratorGetNext<t_CReturnType> fGetNext;
+								{
+									DMibLock(pData->m_Lock);
+									pData->f_Destroy();
+									fGetNext = fg_Move(pData->m_fGetNext);
+								}
+
+								fg_Move(fGetNext).f_Destroy().f_OnResultSet
+									(
+										[Promise = fg_Move(Promise), pData = fg_Move(pData), AsyncDestroyResult = fg_Move(_Result), SubscriptionResult = fg_Move(SubscriptionResult)]
+										(TCAsyncResult<void> &&_Result) mutable
+										{
+											pData.f_Clear();
+											NException::CExceptionExceptionVectorData::CErrorCollector ErrorCollector;
+											if (!AsyncDestroyResult)
+												ErrorCollector.f_AddError(AsyncDestroyResult.f_GetException());
+
+											if (!SubscriptionResult)
+												ErrorCollector.f_AddError(SubscriptionResult.f_GetException());
+
+											if (!_Result)
+												ErrorCollector.f_AddError(_Result.f_GetException());
+
+											if (ErrorCollector.f_HasError())
+												Promise.f_SetException(fg_Move(ErrorCollector).f_GetException());
+											else
+												Promise.f_SetResult();
+										}
+									)
+								;
+							}
+						)
+					;
 				}
 			)
 		;
@@ -107,6 +144,7 @@ namespace NMib::NConcurrency
 	void NPrivate::TCAsyncGeneratorDataPipelined<t_CReturnType>::f_QueueNext()
 	{
 		m_QueuedResults.f_Insert(this->m_fGetNext.f_CallDirect());
+		DMibLog(DMibAsyncGeneratorDebugLevel, "f_QueueNext {} Queued: {}", fg_GetTypeName<t_CReturnType>(), m_QueuedResults.f_GetLen());
 	}
 
 	template <typename t_CReturnType>

@@ -301,6 +301,7 @@ namespace NMib::NConcurrency
 		static void fs_Delete(void *_pMemory, mint _Size, mint _Alignment);
 
 		void f_HandleAwaitedException(CConcurrencyThreadLocal &_ThreadLocal, FKeepaliveSetException *_fSetException, NException::CExceptionPointer &&_pException);
+		TCFuture<void> f_AsyncDestroy(CConcurrencyThreadLocal &_ThreadLocal);
 		FDeliverExceptionResult f_PrepareExceptionResult(FKeepaliveSetException *_fSetException, TCActor<CActor> &&_Actor);
 
 		template <typename t_CAwaitable>
@@ -442,14 +443,12 @@ namespace NMib::NConcurrency::NPrivate
 			return TCCoroutineHandle<tf_CCoroutineContext>::from_address(mp_pPromiseData->m_Coroutine.address());
 		}
 
-		NPrivate::TCPromiseData<t_CReturnType> &f_PromiseData()
+		NPrivate::TCPromiseData<t_CReturnType> &f_PromiseData() const
 		{
 			return *mp_pPromiseData;
 		}
 
 	private:
-		friend struct TCFutureCoroutineContextShared<t_CReturnType>;
-
 		NStorage::TCSharedPointer<NPrivate::TCPromiseData<t_CReturnType>> mp_pPromiseData;
 	};
 

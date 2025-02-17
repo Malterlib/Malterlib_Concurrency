@@ -95,6 +95,7 @@ namespace NMib::NConcurrency
 		NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> const &f_Unsafe_PromiseData() const;
 
 		bool f_SupportsPipelines() const;
+		bool f_IsValid() const;
 
 #if DMibEnableSafeCheck > 0
 		bool f_Debug_HasData(void const *_pData) const;

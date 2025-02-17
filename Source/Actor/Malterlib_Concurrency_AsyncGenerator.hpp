@@ -91,10 +91,16 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnType>
+	bool TCAsyncGenerator<t_CReturnType>::f_IsValid() const
+	{
+		return !!mp_pData;
+	}
+
+	template <typename t_CReturnType>
 	auto TCAsyncGenerator<t_CReturnType>::f_GetSimpleIterator() && -> TCFuture<CIterator>
 	{
 		if (!mp_pData)
-			return CIterator(fg_Move(*this));
+			return DMibErrorInstance("Invalid async generator");
 
 		CIterator Iterator(fg_Move(*this));
 

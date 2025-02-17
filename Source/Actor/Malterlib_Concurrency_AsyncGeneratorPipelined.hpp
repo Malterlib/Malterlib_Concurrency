@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 		DMibFastCheck(_PipelineLength >= 1);
 
 		if (!mp_pData)
-			return CPipelinedIterator(fg_Move(*this));
+			return DMibErrorInstance("Invalid async generator");
 
 		if (!mp_pData->m_bSupportsPipelines)
 			_PipelineLength = 1;

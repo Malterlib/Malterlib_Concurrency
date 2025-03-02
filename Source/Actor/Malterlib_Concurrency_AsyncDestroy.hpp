@@ -295,24 +295,4 @@ namespace NMib::NConcurrency
 	{
 		return TCAsyncDestroyAwaiter<TCActor<tf_CActor>, TCActor<tf_CActor>>(_ToDestroy);
 	}
-
-	template <typename tf_CToCleanup>
-	CAsyncDestroyAwaiter fg_AsyncDestroyGeneric(tf_CToCleanup &_ToDestroy)
-		requires requires
-		{
-			fg_Move(_ToDestroy).f_Destroy().f_DiscardResult();
-		}
-	{
-		return fg_AsyncDestroyGeneric
-			(
-				[pToDestroy = &_ToDestroy]() -> TCFuture<void>
-				{
-					auto ToDestroy = fg_Move(*pToDestroy);
-					co_await fg_Move(ToDestroy).f_Destroy();
-
-					co_return {};
-				}
-			)
-		;
-	}
 }

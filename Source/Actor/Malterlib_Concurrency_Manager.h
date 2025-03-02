@@ -71,6 +71,7 @@ namespace NMib::NConcurrency
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActor(TCWeakActor<CActor> const &_Actor);
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorLowPrio();
+		TCActor<CConcurrentActor> const &f_GetConcurrentActorHighCPU();
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForThisThread(EPriority _Priority);
 		TCActor<CConcurrentActor> const &f_GetConcurrentActorForOtherThread(EPriority _Priority);
 		CBlockingActorCheckout f_GetBlockingActor();
@@ -78,10 +79,13 @@ namespace NMib::NConcurrency
 		TCActor<CDirectCallActor> const &f_GetDirectCallActor();
 		TCActor<CThisConcurrentActor> const &f_GetThisConcurrentActor();
 		TCActor<CThisConcurrentActorLowPrio> const &f_GetThisConcurrentActorLowPrio();
+		TCActor<CThisConcurrentActorHighCPU> const &f_GetThisConcurrentActorHighCPU();
 		TCActor<COtherConcurrentActor> const &f_GetOtherConcurrentActor();
 		TCActor<COtherConcurrentActorLowPrio> const &f_GetOtherConcurrentActorLowPrio();
+		TCActor<COtherConcurrentActorHighCPU> const &f_GetOtherConcurrentActorHighCPU();
 		TCActor<CDynamicConcurrentActor> const &f_GetDynamicConcurrentActor();
 		TCActor<CDynamicConcurrentActorLowPrio> const &f_GetDynamicConcurrentActorLowPrio();
+		TCActor<CDynamicConcurrentActorHighCPU> const &f_GetDynamicConcurrentActorHighCPU();
 
 		void f_DispatchOnCurrentThreadOrConcurrent(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
 		void f_DispatchOnCurrentThreadOrConcurrentFirst(EPriority _Priority, FActorQueueDispatchNoAlloc &&_ToQueue);
@@ -190,21 +194,27 @@ namespace NMib::NConcurrency
 		TCActor<CDirectCallActorImpl> m_DirectCallActor;
 		TCActor<CThisConcurrentActorImpl> m_ThisConcurrentActor;
 		TCActor<CThisConcurrentActorLowPrioImpl> m_ThisConcurrentActorLowPrio;
+		TCActor<CThisConcurrentActorHighCPUImpl> m_ThisConcurrentActorHighCPU;
 		TCActor<COtherConcurrentActorImpl> m_OtherConcurrentActor;
 		TCActor<COtherConcurrentActorLowPrioImpl> m_OtherConcurrentActorLowPrio;
+		TCActor<COtherConcurrentActorHighCPUImpl> m_OtherConcurrentActorHighCPU;
 		TCActor<CDynamicConcurrentActorImpl> m_DynamicConcurrentActor;
 		TCActor<CDynamicConcurrentActorLowPrioImpl> m_DynamicConcurrentActorLowPrio;
+		TCActor<CDynamicConcurrentActorHighCPUImpl> m_DynamicConcurrentActorHighCPU;
 
 		TCActor<CDirectCallActor> m_DirectCallActorRef;
 		TCActor<CThisConcurrentActor> m_ThisConcurrentActorRef;
 		TCActor<CThisConcurrentActorLowPrio> m_ThisConcurrentActorLowPrioRef;
+		TCActor<CThisConcurrentActorHighCPU> m_ThisConcurrentActorHighCPURef;
 		TCActor<COtherConcurrentActor> m_OtherConcurrentActorRef;
 		TCActor<COtherConcurrentActorLowPrio> m_OtherConcurrentActorLowPrioRef;
+		TCActor<COtherConcurrentActorHighCPU> m_OtherConcurrentActorHighCPURef;
 		TCActor<CDynamicConcurrentActor> m_DynamicConcurrentActorRef;
 		TCActor<CDynamicConcurrentActorLowPrio> m_DynamicConcurrentActorLowPrioRef;
+		TCActor<CDynamicConcurrentActorHighCPU> m_DynamicConcurrentActorHighCPURef;
 
 		NAtomic::TCAtomic<bool> m_bDestroyingAlwaysAliveActors = false;
-		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal};
+		EExecutionPriority m_ExecutionPriority[EPriority_Max] = {EExecutionPriority_Lowest, EExecutionPriority_Normal, EExecutionPriority_Normal};
 	};
 
 	struct CCaptureExceptionSettings

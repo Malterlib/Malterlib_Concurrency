@@ -314,6 +314,7 @@ namespace NMib::NConcurrency
 	enum EPriority : mint
 	{
 		EPriority_Low
+		, EPriority_NormalHighCPU
 		, EPriority_Normal
 		, EPriority_Max
 	};
@@ -655,11 +656,14 @@ namespace NMib::NConcurrency
 
 	struct CConcurrentActor;
 	struct CConcurrentActorLowPrio;
+	struct CConcurrentActorHighCPU;
 	struct CTimerActor;
 	struct CThisConcurrentActor;
 	struct CThisConcurrentActorLowPrio;
+	struct CThisConcurrentActorHighCPU;
 	struct COtherConcurrentActor;
 	struct COtherConcurrentActorLowPrio;
+	struct COtherConcurrentActorHighCPU;
 
 	template <typename t_CType, typename t_CLock>
 	struct TCLockActor;
@@ -712,6 +716,7 @@ namespace NMib::NConcurrency
 	CConcurrencyManager &fg_ConcurrencyManager();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActor();
 	TCActor<CConcurrentActor> const &fg_ConcurrentActorLowPrio();
+	TCActor<CConcurrentActor> const &fg_ConcurrentActorHighCPU();
 	CBlockingActorCheckout fg_BlockingActor();
 	mark_nodebug TCActor<CActor> fg_CurrentActor();
 	mark_nodebug TCActor<CActor> fg_CurrentActor(CConcurrencyThreadLocal &_ThreadLocal);
@@ -723,10 +728,13 @@ namespace NMib::NConcurrency
 
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::CConcurrentActorHighCPU, true);
 DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::CThisConcurrentActorHighCPU, true);
 DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActor, true);
 DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActorLowPrio, true);
+DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActorHighCPU, true);
 
 template <>
 struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>

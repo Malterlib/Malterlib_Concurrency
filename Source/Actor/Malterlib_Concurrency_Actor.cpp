@@ -291,12 +291,22 @@ namespace NMib::NConcurrency
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
+	CConcurrentActorHighCPUImpl::~CConcurrentActorHighCPUImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
 	CThisConcurrentActorImpl::~CThisConcurrentActorImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
 	CThisConcurrentActorLowPrioImpl::~CThisConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CThisConcurrentActorHighCPUImpl::~CThisConcurrentActorHighCPUImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
@@ -311,12 +321,22 @@ namespace NMib::NConcurrency
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
+	COtherConcurrentActorHighCPUImpl::~COtherConcurrentActorHighCPUImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
 	CDynamicConcurrentActorImpl::~CDynamicConcurrentActorImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}
 
 	CDynamicConcurrentActorLowPrioImpl::~CDynamicConcurrentActorLowPrioImpl()
+	{
+		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
+	}
+
+	CDynamicConcurrentActorHighCPUImpl::~CDynamicConcurrentActorHighCPUImpl()
 	{
 		DMibFastCheck(f_ConcurrencyManager().f_DestroyingAlwaysAliveActors());
 	}

@@ -198,7 +198,8 @@ namespace NMib::NConcurrency
 		uint32 mp_iFixedQueue{gc_InvalidQueue};
 
 		// Note: Changing these is not thread safe
-		uint8 mp_Priority:1 = 0;
+		static_assert(EPriority_Max <= 4);
+		uint8 mp_Priority:2 = 0;
 		uint8 mp_bImmediateDelete:1 = false;
 		uint8 mp_bIsAlwaysAlive:1 = false;
 		uint8 mp_bHasOverriddenDestroy:1 = false;

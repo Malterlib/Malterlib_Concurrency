@@ -35,6 +35,20 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAliveImpl = false;
 	};
 
+	struct CConcurrentActorHighCPU : public CConcurrentActorImpl
+	{
+		static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct CConcurrentActorHighCPUImpl : public CConcurrentActorHighCPU
+	{
+		~CConcurrentActorHighCPUImpl();
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
 	struct CBlockingActor : public CSeparateThreadActor
 	{
 	};
@@ -80,6 +94,27 @@ namespace NMib::NConcurrency
 
 	TCActor<CThisConcurrentActorLowPrio> const &fg_ThisConcurrentActorLowPrio();
 
+	struct CThisConcurrentActorHighCPU : public CConcurrentActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
+		static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct CThisConcurrentActorHighCPUImpl : public CThisConcurrentActorHighCPU
+	{
+		~CThisConcurrentActorHighCPUImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
+	TCActor<CThisConcurrentActorHighCPU> const &fg_ThisConcurrentActorHighCPU();
+
 	struct COtherConcurrentActor : public CConcurrentActor
 	{
 		using CActorHolder = CShamActorHolder;
@@ -121,6 +156,26 @@ namespace NMib::NConcurrency
 
 	TCActor<COtherConcurrentActorLowPrio> const &fg_OtherConcurrentActorLowPrio();
 
+	struct COtherConcurrentActorHighCPU : public CConcurrentActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
+		static constexpr EPriority mc_Priority = EPriority_NormalHighCPU;
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct COtherConcurrentActorHighCPUImpl : public COtherConcurrentActorHighCPU
+	{
+		~COtherConcurrentActorHighCPUImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
+	TCActor<COtherConcurrentActorHighCPU> const &fg_OtherConcurrentActorHighCPU();
 
 	struct CDynamicConcurrentActor : public CActor
 	{
@@ -161,6 +216,26 @@ namespace NMib::NConcurrency
 	};
 
 	TCActor<CDynamicConcurrentActorLowPrio> const &fg_DynamicConcurrentActorLowPrio();
+
+	struct CDynamicConcurrentActorHighCPU : public CActor
+	{
+		using CActorHolder = CShamActorHolder;
+
+		static DMibSuppressUndefinedSanitizer TCActorInternal<CActor> *fs_GetRealActor(NConcurrency::CActorHolder *_pActorInternal);
+
+		static constexpr bool mc_bImmediateDelete = true;
+		static constexpr bool mc_bIsAlwaysAlive = true;
+		static constexpr bool mc_bIsAlwaysAliveImpl = true;
+	};
+
+	struct CDynamicConcurrentActorHighCPUImpl : public CDynamicConcurrentActorHighCPU
+	{
+		~CDynamicConcurrentActorHighCPUImpl();
+
+		static constexpr bool mc_bIsAlwaysAliveImpl = false;
+	};
+
+	TCActor<CDynamicConcurrentActorHighCPU> const &fg_DynamicConcurrentActorHighCPU();
 
 	class CDirectCallActorHolder;
 

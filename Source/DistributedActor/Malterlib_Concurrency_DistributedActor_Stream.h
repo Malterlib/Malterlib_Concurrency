@@ -78,7 +78,32 @@ namespace NMib::NConcurrency
 	protected:
 		uint32 mp_SubscriptionID = t_SubscriptionID;
 	};
-	
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID = 0>
+	struct TCAsyncGeneratorWithID : public TCAsyncGenerator<t_CReturnType>
+	{
+		TCAsyncGeneratorWithID() = default;
+		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID &&) = default;
+		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID &&) = default;
+		TCAsyncGeneratorWithID(TCAsyncGeneratorWithID const &) = delete;
+		TCAsyncGeneratorWithID & operator = (TCAsyncGeneratorWithID const &) = delete;
+		
+		TCAsyncGeneratorWithID(CNullPtr);
+		TCAsyncGeneratorWithID(TCAsyncGenerator<t_CReturnType> &&_ActorFunctor, uint32 _SubscriptionID = t_SubscriptionID);
+
+		TCAsyncGenerator<t_CReturnType> &f_Generator();
+
+		uint32 f_GetID() const;
+		void f_SetID(uint32 _SubcriptionID);
+		void f_SetSubscription(CActorSubscription &&_Subscription);
+
+		template <typename tf_CStream>
+		void f_Stream(tf_CStream &_Stream);
+		
+	protected:
+		uint32 mp_SubscriptionID = t_SubscriptionID;
+	};
+
 	template <typename t_CInterface>
 	using TCDistributedActorInterface = TCActorInterface<TCDistributedActorWrapper<t_CInterface>>;
 

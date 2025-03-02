@@ -101,8 +101,7 @@ namespace NMib::NConcurrency
 		bool f_Debug_HasData(void const *_pData) const;
 		bool f_Debug_HadCoroutine(void const *_pData) const;
 #endif
-
-	private:
+	protected:
 		NStorage::TCSharedPointer<NPrivate::TCAsyncGeneratorData<t_CReturnType>> mp_pData;
 	};
 

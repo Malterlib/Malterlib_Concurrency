@@ -221,6 +221,95 @@ namespace NMib::NConcurrency
 			}
 		}
 	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::TCAsyncGeneratorWithID(TCAsyncGenerator<t_CReturnType> &&_ActorFunctor, uint32 _SubscriptionID)
+		: TCAsyncGenerator<t_CReturnType>(fg_Move(_ActorFunctor))
+		, mp_SubscriptionID(_SubscriptionID)
+	{
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::TCAsyncGeneratorWithID(CNullPtr)
+	{
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	uint32 TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::f_GetID() const
+	{
+		return mp_SubscriptionID;
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	void TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::f_SetID(uint32 _SubscriptionID)
+	{
+		mp_SubscriptionID = _SubscriptionID;
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	TCAsyncGenerator<t_CReturnType> &TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::f_Generator()
+	{
+		return *this;
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	void TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::f_SetSubscription(CActorSubscription &&_Subscription)
+	{
+		DMibFastCheck(this->mp_pData);
+		this->mp_pData->m_fGetNext.f_GetSubscription() = g_ActorSubscription
+			/ [Subscription0 = fg_Move(_Subscription), Subscription1 = fg_Move(this->mp_pData->m_fGetNext.f_GetSubscription())]() mutable -> TCFuture<void>
+			{
+				TCFutureVector<void> Results;
+				if (Subscription0)
+					fg_Exchange(Subscription0, nullptr)->f_Destroy() > Results;
+				if (Subscription1)
+					fg_Exchange(Subscription1, nullptr)->f_Destroy() > Results;
+
+				co_await fg_AllDone(Results);
+
+				co_return {};
+			}
+		;
+	}
+
+	template <typename t_CReturnType, uint32 t_SubscriptionID>
+	template <typename tf_CStream>
+	void TCAsyncGeneratorWithID<t_CReturnType, t_SubscriptionID>::f_Stream(tf_CStream &_Stream)
+	{
+		bool bHasGenerator = !!this->mp_pData;
+		_Stream % bHasGenerator;
+		if (bHasGenerator)
+		{
+			auto *pContext = (NPrivate::CDistributedActorStreamContext *)_Stream.f_GetContext();
+			DMibFastCheck(pContext && pContext->f_CorrectMagic());
+
+			if constexpr (tf_CStream::mc_Direction == NStream::EStreamDirection_Consume)
+			{
+				TCActorFunctorWithID<TCFuture<NStorage::TCOptional<t_CReturnType>> ()> fGetNext;
+				fGetNext.f_SetID(mp_SubscriptionID);
+
+				_Stream % fg_Move(fGetNext);
+				this->mp_pData = fg_Construct(fg_Move(fGetNext), pContext->f_ActorProtocolVersion() >= EDistributedActorProtocolVersion_PipelinedAsyncGenerators, false);
+			}
+			else
+			{
+				auto &fGetNext = this->mp_pData->m_fGetNext;
+
+				NStorage::TCSharedPointer<NPrivate::CStreamingFunction> pFunction;
+				if (!fGetNext.f_IsEmpty())
+					pFunction = fg_Construct<NPrivate::TCStreamingFunctionAsyncGenerator<t_CReturnType>>(fg_Move(fGetNext.f_GetFunctor()), this->mp_pData->m_bIsCoroutine);
+
+				_Stream.f_FeedActorFunctor
+					(
+						fg_Move(fGetNext.f_GetActor())
+						, fg_Move(pFunction)
+						, mp_SubscriptionID
+						, fg_Move(fGetNext.f_GetSubscription())
+					)
+				;
+			}
+		}
+	}
 }
 
 

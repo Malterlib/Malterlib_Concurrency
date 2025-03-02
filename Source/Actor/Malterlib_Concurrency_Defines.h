@@ -715,6 +715,17 @@ namespace NMib::NConcurrency
 		CBlockingActorStorage *mp_pBlockingActorStorage;
 	};
 
+	struct CRoundRobinBlockingActors
+	{
+		CRoundRobinBlockingActors(mint _Capacity);
+
+		CBlockingActorCheckout &operator *();
+
+		NContainer::TCVector<CBlockingActorCheckout> m_Checkouts;
+		mint m_Capacity = 1;
+		mint m_iCheckout = 0;
+	};
+
 	TCFuture<void> fg_DestroySubscription(CActorSubscription &_Subscription);
 	CConcurrencyManager &fg_CurrentConcurrencyManager();
 	void fg_SetConcurrencyManagerDefaultExecutionPriority(EPriority _Priority, EExecutionPriority _ExecutionPriority);

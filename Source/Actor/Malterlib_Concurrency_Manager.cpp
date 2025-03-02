@@ -1360,6 +1360,25 @@ namespace NMib::NConcurrency
 		return !!mp_pBlockingActorStorage;
 	}
 
+	CRoundRobinBlockingActors::CRoundRobinBlockingActors(mint _Capacity)
+		: m_Capacity(_Capacity)
+	{
+		m_Checkouts.f_Reserve(_Capacity);
+	}
+
+	CBlockingActorCheckout &CRoundRobinBlockingActors::operator *()
+	{
+		mint iCheckout = m_iCheckout;
+		++m_iCheckout;
+		if (m_iCheckout >= m_Capacity)
+			m_iCheckout = 0;
+
+		if (m_Checkouts.f_GetLen() <= iCheckout)
+			m_Checkouts.f_Insert(fg_BlockingActor());
+
+		return m_Checkouts[iCheckout];
+	}
+
 	CBlockingActorCheckout CConcurrencyManager::f_GetBlockingActor()
 	{
 		using namespace NStr;

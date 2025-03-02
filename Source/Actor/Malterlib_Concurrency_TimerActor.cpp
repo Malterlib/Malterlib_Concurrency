@@ -296,7 +296,7 @@ namespace NMib::NConcurrency
 						}
 						return 0;
 					}
-					, "Timer actor timeouts"
+					, "Timer timeouts"
 				)
 			;
 		}

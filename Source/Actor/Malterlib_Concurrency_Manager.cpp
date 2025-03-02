@@ -468,7 +468,7 @@ namespace NMib::NConcurrency
 		switch (m_Priority)
 		{
 		case EPriority_Low:
-			Name = "(Low)";
+			Name = NStr::gc_Str<"LP">;
 			break;
 		case EPriority_Normal:
 			break;
@@ -486,7 +486,7 @@ namespace NMib::NConcurrency
 						_pThis->fp_RunThread(*this, _pThread);
 						return 0;
 					}
-					, NStr::CStrNonTracked::CFormat("ActorPool{} {}") << Name << m_iQueue
+					, NStr::CStrNonTracked::CFormat("Pool{} {}") << Name << m_iQueue
 					, ThreadPrio
 				)
 			)
@@ -1290,7 +1290,7 @@ namespace NMib::NConcurrency
 		auto iBlockingActor = m_nBlockingActors++;
 		{
 			DMibUnlock(m_BlockingActorsLock);
-			pNewActorRawPtr->m_Actor = fg_Construct(fg_Construct(), "Blocking Actor {}"_f << iBlockingActor);
+			pNewActorRawPtr->m_Actor = fg_Construct(fg_Construct(), "Blocking {}"_f << iBlockingActor);
 		}
 
 		return CBlockingActorCheckout(this, pNewActorRawPtr);

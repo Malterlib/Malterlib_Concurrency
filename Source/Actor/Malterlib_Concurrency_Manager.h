@@ -108,6 +108,7 @@ namespace NMib::NConcurrency
 		friend class TCActorInternal;
 
 		friend class CActorHolder;
+		friend struct CActorCommon;
 		friend struct CActor;
 		friend class CDefaultActorHolder;
 		friend struct CCurrentActorScope;

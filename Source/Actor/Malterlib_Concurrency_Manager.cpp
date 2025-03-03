@@ -1012,17 +1012,24 @@ namespace NMib::NConcurrency
 						}
 					}
 
-					for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					{
-						for (auto &Actor : m_ConcurrentActors[Prio])
+						DMibLock(m_ThreadCreateLock);
+						for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 						{
-							g_Dispatch(Actor) / []() -> bool
-								{
-									auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
-									return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
-								}
-								> ConcurrentActorSyncs
-							;
+							for (auto &Actor : m_ConcurrentActors[Prio])
+							{
+								DMibFastCheck(Actor->mp_iFixedQueue != gc_InvalidQueue);
+								if (!m_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
+									continue;
+
+								g_Dispatch(Actor) / []() -> bool
+									{
+										auto pInternalActor = fg_GetActorInternal(fg_CurrentActor());
+										return pInternalActor->mp_ConcurrentRunQueue.f_OneOrLessInQueue(pInternalActor->mp_ConcurrentRunQueueLocal);
+									}
+									> ConcurrentActorSyncs
+								;
+							}
 						}
 					}
 
@@ -1081,8 +1088,19 @@ namespace NMib::NConcurrency
 				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 				{
 					for (auto &Actor : m_ConcurrentActors[Prio])
-						fg_Move(Actor).f_Destroy() > Destroys;
+					{
+						DMibFastCheck(Actor->mp_iFixedQueue != gc_InvalidQueue);
+						DMibLock(m_ThreadCreateLock);
+						if (!m_Queues[Prio][Actor->mp_iFixedQueue].m_bThreadCreated.f_Load())
+						{
+							Actor.f_Unsafe_AccessInternal()->mp_Priority = EPriority_Normal; // Force to normal priority so we don't create threads just for this
+							fg_Move(Actor).fp_DestroyUnused() > Destroys;
+						}
+						else
+							fg_Move(Actor).f_Destroy() > Destroys;
+					}
 				}
+
 				for (mint Prio = EPriority_Low; Prio < EPriority_Max; ++Prio)
 					m_ConcurrentActors[Prio].f_Clear();
 

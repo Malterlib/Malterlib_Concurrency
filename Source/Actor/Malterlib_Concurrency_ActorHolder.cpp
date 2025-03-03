@@ -729,6 +729,59 @@ namespace NMib::NConcurrency
 		fp_QueueProcessDestroy(CDestroyHandler(fg_Move(_fOnDestroyed), this, fg_Move(_pSelfReference)), _ThreadLocal);
 	}
 
+	TCFuture<void> CActorCommon::fp_DestroyUnused() &&
+	{
+		auto pActorInternal = (static_cast<TCActor<> &>(*this)).m_pInternalActor;
+		if (!pActorInternal)
+			return g_Void;
+
+		TCPromiseFuturePair<void> Promise;
+
+		TCAsyncResult<void> Result;
+		if (pActorInternal->fp_GetActorRelaxed())
+			Result.f_SetResult();
+		else
+			Result.f_SetException(CAsyncResult::fs_ActorCalledDeletedException());
+
+		auto &ActorInternal = *pActorInternal;
+		if (uint8 Expected = 0; ActorInternal.mp_Destroyed.f_CompareExchangeStrong(Expected, 1))
+		{
+#if DMibEnableSafeCheck > 0
+			if (auto *pActor = ActorInternal.fp_GetActorRelaxed())
+				pActor->fp_CheckDestroy();
+#endif
+			ActorInternal.mp_pConcurrencyManager->fp_DispatchOnCurrentThreadOrConcurrent
+				(
+					EPriority_Normal
+					, NFunction::TCFunctionSmallMovable<void (CConcurrencyThreadLocal &_ThreadLocal)>
+					(
+						CActorHolder::CDestroyHandler
+						(
+		#if DMibConfig_RefCountDebugging
+							NFunction::TCFunctionSmallMutable<void ()>
+							(
+		#endif
+								[Promise = fg_Move(Promise.m_Promise), Result = fg_Move(Result)]() mutable
+								{
+									Promise.f_SetResult(fg_Move(Result));
+								}
+		#if DMibConfig_RefCountDebugging
+							)
+		#endif
+							, &ActorInternal
+							, fg_TempCopy(pActorInternal)
+						)
+					)
+					, fg_ConcurrencyThreadLocal()
+				)
+			;
+		}
+		else
+			Promise.m_Promise.f_SetResult(fg_Move(Result));
+
+		return fg_Move(Promise.m_Future);
+	}
+
 	///
 	/// CSeparateThreadActorHolder
 	///

@@ -16,9 +16,11 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		CPermissionRequirements fg_ParsePermissionRequirements(CEJsonSorted const &_AuthenticationFactors)
+		CPermissionRequirements fg_ParsePermissionRequirements(CEJsonSorted const &_AuthenticationFactors, int64 _AuthenticationLifetime)
 		{
 			CPermissionRequirements Requirements;
+			Requirements.m_MaximumAuthenticationLifetime = _AuthenticationLifetime;
+
 			if (!_AuthenticationFactors.f_IsValid())
 				return Requirements;
 
@@ -99,7 +101,7 @@ namespace NMib::NConcurrency
 		if (_HostID.f_IsEmpty() && _UserID.f_IsEmpty())
 			co_return DMibErrorInstance("You need to specify at least one of --host or --user");
 
-		auto Requirements = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors);
+		auto Requirements = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors, _AuthenticationLifetime);
 
 		TCMap<CStr, CPermissionRequirements> Permissions;
 		for (auto &Permission : _Permissions)

@@ -148,6 +148,7 @@ namespace NMib::NConcurrency
 				, NContainer::TCSet<NStr::CStr> _Permissions
 				, NStr::CStr _UserID
 				, NEncoding::CEJsonSorted _AuthenticationFactors
+				, int64 _AuthenticationLifetime
 			)
 		;
 

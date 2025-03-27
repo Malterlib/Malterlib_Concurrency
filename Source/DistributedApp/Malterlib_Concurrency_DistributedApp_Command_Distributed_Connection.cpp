@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		CPermissionRequirements fg_ParsePermissionRequirements(CEJsonSorted const &_AuthenticationFactors);
+		CPermissionRequirements fg_ParsePermissionRequirements(CEJsonSorted const &_AuthenticationFactors, int64 _AuthenticationLifetime);
 	}
 
 	static CExceptionPointer fg_ValidateConnectionConcurrency(int32 _Concurrency)
@@ -131,6 +131,7 @@ namespace NMib::NConcurrency
 			, TCSet<CStr> _Permissions
 			, CStr _UserID
 			, CEJsonSorted _AuthenticationFactors
+			, int64 _AuthenticationLifetime
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -165,7 +166,7 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		auto Requirements = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors);
+		auto Requirements = NPrivate::fg_ParsePermissionRequirements(_AuthenticationFactors, _AuthenticationLifetime);
 
 		CDistributedActorTrustManager::CTrustGenerateConnectionTicketResult Ticket = co_await mp_State.m_TrustManager
 			(

@@ -47,6 +47,15 @@ namespace NMib::NConcurrency
 			}
 		;
 
+		auto PermissionMaxLifetimeOption = "MaxLifetime?"_o=
+			{
+				"Names"_o= _o["--max-lifetime"]
+				,"Default"_o= CPermissionRequirements::mc_DefaultMaximumLifetime
+				, "Description"_o= "The maximum number of minutes that a cached authentication can be used for this granted permission.\n"
+				"Set to -1 to disable limit."
+			}
+		;
+
 		Distributed.f_RegisterCommand
 			(
 				{
@@ -415,6 +424,7 @@ namespace NMib::NConcurrency
 							, "Description"_o= "If specified, the permissions are added for the specific user for the host that uses the ticket."
 						}
 						, PermissionUserAuthenticationFactorsOption
+						, PermissionMaxLifetimeOption
 					}
 					, "Parameters"_o=
 					{
@@ -456,6 +466,7 @@ namespace NMib::NConcurrency
 										, Permissions
 										, UserID
 										, AuthenticationFactors
+										, ConstParams["MaxLifetime"].f_Integer()
 									)
 								;
 							}
@@ -783,13 +794,8 @@ namespace NMib::NConcurrency
 							, "Type"_o= ""
 							, "Description"_o= "The user to add the permission to."
 						}
-						, "MaxLifetime?"_o=
-						{
-							"Names"_o= _o["--max-lifetime"]
-							,"Default"_o= CPermissionRequirements::mc_DefaultMaximumLifetime
-							, "Description"_o= "The maximum number of minutes that a cached authentication can be used for this granted permission."
-						}
 						, PermissionUserAuthenticationFactorsOption
+						, PermissionMaxLifetimeOption
 					}
 				}
 				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
@@ -817,7 +823,6 @@ namespace NMib::NConcurrency
 								else
 									Permissions = ConstParams["Permission"].f_StringArray();
 
-								int64 Lifetime = ConstParams["MaxLifetime"].f_Integer();
 								return f_CommandLine_AddPermission
 									(
 										fg_Move(pCommandLine)
@@ -825,7 +830,7 @@ namespace NMib::NConcurrency
 										, UserID
 										, Permissions
 										, AuthenticationFactors
-										, Lifetime
+										, ConstParams["MaxLifetime"].f_Integer()
 									)
 								;
 							}

@@ -702,7 +702,7 @@ namespace NMib::NConcurrency
 				auto &Data = Entry.m_Entry.m_Data;
 
 				if (_Flags & ELogOutputFlag_Raw)
-					*_pCommandLine += CStrSecure::CFormat("{}\n") << Data.m_Message;
+					*_pCommandLine += CStrIO::CFormat("{}\n") << Data.m_Message;
 				else if (_Flags & ELogOutputFlag_Json)
 				{
 					JsonOutputArray.f_Insert

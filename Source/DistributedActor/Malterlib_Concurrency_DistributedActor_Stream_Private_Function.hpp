@@ -270,7 +270,7 @@ namespace NMib::NConcurrency
 			}
 
 			template <typename tf_FFunction, mint... tfp_Indices>
-			static NConcurrency::TCFuture<NContainer::CSecureByteVector> fs_Call
+			static NConcurrency::TCFuture<NContainer::CIOByteVector> fs_Call
 				(
 					CDistributedActorReadStream &_Stream
 					, tf_FFunction &_fFunction
@@ -318,7 +318,7 @@ namespace NMib::NConcurrency
 		#endif
 				if constexpr (mc_bIsFuture)
 				{
-					NConcurrency::TCPromiseFuturePair<NContainer::CSecureByteVector> Return;
+					NConcurrency::TCPromiseFuturePair<NContainer::CIOByteVector> Return;
 
 					TCFutureOnResult<CReturnType> fOnResultSet =
 #if DMibEnableSafeCheck > 0 && defined(DMibCheckOnResultSizes)
@@ -489,7 +489,7 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename t_FFunction, typename t_FFunctionSignature>
-	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream) -> NConcurrency::TCFuture<NContainer::CSecureByteVector>
+	auto TCStreamingFunction<t_FFunction, t_FFunctionSignature>::f_Call(CDistributedActorReadStream &_Stream) -> NConcurrency::TCFuture<NContainer::CIOByteVector>
 	{
 		return NPrivate::TCStreamingFunctionHelper<t_FFunctionSignature>::fs_Call
 			(

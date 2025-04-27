@@ -10,7 +10,7 @@ namespace NMib::NConcurrency::NPrivate
 		CStreamingFunction();
 		
 		virtual ~CStreamingFunction();
-		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call(CDistributedActorReadStream &_Stream) = 0;
+		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call(CDistributedActorReadStream &_Stream) = 0;
 		virtual bool f_IsEmpty() const = 0;
 		virtual void const *f_GetFunctionPointer() const = 0;
 
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCStreamingFunction(t_FFunction const &_fFunction);
 		TCStreamingFunction(t_FFunction &&_fFunction);
 		
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call(CDistributedActorReadStream &_Stream) override;
+		NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call(CDistributedActorReadStream &_Stream) override;
 		bool f_IsEmpty() const override;
 		void const *f_GetFunctionPointer() const override;
 

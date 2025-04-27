@@ -43,7 +43,7 @@ namespace NMib::NConcurrency::NPrivate
 
 namespace NMib::NConcurrency
 {
-	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>
+	struct CDistributedActorWriteStream : public NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>
 	{
 		inline_always NPrivate::CDistributedActorStreamContextState &f_GetState();
 		inline_always NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> const &f_GetStatePtr();

@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	bool CActorDistributionManagerInternal::fp_HandleProtocolIncoming
 		(
 			CConnection *_pConnection
-			, NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage
+			, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage
 		)
 	{
 		mint Length = _pMessage->f_GetLen();
@@ -245,7 +245,7 @@ namespace NMib::NConcurrency
 								Publish.m_Hierarchy = Actor.m_Hierarchy;
 								Publish.m_ProtocolVersions = Actor.m_ProtocolVersions;
 
-								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 								auto VersionScope = Host.f_StreamVersion(Stream);
 
 								Stream << Publish;
@@ -285,9 +285,9 @@ namespace NMib::NConcurrency
 					if (Identify.m_ProtocolVersion >= EDistributedActorProtocolVersion_InitialPublishFinishedSupported)
 					{
 						CDistributedActorCommand_InitialPublishFinished Identify;
-						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 						Stream << Identify;
-						NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+						NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 						fp_SendPacket(_pConnection, fg_Move(pPacketData));
 					}
 					else
@@ -339,9 +339,9 @@ namespace NMib::NConcurrency
 							if (Host.m_ActorProtocolVersion >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
 							{
 								CDistributedActorCommand_InitialPublishFinishedProcessing Packet;
-								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+								NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 								Stream << Packet;
-								NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+								NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 								fp_SendPacket(pConnection.f_Get(), fg_Move(pPacketData));
 							}
 							else
@@ -439,10 +439,10 @@ namespace NMib::NConcurrency
 						RequestPackets.m_HighestSeenPacketID = fg_Max(RequestPackets.m_HighestSeenPacketID, PacketID);
 					}
 
-					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+					NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 					Stream << RequestPackets;
 
-					NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+					NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 
 					fp_SendPacket(_pConnection, fg_Move(pPacketData));
 				}
@@ -602,10 +602,10 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 		Stream << Identify;
 
-		NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
+		NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(Stream.f_MoveVector());
 
 		fp_SendPacket(_pConnection, fg_Move(pPacketData));
 	}
@@ -621,14 +621,14 @@ namespace NMib::NConcurrency
 		CDistributedActorCommand_NotifyConnectionLost Notification;
 		Notification.m_NotifyLostSequence = ++_Host.m_LastNotifyConnectionLostSequenceSent;
 
-		NContainer::CSecureByteVector PacketData;
+		NContainer::CIOByteVector PacketData;
 		{
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 			Stream << Notification;
 			PacketData = Stream.f_MoveVector();
 		}
 
-		NStorage::TCSharedPointer<NContainer::CSecureByteVector> pPacketData = fg_Construct(PacketData);
+		NStorage::TCSharedPointer<NContainer::CIOByteVector> pPacketData = fg_Construct(PacketData);
 
 		for (auto &Connection : _Host.m_ActiveConnections)
 		{

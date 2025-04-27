@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 namespace NMib::NConcurrency::NPrivate
 {
 	template <typename tf_CStream, typename tf_CType>
-	NContainer::CSecureByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
+	NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
 		if (_Result)
 		{
@@ -90,13 +90,13 @@ namespace NMib::NConcurrency::NPrivate
 	}
 
 	template <typename tf_CType>
-	inline_always_debug NContainer::CSecureByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
+	inline_always_debug NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<tf_CType> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
-		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
+		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
 	}
 
 	template <typename tf_CStream>
-	NContainer::CSecureByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
+	NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
 		if (_Result)
 		{
@@ -108,9 +108,9 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_StreamAsyncResultException(_Result, fg_ActorProtocolVersion(_pStreamContext));
 	}
 
-	inline_always_debug NContainer::CSecureByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
+	inline_always_debug NContainer::CIOByteVector fg_StreamAsyncResult(NConcurrency::TCAsyncResult<void> &&_Result, void *_pStreamContext, uint32 _Version)
 	{
-		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
+		return fg_StreamAsyncResult<NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>>(fg_Move(_Result), _pStreamContext, _Version);
 	}
 
 	template <typename t_CException>
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CException>
 	void TCRuntimeTypeRegistryEntry_Exception<t_CException>::f_Feed
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
 			, NException::CExceptionBase const &_Exception
 		)
 	{

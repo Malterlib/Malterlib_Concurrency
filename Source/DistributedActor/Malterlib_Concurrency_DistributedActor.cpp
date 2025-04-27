@@ -758,15 +758,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NPrivate::CDistributedActorStreamContext &
 		) const &
-		-> TCFuture<NContainer::CSecureByteVector>
+		-> TCFuture<NContainer::CIOByteVector>
 	;
 
 	template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -774,15 +774,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NPrivate::CDistributedActorStreamContext &
 		) &&
-		-> TCFuture<NContainer::CSecureByteVector>
+		-> TCFuture<NContainer::CIOByteVector>
 	;
 #endif
 }

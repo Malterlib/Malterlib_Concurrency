@@ -13,22 +13,22 @@ namespace NMib::NConcurrency
 {
 	struct CTesting
 	{
-		TCFuture<NContainer::CSecureByteVector> f_Test(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CSecureByteVector, NPrivate::CDistributedActorStreamContext);
+		TCFuture<NContainer::CIOByteVector> f_Test(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CIOByteVector, NPrivate::CDistributedActorStreamContext);
 	};
 
 	void CDistributedUIApp::fsp_RunMain()
 	{
 		CTesting Testing;
 		NPrivate::CDistributedActorStreamContext Temp (5, true);
-		(void)Testing.f_Test(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>(), NContainer::CSecureByteVector(), Temp);
+		(void)Testing.f_Test(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>(), NContainer::CIOByteVector(), Temp);
 
 
 		static_assert
 		(
 			NTraits::TCIsCallableWith
 			<
-				TCFuture<NContainer::CSecureByteVector> (*)(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CSecureByteVector, NPrivate::CDistributedActorStreamContext)
-				, void (NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CSecureByteVector, NPrivate::CDistributedActorStreamContext)
+				TCFuture<NContainer::CIOByteVector> (*)(NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CIOByteVector, NPrivate::CDistributedActorStreamContext)
+				, void (NStorage::TCSharedPointer<NPrivate::CDistributedActorData>, NContainer::CIOByteVector, NPrivate::CDistributedActorStreamContext)
 			>::mc_Value
 		);
 

@@ -207,10 +207,10 @@ namespace NMib::NConcurrency
 		return fg_RegisterActorFunctorsForCall(_State, _Host);
 	}
 	
-	TCFuture<NContainer::CSecureByteVector> CActorDistributionManager::f_CallRemote
+	TCFuture<NContainer::CIOByteVector> CActorDistributionManager::f_CallRemote
 		(
 			NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
-			, NContainer::CSecureByteVector _CallData
+			, NContainer::CIOByteVector _CallData
 			, NPrivate::CDistributedActorStreamContext _Context
 		)
 	{
@@ -251,7 +251,7 @@ namespace NMib::NConcurrency
 			Stream << uint8(EDistributedActorCommand_RemoteCall);
 		}
 
-		TCPromiseFuturePair<NContainer::CSecureByteVector> Promise;
+		TCPromiseFuturePair<NContainer::CIOByteVector> Promise;
 
 		auto PacketID = Internal.fp_QueuePacket(pHost, fg_Move(_CallData));
 		auto &OutstandingCall = pHost->m_OutstandingCalls[PacketID];
@@ -276,7 +276,7 @@ namespace NMib::NConcurrency
 		
 		mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 		
-		NContainer::CSecureByteVector Data;
+		NContainer::CIOByteVector Data;
 		if (nBytes != 0)
 		{
 			Data.f_SetLen(nBytes);
@@ -324,7 +324,7 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 			, uint64 _PacketID
-			, NContainer::CSecureByteVector const &_Data
+			, NContainer::CIOByteVector const &_Data
 			, NPrivate::CDistributedActorStreamContext const &_Context
 		)
 	{
@@ -337,7 +337,7 @@ namespace NMib::NConcurrency
 		Result.m_ReplyToPacketID = _PacketID;
 		fg_TransferSubscriptionData(Result.m_SubscriptionData, State);
 		
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 
 		auto VersionScope = Host.f_StreamVersion(Stream);
 
@@ -422,7 +422,7 @@ namespace NMib::NConcurrency
 		ContextState.m_DistributionManager = fg_ThisActor(m_pThis);
 		ContextState.m_LastExecutionID = Host.m_LastExecutionID;
 		
-		NFunction::TCFunctionMovable<NConcurrency::TCFuture<NContainer::CSecureByteVector> (CDistributedActorReadStream &_Stream)> fCall;
+		NFunction::TCFunctionMovable<NConcurrency::TCFuture<NContainer::CIOByteVector> (CDistributedActorReadStream &_Stream)> fCall;
 		
 		TCActor<> Actor;
 		if (FunctionHash == 0)
@@ -545,7 +545,7 @@ namespace NMib::NConcurrency
 				;
 		}
 		
-		NContainer::CSecureByteVector ParamData;
+		NContainer::CIOByteVector ParamData;
 		{
 			mint nBytes = _Stream.f_GetLength() - _Stream.f_GetPosition();
 			if (nBytes != 0)
@@ -555,7 +555,7 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		Actor.f_Bind<&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NContainer::CSecureByteVector>>>
+		Actor.f_Bind<&CActor::f_DispatchWithReturn<NConcurrency::TCFuture<NContainer::CIOByteVector>>>
 			(
 				[
 					Actor
@@ -577,7 +577,7 @@ namespace NMib::NConcurrency
 					, fCall = fg_Move(fCall)
 					, ProtocolVersion
 				] 
-				() mutable -> TCFuture<NContainer::CSecureByteVector>
+				() mutable -> TCFuture<NContainer::CIOByteVector>
 				{
 					CCallingHostInfoScope CallingHostInfoScope{fg_Move(CallingHostInfo)};
 
@@ -597,7 +597,7 @@ namespace NMib::NConcurrency
 				, Context
 				, LastExecutionID = Host.m_LastExecutionID
 			]
-			(TCAsyncResult<NContainer::CSecureByteVector> &&_Result) mutable
+			(TCAsyncResult<NContainer::CIOByteVector> &&_Result) mutable
 			{
 				if (LastExecutionID != pHost->m_LastExecutionID)
 					return;
@@ -745,7 +745,7 @@ namespace NMib::NConcurrency
 
 			auto &Internal = *mp_pInternal;
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 			Stream << Result;
 			Internal.fp_QueuePacket(fg_Explicit(&Host), Stream.f_MoveVector());
 
@@ -816,7 +816,7 @@ namespace NMib::NConcurrency
 						Result.m_SubscriptionID = SubscriptionID;
 						Result.m_Result = fg_Move(_Result);
 
-						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+						NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 						Result.f_Feed(Stream, ActorProtocolVersion);
 						fp_QueuePacket(pHost, Stream.f_MoveVector());
 					}
@@ -828,7 +828,7 @@ namespace NMib::NConcurrency
 				Result.m_SubscriptionID = DestroySubscription.m_SubscriptionID;
 				Result.m_Result.f_SetResult();
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				Result.f_Feed(Stream, ActorProtocolVersion);
 				fp_QueuePacket(pHost, Stream.f_MoveVector());
 			}

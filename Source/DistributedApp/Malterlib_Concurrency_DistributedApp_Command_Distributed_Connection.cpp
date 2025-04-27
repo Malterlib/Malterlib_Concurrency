@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 			Internal.m_TicketPermissionSubscriptions[TicketPermissionRequestID] = fg_Move(Ticket.m_NotificationsSubscription);
 
 		DMibLogWithCategory(Mib/Concurrency/App, Info, "Generated trust ticket with address '{}' from command line", Ticket.m_Ticket.m_ServerAddress.m_URL.f_Encode());
-		*_pCommandLine += CStrSecure::CFormat("{}\n") << Ticket.m_Ticket.f_ToStringTicket();
+		*_pCommandLine += CStrIO::CFormat("{}\n") << Ticket.m_Ticket.f_ToStringTicket();
 
 		co_return 0;
 	}

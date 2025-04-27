@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 		;
 		~CRuntimeTypeRegistryEntry_MemberFunction();
 		
-		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call
+		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 				, void *_pObject
@@ -103,7 +103,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
 		template <mint... tfp_Indices, typename... tfp_CParams>
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> fp_Call
+		NConcurrency::TCFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
 				, void *_pObject
@@ -114,7 +114,7 @@ namespace NMib::NConcurrency::NPrivate
 		;
 
 		template <mint... tfp_Indices, typename... tfp_CParams>
-		NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector> fp_Call
+		NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
 				, void *_pObject
@@ -124,7 +124,7 @@ namespace NMib::NConcurrency::NPrivate
 			requires (!TCIsAsyncGenerator<t_CReturn>::mc_Value)
 		;
 
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call
+		NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 				, void *_pObject
@@ -154,7 +154,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 		template <mint... tfp_Indices, typename... tfp_CParams>
-		NConcurrency::TCUnsafeFuture<NContainer::CSecureByteVector> fp_Call
+		NConcurrency::TCUnsafeFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
 				, void *_pObject
@@ -163,7 +163,7 @@ namespace NMib::NConcurrency::NPrivate
 			)
 		;
 
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call
+		NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 				, void *_pObject
@@ -195,7 +195,7 @@ namespace NMib::NConcurrency::NPrivate
 		TCRuntimeTypeRegistryEntry_MemberFunction();
 
 		template <mint... tfp_Indices, typename... tfp_CParams>
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> fp_Call
+		NConcurrency::TCFuture<NContainer::CIOByteVector> fp_Call
 			(
 				t_CStreamParams &_ParamsStream
 				, void *_pObject
@@ -204,7 +204,7 @@ namespace NMib::NConcurrency::NPrivate
 			)
 		;
 
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_Call
+		NConcurrency::TCFuture<NContainer::CIOByteVector> f_Call
 			(
 				NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault> &_Stream
 				, void *_pObject
@@ -233,7 +233,7 @@ namespace NMib::NConcurrency::NPrivate
 		DMibIfNotSupportMemberNameFromMemberPointer(, uint32 t_NameHash)
 		, typename t_CStreamContext = zuint32
 		, typename t_CStreamParams = NStream::CBinaryStreamMemoryPtr<NStream::CBinaryStreamDefault>
-		, typename t_CStreamResult = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector>
+		, typename t_CStreamResult = NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector>
 	>
 	struct TCMemberFunctionRegistry
 	{

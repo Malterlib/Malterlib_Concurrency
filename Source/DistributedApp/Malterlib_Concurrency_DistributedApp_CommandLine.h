@@ -28,10 +28,10 @@ namespace NMib::NConcurrency
 		ICCommandLineControl();
 		~ICCommandLineControl();
 
-		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrSecure _Input)>;
+		using FOnInput = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NStr::CStrIO _Input)>;
 		using FOnBinaryInput = NConcurrency::TCActorFunctorWithID
 			<
-				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CSecureByteVector _Input, NStr::CStr _Error)
+				NConcurrency::TCFuture<void> (NProcess::EStdInReaderOutputType _Type, NContainer::CIOByteVector _Input, NStr::CStr _Error)
 			>
 		;
 		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
@@ -40,30 +40,39 @@ namespace NMib::NConcurrency
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdInBinary(FOnBinaryInput _fOnInput, NProcess::EStdInReaderFlag _Flags) = 0;
 		virtual NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(FOnCancel _fOnCancel) = 0;
 
-		virtual NConcurrency::TCFuture<NContainer::CSecureByteVector> f_ReadBinary() = 0;
-		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadLine() = 0;
-		virtual NConcurrency::TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) = 0;
+		virtual NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() = 0;
+		virtual NConcurrency::TCFuture<NStr::CStrIO> f_ReadLine() = 0;
+		virtual NConcurrency::TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) = 0;
 		virtual NConcurrency::TCFuture<void> f_AbortReads() = 0;
 
-		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) = 0;
-		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrSecure _Output) = 0;
-		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrSecure _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO _Output) = 0;
+		virtual NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO _Output) = 0;
 	};
 
 	struct CCommandLineControl
 	{
 		NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector const &_Output) const;
-		NConcurrency::TCFuture<void> f_StdOut(NStr::CStrSecure const &_Output) const;
-		NConcurrency::TCFuture<void> f_StdErr(NStr::CStrSecure const &_Output) const;
+		NConcurrency::TCFuture<void> f_StdOutBinary(NContainer::CByteVector const &_Output) const;
+		NConcurrency::TCFuture<void> f_StdOut(NStr::CStrIO const &_Output) const;
+		NConcurrency::TCFuture<void> f_StdErr(NStr::CStrIO const &_Output) const;
 		NCommandLine::CTableRenderHelper f_TableRenderer() const;
 		NCommandLine::CAnsiEncoding f_AnsiEncoding() const;
 
-		void operator += (NStr::CStrSecure const &_StdOut) const;
-		void operator %= (NStr::CStrSecure const &_StdErr) const;
+		void operator += (ch8 const *_pStdOut) const;
+		void operator %= (ch8 const *_pStdErr) const;
+
+		void operator += (NStr::CStr const &_StdOut) const;
+		void operator %= (NStr::CStr const &_StdErr) const;
 		void operator += (NStr::CStr::CFormat const &_StdOut) const;
 		void operator %= (NStr::CStr::CFormat const &_StdErr) const;
+
+		void operator += (NStr::CStrSecure const &_StdOut) const;
+		void operator %= (NStr::CStrSecure const &_StdErr) const;
 		void operator += (NStr::CStrSecure::CFormat const &_StdOut) const;
 		void operator %= (NStr::CStrSecure::CFormat const &_StdErr) const;
+
+		void operator += (NContainer::CByteVector const &_StdOut) const;
 		void operator += (NContainer::CSecureByteVector const &_StdOut) const;
 
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForStdIn(ICCommandLineControl::FOnInput &&_fOnInput, NProcess::EStdInReaderFlag _Flags) const;
@@ -72,9 +81,9 @@ namespace NMib::NConcurrency
 		;
 		NConcurrency::TCFuture<NConcurrency::TCActorSubscriptionWithID<>> f_RegisterForCancellation(ICCommandLineControl::FOnCancel &&_fOnCancel) const;
 
-		NConcurrency::TCFuture<NContainer::CSecureByteVector> f_ReadBinary() const;
-		NConcurrency::TCFuture<NStr::CStrSecure> f_ReadLine() const;
-		NConcurrency::TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const;
+		NConcurrency::TCFuture<NContainer::CIOByteVector> f_ReadBinary() const;
+		NConcurrency::TCFuture<NStr::CStrIO> f_ReadLine() const;
+		NConcurrency::TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams const &_Params) const;
 		NConcurrency::TCFuture<void> f_AbortReads() const;
 
 		uint32 f_AddAsyncResult(CAsyncResult const &_Result) const;
@@ -86,6 +95,8 @@ namespace NMib::NConcurrency
 		uint32 m_CommandLineWidth = 0;
 		uint32 m_CommandLineHeight = 0;
 		NCommandLine::EAnsiEncodingFlag m_AnsiFlags = NCommandLine::EAnsiEncodingFlag_None;
+	private:
+		static TCFuture<void> fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, mint _DataLen);
 	};
 
 	struct ICCommandLine : public CActor

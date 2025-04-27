@@ -856,19 +856,19 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
+		TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<NStr::CStrSecure> f_ReadLine() override
+		TCFuture<NStr::CStrIO> f_ReadLine() override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
+		TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 		{
 			co_return m_ReturnValues.f_PopBack();
 		}
@@ -879,19 +879,19 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCFuture<void> f_StdOut(NStr::CStrSecure _Output) override
+		TCFuture<void> f_StdOut(NStr::CStrIO _Output) override
 		{
 			m_StdOut += _Output;
 			co_return {};
 		}
 
-		TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) override
+		TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) override
 		{
 			DMibNeverGetHere;
 			co_return {};
 		}
 
-		TCFuture<void> f_StdErr(NStr::CStrSecure _Output) override
+		TCFuture<void> f_StdErr(NStr::CStrIO _Output) override
 		{
 			if (m_bEchoStdErr)
 				DMibConOut("{}", _Output);

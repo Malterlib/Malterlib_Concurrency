@@ -74,7 +74,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToAsyncResult
 		(
 			TCAsyncResult<tf_CResult> &_AsyncResult
-			, NContainer::CSecureByteVector const &_Data
+			, NContainer::CIOByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToAsyncResult
 		(
 			TCAsyncResult<void> &_Promise
-			, NContainer::CSecureByteVector const &_Data
+			, NContainer::CIOByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)

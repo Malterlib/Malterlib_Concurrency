@@ -105,11 +105,11 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct CPacket final
 	{
-		CPacket(NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pData)
+		CPacket(NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pData)
 			: m_pData(_pData)
 		{
 		}
-		NStorage::TCSharedPointer<NContainer::CSecureByteVector> m_pData; // Shared pointer because we need to keep this around and possibly resend it
+		NStorage::TCSharedPointer<NContainer::CIOByteVector> m_pData; // Shared pointer because we need to keep this around and possibly resend it
 		uint64 f_GetPacketID() const;
 
 		NIntrusive::TCAVLLink<> m_TreeLink;
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency::NActorDistributionManagerInternal
 
 	struct COutstandingCall
 	{
-		TCPromise<NContainer::CSecureByteVector> m_Promise{CPromiseConstructEmpty()};
+		TCPromise<NContainer::CIOByteVector> m_Promise{CPromiseConstructEmpty()};
 		NStorage::TCSharedPointer<NPrivate::CDistributedActorStreamContextState> m_pState;
 	};
 
@@ -492,10 +492,10 @@ namespace NMib::NConcurrency
 		TCFuture<void> fp_OnNewConnection(NStr::CStr _ListenID, NWeb::CWebSocketNewServerConnection _NewServerConnection);
 		TCFuture<CDistributedActorListenReference> fp_ListenTry(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
 		TCFuture<CDistributedActorListenReference> fp_Listen(NStr::CStr _ListenID, CActorDistributionListenSettings _Settings);
-		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CSecureByteVector &&_Data);
+		uint64 fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CIOByteVector &&_Data);
 		void fp_SendPacketQueue(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost);
 		void fp_ProcessPacketQueue(CConnection *_pConnection);
-		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> &&_pMessage);
+		void fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage);
 		void fp_OnInvalidConnection
 			(
 				CConnection *_pConnection
@@ -503,7 +503,7 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> const &_pMessage);
+		bool fp_HandleProtocolIncoming(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> const &_pMessage);
 		void fp_Identify(CConnection *_pConnection);
 		NContainer::TCSet<NStr::CStr> const &fp_GetAllowedNamespacesForHost(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, bool &o_bAllowAll);
 		void fp_NotifyNewActor
@@ -535,7 +535,7 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost
 				, uint64 _PacketID
-				, NContainer::CSecureByteVector const &_Data
+				, NContainer::CIOByteVector const &_Data
 				, NPrivate::CDistributedActorStreamContext const &_Context
 			)
 		;

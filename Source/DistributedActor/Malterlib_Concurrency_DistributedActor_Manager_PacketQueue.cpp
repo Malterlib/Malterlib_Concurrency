@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CSecureByteVector> &&_pMessage)
+	void CActorDistributionManagerInternal::fp_SendPacket(CConnection *_pConnection, NStorage::TCSharedPointer<NContainer::CIOByteVector> &&_pMessage)
 	{
 		if (!_pConnection->m_Connection)
 		{
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CSecureByteVector &&_Data)
+	uint64 CActorDistributionManagerInternal::fp_QueuePacket(NStorage::TCSharedPointerSupportWeak<CHost> const &_pHost, NContainer::CIOByteVector &&_Data)
 	{
 		DMibFastCheck(_Data.f_GetLen() <= m_WebsocketSettings.m_MaxMessageSize);
 
@@ -271,11 +271,11 @@ namespace NMib::NConcurrency
 
 		if (bAccPacket)
 		{
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 			Stream << uint8(EDistributedActorCommand_Acknowledge);
 			Stream << AckPacket;
 
-			NStorage::TCSharedPointer<NContainer::CSecureByteVector> pMessage = fg_Construct(Stream.f_MoveVector());
+			NStorage::TCSharedPointer<NContainer::CIOByteVector> pMessage = fg_Construct(Stream.f_MoveVector());
 
 			fp_SendPacket(_pConnection, fg_Move(pMessage));
 		}

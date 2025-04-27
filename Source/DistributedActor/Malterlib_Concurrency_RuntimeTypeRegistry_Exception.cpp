@@ -15,7 +15,7 @@ namespace NMib::NConcurrency::NPrivate
 {
 	void fg_StreamAsyncResultException
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
 			, NException::CExceptionBase const &_Exception
 			, uint32 _ActorProtocolVersion
 		)
@@ -46,7 +46,7 @@ namespace NMib::NConcurrency::NPrivate
 
 	void fg_StreamAsyncResultException
 		(
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> &_Stream
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> &_Stream
 			, NConcurrency::CAsyncResult const &_Result
 			, uint32 _ActorProtocolVersion
 		)
@@ -67,16 +67,16 @@ namespace NMib::NConcurrency::NPrivate
 		return fg_StreamAsyncResultException(_Stream, DMibErrorInstance("Non Malterlib exception encountered in remote actor call"), _ActorProtocolVersion);
 	}
 
-	NContainer::CSecureByteVector fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion)
+	NContainer::CIOByteVector fg_StreamAsyncResultException(NException::CExceptionBase const &_Exception, uint32 _ActorProtocolVersion)
 	{
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 		fg_StreamAsyncResultException(Stream, _Exception, _ActorProtocolVersion);
 		return Stream.f_MoveVector();
 	}
 
-	NContainer::CSecureByteVector fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion)
+	NContainer::CIOByteVector fg_StreamAsyncResultException(NConcurrency::CAsyncResult const &_Result, uint32 _ActorProtocolVersion)
 	{
-		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+		NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 		fg_StreamAsyncResultException(Stream, _Result, _ActorProtocolVersion);
 		return Stream.f_MoveVector();
 	}

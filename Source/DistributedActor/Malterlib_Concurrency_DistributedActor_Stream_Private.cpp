@@ -12,7 +12,7 @@ namespace NMib::NConcurrency::NPrivate
 	void fg_CopyReplyToAsyncResult
 		(
 			TCAsyncResult<void> &_AsyncResult
-			, NContainer::CSecureByteVector const &_Data
+			, NContainer::CIOByteVector const &_Data
 			, CDistributedActorStreamContext &_Context
 			, uint32 _Version
 		)

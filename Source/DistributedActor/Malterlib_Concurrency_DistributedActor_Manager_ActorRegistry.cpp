@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
 
 			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -299,16 +299,16 @@ namespace NMib::NConcurrency
 			Publish.m_Hierarchy = PublishedActor.m_Hierarchy;
 			Publish.m_ProtocolVersions = PublishedActor.m_ProtocolVersions;
 
-			NContainer::CSecureByteVector UnpublishData;
+			NContainer::CIOByteVector UnpublishData;
 			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				Stream << Unpublish;
 				UnpublishData = Stream.f_MoveVector();
 			}
 
-			NContainer::CSecureByteVector PublishData;
+			NContainer::CIOByteVector PublishData;
 			{
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				Stream << Publish;
@@ -399,7 +399,7 @@ namespace NMib::NConcurrency
 				continue;
 			}
 
-			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+			NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 			auto VersionScope = Host.f_StreamVersion(Stream);
 
 			if (_WaitForPublicationsTimeout && Stream.f_GetVersion() >= EDistributedActorProtocolVersion_WaitForRemotePublishProcessing)
@@ -732,7 +732,7 @@ namespace NMib::NConcurrency
 				CDistributedActorCommand_PublishFinished PublishFinished;
 				PublishFinished.m_WaitPublicationID = WaitPublicationID;
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				Stream << PublishFinished;
@@ -852,7 +852,7 @@ namespace NMib::NConcurrency
 				CDistributedActorCommand_UnpublishFinished UnpublishFinished;
 				UnpublishFinished.m_WaitPublicationID = WaitPublicationID;
 
-				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CSecureByteVector> Stream;
+				NStream::CBinaryStreamMemory<NStream::CBinaryStreamDefault, NContainer::CIOByteVector> Stream;
 				auto VersionScope = Host.f_StreamVersion(Stream);
 
 				Stream << UnpublishFinished;

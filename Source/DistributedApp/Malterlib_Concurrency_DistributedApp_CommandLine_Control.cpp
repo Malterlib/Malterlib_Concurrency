@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 
 	ICCommandLineControl::~ICCommandLineControl() = default;
 
-	TCFuture<void> CCommandLineControl::f_StdOut(CStrSecure const &_Output) const
+	TCFuture<void> CCommandLineControl::f_StdOut(CStrIO const &_Output) const
 	{
 		if (!m_ControlActor)
 			return g_Void;
@@ -61,26 +61,19 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CCommandLineControl::f_StdOutBinary(CSecureByteVector const &_Output) const
+	TCFuture<void> CCommandLineControl::fsp_SendStdOutBinary(CCommandLineControl const &_This, uint8 const *_pData, mint _DataLen)
 	{
-		if (!m_ControlActor)
-			return g_Void;
-
-		mint OutputLen = _Output.f_GetLen();
-		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
-			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(_Output);
-
 		TCFutureVector<void> Results;
 		NMisc::fg_ChunkRange
 			(
 				mint(0)
-				, OutputLen
+				, _DataLen
 				, CActorDistributionManager::mc_HalfMaxMessageSize
 				, [&](mint _Start, mint _Len)
 				{
-					CSecureByteVector ToSend;
-					ToSend.f_Insert(_Output.f_GetArray() + _Start, _Len);
-					m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend)) > Results;
+					CIOByteVector ToSend;
+					ToSend.f_Insert(_pData + _Start, _Len);
+					_This.m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(fg_Move(ToSend)) > Results;
 				}
 			)
 		;
@@ -91,7 +84,31 @@ namespace NMib::NConcurrency
 		return fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CCommandLineControl::f_StdErr(CStrSecure const &_Output) const
+	TCFuture<void> CCommandLineControl::f_StdOutBinary(CSecureByteVector const &_Output) const
+	{
+		if (!m_ControlActor)
+			return g_Void;
+
+		mint OutputLen = _Output.f_GetLen();
+		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
+			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
+
+		return fsp_SendStdOutBinary(*this, _Output.f_GetArray(), OutputLen);
+	}
+
+	TCFuture<void> CCommandLineControl::f_StdOutBinary(CByteVector const &_Output) const
+	{
+		if (!m_ControlActor)
+			return g_Void;
+
+		mint OutputLen = _Output.f_GetLen();
+		if (OutputLen <= CActorDistributionManager::mc_HalfMaxMessageSize)
+			return m_ControlActor.f_CallActor(&ICCommandLineControl::f_StdOutBinary)(CIOByteVector::fs_AllowInsecureConversion(_Output));
+
+		return fsp_SendStdOutBinary(*this, _Output.f_GetArray(), OutputLen);
+	}
+
+	TCFuture<void> CCommandLineControl::f_StdErr(CStrIO const &_Output) const
 	{
 		if (!m_ControlActor)
 			return g_Void;
@@ -161,21 +178,21 @@ namespace NMib::NConcurrency
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_RegisterForStdIn)(fg_Move(_fOnInput), _Flags);
 	}
 
-	TCFuture<CSecureByteVector> CCommandLineControl::f_ReadBinary() const
+	TCFuture<CIOByteVector> CCommandLineControl::f_ReadBinary() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadBinary)();
 	}
 
-	TCFuture<CStrSecure> CCommandLineControl::f_ReadLine() const
+	TCFuture<CStrIO> CCommandLineControl::f_ReadLine() const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
 		return m_ControlActor.f_CallActor(&ICCommandLineControl::f_ReadLine)();
 	}
 
-	TCFuture<CStrSecure> CCommandLineControl::f_ReadPrompt(CStdInReaderPromptParams const &_Params) const
+	TCFuture<CStrIO> CCommandLineControl::f_ReadPrompt(CStdInReaderPromptParams const &_Params) const
 	{
 		if (!m_ControlActor)
 			return DMibErrorInstance("No control actor");
@@ -193,43 +210,68 @@ namespace NMib::NConcurrency
 	{
 		if (!_Result)
 		{
-			(void)f_StdErr(fg_Format<CStrSecure>("{}\n", _Result.f_GetExceptionStr()));
+			(void)f_StdErr(fg_Format<CStrIO>("{}\n", _Result.f_GetExceptionStr()));
 			return 1;
 		}
 		return 0;
 	}
 
-	void CCommandLineControl::operator +=(CStrSecure const &_StdOut) const
+	void CCommandLineControl::operator += (ch8 const *_pStdOut) const
+	{
+		f_StdOut(_pStdOut).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator %= (ch8 const *_pStdErr) const
+	{
+		f_StdErr(_pStdErr).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator += (CStr const &_StdOut) const
 	{
 		f_StdOut(_StdOut).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator %=(CStrSecure const &_StdErr) const
+	void CCommandLineControl::operator %= (CStr const &_StdErr) const
 	{
 		f_StdErr(_StdErr).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator +=(CStr::CFormat const &_StdOut) const
+	void CCommandLineControl::operator += (CStrSecure const &_StdOut) const
+	{
+		f_StdOut(_StdOut).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator %= (CStrSecure const &_StdErr) const
+	{
+		f_StdErr(_StdErr).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator += (CStr::CFormat const &_StdOut) const
 	{
 		f_StdOut(CStr(_StdOut)).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator %=(CStr::CFormat const &_StdErr) const
+	void CCommandLineControl::operator %= (CStr::CFormat const &_StdErr) const
 	{
 		f_StdErr(CStr(_StdErr)).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator +=(CStrSecure::CFormat const &_StdOut) const
+	void CCommandLineControl::operator += (CStrSecure::CFormat const &_StdOut) const
 	{
-		f_StdOut(_StdOut).f_DiscardResult();
+		f_StdOut(CStrSecure(_StdOut)).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator %=(CStrSecure::CFormat const &_StdErr) const
+	void CCommandLineControl::operator %= (CStrSecure::CFormat const &_StdErr) const
 	{
-		f_StdErr(_StdErr).f_DiscardResult();
+		f_StdErr(CStrSecure(_StdErr)).f_DiscardResult();
 	}
 
-	void CCommandLineControl::operator +=(CSecureByteVector const &_StdOut) const
+	void CCommandLineControl::operator += (CByteVector const &_StdOut) const
+	{
+		f_StdOutBinary(_StdOut).f_DiscardResult();
+	}
+
+	void CCommandLineControl::operator += (CSecureByteVector const &_StdOut) const
 	{
 		f_StdOutBinary(_StdOut).f_DiscardResult();
 	}

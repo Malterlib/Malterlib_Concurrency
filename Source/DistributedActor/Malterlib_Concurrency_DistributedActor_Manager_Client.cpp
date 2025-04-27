@@ -426,7 +426,7 @@ namespace NMib::NConcurrency
 					}
 				;
 
-				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CSecureByteVector> _pMessage)
+				Result.m_fOnReceiveBinaryMessage = g_ActorFunctorWeak / [this, pConnectionWeak, Sequence](NStorage::TCSharedPointer<NContainer::CIOByteVector> _pMessage)
 					-> TCFuture<void>
 					{
 						auto pConnection = pConnectionWeak.f_Lock();

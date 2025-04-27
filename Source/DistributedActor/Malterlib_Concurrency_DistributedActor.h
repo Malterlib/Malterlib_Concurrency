@@ -711,10 +711,10 @@ namespace NMib::NConcurrency
 		TCFuture<CDistributedActorListenReference> f_Listen(CActorDistributionListenSettings _Settings);
 		TCFuture<CConnectionResult> f_Connect(CActorDistributionConnectionSettings _Settings, fp64 _Timeout);
 
-		TCFuture<NContainer::CSecureByteVector> f_CallRemote
+		TCFuture<NContainer::CIOByteVector> f_CallRemote
 			(
 				NStorage::TCSharedPointer<NPrivate::CDistributedActorData> _pDistributedActorData
-				, NContainer::CSecureByteVector _CallData
+				, NContainer::CIOByteVector _CallData
 				, NPrivate::CDistributedActorStreamContext _Context
 			)
 		;
@@ -893,15 +893,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NPrivate::CDistributedActorStreamContext &
 		) const &
-		-> TCFuture<NContainer::CSecureByteVector>
+		-> TCFuture<NContainer::CIOByteVector>
 	;
 
 	extern template auto TCActor<CActorDistributionManager>::f_InternalCallActor
@@ -909,15 +909,15 @@ namespace NMib::NConcurrency
 			&CActorDistributionManager::f_CallRemote
 			, EVirtualCall::mc_NotVirtual
 			, NMib::NStorage::TCSharedPointer<NMib::NConcurrency::NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NMib::NConcurrency::NPrivate::CDistributedActorStreamContext &
 		>
 		(
 			NMib::NStorage::TCSharedPointer<NPrivate::CDistributedActorData> &&
-			, NMib::NContainer::CSecureByteVector &&
+			, NMib::NContainer::CIOByteVector &&
 			, NPrivate::CDistributedActorStreamContext &
 		) &&
-		-> TCFuture<NContainer::CSecureByteVector>
+		-> TCFuture<NContainer::CIOByteVector>
 	;
 }
 #endif

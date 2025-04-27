@@ -93,7 +93,7 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_RegisterForInput, fg_Move(_fOnInput), _Flags, CActorDistributionManager::mc_HalfMaxMessageSize);
 			}
 
-			TCFuture<NContainer::CSecureByteVector> f_ReadBinary() override
+			TCFuture<NContainer::CIOByteVector> f_ReadBinary() override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -102,7 +102,7 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadBinary);
 			}
 
-			TCFuture<NStr::CStrSecure> f_ReadLine() override
+			TCFuture<NStr::CStrIO> f_ReadLine() override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -111,7 +111,7 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_ReadLine);
 			}
 
-			TCFuture<NStr::CStrSecure> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
+			TCFuture<NStr::CStrIO> f_ReadPrompt(NProcess::CStdInReaderPromptParams _Params) override
 			{
 				if (auto Destroyed = fp_CheckDestroyed())
 					co_return Destroyed;
@@ -129,19 +129,19 @@ namespace NMib::NConcurrency
 				co_return co_await mp_InputActor(&NProcess::CStdInActor::f_AbortReads);
 			}
 
-			TCFuture<void> f_StdOut(NStr::CStrSecure _Output) override
+			TCFuture<void> f_StdOut(NStr::CStrIO _Output) override
 			{
 				NSys::fg_ConsoleOutput(_Output);
 				co_return {};
 			}
 
-			TCFuture<void> f_StdOutBinary(NContainer::CSecureByteVector _Output) override
+			TCFuture<void> f_StdOutBinary(NContainer::CIOByteVector _Output) override
 			{
 				NSys::fg_ConsoleOutputBinary(_Output);
 				co_return {};
 			}
 
-			TCFuture<void> f_StdErr(NStr::CStrSecure _Output) override
+			TCFuture<void> f_StdErr(NStr::CStrIO _Output) override
 			{
 				NSys::fg_ConsoleErrorOutput(_Output);
 				co_return {};

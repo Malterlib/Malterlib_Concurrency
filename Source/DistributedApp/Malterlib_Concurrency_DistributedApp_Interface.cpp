@@ -342,10 +342,10 @@ namespace NMib::NConcurrency
 					=
 					, Promise = fg_Move(Promise.m_Promise)
 					, this
-					, Buffer = CStrSecure{}
+					, Buffer = CStrIO{}
 					, RequestMagicPrefix = _RequestMagic + ":"
 				]
-				(EStdInReaderOutputType _Type, NStr::CStrSecure _Input) mutable -> TCFuture<void>
+				(EStdInReaderOutputType _Type, NStr::CStrIO _Input) mutable -> TCFuture<void>
 				{
 					auto &Internal = *mp_pInternal;
 
@@ -354,7 +354,7 @@ namespace NMib::NConcurrency
 					Buffer += _Input;
 					while (Buffer.f_FindChar('\n') >= 0)
 					{
-						CStrSecure Line = fg_GetStrLineSep(Buffer);
+						CStrIO Line = fg_GetStrLineSep(Buffer);
 						if (Line.f_StartsWith(RequestMagicPrefix))
 						{
 							try

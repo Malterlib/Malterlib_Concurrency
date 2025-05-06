@@ -50,13 +50,13 @@ namespace
 			Section.f_RegisterCommand
 				(
 					{
-						"Names"_o= {"--test-actor"}
+						"Names"_o= _o["--test-actor"]
 						, "Description"_o= "Test 3."
 						, "Options"_o=
 						{
 							"Integer?"_o=
 							{
-								"Names"_o= {"--integer"}
+								"Names"_o= _o["--integer"]
 								, "Default"_o= 5
 								, "Description"_o= "Test 1"
 							}

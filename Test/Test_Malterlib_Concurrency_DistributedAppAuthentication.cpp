@@ -614,7 +614,7 @@ namespace NTestAuthentication
 			Section.f_RegisterCommand
 				(
 					{
-						"Names"_o= {"--test-actor"}
+						"Names"_o= _o["--test-actor"]
 						, "Description"_o= "Test 3."
 
 					}
@@ -641,7 +641,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-call-1"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -660,7 +664,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-call-2"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -683,7 +691,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Object)}
+					{
+						"Names"_o= _o["--perform-call-3"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Object)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -714,7 +726,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-many-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-many-call-1"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -733,7 +749,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-many-call-2"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-many-call-2"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -752,7 +772,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-many-call-3"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-many-call-3"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -771,7 +795,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-many-call-4"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-many-call-4"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -790,7 +818,11 @@ namespace NTestAuthentication
 
 			Section.f_RegisterCommand
 				(
-					{ "Names"_o= {"--perform-slow-call-1"}, "Description"_o= ".", fSharedParameters(EJSONType_Array)}
+					{
+						"Names"_o= _o["--perform-slow-call-1"]
+						, "Description"_o= "."
+						, fSharedParameters(EJSONType_Array)
+					}
 					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
@@ -1989,7 +2021,7 @@ public:
 
 			auto Results = fPreauthenticate("*", { "Succeed1" }, 5);
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1");
-			DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[_]});
+			DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
 
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 			DCheckCallCounts(CCallCounts{}, "Succeed1_Cacheable");
@@ -2023,7 +2055,7 @@ public:
 				Results = fPreauthenticate("*", { "Succeed1" }, 0);
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1");
 
-				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[_]});
+				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1_Cacheable");
 			}
@@ -2033,7 +2065,7 @@ public:
 				Results = fPreauthenticate("com.malterlib/*", { "Succeed1" }, 5);
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Preauth");
 
-				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[_]});
+				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 				DCheckCallCounts(CCallCounts{}, "Succeed1_Cacheable");
 

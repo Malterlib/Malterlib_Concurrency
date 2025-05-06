@@ -279,7 +279,7 @@ namespace NMib::NConcurrency
 			{
 				if (bJSONOutput)
 				{
-					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() =
+					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
 						{
 							"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
 							, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description
@@ -298,7 +298,7 @@ namespace NMib::NConcurrency
 			{
 				if (bJSONOutput)
 				{
-					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() =
+					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
 						{
 							"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
 							, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description

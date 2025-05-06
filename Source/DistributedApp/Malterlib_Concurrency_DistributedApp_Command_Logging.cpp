@@ -21,20 +21,20 @@ namespace NMib::NConcurrency
 				{
 					"ConcurrentLogging?"_o=
 					{
-						"Names"_o= {"--log-on-thread"}
+						"Names"_o= _o["--log-on-thread"]
 						, "Default"_o= true
 						, "Description"_o= "Log on a separate thread to minimally affect application performance and behavior."
 					}
 					, "StdErrLogger?"_o=
 					{
-						"Names"_o= {"--log-to-stderr"}
+						"Names"_o= _o["--log-to-stderr"]
 						, "Default"_o= false
 						, "Description"_o= "Log to stderr."
 					}
 					, "LogSeverities?"_o=
 					{
-						"Names"_o= {"--log-severities"}
-						, "Type"_o= NEncoding::CEJSONOrdered{COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")}
+						"Names"_o= _o["--log-severities"]
+						, "Type"_o= _o[COneOf("Critical", "Error", "Warning", "Info", "Debug", "DebugV1", "DebugV2", "DebugV3", "PInfo", "PWarning", "PError")]
 						, "Description"_o= "Which log severities to log to stderr"
 #if DMibEnableTrace > 0
 						" or with trace logger."
@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 				{
 					"TraceLogger?"_o=
 					{
-						"Names"_o= {"--log-to-trace"}
+						"Names"_o= _o["--log-to-trace"]
 						, "Default"_o= bool(NSys::fg_System_BeingDebugged())
 						, "Description"_o= "Log to trace."
 					}

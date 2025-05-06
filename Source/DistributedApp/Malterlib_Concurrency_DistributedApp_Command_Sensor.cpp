@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 	{
 		auto Option_SensorHostID = "HostID?"_o=
 			{
-				"Names"_o= {"--host-id"}
+				"Names"_o= _o["--host-id"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only sensors from specified host id."
 			}
@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 
 		auto Option_SensorApplication = "Application?"_o=
 			{
-				"Names"_o= {"--application"}
+				"Names"_o= _o["--application"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only sensors that come from the specified application. Supports wildcards.\n"
 				"Set to an empty string to only include sensors that are in host scope."
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 
 		auto Option_SensorIdentifier = "Identifier?"_o=
 			{
-				"Names"_o= {"--identifier"}
+				"Names"_o= _o["--identifier"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only sensors that match the identifier. Supports wildcards."
 			}
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 
 		auto Option_SensorIdentifierScope = "IdentifierScope?"_o=
 			{
-				"Names"_o= {"--identifier-scope"}
+				"Names"_o= _o["--identifier-scope"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only sensors that match the idendifier scope. Supports wildcards."
 			}
@@ -142,7 +142,7 @@ namespace NMib::NConcurrency
 
 		auto Option_Verbose = "Verbose?"_o=
 			{
-				"Names"_o= {"--verbose", "-v"}
+				"Names"_o= _o["--verbose", "-v"]
 				, "Default"_o= false
 				, "Description"_o= "Output all properties."
 			}
@@ -150,7 +150,7 @@ namespace NMib::NConcurrency
 
 		auto Option_Json = "Json?"_o=
 			{
-				"Names"_o= {"--json", "-j"}
+				"Names"_o= _o["--json", "-j"]
 				, "Default"_o= false
 				, "Description"_o= "Output in json format."
 			}
@@ -160,7 +160,7 @@ namespace NMib::NConcurrency
 			{
 				return "OnlyProblems?"_o=
 					{
-						"Names"_o= {"--only-problems"}
+						"Names"_o= _o["--only-problems"]
 						, "Default"_o= _bDefault
 						, "Description"_o= "Only report problems."
 					}
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 			{
 				return "IgnoreRemoved?"_o=
 					{
-						"Names"_o= {"--ignore-removed"}
+						"Names"_o= _o["--ignore-removed"]
 						, "Default"_o= _bDefault
 						, "Description"_o= "Ignore sensors that were removed, or that were owned by a removed application or app manager."
 					}
@@ -184,7 +184,7 @@ namespace NMib::NConcurrency
 			{
 				return "IgnoreSnoozed?"_o=
 					{
-						"Names"_o= {"--ignore-snoozed"}
+						"Names"_o= _o["--ignore-snoozed"]
 						, "Default"_o= _bDefault
 						, "Description"_o= "Ignore problematic sensor values for sensors that have been snoozed.\n"
 						"This option has no effect if you specify --no-only-problems (Ignored snoozed values are non-problematic)."
@@ -254,7 +254,7 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_o= {"--{}sensor-list"_f << _Prefix}
+					"Names"_o= _o["--{}sensor-list"_f << _Prefix]
 					, "Description"_o= "List the sensors that are in the local store.\n"
 					, "Output"_o= "A table of sensors."
 					, "Options"_o=
@@ -288,7 +288,7 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_o= {"--{}sensor-status"_f << _Prefix}
+					"Names"_o= _o["--{}sensor-status"_f << _Prefix]
 					, "Description"_o= "List the current value for sensors that are in the local store.\n"
 					, "Output"_o= "A table of sensors readings."
 					, "Options"_o=
@@ -329,7 +329,7 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_o= {"--{}sensor-readings-list"_f << _Prefix}
+					"Names"_o= _o["--{}sensor-readings-list"_f << _Prefix]
 					, "Description"_o= "List historic values for sensors that are in the local store.\n"
 					, "Output"_o= "A table of sensors readings."
 					, "Options"_o=
@@ -343,38 +343,38 @@ namespace NMib::NConcurrency
 						, Option_Json
 						, "MinTimestamp?"_o=
 						{
-							"Names"_o= {"--min-timestamp"}
+							"Names"_o= _o["--min-timestamp"]
 							, "Type"_o= CTime()
 							, "Description"_o= "Limit output to readings that are newer than specified."
 						}
 						, "MinSequence?"_o=
 						{
-							"Names"_o= {"--min-sequence"}
+							"Names"_o= _o["--min-sequence"]
 							, "Type"_o= 0
 							, "Description"_o= "Limit output to sequences that are greater than specified for the timestamp."
 						}
 						, "MaxTimestamp?"_o=
 						{
-							"Names"_o= {"--max-timestamp"}
+							"Names"_o= _o["--max-timestamp"]
 							, "Type"_o= CTime()
 							, "Description"_o= "Limit output to readings that are older than specified."
 						}
 						, "MaxSequence?"_o=
 						{
-							"Names"_o= {"--max-sequence"}
+							"Names"_o= _o["--max-sequence"]
 							, "Type"_o= 0
 							, "Description"_o= "Limit output to sequences that are less than specified for the timestamp."
 						}
 						, "ReportNewestFirst?"_o=
 						{
-							"Names"_o= {"--newest"}
+							"Names"_o= _o["--newest"]
 							, "Default"_o= true
 							, "Description"_o= "When applying entry limit, show newest entries first."
 						}
 						, fOption_OnlyProblems(false)
 						, "MaxEntries?"_o=
 						{
-							"Names"_o= {"--max-entries"}
+							"Names"_o= _o["--max-entries"]
 							, "Default"_o= 100
 							, "Description"_o= "Limit the number of output lines.\n"
 							"Set to 0 for unlimited entries"

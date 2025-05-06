@@ -90,7 +90,7 @@ namespace NMib::NConcurrency
 	{
 		auto Option_LogHostID = "HostID?"_o=
 			{
-				"Names"_o= {"--host-id"}
+				"Names"_o= _o["--host-id"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only logs from specified host id."
 			}
@@ -98,7 +98,7 @@ namespace NMib::NConcurrency
 
 		auto Option_LogApplication = "Application?"_o=
 			{
-				"Names"_o= {"--application"}
+				"Names"_o= _o["--application"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only logs that come from the specified application. Supports wildcards.\n"
 				"Set to an empty string to only include logs that are in host scope."
@@ -107,7 +107,7 @@ namespace NMib::NConcurrency
 
 		auto Option_LogIdentifier = "Identifier?"_o=
 			{
-				"Names"_o= {"--identifier"}
+				"Names"_o= _o["--identifier"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only logs that match the identifier. Supports wildcards."
 			}
@@ -115,7 +115,7 @@ namespace NMib::NConcurrency
 
 		auto Option_LogIdentifierScope = "IdentifierScope?"_o=
 			{
-				"Names"_o= {"--identifier-scope"}
+				"Names"_o= _o["--identifier-scope"]
 				, "Type"_o= ""
 				, "Description"_o= "Limit output to only logs that match the idendifier scope. Supports wildcards."
 			}
@@ -123,7 +123,7 @@ namespace NMib::NConcurrency
 
 		auto Option_Verbose = "Verbosity?"_o=
 			{
-				"Names"_o= {"--verbosity", "-v"}
+				"Names"_o= _o["--verbosity", "-v"]
 				, "Default"_o= 0
 				, "Description"_o= "Output all properties."
 			}
@@ -131,7 +131,7 @@ namespace NMib::NConcurrency
 
 		auto Option_Json = "Json?"_o=
 			{
-				"Names"_o= {"--json", "-j"}
+				"Names"_o= _o["--json", "-j"]
 				, "Default"_o= false
 				, "Description"_o= "Output in json format."
 			}
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 			{
 				return "IgnoreRemoved?"_o=
 					{
-						"Names"_o= {"--ignore-removed"}
+						"Names"_o= _o["--ignore-removed"]
 						, "Default"_o= _bDefault
 						, "Description"_o= "Ignore logs that were removed, or that were owned by a removed application or app manager."
 					}
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_o= {"--{}log-list"_f << _Prefix}
+					"Names"_o= _o["--{}log-list"_f << _Prefix]
 					, "Description"_o= "List the logs that are in the local store.\n"
 					, "Output"_o= "A table of logs."
 					, "Options"_o=
@@ -228,7 +228,7 @@ namespace NMib::NConcurrency
 		_Section.f_RegisterCommand
 			(
 				{
-					"Names"_o= {"--{}log-entries-list"_f << _Prefix}
+					"Names"_o= _o["--{}log-entries-list"_f << _Prefix]
 					, "Description"_o= "List historic values for logs that are in the local store.\n"
 					, "Output"_o= "A table of logs entries."
 					, "Options"_o=
@@ -242,79 +242,79 @@ namespace NMib::NConcurrency
 						, Option_Json
 						, "Raw?"_o=
 						{
-							"Names"_o= {"--raw", "-r"}
+							"Names"_o= _o["--raw", "-r"]
 							, "Default"_o= false
 							, "Description"_o= "Output log entries raw."
 						}
 						, "FilterMessage?"_o=
 						{
-							"Names"_o= {"--filter-message"}
-							, "Type"_o= {""}
+							"Names"_o= _o["--filter-message"]
+							, "Type"_o= _o[""]
 							, "Description"_o= "Limit output to only logs entries that match any of the messages. Supports wildcards."
 						}
 						, "FilterSeverity?"_o=
 						{
-							"Names"_o= {"--filter-severity"}
-							, "Type"_o= {COneOf{"Critical", "Error", "Warning", "Info", "Debug", "DebugVerbose1", "DebugVerbose2"}}
+							"Names"_o= _o["--filter-severity"]
+							, "Type"_o= _o[COneOf{"Critical", "Error", "Warning", "Info", "Debug", "DebugVerbose1", "DebugVerbose2"}]
 							, "Description"_o= "Limit output to only logs entries that match any of the severities."
 						}
 						, "FilterFlags?"_o=
 						{
-							"Names"_o= {"--filter-flags"}
-							, "Type"_o= {COneOf{"Audit", "Performance"}}
+							"Names"_o= _o["--filter-flags"]
+							, "Type"_o= _o[COneOf{"Audit", "Performance"}]
 							, "Description"_o= "Limit output to only logs entries that match any of the severities."
 						}
 						, "FilterCategories?"_o=
 						{
-							"Names"_o= {"--filter-categories"}
-							, "Type"_o= {""}
+							"Names"_o= _o["--filter-categories"]
+							, "Type"_o= _o[""]
 							, "Description"_o= "Limit output to only logs entries that match any of the categories. Supports wildcards."
 						}
 						, "FilterOperations?"_o=
 						{
-							"Names"_o= {"--filter-operations"}
-							, "Type"_o= {""}
+							"Names"_o= _o["--filter-operations"]
+							, "Type"_o= _o[""]
 							, "Description"_o= "Limit output to only logs entries that match any of the operations. Supports wildcards."
 						}
 						, "FilterSourceLocation?"_o=
 						{
-							"Names"_o= {"--filter-source-location"}
-							, "Type"_o= {""}
+							"Names"_o= _o["--filter-source-location"]
+							, "Type"_o= _o[""]
 							, "Description"_o= "Limit output to only logs entries that match any of the source location files. Supports wildcards."
 						}
 						, "MinTimestamp?"_o=
 						{
-							"Names"_o= {"--min-timestamp"}
+							"Names"_o= _o["--min-timestamp"]
 							, "Type"_o= CTime()
 							, "Description"_o= "Limit output to entries that are newer than specified."
 						}
 						, "MinSequence?"_o=
 						{
-							"Names"_o= {"--min-sequence"}
+							"Names"_o= _o["--min-sequence"]
 							, "Type"_o= 0
 							, "Description"_o= "Limit output to sequences that are greater than specified for the timesstamp."
 						}
 						, "MaxTimestamp?"_o=
 						{
-							"Names"_o= {"--max-timestamp"}
+							"Names"_o= _o["--max-timestamp"]
 							, "Type"_o= CTime()
 							, "Description"_o= "Limit output to entries that are older than specified."
 						}
 						, "MaxSequence?"_o=
 						{
-							"Names"_o= {"--max-sequence"}
+							"Names"_o= _o["--max-sequence"]
 							, "Type"_o= 0
 							, "Description"_o= "Limit output to sequences that are less than specified for the timestamp."
 						}
 						, "ReportNewestFirst?"_o=
 						{
-							"Names"_o= {"--newest"}
+							"Names"_o= _o["--newest"]
 							, "Default"_o= true
 							, "Description"_o= "When applying entry limit, show newest entries first."
 						}
 						, "MaxEntries?"_o=
 						{
-							"Names"_o= {"--max-entries"}
+							"Names"_o= _o["--max-entries"]
 							, "Default"_o= 100
 							, "Description"_o= "Limit the number of output lines.\n"
 							"Set to 0 for unlimited entries"

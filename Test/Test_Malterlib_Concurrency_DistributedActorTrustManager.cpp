@@ -2278,7 +2278,12 @@ namespace NTestTrustManager
 				CMetadata Empty;
 				CMetadata Metadata2{{"Key", "Value"}};
 				CMetadata Metadata3{{"Key2", "FunkyStuff"}};
-				Metadata3["Key1"] = {"Key1"_= "NewValue1", "Key2"_= "Value2"};
+				Metadata3["Key1"] = _=
+					{
+						"Key1"_= "NewValue1"
+						, "Key2"_= "Value2"
+					}
+				;
 				CMetadata Metadata4{{"Key0", "Value0"}};
 				Metadata4["Key1"] = "Value1";
 

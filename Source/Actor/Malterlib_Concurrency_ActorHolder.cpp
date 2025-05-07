@@ -129,8 +129,6 @@ namespace NMib::NConcurrency
 			auto pOldConstructing = ThreadLocal.m_pCurrentlyConstructingActor;
 			ThreadLocal.m_pCurrentlyConstructingActor = (CActor *)_pActorMemory;
 #endif
-			CCurrentlyProcessingActorScope ProcessingScope(ThreadLocal, this);
-
 			auto CleanupWorking = g_OnScopeExit / [&]
 				{
 #if DMibEnableSafeCheck > 0
@@ -141,6 +139,8 @@ namespace NMib::NConcurrency
 						fp_QueueRunProcess(ThreadLocal); // Reschedule
 				}
 			;
+
+			CCurrentlyProcessingActorScope ProcessingScope(ThreadLocal, this);
 
 			auto CleanupConstruction = g_OnScopeExit / [&]
 				{

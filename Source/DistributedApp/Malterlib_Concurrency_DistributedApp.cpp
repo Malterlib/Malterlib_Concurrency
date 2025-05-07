@@ -3,7 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/Process/Platform>
-#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Concurrency/LogError>
 #include <Mib/Network/Socket>
@@ -165,11 +165,11 @@ namespace NMib::NConcurrency
 			auto &AccessDenied = Data.m_MetaData["AccessDenied"].f_Array();
 			for (auto &PermissionSet : pAccessDenied->m_Permissions)
 			{
-				TCVector<CEJSONSorted> Array;
+				TCVector<CEJsonSorted> Array;
 				for (auto &Permission : PermissionSet)
 					Array.f_Insert(Permission);
 
-				AccessDenied.f_Insert(CEJSONSorted(fg_Move(Array)));
+				AccessDenied.f_Insert(CEJsonSorted(fg_Move(Array)));
 			}
 		}
 		else
@@ -321,7 +321,7 @@ namespace NMib::NConcurrency
 		TCSet<CDistributedActorTrustManager_Address> WantedListens;
 
 		// Deduce primary listen from old config and remove the config
-		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJSONType_Array);
+		auto const *pListen = mp_State.m_ConfigDatabase.m_Data.f_GetMember("Listen", EJsonType_Array);
 		if (!pListen)
 		{
 			if (mp_Settings.m_bCanUseLocalListenAsPrimary)
@@ -352,7 +352,7 @@ namespace NMib::NConcurrency
 				CDistributedActorTrustManager_Address Address;
 				if (auto pAddress = Object.f_GetMember("Address"))
 				{
-					if (pAddress->f_Type() != EJSONType_String)
+					if (pAddress->f_Type() != EJsonType_String)
 						continue;
 					if (!Address.m_URL.f_Decode(pAddress->f_String()))
 						continue;
@@ -494,15 +494,15 @@ namespace NMib::NConcurrency
 		}
 
 		int32 DefaultConcurrency = 1;
-		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJSONType_Integer))
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("DefaultConnectionConcurrency", EJsonType_Integer))
 			DefaultConcurrency = fg_Clamp(pValue->f_Integer(), 1, 128);
 
 		fp64 InitialConnectionTimeout = 5.0;
-		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJSONType_Float))
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("InitialConnectionTimeout", EJsonType_Float))
 			InitialConnectionTimeout = fg_Clamp(pValue->f_Float(), 0.1, 3600.0);
 
 		bool bSupportAuthentication = mp_Settings.m_bSupportUserAuthentication;
-		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJSONType_Boolean))
+		if (auto *pValue = mp_State.m_ConfigDatabase.m_Data.f_GetMember("SupportAuthentication", EJsonType_Boolean))
 			bSupportAuthentication = pValue->f_Boolean();
 
 		CDistributedActorTrustManager::COptions Options;
@@ -542,7 +542,7 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJSONSorted const _Params)
+	TCFuture<void> CDistributedAppActor::fp_Initialize(NEncoding::CEJsonSorted const _Params)
 	{
 		auto &Internal = *mp_pInternal;
 
@@ -694,7 +694,7 @@ namespace NMib::NConcurrency
 			f_LogApplicationInfo();
 	}
 
-	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJSONSorted const _Params, TCActor<CDistiributedAppLogActor> _LogActor, EDistributedAppType _AppType)
+	TCFuture<NStr::CStr> CDistributedAppActor::f_StartApp(NEncoding::CEJsonSorted const _Params, TCActor<CDistiributedAppLogActor> _LogActor, EDistributedAppType _AppType)
 	{
 		f_SetAppType(_AppType);
 
@@ -710,7 +710,7 @@ namespace NMib::NConcurrency
 
 		if (!Internal.m_pInitOnce)
 		{
-			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
+			Internal.m_TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
 				(
 					fg_Format("{}/TrustDatabase.{}", mp_Settings.m_RootDirectory, mp_Settings.m_AppName)
 				)
@@ -960,7 +960,7 @@ namespace NMib::NConcurrency
 			fg_Move(mp_State.m_ConfigDatabase).f_Destroy() > Destroys;
 			fg_Move(mp_State.m_StateDatabase).f_Destroy() > Destroys;
 
-			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy JSON databases");
+			co_await fg_AllDone(Destroys).f_Wrap() > LogError("Failed to destroy Json databases");
 		}
 
 		if (Internal.m_TrustManagerDatabase)
@@ -976,7 +976,7 @@ namespace NMib::NConcurrency
 	static constinit NAtomic::TCAtomic<bool> g_bAppliedLogging{false};
 #endif
 
-	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJSONSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
+	CApplyLoggingResults fg_ApplyLoggingOption(NEncoding::CEJsonSorted const &_Params, TCActor<CDistributedAppActor> const &_DistributedLoggingApp)
 	{
 		DMibFastCheck(!g_bAppliedLogging.f_Exchange(true));
 
@@ -986,7 +986,7 @@ namespace NMib::NConcurrency
 #if (DMibEnableTrace > 0) || ((DMibSysLogSeverities) != 0)
 		NLog::ESeverity LogSeverities = NLog::ESeverity_All;
 
-		if (auto *pParam = _Params.f_GetMember("LogSeverities", EJSONType_Array))
+		if (auto *pParam = _Params.f_GetMember("LogSeverities", EJsonType_Array))
 		{
 			LogSeverities = NLog::ESeverity_None;
 			for (auto &SeverityName : pParam->f_Array())
@@ -995,7 +995,7 @@ namespace NMib::NConcurrency
 #endif
 
 #if DMibEnableTrace > 0 && ((DMibSysLogSeverities) != 0)
-		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJSONType_Boolean))
+		if (auto *pParam = _Params.f_GetMember("TraceLogger", EJsonType_Boolean))
 		{
 			if (!pParam->f_Boolean())
 				fg_GetSys()->f_RemoveTraceLogger();
@@ -1007,14 +1007,14 @@ namespace NMib::NConcurrency
 		}
 #endif
 #if (DMibSysLogSeverities) != 0
-		if (auto *pParam = _Params.f_GetMember("StdErrLogger", EJSONType_Boolean))
+		if (auto *pParam = _Params.f_GetMember("StdErrLogger", EJsonType_Boolean))
 		{
 			if (pParam->f_Boolean())
 				fg_GetSys()->f_GetLogger().f_PushGlobalDestination(NLog::CLogToStdErrAnsi(NCommandLine::CCommandLineDefaults::fs_ParseAnsiEncodingParams(_Params), LogSeverities, false));
 		}
 
 		bool bInstalledLogDispatcher = false;
-		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJSONType_Boolean))
+		if (auto *pParam = _Params.f_GetMember("ConcurrentLogging", EJsonType_Boolean))
 		{
 			if (pParam->f_Boolean())
 			{
@@ -1122,7 +1122,7 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyPreRunDirectCommand
 				(
-					[this](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)
+					[this](NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)
 					{
 						if (!(_Flags & EDistributedAppCommandFlag_DontApplyLogging))
 							m_ApplyLoggingResults = fg_ApplyLoggingOption(_Params, nullptr);
@@ -1142,7 +1142,7 @@ namespace NMib::NConcurrency
 
 			CommandLineClient.f_SetLazyStartApp
 				(
-					[&](NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
+					[&](NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags) -> CDistributedAppCommandLineClient::FStopApp
 					{
 						EDistributedAppType AppType = EDistributedAppType_Unchanged;
 						if (_Flags & EDistributedAppCommandFlag_RunLocalApp)
@@ -1259,12 +1259,12 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<CEJSONSorted> CDistributedAppActor::f_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params)
+	TCFuture<CEJsonSorted> CDistributedAppActor::f_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params)
 	{
 		co_return co_await fp_Test_Command(fg_Move(_Command), fg_Move(fg_RemoveQualifiers(_Params)));
 	}
 
-	TCFuture<CEJSONSorted> CDistributedAppActor::fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params)
+	TCFuture<CEJsonSorted> CDistributedAppActor::fp_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params)
 	{
 		co_return {};
 	}

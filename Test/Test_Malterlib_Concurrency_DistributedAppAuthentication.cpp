@@ -13,7 +13,7 @@
 #include <Mib/Concurrency/DistributedAppInterface>
 #include <Mib/Concurrency/DistributedAppLaunchHelper>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Process/StdInActor>
 #include <Mib/Test/Exception>
 
@@ -60,7 +60,7 @@ namespace NTestAuthentication
 		CPermissionQueryLocal &operator = (CPermissionQueryLocal &&) = default;
 		CPermissionQueryLocal &operator = (CPermissionQueryLocal const &) = default;
 
-		CEJSONSorted f_ToJson() const
+		CEJsonSorted f_ToJson() const
 		{
 			return
 				{
@@ -71,13 +71,13 @@ namespace NTestAuthentication
 			;
 		}
 
-		static CPermissionQueryLocal fs_FromJson(CEJSONSorted const &_JSON)
+		static CPermissionQueryLocal fs_FromJson(CEJsonSorted const &_Json)
 		{
 			CPermissionQueryLocal Return;
-			for (auto &Permission : _JSON["Permissions"].f_Array())
+			for (auto &Permission : _Json["Permissions"].f_Array())
 				Return.m_Permissions.f_Insert(Permission.f_String());
-			Return.m_Description = _JSON["Description"].f_String();
-			Return.m_bIsWildcard = _JSON["Wildcard"].f_Boolean();
+			Return.m_Description = _Json["Description"].f_String();
+			Return.m_bIsWildcard = _Json["Wildcard"].f_Boolean();
 
 			return Return;
 		}
@@ -211,7 +211,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
+		TCFuture<void> fp_StartApp(CEJsonSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -386,7 +386,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params) override
+		TCFuture<NEncoding::CEJsonSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params) override
 		{
 			if (_Command == "SubscribePermissions3")
 			{
@@ -401,7 +401,7 @@ namespace NTestAuthentication
 			co_return DMibErrorInstance("Unhandled command in fp_Test_Command: {}"_f << _Command);
 		}
 
-		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
+		TCFuture<void> fp_StartApp(CEJsonSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CManyServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -512,7 +512,7 @@ namespace NTestAuthentication
 		};
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
+		TCFuture<void> fp_StartApp(CEJsonSorted const _Params) override
 		{
 			mp_ServerActor = fg_ConstructActor<CSlowServerActor::CServer>(fg_Construct(self), mp_State);
 			co_await mp_ServerActor(&CServer::f_SubscribePermissions);
@@ -569,7 +569,7 @@ namespace NTestAuthentication
 			return fp_EnableAuthentication(_pCommandLine, _AuthenticationLifetime, _UserID);
 		}
 
-		TCFuture<NEncoding::CEJSONSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJSONSorted const _Params) override
+		TCFuture<NEncoding::CEJsonSorted> fp_Test_Command(NStr::CStr _Command, NEncoding::CEJsonSorted const _Params) override
 		{
 			if (_Command == "CommandLineHostID")
 				co_return mp_State.m_CommandLineHostID;
@@ -578,7 +578,7 @@ namespace NTestAuthentication
 		}
 
 	private:
-		TCFuture<void> fp_StartApp(CEJSONSorted const _Params) override
+		TCFuture<void> fp_StartApp(CEJsonSorted const _Params) override
 		{
 			// Have to create the user and set it as default user before registering the authentication handler.
 			co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_AddUser, m_DefaultUserID, "Default User");
@@ -598,7 +598,7 @@ namespace NTestAuthentication
 			co_return {};
 		}
 
-		TCVector<CStr> fs_GetCommandPermissions(CEJSONSorted const &_Permissions)
+		TCVector<CStr> fs_GetCommandPermissions(CEJsonSorted const &_Permissions)
 		{
 			TCVector<CStr> Return;
 			for (auto &Permission : _Permissions.f_Array())
@@ -618,7 +618,7 @@ namespace NTestAuthentication
 						, "Description"_o= "Test 3."
 
 					}
-					, [](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						co_return 0;
 					}
@@ -644,9 +644,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-call-1"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -655,7 +655,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -667,9 +667,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-call-2"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -677,12 +677,12 @@ namespace NTestAuthentication
 							co_return DMibErrorInstance(fg_Format("Error selecting server: {}", Error));
 
 						TCVector<CPermissionQueryLocal> Permissions;
-						for (auto &QueryJSON : _Params["Permissions"].f_Array())
-							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJSON));
+						for (auto &QueryJson : _Params["Permissions"].f_Array())
+							Permissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJson));
 
 						bool bSuccess = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions2)(Permissions);
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -694,9 +694,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-call-3"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Object)
+						, fSharedParameters(EJsonType_Object)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pTestServer = mp_TestServers.f_GetOneActor("", Error);
@@ -707,17 +707,17 @@ namespace NTestAuthentication
 						for (auto &Queries : _Params["Permissions"].f_Object())
 						{
 							auto &OutputPermissions = Permissions[Queries.f_Name()];
-							for (auto &QueryJSON : Queries.f_Value().f_Array())
-								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJSON));
+							for (auto &QueryJson : Queries.f_Value().f_Array())
+								OutputPermissions.f_Insert(CPermissionQueryLocal::fs_FromJson(QueryJson));
 						}
 
 						auto Results = co_await pTestServer->m_Actor.f_CallActor(&CServerInterface::f_CheckPermissions3)(Permissions);
 
-						CEJSONSorted Output;
+						CEJsonSorted Output;
 						for (auto &Result : Results)
 							Output[Results.fs_GetKey(Result)] = Result;
 
-						*_pCommandLine += Output.f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += Output.f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -729,9 +729,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-many-call-1"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -740,7 +740,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -752,9 +752,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-many-call-2"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -763,7 +763,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions2)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -775,9 +775,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-many-call-3"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -786,7 +786,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions3)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -798,9 +798,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-many-call-4"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pManyTestServer = mp_ManyTestServers.f_GetOneActor("", Error);
@@ -809,7 +809,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pManyTestServer->m_Actor.f_CallActor(&CManyServerInterface::f_CheckPermissions4)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -821,9 +821,9 @@ namespace NTestAuthentication
 					{
 						"Names"_o= _o["--perform-slow-call-1"]
 						, "Description"_o= "."
-						, fSharedParameters(EJSONType_Array)
+						, fSharedParameters(EJsonType_Array)
 					}
-					, [this](NEncoding::CEJSONSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+					, [this](NEncoding::CEJsonSorted const _Params, NStorage::TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 					{
 						CStr Error;
 						auto pSlowTestServer = mp_SlowTestServers.f_GetOneActor("", Error);
@@ -832,7 +832,7 @@ namespace NTestAuthentication
 
 						bool bSuccess = co_await pSlowTestServer->m_Actor.f_CallActor(&CSlowServerInterface::f_CheckPermissions1)(fs_GetCommandPermissions(_Params["Permissions"]));
 
-						*_pCommandLine += CEJSONSorted(bSuccess).f_ToString("\t", EJSONDialectFlag_AllowUndefined);
+						*_pCommandLine += CEJsonSorted(bSuccess).f_ToString("\t", EJsonDialectFlag_AllowUndefined);
 
 						co_return 0;
 					}
@@ -1451,7 +1451,7 @@ public:
 		// on the server side. We will perform all the tests after the command has returned.
 		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).f_String();
 		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
-		NEncoding::CEJSONSorted JSON =
+		NEncoding::CEJsonSorted Json =
 			{
 				"Command"_= "--test-actor"
 				, "ConcurrentLogging"_= true
@@ -1487,7 +1487,7 @@ public:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(JSON), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 		// Setup authentication for the user. For the sake of simplicity we will setup the user in TrustManager. We don't need the user there but it is a full trust manager,
 		// both ClientTrust and ServerTrust are CDistributedActorTrustManagerInterface with a more restricted interface.
@@ -1570,7 +1570,7 @@ public:
 
 		int64 CurrentAuthLifetime = CPermissionRequirements::mc_OverrideLifetimeNotSet;
 
-		auto fCommonParams = [&](CStr const &_Command) -> CEJSONSorted
+		auto fCommonParams = [&](CStr const &_Command) -> CEJsonSorted
 			{
 				return
 					{
@@ -1592,35 +1592,35 @@ public:
 			}
 		;
 
-		auto fPreauthenticate = [&](CStr const &_Pattern, TCVector<CStr> const &_Factors, int64 _Lifetime) -> CEJSONSorted
+		auto fPreauthenticate = [&](CStr const &_Pattern, TCVector<CStr> const &_Factors, int64 _Lifetime) -> CEJsonSorted
 			{
-				NEncoding::CEJSONSorted JSON = fCommonParams("--trust-user-authenticate-pattern");
+				NEncoding::CEJsonSorted Json = fCommonParams("--trust-user-authenticate-pattern");
 
-				JSON["Pattern"] = _Pattern;
-				JSON["AuthenticationFactors"] = _Factors;
-				JSON["AuthenticationLifetime"] = _Lifetime;
-				JSON["JSONOutput"] = true;
+				Json["Pattern"] = _Pattern;
+				Json["AuthenticationFactors"] = _Factors;
+				Json["AuthenticationLifetime"] = _Lifetime;
+				Json["JsonOutput"] = true;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--trust-user-authenticate-pattern", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 
-				return CEJSONSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 			}
 		;
 
 		auto fPerformSimpleCall = [&](CStr const &_Command, TCVector<CStr> const &_Permissions) -> bool
 			{
-				NEncoding::CEJSONSorted JSON = fCommonParams(_Command);
+				NEncoding::CEJsonSorted Json = fCommonParams(_Command);
 
-				JSON["Permissions"] = _Permissions;
+				Json["Permissions"] = _Permissions;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
-				return CEJSONSorted::fs_FromString
+				return CEJsonSorted::fs_FromString
 					(
 						pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					).f_Boolean()
@@ -1630,9 +1630,9 @@ public:
 
 		auto fPerformCall2 = [&](TCVector<CPermissionQueryLocal> const &_Permissions) -> bool
 			{
-				NEncoding::CEJSONSorted JSON = fCommonParams("--perform-call-2");
+				NEncoding::CEJsonSorted Json = fCommonParams("--perform-call-2");
 
-				auto &Queries = JSON["Permissions"];
+				auto &Queries = Json["Permissions"];
 				for (auto &Query : _Permissions)
 					Queries.f_Insert(Query.f_ToJson());
 
@@ -1641,12 +1641,12 @@ public:
 					(
 						fHostInfo("UserID", CommandLineHostID)
 						, "--perform-call-2"
-						, fg_TempCopy(JSON)
+						, fg_TempCopy(Json)
 						, fg_TempCopy(pCommandLine)
 					)
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
-				return CEJSONSorted::fs_FromString
+				return CEJsonSorted::fs_FromString
 					(
 						pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 					).f_Boolean()
@@ -1656,24 +1656,24 @@ public:
 
 		auto fPerformCall3 = [&](TCMap<CStr, TCVector<CPermissionQueryLocal>> const &_Permissions) -> TCMap<CStr, bool>
 			{
-				NEncoding::CEJSONSorted JSON = fCommonParams("--perform-call-3");
+				NEncoding::CEJsonSorted Json = fCommonParams("--perform-call-3");
 
 				for (auto &Permissions : _Permissions)
 				{
 					auto &Tag = _Permissions.fs_GetKey(Permissions);
 
-					auto &Queries = JSON["Permissions"][Tag];
+					auto &Queries = Json["Permissions"][Tag];
 					for (auto &Query : Permissions)
 						Queries.f_Insert(Query.f_ToJson());
 				}
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--perform-call-3", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
 
 				TCMap<CStr, bool> Return;
-				auto Results = CEJSONSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
+				auto Results = CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout));
 
 				for (auto &Result : Results.f_Object())
 					Return[Result.f_Name()] = Result.f_Value().f_Boolean();
@@ -2021,7 +2021,7 @@ public:
 
 			auto Results = fPreauthenticate("*", { "Succeed1" }, 5);
 			DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1");
-			DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
+			DMibExpect(Results, ==, CEJsonSorted{"AuthenticationFailures"_= _[]});
 
 			DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 			DCheckCallCounts(CCallCounts{}, "Succeed1_Cacheable");
@@ -2055,7 +2055,7 @@ public:
 				Results = fPreauthenticate("*", { "Succeed1" }, 0);
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1");
 
-				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
+				DMibExpect(Results, ==, CEJsonSorted{"AuthenticationFailures"_= _[]});
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Succeed1_Cacheable");
 			}
@@ -2065,7 +2065,7 @@ public:
 				Results = fPreauthenticate("com.malterlib/*", { "Succeed1" }, 5);
 				DCheckCallCounts(CCallCounts({{"Succeed1", 1}}), "Preauth");
 
-				DMibExpect(Results, ==, CEJSONSorted{"AuthenticationFailures"_= _[]});
+				DMibExpect(Results, ==, CEJsonSorted{"AuthenticationFailures"_= _[]});
 				DMibExpectTrue(fPerformCall1(TCVector<CStr>{"com.malterlib/Succeed1_Cacheable"}));
 				DCheckCallCounts(CCallCounts{}, "Succeed1_Cacheable");
 
@@ -2354,7 +2354,7 @@ public:
 		// on the server side. We will perform all the tests after the command has returned.
 		auto CommandLineHostID = ClientLaunch.f_Test_Command("CommandLineHostID", {}).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout).f_String();
 		NStorage::TCSharedPointer<CCommandLineControl> pCommandLine = fg_Construct(fg_Move(CommandLineControl));
-		NEncoding::CEJSONSorted JSON =
+		NEncoding::CEJsonSorted Json =
 			{
 				"Command"_= "--test-actor"
 				, "ConcurrentLogging"_= true
@@ -2390,7 +2390,7 @@ public:
 			}
 		;
 
-		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+		ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), "--test-actor", fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 			.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 		;
 
@@ -2422,7 +2422,7 @@ public:
 		fAddHostUserPermission(pServerTrust, "com.malterlib/Succeed1", CPermissionRequirements{{{"U2F"}}, 0});
 
 
-		auto fCommonParams = [&](CStr const &_Command) -> CEJSONSorted
+		auto fCommonParams = [&](CStr const &_Command) -> CEJsonSorted
 			{
 				return
 					{
@@ -2446,15 +2446,15 @@ public:
 
 		auto fPerformSimpleCall = [&](CStr const &_Command, TCVector<CStr> const &_Permissions) -> bool
 			{
-				NEncoding::CEJSONSorted JSON = fCommonParams(_Command);
+				NEncoding::CEJsonSorted Json = fCommonParams(_Command);
 
-				JSON["Permissions"] = _Permissions;
+				Json["Permissions"] = _Permissions;
 
 				pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_Clear)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
-				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(JSON), fg_TempCopy(pCommandLine))
+				ClientLaunch.f_RunCommandLine(fHostInfo("UserID", CommandLineHostID), fg_TempCopy(_Command), fg_TempCopy(Json), fg_TempCopy(pCommandLine))
 					.f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout)
 				;
-				return CEJSONSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
+				return CEJsonSorted::fs_FromString(pCommandLineControl.f_CallActor(&CCommandLineControlActorTest::f_ReturnStdOut)().f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout))
 					.f_Boolean()
 				;
 			}

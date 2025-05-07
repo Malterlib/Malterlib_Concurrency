@@ -31,13 +31,13 @@ namespace NMib::NConcurrency
 		TCFuture<void> f_Destroy();
 
 #if DMibConfig_Tests_Enable
-		TCFuture<NEncoding::CEJSONSorted> f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJSONSorted &&_Params);
+		TCFuture<NEncoding::CEJsonSorted> f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJsonSorted &&_Params);
 
 		TCFuture<uint32> f_RunCommandLine
 			(
 				CCallingHostInfo &&_CallingHost
 				, NStr::CStr &&_Command
-				, NEncoding::CEJSONSorted &&_Params
+				, NEncoding::CEJsonSorted &&_Params
 				, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
 			)
 		;

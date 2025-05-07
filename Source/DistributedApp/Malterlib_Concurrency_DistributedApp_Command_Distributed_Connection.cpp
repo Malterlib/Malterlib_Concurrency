@@ -18,7 +18,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		CPermissionRequirements fg_ParsePermissionRequirements(CEJSONSorted const &_AuthenticationFactors);
+		CPermissionRequirements fg_ParsePermissionRequirements(CEJsonSorted const &_AuthenticationFactors);
 	}
 
 	static CExceptionPointer fg_ValidateConnectionConcurrency(int32 _Concurrency)
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 			, CStr _ForListen
 			, TCSet<CStr> _Permissions
 			, CStr _UserID
-			, CEJSONSorted _AuthenticationFactors
+			, CEJsonSorted _AuthenticationFactors
 		)
 	{
 		auto &Internal = *mp_pInternal;
@@ -386,9 +386,9 @@ namespace NMib::NConcurrency
 		CAnsiEncoding AnsiEncoding = _pCommandLine->f_AnsiEncoding();
 
 
-		auto fFormatAsJSON = [&](CEJSONSorted const &_JSON)
+		auto fFormatAsJson = [&](CEJsonSorted const &_Json)
 			{
-				return _JSON.f_ToStringColored(AnsiEncoding.f_Flags()).f_Trim();
+				return _Json.f_ToStringColored(AnsiEncoding.f_Flags()).f_Trim();
 			}
 		;
 
@@ -414,7 +414,7 @@ namespace NMib::NConcurrency
 						<< AnsiEncoding.f_Default()
 						<< _Length
 						<< _Bytes
-						<< fFormatAsJSON(_IDs)
+						<< fFormatAsJson(_IDs)
 					;
 				}
 			;
@@ -423,9 +423,9 @@ namespace NMib::NConcurrency
 				(
 					HostInfo.f_GetDescColored(AnsiEncoding.f_Flags())
 					, "HostID: {}\nExecutionID: {}\nLastExecutionID: {}"_f
-					<< fFormatAsJSON(Host.m_HostID)
-					<< fFormatAsJSON(Host.m_ExecutionID)
-					<< fFormatAsJSON(Host.m_LastExecutionID)
+					<< fFormatAsJson(Host.m_HostID)
+					<< fFormatAsJson(Host.m_ExecutionID)
+					<< fFormatAsJson(Host.m_LastExecutionID)
 					, "{}\n\nNext PacketID: {}{}{}"_f
 					<< fFormatQueue(Host.m_Incoming_PacketsQueueLength, Host.m_Incoming_PacketsQueueBytes, Host.m_Incoming_PacketsQueueIDs)
 					<< AnsiEncoding.f_SyntaxColor(NCommandLine::CAnsiEncoding::ESyntaxColor_Number)
@@ -461,14 +461,14 @@ namespace NMib::NConcurrency
 						, Connection.m_bIncoming
 						? ("{}<--{}"_f << AnsiEncoding.f_ForegroundRGB(215, 133, 255) << AnsiEncoding.f_Default()).f_GetStr()
 						: ("{}-->{}"_f << AnsiEncoding.f_ForegroundRGB(141, 213, 128) << AnsiEncoding.f_Default()).f_GetStr()
-						, fFormatAsJSON(Connection.m_bIdentified)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_nSentBytes)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_nReceivedBytes)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_IncomingDataBufferBytes)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_OutgoingDataBufferBytes)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_SecondsSinceLastSend)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_SecondsSinceLastReceive)
-						, fFormatAsJSON(Connection.m_WebsocketStats.m_State)
+						, fFormatAsJson(Connection.m_bIdentified)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_nSentBytes)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_nReceivedBytes)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_IncomingDataBufferBytes)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_OutgoingDataBufferBytes)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_SecondsSinceLastSend)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_SecondsSinceLastReceive)
+						, fFormatAsJson(Connection.m_WebsocketStats.m_State)
 					)
 				;
 			}

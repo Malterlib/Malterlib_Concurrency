@@ -5,7 +5,7 @@
 #include "Malterlib_Concurrency_DistributedApp_Internal.h"
 
 #include <Mib/Concurrency/ConcurrencyManager>
-#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Process/StdInActor>
 #include <Mib/Process/Platform>
 #include <Mib/CommandLine/CommandLineImplementation>
@@ -29,7 +29,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyStartApp
 		(
-			NFunction::TCFunction<FStopApp (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
+			NFunction::TCFunction<FStopApp (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyStartApp
 		)
 	{
 		mp_fLazyStartApp = _fLazyStartApp;
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 
 	void CDistributedAppCommandLineClient::f_SetLazyPreRunDirectCommand
 		(
-			NFunction::TCFunction<void (NEncoding::CEJSONSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand
+			NFunction::TCFunction<void (NEncoding::CEJsonSorted const &_Params, EDistributedAppCommandFlag _Flags)> const &_fLazyPreRunDirectCommand
 		)
 	{
 		mp_fLazyPreRunDirectCommand = _fLazyPreRunDirectCommand;
@@ -200,7 +200,7 @@ namespace NMib::NConcurrency
 	uint32 CDistributedAppCommandLineClient::fp_RunCommand
 		(
 			void const *_pCommand
-			, NEncoding::CEJSONSorted &&_Params
+			, NEncoding::CEJsonSorted &&_Params
 		)
 	{
 		CDistributedAppCommandLineSpecification::CInternal::CCommand const *pCommand = fg_AutoStaticCast(_pCommand);
@@ -383,7 +383,7 @@ namespace NMib::NConcurrency
 			Internal.m_TrustManager =
 				fg_ConstructActor<CDistributedActorTrustManager>
 				(
-					fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>
+					fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>
 					(
 						fg_Format("{}/CommandLineTrustDatabase.{}", Internal.m_Settings.m_RootDirectory, Internal.m_Settings.m_AppName)
 					)

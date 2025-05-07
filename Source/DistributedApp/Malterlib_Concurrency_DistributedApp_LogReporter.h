@@ -6,7 +6,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActor>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 #include <Mib/Storage/Variant>
 
 namespace NMib::NConcurrency
@@ -118,7 +118,7 @@ namespace NMib::NConcurrency
 			template <typename tf_CStream>
 			void f_Stream(tf_CStream &_Stream);
 			void f_SetFromLogSeverity(NLog::ESeverity _Severity);
-			NEncoding::CEJSONSorted f_ToJson() const;
+			NEncoding::CEJsonSorted f_ToJson() const;
 
 			auto operator <=> (CLogData const &_Right) const = default;
 
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NStr::CStr> m_Operations;
 			NStr::CStr m_Message;
 			NStorage::TCOptional<CSourceLocation> m_SourceLocation;
-			NEncoding::CEJSONSorted m_MetaData;
+			NEncoding::CEJsonSorted m_MetaData;
 			ELogSeverity m_Severity = ELogSeverity_Info;
 			ELogEntryFlag m_Flags = ELogEntryFlag_None;
 		};
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
 
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_MetaData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_MetaData;
 
 			bool m_bRemoved = false;
 		};

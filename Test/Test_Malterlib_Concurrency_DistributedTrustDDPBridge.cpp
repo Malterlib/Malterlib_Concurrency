@@ -4,7 +4,7 @@
 #define DMibRuntimeTypeRegistry
 
 #include <Mib/Test/Exception>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Concurrency/DistributedTrustDDPBridge>
 #include <Mib/Web/DDPClient>
 #include <Mib/Network/Sockets/SSL>
@@ -71,13 +71,13 @@ namespace
 						(
 							{
 								"testMethod"
-								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJSONSorted> _Params) mutable -> TCFuture<NEncoding::CEJSONSorted>
+								, g_ActorFunctor(HandlerActor) / [](NContainer::TCVector<NEncoding::CEJsonSorted> _Params) mutable -> TCFuture<NEncoding::CEJsonSorted>
 								{
 									if (_Params[0].f_GetMember("Invalid"))
 										co_return DMibErrorInstance("Invalid params");
 
 									auto &HostInfo = fg_GetCallingHostInfo();
-									co_return NEncoding::CEJSONSorted
+									co_return NEncoding::CEJsonSorted
 										{
 											"Result"_= 5
 											, "HostID"_= HostInfo.f_GetRealHostID()
@@ -109,18 +109,18 @@ namespace
 			
 				DMibExpect(ConnectionInfo.m_UserID, ==, "");
 
-				CEJSONSorted MethodParams = 
+				CEJsonSorted MethodParams =
 					{
 						"Test"_= "Test"
 					}
 				;
-				CEJSONSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
+				CEJsonSorted MethodResult = Client(&CDDPClient::f_Method, CStr("testMethod"), fg_CreateVector(MethodParams)).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout / 3);
 				
 				DMibExpect(MethodResult["HostID"].f_String(), == , ClientDatabase.m_BasicConfig.m_HostID);
 
 				auto fCallInvalidParams = [&]
 					{
-						CEJSONSorted InvalidMethodParams = 
+						CEJsonSorted InvalidMethodParams =
 							{
 								"Invalid"_= "Test"
 							}

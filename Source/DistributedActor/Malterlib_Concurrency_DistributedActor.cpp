@@ -7,7 +7,7 @@
 #include <Mib/Process/Platform>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Cryptography/Certificate>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 #include <Mib/CommandLine/AnsiEncoding>
 #include <Mib/Storage/Optional>
 

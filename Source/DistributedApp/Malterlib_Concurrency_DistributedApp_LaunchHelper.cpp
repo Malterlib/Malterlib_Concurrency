@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 	}
 
 #if DMibConfig_Tests_Enable
-	TCFuture<NEncoding::CEJSONSorted> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJSONSorted &&_Params)
+	TCFuture<NEncoding::CEJsonSorted> CDistributedApp_LaunchInfoData::f_Test_Command(NStr::CStr &&_Command, NEncoding::CEJsonSorted &&_Params)
 	{
 		if (!m_InProcess)
 			return DMibErrorInstance("No in process actor");
@@ -45,7 +45,7 @@ namespace NMib::NConcurrency
 		(
 			CCallingHostInfo &&_CallingHost
 			, NStr::CStr &&_Command
-			, NEncoding::CEJSONSorted &&_Params
+			, NEncoding::CEJsonSorted &&_Params
 			, NStorage::TCSharedPointer<CCommandLineControl> &&_pCommandLine
 		)
 	{

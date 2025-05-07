@@ -305,7 +305,7 @@ namespace NMib::NConcurrency
 			CStr _UserID
 			, TCOptional<CStr> _UserName
 			, TCSet<CStr> _RemoveMetadata
-			, TCMap<CStr, CEJSONSorted> _AddMetadata
+			, TCMap<CStr, CEJsonSorted> _AddMetadata
 		)
 	{
 		if (!fp_CheckPermissions(EPermission_User_Write))

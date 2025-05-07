@@ -5,7 +5,7 @@
 #include <Mib/Daemon/Daemon>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Concurrency/DistributedActorTrustManager>
-#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 
 #include "Malterlib_Concurrency_App_DDPBridgeHelper.h"
 
@@ -20,7 +20,7 @@ namespace NMib::NConcurrency::NDDPBridgeHelper
 	{
 	}
 
-	TCFuture<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJSONSorted const _Params)
+	TCFuture<void> CDDPBridgeHelperActor::fp_StartApp(NEncoding::CEJsonSorted const _Params)
 	{
 		co_return {};
 	}

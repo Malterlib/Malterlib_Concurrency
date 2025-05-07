@@ -65,7 +65,7 @@ namespace NMib::NConcurrency::NSensorStoreLocalDatabase
 		template <typename tf_CStream>
 		void f_ConsumeLexicographic(tf_CStream &_Stream);
 
-		NEncoding::CEJSONSorted f_ToJson() const;
+		NEncoding::CEJsonSorted f_ToJson() const;
 
 		CSensorKey const &f_SensorKey() const &;
 

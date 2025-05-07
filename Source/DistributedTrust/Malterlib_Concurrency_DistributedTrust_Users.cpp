@@ -6,7 +6,7 @@
 #include "Malterlib_Concurrency_DistributedTrust_Proxy.h"
 
 #include <Mib/String/String>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 
 namespace NMib::NConcurrency
 {
@@ -110,7 +110,7 @@ namespace NMib::NConcurrency
 			CStr _UserID
 			, TCOptional<CStr> _UserName
 			, TCSet<CStr> _RemoveMetadata
-			, TCMap<CStr, CEJSONSorted> _AddMetadata
+			, TCMap<CStr, CEJsonSorted> _AddMetadata
 		)
 	{
 		if (!CActorDistributionManager::fs_IsValidUserID(_UserID))

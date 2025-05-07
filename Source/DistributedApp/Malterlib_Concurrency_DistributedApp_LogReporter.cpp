@@ -99,9 +99,9 @@ namespace NMib::NConcurrency
 		return "Unsupported";
 	}
 
-	NEncoding::CEJSONSorted CDistributedAppLogReporter::CLogData::f_ToJson() const
+	NEncoding::CEJsonSorted CDistributedAppLogReporter::CLogData::f_ToJson() const
 	{
-		NEncoding::CEJSONSorted Return;
+		NEncoding::CEJsonSorted Return;
 
 		Return["Message"] = m_Message;
 		Return["Categories"] = m_Categories;

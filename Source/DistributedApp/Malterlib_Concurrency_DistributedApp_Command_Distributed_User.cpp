@@ -3,7 +3,7 @@
 
 #include <Mib/Core/Core>
 #include <Mib/CommandLine/TableRenderer>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
 
@@ -15,7 +15,7 @@ namespace NMib::NConcurrency
 	using namespace NStorage;
 	using namespace NContainer;
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AddUser(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJsonSorted const _Params)
 	{
 		auto UserName = _Params["UserName"].f_String();
 		auto UserID = NCryptography::fg_RandomID();
@@ -56,11 +56,11 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_SetUserInfo(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJsonSorted const _Params)
 	{
 		CStr const &UserID = _Params["UserID"].f_String();
 		TCOptional<CStr> UserName;
-		TCMap<CStr, CEJSONSorted> AddMetadata;
+		TCMap<CStr, CEJsonSorted> AddMetadata;
 		TCSet<CStr> RemoveMetadata;
 
 		if (auto pValue = _Params.f_GetMember("UserName"))
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppActor::f_CommandLine_RemoveMetadata(TCSharedPointer<CCommandLineControl> _pCommandLine, CStr _UserID, CStr _Key)
 	{
 		TCOptional<CStr> UserName;
-		TCMap<CStr, CEJSONSorted> AddMetadata;
+		TCMap<CStr, CEJsonSorted> AddMetadata;
 		TCSet<CStr> RemoveMetadata{_Key};
 
 		co_await mp_State.m_TrustManager(&CDistributedActorTrustManager::f_SetUserInfo, _UserID, UserName, AddMetadata, RemoveMetadata);
@@ -191,7 +191,7 @@ namespace NMib::NConcurrency
 		co_return 0;
 	}
 
-	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJSONSorted const _Params)
+	TCFuture<uint32> CDistributedAppActor::f_CommandLine_AuthenticatePermissionPattern(TCSharedPointer<CCommandLineControl> _pCommandLine, CEJsonSorted const _Params)
 	{
 		if (!mp_AuthenticationHandlerImplementation)
 		{
@@ -202,10 +202,10 @@ namespace NMib::NConcurrency
 		}
 
 		CStr Pattern = _Params["Pattern"].f_String();
-		bool bJSONOutput = _Params["JSONOutput"].f_Boolean();
+		bool bJsonOutput = _Params["JsonOutput"].f_Boolean();
 
 		TCSet<CStr> Factors;
-		CEJSONSorted const &AuthenticationFactors = _Params["AuthenticationFactors"];
+		CEJsonSorted const &AuthenticationFactors = _Params["AuthenticationFactors"];
 		if (AuthenticationFactors.f_IsString())
 			Factors[AuthenticationFactors.f_String()];
 		else
@@ -264,10 +264,10 @@ namespace NMib::NConcurrency
 		aint ReturnValue = 0;
 		DMibCheck(AuthenticationActors.f_GetLen() == Authentications.f_GetLen());
 
-		CEJSONSorted JSONOutput;
+		CEJsonSorted JsonOutput;
 
-		if (bJSONOutput)
-			JSONOutput["AuthenticationFailures"] = EJSONType_Array;
+		if (bJsonOutput)
+			JsonOutput["AuthenticationFailures"] = EJsonType_Array;
 
 		auto iAuthenticationActorInfo = AuthenticationActors.f_GetIterator();
 		for (auto &Result : Authentications)
@@ -277,9 +277,9 @@ namespace NMib::NConcurrency
 
 			if (!Result)
 			{
-				if (bJSONOutput)
+				if (bJsonOutput)
 				{
-					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
+					JsonOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
 						{
 							"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
 							, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description
@@ -296,9 +296,9 @@ namespace NMib::NConcurrency
 
 			if (!*Result)
 			{
-				if (bJSONOutput)
+				if (bJsonOutput)
 				{
-					JSONOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
+					JsonOutput["AuthenticationFailures"].f_Array().f_Insert() = _=
 						{
 							"RemoteHostID"_= AuthenticationActorInfo.m_RemoteHostID
 							, "RemoteHostDescription"_= AuthenticationActorInfo.m_Description
@@ -310,8 +310,8 @@ namespace NMib::NConcurrency
 				ReturnValue = 1;
 			}
 		}
-		if (bJSONOutput)
-			*_pCommandLine += JSONOutput.f_ToString();
+		if (bJsonOutput)
+			*_pCommandLine += JsonOutput.f_ToString();
 
 		co_return ReturnValue;
 	}

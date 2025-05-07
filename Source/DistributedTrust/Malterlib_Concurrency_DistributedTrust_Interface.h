@@ -6,7 +6,7 @@
 #include "Malterlib_Concurrency_DistributedTrust_Shared.h"
 #include "Malterlib_Concurrency_DistributedTrust_AuthData.h"
 #include <Mib/Concurrency/DistributedActor>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 #include <Mib/Storage/Optional>
 
 namespace NMib::NConcurrency
@@ -134,7 +134,7 @@ namespace NMib::NConcurrency
 			auto operator <=> (CUserInfo const &_Right) const = default;
 
 			NStr::CStr m_UserName;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_Metadata;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
 		};
 
 		struct CLocalCallingHostInfo : public CCallingHostInfo
@@ -290,7 +290,7 @@ namespace NMib::NConcurrency
 				NStr::CStr _UserID
 				, NStorage::TCOptional<NStr::CStr> _UserName
 				, NContainer::TCSet<NStr::CStr> _RemoveMetadata
-				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> _AddMetadata
+				, NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> _AddMetadata
 			) = 0
 		;
 

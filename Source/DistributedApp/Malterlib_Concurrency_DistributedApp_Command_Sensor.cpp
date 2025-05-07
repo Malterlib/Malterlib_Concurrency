@@ -2,7 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/CommandLine/TableRenderer>
 #include <Mib/Concurrency/DistributedAppSensorStoreLocal>
 
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorFilter _Filter
 					, ESensorOutputFlag _Flags
@@ -37,7 +37,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorStatusFilter _Filter
 					, ESensorOutputFlag _Flags
@@ -49,7 +49,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorReadingFilter _Filter
 					, uint64 _MaxEntries
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorFilter _Filter
 					, ESensorOutputFlag _Flags
@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorStatusFilter _Filter
 					, ESensorOutputFlag _Flags
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppSensorReader_SensorReadingFilter _Filter
 					, uint64 _MaxEntries
@@ -193,7 +193,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseSensorFilter = [](CEJSONSorted const &_Params) -> CDistributedAppSensorReader_SensorFilter
+		auto fParseSensorFilter = [](CEJsonSorted const &_Params) -> CDistributedAppSensorReader_SensorFilter
 			{
 				CDistributedAppSensorReader_SensorFilter Filter;
 
@@ -222,7 +222,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseSensorReadingFlags = [](CEJSONSorted const &_Params) -> CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag
+		auto fParseSensorReadingFlags = [](CEJsonSorted const &_Params) -> CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag
 			{
 				CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag Flags = CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_None;
 
@@ -239,7 +239,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseFlags = [](CEJSONSorted const &_Params)
+		auto fParseFlags = [](CEJsonSorted const &_Params)
 			{
 				ESensorOutputFlag Flags = ESensorOutputFlag_None;
 				if (_Params["Verbose"].f_Boolean())
@@ -269,7 +269,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				, [fSensorList = fg_Move(_fSensorList), fParseSensorFilter, fParseFlags](CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fSensorList
 						(
@@ -306,7 +306,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorStatus = fg_Move(_fSensorStatus), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
-				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				(CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorStatusFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -383,7 +383,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fSensorReadingsList = fg_Move(_fSensorReadingsList), fParseSensorFilter, fParseFlags, fParseSensorReadingFlags]
-				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				(CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppSensorReader_SensorReadingFilter Filter;
 					Filter.m_SensorFilter = fParseSensorFilter(_Params);
@@ -419,14 +419,14 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
-		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJSONSorted
+		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJsonSorted
 			{
 				using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
 				if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
 					return nullptr;
 				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
 				{
-					return CEJSONUserTypeSorted
+					return CEJsonUserTypeSorted
 						(
 							"Status"
 							,
@@ -439,7 +439,7 @@ namespace NMib::NConcurrency
 				}
 				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
 				{
-					return CEJSONUserTypeSorted
+					return CEJsonUserTypeSorted
 						(
 							"Version"
 							,
@@ -458,9 +458,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	static CEJSONSorted fg_MetaDataToJson(TCMap<CStr, CEJSONSorted> const &_MetaData)
+	static CEJsonSorted fg_MetaDataToJson(TCMap<CStr, CEJsonSorted> const &_MetaData)
 	{
-		CEJSONSorted Return = EJSONType_Object;
+		CEJsonSorted Return = EJsonType_Object;
 
 		for (auto &Entry : _MetaData.f_Entries())
 			Return[Entry.f_Key()] = Entry.f_Value();
@@ -509,7 +509,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 
-		CEJSONSorted JsonOutput;
+		CEJsonSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		for (auto iSensors = co_await fg_Move(_Sensors).f_GetPipelinedIterator(); iSensors; co_await ++iSensors)
@@ -522,15 +522,15 @@ namespace NMib::NConcurrency
 
 				if (_Flags & ESensorOutputFlag_Json)
 				{
-					CEJSONSorted UnitDivisors;
+					CEJsonSorted UnitDivisors;
 					auto &UnitDivisorsArray = UnitDivisors.f_Array();
 					for (auto &Divisor : SensorInfo.m_UnitDivisors)
 					{
 						UnitDivisorsArray.f_Insert
 							(
-								CEJSONSorted
+								CEJsonSorted
 								{
-									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson)
+									"Divisor"_= SensorInfo.m_UnitDivisors.fs_GetKey(Divisor).f_VisitRet<CEJsonSorted>(gc_fSensorDataToJson)
 									, "nDecimals"_= Divisor.m_nDecimals
 									, "UnitFormatter"_= Divisor.m_UnitFormatter
 								}
@@ -538,7 +538,7 @@ namespace NMib::NConcurrency
 						;
 					}
 
-					auto fComparisonValue = [](NStorage::TCOptional<CDistributedAppSensorReporter::CValueComparison> const &_Value) -> CEJSONSorted
+					auto fComparisonValue = [](NStorage::TCOptional<CDistributedAppSensorReporter::CValueComparison> const &_Value) -> CEJsonSorted
 						{
 							if (!_Value)
 								return nullptr;
@@ -547,7 +547,7 @@ namespace NMib::NConcurrency
 
 							return
 								{
-									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson)
+									"CompareToValue"_= Value.m_CompareToValue.f_VisitRet<CEJsonSorted>(gc_fSensorDataToJson)
 									, "Operator"_= Value.m_Operator
 								}
 							;
@@ -556,7 +556,7 @@ namespace NMib::NConcurrency
 
 					JsonOutputArray.f_Insert
 						(
-							CEJSONSorted
+							CEJsonSorted
 							{
 								"HostID"_= SensorInfo.m_HostID
 								, "HostName"_= SensorInfo.m_HostName
@@ -615,7 +615,7 @@ namespace NMib::NConcurrency
 		}
 
 		if (_Flags & ESensorOutputFlag_Json)
-			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJsonDialectFlag_AllowUndefined | EJsonDialectFlag_AllowInvalidFloat);
 		else
 		{
 			if (!bHasEnvironment)
@@ -761,7 +761,7 @@ namespace NMib::NConcurrency
 		bool bHasIdentifierScope = false;
 		uint64 nEntries = 0;
 
-		CEJSONSorted JsonOutput;
+		CEJsonSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		CClock LastOutput{true};
@@ -790,7 +790,7 @@ namespace NMib::NConcurrency
 
 				CStr HostName;
 				CTime SnoozeUntil;
-				NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> *pSensorMetaData = nullptr;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pSensorMetaData = nullptr;
 
 				auto *pSensorInfo = SensorInfos.f_FindEqual(Reading.m_SensorInfoKey);
 				if (pSensorInfo)
@@ -833,17 +833,17 @@ namespace NMib::NConcurrency
 
 				if (_Flags & ESensorOutputFlag_Json)
 				{
-					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJSONSorted>(gc_fSensorDataToJson);
+					auto Value = Reading.m_Reading.m_Data.f_VisitRet<CEJsonSorted>(gc_fSensorDataToJson);
 					JsonOutputArray.f_Insert
 						(
-							CEJSONSorted
+							CEJsonSorted
 							{
 								"HostID"_= Reading.m_SensorInfoKey.m_HostID
 								, "HostName"_= HostName
 								, "Application"_= Application
 								, "Identifier"_= Reading.m_SensorInfoKey.m_Identifier
 								, "IdentifierScope"_= Reading.m_SensorInfoKey.m_IdentifierScope
-								, "SensorMetaData"_= pSensorMetaData ? fg_MetaDataToJson(*pSensorMetaData) : CEJSONSorted()
+								, "SensorMetaData"_= pSensorMetaData ? fg_MetaDataToJson(*pSensorMetaData) : CEJsonSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Reading.m_Reading.m_Timestamp
 								, "UniqueSequence"_= Reading.m_Reading.m_UniqueSequence
@@ -932,7 +932,7 @@ namespace NMib::NConcurrency
 			if (_Filter.m_Flags & CDistributedAppSensorReader_SensorReadingFilter::ESensorReadingsFlag_ReportNewestFirst)
 				JsonOutputArray = JsonOutputArray.f_Reverse();
 
-			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJsonDialectFlag_AllowUndefined | EJsonDialectFlag_AllowInvalidFloat);
 		}
 		else
 		{

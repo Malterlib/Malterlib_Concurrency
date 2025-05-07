@@ -3,4 +3,4 @@
 
 #pragma once
 
-#include "../../../../Source/DistributedTrust/Malterlib_Concurrency_DistributedTrust_DatabaseJSONDirectory.h"
+#include "../../../../Source/DistributedTrust/Malterlib_Concurrency_DistributedTrust_DatabaseJsonDirectory.h"

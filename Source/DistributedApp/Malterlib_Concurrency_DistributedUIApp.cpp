@@ -3,7 +3,7 @@
 
 #include "Malterlib_Concurrency_DistributedUIApp.h"
 
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Concurrency/OSMainRunLoop>
 #include <Mib/Concurrency/ActorHolderOSMainRunLoop>
 
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					mp_bRunAsApplication = true;
 					return 0;

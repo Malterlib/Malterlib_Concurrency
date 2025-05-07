@@ -404,7 +404,7 @@ namespace NMib::NConcurrency
 				NStr::CStr _UserID
 				, NStorage::TCOptional<NStr::CStr> _UserName
 				, NContainer::TCSet<NStr::CStr> _RemoveMetadata
-				, NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> _AddMetadata
+				, NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> _AddMetadata
 			)
 		;
 		TCFuture<NStr::CStr> f_GetDefaultUser();

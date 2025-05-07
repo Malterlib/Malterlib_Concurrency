@@ -3,7 +3,7 @@
 
 #include "Malterlib_Concurrency_DistributedUIApp.h"
 
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Concurrency/OSMainRunLoop>
 #include <Mib/Concurrency/ActorHolderOSMainRunLoop>
 

@@ -7,11 +7,11 @@
 
 namespace NMib::NConcurrency
 {
-	class CDistributedActorTrustManagerDatabase_JSONDirectory : public ICDistributedActorTrustManagerDatabase
+	class CDistributedActorTrustManagerDatabase_JsonDirectory : public ICDistributedActorTrustManagerDatabase
 	{
 	public:
-		CDistributedActorTrustManagerDatabase_JSONDirectory(NStr::CStr const &_BaseDirectory);
-		~CDistributedActorTrustManagerDatabase_JSONDirectory();
+		CDistributedActorTrustManagerDatabase_JsonDirectory(NStr::CStr const &_BaseDirectory);
+		~CDistributedActorTrustManagerDatabase_JsonDirectory();
 
 		TCFuture<CBasicConfig> f_GetBasicConfig() override;
 		TCFuture<void> f_SetBasicConfig(CBasicConfig _BasicConfig) override;

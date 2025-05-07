@@ -35,7 +35,7 @@ namespace NMib::NConcurrency
 				return TCMap<CStr, CMethodHandlers>::fs_GetKey(*this);
 			}
 			
-			TCActorFunctor<TCFuture<CEJSONSorted> (NContainer::TCVector<NEncoding::CEJSONSorted> _Params)> m_fHandlerFunction;
+			TCActorFunctor<TCFuture<CEJsonSorted> (NContainer::TCVector<NEncoding::CEJsonSorted> _Params)> m_fHandlerFunction;
 		};
 		
 		struct CConnection
@@ -50,7 +50,7 @@ namespace NMib::NConcurrency
 		};
 
 		void fp_NewValidatedWebsocketConnection(TCSharedPointer<CWebSocketNewServerConnection> const &_pNewServerConnection, CStr const &_HostID);
-		CEJSONSorted fp_MethodError(CStr _Error, CStr _Reason, CStr _Details = "");
+		CEJsonSorted fp_MethodError(CStr _Error, CStr _Reason, CStr _Details = "");
 		void fp_StartupFailed(CException const &_Exception);
 		
 		CDistributedTrustDDPBridge *m_pThis;
@@ -186,9 +186,9 @@ namespace NMib::NConcurrency
 		co_return fg_Move(Subscription);
 	}
 	
-	CEJSONSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr _Error, CStr _Reason, CStr _Details)
+	CEJsonSorted CDistributedTrustDDPBridge::CInternal::fp_MethodError(CStr _Error, CStr _Reason, CStr _Details)
 	{
-		CEJSONSorted Ret;
+		CEJsonSorted Ret;
 		Ret["error"] = _Error;
 		if (!_Reason.f_IsEmpty())
 			Ret["reason"] = _Reason;
@@ -279,14 +279,14 @@ namespace NMib::NConcurrency
 					
 					pMethodHandler->m_fHandlerFunction.f_CallWrapped
 						(
-							[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)] mark_no_coroutine_debug (auto &&_fToDispatch) mutable -> TCFuture<CEJSONSorted>
+							[ThisCallingHostInfo = fg_Move(ThisCallingHostInfo)] mark_no_coroutine_debug (auto &&_fToDispatch) mutable -> TCFuture<CEJsonSorted>
 							{
 								CCallingHostInfoScope Scope(fg_Move(ThisCallingHostInfo));
 								return _fToDispatch();
 							}
 							, _MethodInfo.m_Parameters
 						)
-						> [this, _MethodInfo](TCAsyncResult<CEJSONSorted> &&_Result)
+						> [this, _MethodInfo](TCAsyncResult<CEJsonSorted> &&_Result)
 						{
 							if (!_Result)
 							{
@@ -301,7 +301,7 @@ namespace NMib::NConcurrency
 				, g_ActorFunctorWeak / [](CDDPServerConnection::CSubscribeInfo _SubscribeInfo) -> TCFuture<void>
 				// On subscribe
 				{
-					_SubscribeInfo.f_Error(CEJSONSorted()); // Sub not found
+					_SubscribeInfo.f_Error(CEJsonSorted()); // Sub not found
 					DMibLogWithCategory(Mib/Concurrency/DistributedActorDDPBridge, Info, "DDP subscription {}", _SubscribeInfo.m_Name);
 					co_return {};
 				}

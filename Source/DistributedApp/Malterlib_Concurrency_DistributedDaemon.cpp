@@ -3,8 +3,8 @@
 
 #include "Malterlib_Concurrency_DistributedDaemon.h"
 #include <Mib/Daemon/Daemon>
-#include <Mib/Encoding/EJSON>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/EJson>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/File/ExeFS>
 
 #ifdef DPlatformFamily_Windows
@@ -19,7 +19,7 @@ namespace NMib::NConcurrency
 	using namespace NDaemon;
 	struct CDistributedDaemonDaemon : public CDaemonImp
 	{
-		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJSONSorted const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
+		CDistributedDaemonDaemon(TCActor<CDistributedAppActor> const &_Actor, NEncoding::CEJsonSorted const &_Params, NStorage::TCSharedPointer<CRunLoop> const &_pRunLoop)
 			: m_pRunLoop(_pRunLoop)
 			, m_Actor(_Actor)
 		{
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 						if (Ticket.f_IsEmpty())
 							return;
 
-						NEncoding::CEJSONSorted Json;
+						NEncoding::CEJsonSorted Json;
 						Json["Error"] = _Result.f_GetExceptionStr();
 						DMibConErrOut2("{}:Error:{}\n", Ticket, Json.f_ToString(nullptr));
 					}
@@ -101,7 +101,7 @@ namespace NMib::NConcurrency
 
 	namespace
 	{
-		void fg_SetDaemonOptions(CDaemonParams &o_DaemonParams, NEncoding::CEJSONSorted const &_Params)
+		void fg_SetDaemonOptions(CDaemonParams &o_DaemonParams, NEncoding::CEJsonSorted const &_Params)
 		{
 			EDaemonMode Mode = EDaemonMode_Global;
 			if (_Params.f_GetMember("Daemon_Mode"))
@@ -147,7 +147,7 @@ namespace NMib::NConcurrency
 		aint fg_RunDaemon
 			(
 				CDistributedDaemon const &_DistributedDaemon
-				, NEncoding::CEJSONSorted const &_Params
+				, NEncoding::CEJsonSorted const &_Params
 				, CDistributedAppActor_Settings const &_Settings
 				, bool _bSaveSettings
 				, EDaemonAction _Action
@@ -202,9 +202,9 @@ namespace NMib::NConcurrency
 			if (_bSaveSettings && Result == 0 && _Params["Daemon_SaveSettings"].f_Boolean())
 			{
 				NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
-				NEncoding::CEJSONSorted DaemonSettings;
+				NEncoding::CEJsonSorted DaemonSettings;
 				if (NFile::CFile::fs_FileExists(SettingsFile))
-					DaemonSettings = NEncoding::CEJSONSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
+					DaemonSettings = NEncoding::CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
 
 				if (DaemonParams.f_GetDaemonMode() != EDaemonMode_AllUsers)
 				{
@@ -225,13 +225,13 @@ namespace NMib::NConcurrency
 		auto Section = o_CommandLine.f_AddSection("Daemon", "Commands for managing running the application as a system or user daemon.", "Distributed Computing");
 
 		NStr::CStr SettingsFile = fg_Format("{}/{}DaemonSettings.json", _Settings.m_RootDirectory, _Settings.m_AppName);
-		NEncoding::CEJSONSorted DaemonSettings;
+		NEncoding::CEJsonSorted DaemonSettings;
 		if (NFile::CFile::fs_FileExists(SettingsFile))
-			DaemonSettings = NEncoding::CEJSONSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
+			DaemonSettings = NEncoding::CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(SettingsFile), SettingsFile);
 
-		if (!DaemonSettings.f_GetMember("Name", NEncoding::EJSONType_String))
+		if (!DaemonSettings.f_GetMember("Name", NEncoding::EJsonType_String))
 			DaemonSettings["Name"] = m_DaemonName;
-		if (!DaemonSettings.f_GetMember("Mode", NEncoding::EJSONType_String))
+		if (!DaemonSettings.f_GetMember("Mode", NEncoding::EJsonType_String))
 		{
 			switch (m_DefaultMode)
 			{
@@ -347,7 +347,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					uint32 Status = fg_RunDaemon(*this, _Params, mp_Settings, true, EDaemonAction_Add);
 					if (Status)
@@ -371,7 +371,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Remove);
 				}
@@ -388,7 +388,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Start);
 				}
@@ -409,7 +409,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Restart);
 				}
@@ -430,7 +430,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Stop);
 				}
@@ -460,7 +460,7 @@ namespace NMib::NConcurrency
 #endif
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_RunAsProgram);
 				}
@@ -480,7 +480,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_RunAsProgramNoDebug);
 				}
@@ -503,7 +503,7 @@ namespace NMib::NConcurrency
 						DaemonNameParam
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Exists);
 				}
@@ -552,7 +552,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](NEncoding::CEJSONSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
+				, [this](NEncoding::CEJsonSorted const &_Params, CDistributedAppCommandLineClient &_CommandLineClient) -> uint32
 				{
 					return fg_RunDaemon(*this, _Params, mp_Settings, false, EDaemonAction_Run);
 				}

@@ -1,10 +1,10 @@
 // Copyright © 2015 Hansoft AB 
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
-#include "Malterlib_Concurrency_DistributedTrust_DatabaseJSONDirectory.h"
+#include "Malterlib_Concurrency_DistributedTrust_DatabaseJsonDirectory.h"
 
-#include <Mib/Encoding/EJSON>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/EJson>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Cryptography/Hashes/SHA>
 #include <Mib/Concurrency/ActorSequencerActor>
 #include <Mib/Concurrency/LogError>
@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 	using namespace NStr;
 	using namespace NEncoding;
 
-	struct CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal : public CActorInternal
+	struct CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal : public CActorInternal
 	{
 		struct CPrimaryListen
 		{
@@ -44,7 +44,7 @@ namespace NMib::NConcurrency
 
 		NStorage::TCSharedPointer<CCanDestroyTracker> m_pCanDestroyTracker = fg_Construct();
 		CStr m_BaseDirectory;
-		CSequencer m_Sequencer{"JSON Directory"};
+		CSequencer m_Sequencer{"Json Directory"};
 
 		bool m_bGotBasicConfig = false;
 
@@ -69,56 +69,56 @@ namespace NMib::NConcurrency
 		template <typename tf_CObject, typename ...tfp_CComponent>
 		void f_Write(tf_CObject const &_Object, tfp_CComponent const &...p_Component) const;
 
-		CDistributedActorTrustManager_Address f_DecodeAddress(CEJSONSorted const &_JSON, CStr const &_Name) const;
-		void f_EncodeAddress(CEJSONSorted &_JSON, CDistributedActorTrustManager_Address const &_Address) const;
+		CDistributedActorTrustManager_Address f_DecodeAddress(CEJsonSorted const &_Json, CStr const &_Name) const;
+		void f_EncodeAddress(CEJsonSorted &_Json, CDistributedActorTrustManager_Address const &_Address) const;
 
-		CEJSONSorted f_ToJson(CSerial const &_Serial) const;
-		void f_FromJson(CSerial &_Serial, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CBasicConfig const &_BasicConfig) const;
-		void f_FromJson(CBasicConfig &_BasicConfig, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CInternalServerCertificate const &_Certificate) const;
-		void f_FromJson(CServerCertificate &_ServerCertificate, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		void f_FromJson(CInternalServerCertificate &_ServerCertificate, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CDefaultUser const &_DefaultUser) const;
-		void f_FromJson(CDefaultUser &_DefaultUser, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CClient const &_Client) const;
-		void f_FromJson(CClient &_Client, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CInternalClientConnection const &_ClientConnection) const;
-		void f_FromJson(CClientConnection &_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		void f_FromJson(CInternalClientConnection &_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CListenConfig const &_ListenConfig) const;
-		void f_FromJson(CListenConfig &_ListenConfig, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CNamespace const &_Namespace) const;
-		void f_FromJson(CNamespace &_Namespace, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CPermissions const &_Permissions) const;
-		void f_FromJson(CPermissions &_Permissions, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CUserInfo const &_UserInfo) const;
-		void f_FromJson(CUserInfo &_UserInfo, CEJSONSorted const &_JSON, CStr const &_Name) const;
-		CEJSONSorted f_ToJson(CUserAuthenticationFactor const &_Factor) const;
-		void f_FromJson(CUserAuthenticationFactor &_Factor, CEJSONSorted const &_JSON, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CSerial const &_Serial) const;
+		void f_FromJson(CSerial &_Serial, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CBasicConfig const &_BasicConfig) const;
+		void f_FromJson(CBasicConfig &_BasicConfig, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CInternalServerCertificate const &_Certificate) const;
+		void f_FromJson(CServerCertificate &_ServerCertificate, CEJsonSorted const &_Json, CStr const &_Name) const;
+		void f_FromJson(CInternalServerCertificate &_ServerCertificate, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CDefaultUser const &_DefaultUser) const;
+		void f_FromJson(CDefaultUser &_DefaultUser, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CClient const &_Client) const;
+		void f_FromJson(CClient &_Client, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CInternalClientConnection const &_ClientConnection) const;
+		void f_FromJson(CClientConnection &_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const;
+		void f_FromJson(CInternalClientConnection &_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CListenConfig const &_ListenConfig) const;
+		void f_FromJson(CListenConfig &_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CNamespace const &_Namespace) const;
+		void f_FromJson(CNamespace &_Namespace, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CPermissions const &_Permissions) const;
+		void f_FromJson(CPermissions &_Permissions, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CUserInfo const &_UserInfo) const;
+		void f_FromJson(CUserInfo &_UserInfo, CEJsonSorted const &_Json, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CUserAuthenticationFactor const &_Factor) const;
+		void f_FromJson(CUserAuthenticationFactor &_Factor, CEJsonSorted const &_Json, CStr const &_Name) const;
 
-		CEJSONSorted f_ToJson(CPrimaryListen const &_ClientConnection) const;
-		void f_FromJson(CPrimaryListen &o_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const;
+		CEJsonSorted f_ToJson(CPrimaryListen const &_ClientConnection) const;
+		void f_FromJson(CPrimaryListen &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const;
 
 		void f_DoConversion(uint32 _OldVersion);
 		void f_CheckState();
 	};
 
-	CDistributedActorTrustManagerDatabase_JSONDirectory::CDistributedActorTrustManagerDatabase_JSONDirectory(CStr const &_BaseDirectory)
+	CDistributedActorTrustManagerDatabase_JsonDirectory::CDistributedActorTrustManagerDatabase_JsonDirectory(CStr const &_BaseDirectory)
 		: mp_pInternal(fg_Construct(_BaseDirectory))
 	{
 	}
 
-	CDistributedActorTrustManagerDatabase_JSONDirectory::~CDistributedActorTrustManagerDatabase_JSONDirectory()
+	CDistributedActorTrustManagerDatabase_JsonDirectory::~CDistributedActorTrustManagerDatabase_JsonDirectory()
 	{
 		mp_pInternal.f_Clear();
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::fp_Destroy()
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::fp_Destroy()
 	{
 		auto &Internal = *mp_pInternal;
 
-		co_await fg_Move(Internal.m_Sequencer).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/JSONDirectory", "Failed to destroy sequencer");
+		co_await fg_Move(Internal.m_Sequencer).f_Destroy().f_Wrap() > fg_LogError("Mib/Concurrency/JsonDirectory", "Failed to destroy sequencer");
 
 		auto pCanDestroy = fg_Move(Internal.m_pCanDestroyTracker);
 		auto CanDetroyFuture = pCanDestroy->f_Future();
@@ -128,13 +128,13 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_CheckState()
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_CheckState()
 	{
 		if (!m_bGotBasicConfig)
 			DMibError("You have to call f_GetBasicConfig() before doing any other operations");
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_DoConversion(uint32 _OldVersion)
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_DoConversion(uint32 _OldVersion)
 	{
 		if (_OldVersion < 0x101)
 		{
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	TCFuture<CBasicConfig> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetBasicConfig()
+	TCFuture<CBasicConfig> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetBasicConfig()
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -220,7 +220,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetBasicConfig(CBasicConfig _BasicConfig)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetBasicConfig(CBasicConfig _BasicConfig)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -237,7 +237,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<int32> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNewCertificateSerial()
+	TCFuture<int32> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetNewCertificateSerial()
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -258,7 +258,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CDefaultUser> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetDefaultUser()
+	TCFuture<CDefaultUser> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetDefaultUser()
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -277,7 +277,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetDefaultUser(CDefaultUser _DefaultUser)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetDefaultUser(CDefaultUser _DefaultUser)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -294,7 +294,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCMap<CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CServerCertificate>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumServerCertificates(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -320,7 +320,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetServerCertificate(CStr _HostName)
+	TCFuture<CServerCertificate> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetServerCertificate(CStr _HostName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -341,7 +341,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddServerCertificate(CStr _HostName, CServerCertificate _Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -364,7 +364,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetServerCertificate(CStr _HostName, CServerCertificate _Certificate)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetServerCertificate(CStr _HostName, CServerCertificate _Certificate)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -387,7 +387,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveServerCertificate(CStr _HostName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveServerCertificate(CStr _HostName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -406,7 +406,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumListenConfigs()
+	TCFuture<NContainer::TCSet<CListenConfig>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumListenConfigs()
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -434,7 +434,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddListenConfig(CListenConfig _Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddListenConfig(CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -454,7 +454,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveListenConfig(CListenConfig _Config)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveListenConfig(CListenConfig _Config)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -473,7 +473,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPrimaryListen()
+	TCFuture<NStorage::TCOptional<CDistributedActorTrustManager_Address>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetPrimaryListen()
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -496,7 +496,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetPrimaryListen(NStorage::TCOptional<CDistributedActorTrustManager_Address> _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -521,7 +521,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCMap<CStr, CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClients(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CClient>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumClients(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -546,7 +546,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClient(CStr _HostID)
+	TCFuture<CClient> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -567,7 +567,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_TryGetClient(CStr _HostID)
+	TCFuture<NStorage::TCUniquePointer<CClient>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_TryGetClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -588,7 +588,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<bool> CDistributedActorTrustManagerDatabase_JSONDirectory::f_HasClient(CStr _HostID)
+	TCFuture<bool> CDistributedActorTrustManagerDatabase_JsonDirectory::f_HasClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -605,7 +605,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientLastFriendlyName(NStr::CStr _HostID)
+	TCFuture<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetClientLastFriendlyName(NStr::CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -627,7 +627,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClient(CStr _HostID, CClient _Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddClient(CStr _HostID, CClient _Client)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -646,7 +646,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClient(CStr _HostID, CClient _Client)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetClient(CStr _HostID, CClient _Client)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -665,7 +665,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClient(CStr _HostID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveClient(CStr _HostID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -683,7 +683,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumClientConnections(bool _bIncludeFullInfo)
+	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumClientConnections(bool _bIncludeFullInfo)
 		-> TCFuture<NContainer::TCMap<CDistributedActorTrustManager_Address, CClientConnection>>
 	{
 		auto &Internal = *mp_pInternal;
@@ -714,7 +714,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address _Address)
+	TCFuture<CClientConnection> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -734,7 +734,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddClientConnection
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddClientConnection
 		(
 			CDistributedActorTrustManager_Address _Address
 			, CClientConnection _ClientConnection
@@ -761,7 +761,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetClientConnection
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetClientConnection
 		(
 			CDistributedActorTrustManager_Address _Address
 			, CClientConnection _ClientConnection
@@ -776,7 +776,7 @@ namespace NMib::NConcurrency
 				{
 					auto &Internal = *mp_pInternal;
 					Internal.f_CheckState();
-					CEJSONSorted JSON;
+					CEJsonSorted Json;
 
 					CStr NameHash = Internal.f_GetNameHash(_Address);
 					if (!Internal.f_Exists("ClientConnections", NameHash))
@@ -790,7 +790,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveClientConnection(CDistributedActorTrustManager_Address _Address)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -808,7 +808,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCMap<CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CNamespace>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumNamespaces(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -834,7 +834,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetNamespace(CStr _NamespaceName)
+	TCFuture<CNamespace> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetNamespace(CStr _NamespaceName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -859,7 +859,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddNamespace(CStr _NamespaceName, CNamespace _Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -882,7 +882,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetNamespace(CStr _NamespaceName, CNamespace _Namespace)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetNamespace(CStr _NamespaceName, CNamespace _Namespace)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -905,7 +905,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveNamespace(CStr _NamespaceName)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveNamespace(CStr _NamespaceName)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -927,7 +927,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumPermissions(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CPermissionIdentifiers, CPermissions>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumPermissions(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -952,7 +952,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetPermissions(CPermissionIdentifiers _Identity)
+	TCFuture<CPermissions> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetPermissions(CPermissionIdentifiers _Identity)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -974,7 +974,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -994,7 +994,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetPermissions(CPermissionIdentifiers _Identity, CPermissions _Permissions)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1014,7 +1014,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemovePermissions(CPermissionIdentifiers _Identity)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemovePermissions(CPermissionIdentifiers _Identity)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1033,7 +1033,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<NContainer::TCMap<CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumUsers(bool _bIncludeFullInfo)
+	TCFuture<NContainer::TCMap<CStr, CUserInfo>> CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumUsers(bool _bIncludeFullInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1057,7 +1057,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JSONDirectory::f_GetUserInfo(CStr _UserID)
+	TCFuture<CUserInfo> CDistributedActorTrustManagerDatabase_JsonDirectory::f_GetUserInfo(CStr _UserID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1077,7 +1077,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUser(CStr _UserID, CUserInfo _UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddUser(CStr _UserID, CUserInfo _UserInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1096,7 +1096,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserInfo(CStr _UserID, CUserInfo _UserInfo)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetUserInfo(CStr _UserID, CUserInfo _UserInfo)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1115,7 +1115,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUser(CStr _UserID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveUser(CStr _UserID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1133,7 +1133,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	auto CDistributedActorTrustManagerDatabase_JSONDirectory::f_EnumAuthenticationFactor
+	auto CDistributedActorTrustManagerDatabase_JsonDirectory::f_EnumAuthenticationFactor
 		(
 			bool _bIncludeFullInfo
 		)
@@ -1163,7 +1163,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_AddUserAuthenticationFactor
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_AddUserAuthenticationFactor
 		(
 			CStr _UserID
 			, CStr _FactorID
@@ -1189,7 +1189,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_SetUserAuthenticationFactor
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_SetUserAuthenticationFactor
 		(
 			CStr _UserID
 			, CStr _FactorID
@@ -1215,7 +1215,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedActorTrustManagerDatabase_JSONDirectory::f_RemoveUserAuthenticationFactor(CStr _UserID, CStr _FactorID)
+	TCFuture<void> CDistributedActorTrustManagerDatabase_JsonDirectory::f_RemoveUserAuthenticationFactor(CStr _UserID, CStr _FactorID)
 	{
 		auto &Internal = *mp_pInternal;
 		auto SequenceSubscription = co_await Internal.m_Sequencer.f_Sequence();
@@ -1233,13 +1233,13 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::CInternal(CStr const &_BaseDirectory)
+	CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::CInternal(CStr const &_BaseDirectory)
 		: m_BaseDirectory(_BaseDirectory)
 	{
 	}
 
 	template <typename ...tfp_CComponent>
-	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetPath(tfp_CComponent const &...p_Component) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_GetPath(tfp_CComponent const &...p_Component) const
 	{
 		CStr Return = m_BaseDirectory;
 
@@ -1258,7 +1258,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Delete(tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Delete(tfp_CComponent const &...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		if (!NFile::CFile::fs_FileExists(Path))
@@ -1267,7 +1267,7 @@ namespace NMib::NConcurrency
 		return true;
 	}
 
-	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_GetNameHash(CDistributedActorTrustManager_Address const &_Object) const
 	{
 		NCryptography::TCBinaryStreamHash<NCryptography::CHash_SHA256> HashStream;
 		_Object.m_URL.f_Feed(HashStream, 0x101);
@@ -1275,7 +1275,7 @@ namespace NMib::NConcurrency
 		return Digest.f_GetString();
 	}
 
-	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_GetNameHash(CStr const &_Object) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_GetNameHash(CStr const &_Object) const
 	{
 		NCryptography::TCBinaryStreamHash<NCryptography::CHash_SHA256> HashStream;
 		HashStream << _Object;
@@ -1283,14 +1283,14 @@ namespace NMib::NConcurrency
 		return Digest.f_GetString();
 	}
 
-	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_PercentEncode(CStr const &_Str) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_PercentEncode(CStr const &_Str) const
 	{
 		CStr Encoded;
 		NWeb::NHTTP::CURL::fs_PercentEncode(Encoded, _Str);
 		return Encoded;
 	}
 
-	CStr CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_PercentDecode(CStr const &_Str) const
+	CStr CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_PercentDecode(CStr const &_Str) const
 	{
 		CStr Decoded;
 		NWeb::NHTTP::CURL::fs_PercentDecode(Decoded, _Str);
@@ -1298,7 +1298,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(bool _bRecursive, tfp_CComponent const &...p_Component) const
 	{
 		using namespace NFile;
 		CStr Path = f_GetPath(p_Component..., "*");
@@ -1317,37 +1317,37 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Find(tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Find(tfp_CComponent const &...p_Component) const
 	{
 		return f_Find(false, p_Component...);
 	}
 
 	template <typename ...tfp_CComponent>
-	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FindRecursive(tfp_CComponent const &...p_Component) const
+	NContainer::TCSet<CStr> CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FindRecursive(tfp_CComponent const &...p_Component) const
 	{
 		return f_Find(true, p_Component...);
 	}
 
 	template <typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Exists(tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Exists(tfp_CComponent const &...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		return NFile::CFile::fs_FileExists(Path);
 	}
 
 	template <typename tf_CObject, typename ...tfp_CComponent>
-	bool CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Read(tf_CObject &o_Object, tfp_CComponent const &...p_Component) const
+	bool CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Read(tf_CObject &o_Object, tfp_CComponent const &...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 		if (!NFile::CFile::fs_FileExists(Path))
 			return false;
 
-		f_FromJson(o_Object, CEJSONSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(Path)), Path);
+		f_FromJson(o_Object, CEJsonSorted::fs_FromString(NFile::CFile::fs_ReadStringFromFile(Path)), Path);
 		return true;
 	}
 
 	template <typename tf_CObject, typename ...tfp_CComponent>
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_Write(tf_CObject const &_Object, tfp_CComponent const &...p_Component) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_Write(tf_CObject const &_Object, tfp_CComponent const &...p_Component) const
 	{
 		CStr Path = f_GetPath(p_Component...);
 
@@ -1359,10 +1359,10 @@ namespace NMib::NConcurrency
 		NFile::CFile::fs_AtomicReplaceFile(TempFile, Path);
 	}
 
-	CDistributedActorTrustManager_Address CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_DecodeAddress(CEJSONSorted const &_JSON, CStr const &_Name) const
+	CDistributedActorTrustManager_Address CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_DecodeAddress(CEJsonSorted const &_Json, CStr const &_Name) const
 	{
 		CDistributedActorTrustManager_Address Address;
-		Address.m_URL = _JSON.f_String();
+		Address.m_URL = _Json.f_String();
 
 		CStr FileName = NFile::CFile::fs_GetFileNoExt(_Name);
 
@@ -1372,191 +1372,191 @@ namespace NMib::NConcurrency
 		return Address;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_EncodeAddress(CEJSONSorted &o_JSON, CDistributedActorTrustManager_Address const &_Address) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_EncodeAddress(CEJsonSorted &o_Json, CDistributedActorTrustManager_Address const &_Address) const
 	{
-		o_JSON = _Address.m_URL.f_Encode();
+		o_Json = _Address.m_URL.f_Encode();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CSerial const &_Serial) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CSerial const &_Serial) const
 	{
-		CEJSONSorted JSON;
-		JSON["Serial"] = _Serial.m_Serial;
-		return JSON;
+		CEJsonSorted Json;
+		Json["Serial"] = _Serial.m_Serial;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CSerial &o_Serial, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CSerial &o_Serial, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_Serial.m_Serial = _JSON["Serial"].f_Integer();
+		o_Serial.m_Serial = _Json["Serial"].f_Integer();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CBasicConfig const &_BasicConfig) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CBasicConfig const &_BasicConfig) const
 	{
-		CEJSONSorted JSON;
-		JSON["HostID"] = _BasicConfig.m_HostID;
-		JSON["CAPrivateKey"] = _BasicConfig.m_CAPrivateKey.f_ToInsecure();
-		JSON["CACertificate"] = _BasicConfig.m_CACertificate;
-		JSON["Version"] = _BasicConfig.m_Version;
-		return JSON;
+		CEJsonSorted Json;
+		Json["HostID"] = _BasicConfig.m_HostID;
+		Json["CAPrivateKey"] = _BasicConfig.m_CAPrivateKey.f_ToInsecure();
+		Json["CACertificate"] = _BasicConfig.m_CACertificate;
+		Json["Version"] = _BasicConfig.m_Version;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CBasicConfig &o_BasicConfig, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CBasicConfig &o_BasicConfig, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_BasicConfig.m_HostID = _JSON["HostID"].f_String();
-		if (auto *pValue = _JSON.f_GetMember("CAPrivateKey"))
+		o_BasicConfig.m_HostID = _Json["HostID"].f_String();
+		if (auto *pValue = _Json.f_GetMember("CAPrivateKey"))
 			o_BasicConfig.m_CAPrivateKey = pValue->f_Binary().f_ToSecure();
-		if (auto *pValue = _JSON.f_GetMember("CACertificate"))
+		if (auto *pValue = _Json.f_GetMember("CACertificate"))
 			o_BasicConfig.m_CACertificate = pValue->f_Binary();
-		if (auto *pValue = _JSON.f_GetMember("Version"))
+		if (auto *pValue = _Json.f_GetMember("Version"))
 			o_BasicConfig.m_Version = pValue->f_Integer();
 		else
 			o_BasicConfig.m_Version = 0;
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CDefaultUser const &_DefaultUser) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CDefaultUser const &_DefaultUser) const
 	{
-		CEJSONSorted JSON;
-		JSON["UserID"] = _DefaultUser.m_UserID;
-		return JSON;
+		CEJsonSorted Json;
+		Json["UserID"] = _DefaultUser.m_UserID;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CDefaultUser &o_DefaultUser, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CDefaultUser &o_DefaultUser, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_DefaultUser.m_UserID = _JSON["UserID"].f_String();
+		o_DefaultUser.m_UserID = _Json["UserID"].f_String();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CInternalServerCertificate const &_Certificate) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CInternalServerCertificate const &_Certificate) const
 	{
-		CEJSONSorted JSON;
-		JSON["Host"] = _Certificate.m_HostName;
-		JSON["PrivateKey"] = _Certificate.m_ServerCertificate.m_PrivateKey.f_ToInsecure();
-		JSON["PublicCertificate"] = _Certificate.m_ServerCertificate.m_PublicCertificate;
-		return JSON;
+		CEJsonSorted Json;
+		Json["Host"] = _Certificate.m_HostName;
+		Json["PrivateKey"] = _Certificate.m_ServerCertificate.m_PrivateKey.f_ToInsecure();
+		Json["PublicCertificate"] = _Certificate.m_ServerCertificate.m_PublicCertificate;
+		return Json;
 	}
 	
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CInternalServerCertificate &o_ServerCertificate, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalServerCertificate &o_ServerCertificate, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ServerCertificate.m_HostName = _JSON["Host"].f_String();
-		f_FromJson(o_ServerCertificate.m_ServerCertificate, _JSON, _Name);
+		o_ServerCertificate.m_HostName = _Json["Host"].f_String();
+		f_FromJson(o_ServerCertificate.m_ServerCertificate, _Json, _Name);
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CServerCertificate &o_ServerCertificate, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CServerCertificate &o_ServerCertificate, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ServerCertificate.m_PrivateKey = _JSON["PrivateKey"].f_Binary().f_ToSecure();
-		o_ServerCertificate.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
+		o_ServerCertificate.m_PrivateKey = _Json["PrivateKey"].f_Binary().f_ToSecure();
+		o_ServerCertificate.m_PublicCertificate = _Json["PublicCertificate"].f_Binary();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CClient const &_Client) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CClient const &_Client) const
 	{
-		CEJSONSorted JSON;
-		JSON["PublicCertificate"] = _Client.m_PublicCertificate;
-		JSON["LastFriendlyName"] = _Client.m_LastFriendlyName;
-		return JSON;
+		CEJsonSorted Json;
+		Json["PublicCertificate"] = _Client.m_PublicCertificate;
+		Json["LastFriendlyName"] = _Client.m_LastFriendlyName;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CClient &o_Client, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CClient &o_Client, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_Client.m_PublicCertificate = _JSON["PublicCertificate"].f_Binary();
-		if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
+		o_Client.m_PublicCertificate = _Json["PublicCertificate"].f_Binary();
+		if (auto *pName = _Json.f_GetMember("LastFriendlyName"))
 			o_Client.m_LastFriendlyName = pName->f_String();
 		else
 			o_Client.m_LastFriendlyName.f_Clear();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CInternalClientConnection const &_ClientConnection) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CInternalClientConnection const &_ClientConnection) const
 	{
-		CEJSONSorted JSON;
-		f_EncodeAddress(JSON["Address"], _ClientConnection.m_Address);
-		JSON["PublicServerCertificate"] = _ClientConnection.m_ClientConnection.m_PublicServerCertificate;
-		JSON["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
-		JSON["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
-		JSON["ConnectionConcurrency"] = _ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
-		return JSON;
+		CEJsonSorted Json;
+		f_EncodeAddress(Json["Address"], _ClientConnection.m_Address);
+		Json["PublicServerCertificate"] = _ClientConnection.m_ClientConnection.m_PublicServerCertificate;
+		Json["PublicClientCertificate"] = _ClientConnection.m_ClientConnection.m_PublicClientCertificate;
+		Json["LastFriendlyName"] = _ClientConnection.m_ClientConnection.m_LastFriendlyName;
+		Json["ConnectionConcurrency"] = _ClientConnection.m_ClientConnection.m_ConnectionConcurrency;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CClientConnection &o_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CClientConnection &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ClientConnection.m_PublicServerCertificate = _JSON["PublicServerCertificate"].f_Binary();
-		o_ClientConnection.m_PublicClientCertificate = _JSON["PublicClientCertificate"].f_Binary();
-		if (auto *pName = _JSON.f_GetMember("LastFriendlyName"))
+		o_ClientConnection.m_PublicServerCertificate = _Json["PublicServerCertificate"].f_Binary();
+		o_ClientConnection.m_PublicClientCertificate = _Json["PublicClientCertificate"].f_Binary();
+		if (auto *pName = _Json.f_GetMember("LastFriendlyName"))
 			o_ClientConnection.m_LastFriendlyName = pName->f_String();
 		else
 			o_ClientConnection.m_LastFriendlyName.f_Clear();
-		if (auto *pName = _JSON.f_GetMember("ConnectionConcurrency"))
+		if (auto *pName = _Json.f_GetMember("ConnectionConcurrency"))
 			o_ClientConnection.m_ConnectionConcurrency = pName->f_Integer();
 		else
 			o_ClientConnection.m_ConnectionConcurrency = -1;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CInternalClientConnection &o_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CInternalClientConnection &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ClientConnection.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
-		f_FromJson(o_ClientConnection.m_ClientConnection, _JSON, _Name);
+		o_ClientConnection.m_Address = f_DecodeAddress(_Json["Address"], _Name);
+		f_FromJson(o_ClientConnection.m_ClientConnection, _Json, _Name);
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CPrimaryListen const &_ClientConnection) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CPrimaryListen const &_ClientConnection) const
 	{
-		CEJSONSorted JSON;
-		f_EncodeAddress(JSON["Address"], _ClientConnection.m_Address);
-		return JSON;
+		CEJsonSorted Json;
+		f_EncodeAddress(Json["Address"], _ClientConnection.m_Address);
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CPrimaryListen &o_ClientConnection, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CPrimaryListen &o_ClientConnection, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ClientConnection.m_Address.m_URL = _JSON["Address"].f_String();
+		o_ClientConnection.m_Address.m_URL = _Json["Address"].f_String();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CListenConfig const &_ListenConfig) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CListenConfig const &_ListenConfig) const
 	{
-		CEJSONSorted JSON;
-		f_EncodeAddress(JSON["Address"], _ListenConfig.m_Address);
-		return JSON;
+		CEJsonSorted Json;
+		f_EncodeAddress(Json["Address"], _ListenConfig.m_Address);
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CListenConfig &o_ListenConfig, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CListenConfig &o_ListenConfig, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_ListenConfig.m_Address = f_DecodeAddress(_JSON["Address"], _Name);
+		o_ListenConfig.m_Address = f_DecodeAddress(_Json["Address"], _Name);
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CNamespace const &_Namespace) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CNamespace const &_Namespace) const
 	{
-		CEJSONSorted JSON;
-		auto &AllowedHosts = JSON["AllowedHosts"].f_Array();
+		CEJsonSorted Json;
+		auto &AllowedHosts = Json["AllowedHosts"].f_Array();
 		for (auto &AllowedHost : _Namespace.m_AllowedHosts)
 			AllowedHosts.f_Insert(AllowedHost);
-		return JSON;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CNamespace &o_Namespace, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CNamespace &o_Namespace, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
 		o_Namespace.m_AllowedHosts.f_Clear();
-		for (auto &AllowedHost : _JSON["AllowedHosts"].f_Array())
+		for (auto &AllowedHost : _Json["AllowedHosts"].f_Array())
 			o_Namespace.m_AllowedHosts[AllowedHost.f_String()];
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CPermissions const &_Permissions) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CPermissions const &_Permissions) const
 	{
-		CEJSONSorted JSON;
-		auto &PermissionsObject = JSON["Permissions"] = EJSONType_Object;
+		CEJsonSorted Json;
+		auto &PermissionsObject = Json["Permissions"] = EJsonType_Object;
 		for (auto &AuthenticationFactors : _Permissions.m_Permissions)
 		{
-			auto &RequiredFactors = PermissionsObject[_Permissions.m_Permissions.fs_GetKey(AuthenticationFactors)] = EJSONType_Object;
+			auto &RequiredFactors = PermissionsObject[_Permissions.m_Permissions.fs_GetKey(AuthenticationFactors)] = EJsonType_Object;
 			RequiredFactors["MaximumAuthenticationLifetime"] = AuthenticationFactors.m_MaximumAuthenticationLifetime;
 			auto &Factors = RequiredFactors["RequiredAuthenticationFactors"].f_Array();
 			for (auto const &InnerSet : AuthenticationFactors.m_AuthenticationFactors)
 			{
-				CEJSONSorted Array = EJSONType_Array;
+				CEJsonSorted Array = EJsonType_Array;
 				for (auto const &Factor : InnerSet)
 					Array.f_Insert(Factor);
 				Factors.f_Insert(Array);
 			}
 		}
-		return JSON;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CPermissions &o_Permissions, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CPermissions &o_Permissions, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
 		o_Permissions.m_Permissions.f_Clear();
-		auto &PermissionsObject = _JSON["Permissions"];
+		auto &PermissionsObject = _Json["Permissions"];
 		if (PermissionsObject.f_IsObject())
 		{
 			for (auto &Permission : PermissionsObject.f_Object())
@@ -1584,26 +1584,26 @@ namespace NMib::NConcurrency
 		}
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CUserInfo const &_UserInfo) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CUserInfo const &_UserInfo) const
 	{
-		CEJSONSorted JSON;
-		JSON["UserName"] = _UserInfo.m_UserName;
+		CEJsonSorted Json;
+		Json["UserName"] = _UserInfo.m_UserName;
 		if (!_UserInfo.m_Metadata.f_IsEmpty())
 		{
-			auto &Metadata = JSON["Metadata"] = EJSONType_Object;
+			auto &Metadata = Json["Metadata"] = EJsonType_Object;
 			for (auto &Item : _UserInfo.m_Metadata)
 			{
 				Metadata[_UserInfo.m_Metadata.fs_GetKey(Item)] = Item;
 			}
 		}
-		return JSON;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CUserInfo &o_UserInfo, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CUserInfo &o_UserInfo, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_UserInfo.m_UserName = _JSON["UserName"].f_String();
+		o_UserInfo.m_UserName = _Json["UserName"].f_String();
 		o_UserInfo.m_Metadata.f_Clear();
-		auto pValue = _JSON.f_GetMember("Metadata");
+		auto pValue = _Json.f_GetMember("Metadata");
 		if (!pValue)
 			return;
 
@@ -1612,41 +1612,41 @@ namespace NMib::NConcurrency
 			o_UserInfo.m_Metadata[iMetadata->f_Name()] = iMetadata->f_Value();
 	}
 
-	CEJSONSorted CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_ToJson(CUserAuthenticationFactor const &_Factor) const
+	CEJsonSorted CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_ToJson(CUserAuthenticationFactor const &_Factor) const
 	{
-		CEJSONSorted JSON;
-		JSON["Category"] = _Factor.m_Category;
-		JSON["Name"] = _Factor.m_Name;
+		CEJsonSorted Json;
+		Json["Category"] = _Factor.m_Category;
+		Json["Name"] = _Factor.m_Name;
 		if (!_Factor.m_PublicData.f_IsEmpty())
 		{
-			auto &PublicData = JSON["PublicData"] = EJSONType_Object;
+			auto &PublicData = Json["PublicData"] = EJsonType_Object;
 			for (auto &Item : _Factor.m_PublicData)
 				PublicData[_Factor.m_PublicData.fs_GetKey(Item)] = Item;
 		}
 		if (!_Factor.m_PrivateData.f_IsEmpty())
 		{
-			auto &PrivateData = JSON["PrivateData"] = EJSONType_Object;
+			auto &PrivateData = Json["PrivateData"] = EJsonType_Object;
 			for (auto &Item : _Factor.m_PrivateData)
 				PrivateData[_Factor.m_PrivateData.fs_GetKey(Item)] = Item;
 		}
-		return JSON;
+		return Json;
 	}
 
-	void CDistributedActorTrustManagerDatabase_JSONDirectory::CInternal::f_FromJson(CUserAuthenticationFactor &o_Factor, CEJSONSorted const &_JSON, CStr const &_Name) const
+	void CDistributedActorTrustManagerDatabase_JsonDirectory::CInternal::f_FromJson(CUserAuthenticationFactor &o_Factor, CEJsonSorted const &_Json, CStr const &_Name) const
 	{
-		o_Factor.m_Category = (EAuthenticationFactorCategory)_JSON["Category"].f_Integer();
-		o_Factor.m_Name = _JSON["Name"].f_String();
+		o_Factor.m_Category = (EAuthenticationFactorCategory)_Json["Category"].f_Integer();
+		o_Factor.m_Name = _Json["Name"].f_String();
 		o_Factor.m_PublicData.f_Clear();
 		o_Factor.m_PrivateData.f_Clear();
 
-		if (auto pValue = _JSON.f_GetMember("PublicData"))
+		if (auto pValue = _Json.f_GetMember("PublicData"))
 		{
 			auto Object = pValue->f_Object();
 			for (auto iPublicData = Object.f_OrderedIterator(); iPublicData; ++iPublicData)
 				o_Factor.m_PublicData[iPublicData->f_Name()] = iPublicData->f_Value();
 		}
 
-		if (auto pValue = _JSON.f_GetMember("PrivateData"))
+		if (auto pValue = _Json.f_GetMember("PrivateData"))
 		{
 			auto Object = pValue->f_Object();
 			for (auto iPrivateData = Object.f_OrderedIterator(); iPrivateData; ++iPrivateData)

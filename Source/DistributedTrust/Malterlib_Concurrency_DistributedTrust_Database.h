@@ -4,7 +4,7 @@
 #pragma once
 
 #include <Mib/Concurrency/ConcurrencyDefines>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 #include "../Actor/Malterlib_Concurrency_Actor.h"
 #include "../DistributedActor/Malterlib_Concurrency_DistributedActor.h"
 #include "Malterlib_Concurrency_DistributedTrust_Shared.h"
@@ -143,7 +143,7 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 		void f_Consume(tf_CStream &_Stream);
 
 		NStr::CStr m_UserName;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_Metadata;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
 	};
 
 	struct CDefaultUser
@@ -176,8 +176,8 @@ namespace NMib::NConcurrency::NDistributedActorTrustManagerDatabase
 
 		EAuthenticationFactorCategory m_Category = EAuthenticationFactorCategory_None;
 		NStr::CStr m_Name;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PublicData;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_PrivateData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_PublicData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_PrivateData;
 	};
 }
 

@@ -2,7 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/CommandLine/TableRenderer>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
@@ -54,7 +54,7 @@ namespace NMib::NConcurrency
 					, "Description"_o= "Get the host ID for this application.\n"
 					, "Output"_o= "The host ID of this application."
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_GetHostID(fg_Move(_pCommandLine));
 				}
@@ -75,7 +75,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
+				, [this](CEJsonSorted const &_Parameters, CDistributedAppCommandLineClient &_CommandLineClient)
 				{
 					return f_CommandLine_RemoveAllTrust(_Parameters["Confirm"].f_Boolean());
 				}
@@ -96,7 +96,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListConnections
 						(
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_GetConnetionStatus(fg_Move(_pCommandLine), _Params["TableType"].f_String());
 				}
@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_GetDebugStats(fg_Move(_pCommandLine), _Params["TableType"].f_String());
 				}
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -188,8 +188,8 @@ namespace NMib::NConcurrency
 								auto &ConstParams = fg_Const(Params);
 
 								TCSet<CStr> TrustedNamespaces;
-								for (auto &NamespaceJSON : ConstParams["TrustedNamespaces"].f_Array())
-									TrustedNamespaces[NamespaceJSON.f_String()];
+								for (auto &NamespaceJson : ConstParams["TrustedNamespaces"].f_Array())
+									TrustedNamespaces[NamespaceJson.f_String()];
 
 								return f_CommandLine_AddConnection
 									(
@@ -231,7 +231,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -275,7 +275,7 @@ namespace NMib::NConcurrency
 						, IncludeFriendlyNameOption
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -314,7 +314,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -345,7 +345,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListTrustedHosts
 						(
@@ -373,7 +373,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -428,7 +428,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -438,14 +438,14 @@ namespace NMib::NConcurrency
 								auto &ConstParams = fg_Const(Params);
 
 								TCSet<CStr> Permissions;
-								for (auto &PermissionJSON : ConstParams["Permissions"].f_Array())
-									Permissions[PermissionJSON.f_String()];
+								for (auto &PermissionJson : ConstParams["Permissions"].f_Array())
+									Permissions[PermissionJson.f_String()];
 
 								CStr UserID;
 								if (auto *pValue =ConstParams.f_GetMember("UserID"))
 									UserID = pValue->f_String();
 
-								CEJSONSorted AuthenticationFactors;
+								CEJsonSorted AuthenticationFactors;
 								if (auto *pValue =ConstParams.f_GetMember("AuthenticationFactors"))
 									AuthenticationFactors = pValue->f_Array();
 
@@ -477,7 +477,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListListen(fg_Move(_pCommandLine), _Params["TableType"].f_String());
 				}
@@ -518,7 +518,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -550,7 +550,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -583,7 +583,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -618,7 +618,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListNamespaces
 						(
@@ -655,7 +655,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -701,7 +701,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -742,7 +742,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListPermissions
 						(
@@ -792,7 +792,7 @@ namespace NMib::NConcurrency
 						, PermissionUserAuthenticationFactorsOption
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -807,7 +807,7 @@ namespace NMib::NConcurrency
 								CStr UserID;
 								if (auto *pValue = ConstParams.f_GetMember("UserID"))
 									UserID = pValue->f_String();
-								CEJSONSorted AuthenticationFactors;
+								CEJsonSorted AuthenticationFactors;
 								if (auto *pValue = ConstParams.f_GetMember("AuthenticationFactors"))
 									AuthenticationFactors = pValue->f_Array();
 
@@ -864,7 +864,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted &&_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return fp_RunCommandLineAndLogError
 						(
@@ -920,7 +920,7 @@ namespace NMib::NConcurrency
 						}
 					}
 			}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_AddUser(fg_Move(_pCommandLine), _Params);
 				}
@@ -942,7 +942,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_RemoveUser(fg_Move(_pCommandLine), _Params["UserID"].f_String());
 				}
@@ -960,7 +960,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ListUsers(fg_Move(_pCommandLine), _Params["TableType"].f_String());
 				}
@@ -978,7 +978,7 @@ namespace NMib::NConcurrency
 						"Metadata?"_o=
 						{
 							"Names"_o= _o["--metadata"]
-							, "Type"_o= EJSONType_Object
+							, "Type"_o= EJsonType_Object
 							, "Description"_o= "The metadata to set.\n"
 							"The metadata is specified as a JSON object '{\"Key\" : \"Value\"}'"
 						}
@@ -999,7 +999,7 @@ namespace NMib::NConcurrency
 					}
 
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_SetUserInfo(fg_Move(_pCommandLine), _Params);
 				}
@@ -1030,7 +1030,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_RemoveMetadata
 						(
@@ -1050,7 +1050,7 @@ namespace NMib::NConcurrency
 					, "Description"_o= "Get the default user name.\n"
 					, "Output"_o= "The default username."
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_GetDefaultUser(fg_Move(_pCommandLine));
 				}
@@ -1072,7 +1072,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_SetDefaultUser(fg_Move(_pCommandLine), _Params["UserID"].f_String());
 				}
@@ -1104,7 +1104,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					bool bIncludePrivate = false;
 					if (auto *pValue = _Params.f_GetMember("IncludePrivate"))
@@ -1132,7 +1132,7 @@ namespace NMib::NConcurrency
 						}
 					}
 			}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_ImportUser(fg_Move(_pCommandLine), _Params["UserData"].f_String());
 				}
@@ -1168,7 +1168,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_RegisterAuthenticationFactor
 						(
@@ -1205,7 +1205,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_UnregisterAuthenticationFactor
 						(
@@ -1228,7 +1228,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_EnumAuthenticationFactors(fg_Move(_pCommandLine), _Params["TableType"].f_String());
 				}
@@ -1253,7 +1253,7 @@ namespace NMib::NConcurrency
 						CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_EnumUserAuthenticationFactors
 						(
@@ -1280,7 +1280,7 @@ namespace NMib::NConcurrency
 							, "Description"_o= "The factor(s) used for authentication.\n"
 							"Authenticate these factors in advance.\n"
 						}
-						, "JSONOutput?"_o=
+						, "JsonOutput?"_o=
 						{
 							"Names"_o= _o["--json-output"]
 							, "Default"_o= false
@@ -1297,7 +1297,7 @@ namespace NMib::NConcurrency
 						}
 					}
 				}
-				, [this](CEJSONSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
+				, [this](CEJsonSorted const &_Params, TCSharedPointer<CCommandLineControl> &&_pCommandLine)
 				{
 					return f_CommandLine_AuthenticatePermissionPattern(fg_Move(_pCommandLine), _Params);
 				}

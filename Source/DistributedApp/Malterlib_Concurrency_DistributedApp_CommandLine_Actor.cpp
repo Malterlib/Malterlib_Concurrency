@@ -2,7 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
-#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/ActorSubscription>
 
 #include "Malterlib_Concurrency_DistributedApp.h"
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 	TCFuture<uint32> CDistributedAppActor::CCommandLine::f_RunCommandLine
 		(
 			 CStr _Command
-			 , CEJSONSorted _Params
+			 , CEJsonSorted _Params
 			 , CCommandLineControl _CommandLine
 		)
 	{
@@ -70,7 +70,7 @@ namespace NMib::NConcurrency
 
 						try
 						{
-							CEJSONSorted const ClientConnectionData = CEJSONSorted::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
+							CEJsonSorted const ClientConnectionData = CEJsonSorted::fs_FromString(CFile::fs_ReadStringFromFile(ClientConnectionPath), ClientConnectionPath);
 
 							CStr CurrentAddress = ClientConnectionData["Address"].f_String();
 
@@ -89,7 +89,7 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		if (bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+		if (bAlreadySetup && mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJsonType_String))
 			co_return {};
 
 		TCSharedPointer<TCAtomic<bool>> pSuccessful = fg_Construct(false);
@@ -105,7 +105,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		TCActor<ICDistributedActorTrustManagerDatabase> TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(CommandLineTrustPath);
+		TCActor<ICDistributedActorTrustManagerDatabase> TrustManagerDatabase = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(CommandLineTrustPath);
 
 		CDistributedActorTrustManager::COptions Options;
 
@@ -194,7 +194,7 @@ namespace NMib::NConcurrency
 		co_await fp_SetupCommandLineListen();
 		co_await fp_CreateCommandLineTrust();
 
-		if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJSONType_String))
+		if (auto pCommandLineHost = mp_State.m_StateDatabase.m_Data.f_GetMember("CommandLineHostID", EJsonType_String))
 			mp_State.m_CommandLineHostID = pCommandLineHost->f_String();
 
 		DMibLogWithCategory(Mib/Concurrency/App, Debug, "Finished setting up command line trust");

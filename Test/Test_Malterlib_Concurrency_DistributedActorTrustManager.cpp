@@ -8,10 +8,10 @@
 #include <Mib/Concurrency/DistributedActorTrustManager>
 #include <Mib/Concurrency/DistributedActorTestHelpers>
 #include <Mib/Concurrency/DistributedTrustTestHelpers>
-#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JSONDirectory>
+#include <Mib/Concurrency/DistributedActorTrustManagerDatabases/JsonDirectory>
 #include <Mib/Concurrency/DistributedActorTrustManagerAuthenticationActor>
 #include <Mib/Network/SSL>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/Concurrency/DistributedActorTrustManagerProxy>
 #include <Mib/Concurrency/DistributedApp> // For CCommandLineControl
 #include <Mib/Cryptography/Certificate>
@@ -2264,7 +2264,7 @@ namespace NTestTrustManager
 				DMibTestPath("User Database");
 				CActorRunLoopTestHelper RunLoopHelper;
 
-				using CMetadata = TCMap<CStr, NEncoding::CEJSONSorted>;
+				using CMetadata = TCMap<CStr, NEncoding::CEJsonSorted>;
 				using CKeys = TCSet<CStr>;
 				TCSharedPointer<CCommandLineControl> pCommandLine;
 				CState State{RunLoopHelper.m_pRunLoop, _fDatabaseFactory, _fCleanup};
@@ -3455,7 +3455,7 @@ namespace NTestTrustManager
 					)
 				;
 
-				auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory);
+				auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(BaseDirectory);
 				DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 				auto Permissions = DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
@@ -3471,7 +3471,7 @@ namespace NTestTrustManager
 
 				{
 					DMibTestPath("After reload");
-					auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory);
+					auto DatabaseActor = fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(BaseDirectory);
 					DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_GetBasicConfig).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
 
 					auto Permissions = DatabaseActor(&ICDistributedActorTrustManagerDatabase::f_EnumPermissions, true).f_CallSync(RunLoopHelper.m_pRunLoop, g_Timeout);
@@ -3518,13 +3518,13 @@ namespace NTestTrustManager
 					;
 				}
 				{
-					DMibTestPath("JSON Directory Database");
-					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/JSONDirectoryDatabase";
+					DMibTestPath("Json Directory Database");
+					CStr BaseDirectory = NFile::CFile::fs_GetProgramDirectory() + "/TestTrustManager/JsonDirectoryDatabase";
 					fp_DoBasicTests
 						(
 							[BaseDirectory](CStr const &_Name)
 							{
-								return fg_ConstructActor<CDistributedActorTrustManagerDatabase_JSONDirectory>(BaseDirectory + "/" + _Name);
+								return fg_ConstructActor<CDistributedActorTrustManagerDatabase_JsonDirectory>(BaseDirectory + "/" + _Name);
 							}
 							, [BaseDirectory]
 							{

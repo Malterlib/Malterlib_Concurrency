@@ -4,7 +4,7 @@
 #include <Mib/Core/Core>
 #include <Mib/Cryptography/RandomID>
 #include <Mib/Concurrency/ActorSubscription>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 
 #include "Malterlib_Concurrency_DistributedAppInterfaceLaunch.h"
 
@@ -97,7 +97,7 @@ namespace NMib::NConcurrency
 					{
 						try
 						{
-							NEncoding::CEJSONSorted const Data = NEncoding::CEJSONSorted::fs_FromString(CommandData);
+							NEncoding::CEJsonSorted const Data = NEncoding::CEJsonSorted::fs_FromString(CommandData);
 							if (mp_fOnLaunchError)
 								mp_fOnLaunchError.f_CallDiscard(Data["Error"].f_String());
 						}

@@ -141,7 +141,7 @@ namespace NMib::NConcurrency
 		(
 			CDistributedAppInterfaceServer::CRegisterInfo &o_RegisterInfo
 			, CDistributedAppInterfaceServer::CConfigFiles &o_ConfigFiles
-			, NEncoding::CEJSONSorted const &_Params
+			, NEncoding::CEJsonSorted const &_Params
 		)
 	{
 		DMibCheck(!mp_State.m_ConfigDatabase.f_GetFileName().f_IsEmpty()); // Is currently guaranteed to be initialized in constructor, make sure this doesn't change
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJSONSorted const _Params)
+	TCFuture<void> CDistributedAppActor::fp_SubscribeAppServerInterface(NEncoding::CEJsonSorted const _Params)
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
@@ -381,7 +381,7 @@ namespace NMib::NConcurrency
 		co_return co_await fg_Move(Promise.m_Future);
 	}
 
-	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJSONSorted const _Params)
+	TCFuture<void> CDistributedAppActor::fp_SetupAppServerInterface(NEncoding::CEJsonSorted const _Params)
 	{
 		auto CheckDestroy = co_await f_CheckDestroyedOnResume();
 
@@ -396,7 +396,7 @@ namespace NMib::NConcurrency
 			co_return co_await fp_SubscribeAppServerInterface(_Params);
 
 		CStr CurrentServerAddress;
-		if (auto pValue = mp_State.m_StateDatabase.m_Data.f_GetMember("DistributedAppInterfaceServerAddress", EJSONType_String))
+		if (auto pValue = mp_State.m_StateDatabase.m_Data.f_GetMember("DistributedAppInterfaceServerAddress", EJsonType_String))
 			CurrentServerAddress = pValue->f_String();
 
 		auto [bHasCurrent, bHasExpected] = co_await

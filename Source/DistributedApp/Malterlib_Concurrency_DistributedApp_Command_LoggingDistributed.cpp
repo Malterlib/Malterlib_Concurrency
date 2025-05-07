@@ -2,7 +2,7 @@
 // Distributed under the MIT license, see license text in LICENSE.Malterlib
 
 #include <Mib/Core/Core>
-#include <Mib/Encoding/JSONShortcuts>
+#include <Mib/Encoding/JsonShortcuts>
 #include <Mib/CommandLine/TableRenderer>
 #include <Mib/Concurrency/DistributedAppLogStoreLocal>
 
@@ -25,7 +25,7 @@ namespace NMib::NConcurrency
 				, ""
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppLogReader_LogFilter _Filter
 					, ELogOutputFlag _Flags
@@ -38,7 +38,7 @@ namespace NMib::NConcurrency
 				}
 				, g_ActorFunctor / [this]
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppLogReader_LogEntryFilter _Filter
 					, uint64 _MaxEntries
@@ -63,7 +63,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppLogReader_LogFilter _Filter
 					, ELogOutputFlag _Flags
@@ -76,7 +76,7 @@ namespace NMib::NConcurrency
 			<
 				TCFuture<uint32>
 				(
-					CEJSONSorted const _Params
+					CEJsonSorted const _Params
 					, TCSharedPointer<CCommandLineControl> _pCommandLine
 					, CDistributedAppLogReader_LogEntryFilter _Filter
 					, uint64 _MaxEntries
@@ -149,7 +149,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseLogFilter = [](CEJSONSorted const &_Params) -> CDistributedAppLogReader_LogFilter
+		auto fParseLogFilter = [](CEJsonSorted const &_Params) -> CDistributedAppLogReader_LogFilter
 			{
 				CDistributedAppLogReader_LogFilter Filter;
 
@@ -178,7 +178,7 @@ namespace NMib::NConcurrency
 			}
 		;
 
-		auto fParseFlags = [](CEJSONSorted const &_Params, bool _bRaw)
+		auto fParseFlags = [](CEJsonSorted const &_Params, bool _bRaw)
 			{
 				ELogOutputFlag Flags = ELogOutputFlag_None;
 				if (_bRaw && _Params["Raw"].f_Boolean())
@@ -208,7 +208,7 @@ namespace NMib::NConcurrency
 						, CTableRenderHelper::fs_OutputTypeOption()
 					}
 				}
-				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				, [fLogList = fg_Move(_fLogList), fParseLogFilter, fParseFlags](CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					co_return co_await fLogList
 						(
@@ -323,7 +323,7 @@ namespace NMib::NConcurrency
 					}
 				}
 				, [fLogEntriesList = fg_Move(_fLogEntriesList), fParseLogFilter, fParseFlags]
-				(CEJSONSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
+				(CEJsonSorted const _Params, TCSharedPointer<CCommandLineControl> _pCommandLine) -> TCFuture<uint32>
 				{
 					CDistributedAppLogReader_LogEntryFilter Filter;
 					Filter.m_LogFilter = fParseLogFilter(_Params);
@@ -398,9 +398,9 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	static CEJSONSorted fg_MetaDataToJson(TCMap<CStr, CEJSONSorted> const &_MetaData)
+	static CEJsonSorted fg_MetaDataToJson(TCMap<CStr, CEJsonSorted> const &_MetaData)
 	{
-		CEJSONSorted Return = EJSONType_Object;
+		CEJsonSorted Return = EJsonType_Object;
 
 		for (auto &Entry : _MetaData.f_Entries())
 			Return[Entry.f_Key()] = Entry.f_Value();
@@ -442,7 +442,7 @@ namespace NMib::NConcurrency
 		bool bHasHostName = false;
 		bool bHasApplication = false;
 
-		CEJSONSorted JsonOutput;
+		CEJsonSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		for (auto iLogs = co_await fg_Move(_Logs).f_GetPipelinedIterator(); iLogs; co_await ++iLogs)
@@ -457,7 +457,7 @@ namespace NMib::NConcurrency
 				{
 					JsonOutputArray.f_Insert
 						(
-							CEJSONSorted
+							CEJsonSorted
 							{
 								"HostID"_= LogInfo.m_HostID
 								, "HostName"_= LogInfo.m_HostName
@@ -500,7 +500,7 @@ namespace NMib::NConcurrency
 		}
 
 		if (_Flags & ELogOutputFlag_Json)
-			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJsonDialectFlag_AllowUndefined | EJsonDialectFlag_AllowInvalidFloat);
 		else
 		{
 			if (!bHasEnvironment)
@@ -656,7 +656,7 @@ namespace NMib::NConcurrency
 		CStr StdOutColor = AnsiEncoding.f_ForegroundRGB(0xdbd3ff);
 		CStr CriticalColor = AnsiEncoding.f_Bold() + AnsiEncoding.f_ForegroundRGB(0xff3f1c);
 
-		CEJSONSorted JsonOutput;
+		CEJsonSorted JsonOutput;
 		auto &JsonOutputArray = JsonOutput.f_Array();
 
 		CClock LastOutput{true};
@@ -681,7 +681,7 @@ namespace NMib::NConcurrency
 
 				CStr HostName;
 				CStr Name;
-				NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> *pLogMetaData = nullptr;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pLogMetaData = nullptr;
 
 				auto *pLogInfo = LogInfos.f_FindEqual(Entry.m_LogInfoKey);
 				if (pLogInfo)
@@ -707,14 +707,14 @@ namespace NMib::NConcurrency
 				{
 					JsonOutputArray.f_Insert
 						(
-							CEJSONSorted
+							CEJsonSorted
 							{
 								"HostID"_= Entry.m_LogInfoKey.m_HostID
 								, "HostName"_= HostName
 								, "Application"_= Application
 								, "Identifier"_= Entry.m_LogInfoKey.m_Identifier
 								, "IdentifierScope"_= Entry.m_LogInfoKey.m_IdentifierScope
-								, "LogMetaData"_= pLogMetaData ? fg_MetaDataToJson(*pLogMetaData) : CEJSONSorted()
+								, "LogMetaData"_= pLogMetaData ? fg_MetaDataToJson(*pLogMetaData) : CEJsonSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Entry.m_Entry.m_Timestamp
 								, "UniqueSequence"_= Entry.m_Entry.m_UniqueSequence
@@ -852,7 +852,7 @@ namespace NMib::NConcurrency
 			if (_Filter.m_Flags & CDistributedAppLogReader_LogEntryFilter::ELogEntriesFlag_ReportNewestFirst)
 				JsonOutputArray = JsonOutputArray.f_Reverse();
 
-			*_pCommandLine += JsonOutput.f_ToString("\t", EJSONDialectFlag_AllowUndefined | EJSONDialectFlag_AllowInvalidFloat);
+			*_pCommandLine += JsonOutput.f_ToString("\t", EJsonDialectFlag_AllowUndefined | EJsonDialectFlag_AllowInvalidFloat);
 		}
 		else
 		{

@@ -7,7 +7,7 @@
 #include <Mib/Concurrency/ConcurrencyManager>
 #include <Mib/Concurrency/DistributedActor>
 #include <Mib/Storage/Variant>
-#include <Mib/Encoding/EJSON>
+#include <Mib/Encoding/EJson>
 
 namespace NMib::NCommandLine
 {
@@ -284,7 +284,7 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<CSensorData, CUnit> m_UnitDivisors;
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJSONSorted> m_MetaData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_MetaData;
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
 			NTime::CTime m_SnoozeUntil;
 			fp32 m_ExpectedReportInterval = fp32::fs_Inf();

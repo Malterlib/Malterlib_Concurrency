@@ -978,7 +978,7 @@ namespace NMib::NConcurrency
 						"Metadata?"_o=
 						{
 							"Names"_o= _o["--metadata"]
-							, "Type"_o= EJsonType_Object
+							, "Type"_o= _o={}
 							, "Description"_o= "The metadata to set.\n"
 							"The metadata is specified as a JSON object '{\"Key\" : \"Value\"}'"
 						}

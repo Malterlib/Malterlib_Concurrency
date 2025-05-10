@@ -250,9 +250,9 @@ namespace NMib::NConcurrency
 			m_Callstacks = *ThreadLocal.m_pCallstacks;
 
 		auto &Callstack = m_Callstacks.f_InsertFirst();
-		Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
+		Callstack.f_Capture();
 #	ifdef DMibDebug
-		mint nFramesToRemove = 5; // fg_System_GetStackTrace + Constructor + f_Call + operator > + f_CaptureCallstack()
+		mint nFramesToRemove = 6; // fg_System_GetStackTrace + f_Capture + Constructor + f_Call + operator > + f_CaptureCallstack()
 #		ifdef DCompiler_clang
 			nFramesToRemove += 1; // Two frames for constructor
 #		endif

@@ -449,7 +449,7 @@ namespace NMib::NConcurrency::NPrivate
 #endif
 #if DMibConfig_Concurrency_DebugActorCallstacks
 		if (_OnResultSet & EFutureResultFlag_DataSet)
-			m_ResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_ResultSetCallstack.m_Callstack, 128);
+			m_ResultSetCallstack.f_Capture();
 #endif
 	}
 
@@ -484,7 +484,7 @@ namespace NMib::NConcurrency::NPrivate
 		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
 		m_AfterSuspend.m_bPendingResult = true;
 #if DMibConfig_Concurrency_DebugActorCallstacks
-		m_PendingResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_PendingResultSetCallstack.m_Callstack, 128);
+		m_PendingResultSetCallstack.f_Capture();
 #endif
 	}
 
@@ -493,7 +493,7 @@ namespace NMib::NConcurrency::NPrivate
 		DMibFastCheck(!(m_OnResultSet.f_Load(NAtomic::EMemoryOrder_Relaxed) & EFutureResultFlag_DataSet));
 		m_AfterSuspend.m_bPendingResult = true;
 #if DMibConfig_Concurrency_DebugActorCallstacks
-		m_PendingResultSetCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_PendingResultSetCallstack.m_Callstack, 128);
+		m_PendingResultSetCallstack.f_Capture();
 #endif
 	}
 }

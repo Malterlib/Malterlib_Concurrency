@@ -436,7 +436,7 @@ namespace NMib::NConcurrency
 		_pPromiseData->m_pHadCoroutine = this;
 #endif
 #if DMibConfig_Concurrency_DebugActorCallstacks
-		m_CreateCallstack.m_CallstackLen = NSys::fg_System_GetStackTrace(m_CreateCallstack.m_Callstack, 128);
+		m_CreateCallstack.f_Capture();
 #endif
 
 #if DMibConfig_Concurrency_DebugFutures
@@ -529,7 +529,7 @@ namespace NMib::NConcurrency
 				NSys::fg_DebugOutput("Unsafe call to coroutine with reference this pointer:\n");
 
 				NException::CCallstack Callstack;
-				Callstack.m_CallstackLen = NSys::fg_System_GetStackTrace(Callstack.m_Callstack, sizeof(Callstack.m_Callstack) / sizeof(Callstack.m_Callstack[0]));
+				Callstack.f_Capture();
 				Callstack.f_Trace(4);
 
 #if DMibConfig_Concurrency_DebugActorCallstacks

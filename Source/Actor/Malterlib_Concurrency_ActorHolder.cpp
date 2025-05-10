@@ -377,7 +377,7 @@ namespace NMib::NConcurrency
 					auto pReferenceHolder = pActorInternal; // Reference needs to be alive during actor queueing
 					ActorInternal.fp_DestroyActorHolder
 						(
-#if DMibConfig_RefCountDebugging
+#if DMibConfig_RefCountDebugging | DMibConfig_Concurrency_DebugActorCallstacks
 							NFunction::TCFunctionSmallMutable<void ()>
 							(
 #endif
@@ -385,7 +385,7 @@ namespace NMib::NConcurrency
 								{
 									Promise.f_SetResult(fg_Move(Result));
 								}
-#if DMibConfig_RefCountDebugging
+#if DMibConfig_RefCountDebugging | DMibConfig_Concurrency_DebugActorCallstacks
 							)
 #endif
 							, fg_Move(pActorInternal)
@@ -757,7 +757,7 @@ namespace NMib::NConcurrency
 					(
 						CActorHolder::CDestroyHandler
 						(
-		#if DMibConfig_RefCountDebugging
+		#if DMibConfig_RefCountDebugging | DMibConfig_Concurrency_DebugActorCallstacks
 							NFunction::TCFunctionSmallMutable<void ()>
 							(
 		#endif
@@ -765,7 +765,7 @@ namespace NMib::NConcurrency
 								{
 									Promise.f_SetResult(fg_Move(Result));
 								}
-		#if DMibConfig_RefCountDebugging
+		#if DMibConfig_RefCountDebugging | DMibConfig_Concurrency_DebugActorCallstacks
 							)
 		#endif
 							, &ActorInternal

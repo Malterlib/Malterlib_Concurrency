@@ -458,11 +458,11 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	static CEJsonSorted fg_MetaDataToJson(TCMap<CStr, CEJsonSorted> const &_MetaData)
+	static CEJsonSorted fg_MetadataToJson(TCMap<CStr, CEJsonSorted> const &_Metadata)
 	{
 		CEJsonSorted Return = EJsonType_Object;
 
-		for (auto &Entry : _MetaData.f_Entries())
+		for (auto &Entry : _Metadata.f_Entries())
 			Return[Entry.f_Key()] = Entry.f_Value();
 
 		return Return;
@@ -573,7 +573,7 @@ namespace NMib::NConcurrency
 								, "Removed"_= SensorInfo.m_bRemoved
 								, "SnoozeUntil"_= SensorInfo.m_SnoozeUntil
 								, "PauseReportingFor"_= SensorInfo.m_PauseReportingFor
-								, "SensorMetaData"_= fg_MetaDataToJson(SensorInfo.m_MetaData)
+								, "SensorMetadata"_= fg_MetadataToJson(SensorInfo.m_Metadata)
 							}
 						)
 					;
@@ -581,7 +581,7 @@ namespace NMib::NConcurrency
 				else
 				{
 					CStr Environment;
-					if (auto *pEnvironment = SensorInfo.m_MetaData.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+					if (auto *pEnvironment = SensorInfo.m_Metadata.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
 						Environment = pEnvironment->f_String();
 
 					bHasEnvironment = bHasEnvironment || Environment;
@@ -607,7 +607,7 @@ namespace NMib::NConcurrency
 							, SensorInfo.m_SnoozeUntil.f_IsValid() ? CStr("{tc6}"_f << SensorInfo.m_SnoozeUntil.f_ToLocal()) : CStr()
 							, fg_SecondsDurationToHumanReadable(SensorInfo.m_PauseReportingFor)
 							, "{vs}"_f << CDistributedAppSensorReporter::fs_FlagsToStringArray(SensorInfo.m_Flags)
-							, SensorInfo.m_MetaData
+							, SensorInfo.m_Metadata
 						)
 					;
 				}
@@ -790,14 +790,14 @@ namespace NMib::NConcurrency
 
 				CStr HostName;
 				CTime SnoozeUntil;
-				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pSensorMetaData = nullptr;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pSensorMetadata = nullptr;
 
 				auto *pSensorInfo = SensorInfos.f_FindEqual(Reading.m_SensorInfoKey);
 				if (pSensorInfo)
 				{
 					HostName = pSensorInfo->m_HostName;
 					SnoozeUntil = pSensorInfo->m_SnoozeUntil;
-					pSensorMetaData = &pSensorInfo->m_MetaData;
+					pSensorMetadata = &pSensorInfo->m_Metadata;
 				}
 
 				bHasIdentifierScope = bHasIdentifierScope || Reading.m_SensorInfoKey.m_IdentifierScope;
@@ -843,7 +843,7 @@ namespace NMib::NConcurrency
 								, "Application"_= Application
 								, "Identifier"_= Reading.m_SensorInfoKey.m_Identifier
 								, "IdentifierScope"_= Reading.m_SensorInfoKey.m_IdentifierScope
-								, "SensorMetaData"_= pSensorMetaData ? fg_MetaDataToJson(*pSensorMetaData) : CEJsonSorted()
+								, "SensorMetadata"_= pSensorMetadata ? fg_MetadataToJson(*pSensorMetadata) : CEJsonSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Reading.m_Reading.m_Timestamp
 								, "UniqueSequence"_= Reading.m_Reading.m_UniqueSequence
@@ -858,9 +858,9 @@ namespace NMib::NConcurrency
 				else
 				{
 					CStr Environment;
-					if (pSensorMetaData)
+					if (pSensorMetadata)
 					{
-						if (auto *pEnvironment = pSensorMetaData->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+						if (auto *pEnvironment = pSensorMetadata->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
 							Environment = pEnvironment->f_String();
 					}
 
@@ -909,7 +909,7 @@ namespace NMib::NConcurrency
 							, Value
 							, SnoozeUntilStr
 							, OutdatedString
-							, pSensorMetaData ? CStr("{}"_f << *pSensorMetaData) : CStr()
+							, pSensorMetadata ? CStr("{}"_f << *pSensorMetadata) : CStr()
 						)
 					;
 				}

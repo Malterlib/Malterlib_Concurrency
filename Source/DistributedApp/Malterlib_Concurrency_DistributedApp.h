@@ -550,8 +550,8 @@ namespace NMib::NConcurrency
 
 		CLocalAppState mp_State;
 		CDistributedAppActor_Settings mp_Settings;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_SensorMetaData;
-		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_LogMetaData;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_SensorMetadata;
+		NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> mp_LogMetadata;
 
 		TCTrustedActorSubscription<ICDistributedActorAuthentication> mp_AuthenticationRemotes;
 		TCDistributedActor<ICDistributedActorAuthenticationHandler> mp_AuthenticationHandlerImplementation;

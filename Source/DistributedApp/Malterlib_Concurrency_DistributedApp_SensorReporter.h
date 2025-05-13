@@ -34,7 +34,7 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_VersionData = 0x106
 			, EProtocolVersion_PauseReporting = 0x107
 			, EProtocolVersion_SnoozeSensor = 0x108
-			, EProtocolVersion_InfoMetaData = 0x109
+			, EProtocolVersion_InfoMetadata = 0x109
 			, EProtocolVersion_SensorInfoFlags = 0x110
 
 			, EProtocolVersion_Current = 0x110
@@ -284,7 +284,7 @@ namespace NMib::NConcurrency
 			NContainer::TCMap<CSensorData, CUnit> m_UnitDivisors;
 			NStorage::TCOptional<CValueComparison> m_WarnValue;
 			NStorage::TCOptional<CValueComparison> m_CriticalValue;
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_MetaData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
 			NTime::CTime m_SnoozeUntil;
 			fp32 m_ExpectedReportInterval = fp32::fs_Inf();

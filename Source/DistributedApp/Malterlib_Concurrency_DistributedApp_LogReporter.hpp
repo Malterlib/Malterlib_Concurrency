@@ -41,7 +41,7 @@ namespace NMib::NConcurrency
 		_Stream % m_Operations;
 		_Stream % m_Message;
 		_Stream % m_SourceLocation;
-		_Stream % m_MetaData;
+		_Stream % m_Metadata;
 		_Stream % m_Severity;
 		_Stream % m_Flags;
 	}
@@ -79,8 +79,8 @@ namespace NMib::NConcurrency
 		else if constexpr (tf_CStream::mc_bConsume)
 			m_LastSeen = NTime::CTime();
 
-		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetaData)
-			_Stream % m_MetaData;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetadata)
+			_Stream % m_Metadata;
 	}
 
 	template <typename tf_CStream>

@@ -398,11 +398,11 @@ namespace NMib::NConcurrency
 		;
 	}
 
-	static CEJsonSorted fg_MetaDataToJson(TCMap<CStr, CEJsonSorted> const &_MetaData)
+	static CEJsonSorted fg_MetadataToJson(TCMap<CStr, CEJsonSorted> const &_Metadata)
 	{
 		CEJsonSorted Return = EJsonType_Object;
 
-		for (auto &Entry : _MetaData.f_Entries())
+		for (auto &Entry : _Metadata.f_Entries())
 			Return[Entry.f_Key()] = Entry.f_Value();
 
 		return Return;
@@ -466,7 +466,7 @@ namespace NMib::NConcurrency
 								, "IdentifierScope"_= LogInfo.m_IdentifierScope
 								, "Name"_= LogInfo.m_Name
 								, "Removed"_= LogInfo.m_bRemoved
-								, "LogMetaData"_= fg_MetaDataToJson(LogInfo.m_MetaData)
+								, "LogMetadata"_= fg_MetadataToJson(LogInfo.m_Metadata)
 							}
 						)
 					;
@@ -474,7 +474,7 @@ namespace NMib::NConcurrency
 				else
 				{
 					CStr Environment;
-					if (auto *pEnvironment = LogInfo.m_MetaData.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+					if (auto *pEnvironment = LogInfo.m_Metadata.f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
 						Environment = pEnvironment->f_String();
 					
 					bHasEnvironment = bHasEnvironment || Environment;
@@ -492,7 +492,7 @@ namespace NMib::NConcurrency
 							, LogInfo.m_IdentifierScope
 							, LogInfo.m_Name
 							, LogInfo.m_bRemoved ? "true" : "false"
-							, LogInfo.m_MetaData
+							, LogInfo.m_Metadata
 						)
 					;
 				}
@@ -681,14 +681,14 @@ namespace NMib::NConcurrency
 
 				CStr HostName;
 				CStr Name;
-				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pLogMetaData = nullptr;
+				NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> *pLogMetadata = nullptr;
 
 				auto *pLogInfo = LogInfos.f_FindEqual(Entry.m_LogInfoKey);
 				if (pLogInfo)
 				{
 					HostName = pLogInfo->m_HostName;
 					Name = pLogInfo->m_Name;
-					pLogMetaData = &pLogInfo->m_MetaData;
+					pLogMetadata = &pLogInfo->m_Metadata;
 				}
 
 				bool bIsDefaultDistributedLog = Entry.m_LogInfoKey.m_Identifier == "org.malterlib.log.distributedapp";
@@ -714,7 +714,7 @@ namespace NMib::NConcurrency
 								, "Application"_= Application
 								, "Identifier"_= Entry.m_LogInfoKey.m_Identifier
 								, "IdentifierScope"_= Entry.m_LogInfoKey.m_IdentifierScope
-								, "LogMetaData"_= pLogMetaData ? fg_MetaDataToJson(*pLogMetaData) : CEJsonSorted()
+								, "LogMetadata"_= pLogMetadata ? fg_MetadataToJson(*pLogMetadata) : CEJsonSorted()
 								, "Name"_= Name
 								, "Timestamp"_= Entry.m_Entry.m_Timestamp
 								, "UniqueSequence"_= Entry.m_Entry.m_UniqueSequence
@@ -726,9 +726,9 @@ namespace NMib::NConcurrency
 				else
 				{
 					CStr Environment;
-					if (pLogMetaData)
+					if (pLogMetadata)
 					{
-						if (auto *pEnvironment = pLogMetaData->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
+						if (auto *pEnvironment = pLogMetadata->f_FindEqual("Environment"); pEnvironment && pEnvironment->f_IsString())
 							Environment = pEnvironment->f_String();
 					}
 
@@ -807,9 +807,9 @@ namespace NMib::NConcurrency
 					if (Data.m_Flags & CDistributedAppLogReporter::ELogEntryFlag_Audit)
 						fg_AddStrSep(Flags, "Audit", "\n");
 
-					CStr MetaData;
-					if (Data.m_MetaData.f_IsValid())
-						MetaData = Data.m_MetaData.f_ToString();
+					CStr Metadata;
+					if (Data.m_Metadata.f_IsValid())
+						Metadata = Data.m_Metadata.f_ToString();
 
 					TableRenderer.f_AddRow
 						(
@@ -828,8 +828,8 @@ namespace NMib::NConcurrency
 							, Severity
 							, Flags
 							, Entry.m_Entry.m_Data.m_Message
-							, MetaData
-							, pLogMetaData ? CStr("{}"_f << *pLogMetaData) : CStr()
+							, Metadata
+							, pLogMetadata ? CStr("{}"_f << *pLogMetadata) : CStr()
 						)
 					;
 				}

@@ -113,14 +113,14 @@ namespace NMib::NConcurrency
 	{
 		auto Store = co_await fp_OpenSensorStoreLocal();
 
-		for (auto &MetaData : mp_SensorMetaData.f_Entries())
+		for (auto &Metadata : mp_SensorMetadata.f_Entries())
 		{
-			auto &Key = MetaData.f_Key();
+			auto &Key = Metadata.f_Key();
 
-			if (_SensorInfo.m_MetaData.f_FindEqual(Key))
+			if (_SensorInfo.m_Metadata.f_FindEqual(Key))
 				continue;
 
-			_SensorInfo.m_MetaData[Key] = MetaData.f_Value();
+			_SensorInfo.m_Metadata[Key] = Metadata.f_Value();
 		}
 
 		co_return co_await Store(&CDistributedAppSensorStoreLocal::f_OpenSensorReporter, fg_Move(_SensorInfo));

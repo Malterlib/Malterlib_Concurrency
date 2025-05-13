@@ -153,16 +153,16 @@ namespace NMib::NConcurrency
 		if (_AuditParams.m_Category)
 			Data.m_Categories.f_Insert(fg_Move(_AuditParams.m_Category));
 
-		Data.m_MetaData["ClaimedUserID"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
-		Data.m_MetaData["ClaimedUserName"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
-		Data.m_MetaData["RealHostID"] = _AuditParams.m_CallingHostInfo.f_GetRealHostID();
-		Data.m_MetaData["FriendlyHostName"] = _AuditParams.m_CallingHostInfo.f_GetHostInfo().m_FriendlyName;
-		Data.m_MetaData["UniqueHostID"] = _AuditParams.m_CallingHostInfo.f_GetUniqueHostID();
+		Data.m_Metadata["ClaimedUserID"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserID();
+		Data.m_Metadata["ClaimedUserName"] = _AuditParams.m_CallingHostInfo.f_GetClaimedUserName();
+		Data.m_Metadata["RealHostID"] = _AuditParams.m_CallingHostInfo.f_GetRealHostID();
+		Data.m_Metadata["FriendlyHostName"] = _AuditParams.m_CallingHostInfo.f_GetHostInfo().m_FriendlyName;
+		Data.m_Metadata["UniqueHostID"] = _AuditParams.m_CallingHostInfo.f_GetUniqueHostID();
 
 		if (auto pAccessDenied = _AuditParams.m_ExtraData.f_TryGet<EDistributedAppAuditType_AccessDenied>())
 		{
-			Data.m_MetaData["Type"] = "AccessDenied";
-			auto &AccessDenied = Data.m_MetaData["AccessDenied"].f_Array();
+			Data.m_Metadata["Type"] = "AccessDenied";
+			auto &AccessDenied = Data.m_Metadata["AccessDenied"].f_Array();
 			for (auto &PermissionSet : pAccessDenied->m_Permissions)
 			{
 				TCVector<CEJsonSorted> Array;
@@ -173,7 +173,7 @@ namespace NMib::NConcurrency
 			}
 		}
 		else
-			Data.m_MetaData["Type"] = "Normal";
+			Data.m_Metadata["Type"] = "Normal";
 
 		if (!Internal.m_AuditLogReporter->m_fReportEntries)
 			co_return DMibErrorInstance("Invalid report functor");

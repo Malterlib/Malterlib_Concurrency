@@ -27,7 +27,7 @@ namespace NMib::NConcurrency
 			, EProtocolVersion_MultipleFilters = 0x104
 			, EProtocolVersion_IgnoreRemoved = 0x105
 			, EProtocolVersion_LastSeenEntrySentinel = 0x106
-			, EProtocolVersion_InfoMetaData = 0x107
+			, EProtocolVersion_InfoMetadata = 0x107
 
 			, EProtocolVersion_Current = 0x107
 		};
@@ -126,7 +126,7 @@ namespace NMib::NConcurrency
 			NContainer::TCVector<NStr::CStr> m_Operations;
 			NStr::CStr m_Message;
 			NStorage::TCOptional<CSourceLocation> m_SourceLocation;
-			NEncoding::CEJsonSorted m_MetaData;
+			NEncoding::CEJsonSorted m_Metadata;
 			ELogSeverity m_Severity = ELogSeverity_Info;
 			ELogEntryFlag m_Flags = ELogEntryFlag_None;
 		};
@@ -188,7 +188,7 @@ namespace NMib::NConcurrency
 
 			NTime::CTime m_LastSeen = NTime::CTime::fs_NowUTC();
 
-			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_MetaData;
+			NContainer::TCMap<NStr::CStr, NEncoding::CEJsonSorted> m_Metadata;
 
 			bool m_bRemoved = false;
 		};

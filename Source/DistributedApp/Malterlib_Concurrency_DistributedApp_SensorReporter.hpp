@@ -153,8 +153,8 @@ namespace NMib::NConcurrency
 		if (_Stream.f_GetVersion() >= EProtocolVersion_SnoozeSensor)
 			_Stream % m_SnoozeUntil;
 
-		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetaData)
-			_Stream % m_MetaData;
+		if (_Stream.f_GetVersion() >= EProtocolVersion_InfoMetadata)
+			_Stream % m_Metadata;
 
 		if (_Stream.f_GetVersion() >= EProtocolVersion_SensorInfoFlags)
 			_Stream % m_Flags;

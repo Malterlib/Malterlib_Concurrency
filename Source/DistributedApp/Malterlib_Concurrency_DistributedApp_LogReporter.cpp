@@ -113,8 +113,8 @@ namespace NMib::NConcurrency
 			Location["File"] = SourceLocation.m_File;
 			Location["Line"] = SourceLocation.m_Line;
 		}
-		if (m_MetaData.f_IsValid())
-			Return["MetaData"] = m_MetaData;
+		if (m_Metadata.f_IsValid())
+			Return["Metadata"] = m_Metadata;
 
 		Return["Severity"] = fs_LogSeverityToStr(m_Severity);
 

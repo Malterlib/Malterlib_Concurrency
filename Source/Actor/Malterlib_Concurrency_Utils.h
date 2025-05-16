@@ -216,3 +216,4 @@ namespace NMib::NConcurrency
 
 #include "Malterlib_Concurrency_FutureMap.h"
 #include "Malterlib_Concurrency_FutureVector.h"
+#include "Malterlib_Concurrency_FutureQueue.h"

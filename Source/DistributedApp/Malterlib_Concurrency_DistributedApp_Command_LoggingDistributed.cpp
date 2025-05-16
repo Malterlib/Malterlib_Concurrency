@@ -779,14 +779,14 @@ namespace NMib::NConcurrency
 					if (SeverityColor)
 						Severity = ("{}{}{}"_f << SeverityColor << Severity << AnsiEncoding.f_Default()).f_GetStr();
 
-					CStr TimeStamp;
+					CStr Timestamp;
 					if (_Verbosity >= 4)
-						TimeStamp = "{tf}"_f << Entry.m_Entry.m_Timestamp.f_ToLocal();
+						Timestamp = "{tf}"_f << Entry.m_Entry.m_Timestamp.f_ToLocal();
 					else
-						TimeStamp = "{}"_f << Entry.m_Entry.m_Timestamp.f_ToLocal();
+						Timestamp = "{}"_f << Entry.m_Entry.m_Timestamp.f_ToLocal();
 
 					if (TimeColor)
-						TimeStamp = ("{}{}{}"_f << TimeColor << TimeStamp << AnsiEncoding.f_Default()).f_GetStr();
+						Timestamp = ("{}{}{}"_f << TimeColor << Timestamp << AnsiEncoding.f_Default()).f_GetStr();
 
 					CStr Categories = CStr::fs_Join(Data.m_Categories, "\n");
 					CStr Operations = CStr::fs_Join(Data.m_Operations, "\n");
@@ -820,7 +820,7 @@ namespace NMib::NConcurrency
 							, Entry.m_LogInfoKey.m_Identifier
 							, Name
 							, Entry.m_LogInfoKey.m_IdentifierScope
-							, TimeStamp
+							, Timestamp
 							, Entry.m_Entry.m_UniqueSequence
 							, SourceLocation
 							, Categories

@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
 				requires (mc_bIsFuture)
 			{
-				return [_FunctionID](NTraits::TCDecayType<tp_CParams> ...p_Params) -> t_CReturn
+				return [_FunctionID](NTraits::TCDecay<tp_CParams> ...p_Params) -> t_CReturn
 					{
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 
 						CDistributedActorStreamContext Context{pHost->m_ActorProtocolVersion.f_Load(), true};
 
-						TCStreamArguments<NMeta::TCTypeList<NTraits::TCDecayType<tp_CParams>...>>::fs_Stream(Stream, Context, Version, fg_Move(p_Params)...);
+						TCStreamArguments<NMeta::TCTypeList<NTraits::TCDecay<tp_CParams>...>>::fs_Stream(Stream, Context, Version, fg_Move(p_Params)...);
 
 						auto pActorData = NStorage::TCSharedPointer<CDistributedActorData>{pActorDataRaw};
 
@@ -172,7 +172,7 @@ namespace NMib::NConcurrency
 			static auto fs_Functor(NStr::CStr const &_FunctionID)
 				requires (mc_bIsAsyncGenerator)
 			{
-				return [_FunctionID](NTraits::TCDecayType<tp_CParams> ...p_Params) -> t_CReturn
+				return [_FunctionID](NTraits::TCDecay<tp_CParams> ...p_Params) -> t_CReturn
 					{
 						auto &ThreadLocal = *fg_DistributedActorSubSystem().m_ThreadLocal;
 
@@ -280,7 +280,7 @@ namespace NMib::NConcurrency
 				CDistributedActorStreamContext *pContext = (CDistributedActorStreamContext *)_Stream.f_GetContext();
 				DMibFastCheck(pContext && pContext->f_CorrectMagic());
 
-				NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...> ParamList;
+				NStorage::TCTuple<NTraits::TCDecay<tp_CParams>...> ParamList;
 				try
 				{
 					ParamList = fg_DecodeParams(_Stream, _Indices, NMeta::TCTypeList<tp_CParams...>());

@@ -82,7 +82,7 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CToDelete>
 	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
-		requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
+		requires (NTraits::cIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>)
 	{
 #if DMibConfig_RefCountDebugging && DMibConfig_RefCountLeakDebugging
 		_pObject->m_RefCount.m_Debug->m_DestroyLocation.f_FetchOr(0b00000010000);

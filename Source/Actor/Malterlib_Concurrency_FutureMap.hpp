@@ -117,7 +117,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CKey, typename t_CValue>
 	TCFuture<NContainer::TCMap<t_CKey, t_CValue>> TCFutureMap<t_CKey, t_CValue>::fp_GetUnwrappedResults()
-		requires (!NTraits::TCIsVoid<t_CValue>::mc_Value)
+		requires (!NTraits::cIsVoid<t_CValue>)
 	{
 		TCPromiseFuturePair<NContainer::TCMap<t_CKey, t_CValue>> Promise;
 
@@ -138,7 +138,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CKey, typename t_CValue>
 	TCFuture<NContainer::TCSet<t_CKey>> TCFutureMap<t_CKey, t_CValue>::fp_GetUnwrappedResults()
-		requires (NTraits::TCIsVoid<t_CValue>::mc_Value)
+		requires (NTraits::cIsVoid<t_CValue>)
  	{
 		TCPromiseFuturePair<NContainer::TCSet<t_CKey>> Promise;
 

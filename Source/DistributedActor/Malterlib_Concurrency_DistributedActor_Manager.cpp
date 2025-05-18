@@ -106,7 +106,7 @@ namespace NMib::NConcurrency
 					_Result.f_GetException()
 					, [&]<typename tf_CException>(tf_CException const &_Exception)
 					{
-						if constexpr (NTraits::TCIsSame<tf_CException, CExceptionActorDeleted>::mc_Value)
+						if constexpr (NTraits::cIsSame<tf_CException, CExceptionActorDeleted>)
 						{
 							// Ignore already deleted close
 						}

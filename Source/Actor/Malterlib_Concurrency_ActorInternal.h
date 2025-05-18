@@ -14,7 +14,7 @@ namespace NMib::NConcurrency
 			, typename t_CHandler
 			, typename t_CActor
 			, typename t_CResultTypes
-			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>
+			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<t_CResultTypes>>
 		>
 		struct TCCallMutipleActorStorage;
 
@@ -114,6 +114,6 @@ namespace NMib::NConcurrency
 
 	template <typename tf_CToDelete>
 	void fg_DeleteWeakObject(CInternalActorAllocator &, tf_CToDelete *_pObject)
-		requires (NTraits::TCIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>::mc_Value)
+		requires (NTraits::cIsBaseOf<tf_CToDelete, NConcurrency::CActorHolder>)
 	;
 }

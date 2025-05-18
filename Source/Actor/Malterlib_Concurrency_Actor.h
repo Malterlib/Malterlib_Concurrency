@@ -66,8 +66,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturn
 			(
-				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
-				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+				NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)> &&_fToDisptach
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 		;
@@ -75,8 +75,8 @@ namespace NMib::NConcurrency
 		template <typename tf_CReturnType, typename ...tfp_CParams>
 		tf_CReturnType f_DispatchWithReturn
 			(
-				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
-				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+				NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)> &&_fToDisptach
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 		;
@@ -86,9 +86,9 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer
 				<
-					NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+					NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
 				> &&_pToDisptach
-				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 		;
@@ -98,9 +98,9 @@ namespace NMib::NConcurrency
 			(
 				NStorage::TCSharedPointer
 				<
-					NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+					NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
 				> &&_pToDisptach
-				, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+				, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 			)
 			requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 		;

@@ -56,12 +56,12 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CActor>
 		consteval static bool fs_HasOverridenDestroy()
-			requires (!NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+			requires (!NTraits::cIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>)
 		;
 
 		template <typename tf_CActor>
 		consteval static bool fs_HasOverridenDestroy()
-			requires (NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+			requires (NTraits::cIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>)
 		;
 
 		template <typename tf_CActor>

@@ -145,7 +145,7 @@ namespace NMib::NConcurrency
 						ToDispatch =
 							[
 								pActor
-								, ...p_Params2 = NTraits::TCDecayType<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
+								, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))
 							] mark_no_coroutine_debug
 							() mutable -> TCFuture<CReturn>
 							{
@@ -160,11 +160,11 @@ namespace NMib::NConcurrency
 					}
 					(typename CFunctionTraits::CParams());
 				}
-				else if constexpr (NTraits::TCIsVoid<COriginalReturn>::mc_Value)
+				else if constexpr (NTraits::cIsVoid<COriginalReturn>)
 				{
 					[&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&)
 					{
-						ToDispatch = [pActor, ...p_Params2 = NTraits::TCDecayType<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))]() mutable -> TCFuture<CReturn>
+						ToDispatch = [pActor, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))]() mutable -> TCFuture<CReturn>
 							{
 								return []<typename tf_CActor2, typename ...tfp_CParams3>(tf_CActor2 *_pActor, tfp_CParams3 ...p_Params) mutable -> TCFuture<CReturn>
 									{
@@ -182,7 +182,7 @@ namespace NMib::NConcurrency
 				{
 					[&]<typename ...tfp_CParams2>(NMeta::TCTypeList<tfp_CParams2...> &&)
 					{
-						ToDispatch = [pActor, ...p_Params2 = NTraits::TCDecayType<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))]() mutable -> TCFuture<CReturn>
+						ToDispatch = [pActor, ...p_Params2 = NTraits::TCDecay<tfp_CParams2>(fg_Forward<tfp_CParams>(p_Params))]() mutable -> TCFuture<CReturn>
 							{
 								return []<typename tf_CActor2, typename ...tfp_CParams3>(tf_CActor2 *_pActor, tfp_CParams3 ...p_Params) mutable -> TCFuture<CReturn>
 									{

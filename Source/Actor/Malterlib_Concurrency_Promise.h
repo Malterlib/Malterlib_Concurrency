@@ -959,13 +959,15 @@ namespace NMib::NConcurrency::NPrivate
 }
 
 template <typename t_CReturnValue>
-struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>>
 {
+	constexpr static bool mc_bValue = true;
 };
 
 template <typename t_CReturnValue>
-struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>> : public NMib::NTraits::TCCompileTimeConstant<bool, false>
+struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::NPrivate::TCPromiseData<t_CReturnValue>>
 {
+	constexpr static bool mc_Value = false;
 };
 
 extern "C" mark_nodebug void fg_MalterlibConcurrency_TCFutureFunctionEnter(void *_pThisFunction, void *_pCallSite);
@@ -1024,13 +1026,15 @@ namespace NMib::NConcurrency
 		};
 
 		template <typename t_CType>
-		struct TCIsActorResultCallHelper : public NTraits::TCCompileTimeConstant<bool, false>
+		struct TCIsActorResultCallHelper
 		{
+			constexpr static bool mc_bValue = false;
 		};
 
 		template <typename t_CActor, typename t_CFunctor>
-		struct TCIsActorResultCallHelper<TCActorResultCall<t_CActor, t_CFunctor>> : public NTraits::TCCompileTimeConstant<bool, true>
+		struct TCIsActorResultCallHelper<TCActorResultCall<t_CActor, t_CFunctor>>
 		{
+			constexpr static bool mc_bValue = true;
 		};
 
 		template <typename t_CType>
@@ -1057,9 +1061,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CType>
-	struct TCIsActorResultCall : public NPrivate::TCIsActorResultCallHelper<typename NTraits::TCRemoveReference<t_CType>::CType>
-	{
-	};
+	concept cIsActorResultCall = NPrivate::TCIsActorResultCallHelper<NTraits::TCRemoveReference<t_CType>>::mc_bValue;
 
 	template <typename t_CReturnValue>
 	struct TCFuture;
@@ -1089,7 +1091,7 @@ namespace NMib::NConcurrency
 			auto operator co_await() &&;
 		};
 
-		using CInitializationValue = typename TCChooseType<NTraits::TCIsVoid<t_CReturnValue>::mc_Value, CVoidTag, t_CReturnValue>::CType;
+		using CInitializationValue = TCConditional<NTraits::cIsVoid<t_CReturnValue>, CVoidTag, t_CReturnValue>;
 
 		TCFuture();
 		~TCFuture();
@@ -1131,12 +1133,12 @@ namespace NMib::NConcurrency
 
 		template<typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
-			requires (NTraits::TCIsCallableWith<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType, void (TCAsyncResult<t_CReturnValue> &&)>::mc_Value)
+			requires (NTraits::cIsCallableWith<NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>, void (TCAsyncResult<t_CReturnValue> &&)>)
 		;
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
-			requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&)>::mc_Value) // Incorrect type in result call
+			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturnValue> &&)>) // Incorrect type in result call
 		;
 
 		template <typename tf_CReturnValue>
@@ -1271,9 +1273,9 @@ namespace NMib::NConcurrency
 			)
 		;
 
-		template <typename tf_CResult, TCEnableIfType<!NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CResult>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
+		template <typename tf_CResult, TCEnableIf<!NTraits::cIsBaseOf<NTraits::TCRemoveReference<tf_CResult>, NException::CExceptionBase>> * = nullptr>
 		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (tf_CResult &&_Result);
-		template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> * = nullptr>
+		template <typename tf_CType, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReference<tf_CType>, NException::CExceptionBase>> * = nullptr>
 		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (tf_CType &&_Exception);
 
 		mark_no_coroutine_debug TCFuture<t_CReturnValue> operator <<= (NException::CExceptionPointer &&_pException);

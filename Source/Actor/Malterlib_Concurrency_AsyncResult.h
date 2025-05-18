@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 		template 
 		<
 			typename tf_CException
-			, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CExceptionBase>::mc_Value> * = nullptr
+			, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>, NException::CExceptionBase>> * = nullptr
 		>
 		void f_SetException(tf_CException &&_Exception); ///< Set exception instance directly. Usually used with DMibErrorInstance("Error string") or equivialent. 
 														 ///< Usually only used from TCPromise implementation

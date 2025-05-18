@@ -94,10 +94,10 @@ namespace NMib::NConcurrency
 
 		auto fp_GetResults();
 		TCFuture<NContainer::TCVector<t_CType>> fp_GetUnwrappedResults()
-			requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
+			requires(!NTraits::cIsVoid<t_CType>)
 		;
 		TCFuture<void> fp_GetUnwrappedResults()
-			requires(NTraits::TCIsVoid<t_CType>::mc_Value)
+			requires(NTraits::cIsVoid<t_CType>)
 		;
 
 		NStorage::TCSharedPointer<CInternal> mp_pInternal;

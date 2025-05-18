@@ -52,7 +52,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CResult, typename ...tp_CParams>
-	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(NTraits::TCDecayType<tp_CParams> ...p_Params)
+	TCFuture<t_CResult> TCActorCallOnce<t_CResult, tp_CParams...>::CCallState::f_Call(NTraits::TCDecay<tp_CParams> ...p_Params)
 	{
 		if (m_Result.f_IsSet())
 			co_return m_Result;

@@ -86,7 +86,7 @@ namespace NMib::NConcurrency
 		{
 			static constexpr bool mc_Value =
 				(
-					... || NTraits::TCIsReference<tp_CParams>::mc_Value
+					... || NTraits::cIsReference<tp_CParams>
 				)
 			;
 		};
@@ -148,15 +148,15 @@ namespace NMib::NConcurrency
 		(
 			NTraits::cIsCallableWith
 			<
-				typename NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CFunctionType>::CType
-				, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tp_CCallParams>...)
+				NTraits::TCAddPointer<typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CFunctionType>
+				, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams>...)
 			>
-			&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CClass>
+			&& NTraits::cIsBaseOfOrSame<t_CActor, typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CClass>
 		)
 		|| NTraits::cIsCallableWith
 		<
 			t_CMemberFunction
-			, void (NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tp_CCallParams>...)
+			, void (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CCallParams>...)
 		>
 	;
 
@@ -212,7 +212,7 @@ namespace NMib::NConcurrency
 
 	namespace NPrivate
 	{
-		template <typename t_CActor, bool t_bIsComplete = NTraits::TCIsComplete<t_CActor>::mc_Value>
+		template <typename t_CActor, bool t_bIsComplete = NTraits::cIsComplete<t_CActor>>
 		struct TCIsActorAlwaysAliveImpl
 		{
 			static constexpr bool mc_Value = false;
@@ -250,7 +250,7 @@ namespace NMib::NConcurrency
 		template <typename t_CMemberFunction>
 		using TCFutureReturn = TCFuture
 			<
-				typename NPrivate::TCRemoveFuture<typename TCGetMemberOrNonMemberFunctionPointerTraits<typename NTraits::TCRemoveReference<t_CMemberFunction>::CType>::CType::CReturn>::CType
+				typename NPrivate::TCRemoveFuture<typename TCGetMemberOrNonMemberFunctionPointerTraits<NTraits::TCRemoveReference<t_CMemberFunction>>::CType::CReturn>::CType
 			>
 		;
 
@@ -413,7 +413,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CActor>
 	class TCActor /// \brief Contain an instance of a CActor
-		: public TCChooseType<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CEmpty, CActorCommon>::CType
+		: public TCConditional<TCIsActorAlwaysAlive<t_CActor>::mc_bImpl, CEmpty, CActorCommon>
 	{
 		friend class CConcurrencyManager;
 		template <typename t_CActor2>
@@ -440,13 +440,12 @@ namespace NMib::NConcurrency
 		using CWeak = TCWeakActor<t_CActor>;
 
 	private:
-		using CPointerType = typename TCChooseType
+		using CPointerType = TCConditional
 			<
 				TCIsActorAlwaysAlive<t_CActor>::mc_bImpl
 				, CActorInternal *
 				, TCActorHolderSharedPointer<CActorInternal>
 			>
-			::CType
 		;
 		union
 		{
@@ -599,7 +598,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
@@ -613,14 +612,14 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
 
 		template <typename tf_FResult>
 		auto operator / (tf_FResult &&_fResult) const
-			-> TCActorResultCall<TCActor, typename NTraits::TCRemoveReference<tf_FResult>::CType>
+			-> TCActorResultCall<TCActor, NTraits::TCRemoveReference<tf_FResult>>
 		;
 
 		template <typename tf_CStr>
@@ -753,23 +752,27 @@ DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActorLowPrio, true);
 DMibDefineActorType(NMib::NConcurrency::COtherConcurrentActorHighCPU, true);
 
 template <>
-struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::CCanDestroyTracker>
 {
+	constexpr static bool mc_bValue = true;
 };
 
 template <>
-struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::CCanDestroyTracker> : public NMib::NTraits::TCCompileTimeConstant<bool, false>
+struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::CCanDestroyTracker>
 {
+	constexpr static bool mc_Value = false;
 };
 
 template <typename t_CActor>
-struct NMib::NStorage::TCHasIntrusiveRefCount<NMib::NConcurrency::TCActorInternal<t_CActor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NStorage::TCHasIntrusiveRefCountOverride<NMib::NConcurrency::TCActorInternal<t_CActor>>
 {
+	constexpr static bool mc_bValue = true;
 };
 
 template <typename t_CActor>
-struct NMib::NTraits::TCHasVirtualDestructor<NMib::NConcurrency::TCActorInternal<t_CActor>> : public NMib::NTraits::TCCompileTimeConstant<bool, true>
+struct NMib::NTraits::TCHasVirtualDestructorOverride<NMib::NConcurrency::TCActorInternal<t_CActor>>
 {
+	constexpr static bool mc_Value = true;
 };
 
 #ifndef DMibPNoShortCuts

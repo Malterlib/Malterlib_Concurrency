@@ -10,7 +10,7 @@ namespace NMib::NConcurrency
 		return CAsyncResult::EDataType(m_DataType & 0x3);
 	}
 
-	template <typename tf_CException, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CException>::CType, NException::CExceptionBase>::mc_Value> *>
+	template <typename tf_CException, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReferenceAndQualifiers<tf_CException>, NException::CExceptionBase>> *>
 	void CAsyncResult::f_SetException(tf_CException &&_Exception)
 	{
 		DMibRequire(mp_Data.f_DataType() == EDataType_None);
@@ -23,7 +23,7 @@ namespace NMib::NConcurrency
 		if (mp_Data.f_DataType() == EDataType_Exception)
 			return NException::fg_ExceptionIsOfType<tf_CException>(mp_Data.m_pException);
 		else if (mp_Data.f_DataType() == EDataType_None)
-			return NTraits::TCIsBaseOfOrSame<NException::CException, tf_CException>::mc_Value;
+			return NTraits::cIsBaseOfOrSame<NException::CException, tf_CException>;
 		return false;
 	}
 	

@@ -117,12 +117,12 @@ namespace NMib::NConcurrency::NPrivate
 	<
 		typename t_CType
 		, typename t_CTypeFrom
-		, bool t_bIsSameType = NTraits::TCIsSame<typename NTraits::TCRemoveReference<t_CType>::CType, typename NTraits::TCRemoveReference<t_CTypeFrom>::CType>::mc_Value
+		, bool t_bIsSameType = NTraits::cIsSame<NTraits::TCRemoveReference<t_CType>, NTraits::TCRemoveReference<t_CTypeFrom>>
 	>
 	struct TCStreamForwardHelper
 	{
 		template <typename tf_CType> 
-		static constexpr inline_always_debug typename NTraits::TCRemoveReferenceAndQualifiers<t_CType>::CType fs_Forward(tf_CType &&_Value) noexcept
+		static constexpr inline_always_debug NTraits::TCRemoveReferenceAndQualifiers<t_CType> fs_Forward(tf_CType &&_Value) noexcept
 		{
 			return fg_Forward<tf_CType>(_Value);
 		}

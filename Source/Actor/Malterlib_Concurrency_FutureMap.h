@@ -99,11 +99,11 @@ namespace NMib::NConcurrency
 		auto fp_GetResults();
 
 		TCFuture<NContainer::TCMap<t_CKey, t_CValue>> fp_GetUnwrappedResults()
-			requires (!NTraits::TCIsVoid<t_CValue>::mc_Value)
+			requires (!NTraits::cIsVoid<t_CValue>)
 		;
 
 		TCFuture<NContainer::TCSet<t_CKey>> fp_GetUnwrappedResults()
-			requires (NTraits::TCIsVoid<t_CValue>::mc_Value)
+			requires (NTraits::cIsVoid<t_CValue>)
 		;
 
 		NStorage::TCSharedPointer<CInternal> mp_pInternal;

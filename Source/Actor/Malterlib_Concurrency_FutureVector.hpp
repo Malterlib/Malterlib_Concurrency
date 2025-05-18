@@ -192,7 +192,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CType>
 	TCFuture<NContainer::TCVector<t_CType>> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
-		requires(!NTraits::TCIsVoid<t_CType>::mc_Value)
+		requires(!NTraits::cIsVoid<t_CType>)
 	{
 		TCPromiseFuturePair<NContainer::TCVector<t_CType>> Promise;
 
@@ -213,7 +213,7 @@ namespace NMib::NConcurrency
 
 	template <typename t_CType>
 	TCFuture<void> TCFutureVector<t_CType>::fp_GetUnwrappedResults()
-		requires(NTraits::TCIsVoid<t_CType>::mc_Value)
+		requires(NTraits::cIsVoid<t_CType>)
 	{
 		TCPromiseFuturePair<void> Promise;
 

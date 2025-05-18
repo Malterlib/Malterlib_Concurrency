@@ -443,7 +443,7 @@ namespace NMib::NConcurrency
 			, decltype(tf_pFunctionPointer)
 			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
-			, NTraits::TCDecayType<tfp_CCallParams>...
+			, NTraits::TCDecay<tfp_CCallParams>...
 		>
 		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
@@ -456,7 +456,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
 				.mp_pMemberFunction = tf_pFunctionPointer
@@ -476,7 +476,7 @@ namespace NMib::NConcurrency
 			, decltype(tf_pFunctionPointer)
 			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
-			, NTraits::TCDecayType<tfp_CCallParams>...
+			, NTraits::TCDecay<tfp_CCallParams>...
 		>
 		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
@@ -489,7 +489,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
 				.mp_pMemberFunction = tf_pFunctionPointer
@@ -509,7 +509,7 @@ namespace NMib::NConcurrency
 	template <typename tf_FToDispatch, typename ...tfp_CParams>
 	inline_always auto fg_Dispatch(TCWeakActor<> const &_Actor, tf_FToDispatch &&_fDispatch, tfp_CParams && ...p_Params)
 	{
-		using CFunctionType = typename NTraits::TCRemoveReference<tf_FToDispatch>::CType;
+		using CFunctionType = NTraits::TCRemoveReference<tf_FToDispatch>;
 
 		return NPrivate::fg_DispatchGenericImpl<false>
 			(

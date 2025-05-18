@@ -86,23 +86,23 @@ namespace NMib::NConcurrency::NPrivate
 	{
 #ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
-		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
+		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 
-		if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
+		if constexpr (NException::cIsException<CReturnNoReference>)
 		{
 			static_assert
 				(
-					(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
-					&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
+					&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
-		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, NException::CExceptionPointer>)
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
-			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Can only return exceptions from generators");
+			static_assert(NTraits::cIsVoid<tf_CReturnType>, "Can only return exceptions from generators");
 #endif
 	}
 
@@ -112,16 +112,16 @@ namespace NMib::NConcurrency::NPrivate
 	{
 #ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<NStorage::TCOptional<t_CReturnType>> *>(this->m_pPromiseData);
-		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
-		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
+		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
+		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>)
 		{
 			pPromiseData->m_Result.f_SetResult(fg_Forward<tf_CReturnType>(_Value));
 			pPromiseData->f_OnResultNoClear();
 		}
-		else if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
-			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
-		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
-			static_assert(NTraits::TCIsVoid<tf_CReturnType>::mc_Value, "Exceptions cannot be yielded, use co_return instead");
+		else if constexpr (NException::cIsException<CReturnNoReference>)
+			static_assert(NTraits::cIsVoid<tf_CReturnType>, "Exceptions cannot be yielded, use co_return instead");
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, NException::CExceptionPointer>)
+			static_assert(NTraits::cIsVoid<tf_CReturnType>, "Exceptions cannot be yielded, use co_return instead");
 		else
 		{
 			pPromiseData->m_Result.f_SetResult(fg_Forward<tf_CReturnType>(_Value));

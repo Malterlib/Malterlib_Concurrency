@@ -41,7 +41,7 @@ namespace NMib::NConcurrency::NPrivate
 			, NMeta::TCTypeList<tfp_CParams...> const &
 		)
 	{
-		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
 		(
 			[&]
@@ -85,7 +85,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
-		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
 		try
 		{
@@ -133,7 +133,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
-		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
 		try
 		{
@@ -180,7 +180,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
-				, NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
+				, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
 				, CParams()
 			)
 		;
@@ -240,7 +240,7 @@ namespace NMib::NConcurrency::NPrivate
 	{
 		using CClass = typename NTraits::TCMemberFunctionPointerTraits<decltype(t_pMemberFunction)>::CClass;
 
-		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 
 		try
 		{
@@ -288,7 +288,7 @@ namespace NMib::NConcurrency::NPrivate
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
 				,
-				NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
+				NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
 				, CParams()
 			)
 		;
@@ -353,7 +353,7 @@ namespace NMib::NConcurrency::NPrivate
 
 		t_CStreamContext *pContext = (t_CStreamContext *)_ParamsStream.f_GetContext();
 
-		NStorage::TCTuple<typename NTraits::TCDecay<tfp_CParams>::CType...> ParamList;
+		NStorage::TCTuple<NTraits::TCDecay<tfp_CParams>...> ParamList;
 		try
 		{
 			ParamList = fg_DecodeParams(_ParamsStream, _Indices, _TypeList);
@@ -456,7 +456,7 @@ namespace NMib::NConcurrency::NPrivate
 			(
 				static_cast<t_CStreamParams &>(_Stream)
 				, _pObject
-				, NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<CParams>::mc_Value>()
+				, NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<CParams>>()
 				, CParams()
 			)
 		;

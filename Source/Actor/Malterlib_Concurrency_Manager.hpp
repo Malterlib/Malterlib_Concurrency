@@ -7,14 +7,14 @@ namespace NMib::NConcurrency
 {
 	template <typename tf_CActor>
 	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
-		requires (!NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+		requires (!NTraits::cIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>)
 	{
 		return true;
 	}
 
 	template <typename tf_CActor>
 	consteval bool CConcurrencyManager::fs_HasOverridenDestroy()
-		requires (NTraits::TCIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>::mc_Value)
+		requires (NTraits::cIsSame<decltype(&CActor::fp_Destroy), decltype(&tf_CActor::fp_Destroy)>)
 	{
 		return false;
 	}

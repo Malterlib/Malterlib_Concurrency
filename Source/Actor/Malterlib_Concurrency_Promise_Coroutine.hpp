@@ -136,21 +136,21 @@ namespace NMib::NConcurrency::NPrivate
 #ifndef DMibClangAnalyzerWorkaround
 		auto *pPromiseData = static_cast<TCPromiseData<t_CReturnType> *>(this->m_pPromiseData);
 
-		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
-		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>::mc_Value)
+		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
+		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<t_CReturnType>>)
 			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
+		else if constexpr (NException::cIsException<CReturnNoReference>)
 		{
 			static_assert
 				(
-					(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
-					&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+					(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
+					&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 					, "Only safe to return newly created exceptions, otherwise use exception pointers"
 				)
 			;
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		}
-		else if constexpr (NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value)
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, NException::CExceptionPointer>)
 			pPromiseData->f_SetExceptionNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 			pPromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
@@ -161,31 +161,31 @@ namespace NMib::NConcurrency::NPrivate
 	void TCFutureCoroutineContext<void>::return_value(tf_CReturnType &&_Value)
 	{
 #ifndef DMibClangAnalyzerWorkaround
-		using CReturnNoReference = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>::CType;
+		using CReturnNoReference = NTraits::TCRemoveReferenceAndQualifiers<tf_CReturnType>;
 		static_assert
 			(
-				NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value
-				|| NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value
-				|| NException::TCIsException<CReturnNoReference>::mc_Value
-				|| NTraits::TCIsSame<CReturnNoReference, NException::CExceptionPointer>::mc_Value
+				NTraits::cIsSame<CReturnNoReference, TCAsyncResult<void>>
+				|| NTraits::cIsSame<CReturnNoReference, TCPromise<void>>
+				|| NException::cIsException<CReturnNoReference>
+				|| NTraits::cIsSame<CReturnNoReference, NException::CExceptionPointer>
 				, "You can only return exceptions, async results or promises"
 			)
 		;
 
 		auto *PromiseData = static_cast<TCPromiseData<void> *>(m_pPromiseData);
 
-		if constexpr (NTraits::TCIsSame<CReturnNoReference, TCAsyncResult<void>>::mc_Value)
+		if constexpr (NTraits::cIsSame<CReturnNoReference, TCAsyncResult<void>>)
 			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
-		else if constexpr (NTraits::TCIsSame<CReturnNoReference, TCPromise<void>>::mc_Value)
+		else if constexpr (NTraits::cIsSame<CReturnNoReference, TCPromise<void>>)
 			PromiseData->f_SetResultNoReport(fg_Forward<tf_CReturnType>(_Value));
 		else
 		{
-			if constexpr (NException::TCIsException<CReturnNoReference>::mc_Value)
+			if constexpr (NException::cIsException<CReturnNoReference>)
 			{
 				static_assert
 					(
-						(NTraits::TCIsRValueReference<tf_CReturnType>::mc_Value || !NTraits::TCIsReference<tf_CReturnType>::mc_Value)
-						&& !NTraits::TCIsConst<typename NTraits::TCRemoveReference<tf_CReturnType>::CType>::mc_Value
+						(NTraits::cIsRValueReference<tf_CReturnType> || !NTraits::cIsReference<tf_CReturnType>)
+						&& !NTraits::cIsConst<NTraits::TCRemoveReference<tf_CReturnType>>
 						, "Only safe to newly created exceptions, otherwise use exception pointers"
 					)
 				;
@@ -560,7 +560,7 @@ namespace NMib::NConcurrency
 		}
 
 		template <typename tf_CCoroutineContext>
-		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept(NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept(NTraits::cIsSame<t_FExceptionTransform, CVoidTag>)
 		{
 			auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 			DMibFastCheck(fg_CurrentActor(ThreadLocal));
@@ -686,7 +686,7 @@ namespace NMib::NConcurrency
 			}
 			else
 			{
-				if constexpr (NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
+				if constexpr (NTraits::cIsSame<t_FExceptionTransform, CVoidTag>)
 					return fg_Move(PromiseData.m_Result);
 				else
 				{
@@ -792,7 +792,7 @@ namespace NMib::NConcurrency
 					if (!_Result)
 						return Promise.f_SetException(fTransformer(fg_Move(_Result).f_GetException()));
 
-					if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
+					if constexpr (NTraits::cIsVoid<t_CReturnValue>)
 						Promise.f_SetResult();
 					else
 						Promise.f_SetResult(fg_Move(*_Result));
@@ -820,7 +820,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue, typename t_CFutureLike>
 	auto TCFutureWithExceptionTransformer<t_CReturnValue, t_CFutureLike>::operator co_await() &&
 	{
-		if constexpr (NTraits::TCIsSame<t_CFutureLike, TCFuture<t_CReturnValue>>::mc_Value)
+		if constexpr (NTraits::cIsSame<t_CFutureLike, TCFuture<t_CReturnValue>>)
 		{
 			return TCFutureAwaiter<t_CReturnValue, true, FExceptionTransformer>
 				(
@@ -843,7 +843,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturnValue, typename t_CFutureLike>
 	auto TCFutureWithExceptionTransformer<t_CReturnValue, t_CFutureLike>::CNoUnwrapAsyncResult::operator co_await() &&
 	{
-		if constexpr (NTraits::TCIsSame<t_CFutureLike, TCFuture<t_CReturnValue>>::mc_Value)
+		if constexpr (NTraits::cIsSame<t_CFutureLike, TCFuture<t_CReturnValue>>)
 		{
 			return TCFutureAwaiter<t_CReturnValue, false, FExceptionTransformer>
 				(
@@ -866,7 +866,7 @@ namespace NMib::NConcurrency
 
 namespace NMib::NConcurrency::NPrivate
 {
-	template <typename tfp_CThis, bool t_bIsComplete = NTraits::TCIsComplete<tfp_CThis>::mc_Value>
+	template <typename tfp_CThis, bool t_bIsComplete = NTraits::cIsComplete<tfp_CThis>>
 	struct TCCoroutineContextFlagsFromParams_This
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer; // Assume lambda
@@ -882,13 +882,13 @@ namespace NMib::NConcurrency::NPrivate
 	struct TCCoroutineContextFlagsFromParams_This<tfp_CThis, true>
 	{
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value =
-			NTraits::TCIsReference<tfp_CThis>::mc_Value
+			NTraits::cIsReference<tfp_CThis>
 			?
 			(
 				(
-					NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActor>::mc_Value
-					|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CActorInternal>::mc_Value
-					|| NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tfp_CThis>::CType, CAllowUnsafeThis>::mc_Value
+					NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActor>
+					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CActorInternal>
+					|| NTraits::cIsBaseOf<NTraits::TCRemoveReference<tfp_CThis>, CAllowUnsafeThis>
 				)
 				? NMib::NConcurrency::ECoroutineFlag_None
 				: NMib::NConcurrency::ECoroutineFlag_UnsafeThisPointer
@@ -909,7 +909,7 @@ namespace NMib::NConcurrency::NPrivate
 		static constexpr NMib::NConcurrency::ECoroutineFlag mc_Value = NMib::NConcurrency::ECoroutineFlag
 			(
 				(
-					(... || NMib::NTraits::TCIsReference<tp_CParams>::mc_Value)
+					(... || NMib::NTraits::cIsReference<tp_CParams>)
 					? NMib::NConcurrency::ECoroutineFlag_UnsafeReferenceParameters
 					: NMib::NConcurrency::ECoroutineFlag_None
 				)

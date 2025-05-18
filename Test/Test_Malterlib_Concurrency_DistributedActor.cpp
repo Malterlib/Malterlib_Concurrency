@@ -71,17 +71,6 @@ public:
 };
 
 template <typename t_CMemberFunctionPointer>
-concept cIsNonVirtualMemberFunctionType =
-	requires()
-	{
-		NTraits::TCCompileTimeConstant<bool, fg_GetType<t_CMemberFunctionPointer>() == fg_GetType<t_CMemberFunctionPointer>()>();
-	}
-;
-
-template <typename t_CMemberFunctionPointer>
-concept cIsVirtualMemberFunctionType = !cIsNonVirtualMemberFunctionType<t_CMemberFunctionPointer>;
-
-template <typename t_CMemberFunctionPointer>
 consteval bool fg_Test()
 {
 	t_CMemberFunctionPointer x = nullptr;

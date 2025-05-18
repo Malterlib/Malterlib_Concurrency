@@ -21,7 +21,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		using CMemberFunction = decltype(tf_pFunctionPointer);
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -29,8 +29,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -69,7 +69,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		using CMemberFunction = decltype(tf_pFunctionPointer);
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -77,8 +77,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -111,13 +111,13 @@ namespace NMib::NConcurrency
 			, decltype(tf_pFunctionPointer)
 			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
-			, NTraits::TCDecayType<tfp_CCallParams>...
+			, NTraits::TCDecay<tfp_CCallParams>...
 		>
 		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
 		using CMemberFunction = decltype(tf_pFunctionPointer);
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -125,8 +125,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -139,7 +139,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
 				.mp_pMemberFunction = tf_pFunctionPointer
@@ -159,13 +159,13 @@ namespace NMib::NConcurrency
 			, decltype(tf_pFunctionPointer)
 			, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 			, true
-			, NTraits::TCDecayType<tfp_CCallParams>...
+			, NTraits::TCDecay<tfp_CCallParams>...
 		>
 		requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
 		using CMemberFunction = decltype(tf_pFunctionPointer);
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -173,8 +173,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -187,7 +187,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			{
 				.mp_pMemberFunction = tf_pFunctionPointer
@@ -200,7 +200,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename t_CActor, typename t_FFunctionPointer, CBindActorOptions t_BindOptions, bool t_bByValue, typename ...tp_CParams>
 	template <typename tf_FOnResult>
 	void TCBoundActorCall<TCFuture<t_CReturn>, t_CActor, t_FFunctionPointer, t_BindOptions, t_bByValue, tp_CParams...>::operator > (tf_FOnResult &&_fOnResult) &&
-		requires (NTraits::TCIsCallableWith<tf_FOnResult, void (TCAsyncResult<t_CReturn> &&_Result)>::mc_Value)
+		requires (NTraits::cIsCallableWith<tf_FOnResult, void (TCAsyncResult<t_CReturn> &&_Result)>)
 	{
 		auto Actor = fg_CurrentActor();
 		DMibFastCheck(Actor);
@@ -426,7 +426,7 @@ namespace NMib::NConcurrency
 		(
 			TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall
 		) &&
-		requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>::mc_Value) // Incorrect type in result call
+		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>) // Incorrect type in result call
 	{
 		DMibFastCheck(_ResultCall.mp_Actor);
 
@@ -544,7 +544,7 @@ namespace NMib::NConcurrency
 	template <typename t_CReturn, typename t_CBoundFunctor, bool t_bUnwrap, typename t_FExceptionTransform>
 	template <typename tf_CCoroutineContext>
 	bool TCBoundActorCallAwaiter<t_CReturn, t_CBoundFunctor, t_bUnwrap, t_FExceptionTransform>::await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle)
-		noexcept(NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
+		noexcept(NTraits::cIsSame<t_FExceptionTransform, CVoidTag>)
 	{
 		auto &ThreadLocal = fg_ConcurrencyThreadLocal();
 		DMibFastCheck(fg_CurrentActor(ThreadLocal));
@@ -628,7 +628,7 @@ namespace NMib::NConcurrency
 		}
 		else
 		{
-			if constexpr (NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
+			if constexpr (NTraits::cIsSame<t_FExceptionTransform, CVoidTag>)
 				return fg_Move(mp_AsyncResult);
 			else
 			{

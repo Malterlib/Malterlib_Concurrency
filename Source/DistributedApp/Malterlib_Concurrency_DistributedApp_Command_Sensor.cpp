@@ -421,10 +421,10 @@ namespace NMib::NConcurrency
 	{
 		auto constexpr gc_fSensorDataToJson = [](auto const &_Value) -> CEJsonSorted
 			{
-				using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
-				if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
+				using CValueType = NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>;
+				if constexpr (NTraits::cIsSame<CValueType, CVoidTag>)
 					return nullptr;
-				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
+				else if constexpr (NTraits::cIsSame<CValueType, CDistributedAppSensorReporter::CStatus>)
 				{
 					return CEJsonUserTypeSorted
 						(
@@ -437,7 +437,7 @@ namespace NMib::NConcurrency
 						)
 					;
 				}
-				else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
+				else if constexpr (NTraits::cIsSame<CValueType, CDistributedAppSensorReporter::CVersion>)
 				{
 					return CEJsonUserTypeSorted
 						(

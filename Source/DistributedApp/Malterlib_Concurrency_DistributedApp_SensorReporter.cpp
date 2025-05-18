@@ -229,17 +229,17 @@ namespace NMib::NConcurrency
 			(
 				[&](auto const &_Value)
 				{
-					using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
-					if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
+					using CValueType = NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>;
+					if constexpr (NTraits::cIsSame<CValueType, CVoidTag>)
 						Value = "Unsupported";
-					else if constexpr (NTraits::TCIsSame<CValueType, bool>::mc_Value)
+					else if constexpr (NTraits::cIsSame<CValueType, bool>)
 						Value = _Value ? "true" : "false";
-					else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CStatus>::mc_Value)
+					else if constexpr (NTraits::cIsSame<CValueType, CDistributedAppSensorReporter::CStatus>)
 					{
 						Value = _Value.m_Description;
 						Severity = fs_CombineStatusSeverity(Severity, _Value.m_Severity);
 					}
-					else if constexpr (NTraits::TCIsSame<CValueType, CDistributedAppSensorReporter::CVersion>::mc_Value)
+					else if constexpr (NTraits::cIsSame<CValueType, CDistributedAppSensorReporter::CVersion>)
 						Value = "{}"_f << _Value;
 					else
 					{
@@ -372,8 +372,8 @@ namespace NMib::NConcurrency
 				(
 					[](auto const &_Value) -> NStr::CStr
 					{
-						using CValueType = typename NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>::CType;
-						if constexpr (NTraits::TCIsSame<CValueType, CVoidTag>::mc_Value)
+						using CValueType = NTraits::TCRemoveReferenceAndQualifiers<decltype(_Value)>;
+						if constexpr (NTraits::cIsSame<CValueType, CVoidTag>)
 							return "Unsupported";
 						else
 							return "{}"_f << _Value;

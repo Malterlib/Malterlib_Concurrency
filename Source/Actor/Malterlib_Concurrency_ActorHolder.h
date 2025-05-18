@@ -31,7 +31,7 @@ namespace NMib::NConcurrency::NPrivate
 			, tf_CPromiseParam &&_PromiseParam
 			, tfp_CParams && ...p_Params
 		)
-		-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecayType<tf_CPromiseParam>>::CType
+		-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 	;
 }
 

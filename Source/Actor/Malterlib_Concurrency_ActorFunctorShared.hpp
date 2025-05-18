@@ -13,17 +13,17 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename ...tp_CParams>
 	struct TCDecayedTupleHelper<NMeta::TCTypeList<tp_CParams...>>
 	{
-		using CMoveList = NMeta::TCTypeList<typename NTraits::TCAddRValueReference<typename NTraits::TCDecay<tp_CParams>::CType>::CType...>;
-		using CCallType = void (*)(typename NTraits::TCDecay<tp_CParams>::CType...);
-		using CType = NStorage::TCTuple<typename NTraits::TCDecay<tp_CParams>::CType...>;
+		using CMoveList = NMeta::TCTypeList<NTraits::TCAddRValueReference<NTraits::TCDecay<tp_CParams>>...>;
+		using CCallType = void (*)(NTraits::TCDecay<tp_CParams>...);
+		using CType = NStorage::TCTuple<NTraits::TCDecay<tp_CParams>...>;
 		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 	};
 
 	template <typename t_CFunction, typename ...tp_CParams>
-	concept cIsActorFunctorCallableWith = NTraits::TCIsCallableWith
+	concept cIsActorFunctorCallableWith = NTraits::cIsCallableWith
 		<
 			typename NPrivate::TCDecayedTupleHelper<typename NTraits::TCFunctionTraits<t_CFunction>::CParams>::CCallType, void (tp_CParams...)
-		>::mc_Value
+		>
 	;
 
 	template <typename t_CFunction>
@@ -34,9 +34,9 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn, typename ...tp_CParams>
 	struct TCAddRValueReferencesToFunctor<t_CReturn (tp_CParams ...p_Parems)>
 	{
-		static constexpr bool mc_bAnyReference = ((... || NTraits::TCIsReference<tp_CParams>::mc_Value));
+		static constexpr bool mc_bAnyReference = ((... || NTraits::cIsReference<tp_CParams>));
 
-		using CType = t_CReturn (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CParams>::CType ...p_Params);
+		using CType = t_CReturn (NTraits::TCRemoveQualifiersAndAddRValueReference<tp_CParams> ...p_Params);
 	};
 
 	template <typename t_CFunction>
@@ -47,6 +47,6 @@ namespace NMib::NConcurrency::NPrivate
 	template <typename t_CReturn, typename ...tp_CParams>
 	struct TCRemoveReferencesFromFunctor<t_CReturn (tp_CParams ...p_Parems)>
 	{
-		using CType = t_CReturn (NTraits::TCDecayType<tp_CParams> ...p_Params);
+		using CType = t_CReturn (NTraits::TCDecay<tp_CParams> ...p_Params);
 	};
 }

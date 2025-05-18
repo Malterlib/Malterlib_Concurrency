@@ -84,7 +84,7 @@ namespace NMib::NConcurrency
 	auto TCActorInternal<t_CActor>::f_Publish(NStr::CStr const &_Namespace, fp32 _WaitForPublicationsTimeout)
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+		static_assert((NTraits::cIsBaseOfOrSame<t_CActor, tfp_CInterface> && ...), "Trying to publish incompatible interface");
 
 		return NPrivate::fg_PublishActor
 			(
@@ -101,13 +101,13 @@ namespace NMib::NConcurrency
 	auto TCActorInternal<t_CActor>::f_ShareInterface()
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+		static_assert((NTraits::cIsBaseOfOrSame<t_CActor, tfp_CInterface> && ...), "Trying to share incompatible interface");
 
 		DMibFastCheck(this);
 
 		auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>();
 
-		return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
+		return TCDistributedActorInterfaceShare<NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>>
 			{
 				InterfaceInfo.f_GetInterfaceHashes()
 				, InterfaceInfo.f_GetProtocolVersions()
@@ -121,7 +121,7 @@ namespace NMib::NConcurrency
 	auto TCActorInternal<t_CActor>::f_PublishWithVersion(NStr::CStr const &_Namespace, CDistributedActorProtocolVersions const &_Versions, fp32 _WaitForPublicationsTimeout)
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to publish incompatible interface");
+		static_assert((NTraits::cIsBaseOfOrSame<t_CActor, tfp_CInterface> && ...), "Trying to publish incompatible interface");
 
 		return NPrivate::fg_PublishActor
 			(
@@ -138,11 +138,11 @@ namespace NMib::NConcurrency
 	auto TCActorInternal<t_CActor>::f_ShareInterfaceWithVersion(CDistributedActorProtocolVersions const &_Versions)
 	{
 		static_assert(NPrivate::TCIsDistributedActor<t_CActor>::mc_Value, "Must be distributed actor");
-		static_assert((NTraits::TCIsBaseOfOrSame<t_CActor, tfp_CInterface>::mc_Value && ...), "Trying to share incompatible interface");
+		static_assert((NTraits::cIsBaseOfOrSame<t_CActor, tfp_CInterface> && ...), "Trying to share incompatible interface");
 
 		auto InterfaceInfo = NPrivate::CDistributedActorInterfaceInfo::fs_GenerateInfo<tfp_CInterface...>(_Versions);
 
-		return TCDistributedActorInterfaceShare<typename NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>::CType>
+		return TCDistributedActorInterfaceShare<NMeta::TCTypeList_Get<0, NMeta::TCTypeList<tfp_CInterface...>>>
 			{
 				InterfaceInfo.f_GetInterfaceHashes()
 				, InterfaceInfo.f_GetProtocolVersions()
@@ -206,7 +206,7 @@ namespace NMib::NConcurrency
 		: t_CInterface(fg_Forward<tfp_CParams>(p_Params)...)
 	{
 #ifdef DMibDebug
-		static_assert(NTraits::TCIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface::*)>::mc_Value);
+		static_assert(NTraits::cIsSame<decltype(&t_CInterface::self), CEmpty (t_CInterface::*)>);
 //		If you get this static assert, add a dummy self like below:
 //
 //		DDelegatedActorImplementation(CMyActor);

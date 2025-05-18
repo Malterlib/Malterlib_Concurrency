@@ -36,7 +36,7 @@ namespace NMib::NConcurrency
 		: mp_pData(fsp_CreateData())
 	{
 		auto *pData = mp_pData.f_Get();
-		if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
+		if constexpr (NTraits::cIsVoid<t_CReturnValue>)
 			pData->m_Result.f_SetResult();
 		else
 			pData->m_Result.f_SetResult(fg_Move(_ReturnValue));
@@ -48,7 +48,7 @@ namespace NMib::NConcurrency
 		: mp_pData(fsp_CreateData())
 	{
 		auto *pData = mp_pData.f_Get();
-		if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
+		if constexpr (NTraits::cIsVoid<t_CReturnValue>)
 			pData->m_Result.f_SetResult();
 		else
 			pData->m_Result.f_SetResult(_ReturnValue);
@@ -130,7 +130,7 @@ namespace NMib::NConcurrency
 		mp_pData = fsp_CreateData();
 
 		auto *pData = mp_pData.f_Get();
-		if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
+		if constexpr (NTraits::cIsVoid<t_CReturnValue>)
 			pData->m_Result.f_SetResult();
 		else
 			pData->m_Result.f_SetResult(fg_Move(_ReturnValue));
@@ -145,7 +145,7 @@ namespace NMib::NConcurrency
 		mp_pData = fsp_CreateData();
 
 		auto *pData = mp_pData.f_Get();
-		if constexpr (NTraits::TCIsVoid<t_CReturnValue>::mc_Value)
+		if constexpr (NTraits::cIsVoid<t_CReturnValue>)
 			pData->m_Result.f_SetResult();
 		else
 			pData->m_Result.f_SetResult(_ReturnValue);
@@ -479,7 +479,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	template <typename tf_CResult, TCEnableIfType<!NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CResult>::CType, NException::CExceptionBase>::mc_Value> *>
+	template <typename tf_CResult, TCEnableIf<!NTraits::cIsBaseOf<NTraits::TCRemoveReference<tf_CResult>, NException::CExceptionBase>> *>
 	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (tf_CResult &&_Result)
 	{
 		this->mp_pData->f_SetResult(fg_Forward<tf_CResult>(_Result));
@@ -487,7 +487,7 @@ namespace NMib::NConcurrency
 	}
 
 	template <typename t_CReturnValue>
-	template <typename tf_CType, TCEnableIfType<NTraits::TCIsBaseOf<typename NTraits::TCRemoveReference<tf_CType>::CType, NException::CExceptionBase>::mc_Value> *>
+	template <typename tf_CType, TCEnableIf<NTraits::cIsBaseOf<NTraits::TCRemoveReference<tf_CType>, NException::CExceptionBase>> *>
 	mark_no_coroutine_debug TCFuture<t_CReturnValue> TCPromise<t_CReturnValue>::operator <<= (tf_CType &&_Exception)
 	{
 		this->mp_pData->f_SetException(fg_Forward<tf_CType>(_Exception));
@@ -569,10 +569,10 @@ namespace NMib::NConcurrency
 		{
 			enum
 			{
-				mc_Value = NMeta::TCAllIsTrue
+				mc_Value = NMeta::cAllIsTrue
 				<
-					NTraits::TCIsVoid<tp_CParam>::mc_Value...
-				>::mc_Value
+					NTraits::cIsVoid<tp_CParam>...
+				>
 			};
 		};
 

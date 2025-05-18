@@ -13,12 +13,12 @@ namespace NMib::NConcurrency
 	{
 		using CIndices = NMeta::TCConsecutiveIndices<sizeof...(tp_CParams)>;
 		using CValue = t_CReturn;
-		using CParamsType = typename TCChooseType
+		using CParamsType = TCConditional
 			<
 				t_bByValue
 				, NStorage::TCTuple<tp_CParams...>
-				, NStorage::TCTuple<typename NMib::NTraits::TCAddLValueReference<tp_CParams>::CType...>
-			>::CType
+				, NStorage::TCTuple<NMib::NTraits::TCAddLValueReference<tp_CParams>...>
+			>
 		;
 
 		struct CNoUnwrapAsyncResult
@@ -38,12 +38,12 @@ namespace NMib::NConcurrency
 
 		template <typename tf_FOnResult>
 		inline_always void operator > (tf_FOnResult &&_fOnResult) &&
-			requires (NTraits::TCIsCallableWith<tf_FOnResult, void (TCAsyncResult<t_CReturn> &&_Result)>::mc_Value)
+			requires (NTraits::cIsCallableWith<tf_FOnResult, void (TCAsyncResult<t_CReturn> &&_Result)>)
 		;
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor>
 		void operator > (TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall) &&
-			requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>::mc_Value) // Incorrect type in result call
+			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<t_CReturn> &&)>) // Incorrect type in result call
 		;
 
 		template <typename tf_FOnResult>
@@ -109,7 +109,7 @@ namespace NMib::NConcurrency
 
 		bool await_ready() noexcept;
 		template <typename tf_CCoroutineContext>
-		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept(NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value);
+		bool await_suspend(TCCoroutineHandle<tf_CCoroutineContext> &&_Handle) noexcept(NTraits::cIsSame<t_FExceptionTransform, CVoidTag>);
 		auto await_resume() noexcept;
 
 	private:

@@ -398,9 +398,9 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	template <typename tf_FResult>
 	auto TCActor<t_CActor>::operator / (tf_FResult &&_fResult) const
-		-> TCActorResultCall<TCActor, NTraits::TCRemoveReferenceType<tf_FResult>>
+		-> TCActorResultCall<TCActor, NTraits::TCRemoveReference<tf_FResult>>
 	{
-		return TCActorResultCall<TCActor, NTraits::TCRemoveReferenceType<tf_FResult>>
+		return TCActorResultCall<TCActor, NTraits::TCRemoveReference<tf_FResult>>
 			(
 				*this
 				, fg_Forward<tf_FResult>(_fResult)
@@ -419,7 +419,7 @@ namespace NMib::NConcurrency
 		template <typename t_CFunction>
 		struct TCGetMemberOrNonMemberFunctionPointerTraits<t_CFunction, false>
 		{
-			using CType = NTraits::TCFunctionTraits<typename NTraits::TCRemovePointer<t_CFunction>::CType>;
+			using CType = NTraits::TCFunctionTraits<NTraits::TCRemovePointer<t_CFunction>>;
 		};
 
 		template
@@ -438,20 +438,20 @@ namespace NMib::NConcurrency
 				, tf_CPromiseParam &&_PromiseParam
 				, tfp_CParams && ...p_Params
 			)
-			-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecayType<tf_CPromiseParam>>::CType
+			-> typename TCCallActorGetReturnType<typename TCGetMemberOrNonMemberFunctionPointerTraits<tf_CFunctor>::CType::CReturn, NTraits::TCDecay<tf_CPromiseParam>>::CType
 		{
-			constexpr static bool c_bIsMemberPointer = NTraits::TCIsMemberFunctionPointer<tf_CFunctor>::mc_Value;
+			constexpr static bool c_bIsMemberPointer = NTraits::cIsMemberFunctionPointer<tf_CFunctor>;
 
 			using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>;
-			using CFunctionType = typename TCChooseType<c_bIsMemberPointer, typename CMemberPointerTraits::CFunctionType, typename NTraits::TCRemovePointer<tf_CFunctor>::CType>::CType;
+			using CFunctionType = TCConditional<c_bIsMemberPointer, typename CMemberPointerTraits::CFunctionType, NTraits::TCRemovePointer<tf_CFunctor>>;
 
-			static_assert(c_bIsMemberPointer || NTraits::TCIsFunction<CFunctionType>::mc_Value);
+			static_assert(c_bIsMemberPointer || NTraits::cIsFunction<CFunctionType>);
 
 			using CFunctionTraits = NTraits::TCFunctionTraits<CFunctionType>;
 			using CReturn = typename NPrivate::TCGetReturnType<typename CFunctionTraits::CReturn>::CType;
-			using CFullActor = typename NTraits::TCRemoveReferenceAndQualifiers<tf_CActor>::CType;
+			using CFullActor = NTraits::TCRemoveReferenceAndQualifiers<tf_CActor>;
 			using CContainedActor = typename CFullActor::CContainedActor;
-			using CPromiseParam = NTraits::TCDecayType<tf_CPromiseParam>;
+			using CPromiseParam = NTraits::TCDecay<tf_CPromiseParam>;
 
 			constexpr static bool c_bIsVoid = TCCallActorGetReturnType
 				<
@@ -459,10 +459,10 @@ namespace NMib::NConcurrency
 					, CPromiseParam
 				>::mc_bIsVoid
 			;
-			constexpr static bool c_bIsDiscardResult = NTraits::TCIsSame<CPromiseParam, CPromiseConstructDiscardResult>::mc_Value;
-			constexpr static bool c_bIsFunctor = !c_bIsDiscardResult && !NTraits::TCIsSame<CPromiseParam, CPromiseConstructNoConsume>::mc_Value;
+			constexpr static bool c_bIsDiscardResult = NTraits::cIsSame<CPromiseParam, CPromiseConstructDiscardResult>;
+			constexpr static bool c_bIsFunctor = !c_bIsDiscardResult && !NTraits::cIsSame<CPromiseParam, CPromiseConstructNoConsume>;
 
-			[[maybe_unused]] typename TCChooseType<CFullActor::mc_bIsWeak, typename CFullActor::CNonWeak, void *>::CType Actor;
+			[[maybe_unused]] TCConditional<CFullActor::mc_bIsWeak, typename CFullActor::CNonWeak, void *> Actor;
 			TCActorInternal<CActor> *pRealActor;
 
 			if constexpr (CFullActor::mc_bIsWeak)
@@ -492,7 +492,7 @@ namespace NMib::NConcurrency
 				// If you get this, use f_CallActor instead of calling directly
 				DMibFastCheck
 					(
-						(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+						(NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 						|| !Actor->f_GetDistributedActorData()
 						|| Actor->f_GetDistributedActorData()->f_IsValidForCall()
 					)
@@ -505,12 +505,12 @@ namespace NMib::NConcurrency
 
 			auto Cleanup = g_OnScopeExit / [&]() inline_always_lambda
 				{
-					if constexpr (NTraits::TCIsRValueReference<tf_CActor &&>::mc_Value)
+					if constexpr (NTraits::cIsRValueReference<tf_CActor &&>)
 						_Actor.f_Clear();
 				}
 			;
 
-			using CBoundFunctor = TCActorCallWithParams<typename TCChooseType<c_bIsMemberPointer, tf_CFunctor, CFunctionType>::CType>;
+			using CBoundFunctor = TCActorCallWithParams<TCConditional<c_bIsMemberPointer, tf_CFunctor, CFunctionType>>;
 
 			using CReportLocalFuture = TCReportLocalFuture<CContainedActor, CReturn, CBoundFunctor>;
 
@@ -612,7 +612,7 @@ namespace NMib::NConcurrency
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<tf_CMemberFunction>>;
+		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<tf_CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -620,8 +620,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<tf_CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<tf_CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -659,7 +659,7 @@ namespace NMib::NConcurrency
 		requires cActorCallableWith<tf_CMemberFunction, t_CActor, tfp_CCallParams...>
 	{
 #if DMibEnableSafeCheck > 0
-		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<tf_CMemberFunction>>;
+		using CMemberPointerTraits = NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<tf_CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!f_IsEmpty());
@@ -667,8 +667,8 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				!NTraits::TCIsMemberFunctionPointer<tf_CMemberFunction>::mc_Value
-				|| (NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				!NTraits::cIsMemberFunctionPointer<tf_CMemberFunction>
+				|| (NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !(*this)->f_GetDistributedActorData()
 				|| (*this)->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -705,7 +705,7 @@ namespace NMib::NConcurrency
 	{
 #if DMibEnableSafeCheck > 0
 		using CMemberFunction = decltype(tf_pMemberFunction);
-		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReferenceType<CMemberFunction>>;
+		using CMemberPointerTraits = typename NTraits::TCMemberFunctionPointerTraits<NTraits::TCRemoveReference<CMemberFunction>>;
 #endif
 		// If you get this you are probably calling an empty actor
 		DMibFastCheck(!_Actor.f_IsEmpty());
@@ -713,7 +713,7 @@ namespace NMib::NConcurrency
 		// If you get this, use f_CallActor instead of calling directly
 		DMibFastCheck
 			(
-				(NTraits::TCIsSame<typename CMemberPointerTraits::CClass, CActor>::mc_Value)
+				(NTraits::cIsSame<typename CMemberPointerTraits::CClass, CActor>)
 				|| !_Actor->f_GetDistributedActorData()
 				|| _Actor->f_GetDistributedActorData()->f_IsValidForCall()
 			)
@@ -904,8 +904,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturnType, typename ...tfp_CParams>
 	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturn
 		(
-			NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
-			, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)> &&_fToDisptach
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 		)
 		requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 	{
@@ -915,8 +915,8 @@ namespace NMib::NConcurrency
 	template <typename tf_CReturnType, typename ...tfp_CParams>
 	mark_no_coroutine_debug tf_CReturnType CActor::f_DispatchWithReturn
 		(
-			NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)> &&_fToDisptach
-			, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)> &&_fToDisptach
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 		)
 		requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 	{
@@ -928,9 +928,9 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointer
 			<
-				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+				NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
 			> &&_pToDisptach
-			, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 		)
 		requires (NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value || NPrivate::TCIsFuture<tf_CReturnType>::mc_Value)
 	{
@@ -942,9 +942,9 @@ namespace NMib::NConcurrency
 		(
 			NStorage::TCSharedPointer
 			<
-				NFunction::TCFunctionMovable<tf_CReturnType (typename NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams>::CType ...p_Params)>
+				NFunction::TCFunctionMovable<tf_CReturnType (NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params)>
 			> &&_pToDisptach
-			, NTraits::TCRemoveQualifiersAndAddRValueReferenceType<tfp_CParams> ...p_Params
+			, NTraits::TCRemoveQualifiersAndAddRValueReference<tfp_CParams> ...p_Params
 		)
 		requires (!(NPrivate::TCIsFuture<tf_CReturnType>::mc_Value || NPrivate::TCIsAsyncGenerator<tf_CReturnType>::mc_Value))
 	{

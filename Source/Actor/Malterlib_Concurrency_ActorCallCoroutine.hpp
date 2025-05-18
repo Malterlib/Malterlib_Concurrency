@@ -16,7 +16,7 @@ namespace NMib::NConcurrency
 	auto fg_TransformException(NException::CExceptionPointer &&_pException, tf_FExceptionTransform &_fExceptionTransform)
 	{
 		NException::CDisableExceptionTraceScope DisableExceptionTrace;
-		if constexpr (NTraits::TCIsSame<tf_FExceptionTransform, CVoidTag>::mc_Value)
+		if constexpr (NTraits::cIsSame<tf_FExceptionTransform, CVoidTag>)
 			return fg_Move(_pException);
 		else
 			return _fExceptionTransform(fg_Move(_pException));
@@ -229,7 +229,7 @@ namespace NMib::NConcurrency
 			return fp_Unwrap(NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 		else
 		{
-			if constexpr (!NTraits::TCIsSame<t_FExceptionTransform, CVoidTag>::mc_Value)
+			if constexpr (!NTraits::cIsSame<t_FExceptionTransform, CVoidTag>)
 				fp_TransformExceptions(mp_Results, NMeta::TCConsecutiveIndices<sizeof...(tp_CFutures)>());
 			return fg_Move(mp_Results);
 		}

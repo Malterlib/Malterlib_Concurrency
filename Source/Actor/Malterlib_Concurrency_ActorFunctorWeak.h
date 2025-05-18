@@ -74,7 +74,7 @@ namespace NMib::NConcurrency
 	{
 		using CFunction = NPrivate::TCRemoveReferencesFromFunctor
 			<
-				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::CType::operator ())>::CFunctionType
+				typename NTraits::TCMemberFunctionPointerTraits<decltype(&NTraits::TCRemoveReferenceAndQualifiers<tf_CFunctor>::operator ())>::CFunctionType
 			>::CType
 		;
 

@@ -45,15 +45,15 @@ namespace NMib::NConcurrency
 		template <typename ...tp_CParam>
 		struct TCActorCallWithParamsTuple<NMeta::TCTypeList<tp_CParam...>>
 		{
-			using CType = NStorage::TCTuple<typename NTraits::TCRemoveReferenceAndQualifiers<tp_CParam>::CType...>;
+			using CType = NStorage::TCTuple<NTraits::TCRemoveReferenceAndQualifiers<tp_CParam>...>;
 		};
 
-		template <typename t_FMemberFunctionPointer, bool t_bIsMemberFunctionPointer = NTraits::TCIsMemberFunctionPointer<t_FMemberFunctionPointer>::mc_Value>
+		template <typename t_FMemberFunctionPointer, bool t_bIsMemberFunctionPointer = NTraits::cIsMemberFunctionPointer<t_FMemberFunctionPointer>>
 		struct TCActorCallWithParams
 		{
 			using CMemberPointerTypes = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CParams;
 
-			static constexpr mint mc_nParams = NMeta::TCTypeList_Len<CMemberPointerTypes>::mc_Value;
+			static constexpr mint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CReturn;
 			using CClass = typename NTraits::TCMemberFunctionPointerTraits<t_FMemberFunctionPointer>::CClass;
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 			using CTraits = NTraits::TCFunctionTraits<t_FFunctionType>;
 			using CMemberPointerTypes = typename CTraits::CParams;
 
-			static constexpr mint mc_nParams = NMeta::TCTypeList_Len<CMemberPointerTypes>::mc_Value;
+			static constexpr mint mc_nParams = NMeta::gc_TypeList_Len<CMemberPointerTypes>;
 			using CReturnType = typename CTraits::CReturn;
 			using CIndices = NMeta::TCConsecutiveIndices<mc_nParams>;
 
@@ -152,8 +152,8 @@ namespace NMib::NConcurrency
 	template <typename t_CActor, typename t_CFunctor>
 	struct TCActorResultCall
 	{
-		static_assert(!NTraits::TCIsReference<t_CActor>::mc_Value, "Incorrect type");
-		static_assert(!NTraits::TCIsReference<t_CFunctor>::mc_Value, "Incorrect type");
+		static_assert(!NTraits::cIsReference<t_CActor>, "Incorrect type");
+		static_assert(!NTraits::cIsReference<t_CFunctor>, "Incorrect type");
 
 		t_CActor mp_Actor;
 		t_CFunctor mp_Functor;
@@ -448,7 +448,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CFunctor>
 		void operator > (tf_CFunctor &&_Functor) &&
-			requires (!TCIsActorResultCall<tf_CFunctor>::mc_Value)
+			requires (!cIsActorResultCall<tf_CFunctor>)
 		{
 			auto pActor = fg_CurrentActor();
 			DMibFastCheck(pActor);
@@ -537,7 +537,7 @@ namespace NMib::NConcurrency
 
 		template <typename tf_CResultActor, typename tf_CResultFunctor, mint... tfp_Indices>
 		void fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
-			requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>::mc_Value) // Incorrect types in result call
+			requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>) // Incorrect types in result call
 		;
 
 		template <mint... tfp_Indices>
@@ -624,7 +624,7 @@ namespace NMib::NConcurrency
 		template
 		<
 			typename t_CResultTypes
-			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::TCTypeList_Len<t_CResultTypes>::mc_Value>
+			, typename t_CResultIndicies = NMeta::TCConsecutiveIndices<NMeta::gc_TypeList_Len<t_CResultTypes>>
 		>
 		struct TCCallMutipleFutureStorage;
 
@@ -675,7 +675,7 @@ namespace NMib::NConcurrency
 		, mint... tfp_Indices
 	>
 	void TCFuturePack<tp_CFutures...>::fp_ActorCall(TCActorResultCall<tf_CResultActor, tf_CResultFunctor> &&_ResultCall, NMeta::TCIndices<tfp_Indices...>) &&
-		requires (NTraits::TCIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>::mc_Value) // Incorrect types in result call
+		requires (NTraits::cIsCallableWith<tf_CResultFunctor, void (TCAsyncResult<typename tp_CFutures::CValue> && ...)>) // Incorrect types in result call
 	{
 		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
 		using CStorage = NPrivate::TCCallMutipleActorStorage<true, tf_CResultFunctor, tf_CResultActor, CTypeList>;
@@ -910,7 +910,7 @@ namespace NMib::NConcurrency
 			{
 				try
 				{
-					if constexpr (NTraits::TCIsVoid<t_CRet>::mc_Value)
+					if constexpr (NTraits::cIsVoid<t_CRet>)
 					{
 						m_ToCall(*pActor, typename t_CFunctor::CIndices());
 						if (!m_Promise.f_IsDiscarded())
@@ -1077,28 +1077,28 @@ namespace NMib::NConcurrency
 		-> typename NPrivate::TCCallActorGetReturnType
 		<
 			typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>::CReturn
-			, NTraits::TCDecayType<tf_CPromiseParam>
+			, NTraits::TCDecay<tf_CPromiseParam>
 		>::CType
 		requires
 		(
-			NTraits::TCIsMemberFunctionPointer<tf_CFunctor>::mc_Value
+			NTraits::cIsMemberFunctionPointer<tf_CFunctor>
 			&&
 			!
 			(
-				!NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructDiscardResult>::mc_Value
-				&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructNoConsume>::mc_Value
-				&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CVoidTag>::mc_Value
+				!NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
+				&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
+				&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
 				&& !NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value
 			)
 		)
 	{
 		using CReturn = typename NPrivate::TCGetReturnType<tf_CReturn>::CType;
-		using CPromiseParam = NTraits::TCDecayType<tf_CPromiseParam>;
+		using CPromiseParam = NTraits::TCDecay<tf_CPromiseParam>;
 
 		constexpr static bool c_bIsAsyncGenerator = NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value;
-		constexpr static bool c_bIsDiscardResult = NTraits::TCIsSame<CPromiseParam, CPromiseConstructDiscardResult>::mc_Value;
-		constexpr static bool c_bIsDirectReturn = NTraits::TCIsSame<CPromiseParam, CVoidTag>::mc_Value;
-		constexpr static bool c_bIsFunctor = !c_bIsDirectReturn && !c_bIsDiscardResult && !NTraits::TCIsSame<CPromiseParam, CPromiseConstructNoConsume>::mc_Value;
+		constexpr static bool c_bIsDiscardResult = NTraits::cIsSame<CPromiseParam, CPromiseConstructDiscardResult>;
+		constexpr static bool c_bIsDirectReturn = NTraits::cIsSame<CPromiseParam, CVoidTag>;
+		constexpr static bool c_bIsFunctor = !c_bIsDirectReturn && !c_bIsDiscardResult && !NTraits::cIsSame<CPromiseParam, CPromiseConstructNoConsume>;
 
 		static_assert(!c_bIsFunctor || c_bIsAsyncGenerator); // Should be caught by other fg_CallActorFutureDirectCoroutine
 
@@ -1223,14 +1223,14 @@ namespace NMib::NConcurrency
 		-> typename NPrivate::TCCallActorGetReturnType
 		<
 			typename NTraits::TCMemberFunctionPointerTraits<tf_CFunctor>::CReturn
-			, NTraits::TCDecayType<tf_CPromiseParam>
+			, NTraits::TCDecay<tf_CPromiseParam>
 		>::CType
 		requires
 		(
-			NTraits::TCIsMemberFunctionPointer<tf_CFunctor>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructDiscardResult>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructNoConsume>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CVoidTag>::mc_Value
+			NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
 			&& !NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value
 		)
 	{
@@ -1353,29 +1353,29 @@ namespace NMib::NConcurrency
 		)
 		-> typename NPrivate::TCCallActorGetReturnType
 		<
-			typename NTraits::TCFunctionTraits<typename NTraits::TCRemovePointer<tf_CFunctor>::CType>::CReturn
-			, NTraits::TCDecayType<tf_CPromiseParam>
+			typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_CFunctor>>::CReturn
+			, NTraits::TCDecay<tf_CPromiseParam>
 		>::CType
 		requires
 		(
-			!NTraits::TCIsMemberFunctionPointer<tf_CFunctor>::mc_Value
+			!NTraits::cIsMemberFunctionPointer<tf_CFunctor>
 			&&
 			!
 			(
-				!NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructDiscardResult>::mc_Value
-				&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructNoConsume>::mc_Value
-				&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CVoidTag>::mc_Value
+				!NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
+				&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
+				&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
 				&& !NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value
 			)
 		)
 	{
 		using CReturn = typename NPrivate::TCGetReturnType<tf_CReturn>::CType;
-		using CPromiseParam = NTraits::TCDecayType<tf_CPromiseParam>;
+		using CPromiseParam = NTraits::TCDecay<tf_CPromiseParam>;
 
 		constexpr static bool c_bIsAsyncGenerator = NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value;
-		constexpr static bool c_bIsDiscardResult = NTraits::TCIsSame<CPromiseParam, CPromiseConstructDiscardResult>::mc_Value;
-		constexpr static bool c_bIsDirectReturn = NTraits::TCIsSame<CPromiseParam, CVoidTag>::mc_Value;
-		constexpr static bool c_bIsFunctor = !c_bIsDirectReturn && !c_bIsDiscardResult && !NTraits::TCIsSame<CPromiseParam, CPromiseConstructNoConsume>::mc_Value;
+		constexpr static bool c_bIsDiscardResult = NTraits::cIsSame<CPromiseParam, CPromiseConstructDiscardResult>;
+		constexpr static bool c_bIsDirectReturn = NTraits::cIsSame<CPromiseParam, CVoidTag>;
+		constexpr static bool c_bIsFunctor = !c_bIsDirectReturn && !c_bIsDiscardResult && !NTraits::cIsSame<CPromiseParam, CPromiseConstructNoConsume>;
 
 		static_assert(!c_bIsFunctor || c_bIsAsyncGenerator); // Should be caught by other fg_CallActorFutureDirectCoroutine
 
@@ -1497,15 +1497,15 @@ namespace NMib::NConcurrency
 		)
 		-> typename NPrivate::TCCallActorGetReturnType
 		<
-			typename NTraits::TCFunctionTraits<typename NTraits::TCRemovePointer<tf_CFunctor>::CType>::CReturn
-			, NTraits::TCDecayType<tf_CPromiseParam>
+			typename NTraits::TCFunctionTraits<NTraits::TCRemovePointer<tf_CFunctor>>::CReturn
+			, NTraits::TCDecay<tf_CPromiseParam>
 		>::CType
 		requires
 		(
-			!NTraits::TCIsMemberFunctionPointer<tf_CFunctor>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructDiscardResult>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CPromiseConstructNoConsume>::mc_Value
-			&& !NTraits::TCIsSame<NTraits::TCDecayType<tf_CPromiseParam>, CVoidTag>::mc_Value
+			!NTraits::cIsMemberFunctionPointer<tf_CFunctor>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructDiscardResult>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CPromiseConstructNoConsume>
+			&& !NTraits::cIsSame<NTraits::TCDecay<tf_CPromiseParam>, CVoidTag>
 			&& !NPrivate::TCIsAsyncGenerator<tf_CReturn>::mc_Value
 		)
 	{
@@ -1609,7 +1609,7 @@ namespace NMib::NConcurrency
 	{
 		template <typename tf_CParam>
 		auto fg_ConvertToFuture(tf_CParam &&_Param)
-			requires (NPrivate::TCIsFuture<typename NTraits::TCRemoveReferenceAndQualifiers<tf_CParam>::CType>::mc_Value)
+			requires (NPrivate::TCIsFuture<NTraits::TCRemoveReferenceAndQualifiers<tf_CParam>>::mc_Value)
 		{
 			return fg_Forward<tf_CParam>(_Param);
 		}

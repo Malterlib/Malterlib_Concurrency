@@ -36,9 +36,9 @@ namespace NMib::NConcurrency
 				if (!Promise.f_IsSet())
 					Promise.f_SetResult(fg_Move(_DoneSubscription));
 
-				if constexpr (NTraits::TCIsSame<t_CReturnType, void>::mc_Value)
+				if constexpr (NTraits::cIsSame<t_CReturnType, void>)
 					co_return {};
-				else if constexpr (NTraits::TCHasTrivialDefaultConstructor<t_CReturnType>::mc_Value)
+				else if constexpr (NTraits::cIsTrivialllyDefaultConstructible<t_CReturnType>)
 					co_return t_CReturnType{};
 				else
 					co_return DMibErrorInstance("Value");

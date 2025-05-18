@@ -25,13 +25,12 @@ namespace NMib::NConcurrency
 		static constexpr bool mc_bIsAlwaysAlive = TCIsActorAlwaysAlive<CContainedActor>::mc_bImpl;
 
 	private:
-		using CPointerType = typename TCChooseType
+		using CPointerType = TCConditional
 			<
 				mc_bIsAlwaysAlive
 				, CActorInternal *
 				, TCActorHolderWeakPointer<CActorInternal>
 			>
-			::CType
 		;
 		union
 		{
@@ -163,7 +162,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;
@@ -177,7 +176,7 @@ namespace NMib::NConcurrency
 				, decltype(tf_pFunctionPointer)
 				, CBindActorOptions(tf_BindOptions.m_CallType, NPrivate::gc_VirtualCallDetection<tf_pFunctionPointer, tf_BindOptions.m_VirtualCall>)
 				, true
-				, NTraits::TCDecayType<tfp_CCallParams>...
+				, NTraits::TCDecay<tfp_CCallParams>...
 			>
 			requires cActorCallableWithFunctor<tf_pFunctionPointer, t_CActor, tfp_CCallParams...>
 		;

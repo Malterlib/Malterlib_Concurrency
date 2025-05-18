@@ -124,7 +124,7 @@ namespace NMib::NConcurrency::NPrivate
 				}
 				else
 				{
-					if constexpr (NContainer::TCIsContainer<typename NTraits::TCRemoveReferenceAndQualifiers<decltype(*p_Result)>::CType>::mc_Value)
+					if constexpr (NContainer::TCIsContainer<NTraits::TCRemoveReferenceAndQualifiers<decltype(*p_Result)>>::mc_Value)
 					{
 						auto Result = fg_Unwrap(fg_Move(*p_Result));
 						if (!Result)

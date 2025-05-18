@@ -18,13 +18,13 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FCleanup
-		, TCEnableIfType
+		, TCEnableIf
 		<
-			NTraits::TCIsSame
+			NTraits::cIsSame
 			<
-				NTraits::TCCallableReturnTypeFor<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>
+				NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
 				, TCFuture<void>
-			>::mc_Value
+			>
 		>
 		*
 	>
@@ -36,13 +36,13 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FCleanup
-		, TCEnableIfType
+		, TCEnableIf
 		<
-			!NTraits::TCIsSame
+			!NTraits::cIsSame
 			<
-				NTraits::TCCallableReturnTypeFor<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>
+				NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
 				, TCFuture<void>
-			>::mc_Value
+			>
 		>
 		*
 	>
@@ -54,13 +54,13 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FCleanup
-		, TCEnableIfType
+		, TCEnableIf
 		<
-			NTraits::TCIsSame
+			NTraits::cIsSame
 			<
-				NTraits::TCCallableReturnTypeFor<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>
+				NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
 				, TCFuture<void>
-			>::mc_Value
+			>
 		>
 		*
 	>
@@ -74,13 +74,13 @@ namespace NMib::NConcurrency
 	template
 	<
 		typename tf_FCleanup
-		, TCEnableIfType
+		, TCEnableIf
 		<
-			!NTraits::TCIsSame
+			!NTraits::cIsSame
 			<
-				NTraits::TCCallableReturnTypeFor<typename NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>::CType, void ()>
+				NTraits::TCCallableReturnTypeFor<NTraits::TCRemoveReferenceAndQualifiers<tf_FCleanup>, void ()>
 				, TCFuture<void>
-			>::mc_Value
+			>
 		>
 		*
 	>

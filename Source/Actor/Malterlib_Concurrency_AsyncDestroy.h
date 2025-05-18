@@ -12,12 +12,12 @@ namespace NMib::NConcurrency
 	{
 		template <typename tf_FDestroy>
 		TCAsyncDestroy(tf_FDestroy &&_fDestroy, CFutureCoroutineContext *_pCoroutineContext)
-			requires (!NTraits::TCIsReference<t_FDestroy>::mc_Value)
+			requires (!NTraits::cIsReference<t_FDestroy>)
 		;
 
 		template <typename tf_FDestroy>
 		TCAsyncDestroy(tf_FDestroy &&_fDestroy, CFutureCoroutineContext *_pCoroutineContext)
-			requires (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+			requires (NTraits::cIsReference<t_FDestroy>)
 		;
 
 		TCAsyncDestroy(TCAsyncDestroy &&_Other);
@@ -46,12 +46,12 @@ namespace NMib::NConcurrency
 	{
 		template <typename tf_FDestroy>
 		TCAsyncDestroyAwaiter(tf_FDestroy &&_fDestroy)
-			requires (!NTraits::TCIsReference<t_FDestroy>::mc_Value)
+			requires (!NTraits::cIsReference<t_FDestroy>)
 		;
 
 		template <typename tf_FDestroy>
 		TCAsyncDestroyAwaiter(tf_FDestroy &&_fDestroy)
-			requires (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+			requires (NTraits::cIsReference<t_FDestroy>)
 		;
 
 		TCAsyncDestroyAwaiter(TCAsyncDestroyAwaiter &&_Other);

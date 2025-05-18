@@ -8,7 +8,7 @@ namespace NMib::NConcurrency
 	template <typename t_FDestroy>
 	template <typename tf_FDestroy>
 	TCAsyncDestroy<t_FDestroy>::TCAsyncDestroy(tf_FDestroy &&_fDestroy, CFutureCoroutineContext *_pCoroutineContext)
-		requires (!NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		requires (!NTraits::cIsReference<t_FDestroy>)
 		: mp_fDestroy(fg_Forward<tf_FDestroy>(_fDestroy))
 		, mp_pCoroutineContext(_pCoroutineContext)
 	{
@@ -17,7 +17,7 @@ namespace NMib::NConcurrency
 	template <typename t_FDestroy>
 	template <typename tf_FDestroy>
 	TCAsyncDestroy<t_FDestroy>::TCAsyncDestroy(tf_FDestroy &&_fDestroy, CFutureCoroutineContext *_pCoroutineContext)
-		requires (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		requires (NTraits::cIsReference<t_FDestroy>)
 		: mp_fDestroy(_fDestroy)
 		, mp_pCoroutineContext(_pCoroutineContext)
 	{
@@ -39,7 +39,7 @@ namespace NMib::NConcurrency
 
 		DMibFastCheck(pCoroContext->m_bRuntimeStateConstructed);
 
-		if constexpr (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		if constexpr (NTraits::cIsReference<t_FDestroy>)
 			pCoroContext->m_State.m_AsyncDestructors.f_Insert(fg_Move(mp_fDestroy).f_Destroy());
 		else
 			pCoroContext->m_State.m_AsyncDestructors.f_Insert(fg_CallSafe(fg_Move(mp_fDestroy)));
@@ -56,7 +56,7 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(m_pWrapped->mp_pCoroutineContext);
 		m_pWrapped->mp_pCoroutineContext = nullptr;
-		if constexpr (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		if constexpr (NTraits::cIsReference<t_FDestroy>)
 			return fg_Move(m_pWrapped->mp_fDestroy).f_Destroy();
 		else
 			return {fg_CallSafe(fg_Move(m_pWrapped->mp_fDestroy)), nullptr};
@@ -73,7 +73,7 @@ namespace NMib::NConcurrency
 	{
 		DMibFastCheck(mp_pCoroutineContext);
 		mp_pCoroutineContext = nullptr;
-		if constexpr (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		if constexpr (NTraits::cIsReference<t_FDestroy>)
 			return fg_Move(mp_fDestroy).f_Destroy();
 		else
 			return {fg_CallSafe(fg_Move(mp_fDestroy)), {}};
@@ -83,7 +83,7 @@ namespace NMib::NConcurrency
 	template <typename t_FDestroy, typename t_FDestroyFinal>
 	template <typename tf_FDestroy>
 	TCAsyncDestroyAwaiter<t_FDestroy, t_FDestroyFinal>::TCAsyncDestroyAwaiter(tf_FDestroy &&_fDestroy)
-		requires (!NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		requires (!NTraits::cIsReference<t_FDestroy>)
 		: mp_fDestroy(fg_Forward<tf_FDestroy>(_fDestroy))
 	{
 	}
@@ -91,7 +91,7 @@ namespace NMib::NConcurrency
 	template <typename t_FDestroy, typename t_FDestroyFinal>
 	template <typename tf_FDestroy>
 	TCAsyncDestroyAwaiter<t_FDestroy, t_FDestroyFinal>::TCAsyncDestroyAwaiter(tf_FDestroy &&_fDestroy)
-		requires (NTraits::TCIsReference<t_FDestroy>::mc_Value)
+		requires (NTraits::cIsReference<t_FDestroy>)
 		: mp_fDestroy(_fDestroy)
 	{
 	}
@@ -170,7 +170,7 @@ namespace NMib::NConcurrency
 			_fDestroy().f_DiscardResult();
 		}
 	{
-		using FDestroy = typename NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>::CType;
+		using FDestroy = NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>;
 		return TCAsyncDestroyAwaiter<FDestroy, FDestroy>(fg_Forward<tf_FDestroy>(_fDestroy));
 	}
 
@@ -181,7 +181,7 @@ namespace NMib::NConcurrency
 			_fDestroy().f_DiscardResult();
 		}
 	{
-		using FDestroy = typename NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>::CType;
+		using FDestroy = NTraits::TCRemoveReferenceAndQualifiers<tf_FDestroy>;
 		return TCAsyncDestroyAwaiter<FDestroy &, FDestroy>(fg_Forward<tf_FDestroy>(_fDestroy));
 	}
 

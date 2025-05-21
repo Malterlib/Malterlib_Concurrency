@@ -687,7 +687,7 @@ namespace NMib::NConcurrency
 		virtual TCFuture<void> f_Destroy() = 0;
 	};
 
-	typedef NStorage::TCUniquePointer<CActorSubscriptionReference> CActorSubscription;
+	using CActorSubscription = NStorage::TCUniquePointer<CActorSubscriptionReference>;
 
 	struct CBlockingActorStorage;
 	struct CBlockingActor;

@@ -33,7 +33,7 @@ namespace NMib::NConcurrency
 	template <typename t_CActor>
 	class align_cacheline TCActorInternal : public t_CActor::CActorHolder
 	{
-		typedef typename t_CActor::CActorHolder CSuper;
+		using CSuper = typename t_CActor::CActorHolder;
 
 		template <typename t_CActor2>
 		friend class TCActor;

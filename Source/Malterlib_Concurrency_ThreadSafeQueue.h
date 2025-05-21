@@ -130,12 +130,12 @@ namespace NMib::NContainer
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	class TCThreadSafeQueue
 	{
-		typedef TCThreadSafeQueueListEntry<t_CType> CListEntry;
-		typedef TCThreadSafeQueueEntry<t_CType, t_CAllocator> CReturnEntry;
+		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
+		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
 		boost::lockfree::queue<CListEntry *> m_Queue;
 
-		typedef t_CAllocator CAllocator;
+		using CAllocator = t_CAllocator;
 
 		void fp_Clear()
 		{
@@ -321,13 +321,13 @@ namespace NMib::NContainer
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap>
 	class TCThreadSafeQueue
 	{
-		typedef TCThreadSafeQueueListEntry<t_CType> CListEntry;
-		typedef TCThreadSafeQueueEntry<t_CType, t_CAllocator> CReturnEntry;
+		using CListEntry = TCThreadSafeQueueListEntry<t_CType>;
+		using CReturnEntry = TCThreadSafeQueueEntry<t_CType, t_CAllocator>;
 
 		mutable NThread::CLowLevelLock m_Lock;
 		DMibListLinkDS_List_FromTemplate(CListEntry, m_Link) m_Queue;
 
-		typedef t_CAllocator CAllocator;
+		using CAllocator = t_CAllocator;
 
 		void fp_Clear()
 		{

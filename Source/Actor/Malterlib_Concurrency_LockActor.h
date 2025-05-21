@@ -20,7 +20,7 @@ namespace NMib::NConcurrency
 			NThread::CEventAutoReset m_Event;
 		};
 
-		typedef CSeparateThreadActorHolder CActorHolder;
+		using CActorHolder = CSeparateThreadActorHolder;
 
 		TCLockActor(t_CType &_Object, t_CLock &_Lock);
 		~TCLockActor();

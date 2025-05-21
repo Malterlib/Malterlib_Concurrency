@@ -100,7 +100,7 @@ namespace NTestActor2
 	class CLocalActor : public CActor
 	{
 	public:
-		typedef CDispatchingActorHolder CActorHolder;
+		using CActorHolder = CDispatchingActorHolder;
 	};
 
 	struct CTestActorWithDestroy : public CActor

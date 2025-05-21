@@ -549,19 +549,19 @@ namespace NMib::NConcurrency
 		template <typename t_CType, typename t_CStrippedType = typename NTraits::TCMemberFunctionPointerTraits<t_CType>::CReturn>
 		struct TCGetResultType
 		{
-			typedef t_CStrippedType CType;
+			using CType = t_CStrippedType;
 		};
 
 		template <typename t_CType, typename t_CReturnType>
 		struct TCGetResultType<t_CType, TCPromise<t_CReturnType>>
 		{
-			typedef t_CReturnType CType;
+			using CType = t_CReturnType;
 		};
 
 		template <typename t_CType, typename t_CReturnType>
 		struct TCGetResultType<t_CType, TCFuture<t_CReturnType>>
 		{
-			typedef t_CReturnType CType;
+			using CType = t_CReturnType;
 		};
 
 		template

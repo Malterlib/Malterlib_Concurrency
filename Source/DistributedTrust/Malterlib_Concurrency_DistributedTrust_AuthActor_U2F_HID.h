@@ -11,7 +11,7 @@
 extern "C"
 {
 	struct hid_device_;
-	typedef struct hid_device_ hid_device; /**< opaque hidapi structure */
+	using hid_device = struct hid_device_; /**< opaque hidapi structure */
 }
 
 namespace NMib::NConcurrency

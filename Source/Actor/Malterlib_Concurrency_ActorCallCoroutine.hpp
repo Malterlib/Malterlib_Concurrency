@@ -54,8 +54,8 @@ namespace NMib::NConcurrency
 			, NMeta::TCIndices<tfp_Indices...>
 		)
 	{
-		typedef NMeta::TCTypeList<typename tp_CFutures::CValue...> CTypeList;
-		typedef NPrivate::TCCallMutipleActorStorage<false, tf_CResultFunctor, TCActor<>, CTypeList> CStorage;
+		using CTypeList = NMeta::TCTypeList<typename tp_CFutures::CValue...>;
+		using CStorage = NPrivate::TCCallMutipleActorStorage<false, tf_CResultFunctor, TCActor<>, CTypeList>;
 
 		NStorage::TCSharedPointer<CStorage> pStorage = fg_Construct(fg_Move(_ResultActor), fg_Forward<tf_CResultFunctor>(_ResultFunctor));
 

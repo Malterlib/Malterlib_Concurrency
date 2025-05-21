@@ -125,8 +125,8 @@ namespace NMib::NContainer
 	template <typename t_CType, typename t_CAllocator = NMemory::CAllocator_Heap, int t_DefaultSize = DDefaultThreadSafeQueueSize>
 	class TCThreadSafeQueueAtomic
 	{
-		typedef TCThreadSafeQueueAtomicListEntry<t_CType> CListEntry;
-		typedef TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator> CReturnEntry;
+		using CListEntry = TCThreadSafeQueueAtomicListEntry<t_CType>;
+		using CReturnEntry = TCThreadSafeQueueAtomicEntry<t_CType, t_CAllocator>;
 
 		template<typename T>
 		struct CStdAllocator : public std::allocator<T>
@@ -141,18 +141,18 @@ namespace NMib::NContainer
 				t_CAllocator::f_Free(p, sizeof(T) * n);
 			}
 
-			template<typename Type>
+			template<typename t_CType2>
 			struct rebind
 			{
-				typedef CStdAllocator<Type> other;
+				using other = CStdAllocator<t_CType2>;
 			};
 		};
 
-		typedef typename boost::lockfree::allocator<CStdAllocator<void>> allocator_type;
+		using allocator_type = typename boost::lockfree::allocator<CStdAllocator<void>>;
 
 		boost::lockfree::queue<CListEntry *, allocator_type> m_Queue {t_DefaultSize};
 
-		typedef t_CAllocator CAllocator;
+		using CAllocator = t_CAllocator;
 
 		void fp_Clear()
 		{

@@ -1198,7 +1198,7 @@ namespace NMib::NConcurrency
 	};
 
 	template <typename t_CReturnValue, ECoroutineFlag t_Flags>
-	struct TCFutureWithFlags : public TCFuture<t_CReturnValue>
+	struct [[nodiscard("You need to co_await or forward the result to a functor with > operator")]] TCFutureWithFlags : public TCFuture<t_CReturnValue>
 	{
 		TCFutureWithFlags(TCFuture<t_CReturnValue> &&_Other)
 			: TCFuture<t_CReturnValue>(fg_Move(_Other))

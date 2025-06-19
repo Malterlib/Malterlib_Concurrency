@@ -230,17 +230,17 @@ namespace NMib::NConcurrency
 		if (m_HostInfo)
 			Result += "Host: {}"_f << m_HostInfo->f_GetDesc();
 		if (m_UserInfo)
-			fg_AddStrSep(Result, "User: {} [{}]"_f << f_GetIdentifiers().f_GetUserID() << m_UserInfo->m_UserName, " ");
+			fg_AddStrSep(Result, "User: {} [{}]"_f << f_GetIdentifiers().f_GetUserID() << m_UserInfo->m_UserName, "\n");
 		if (!m_AuthenticationFactors.f_IsEmpty())
 		{
-			fg_AddStrSep(Result, "Authentication factors:", " ");
+			fg_AddStrSep(Result, "Authentication Factors:", "\n");
 			for (auto const &Factors : m_AuthenticationFactors)
 				fg_AddStrSep(Result, "{vs}"_f << Factors, " ");
 
 			if (m_MaximumAuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet)
-				Result += " Authentication Lifetime: Infinite (determined by signed expire time)"_f << m_MaximumAuthenticationLifetime;
+				fg_AddStrSep(Result, "Authentication Lifetime: Infinite (determined by signed expire time)"_f << m_MaximumAuthenticationLifetime, "\n");
 			else if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
-				Result += " Authentication Lifetime: {}"_f << m_MaximumAuthenticationLifetime;
+				fg_AddStrSep(Result, "\nAuthentication Lifetime: {}"_f << m_MaximumAuthenticationLifetime, "\n");
 		}
 
 		return Result;
@@ -268,26 +268,33 @@ namespace NMib::NConcurrency
 					<< AnsiEncoding.f_Prompt()
 					<< m_UserInfo->m_UserName
 					<< AnsiEncoding.f_Default()
-					, " "
+					, "\n"
 				)
 			;
 		}
 		if (!m_AuthenticationFactors.f_IsEmpty())
 		{
-			fg_AddStrSep(Result, "{}Authentication factors{}:"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default(), " ");
+			fg_AddStrSep(Result, "{}Authentication Factors{}:"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default(), "\n");
 			for (auto const &Factors : m_AuthenticationFactors)
 				fg_AddStrSep(Result, "{vs}"_f << Factors, " ");
 
 			if (m_MaximumAuthenticationLifetime == CPermissionRequirements::mc_OverrideLifetimeNotSet)
 			{
-				Result += " {}Authentication Lifetime{}: Infinite (determined by signed expire time)"_f
-					<< AnsiEncoding.f_Bold()
-					<< AnsiEncoding.f_Default()
-					<< m_MaximumAuthenticationLifetime
+				fg_AddStrSep
+					(
+						Result
+						, " {}Authentication Lifetime{}: Infinite (determined by signed expire time)"_f
+						<< AnsiEncoding.f_Bold()
+						<< AnsiEncoding.f_Default()
+						<< m_MaximumAuthenticationLifetime
+						, "\n"
+					)
 				;
 			}
 			else if (m_MaximumAuthenticationLifetime != CPermissionRequirements::mc_DefaultMaximumLifetime)
-				Result += " {}Authentication Lifetime{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_MaximumAuthenticationLifetime;
+			{
+				fg_AddStrSep(Result, "{}Authentication Lifetime{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_MaximumAuthenticationLifetime, "\n");
+			}
 		}
 
 		return Result;

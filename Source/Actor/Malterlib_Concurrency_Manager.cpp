@@ -518,6 +518,7 @@ namespace NMib::NConcurrency
 					}
 					, NStr::CStrNonTracked::CFormat("Pool{} {}") << Name << m_iQueue
 					, ThreadPrio
+					, 2 * 1024 * 1024
 				)
 			)
 		;

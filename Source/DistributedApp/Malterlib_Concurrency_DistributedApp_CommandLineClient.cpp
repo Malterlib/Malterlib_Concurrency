@@ -249,12 +249,12 @@ namespace NMib::NConcurrency
 
 			TCFuture<void> f_ScreenChange(CScreenChange _ScreenChange)
 			{
-				TCActorResultVector<void> Results;
+				TCFutureVector<void> Results;
 
 				for (auto &Subscription : mp_ScreenChangeSubscriptions)
-					Subscription.m_fOnScreenChange(_ScreenChange) > Results.f_AddResult();
+					Subscription.m_fOnScreenChange(_ScreenChange) > Results;
 
-				co_await Results.f_GetUnwrappedResults();
+				co_await fg_AllDone(Results);
 
 				co_return {};
 			}

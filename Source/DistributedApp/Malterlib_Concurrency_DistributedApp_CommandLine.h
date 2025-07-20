@@ -92,7 +92,7 @@ namespace NMib::NConcurrency
 			>
 		;
 		using FOnCancel = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<bool> ()>;
-		using FOnScreenChange = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (CScreenChange const &_ScreenChange)>;
+		using FOnScreenChange = NConcurrency::TCActorFunctorWithID<NConcurrency::TCFuture<void> (CScreenChange _ScreenChange)>;
 
 		ICCommandLineControl();
 		~ICCommandLineControl();

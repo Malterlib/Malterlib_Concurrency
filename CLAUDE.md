@@ -524,6 +524,49 @@ int32 Result = co_await
 m_Value = Result;
 ```
 
+### Error Handling with Coroutines
+
+```cpp
+// INCORRECT: co_await in catch block (compilation error)
+try
+{
+	Json = CEJsonSorted::fs_FromString(Input);
+}
+catch (NException::CException const &_Exception)
+{
+	co_await _pCommandLine->f_StdErr("Error: {}\n"_f << _Exception); // ERROR!
+	co_return 1;
+}
+
+// CORRECT: Use g_CaptureExceptions
+{
+	auto CaptureScope = co_await (g_CaptureExceptions % "Error parsing JSON");
+	Json = CEJsonSorted::fs_FromString(Input);
+}
+
+// INCORRECT: Wrong operator precedence with % and co_await
+CStr Result = co_await
+	(
+		g_Dispatch(fg_BlockingActor()) / [Path]() -> CStr
+		{
+			return CFile::fs_ReadStringFromFile(Path);
+		}
+	) % "Error reading file"  // ERROR: % applied after co_await
+;
+
+// CORRECT: Parenthesize the % operator
+CStr Result = co_await
+	(
+		g_Dispatch(fg_BlockingActor()) / [Path]() -> CStr
+		{
+			return CFile::fs_ReadStringFromFile(Path);
+		}
+		% "Error reading file"  // Correct: % applied to future before co_await
+	)
+;
+
+```
+
 ## Testing
 
 ```bash
@@ -571,6 +614,8 @@ MalterlibConcurrency_DebugSubscriptions true    // Subscription logging
 6. **Forgotten co_return**: Always end coroutines with `co_return {};` for void
 7. **Race Conditions**: Don't share mutable state between actors without synchronization
 8. **Deadlocks**: Avoid circular actor dependencies
+9. **co_await in catch blocks**: Cannot use `co_await` in catch handlers - use `g_CaptureExceptions` instead
+10. **Exception message operator precedence**: When using `% "message"` with `co_await`, parenthesize properly: `co_await ((...) % "message")`
 
 ## Advanced Features
 

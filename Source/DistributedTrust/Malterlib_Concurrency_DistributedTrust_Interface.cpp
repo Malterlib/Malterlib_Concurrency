@@ -226,11 +226,18 @@ namespace NMib::NConcurrency
 	{
 		using namespace NStr;
 		CStr Result;
+		auto &Identifiers = f_GetIdentifiers();
 
 		if (m_HostInfo)
 			Result += "Host: {}"_f << m_HostInfo->f_GetDesc();
+		else if (auto HostID = Identifiers.f_GetHostID())
+			Result += "Host: Invalid host with ID {}"_f << HostID;
+
 		if (m_UserInfo)
-			fg_AddStrSep(Result, "User: {} [{}]"_f << f_GetIdentifiers().f_GetUserID() << m_UserInfo->m_UserName, "\n");
+			fg_AddStrSep(Result, "User: {} [{}]"_f << Identifiers.f_GetUserID() << m_UserInfo->m_UserName, "\n");
+		else if (auto UserID = Identifiers.f_GetHostID())
+			fg_AddStrSep(Result, "User: Invalid user with ID {}"_f << UserID, "\n");
+
 		if (!m_AuthenticationFactors.f_IsEmpty())
 		{
 			fg_AddStrSep(Result, "Authentication Factors:", "\n");
@@ -253,8 +260,12 @@ namespace NMib::NConcurrency
 
 		NCommandLine::CAnsiEncoding AnsiEncoding(_AnsiFlags);
 
+		auto &Identifiers = f_GetIdentifiers();
+
 		if (m_HostInfo)
 			Result += "{}Host{}: {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << m_HostInfo->f_GetDescColored(_AnsiFlags);
+		else if (auto HostID = Identifiers.f_GetHostID())
+			Result += "{}Host{}: Invalid host with ID {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << HostID;
 
 		if (m_UserInfo)
 		{
@@ -264,7 +275,7 @@ namespace NMib::NConcurrency
 					, "{}User{}: {} [{}{}{}]"_f
 					<< AnsiEncoding.f_Bold()
 					<< AnsiEncoding.f_Default()
-					<< f_GetIdentifiers().f_GetUserID()
+					<< Identifiers.f_GetUserID()
 					<< AnsiEncoding.f_Prompt()
 					<< m_UserInfo->m_UserName
 					<< AnsiEncoding.f_Default()
@@ -272,6 +283,9 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
+		else if (auto UserID = Identifiers.f_GetUserID())
+			fg_AddStrSep(Result, "{}User{}: Invalid user with ID {}"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default() << UserID, "\n");
+
 		if (!m_AuthenticationFactors.f_IsEmpty())
 		{
 			fg_AddStrSep(Result, "{}Authentication Factors{}:"_f << AnsiEncoding.f_Bold() << AnsiEncoding.f_Default(), "\n");

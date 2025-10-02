@@ -49,17 +49,20 @@ namespace NMib::NConcurrency
 			) override
 		;
 
+		struct CAuthenticationStateFactor
+		{
+			CAuthenticationActorInfo m_ActorInfo;
+			TCMap<CStr, CAuthenticationData> m_UserFactors;
+			TCOptional<bool> m_Tested;
+		};
+
 		struct CAuthenticationState
 		{
-			TCPromise<TCVector<ICDistributedActorAuthenticationHandler::CResponse>> m_Promise;
 			TCVector<ICDistributedActorAuthenticationHandler::CResponse> m_Responses;
-			TCMap<CStr, bool> m_Tested;
-			TCVector<CStr> m_FactorOrder;
-			TCVector<CStr>::CIterator m_iCurrentFactor;
+			TCMap<CStr, CAuthenticationStateFactor> m_FactorStates;
 			TCSharedPointer<CPreauthenticationInfo> m_pInfo;
 			TCSharedPointer<CCommandLineControl> m_pCommandLine;
-			TCMap<CStr, CAuthenticationActorInfo> m_ActorInfo;
-			TCMap<CStr, TCMap<CStr, CAuthenticationData>> m_UserFactors;
+
 			TCMap<TCSet<CStr>, TCSet<int32>> m_Fulfills;
 			int32 m_nRequirements;
 			NTime::CTime m_ExpirationTime;
@@ -69,14 +72,15 @@ namespace NMib::NConcurrency
 		TCFuture<CMultipleRequestData> f_GetMultipleRequestSubscription(uint32 _nHosts) override;
 
 	private:
-		void fp_TryOneFactorAtATime(TCSharedPointer<CAuthenticationState> const &_pState);
-		TCFuture<TCVector<CResponse>> fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> const &_pInfo);
+		TCFuture<void> fp_TryOneFactor(TCSharedPointer<CAuthenticationState> _pState, CStr _Factor);
+		TCFuture<TCVector<CResponse>> fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> _pInfo);
 		void fp_RequestCollected(TCSharedPointer<CPreauthenticationInfo> const &_pInfo);
 		TCFuture<void> fp_Destroy() override;
 
 		TCSharedPointer<CCommandLineControl> const mp_pCommandLine;
 		TCActor<CDistributedActorTrustManager> mp_TrustManager;
 		TCMap<CStr, TCSharedPointer<CPreauthenticationInfo>> mp_PreauthenticationInfos;
+		TCSequencer<void> mp_PromptSequencer{"AuthenticationHandler"};
 		int64 mp_AuthenticationLifetime;
 	};
 
@@ -107,16 +111,15 @@ namespace NMib::NConcurrency
 		co_return {};
 	}
 
-	void CDistributedAppAuthenticationHandler::fp_TryOneFactorAtATime(TCSharedPointer<CAuthenticationState> const &_pState)
+	TCFuture<void> CDistributedAppAuthenticationHandler::fp_TryOneFactor
+		(
+			TCSharedPointer<CAuthenticationState> _pState
+			, CStr _Factor
+		)
 	{
 		auto &State = *_pState;
-		if (!State.m_iCurrentFactor)
-		{
-			State.m_Promise.f_SetResult(State.m_Responses);
-			return;
-		}
-
 		auto &Info = *State.m_pInfo;
+		auto &FactorState = State.m_FactorStates[_Factor];
 
 		// Which permissions needs this factor?
 		TCSet<CStr> Permissions;
@@ -125,12 +128,12 @@ namespace NMib::NConcurrency
 		{
 			for (auto const &PermissionWithRequirements : OuterRequestedPermissions)
 			{
-				if (PermissionWithRequirements.m_Preauthenticated.f_FindEqual(*State.m_iCurrentFactor))
+				if (PermissionWithRequirements.m_Preauthenticated.f_FindEqual(_Factor))
 					continue; // Even if this permission requires this factor, it has been preauthenticated and should not be listed
 
 				for (auto const &Factors : PermissionWithRequirements.m_AuthenticationFactors)
 				{
-					if (Factors.f_FindEqual(*State.m_iCurrentFactor))
+					if (Factors.f_FindEqual(_Factor))
 					{
 						PermissionDescriptions[PermissionWithRequirements.m_Description][PermissionWithRequirements.m_Permission];
 						Permissions[PermissionWithRequirements.m_Permission];
@@ -139,12 +142,9 @@ namespace NMib::NConcurrency
 			}
 		}
 
-		auto Actor = State.m_ActorInfo[*State.m_iCurrentFactor].m_Actor;
+		auto Actor = FactorState.m_ActorInfo.m_Actor;
 		if (!Actor)
-		{
-			State.m_Promise.f_SetResult(State.m_Responses);
-			return;
-		}
+			co_return {};
 
 		NStr::CStr Prompt = "\nAuthentication required for '{}'. Please authenticate to allow the following permissions:\n"_f << Info.m_Request.m_Description;
 
@@ -173,77 +173,49 @@ namespace NMib::NConcurrency
 			*State.m_pCommandLine %= Prompt;
 		}
 
-		Actor
+
+		auto Response = co_await Actor
 			(
 				&ICDistributedActorTrustManagerAuthenticationActor::f_SignAuthenticationRequest
 				, State.m_pCommandLine
 				, Info.m_Request.m_Description
 				, ICDistributedActorAuthenticationHandler::CSignedProperties{Permissions, Info.m_Challenges, State.m_ExpirationTime}
-				, State.m_UserFactors[*State.m_iCurrentFactor]
+				, FactorState.m_UserFactors
 			)
-			> [=, this](TCAsyncResult<ICDistributedActorAuthenticationHandler::CResponse> &&_Response)
-			{
-				auto &State = *_pState;
-				auto CurrentFactor = *State.m_iCurrentFactor;
-				if (!_Response)
-				{
-					auto AnsiEncoding = State.m_pCommandLine->f_AnsiEncoding();
-
-					*State.m_pCommandLine %= "Failed to authenticate with factor '{}': {}{}{}\n"_f
-						<< CurrentFactor
-						<< AnsiEncoding.f_StatusError()
-						<< _Response.f_GetExceptionStr()
-						<< AnsiEncoding.f_Default()
-					;
-
-					State.m_Tested[CurrentFactor] = false;
-					++State.m_iCurrentFactor;
-					fp_TryOneFactorAtATime(_pState);
-					return;
-				}
-
-				if (!_Response->m_Signature.f_IsEmpty())
-				{
-					State.m_Responses.f_Insert(fg_Move(*_Response));
-					State.m_Tested[CurrentFactor] = true;
-
-					// Was this enough to authenticate all requirements?
-					TCSet<int32> Fulfilled;
-					for (auto &Members : State.m_Fulfills)
-					{
-						auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
-						bool bAllSucceeded = true;
-						for (auto const &Factor : Factors)
-						{
-							auto *pValue = State.m_Tested.f_FindEqual(Factor);
-							if (!pValue || !*pValue)
-							{
-								bAllSucceeded = false;
-								break;
-							}
-						}
-						if (bAllSucceeded)
-							Fulfilled += Members;
-					}
-					if (Fulfilled.f_GetLen() == State.m_nRequirements)
-					{
-						State.m_Promise.f_SetResult(State.m_Responses);
-						return;
-					}
-				}
-				else
-				{
-					State.m_Tested[CurrentFactor] = false;
-					// TODO: If the authentication failed we can detect that
-					// A) we will never be able to authenticate and give up early
-					// B) some other factors might be in AND set with the one that failed and there is no use asking for that factor
-					// but as long as we only have two factors...
-				}
-
-				++State.m_iCurrentFactor;
-				fp_TryOneFactorAtATime(_pState);
-			}
+			.f_Wrap()
 		;
+
+		auto CurrentFactor = _Factor;
+		if (!Response)
+		{
+			auto AnsiEncoding = State.m_pCommandLine->f_AnsiEncoding();
+
+			*State.m_pCommandLine %= "Failed to authenticate with factor '{}': {}{}{}\n"_f
+				<< CurrentFactor
+				<< AnsiEncoding.f_StatusError()
+				<< Response.f_GetExceptionStr()
+				<< AnsiEncoding.f_Default()
+			;
+
+			FactorState.m_Tested = false;
+			co_return {};
+		}
+
+		if (!Response->m_Signature.f_IsEmpty())
+		{
+			State.m_Responses.f_Insert(fg_Move(*Response));
+			FactorState.m_Tested = true;
+		}
+		else
+		{
+			FactorState.m_Tested = false;
+			// TODO: If the authentication failed we can detect that
+			// A) we will never be able to authenticate and give up early
+			// B) some other factors might be in AND set with the one that failed and there is no use asking for that factor
+			// but as long as we only have two factors...
+		}
+
+		co_return {};
 	}
 
 	template <typename tf_CValue>
@@ -285,7 +257,7 @@ namespace NMib::NConcurrency
 		return PowerSet;
 	}
 
-	auto CDistributedAppAuthenticationHandler::fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> const &_pInfo)
+	auto CDistributedAppAuthenticationHandler::fp_RequestAuthentication(TCSharedPointer<CPreauthenticationInfo> _pInfo)
 		-> TCFuture<TCVector<ICDistributedActorAuthenticationHandler::CResponse>>
 	{
 		TCSharedPointer<CAuthenticationState> pState = fg_Construct();
@@ -293,182 +265,194 @@ namespace NMib::NConcurrency
 		State.m_pCommandLine = mp_pCommandLine;
 		State.m_pInfo = _pInfo;
 
-		mp_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
-			+ mp_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _pInfo->m_UserID)
-			> [this, pState, pCommandLine = mp_pCommandLine, _pInfo]
+		auto SequencerSubscription = co_await mp_PromptSequencer.f_Sequence();
+
+		auto [ActorInfo, RegisteredFactors] = co_await
 			(
-				TCAsyncResult<TCMap<CStr, CAuthenticationActorInfo>> &&_ActorInfo
-				, TCAsyncResult<TCMap<CStr, CAuthenticationData>> &&_RegisteredFactors
-			) mutable
-			{
-				auto &State = *pState;
-				if (!_ActorInfo)
-				{
-					State.m_Promise.f_SetException(_ActorInfo.f_GetException());
-					return;
-				}
-				if (!_RegisteredFactors)
-				{
-					State.m_Promise.f_SetException(_RegisteredFactors.f_GetException());
-					return;
-				}
-				auto &Info = *_pInfo;
-				State.m_ActorInfo = fg_Move(*_ActorInfo);
-				for (auto const &Data : *_RegisteredFactors)
-				{
-					State.m_UserFactors[Data.m_Name][_RegisteredFactors->fs_GetKey(Data)] = Data;
-				}
-
-				// Compute which of the named queries that are fulfilled by the occuring factor combinations
-				//
-				// For example:
-				// 1: (A & B) | C
-				// 2: A       | (D & E)
-				// 3: B       | E
-				// will produce:
-				// { A }    : { 2 }
-				// { A, B } : { 1 }
-				// { B }    : { 3 }
-				// { C }    : { 1 }
-				// { D, E } : { 2 }
-				// { E }    : { 3 }
-				int32 nRequirement = 0;
-				for (auto const &OuterRequestedPermissions : Info.m_Request.m_RequestedPermissions)
-				{
-					++nRequirement;
-					for (auto const &PermissionWithRequirements : OuterRequestedPermissions)
-					{
-						bool bCanHandleAtLeastOne = false;
-						for (auto const &FactorGroup : PermissionWithRequirements.m_AuthenticationFactors)
-						{
-							bool bCanHandleAll = true;
-							auto NeedsAuthentication = FactorGroup;
-							NeedsAuthentication -= PermissionWithRequirements.m_Preauthenticated;
-
-							for (auto Factor : NeedsAuthentication)
-							{
-								if (!State.m_ActorInfo.f_FindEqual(Factor) || !State.m_UserFactors.f_FindEqual(Factor))
-								{
-									bCanHandleAll = false;
-									break;
-								}
-							}
-							if (bCanHandleAll)
-							{
-								State.m_Fulfills[NeedsAuthentication][nRequirement];
-								bCanHandleAtLeastOne = true;
-							}
-						}
-						if (!bCanHandleAtLeastOne)
-							return State.m_Promise.f_SetResult(TCVector<ICDistributedActorAuthenticationHandler::CResponse>{});	// This permission will never be authenticated
-					}
-				}
-				State.m_nRequirements = nRequirement;
-
-				// Iterate through all collected factor sets and add the members for subsets, they are handled for free if we choose the superset
-				//
-				// After this operation we will get
-				// { A }    : { 2 }
-				// { A, B } : { 1, 2, 3 }
-				// { B }    : { 3 }
-				// { C }    : { 1 }
-				// { D, E } : { 2, 3 }
-				// { E }    : { 3 }
-				for (auto &Members : State.m_Fulfills)
-				{
-					auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
-					mint nFactors = Factors.f_GetLen();
-					if (nFactors > 1)
-					{
-						if (nFactors > 16)
-						{
-							State.m_Promise.f_SetException(DMibErrorInstance("Too many factors"));
-							return;
-						}
-
-						for (auto const &SubSet : fg_PowerSet(Factors))
-						{
-							if (SubSet == Factors)
-								continue;
-							if (auto *pSubSetMembers = State.m_Fulfills.f_FindEqual(SubSet))
-								Members += *pSubSetMembers;
-						}
-					}
-				}
-
-				struct CFulfillingFactors
-				{
-					CFulfillingFactors(TCSet<CStr> const &_Factors, TCMap<CStr, CAuthenticationActorInfo> const &_ActorInfo)
-						: m_Factors(_Factors)
-					{
-						for (auto const &Factor : m_Factors)
-							m_Worst = fg_Max(m_Worst, _ActorInfo[Factor].m_Category);
-					}
-
-					COrdering_Strong operator <=> (CFulfillingFactors const &_Other) const
-					{
-						// A smaller set of factors is better than a larger set
-						auto LeftLen = m_Factors.f_GetLen();
-						auto RightLen = _Other.m_Factors.f_GetLen();
-						if (auto Result = LeftLen <=> RightLen; Result != 0)
-							return Result;
-
-						// If they have the same cardinality, select the one with the lowest category.
-						// This means a set without a password factor is selected before a set with a password factor
-						if (auto Result = m_Worst <=> _Other.m_Worst; Result != 0)
-							return Result;
-
-						// Fall back to the regular TCSet compare operation as a tie breaker
-						return m_Factors <=> _Other.m_Factors;
-					}
-
-					TCSet<CStr> m_Factors;
-					EAuthenticationFactorCategory m_Worst = EAuthenticationFactorCategory_None;
-				};
-
-				TCSet<CStr> AllFactors;
-				TCSet<CFulfillingFactors> FulfillingFactorSets;
-
-				for (auto const &Members : State.m_Fulfills)
-				{
-					auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
-					AllFactors += Factors;
-
-					if (Members.f_GetLen() == nRequirement) // Does the factor combination solve all the permission requirements?
-						FulfillingFactorSets[CFulfillingFactors{Factors, State.m_ActorInfo}];
-				}
-
-				// We have now found all fulfilling factors sets, sorted in smallest and least cumbersome order.
-				// We will use the order from these sets to minimize the number of needed authentications.
-				// Since we add the factor the factors in the set traversal order Password will come before U2F devices, and that is probably the way we want it.
-				//
-				// In the example we will first add A and B since that is a fulfilling set, and the add C, D, and E as a part of AllFactors.
-				auto fAdd = [&Order = State.m_FactorOrder](TCSet<CStr> const &_Factors)
-					{
-						for (auto const &Factor : _Factors)
-						{
-							for (auto const &AlreadyAdded : Order)
-							{
-								if (Factor == AlreadyAdded)
-									return;
-							}
-							Order.f_Insert(Factor);
-						}
-					}
-				;
-				for (auto const &Fulfilling : FulfillingFactorSets)
-					fAdd(Fulfilling.m_Factors);
-				fAdd(AllFactors);
-
-				if (mp_AuthenticationLifetime != CPermissionRequirements::mc_OverrideLifetimeNotSet)
-					State.m_ExpirationTime = NTime::CTime::fs_NowUTC() + NTime::CTimeSpanConvert::fs_CreateMinuteSpan(mp_AuthenticationLifetime);
-
-				State.m_iCurrentFactor = State.m_FactorOrder.f_GetIterator();
-				fp_TryOneFactorAtATime(pState);
-			}
+				mp_TrustManager(&CDistributedActorTrustManager::f_EnumAuthenticationActors)
+				+ mp_TrustManager(&CDistributedActorTrustManager::f_EnumUserAuthenticationFactors, _pInfo->m_UserID)
+			)
 		;
 
-		return pState->m_Promise.f_Future();
+		auto &Info = *_pInfo;
+		for (auto &AuthenticationActorEntry : ActorInfo.f_Entries())
+			State.m_FactorStates[AuthenticationActorEntry.f_Key()].m_ActorInfo = AuthenticationActorEntry.f_Value();
+
+		for (auto const &Entry : RegisteredFactors.f_Entries())
+			State.m_FactorStates[Entry.f_Value().m_Name].m_UserFactors[Entry.f_Key()] = Entry.f_Value();
+
+		// Compute which of the named queries that are fulfilled by the occuring factor combinations
+		//
+		// For example:
+		// 1: (A & B) | C
+		// 2: A       | (D & E)
+		// 3: B       | E
+		// will produce:
+		// { A }    : { 2 }
+		// { A, B } : { 1 }
+		// { B }    : { 3 }
+		// { C }    : { 1 }
+		// { D, E } : { 2 }
+		// { E }    : { 3 }
+		int32 nRequirement = 0;
+		for (auto const &OuterRequestedPermissions : Info.m_Request.m_RequestedPermissions)
+		{
+			++nRequirement;
+			for (auto const &PermissionWithRequirements : OuterRequestedPermissions)
+			{
+				bool bCanHandleAtLeastOne = false;
+				for (auto const &FactorGroup : PermissionWithRequirements.m_AuthenticationFactors)
+				{
+					bool bCanHandleAll = true;
+					auto NeedsAuthentication = FactorGroup;
+					NeedsAuthentication -= PermissionWithRequirements.m_Preauthenticated;
+
+					for (auto Factor : NeedsAuthentication)
+					{
+						auto pFatorState = State.m_FactorStates.f_FindEqual(Factor);
+						if (!pFatorState || !pFatorState->m_ActorInfo.m_Actor || pFatorState->m_UserFactors.f_IsEmpty())
+						{
+							bCanHandleAll = false;
+							break;
+						}
+					}
+					if (bCanHandleAll)
+					{
+						State.m_Fulfills[NeedsAuthentication][nRequirement];
+						bCanHandleAtLeastOne = true;
+					}
+				}
+				if (!bCanHandleAtLeastOne)
+					co_return TCVector<ICDistributedActorAuthenticationHandler::CResponse>{};	// This permission will never be authenticated
+			}
+		}
+		State.m_nRequirements = nRequirement;
+
+		// Iterate through all collected factor sets and add the members for subsets, they are handled for free if we choose the superset
+		//
+		// After this operation we will get
+		// { A }    : { 2 }
+		// { A, B } : { 1, 2, 3 }
+		// { B }    : { 3 }
+		// { C }    : { 1 }
+		// { D, E } : { 2, 3 }
+		// { E }    : { 3 }
+		for (auto &Members : State.m_Fulfills)
+		{
+			auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
+			mint nFactors = Factors.f_GetLen();
+			if (nFactors > 1)
+			{
+				if (nFactors > 16)
+					co_return DMibErrorInstance("Too many factors");
+
+				for (auto const &SubSet : fg_PowerSet(Factors))
+				{
+					if (SubSet == Factors)
+						continue;
+					if (auto *pSubSetMembers = State.m_Fulfills.f_FindEqual(SubSet))
+						Members += *pSubSetMembers;
+				}
+			}
+		}
+
+		struct CFulfillingFactors
+		{
+			CFulfillingFactors(TCSet<CStr> const &_Factors, TCMap<CStr, CAuthenticationActorInfo> const &_ActorInfo)
+				: m_Factors(_Factors)
+			{
+				for (auto const &Factor : m_Factors)
+					m_Worst = fg_Max(m_Worst, _ActorInfo[Factor].m_Category);
+			}
+
+			COrdering_Strong operator <=> (CFulfillingFactors const &_Other) const
+			{
+				// A smaller set of factors is better than a larger set
+				auto LeftLen = m_Factors.f_GetLen();
+				auto RightLen = _Other.m_Factors.f_GetLen();
+				if (auto Result = LeftLen <=> RightLen; Result != 0)
+					return Result;
+
+				// If they have the same cardinality, select the one with the lowest category.
+				// This means a set without a password factor is selected before a set with a password factor
+				if (auto Result = m_Worst <=> _Other.m_Worst; Result != 0)
+					return Result;
+
+				// Fall back to the regular TCSet compare operation as a tie breaker
+				return m_Factors <=> _Other.m_Factors;
+			}
+
+			TCSet<CStr> m_Factors;
+			EAuthenticationFactorCategory m_Worst = EAuthenticationFactorCategory_None;
+		};
+
+		TCSet<CStr> AllFactors;
+		TCSet<CFulfillingFactors> FulfillingFactorSets;
+
+		for (auto const &Members : State.m_Fulfills)
+		{
+			auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
+			AllFactors += Factors;
+
+			if (Members.f_GetLen() == nRequirement) // Does the factor combination solve all the permission requirements?
+				FulfillingFactorSets[CFulfillingFactors{Factors, ActorInfo}];
+		}
+
+		// We have now found all fulfilling factors sets, sorted in smallest and least cumbersome order.
+		// We will use the order from these sets to minimize the number of needed authentications.
+		// Since we add the factor the factors in the set traversal order Password will come before U2F devices, and that is probably the way we want it.
+		//
+		// In the example we will first add A and B since that is a fulfilling set, and the add C, D, and E as a part of AllFactors.
+
+		TCVector<CStr> FactorOrder;
+
+		auto fAdd = [&FactorOrder](TCSet<CStr> const &_Factors)
+			{
+				for (auto const &Factor : _Factors)
+				{
+					for (auto const &AlreadyAdded : FactorOrder)
+					{
+						if (Factor == AlreadyAdded)
+							return;
+					}
+					FactorOrder.f_Insert(Factor);
+				}
+			}
+		;
+		for (auto const &Fulfilling : FulfillingFactorSets)
+			fAdd(Fulfilling.m_Factors);
+		fAdd(AllFactors);
+
+		if (mp_AuthenticationLifetime != CPermissionRequirements::mc_OverrideLifetimeNotSet)
+			State.m_ExpirationTime = NTime::CTime::fs_NowUTC() + NTime::CTimeSpanConvert::fs_CreateMinuteSpan(mp_AuthenticationLifetime);
+
+		for (auto &Factor : FactorOrder)
+		{
+			co_await fp_TryOneFactor(pState, Factor);
+
+			// Was this enough to authenticate all requirements?
+			TCSet<int32> Fulfilled;
+			for (auto &Members : State.m_Fulfills)
+			{
+				auto const &Factors = State.m_Fulfills.fs_GetKey(Members);
+				bool bAllSucceeded = true;
+				for (auto const &Factor : Factors)
+				{
+					auto pFactorState = State.m_FactorStates.f_FindEqual(Factor);
+					if (!pFactorState || !pFactorState->m_Tested || !(*pFactorState->m_Tested))
+					{
+						bAllSucceeded = false;
+						break;
+					}
+				}
+				if (bAllSucceeded)
+					Fulfilled += Members;
+			}
+			if (Fulfilled.f_GetLen() == State.m_nRequirements)
+				co_return fg_Move(pState->m_Responses);
+		}
+
+		co_return fg_Move(pState->m_Responses);
 	}
 
 	void CDistributedAppAuthenticationHandler::fp_RequestCollected(TCSharedPointer<CPreauthenticationInfo> const &_pInfo)
@@ -545,6 +529,8 @@ namespace NMib::NConcurrency
 				co_return DMibErrorInstance("Internal error - UserID mismatch between requests");
 		}
 
+		auto Future = Info.m_Promises[HostID].f_Future();
+
 		if (--Info.m_nHosts == 0)
 			fp_RequestCollected(pInfo);
 		else if (!Info.m_bTimerIsSet)
@@ -562,7 +548,8 @@ namespace NMib::NConcurrency
 			;
 		}
 
-		auto Future = fg_Exchange(pInfo, nullptr)->m_Promises[HostID].f_Future();
+		pInfo.f_Clear();
+
 		co_return co_await fg_Move(Future);
 	}
 

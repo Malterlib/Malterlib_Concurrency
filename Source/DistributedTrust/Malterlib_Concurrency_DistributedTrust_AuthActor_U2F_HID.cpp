@@ -95,7 +95,7 @@ namespace NMib::NConcurrency
 	TCFuture<TCVector<CHumanInterfaceDevicesActor::CDeviceInfo>> CHumanInterfaceDevicesActor::f_Enumerate(uint16 _VendorID, uint16 _ProductID)
 	{
 		if (auto pError = fp_CheckInit())
-			return fg_Move(pError);
+			co_return fg_Move(pError);
 
 		TCVector<CDeviceInfo> Result;
 		auto *pStartofEnumeration = hid_enumerate(_VendorID, _ProductID);
@@ -123,34 +123,35 @@ namespace NMib::NConcurrency
 				)
 			;
 		}
-		return fg_Move(Result);
+
+		co_return fg_Move(Result);
 	}
 
 	auto CHumanInterfaceDevicesActor::f_Open(uint16 _VendorID, uint16 _ProductID, NStr::CStr _SerialNumber) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
 		if (auto pError = fp_CheckInit())
-			return fg_Move(pError);
+			co_return fg_Move(pError);
 
 		auto SerialNumber = fg_ToHidAPIStr(_SerialNumber);
 		auto pDevice = hid_open(_VendorID, _ProductID, (wchar_t const *)(SerialNumber ? SerialNumber.f_GetStr() : nullptr));
 		if (!pDevice)
-			return DMibErrorInstanceHID("hid_open error");
+			co_return DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return fg_Move(DeviceActor);
+		co_return fg_Move(DeviceActor);
 	}
 
 	auto CHumanInterfaceDevicesActor::f_OpenPath(NStr::CStr _Path) -> TCFuture<TCActor<CHumanInterfaceDeviceActor>>
 	{
 		if (auto pError = fp_CheckInit())
-			return fg_Move(pError);
+			co_return fg_Move(pError);
 
 		auto pDevice = hid_open_path(_Path.f_GetStr());
 		if (!pDevice)
-			return DMibErrorInstanceHID("hid_open error");
+			co_return DMibErrorInstanceHID("hid_open error");
 
 		TCActor<CHumanInterfaceDeviceActor> DeviceActor = {fg_Construct(pDevice), fg_ThisActor(this)};
-		return fg_Move(DeviceActor);
+		co_return fg_Move(DeviceActor);
 	}
 
 	CHumanInterfaceDeviceActor::CHumanInterfaceDeviceActor(hid_device *_Device)
